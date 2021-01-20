@@ -1,0 +1,1328 @@
+﻿<?xml version="1.0" encoding="utf-8"?>
+<Project ToolsVersion="4.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup>
+    <Filter Include="Resource Files">
+      <UniqueIdentifier>{67DA6AB6-F800-4c08-8B7A-83BB121AAD01}</UniqueIdentifier>
+      <Extensions>rc;ico;cur;bmp;dlg;rc2;rct;bin;rgs;gif;jpg;jpeg;jpe;resx;tiff;tif;png;wav</Extensions>
+    </Filter>
+    <Filter Include="algorithms">
+      <UniqueIdentifier>{18442cd4-020f-40cf-b55e-59f5504ceaa6}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="containers">
+      <UniqueIdentifier>{c8ee4472-a6f6-4794-b83b-d27646edb0ed}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="db">
+      <UniqueIdentifier>{9975af79-78d2-46e4-b82c-1932c143b383}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="dimensionedTypes">
+      <UniqueIdentifier>{8a872e10-9edb-4077-9118-38732610098a}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="dimensionSet">
+      <UniqueIdentifier>{57a33f5d-bdb0-4fbc-a734-97782666410f}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="fields">
+      <UniqueIdentifier>{62736d42-3982-4d6b-bc73-e722a7038f3f}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="global">
+      <UniqueIdentifier>{b162b7b7-6a92-4d10-a47c-60fc44bd6898}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="graph">
+      <UniqueIdentifier>{e3e8bea6-d33a-48f9-a1c9-b67a0d2ac523}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="include">
+      <UniqueIdentifier>{93995380-89BD-4b04-88EB-625FBE52EBFB}</UniqueIdentifier>
+      <Extensions>h;hh;hpp;hxx;hm;inl;inc;xsd</Extensions>
+    </Filter>
+    <Filter Include="interpolations">
+      <UniqueIdentifier>{d6ce9be7-0bb9-4d57-bf04-06b6076979fb}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="matrices">
+      <UniqueIdentifier>{18dcfe4d-2f31-4ce6-b7ab-fb704be980c6}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="memory">
+      <UniqueIdentifier>{577a4408-9285-45ff-92e6-730cd2c7cbef}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="meshes">
+      <UniqueIdentifier>{94b328f4-5be7-4d9e-94b8-f0e767492336}</UniqueIdentifier>
+    </Filter>
+    <Filter Include="primitives">
+      <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
+      <Extensions>cpp;c;cc;cxx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
+    </Filter>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="db\tokenIO.C">
+      <Filter>db</Filter>
+    </ClCompile>
+    <ClCompile Include="db\UIPstream.C">
+      <Filter>db</Filter>
+    </ClCompile>
+    <ClCompile Include="db\unwatchedIOdictionary.C">
+      <Filter>db</Filter>
+    </ClCompile>
+    <ClCompile Include="db\UOPstream.C">
+      <Filter>db</Filter>
+    </ClCompile>
+    <ClCompile Include="db\UPstream.C">
+      <Filter>db</Filter>
+    </ClCompile>
+    <ClCompile Include="db\UPstreamCommsStruct.C">
+      <Filter>db</Filter>
+    </ClCompile>
+    <ClCompile Include="db\writeFile.C">
+      <Filter>db</Filter>
+    </ClCompile>
+    <ClCompile Include="db\writeLocalObjects.C">
+      <Filter>db</Filter>
+    </ClCompile>
+    <ClCompile Include="db\writeObjectsBase.C">
+      <Filter>db</Filter>
+    </ClCompile>
+    <ClCompile Include="db\baseIOdictionary.C">
+      <Filter>db</Filter>
+    </ClCompile>
+    <ClCompile Include="db\baseIOdictionaryIO.C">
+      <Filter>db</Filter>
+    </ClCompile>
+    <ClCompile Include="db\calcEntry.C">
+      <Filter>db</Filter>
+    </ClCompile>
+    <ClCompile Include="db\CallbackRegistryName.T.C">
+      <Filter>db</Filter>
+    </ClCompile>
+    <ClCompile Include="db\codedBase.C">
+      <Filter>db</Filter>
+    </ClCompile>
+    <ClCompile Include="db\codeStream.C">
+      <Filter>db</Filter>
+    </ClCompile>
+    <ClCompile Include="db\decomposedBlockData.C">
+      <Filter>db</Filter>
+    </ClCompile>
+    <ClCompile Include="db\dictionary.C">
+      <Filter>db</Filter>
+    </ClCompile>
+    <ClCompile Include="db\dictionaryEntry.C">
+      <Filter>db</Filter>
+    </ClCompile>
+    <ClCompile Include="db\dictionaryEntryIO.C">
+      <Filter>db</Filter>
+    </ClCompile>
+    <ClCompile Include="db\dictionaryIO.C">
+      <Filter>db</Filter>
+    </ClCompile>
+    <ClCompile Include="db\dictionaryListEntry.C">
+      <Filter>db</Filter>
+    </ClCompile>
+    <ClCompile Include="db\dictionaryListEntryIO.C">
+      <Filter>db</Filter>
+    </ClCompile>
+    <ClCompile Include="db\dlLibraryTable.C">
+      <Filter>db</Filter>
+    </ClCompile>
+    <ClCompile Include="db\dynamicCode.C">
+      <Filter>db</Filter>
+    </ClCompile>
+    <ClCompile Include="db\dynamicCodeContext.C">
+      <Filter>db</Filter>
+    </ClCompile>
+    <ClCompile Include="db\entry.C">
+      <Filter>db</Filter>
+    </ClCompile>
+    <ClCompile Include="db\entryIO.C">
+      <Filter>db</Filter>
+    </ClCompile>
+    <ClCompile Include="db\error.C">
+      <Filter>db</Filter>
+    </ClCompile>
+    <ClCompile Include="db\findInstance.C">
+      <Filter>db</Filter>
+    </ClCompile>
+    <ClCompile Include="db\findTimes.C">
+      <Filter>db</Filter>
+    </ClCompile>
+    <ClCompile Include="db\functionEntry.C">
+      <Filter>db</Filter>
+    </ClCompile>
+    <ClCompile Include="db\functionObject.C">
+      <Filter>db</Filter>
+    </ClCompile>
+    <ClCompile Include="db\functionObjectList.C">
+      <Filter>db</Filter>
+    </ClCompile>
+    <ClCompile Include="db\GlobalIOFields.T.C">
+      <Filter>db</Filter>
+    </ClCompile>
+    <ClCompile Include="db\globalIOLists.C">
+      <Filter>db</Filter>
+    </ClCompile>
+    <ClCompile Include="db\gzstream.C">
+      <Filter>db</Filter>
+    </ClCompile>
+    <ClCompile Include="db\IFstream.C">
+      <Filter>db</Filter>
+    </ClCompile>
+    <ClCompile Include="db\includeEntry.C">
+      <Filter>db</Filter>
+    </ClCompile>
+    <ClCompile Include="db\includeEtcEntry.C">
+      <Filter>db</Filter>
+    </ClCompile>
+    <ClCompile Include="db\includeFuncEntry.C">
+      <Filter>db</Filter>
+    </ClCompile>
+    <ClCompile Include="db\includeIfPresentEntry.C">
+      <Filter>db</Filter>
+    </ClCompile>
+    <ClCompile Include="db\inputModeEntry.C">
+      <Filter>db</Filter>
+    </ClCompile>
+    <ClCompile Include="db\instant.C">
+      <Filter>db</Filter>
+    </ClCompile>
+    <ClCompile Include="db\IOdictionary.C">
+      <Filter>db</Filter>
+    </ClCompile>
+    <ClCompile Include="db\IOdictionaryIO.C">
+      <Filter>db</Filter>
+    </ClCompile>
+    <ClCompile Include="db\IOerror.C">
+      <Filter>db</Filter>
+    </ClCompile>
+    <ClCompile Include="db\IOMapName.T.C">
+      <Filter>db</Filter>
+    </ClCompile>
+    <ClCompile Include="db\IOobject.T.C">
+      <Filter>db</Filter>
+    </ClCompile>
+    <ClCompile Include="db\IOobjectIO.T.C">
+      <Filter>db</Filter>
+    </ClCompile>
+    <ClCompile Include="db\IOobjectList.T.C">
+      <Filter>db</Filter>
+    </ClCompile>
+    <ClCompile Include="db\IOobjectReadHeader.T.C">
+      <Filter>db</Filter>
+    </ClCompile>
+    <ClCompile Include="db\IOobjectWriteHeader.T.C">
+      <Filter>db</Filter>
+    </ClCompile>
+    <ClCompile Include="db\IOstream.C">
+      <Filter>db</Filter>
+    </ClCompile>
+    <ClCompile Include="db\IOstreams.C">
+      <Filter>db</Filter>
+    </ClCompile>
+    <ClCompile Include="db\IPstream.C">
+      <Filter>db</Filter>
+    </ClCompile>
+    <ClCompile Include="db\ISstream.C">
+      <Filter>db</Filter>
+    </ClCompile>
+    <ClCompile Include="db\Istream.T.C">
+      <Filter>db</Filter>
+    </ClCompile>
+    <ClCompile Include="db\ITstream.C">
+      <Filter>db</Filter>
+    </ClCompile>
+    <ClCompile Include="db\localIOdictionary.C">
+      <Filter>db</Filter>
+    </ClCompile>
+    <ClCompile Include="db\logFiles.C">
+      <Filter>db</Filter>
+    </ClCompile>
+    <ClCompile Include="db\masterOFstream.C">
+      <Filter>db</Filter>
+    </ClCompile>
+    <ClCompile Include="db\messageStream.C">
+      <Filter>db</Filter>
+    </ClCompile>
+    <ClCompile Include="db\objectRegistry.C">
+      <Filter>db</Filter>
+    </ClCompile>
+    <ClCompile Include="db\OFstream.C">
+      <Filter>db</Filter>
+    </ClCompile>
+    <ClCompile Include="db\OPstream.C">
+      <Filter>db</Filter>
+    </ClCompile>
+    <ClCompile Include="db\OSstream.C">
+      <Filter>db</Filter>
+    </ClCompile>
+    <ClCompile Include="db\Ostream.C">
+      <Filter>db</Filter>
+    </ClCompile>
+    <ClCompile Include="db\prefixOSstream.C">
+      <Filter>db</Filter>
+    </ClCompile>
+    <ClCompile Include="db\primitiveEntry.C">
+      <Filter>db</Filter>
+    </ClCompile>
+    <ClCompile Include="db\primitiveEntryIO.C">
+      <Filter>db</Filter>
+    </ClCompile>
+    <ClCompile Include="db\Pstream.T.C">
+      <Filter>db</Filter>
+    </ClCompile>
+    <ClCompile Include="db\PstreamBuffers.T.C">
+      <Filter>db</Filter>
+    </ClCompile>
+    <ClCompile Include="db\readHexLabel.C">
+      <Filter>db</Filter>
+    </ClCompile>
+    <ClCompile Include="db\regionFunctionObject.C">
+      <Filter>db</Filter>
+    </ClCompile>
+    <ClCompile Include="db\regIOobject.C">
+      <Filter>db</Filter>
+    </ClCompile>
+    <ClCompile Include="db\regIOobjectRead.C">
+      <Filter>db</Filter>
+    </ClCompile>
+    <ClCompile Include="db\regIOobjectWrite.C">
+      <Filter>db</Filter>
+    </ClCompile>
+    <ClCompile Include="db\removeEntry.C">
+      <Filter>db</Filter>
+    </ClCompile>
+    <ClCompile Include="db\SstreamsPrint.C">
+      <Filter>db</Filter>
+    </ClCompile>
+    <ClCompile Include="db\StringStreamsPrint.C">
+      <Filter>db</Filter>
+    </ClCompile>
+    <ClCompile Include="db\subCycleTime.C">
+      <Filter>db</Filter>
+    </ClCompile>
+    <ClCompile Include="db\Time.T.C">
+      <Filter>db</Filter>
+    </ClCompile>
+    <ClCompile Include="db\timeControl.C">
+      <Filter>db</Filter>
+    </ClCompile>
+    <ClCompile Include="db\timeControlFunctionObject.C">
+      <Filter>db</Filter>
+    </ClCompile>
+    <ClCompile Include="db\TimeIO.T.C">
+      <Filter>db</Filter>
+    </ClCompile>
+    <ClCompile Include="db\TimePaths.T.C">
+      <Filter>db</Filter>
+    </ClCompile>
+    <ClCompile Include="db\timeSelector.C">
+      <Filter>db</Filter>
+    </ClCompile>
+    <ClCompile Include="db\TimeState.T.C">
+      <Filter>db</Filter>
+    </ClCompile>
+    <ClCompile Include="db\token.T.C">
+      <Filter>db</Filter>
+    </ClCompile>
+    <ClCompile Include="dimensionedTypes\dimensionedSymmTensor.C">
+      <Filter>dimensionedTypes</Filter>
+    </ClCompile>
+    <ClCompile Include="dimensionedTypes\dimensionedScalar.C">
+      <Filter>dimensionedTypes</Filter>
+    </ClCompile>
+    <ClCompile Include="dimensionedTypes\dimensionedSphericalTensor.C">
+      <Filter>dimensionedTypes</Filter>
+    </ClCompile>
+    <ClCompile Include="dimensionSet\dimensionSetIO.C">
+      <Filter>dimensionSet</Filter>
+    </ClCompile>
+    <ClCompile Include="dimensionSet\dimensionSets.C">
+      <Filter>dimensionSet</Filter>
+    </ClCompile>
+    <ClCompile Include="dimensionSet\dimensionSet.C">
+      <Filter>dimensionSet</Filter>
+    </ClCompile>
+    <ClCompile Include="graph\gnuplotGraph.C">
+      <Filter>graph</Filter>
+    </ClCompile>
+    <ClCompile Include="graph\graph.C">
+      <Filter>graph</Filter>
+    </ClCompile>
+    <ClCompile Include="graph\jplotGraph.C">
+      <Filter>graph</Filter>
+    </ClCompile>
+    <ClCompile Include="graph\rawGraph.C">
+      <Filter>graph</Filter>
+    </ClCompile>
+    <ClCompile Include="graph\xmgrGraph.C">
+      <Filter>graph</Filter>
+    </ClCompile>
+    <ClCompile Include="graph\curve.C">
+      <Filter>graph</Filter>
+    </ClCompile>
+    <ClCompile Include="graph\curveTools.C">
+      <Filter>graph</Filter>
+    </ClCompile>
+    <ClCompile Include="global\threadedCollatedOFstream.C">
+      <Filter>global</Filter>
+    </ClCompile>
+    <ClCompile Include="global\uncollatedFileOperation.C">
+      <Filter>global</Filter>
+    </ClCompile>
+    <ClCompile Include="global\universalConstants.C">
+      <Filter>global</Filter>
+    </ClCompile>
+    <ClCompile Include="global\argList.C">
+      <Filter>global</Filter>
+    </ClCompile>
+    <ClCompile Include="global\atomicConstants.C">
+      <Filter>global</Filter>
+    </ClCompile>
+    <ClCompile Include="global\clock.C">
+      <Filter>global</Filter>
+    </ClCompile>
+    <ClCompile Include="global\collatedFileOperation.C">
+      <Filter>global</Filter>
+    </ClCompile>
+    <ClCompile Include="global\constants.C">
+      <Filter>global</Filter>
+    </ClCompile>
+    <ClCompile Include="global\debug.T.C">
+      <Filter>global</Filter>
+    </ClCompile>
+    <ClCompile Include="global\dimensionedConstants.C">
+      <Filter>global</Filter>
+    </ClCompile>
+    <ClCompile Include="global\electromagneticConstants.C">
+      <Filter>global</Filter>
+    </ClCompile>
+    <ClCompile Include="global\etcFiles.C">
+      <Filter>global</Filter>
+    </ClCompile>
+    <ClCompile Include="global\fileOperation.C">
+      <Filter>global</Filter>
+    </ClCompile>
+    <ClCompile Include="global\fundamentalConstants.C">
+      <Filter>global</Filter>
+    </ClCompile>
+    <ClCompile Include="global\JobInfo.C">
+      <Filter>global</Filter>
+    </ClCompile>
+    <ClCompile Include="global\masterUncollatedFileOperation.C">
+      <Filter>global</Filter>
+    </ClCompile>
+    <ClCompile Include="global\new.C">
+      <Filter>global</Filter>
+    </ClCompile>
+    <ClCompile Include="global\OFstreamCollator.C">
+      <Filter>global</Filter>
+    </ClCompile>
+    <ClCompile Include="global\physicoChemicalConstants.C">
+      <Filter>global</Filter>
+    </ClCompile>
+    <ClCompile Include="global\thermodynamicConstants.C">
+      <Filter>global</Filter>
+    </ClCompile>
+    <ClCompile Include="matrices\tolerances.C">
+      <Filter>matrices</Filter>
+    </ClCompile>
+    <ClCompile Include="matrices\algebraicPairGAMGAgglomeration.C">
+      <Filter>matrices</Filter>
+    </ClCompile>
+    <ClCompile Include="matrices\cyclicGAMGInterface.C">
+      <Filter>matrices</Filter>
+    </ClCompile>
+    <ClCompile Include="matrices\cyclicGAMGInterfaceField.C">
+      <Filter>matrices</Filter>
+    </ClCompile>
+    <ClCompile Include="matrices\cyclicLduInterface.C">
+      <Filter>matrices</Filter>
+    </ClCompile>
+    <ClCompile Include="matrices\cyclicLduInterfaceField.C">
+      <Filter>matrices</Filter>
+    </ClCompile>
+    <ClCompile Include="matrices\diagonalPreconditioner.C">
+      <Filter>matrices</Filter>
+    </ClCompile>
+    <ClCompile Include="matrices\diagonalSolver.C">
+      <Filter>matrices</Filter>
+    </ClCompile>
+    <ClCompile Include="matrices\DICGaussSeidelSmoother.C">
+      <Filter>matrices</Filter>
+    </ClCompile>
+    <ClCompile Include="matrices\DICPreconditioner.C">
+      <Filter>matrices</Filter>
+    </ClCompile>
+    <ClCompile Include="matrices\DICSmoother.C">
+      <Filter>matrices</Filter>
+    </ClCompile>
+    <ClCompile Include="matrices\DILUGaussSeidelSmoother.C">
+      <Filter>matrices</Filter>
+    </ClCompile>
+    <ClCompile Include="matrices\DILUPreconditioner.C">
+      <Filter>matrices</Filter>
+    </ClCompile>
+    <ClCompile Include="matrices\DILUSmoother.C">
+      <Filter>matrices</Filter>
+    </ClCompile>
+    <ClCompile Include="matrices\dummyAgglomeration.C">
+      <Filter>matrices</Filter>
+    </ClCompile>
+    <ClCompile Include="matrices\eagerGAMGProcAgglomeration.C">
+      <Filter>matrices</Filter>
+    </ClCompile>
+    <ClCompile Include="matrices\FDICPreconditioner.C">
+      <Filter>matrices</Filter>
+    </ClCompile>
+    <ClCompile Include="matrices\FDICSmoother.C">
+      <Filter>matrices</Filter>
+    </ClCompile>
+    <ClCompile Include="matrices\GAMGAgglomerateLduAddressing.C">
+      <Filter>matrices</Filter>
+    </ClCompile>
+    <ClCompile Include="matrices\GAMGAgglomeration.T.C">
+      <Filter>matrices</Filter>
+    </ClCompile>
+    <ClCompile Include="matrices\GAMGInterface.T.C">
+      <Filter>matrices</Filter>
+    </ClCompile>
+    <ClCompile Include="matrices\GAMGInterfaceField.T.C">
+      <Filter>matrices</Filter>
+    </ClCompile>
+    <ClCompile Include="matrices\GAMGInterfaceFieldNew.T.C">
+      <Filter>matrices</Filter>
+    </ClCompile>
+    <ClCompile Include="matrices\GAMGInterfaceNew.T.C">
+      <Filter>matrices</Filter>
+    </ClCompile>
+    <ClCompile Include="matrices\GAMGPreconditioner.C">
+      <Filter>matrices</Filter>
+    </ClCompile>
+    <ClCompile Include="matrices\GAMGProcAgglomeration.C">
+      <Filter>matrices</Filter>
+    </ClCompile>
+    <ClCompile Include="matrices\GAMGSolver.C">
+      <Filter>matrices</Filter>
+    </ClCompile>
+    <ClCompile Include="matrices\GAMGSolverAgglomerateMatrix.C">
+      <Filter>matrices</Filter>
+    </ClCompile>
+    <ClCompile Include="matrices\GAMGSolverInterpolate.C">
+      <Filter>matrices</Filter>
+    </ClCompile>
+    <ClCompile Include="matrices\GAMGSolverScale.C">
+      <Filter>matrices</Filter>
+    </ClCompile>
+    <ClCompile Include="matrices\GAMGSolverSolve.C">
+      <Filter>matrices</Filter>
+    </ClCompile>
+    <ClCompile Include="matrices\GaussSeidelSmoother.C">
+      <Filter>matrices</Filter>
+    </ClCompile>
+    <ClCompile Include="matrices\lduAddressing.C">
+      <Filter>matrices</Filter>
+    </ClCompile>
+    <ClCompile Include="matrices\lduInterface.C">
+      <Filter>matrices</Filter>
+    </ClCompile>
+    <ClCompile Include="matrices\lduInterfaceField.C">
+      <Filter>matrices</Filter>
+    </ClCompile>
+    <ClCompile Include="matrices\LduInterfaceFields.T.C">
+      <Filter>matrices</Filter>
+    </ClCompile>
+    <ClCompile Include="matrices\lduMatrices.C">
+      <Filter>matrices</Filter>
+    </ClCompile>
+    <ClCompile Include="matrices\lduMatrix.C">
+      <Filter>matrices</Filter>
+    </ClCompile>
+    <ClCompile Include="matrices\lduMatrixATmul.C">
+      <Filter>matrices</Filter>
+    </ClCompile>
+    <ClCompile Include="matrices\lduMatrixOperations.C">
+      <Filter>matrices</Filter>
+    </ClCompile>
+    <ClCompile Include="matrices\lduMatrixPreconditioner.C">
+      <Filter>matrices</Filter>
+    </ClCompile>
+    <ClCompile Include="matrices\lduMatrixSmoother.C">
+      <Filter>matrices</Filter>
+    </ClCompile>
+    <ClCompile Include="matrices\lduMatrixSolver.C">
+      <Filter>matrices</Filter>
+    </ClCompile>
+    <ClCompile Include="matrices\lduMatrixUpdateMatrixInterfaces.C">
+      <Filter>matrices</Filter>
+    </ClCompile>
+    <ClCompile Include="matrices\lduPreconditioners.C">
+      <Filter>matrices</Filter>
+    </ClCompile>
+    <ClCompile Include="matrices\lduSmoothers.C">
+      <Filter>matrices</Filter>
+    </ClCompile>
+    <ClCompile Include="matrices\lduSolvers.C">
+      <Filter>matrices</Filter>
+    </ClCompile>
+    <ClCompile Include="matrices\LUscalarMatrix.T.C">
+      <Filter>matrices</Filter>
+    </ClCompile>
+    <ClCompile Include="matrices\manualGAMGProcAgglomeration.C">
+      <Filter>matrices</Filter>
+    </ClCompile>
+    <ClCompile Include="matrices\masterCoarsestGAMGProcAgglomeration.C">
+      <Filter>matrices</Filter>
+    </ClCompile>
+    <ClCompile Include="matrices\nonBlockingGaussSeidelSmoother.C">
+      <Filter>matrices</Filter>
+    </ClCompile>
+    <ClCompile Include="matrices\noneGAMGProcAgglomeration.C">
+      <Filter>matrices</Filter>
+    </ClCompile>
+    <ClCompile Include="matrices\noPreconditioner.C">
+      <Filter>matrices</Filter>
+    </ClCompile>
+    <ClCompile Include="matrices\pairGAMGAgglomerate.C">
+      <Filter>matrices</Filter>
+    </ClCompile>
+    <ClCompile Include="matrices\pairGAMGAgglomeration.C">
+      <Filter>matrices</Filter>
+    </ClCompile>
+    <ClCompile Include="matrices\PBiCG.C">
+      <Filter>matrices</Filter>
+    </ClCompile>
+    <ClCompile Include="matrices\PBiCGStab.C">
+      <Filter>matrices</Filter>
+    </ClCompile>
+    <ClCompile Include="matrices\PCG.C">
+      <Filter>matrices</Filter>
+    </ClCompile>
+    <ClCompile Include="matrices\processorCyclicGAMGInterface.C">
+      <Filter>matrices</Filter>
+    </ClCompile>
+    <ClCompile Include="matrices\processorCyclicGAMGInterfaceField.C">
+      <Filter>matrices</Filter>
+    </ClCompile>
+    <ClCompile Include="matrices\processorGAMGInterface.C">
+      <Filter>matrices</Filter>
+    </ClCompile>
+    <ClCompile Include="matrices\processorGAMGInterfaceField.C">
+      <Filter>matrices</Filter>
+    </ClCompile>
+    <ClCompile Include="matrices\processorLduInterface.C">
+      <Filter>matrices</Filter>
+    </ClCompile>
+    <ClCompile Include="matrices\processorLduInterfaceField.C">
+      <Filter>matrices</Filter>
+    </ClCompile>
+    <ClCompile Include="matrices\procFacesGAMGProcAgglomeration.C">
+      <Filter>matrices</Filter>
+    </ClCompile>
+    <ClCompile Include="matrices\procLduInterface.C">
+      <Filter>matrices</Filter>
+    </ClCompile>
+    <ClCompile Include="matrices\procLduMatrix.C">
+      <Filter>matrices</Filter>
+    </ClCompile>
+    <ClCompile Include="matrices\scalarMatrices.C">
+      <Filter>matrices</Filter>
+    </ClCompile>
+    <ClCompile Include="matrices\smoothSolver.C">
+      <Filter>matrices</Filter>
+    </ClCompile>
+    <ClCompile Include="matrices\solution.C">
+      <Filter>matrices</Filter>
+    </ClCompile>
+    <ClCompile Include="matrices\solverPerformance.C">
+      <Filter>matrices</Filter>
+    </ClCompile>
+    <ClCompile Include="matrices\SVD.C">
+      <Filter>matrices</Filter>
+    </ClCompile>
+    <ClCompile Include="matrices\symGaussSeidelSmoother.C">
+      <Filter>matrices</Filter>
+    </ClCompile>
+    <ClCompile Include="meshes\zone.C">
+      <Filter>meshes</Filter>
+    </ClCompile>
+    <ClCompile Include="meshes\bandCompression.C">
+      <Filter>meshes</Filter>
+    </ClCompile>
+    <ClCompile Include="meshes\boundBox.C">
+      <Filter>meshes</Filter>
+    </ClCompile>
+    <ClCompile Include="meshes\cell.C">
+      <Filter>meshes</Filter>
+    </ClCompile>
+    <ClCompile Include="meshes\cellIOList.C">
+      <Filter>meshes</Filter>
+    </ClCompile>
+    <ClCompile Include="meshes\cellMapper.C">
+      <Filter>meshes</Filter>
+    </ClCompile>
+    <ClCompile Include="meshes\cellMatcher.C">
+      <Filter>meshes</Filter>
+    </ClCompile>
+    <ClCompile Include="meshes\cellModel.C">
+      <Filter>meshes</Filter>
+    </ClCompile>
+    <ClCompile Include="meshes\cellModelIO.C">
+      <Filter>meshes</Filter>
+    </ClCompile>
+    <ClCompile Include="meshes\cellModeller.C">
+      <Filter>meshes</Filter>
+    </ClCompile>
+    <ClCompile Include="meshes\cellShape.C">
+      <Filter>meshes</Filter>
+    </ClCompile>
+    <ClCompile Include="meshes\cellShapeEqual.C">
+      <Filter>meshes</Filter>
+    </ClCompile>
+    <ClCompile Include="meshes\cellShapeIO.C">
+      <Filter>meshes</Filter>
+    </ClCompile>
+    <ClCompile Include="meshes\cellShapeIOList.C">
+      <Filter>meshes</Filter>
+    </ClCompile>
+    <ClCompile Include="meshes\cellZone.C">
+      <Filter>meshes</Filter>
+    </ClCompile>
+    <ClCompile Include="meshes\cellZoneNew.C">
+      <Filter>meshes</Filter>
+    </ClCompile>
+    <ClCompile Include="meshes\commSchedule.C">
+      <Filter>meshes</Filter>
+    </ClCompile>
+    <ClCompile Include="meshes\coupledFacePointPatch.C">
+      <Filter>meshes</Filter>
+    </ClCompile>
+    <ClCompile Include="meshes\coupledPointPatch.C">
+      <Filter>meshes</Filter>
+    </ClCompile>
+    <ClCompile Include="meshes\coupledPolyPatch.C">
+      <Filter>meshes</Filter>
+    </ClCompile>
+    <ClCompile Include="meshes\coupleGroupIdentifier.C">
+      <Filter>meshes</Filter>
+    </ClCompile>
+    <ClCompile Include="meshes\cyclicPointPatch.C">
+      <Filter>meshes</Filter>
+    </ClCompile>
+    <ClCompile Include="meshes\cyclicPolyPatch.C">
+      <Filter>meshes</Filter>
+    </ClCompile>
+    <ClCompile Include="meshes\cyclicSlipPointPatch.C">
+      <Filter>meshes</Filter>
+    </ClCompile>
+    <ClCompile Include="meshes\cyclicSlipPolyPatch.C">
+      <Filter>meshes</Filter>
+    </ClCompile>
+    <ClCompile Include="meshes\data.C">
+      <Filter>meshes</Filter>
+    </ClCompile>
+    <ClCompile Include="meshes\degenerateMatcher.C">
+      <Filter>meshes</Filter>
+    </ClCompile>
+    <ClCompile Include="meshes\edge.C">
+      <Filter>meshes</Filter>
+    </ClCompile>
+    <ClCompile Include="meshes\edgeIOList.C">
+      <Filter>meshes</Filter>
+    </ClCompile>
+    <ClCompile Include="meshes\emptyPointPatch.C">
+      <Filter>meshes</Filter>
+    </ClCompile>
+    <ClCompile Include="meshes\emptyPolyPatch.C">
+      <Filter>meshes</Filter>
+    </ClCompile>
+    <ClCompile Include="meshes\face.C">
+      <Filter>meshes</Filter>
+    </ClCompile>
+    <ClCompile Include="meshes\faceAreaInContact.C">
+      <Filter>meshes</Filter>
+    </ClCompile>
+    <ClCompile Include="meshes\faceContactSphere.C">
+      <Filter>meshes</Filter>
+    </ClCompile>
+    <ClCompile Include="meshes\faceIntersection.C">
+      <Filter>meshes</Filter>
+    </ClCompile>
+    <ClCompile Include="meshes\faceIOList.C">
+      <Filter>meshes</Filter>
+    </ClCompile>
+    <ClCompile Include="meshes\faceMapper.C">
+      <Filter>meshes</Filter>
+    </ClCompile>
+    <ClCompile Include="meshes\facePointPatch.C">
+      <Filter>meshes</Filter>
+    </ClCompile>
+    <ClCompile Include="meshes\facePointPatchNew.C">
+      <Filter>meshes</Filter>
+    </ClCompile>
+    <ClCompile Include="meshes\faceZone.C">
+      <Filter>meshes</Filter>
+    </ClCompile>
+    <ClCompile Include="meshes\faceZoneNew.C">
+      <Filter>meshes</Filter>
+    </ClCompile>
+    <ClCompile Include="meshes\genericPointPatch.C">
+      <Filter>meshes</Filter>
+    </ClCompile>
+    <ClCompile Include="meshes\genericPolyPatch.C">
+      <Filter>meshes</Filter>
+    </ClCompile>
+    <ClCompile Include="meshes\globalCellModeller.C">
+      <Filter>meshes</Filter>
+    </ClCompile>
+    <ClCompile Include="meshes\globalIndex.C">
+      <Filter>meshes</Filter>
+    </ClCompile>
+    <ClCompile Include="meshes\globalMeshData.C">
+      <Filter>meshes</Filter>
+    </ClCompile>
+    <ClCompile Include="meshes\globalPoints.C">
+      <Filter>meshes</Filter>
+    </ClCompile>
+    <ClCompile Include="meshes\hexMatcher.C">
+      <Filter>meshes</Filter>
+    </ClCompile>
+    <ClCompile Include="meshes\intersection.C">
+      <Filter>meshes</Filter>
+    </ClCompile>
+    <ClCompile Include="meshes\IOmapDistribute.C">
+      <Filter>meshes</Filter>
+    </ClCompile>
+    <ClCompile Include="meshes\lduMesh.C">
+      <Filter>meshes</Filter>
+    </ClCompile>
+    <ClCompile Include="meshes\lduPrimitiveMesh.C">
+      <Filter>meshes</Filter>
+    </ClCompile>
+    <ClCompile Include="meshes\line.C">
+      <Filter>meshes</Filter>
+    </ClCompile>
+    <ClCompile Include="meshes\mapAddedPolyMesh.C">
+      <Filter>meshes</Filter>
+    </ClCompile>
+    <ClCompile Include="meshes\mapDistribute.C">
+      <Filter>meshes</Filter>
+    </ClCompile>
+    <ClCompile Include="meshes\mapDistributeBase.C">
+      <Filter>meshes</Filter>
+    </ClCompile>
+    <ClCompile Include="meshes\mapDistributePolyMesh.C">
+      <Filter>meshes</Filter>
+    </ClCompile>
+    <ClCompile Include="meshes\mapPolyMesh.C">
+      <Filter>meshes</Filter>
+    </ClCompile>
+    <ClCompile Include="meshes\matchPoints.C">
+      <Filter>meshes</Filter>
+    </ClCompile>
+    <ClCompile Include="meshes\meshObject.C">
+      <Filter>meshes</Filter>
+    </ClCompile>
+    <ClCompile Include="meshes\nonuniformTransformCyclicPointPatch.C">
+      <Filter>meshes</Filter>
+    </ClCompile>
+    <ClCompile Include="meshes\nonuniformTransformCyclicPolyPatch.C">
+      <Filter>meshes</Filter>
+    </ClCompile>
+    <ClCompile Include="meshes\oldCyclicPolyPatch.C">
+      <Filter>meshes</Filter>
+    </ClCompile>
+    <ClCompile Include="meshes\oppositeCellFace.C">
+      <Filter>meshes</Filter>
+    </ClCompile>
+    <ClCompile Include="meshes\patchIdentifier.C">
+      <Filter>meshes</Filter>
+    </ClCompile>
+    <ClCompile Include="meshes\patchZones.C">
+      <Filter>meshes</Filter>
+    </ClCompile>
+    <ClCompile Include="meshes\plane.C">
+      <Filter>meshes</Filter>
+    </ClCompile>
+    <ClCompile Include="meshes\pointBoundaryMesh.C">
+      <Filter>meshes</Filter>
+    </ClCompile>
+    <ClCompile Include="meshes\pointIndexHitIOList.C">
+      <Filter>meshes</Filter>
+    </ClCompile>
+    <ClCompile Include="meshes\pointMapper.C">
+      <Filter>meshes</Filter>
+    </ClCompile>
+    <ClCompile Include="meshes\pointMesh.C">
+      <Filter>meshes</Filter>
+    </ClCompile>
+    <ClCompile Include="meshes\pointPatch.C">
+      <Filter>meshes</Filter>
+    </ClCompile>
+    <ClCompile Include="meshes\pointPatchMapper.C">
+      <Filter>meshes</Filter>
+    </ClCompile>
+    <ClCompile Include="meshes\pointZone.C">
+      <Filter>meshes</Filter>
+    </ClCompile>
+    <ClCompile Include="meshes\pointZoneNew.C">
+      <Filter>meshes</Filter>
+    </ClCompile>
+    <ClCompile Include="meshes\polyBoundaryMesh.C">
+      <Filter>meshes</Filter>
+    </ClCompile>
+    <ClCompile Include="meshes\polyBoundaryMeshEntries.C">
+      <Filter>meshes</Filter>
+    </ClCompile>
+    <ClCompile Include="meshes\polyMesh.C">
+      <Filter>meshes</Filter>
+    </ClCompile>
+    <ClCompile Include="meshes\polyMeshCheck.C">
+      <Filter>meshes</Filter>
+    </ClCompile>
+    <ClCompile Include="meshes\polyMeshClear.C">
+      <Filter>meshes</Filter>
+    </ClCompile>
+    <ClCompile Include="meshes\polyMeshFromShapeMesh.C">
+      <Filter>meshes</Filter>
+    </ClCompile>
+    <ClCompile Include="meshes\polyMeshInitMesh.C">
+      <Filter>meshes</Filter>
+    </ClCompile>
+    <ClCompile Include="meshes\polyMeshIO.C">
+      <Filter>meshes</Filter>
+    </ClCompile>
+    <ClCompile Include="meshes\polyMeshTetDecomposition.C">
+      <Filter>meshes</Filter>
+    </ClCompile>
+    <ClCompile Include="meshes\polyMeshTools.C">
+      <Filter>meshes</Filter>
+    </ClCompile>
+    <ClCompile Include="meshes\polyMeshUpdate.C">
+      <Filter>meshes</Filter>
+    </ClCompile>
+    <ClCompile Include="meshes\polyPatch.C">
+      <Filter>meshes</Filter>
+    </ClCompile>
+    <ClCompile Include="meshes\polyPatchNew.C">
+      <Filter>meshes</Filter>
+    </ClCompile>
+    <ClCompile Include="meshes\preservePatchTypes.C">
+      <Filter>meshes</Filter>
+    </ClCompile>
+    <ClCompile Include="meshes\primitiveMesh.C">
+      <Filter>meshes</Filter>
+    </ClCompile>
+    <ClCompile Include="meshes\primitiveMeshCalcCellShapes.C">
+      <Filter>meshes</Filter>
+    </ClCompile>
+    <ClCompile Include="meshes\primitiveMeshCellCells.C">
+      <Filter>meshes</Filter>
+    </ClCompile>
+    <ClCompile Include="meshes\primitiveMeshCellCentresAndVols.C">
+      <Filter>meshes</Filter>
+    </ClCompile>
+    <ClCompile Include="meshes\primitiveMeshCellEdges.C">
+      <Filter>meshes</Filter>
+    </ClCompile>
+    <ClCompile Include="meshes\primitiveMeshCellPoints.C">
+      <Filter>meshes</Filter>
+    </ClCompile>
+    <ClCompile Include="meshes\primitiveMeshCells.C">
+      <Filter>meshes</Filter>
+    </ClCompile>
+    <ClCompile Include="meshes\primitiveMeshCheck.C">
+      <Filter>meshes</Filter>
+    </ClCompile>
+    <ClCompile Include="meshes\primitiveMeshCheckEdgeLength.C">
+      <Filter>meshes</Filter>
+    </ClCompile>
+    <ClCompile Include="meshes\primitiveMeshCheckPointNearness.C">
+      <Filter>meshes</Filter>
+    </ClCompile>
+    <ClCompile Include="meshes\primitiveMeshClear.C">
+      <Filter>meshes</Filter>
+    </ClCompile>
+    <ClCompile Include="meshes\primitiveMeshEdgeCells.C">
+      <Filter>meshes</Filter>
+    </ClCompile>
+    <ClCompile Include="meshes\primitiveMeshEdgeFaces.C">
+      <Filter>meshes</Filter>
+    </ClCompile>
+    <ClCompile Include="meshes\primitiveMeshEdges.C">
+      <Filter>meshes</Filter>
+    </ClCompile>
+    <ClCompile Include="meshes\primitiveMeshFaceCentresAndAreas.C">
+      <Filter>meshes</Filter>
+    </ClCompile>
+    <ClCompile Include="meshes\primitiveMeshFindCell.C">
+      <Filter>meshes</Filter>
+    </ClCompile>
+    <ClCompile Include="meshes\primitiveMeshPointCells.C">
+      <Filter>meshes</Filter>
+    </ClCompile>
+    <ClCompile Include="meshes\primitiveMeshPointFaces.C">
+      <Filter>meshes</Filter>
+    </ClCompile>
+    <ClCompile Include="meshes\primitiveMeshPointPoints.C">
+      <Filter>meshes</Filter>
+    </ClCompile>
+    <ClCompile Include="meshes\primitiveMeshTools.C">
+      <Filter>meshes</Filter>
+    </ClCompile>
+    <ClCompile Include="meshes\PrimitivePatchName.T.C">
+      <Filter>meshes</Filter>
+    </ClCompile>
+    <ClCompile Include="meshes\prismMatcher.C">
+      <Filter>meshes</Filter>
+    </ClCompile>
+    <ClCompile Include="meshes\processorCyclicPointPatch.C">
+      <Filter>meshes</Filter>
+    </ClCompile>
+    <ClCompile Include="meshes\processorCyclicPolyPatch.C">
+      <Filter>meshes</Filter>
+    </ClCompile>
+    <ClCompile Include="meshes\processorPointPatch.C">
+      <Filter>meshes</Filter>
+    </ClCompile>
+    <ClCompile Include="meshes\processorPolyPatch.C">
+      <Filter>meshes</Filter>
+    </ClCompile>
+    <ClCompile Include="meshes\pyrMatcher.C">
+      <Filter>meshes</Filter>
+    </ClCompile>
+    <ClCompile Include="meshes\symmetryPlanePointPatch.C">
+      <Filter>meshes</Filter>
+    </ClCompile>
+    <ClCompile Include="meshes\symmetryPlanePolyPatch.C">
+      <Filter>meshes</Filter>
+    </ClCompile>
+    <ClCompile Include="meshes\symmetryPointPatch.C">
+      <Filter>meshes</Filter>
+    </ClCompile>
+    <ClCompile Include="meshes\symmetryPolyPatch.C">
+      <Filter>meshes</Filter>
+    </ClCompile>
+    <ClCompile Include="meshes\syncTools.C">
+      <Filter>meshes</Filter>
+    </ClCompile>
+    <ClCompile Include="meshes\tetCell.C">
+      <Filter>meshes</Filter>
+    </ClCompile>
+    <ClCompile Include="meshes\tetIndices.C">
+      <Filter>meshes</Filter>
+    </ClCompile>
+    <ClCompile Include="meshes\tetMatcher.C">
+      <Filter>meshes</Filter>
+    </ClCompile>
+    <ClCompile Include="meshes\tetWedgeMatcher.C">
+      <Filter>meshes</Filter>
+    </ClCompile>
+    <ClCompile Include="meshes\treeBoundBox.C">
+      <Filter>meshes</Filter>
+    </ClCompile>
+    <ClCompile Include="meshes\walkPatch.C">
+      <Filter>meshes</Filter>
+    </ClCompile>
+    <ClCompile Include="meshes\wallPointPatch.C">
+      <Filter>meshes</Filter>
+    </ClCompile>
+    <ClCompile Include="meshes\wallPolyPatch.C">
+      <Filter>meshes</Filter>
+    </ClCompile>
+    <ClCompile Include="meshes\wedgeMatcher.C">
+      <Filter>meshes</Filter>
+    </ClCompile>
+    <ClCompile Include="meshes\wedgePointPatch.C">
+      <Filter>meshes</Filter>
+    </ClCompile>
+    <ClCompile Include="meshes\wedgePolyPatch.C">
+      <Filter>meshes</Filter>
+    </ClCompile>
+    <ClCompile Include="primitives\barycentric.C">
+      <Filter>primitives</Filter>
+    </ClCompile>
+    <ClCompile Include="primitives\barycentric2D.C">
+      <Filter>primitives</Filter>
+    </ClCompile>
+    <ClCompile Include="primitives\bool.C">
+      <Filter>primitives</Filter>
+    </ClCompile>
+    <ClCompile Include="primitives\boolIO.C">
+      <Filter>primitives</Filter>
+    </ClCompile>
+    <ClCompile Include="primitives\boolList.C">
+      <Filter>primitives</Filter>
+    </ClCompile>
+    <ClCompile Include="primitives\cachedRandom.C">
+      <Filter>primitives</Filter>
+    </ClCompile>
+    <ClCompile Include="primitives\charIO.C">
+      <Filter>primitives</Filter>
+    </ClCompile>
+    <ClCompile Include="primitives\compactSpatialTensor.C">
+      <Filter>primitives</Filter>
+    </ClCompile>
+    <ClCompile Include="primitives\complex.C">
+      <Filter>primitives</Filter>
+    </ClCompile>
+    <ClCompile Include="primitives\complexVector.C">
+      <Filter>primitives</Filter>
+    </ClCompile>
+    <ClCompile Include="primitives\cubicEqn.C">
+      <Filter>primitives</Filter>
+    </ClCompile>
+    <ClCompile Include="primitives\diagTensor.C">
+      <Filter>primitives</Filter>
+    </ClCompile>
+    <ClCompile Include="primitives\directionIO.C">
+      <Filter>primitives</Filter>
+    </ClCompile>
+    <ClCompile Include="primitives\fileName.C">
+      <Filter>primitives</Filter>
+    </ClCompile>
+    <ClCompile Include="primitives\fileNameIO.C">
+      <Filter>primitives</Filter>
+    </ClCompile>
+    <ClCompile Include="primitives\flipOp.C">
+      <Filter>primitives</Filter>
+    </ClCompile>
+    <ClCompile Include="primitives\floatTensor.C">
+      <Filter>primitives</Filter>
+    </ClCompile>
+    <ClCompile Include="primitives\floatVector.C">
+      <Filter>primitives</Filter>
+    </ClCompile>
+    <ClCompile Include="primitives\globalIndexAndTransform.C">
+      <Filter>primitives</Filter>
+    </ClCompile>
+    <ClCompile Include="primitives\halfCosineRamp.C">
+      <Filter>primitives</Filter>
+    </ClCompile>
+    <ClCompile Include="primitives\hashedWordList.C">
+      <Filter>primitives</Filter>
+    </ClCompile>
+    <ClCompile Include="primitives\Hasher.T.C">
+      <Filter>primitives</Filter>
+    </ClCompile>
+    <ClCompile Include="primitives\int32.C">
+      <Filter>primitives</Filter>
+    </ClCompile>
+    <ClCompile Include="primitives\int32IO.C">
+      <Filter>primitives</Filter>
+    </ClCompile>
+    <ClCompile Include="primitives\int64.C">
+      <Filter>primitives</Filter>
+    </ClCompile>
+    <ClCompile Include="primitives\int64IO.C">
+      <Filter>primitives</Filter>
+    </ClCompile>
+    <ClCompile Include="primitives\intIO.C">
+      <Filter>primitives</Filter>
+    </ClCompile>
+    <ClCompile Include="primitives\invIncGamma.C">
+      <Filter>primitives</Filter>
+    </ClCompile>
+    <ClCompile Include="primitives\keyType.C">
+      <Filter>primitives</Filter>
+    </ClCompile>
+    <ClCompile Include="primitives\label.C">
+      <Filter>primitives</Filter>
+    </ClCompile>
+    <ClCompile Include="primitives\labelIOList.C">
+      <Filter>primitives</Filter>
+    </ClCompile>
+    <ClCompile Include="primitives\labelListIOList.C">
+      <Filter>primitives</Filter>
+    </ClCompile>
+    <ClCompile Include="primitives\labelRange.C">
+      <Filter>primitives</Filter>
+    </ClCompile>
+    <ClCompile Include="primitives\labelRanges.C">
+      <Filter>primitives</Filter>
+    </ClCompile>
+    <ClCompile Include="primitives\labelSphericalTensor.C">
+      <Filter>primitives</Filter>
+    </ClCompile>
+    <ClCompile Include="primitives\labelSymmTensor.C">
+      <Filter>primitives</Filter>
+    </ClCompile>
+    <ClCompile Include="primitives\labelTensor.C">
+      <Filter>primitives</Filter>
+    </ClCompile>
+    <ClCompile Include="primitives\labelVector.C">
+      <Filter>primitives</Filter>
+    </ClCompile>
+    <ClCompile Include="primitives\linearRamp.C">
+      <Filter>primitives</Filter>
+    </ClCompile>
+    <ClCompile Include="primitives\makeDataEntries.C">
+      <Filter>primitives</Filter>
+    </ClCompile>
+    <ClCompile Include="primitives\nullObject.C">
+      <Filter>primitives</Filter>
+    </ClCompile>
+    <ClCompile Include="primitives\polynomialFunction.C">
+      <Filter>primitives</Filter>
+    </ClCompile>
+    <ClCompile Include="primitives\quadraticEqn.C">
+      <Filter>primitives</Filter>
+    </ClCompile>
+    <ClCompile Include="primitives\quadraticRamp.C">
+      <Filter>primitives</Filter>
+    </ClCompile>
+    <ClCompile Include="primitives\quarterCosineRamp.C">
+      <Filter>primitives</Filter>
+    </ClCompile>
+    <ClCompile Include="primitives\quarterSineRamp.C">
+      <Filter>primitives</Filter>
+    </ClCompile>
+    <ClCompile Include="primitives\quaternion.C">
+      <Filter>primitives</Filter>
+    </ClCompile>
+    <ClCompile Include="primitives\ramp.C">
+      <Filter>primitives</Filter>
+    </ClCompile>
+    <ClCompile Include="primitives\Random.C">
+      <Filter>primitives</Filter>
+    </ClCompile>
+    <ClCompile Include="primitives\scalar.C">
+      <Filter>primitives</Filter>
+    </ClCompile>
+    <ClCompile Include="primitives\scalarIOList.C">
+      <Filter>primitives</Filter>
+    </ClCompile>
+    <ClCompile Include="primitives\scalarList.C">
+      <Filter>primitives</Filter>
+    </ClCompile>
+    <ClCompile Include="primitives\scalarListIOList.C">
+      <Filter>primitives</Filter>
+    </ClCompile>
+    <ClCompile Include="primitives\scalarRange.C">
+      <Filter>primitives</Filter>
+    </ClCompile>
+    <ClCompile Include="primitives\scalarRanges.C">
+      <Filter>primitives</Filter>
+    </ClCompile>
+    <ClCompile Include="primitives\septernion.C">
+      <Filter>primitives</Filter>
+    </ClCompile>
+    <ClCompile Include="primitives\SHA1.C">
+      <Filter>primitives</Filter>
+    </ClCompile>
+    <ClCompile Include="primitives\SHA1Digest.C">
+      <Filter>primitives</Filter>
+    </ClCompile>
+    <ClCompile Include="primitives\spatialTensor.C">
+      <Filter>primitives</Filter>
+    </ClCompile>
+    <ClCompile Include="primitives\spatialVector.C">
+      <Filter>primitives</Filter>
+    </ClCompile>
+    <ClCompile Include="primitives\sphericalTensor.C">
+      <Filter>primitives</Filter>
+    </ClCompile>
+    <ClCompile Include="primitives\sphericalTensor2D.C">
+      <Filter>primitives</Filter>
+    </ClCompile>
+    <ClCompile Include="primitives\sphericalTensorList.C">
+      <Filter>primitives</Filter>
+    </ClCompile>
+    <ClCompile Include="primitives\string.C">
+      <Filter>primitives</Filter>
+    </ClCompile>
+    <ClCompile Include="primitives\stringIO.C">
+      <Filter>primitives</Filter>
+    </ClCompile>
+    <ClCompile Include="primitives\stringIOList.C">
+      <Filter>primitives</Filter>
+    </ClCompile>
+    <ClCompile Include="primitives\stringOps.C">
+      <Filter>primitives</Filter>
+    </ClCompile>
+    <ClCompile Include="primitives\subModelBase.C">
+      <Filter>primitives</Filter>
+    </ClCompile>
+    <ClCompile Include="primitives\Switch.C">
+      <Filter>primitives</Filter>
+    </ClCompile>
+    <ClCompile Include="primitives\SwitchIO.C">
+      <Filter>primitives</Filter>
+    </ClCompile>
+    <ClCompile Include="primitives\symmTensor.C">
+      <Filter>primitives</Filter>
+    </ClCompile>
+    <ClCompile Include="primitives\symmTensor2D.C">
+      <Filter>primitives</Filter>
+    </ClCompile>
+    <ClCompile Include="primitives\symmTensorList.C">
+      <Filter>primitives</Filter>
+    </ClCompile>
+    <ClCompile Include="primitives\tensor.C">
+      <Filter>primitives</Filter>
+    </ClCompile>
+    <ClCompile Include="primitives\tensor2D.C">
+      <Filter>primitives</Filter>
+    </ClCompile>
+    <ClCompile Include="primitives\tensorList.C">
+      <Filter>primitives</Filter>
+    </ClCompile>
+    <ClCompile Include="primitives\triad.C">
+      <Filter>primitives</Filter>
+    </ClCompile>
+    <ClCompile Include="primitives\uint32.C">
+      <Filter>primitives</Filter>
+    </ClCompile>
+    <ClCompile Include="primitives\uint32IO.C">
+      <Filter>primitives</Filter>
+    </ClCompile>
+    <ClCompile Include="primitives\uint64.C">
+      <Filter>primitives</Filter>
+    </ClCompile>
+    <ClCompile Include="primitives\uint64IO.C">
+      <Filter>primitives</Filter>
+    </ClCompile>
+    <ClCompile Include="primitives\uintIO.C">
+      <Filter>primitives</Filter>
+    </ClCompile>
+    <ClCompile Include="primitives\uLabel.C">
+      <Filter>primitives</Filter>
+    </ClCompile>
+    <ClCompile Include="primitives\vector.C">
+      <Filter>primitives</Filter>
+    </ClCompile>
+    <ClCompile Include="primitives\vector2D.C">
+      <Filter>primitives</Filter>
+    </ClCompile>
+    <ClCompile Include="primitives\vectorIOList.C">
+      <Filter>primitives</Filter>
+    </ClCompile>
+    <ClCompile Include="primitives\vectorList.C">
+      <Filter>primitives</Filter>
+    </ClCompile>
+    <ClCompile Include="primitives\vectorListIOList.C">
+      <Filter>primitives</Filter>
+    </ClCompile>
+    <ClCompile Include="primitives\vectorTensorTransform.C">
+      <Filter>primitives</Filter>
+    </ClCompile>
+    <ClCompile Include="primitives\wcharIO.C">
+      <Filter>primitives</Filter>
+    </ClCompile>
+    <ClCompile Include="primitives\word.C">
+      <Filter>primitives</Filter>
+    </ClCompile>
+    <ClCompile Include="primitives\wordIO.C">
+      <Filter>primitives</Filter>
+    </ClCompile>
+    <ClCompile Include="primitives\wordIOList.C">
+      <Filter>primitives</Filter>
+    </ClCompile>
+    <ClCompile Include="primitives\wordRe.C">
+      <Filter>primitives</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="db\version">
+      <Filter>db</Filter>
+    </None>
+    <None Include="global\global.Cver">
+      <Filter>global</Filter>
+    </None>
+  </ItemGroup>
+</Project>

@@ -1,0 +1,198 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|Win32">
+      <Configuration>Debug</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|Win32">
+      <Configuration>Release</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Debug|x64">
+      <Configuration>Debug</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64">
+      <Configuration>Release</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <VCProjectVersion>15.0</VCProjectVersion>
+    <ProjectGuid>{9856874B-3056-498C-956F-96A566D9AEA1}</ProjectGuid>
+    <WindowsTargetPlatformVersion>8.1</WindowsTargetPlatformVersion>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <PlatformToolset>v141</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v141</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <PlatformToolset>v141</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v141</PlatformToolset>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings">
+  </ImportGroup>
+  <ImportGroup Label="Shared">
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <PropertyGroup Label="UserMacros" />
+  <PropertyGroup />
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <ClCompile>
+      <AdditionalIncludeDirectories>..\OpenFOAM\algorithms;..\OpenFOAM\containers;..\OpenFOAM\db;..\OpenFOAM\dimensionedTypes;..\OpenFOAM\dimensionSet;..\OpenFOAM\fields;..\OpenFOAM\global;..\OpenFOAM\graph;..\OpenFOAM\include;..\OpenFOAM\interpolations;..\OpenFOAM\matrices;..\OpenFOAM\memory;..\OpenFOAM\meshes;..\OpenFOAM\primitives;..\OSspecific;..\meshTools;..\finiteVolume;..\triSurface;..\surfMesh;..\fileFormats;..\lagrangian;..\TurbulenceModels;..\sampling;..\transportModels;..\regionModels;..\thermophysicalModels;..\dynamicMesh;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>WM_LABEL_SIZE=64;WM_DP;NoRepository;WIN32;WIN64;_WINDOWS;NOMINMAX;_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <CompileAs>CompileAsCpp</CompileAs>
+      <LanguageStandard>stdcpp17</LanguageStandard>
+      <WarningLevel>Level4</WarningLevel>
+    </ClCompile>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ClCompile Include="absolute.C" />
+    <ClCompile Include="azizChen.C" />
+    <ClCompile Include="cloudAbsorptionEmission.C" />
+    <ClCompile Include="cloudScatter.C" />
+    <ClCompile Include="cloudSolution.C" />
+    <ClCompile Include="coalCloudList.C" />
+    <ClCompile Include="CorrectionLimitingMethod.C" />
+    <ClCompile Include="coulomb.C" />
+    <ClCompile Include="dampedCoulomb.C" />
+    <ClCompile Include="defineBasicKinematicCollidingParcel.C" />
+    <ClCompile Include="defineBasicKinematicMPPICParcel.C" />
+    <ClCompile Include="defineBasicKinematicParcel.C" />
+    <ClCompile Include="defineBasicReactingMultiphaseParcel.C" />
+    <ClCompile Include="defineBasicReactingParcel.C" />
+    <ClCompile Include="defineBasicSprayParcel.C" />
+    <ClCompile Include="defineBasicThermoParcel.C" />
+    <ClCompile Include="defineDSMCParcel.C" />
+    <ClCompile Include="distribution.C" />
+    <ClCompile Include="distributionModel.C" />
+    <ClCompile Include="distributionModelNew.C" />
+    <ClCompile Include="doubleSigmoid.C" />
+    <ClCompile Include="DSMCBaseCloud.C" />
+    <ClCompile Include="dsmcParcel.C" />
+    <ClCompile Include="electrostaticPotential.C" />
+    <ClCompile Include="energyScalingFunction.C" />
+    <ClCompile Include="energyScalingFunctionNew.C" />
+    <ClCompile Include="equilibrium.C" />
+    <ClCompile Include="exponential_psm.C" />
+    <ClCompile Include="exponential.C" />
+    <ClCompile Include="exponentialRepulsion.C" />
+    <ClCompile Include="fixedValue.C" />
+    <ClCompile Include="general.C" />
+    <ClCompile Include="harmonicSpring.C" />
+    <ClCompile Include="HarrisCrighton.C" />
+    <ClCompile Include="indexedParticleCloud.C" />
+    <ClCompile Include="isotropic.C" />
+    <ClCompile Include="kinematicCloud.C" />
+    <ClCompile Include="kinematicParcelInjectionData.C" />
+    <ClCompile Include="kinematicParcelInjectionDataIO.C" />
+    <ClCompile Include="kinematicParcelInjectionDataIOList.C" />
+    <ClCompile Include="lennardJones.C" />
+    <ClCompile Include="Lun.C" />
+    <ClCompile Include="maitlandSmith.C" />
+    <ClCompile Include="makeAveragingMethods.C" />
+    <ClCompile Include="makeBasicKinematicCollidingParcelSubmodels_tdm.C" />
+    <ClCompile Include="makeBasicKinematicCollidingParcelSubmodels.C" />
+    <ClCompile Include="makeBasicKinematicMPPICParcelSubmodels_tdm.C" />
+    <ClCompile Include="makeBasicKinematicMPPICParcelSubmodels.C" />
+    <ClCompile Include="makeBasicKinematicParcelSubmodels_tdm.C" />
+    <ClCompile Include="makeBasicKinematicParcelSubmodels.C" />
+    <ClCompile Include="makeBasicReactingMultiphaseParcelSubmodels_tdm.C" />
+    <ClCompile Include="makeBasicReactingMultiphaseParcelSubmodels.C" />
+    <ClCompile Include="makeBasicReactingParcelSubmodels_tdm.C" />
+    <ClCompile Include="makeBasicReactingParcelSubmodels.C" />
+    <ClCompile Include="makeBasicSprayParcelSubmodels.C" />
+    <ClCompile Include="makeBasicThermoParcelSubmodels_tdm.C" />
+    <ClCompile Include="makeBasicThermoParcelSubmodels.C" />
+    <ClCompile Include="makeCoalParcelSubmodels.C" />
+    <ClCompile Include="makeDSMCParcelBinaryCollisionModels.C" />
+    <ClCompile Include="makeDSMCParcelInflowBoundaryModels.C" />
+    <ClCompile Include="makeDSMCParcelWallInteractionModels.C" />
+    <ClCompile Include="makeIntegrationSchemes.C" />
+    <ClCompile Include="massRosinRammler.C" />
+    <ClCompile Include="molecule.C" />
+    <ClCompile Include="moleculeCloud.C" />
+    <ClCompile Include="moleculeIO.C" />
+    <ClCompile Include="multiNormal.C" />
+    <ClCompile Include="noCorrectionLimiting.C" />
+    <ClCompile Include="noInteraction.C" />
+    <ClCompile Include="nonEquilibrium.C" />
+    <ClCompile Include="normal.C" />
+    <ClCompile Include="noScaling.C" />
+    <ClCompile Include="pairPotential.C" />
+    <ClCompile Include="pairPotentialIO.C" />
+    <ClCompile Include="pairPotentialList.C" />
+    <ClCompile Include="pairPotentialNew.C" />
+    <ClCompile Include="particle.C" />
+    <ClCompile Include="particleIO.C" />
+    <ClCompile Include="ParticleStressModel.C" />
+    <ClCompile Include="passiveParticleCloud.C" />
+    <ClCompile Include="patchInjectionBase.C" />
+    <ClCompile Include="patchInteractionData.C" />
+    <ClCompile Include="patchInteractionDataList.C" />
+    <ClCompile Include="phaseProperties.C" />
+    <ClCompile Include="phasePropertiesIO.C" />
+    <ClCompile Include="phasePropertiesList.C" />
+    <ClCompile Include="pitchForkRing.C" />
+    <ClCompile Include="potential.C" />
+    <ClCompile Include="reactingCloud.C" />
+    <ClCompile Include="reactingMultiphaseCloud.C" />
+    <ClCompile Include="reactingMultiphaseParcelInjectionData.C" />
+    <ClCompile Include="reactingMultiphaseParcelInjectionDataIO.C" />
+    <ClCompile Include="reactingMultiphaseParcelInjectionDataIOList.C" />
+    <ClCompile Include="reactingParcelInjectionData.C" />
+    <ClCompile Include="reactingParcelInjectionDataIO.C" />
+    <ClCompile Include="reactingParcelInjectionDataIOList.C" />
+    <ClCompile Include="reducedUnits.C" />
+    <ClCompile Include="reducedUnitsIO.C" />
+    <ClCompile Include="referredWallFace.C" />
+    <ClCompile Include="relative.C" />
+    <ClCompile Include="restrainedHarmonicSpring.C" />
+    <ClCompile Include="RosinRammler.C" />
+    <ClCompile Include="shifted.C" />
+    <ClCompile Include="shiftedForce.C" />
+    <ClCompile Include="sigmoid.C" />
+    <ClCompile Include="solidParticle.C" />
+    <ClCompile Include="solidParticleCloud.C" />
+    <ClCompile Include="solidParticleIO.C" />
+    <ClCompile Include="sprayCloud.C" />
+    <ClCompile Include="tetherPotential.C" />
+    <ClCompile Include="tetherPotentialList.C" />
+    <ClCompile Include="tetherPotentialNew.C" />
+    <ClCompile Include="thermoCloud.C" />
+    <ClCompile Include="thermoParcelInjectionData.C" />
+    <ClCompile Include="thermoParcelInjectionDataIO.C" />
+    <ClCompile Include="thermoParcelInjectionDataIOList.C" />
+    <ClCompile Include="TimeScaleModel.T.C" />
+    <ClCompile Include="uniform.C" />
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets">
+  </ImportGroup>
+</Project>

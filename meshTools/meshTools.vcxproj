@@ -1,0 +1,263 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|Win32">
+      <Configuration>Debug</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|Win32">
+      <Configuration>Release</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Debug|x64">
+      <Configuration>Debug</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64">
+      <Configuration>Release</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <VCProjectVersion>15.0</VCProjectVersion>
+    <ProjectGuid>{4466874B-3060-4A66-916F-9666D6D9AEA1}</ProjectGuid>
+    <WindowsTargetPlatformVersion>8.1</WindowsTargetPlatformVersion>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <PlatformToolset>v141</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v141</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <PlatformToolset>v141</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v141</PlatformToolset>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings">
+  </ImportGroup>
+  <ImportGroup Label="Shared">
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <PropertyGroup Label="UserMacros" />
+  <PropertyGroup />
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <ClCompile>
+      <AdditionalIncludeDirectories>..\OpenFOAM\algorithms;..\OpenFOAM\containers;..\OpenFOAM\db;..\OpenFOAM\dimensionedTypes;..\OpenFOAM\dimensionSet;..\OpenFOAM\fields;..\OpenFOAM\global;..\OpenFOAM\graph;..\OpenFOAM\include;..\OpenFOAM\interpolations;..\OpenFOAM\matrices;..\OpenFOAM\memory;..\OpenFOAM\meshes;..\OpenFOAM\primitives;..\OSspecific;..\dynamicMesh;..\triSurface;..\surfMesh;..\fileFormats;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>WM_LABEL_SIZE=64;WM_DP;NoRepository;WIN32;WIN64;_WINDOWS;NOMINMAX;_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <CompileAs>CompileAsCpp</CompileAs>
+      <LanguageStandard>stdcpp17</LanguageStandard>
+      <WarningLevel>Level4</WarningLevel>
+    </ClCompile>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ClCompile Include="AMIPatchToPatchInterpolation.C" />
+    <ClCompile Include="axesRotation.C" />
+    <ClCompile Include="booleanSurface.C" />
+    <ClCompile Include="boundaryToFace.C" />
+    <ClCompile Include="boxToCell.C" />
+    <ClCompile Include="boxToFace.C" />
+    <ClCompile Include="boxToPoint.C" />
+    <ClCompile Include="cartesianCS.C" />
+    <ClCompile Include="cellClassification.C" />
+    <ClCompile Include="cellDistFuncs.C" />
+    <ClCompile Include="cellFeatures.C" />
+    <ClCompile Include="cellInfo.C" />
+    <ClCompile Include="cellQuality.C" />
+    <ClCompile Include="cellSet.C" />
+    <ClCompile Include="cellToCell.C" />
+    <ClCompile Include="cellToFace.C" />
+    <ClCompile Include="cellToPoint.C" />
+    <ClCompile Include="cellZoneSet.C" />
+    <ClCompile Include="closedTriSurfaceMesh.C" />
+    <ClCompile Include="coordinateRotation.C" />
+    <ClCompile Include="coordinateRotationNew.C" />
+    <ClCompile Include="coordinateSystem.C" />
+    <ClCompile Include="coordinateSystemNew.C" />
+    <ClCompile Include="coordinateSystems.C" />
+    <ClCompile Include="cyclicACMIGAMGInterface.C" />
+    <ClCompile Include="cyclicACMIGAMGInterfaceField.C" />
+    <ClCompile Include="cyclicACMILduInterface.C" />
+    <ClCompile Include="cyclicACMILduInterfaceField.C" />
+    <ClCompile Include="cyclicACMIPointPatch.C" />
+    <ClCompile Include="cyclicACMIPointPatchFields.C" />
+    <ClCompile Include="cyclicACMIPolyPatch.C" />
+    <ClCompile Include="cyclicAMIGAMGInterface.C" />
+    <ClCompile Include="cyclicAMIGAMGInterfaceField.C" />
+    <ClCompile Include="cyclicAMILduInterface.C" />
+    <ClCompile Include="cyclicAMILduInterfaceField.C" />
+    <ClCompile Include="cyclicAMIPointPatch.C" />
+    <ClCompile Include="cyclicAMIPointPatchFields.C" />
+    <ClCompile Include="cyclicAMIPolyPatch.C" />
+    <ClCompile Include="cylinderAnnulusToCell.C" />
+    <ClCompile Include="cylinderToCell.C" />
+    <ClCompile Include="cylindrical.C" />
+    <ClCompile Include="cylindricalCS.C" />
+    <ClCompile Include="edgeFaceCirculator.C" />
+    <ClCompile Include="edgeIntersections.C" />
+    <ClCompile Include="edgeMesh.C" />
+    <ClCompile Include="edgeMeshFormat.C" />
+    <ClCompile Include="edgeMeshFormatRunTime.C" />
+    <ClCompile Include="edgeMeshFormatsCore.C" />
+    <ClCompile Include="edgeMeshIO.C" />
+    <ClCompile Include="edgeMeshNew.C" />
+    <ClCompile Include="edgeSurface.C" />
+    <ClCompile Include="EulerCoordinateRotation.T.C" />
+    <ClCompile Include="extendedEdgeMesh.C" />
+    <ClCompile Include="extendedEdgeMeshFormat.C" />
+    <ClCompile Include="extendedEdgeMeshFormatRunTime.C" />
+    <ClCompile Include="extendedEdgeMeshNew.C" />
+    <ClCompile Include="extendedFeatureEdgeMesh.C" />
+    <ClCompile Include="extendedFeatureEdgeMeshFormat.C" />
+    <ClCompile Include="extendedFeatureEdgeMeshFormatRunTime.C" />
+    <ClCompile Include="faceAreaIntersect.C" />
+    <ClCompile Include="FaceCellWaveName.T.C" />
+    <ClCompile Include="faceSet.C" />
+    <ClCompile Include="faceToCell.C" />
+    <ClCompile Include="faceToFace.C" />
+    <ClCompile Include="faceToPoint.C" />
+    <ClCompile Include="faceZoneSet.C" />
+    <ClCompile Include="faceZoneToCell.C" />
+    <ClCompile Include="faceZoneToFaceZone.C" />
+    <ClCompile Include="featureEdgeMesh.C" />
+    <ClCompile Include="fieldToCell.C" />
+    <ClCompile Include="geompack.C" />
+    <ClCompile Include="intersectedSurface.C" />
+    <ClCompile Include="labelToCell.C" />
+    <ClCompile Include="labelToFace.C" />
+    <ClCompile Include="labelToPoint.C" />
+    <ClCompile Include="localPointRegion.C" />
+    <ClCompile Include="mappedPatchBase.C" />
+    <ClCompile Include="mappedPointPatch.C" />
+    <ClCompile Include="mappedPolyPatch.C" />
+    <ClCompile Include="mappedVariableThicknessWallPolyPatch.C" />
+    <ClCompile Include="mappedWallPointPatch.C" />
+    <ClCompile Include="mappedWallPolyPatch.C" />
+    <ClCompile Include="meshSearch.C" />
+    <ClCompile Include="meshSearchFACE_CENTRE_TRISMeshObject.C" />
+    <ClCompile Include="meshSearchMeshObject.C" />
+    <ClCompile Include="meshStructure.C" />
+    <ClCompile Include="meshTools.C" />
+    <ClCompile Include="MeshWaveName.T.C" />
+    <ClCompile Include="momentOfInertia.C" />
+    <ClCompile Include="NASedgeFormat.C" />
+    <ClCompile Include="NASedgeFormatRunTime.C" />
+    <ClCompile Include="nbrToCell.C" />
+    <ClCompile Include="nearestToCell.C" />
+    <ClCompile Include="nearestToPoint.C" />
+    <ClCompile Include="normalToFace.C" />
+    <ClCompile Include="OBJedgeFormat.C" />
+    <ClCompile Include="OBJedgeFormatRunTime.C" />
+    <ClCompile Include="orientedSurface.C" />
+    <ClCompile Include="patchEdgeFaceInfo.C" />
+    <ClCompile Include="patchEdgeFaceRegion.C" />
+    <ClCompile Include="patchEdgeFaceRegions.C" />
+    <ClCompile Include="PatchEdgeFaceWaveName.T.C" />
+    <ClCompile Include="patchPatchDist.C" />
+    <ClCompile Include="patchToFace.C" />
+    <ClCompile Include="patchWave.C" />
+    <ClCompile Include="pointEdgePoint.C" />
+    <ClCompile Include="PointEdgeWaveName.T.C" />
+    <ClCompile Include="pointSet.C" />
+    <ClCompile Include="pointToCell.C" />
+    <ClCompile Include="pointToFace.C" />
+    <ClCompile Include="pointTopoDistanceData.C" />
+    <ClCompile Include="pointToPoint.C" />
+    <ClCompile Include="pointToPointPlanarInterpolation.C" />
+    <ClCompile Include="pointZoneSet.C" />
+    <ClCompile Include="polyMeshZipUpCells.C" />
+    <ClCompile Include="primitiveMeshGeometry.C" />
+    <ClCompile Include="regionCoupledBase.C" />
+    <ClCompile Include="regionCoupledBaseGAMGInterface.C" />
+    <ClCompile Include="regionCoupledGAMGInterface.C" />
+    <ClCompile Include="regionCoupledGAMGInterfaceField.C" />
+    <ClCompile Include="regionCoupledLduInterface.C" />
+    <ClCompile Include="regionCoupledPointPatch.C" />
+    <ClCompile Include="regionCoupledPolyPatch.C" />
+    <ClCompile Include="regionCoupledWallGAMGInterface.C" />
+    <ClCompile Include="regionCoupledWallGAMGInterfaceField.C" />
+    <ClCompile Include="regionCoupledWallPointPatch.C" />
+    <ClCompile Include="regionCoupledWallPolyPatch.C" />
+    <ClCompile Include="regionSplit.C" />
+    <ClCompile Include="regionToCell.C" />
+    <ClCompile Include="regionToFace.C" />
+    <ClCompile Include="rotatedBoxToCell.C" />
+    <ClCompile Include="searchableBox.C" />
+    <ClCompile Include="searchableCylinder.C" />
+    <ClCompile Include="searchableDisk.C" />
+    <ClCompile Include="searchableExtrudedCircle.C" />
+    <ClCompile Include="searchablePlane.C" />
+    <ClCompile Include="searchablePlate.C" />
+    <ClCompile Include="searchableSphere.C" />
+    <ClCompile Include="searchableSurface.C" />
+    <ClCompile Include="searchableSurfaceCollection.C" />
+    <ClCompile Include="searchableSurfaces.C" />
+    <ClCompile Include="searchableSurfacesQueries.C" />
+    <ClCompile Include="searchableSurfaceToFaceZone.C" />
+    <ClCompile Include="searchableSurfaceWithGaps.C" />
+    <ClCompile Include="setAndNormalToFaceZone.C" />
+    <ClCompile Include="setsToFaceZone.C" />
+    <ClCompile Include="setToCellZone.C" />
+    <ClCompile Include="setToFaceZone.C" />
+    <ClCompile Include="setToPointZone.C" />
+    <ClCompile Include="shapeToCell.C" />
+    <ClCompile Include="sphereToCell.C" />
+    <ClCompile Include="STARCDCoordinateRotation.C" />
+    <ClCompile Include="STARCDedgeFormat.C" />
+    <ClCompile Include="STARCDedgeFormatRunTime.C" />
+    <ClCompile Include="surfaceFeatures.C" />
+    <ClCompile Include="surfaceIntersection.C" />
+    <ClCompile Include="surfaceIntersectionFuncs.C" />
+    <ClCompile Include="surfaceLocation.C" />
+    <ClCompile Include="surfaceSets.C" />
+    <ClCompile Include="surfaceToCell.C" />
+    <ClCompile Include="surfaceToPoint.C" />
+    <ClCompile Include="targetVolumeToCell.C" />
+    <ClCompile Include="tetOverlapVolume.C" />
+    <ClCompile Include="topoDistanceData.C" />
+    <ClCompile Include="topoSet.C" />
+    <ClCompile Include="topoSetSource.C" />
+    <ClCompile Include="treeDataEdge.C" />
+    <ClCompile Include="treeDataFace.C" />
+    <ClCompile Include="treeDataPoint.C" />
+    <ClCompile Include="treeDataPrimitivePatchName.C" />
+    <ClCompile Include="treeDataTriSurface.C" />
+    <ClCompile Include="triangleFuncs.C" />
+    <ClCompile Include="triSurfaceMesh.C" />
+    <ClCompile Include="triSurfaceRegionSearch.C" />
+    <ClCompile Include="triSurfaceSearch.C" />
+    <ClCompile Include="triSurfaceTools.C" />
+    <ClCompile Include="twoDPointCorrector.C" />
+    <ClCompile Include="VTKedgeFormat.C" />
+    <ClCompile Include="VTKedgeFormatRunTime.C" />
+    <ClCompile Include="wallPoint.C" />
+    <ClCompile Include="zoneToCell.C" />
+    <ClCompile Include="zoneToFace.C" />
+    <ClCompile Include="zoneToPoint.C" />
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets">
+  </ImportGroup>
+</Project>

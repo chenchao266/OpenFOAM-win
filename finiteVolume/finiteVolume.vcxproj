@@ -1,0 +1,432 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|Win32">
+      <Configuration>Debug</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|Win32">
+      <Configuration>Release</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Debug|x64">
+      <Configuration>Debug</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64">
+      <Configuration>Release</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <VCProjectVersion>15.0</VCProjectVersion>
+    <ProjectGuid>{4465574B-3060-4A55-916F-9655D6D9AEA1}</ProjectGuid>
+    <WindowsTargetPlatformVersion>8.1</WindowsTargetPlatformVersion>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <PlatformToolset>v141</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v141</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <PlatformToolset>v141</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v141</PlatformToolset>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings">
+  </ImportGroup>
+  <ImportGroup Label="Shared">
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <PropertyGroup Label="UserMacros" />
+  <PropertyGroup />
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <ClCompile>
+      <AdditionalIncludeDirectories>..\OpenFOAM\algorithms;..\OpenFOAM\containers;..\OpenFOAM\db;..\OpenFOAM\dimensionedTypes;..\OpenFOAM\dimensionSet;..\OpenFOAM\fields;..\OpenFOAM\global;..\OpenFOAM\graph;..\OpenFOAM\include;..\OpenFOAM\interpolations;..\OpenFOAM\matrices;..\OpenFOAM\memory;..\OpenFOAM\meshes;..\OpenFOAM\primitives;..\OSspecific;..\meshTools;..\dynamicMesh;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>WM_LABEL_SIZE=64;WM_DP;NoRepository;WIN32;WIN64;_WINDOWS;NOMINMAX;_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <CompileAs>CompileAsCpp</CompileAs>
+      <LanguageStandard>stdcpp17</LanguageStandard>
+      <WarningLevel>Level4</WarningLevel>
+    </ClCompile>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ClCompile Include="activeBaffleVelocityFvPatchVectorField.C" />
+    <ClCompile Include="activePressureForceBaffleVelocityFvPatchVectorField.C" />
+    <ClCompile Include="adjustPhi.C" />
+    <ClCompile Include="advectionDiffusionPatchDistMethod.C" />
+    <ClCompile Include="advectiveFvPatchFields.C" />
+    <ClCompile Include="backwardDdtSchemes.C" />
+    <ClCompile Include="basicSymmetryFvPatchScalarField.C" />
+    <ClCompile Include="biLinearFit.C" />
+    <ClCompile Include="blended.C" />
+    <ClCompile Include="blendedSchemeBaseName.C" />
+    <ClCompile Include="bound.C" />
+    <ClCompile Include="boundedConvectionSchemes.C" />
+    <ClCompile Include="boundedDdtSchemes.C" />
+    <ClCompile Include="calculatedFvPatchFields.C" />
+    <ClCompile Include="calculatedFvsPatchFields.C" />
+    <ClCompile Include="CECCellToCellStencil.C" />
+    <ClCompile Include="CECCellToFaceStencil.C" />
+    <ClCompile Include="cellCoBlended.C" />
+    <ClCompile Include="cellLimitedGrads.C" />
+    <ClCompile Include="cellMDLimitedGrads.C" />
+    <ClCompile Include="cellPointWeight.C" />
+    <ClCompile Include="cellPointWeightWallModified.C" />
+    <ClCompile Include="cellToCellStencil.C" />
+    <ClCompile Include="cellToFaceStencil.C" />
+    <ClCompile Include="centredCECCellToCellStencilObject.C" />
+    <ClCompile Include="centredCECCellToFaceStencilObject.C" />
+    <ClCompile Include="centredCFCCellToCellStencilObject.C" />
+    <ClCompile Include="centredCFCCellToFaceStencilObject.C" />
+    <ClCompile Include="centredCFCFaceToCellStencilObject.C" />
+    <ClCompile Include="centredCPCCellToCellStencilObject.C" />
+    <ClCompile Include="centredCPCCellToFaceStencilObject.C" />
+    <ClCompile Include="centredFECCellToFaceStencilObject.C" />
+    <ClCompile Include="CFCCellToCellStencil.C" />
+    <ClCompile Include="CFCCellToFaceStencil.C" />
+    <ClCompile Include="CFCFaceToCellStencil.C" />
+    <ClCompile Include="clippedLinear.C" />
+    <ClCompile Include="CMULES.T.C" />
+    <ClCompile Include="CoBlended.T.C" />
+    <ClCompile Include="codedFixedValueFvPatchFields.C" />
+    <ClCompile Include="codedMixedFvPatchFields.C" />
+    <ClCompile Include="CoEulerDdtSchemes.T.C" />
+    <ClCompile Include="constrainHbyA.C" />
+    <ClCompile Include="convectionSchemes.C" />
+    <ClCompile Include="correctedSnGrads.C" />
+    <ClCompile Include="correctUphiBCs.C" />
+    <ClCompile Include="coupledFvPatch.C" />
+    <ClCompile Include="coupledFvPatchFields.C" />
+    <ClCompile Include="coupledFvsPatchFields.C" />
+    <ClCompile Include="CPCCellToCellStencil.C" />
+    <ClCompile Include="CPCCellToFaceStencil.C" />
+    <ClCompile Include="CrankNicolsonDdtSchemes.T.C" />
+    <ClCompile Include="cubic.C" />
+    <ClCompile Include="cubicUpwindFit.C" />
+    <ClCompile Include="cyclicACMIFvPatch.C" />
+    <ClCompile Include="cyclicACMIFvPatchFields.C" />
+    <ClCompile Include="cyclicACMIFvsPatchFields.C" />
+    <ClCompile Include="cyclicAMIFvPatch.C" />
+    <ClCompile Include="cyclicAMIFvPatchFields.C" />
+    <ClCompile Include="cyclicAMIFvsPatchFields.C" />
+    <ClCompile Include="cyclicFvPatch.C" />
+    <ClCompile Include="cyclicFvPatchFields.C" />
+    <ClCompile Include="cyclicFvsPatchFields.C" />
+    <ClCompile Include="cyclicSlipFvPatch.C" />
+    <ClCompile Include="cyclicSlipFvPatchFields.C" />
+    <ClCompile Include="cyclicSlipFvsPatchFields.C" />
+    <ClCompile Include="cylindricalInletVelocityFvPatchVectorField.C" />
+    <ClCompile Include="d2dt2Schemes.C" />
+    <ClCompile Include="DarcyForchheimer.T.C" />
+    <ClCompile Include="ddtSchemes.C" />
+    <ClCompile Include="directionMixedFvPatchFields.C" />
+    <ClCompile Include="divSchemes.C" />
+    <ClCompile Include="downwind.C" />
+    <ClCompile Include="emptyFvPatch.C" />
+    <ClCompile Include="emptyFvPatchFields.C" />
+    <ClCompile Include="emptyFvsPatchFields.C" />
+    <ClCompile Include="EulerD2dt2Schemes.T.C" />
+    <ClCompile Include="EulerDdtSchemes.T.C" />
+    <ClCompile Include="extendedCellToCellStencil.C" />
+    <ClCompile Include="extendedCellToFaceStencil.C" />
+    <ClCompile Include="extendedCentredCellToCellStencil.C" />
+    <ClCompile Include="extendedCentredCellToFaceStencil.C" />
+    <ClCompile Include="extendedCentredFaceToCellStencil.C" />
+    <ClCompile Include="extendedFaceToCellStencil.C" />
+    <ClCompile Include="extendedUpwindCellToFaceStencil.C" />
+    <ClCompile Include="externalCoupledMixedFvPatchFields.C" />
+    <ClCompile Include="extrapolatedCalculatedFvPatchFields.C" />
+    <ClCompile Include="faceAreaPairGAMGAgglomeration.C" />
+    <ClCompile Include="faceCorrectedSnGrads.C" />
+    <ClCompile Include="faceLimitedGrads.C" />
+    <ClCompile Include="faceMDLimitedGrads.C" />
+    <ClCompile Include="faceToCellStencil.C" />
+    <ClCompile Include="fanFvPatchFields.C" />
+    <ClCompile Include="fanPressureFvPatchScalarField.C" />
+    <ClCompile Include="FECCellToFaceStencil.C" />
+    <ClCompile Include="filteredLinear.C" />
+    <ClCompile Include="filteredLinear2.C" />
+    <ClCompile Include="filteredLinear3.C" />
+    <ClCompile Include="findRefCell.C" />
+    <ClCompile Include="fixedBlended.C" />
+    <ClCompile Include="fixedCoeff.C" />
+    <ClCompile Include="fixedFluxExtrapolatedPressureFvPatchScalarField.C" />
+    <ClCompile Include="fixedFluxPressureFvPatchScalarField.C" />
+    <ClCompile Include="fixedGradientFvPatchFields.C" />
+    <ClCompile Include="fixedInternalValueFvPatchFields.C" />
+    <ClCompile Include="fixedJumpAMIFvPatchFields.C" />
+    <ClCompile Include="fixedJumpFvPatchFields.C" />
+    <ClCompile Include="fixedMeanFvPatchFields.C" />
+    <ClCompile Include="fixedNormalInletOutletVelocityFvPatchVectorField.C" />
+    <ClCompile Include="fixedNormalSlipFvPatchFields.C" />
+    <ClCompile Include="fixedPressureCompressibleDensityFvPatchScalarField.C" />
+    <ClCompile Include="fixedProfileFvPatchFields.C" />
+    <ClCompile Include="fixedValueFvPatchFields.C" />
+    <ClCompile Include="fixedValueFvsPatchFields.C" />
+    <ClCompile Include="flowRateInletVelocityFvPatchVectorField.C" />
+    <ClCompile Include="flowRateOutletVelocityFvPatchVectorField.C" />
+    <ClCompile Include="fluxCorrectedVelocityFvPatchVectorField.C" />
+    <ClCompile Include="fourthGrads.C" />
+    <ClCompile Include="freestreamFvPatchFields.C" />
+    <ClCompile Include="freestreamPressureFvPatchScalarField.C" />
+    <ClCompile Include="fv.C" />
+    <ClCompile Include="fvBoundaryMesh.C" />
+    <ClCompile Include="fvcFlux.C" />
+    <ClCompile Include="fvcMeshPhi.C" />
+    <ClCompile Include="fvcReconstructMag.C" />
+    <ClCompile Include="fvcSmooth.C" />
+    <ClCompile Include="fvMatrices.C" />
+    <ClCompile Include="fvMesh.C" />
+    <ClCompile Include="fvMeshFunctionObject.C" />
+    <ClCompile Include="fvMeshGeometry.C" />
+    <ClCompile Include="fvOption.C" />
+    <ClCompile Include="fvOptionIO.C" />
+    <ClCompile Include="fvOptionList.C" />
+    <ClCompile Include="fvOptions.C" />
+    <ClCompile Include="fvPatch.C" />
+    <ClCompile Include="fvPatchFields.C" />
+    <ClCompile Include="fvPatchMapper.C" />
+    <ClCompile Include="fvPatchNew.C" />
+    <ClCompile Include="fvScalarMatrix.C" />
+    <ClCompile Include="fvSchemes.C" />
+    <ClCompile Include="fvsPatchFields.C" />
+    <ClCompile Include="fvSurfaceMapper.C" />
+    <ClCompile Include="Gamma.T.C" />
+    <ClCompile Include="gaussConvectionSchemes.C" />
+    <ClCompile Include="gaussDivSchemes.C" />
+    <ClCompile Include="gaussGrads.C" />
+    <ClCompile Include="gaussLaplacianSchemes.C" />
+    <ClCompile Include="genericFvPatch.C" />
+    <ClCompile Include="gradSchemes.C" />
+    <ClCompile Include="harmonic.C" />
+    <ClCompile Include="inletOutletFvPatchFields.C" />
+    <ClCompile Include="inletOutletTotalTemperatureFvPatchScalarField.C" />
+    <ClCompile Include="interfaceCompressionFvPatchScalarField.C" />
+    <ClCompile Include="interpolations.C" />
+    <ClCompile Include="interstitialInletVelocityFvPatchVectorField.C" />
+    <ClCompile Include="invDistLeastSquaresVectors.C" />
+    <ClCompile Include="IOMRFZoneList.C" />
+    <ClCompile Include="IOporosityModelList.C" />
+    <ClCompile Include="jumpCyclicAMIFvPatchFields.C" />
+    <ClCompile Include="jumpCyclicFvPatchFields.C" />
+    <ClCompile Include="laplacianSchemes.C" />
+    <ClCompile Include="leastSquaresGrads.C" />
+    <ClCompile Include="LeastSquaresGrads.T.C" />
+    <ClCompile Include="leastSquaresVectors.C" />
+    <ClCompile Include="levelSet.C" />
+    <ClCompile Include="limitedCubic.C" />
+    <ClCompile Include="limitedLinear.C" />
+    <ClCompile Include="limitedSnGrads.C" />
+    <ClCompile Include="limitedSurfaceInterpolationSchemes.C" />
+    <ClCompile Include="limiterBlended.C" />
+    <ClCompile Include="limitWith.C" />
+    <ClCompile Include="linear.C" />
+    <ClCompile Include="linearFit.C" />
+    <ClCompile Include="linearFitSnGrads.C" />
+    <ClCompile Include="linearPureUpwindFit.C" />
+    <ClCompile Include="localBlended.C" />
+    <ClCompile Include="localEulerDdt.C" />
+    <ClCompile Include="localEulerDdtSchemes.C" />
+    <ClCompile Include="localMax.C" />
+    <ClCompile Include="localMin.C" />
+    <ClCompile Include="LUST.T.C" />
+    <ClCompile Include="makeInterpolationCell.C" />
+    <ClCompile Include="makeInterpolationCellPatchConstrained.C" />
+    <ClCompile Include="makeInterpolationCellPoint.C" />
+    <ClCompile Include="makeInterpolationCellPointFace.C" />
+    <ClCompile Include="makeInterpolationCellPointWallModified.C" />
+    <ClCompile Include="makeInterpolationPointMVC.C" />
+    <ClCompile Include="mappedFieldFvPatchFields.C" />
+    <ClCompile Include="mappedFixedInternalValueFvPatchFields.C" />
+    <ClCompile Include="mappedFixedPushedInternalValueFvPatchFields.C" />
+    <ClCompile Include="mappedFixedValueFvPatchFields.C" />
+    <ClCompile Include="mappedFlowRateFvPatchVectorField.C" />
+    <ClCompile Include="mappedFvPatch.C" />
+    <ClCompile Include="mappedVelocityFluxFixedValueFvPatchField.C" />
+    <ClCompile Include="mappedWallFvPatch.C" />
+    <ClCompile Include="matchedFlowRateOutletVelocityFvPatchVectorField.C" />
+    <ClCompile Include="meshWavePatchDistMethod.C" />
+    <ClCompile Include="midPoint.C" />
+    <ClCompile Include="Minmod.T.C" />
+    <ClCompile Include="mixedFvPatchFields.C" />
+    <ClCompile Include="movingWallVelocityFvPatchVectorField.C" />
+    <ClCompile Include="MRFZone.T.C" />
+    <ClCompile Include="MRFZoneList.T.C" />
+    <ClCompile Include="MULES.T.C" />
+    <ClCompile Include="multivariateGamma.C" />
+    <ClCompile Include="multivariateGaussConvectionSchemes.C" />
+    <ClCompile Include="multivariateIndependentSchemes.C" />
+    <ClCompile Include="multivariateLimitedCubic.C" />
+    <ClCompile Include="multivariateLimitedLinear.C" />
+    <ClCompile Include="multivariateMinmod.C" />
+    <ClCompile Include="multivariateMUSCL.C" />
+    <ClCompile Include="multivariateSelectionSchemes.C" />
+    <ClCompile Include="multivariateSuperBee.C" />
+    <ClCompile Include="multivariateSurfaceInterpolationSchemes.C" />
+    <ClCompile Include="multivariateUpwind.C" />
+    <ClCompile Include="multivariateVanLeer.C" />
+    <ClCompile Include="MUSCL.T.C" />
+    <ClCompile Include="nearWallDist.C" />
+    <ClCompile Include="nearWallDistNoSearch.C" />
+    <ClCompile Include="nonuniformTransformCyclicFvPatch.C" />
+    <ClCompile Include="nonuniformTransformCyclicFvPatchFields.C" />
+    <ClCompile Include="nonuniformTransformCyclicFvsPatchFields.C" />
+    <ClCompile Include="noSlipFvPatchVectorField.C" />
+    <ClCompile Include="orthogonalSnGrads.C" />
+    <ClCompile Include="OSPRE.T.C" />
+    <ClCompile Include="outletInletFvPatchFields.C" />
+    <ClCompile Include="outletMappedUniformInletFvPatchFields.C" />
+    <ClCompile Include="outletPhaseMeanVelocityFvPatchVectorField.C" />
+    <ClCompile Include="outletStabilised.C" />
+    <ClCompile Include="partialSlipFvPatchFields.C" />
+    <ClCompile Include="patchDistMethod.C" />
+    <ClCompile Include="phaseHydrostaticPressureFvPatchScalarField.C" />
+    <ClCompile Include="Phi.C" />
+    <ClCompile Include="pimpleControl.C" />
+    <ClCompile Include="pisoControl.C" />
+    <ClCompile Include="plenumPressureFvPatchScalarField.C" />
+    <ClCompile Include="pointConstraints.C" />
+    <ClCompile Include="pointLinear.C" />
+    <ClCompile Include="pointMVCWeight.C" />
+    <ClCompile Include="PoissonPatchDistMethod.C" />
+    <ClCompile Include="porosityModel.C" />
+    <ClCompile Include="porosityModelList.C" />
+    <ClCompile Include="porosityModelNew.C" />
+    <ClCompile Include="powerLaw.C" />
+    <ClCompile Include="pressureControl.C" />
+    <ClCompile Include="pressureDirectedInletOutletVelocityFvPatchVectorField.C" />
+    <ClCompile Include="pressureDirectedInletVelocityFvPatchVectorField.C" />
+    <ClCompile Include="pressureInletOutletParSlipVelocityFvPatchVectorField.C" />
+    <ClCompile Include="pressureInletOutletVelocityFvPatchVectorField.C" />
+    <ClCompile Include="pressureInletUniformVelocityFvPatchVectorField.C" />
+    <ClCompile Include="pressureInletVelocityFvPatchVectorField.C" />
+    <ClCompile Include="pressureNormalInletOutletVelocityFvPatchVectorField.C" />
+    <ClCompile Include="prghPressureFvPatchScalarField.C" />
+    <ClCompile Include="prghTotalHydrostaticPressureFvPatchScalarField.C" />
+    <ClCompile Include="prghTotalPressureFvPatchScalarField.C" />
+    <ClCompile Include="processorCyclicFvPatch.C" />
+    <ClCompile Include="processorCyclicFvPatchFields.C" />
+    <ClCompile Include="processorCyclicFvsPatchFields.C" />
+    <ClCompile Include="processorFvPatch.C" />
+    <ClCompile Include="processorFvPatchFields.C" />
+    <ClCompile Include="processorFvsPatchFields.C" />
+    <ClCompile Include="pureUpwindCFCCellToFaceStencilObject.C" />
+    <ClCompile Include="quadraticFit.C" />
+    <ClCompile Include="quadraticFitSnGrads.C" />
+    <ClCompile Include="quadraticLinearFit.C" />
+    <ClCompile Include="quadraticLinearPureUpwindFit.C" />
+    <ClCompile Include="quadraticLinearUpwindFit.C" />
+    <ClCompile Include="quadraticUpwindFit.C" />
+    <ClCompile Include="QUICK.T.C" />
+    <ClCompile Include="regionCoupledBaseFvPatch.C" />
+    <ClCompile Include="regionCoupledFvPatch.C" />
+    <ClCompile Include="regionCoupledWallFvPatch.C" />
+    <ClCompile Include="reverseLinear.C" />
+    <ClCompile Include="rotatingPressureInletOutletVelocityFvPatchVectorField.C" />
+    <ClCompile Include="rotatingTotalPressureFvPatchScalarField.C" />
+    <ClCompile Include="rotatingWallVelocityFvPatchVectorField.C" />
+    <ClCompile Include="rpm.C" />
+    <ClCompile Include="SFCD.T.C" />
+    <ClCompile Include="simpleControl.C" />
+    <ClCompile Include="singleCellFvMesh.C" />
+    <ClCompile Include="skewCorrected.C" />
+    <ClCompile Include="skewCorrectionVectors.C" />
+    <ClCompile Include="slicedFvPatchFields.C" />
+    <ClCompile Include="slicedFvsPatchFields.C" />
+    <ClCompile Include="slipFvPatchFields.C" />
+    <ClCompile Include="SLTSDdtSchemes.T.C" />
+    <ClCompile Include="snGradSchemes.C" />
+    <ClCompile Include="solidification.C" />
+    <ClCompile Include="solutionControl.C" />
+    <ClCompile Include="SRFFreestreamVelocityFvPatchVectorField.C" />
+    <ClCompile Include="SRFModel.C" />
+    <ClCompile Include="SRFModelNew.C" />
+    <ClCompile Include="SRFVelocityFvPatchVectorField.C" />
+    <ClCompile Include="SRFWallVelocityFvPatchVectorField.C" />
+    <ClCompile Include="steadyStateD2dt2Schemes.C" />
+    <ClCompile Include="steadyStateDdtSchemes.C" />
+    <ClCompile Include="SuperBee.T.C" />
+    <ClCompile Include="supersonicFreestreamFvPatchVectorField.C" />
+    <ClCompile Include="surfaceFields.C" />
+    <ClCompile Include="surfaceInterpolation.C" />
+    <ClCompile Include="surfaceInterpolationSchemes.C" />
+    <ClCompile Include="surfaceNormalFixedValueFvPatchVectorField.C" />
+    <ClCompile Include="swirlFlowRateInletVelocityFvPatchVectorField.C" />
+    <ClCompile Include="swirlInletVelocityFvPatchVectorField.C" />
+    <ClCompile Include="symmetryFvPatch.C" />
+    <ClCompile Include="symmetryFvPatchFields.C" />
+    <ClCompile Include="symmetryFvsPatchFields.C" />
+    <ClCompile Include="symmetryPlaneFvPatch.C" />
+    <ClCompile Include="symmetryPlaneFvPatchFields.C" />
+    <ClCompile Include="symmetryPlaneFvPatchScalarField.C" />
+    <ClCompile Include="symmetryPlaneFvsPatchFields.C" />
+    <ClCompile Include="syringePressureFvPatchScalarField.C" />
+    <ClCompile Include="timeVaryingMappedFixedValueFvPatchFields.C" />
+    <ClCompile Include="totalPressureFvPatchScalarField.C" />
+    <ClCompile Include="totalTemperatureFvPatchScalarField.C" />
+    <ClCompile Include="transformFvPatchFields.C" />
+    <ClCompile Include="transformFvPatchScalarField.C" />
+    <ClCompile Include="translatingWallVelocityFvPatchVectorField.C" />
+    <ClCompile Include="turbulentInletFvPatchFields.C" />
+    <ClCompile Include="turbulentIntensityKineticEnergyInletFvPatchScalarField.C" />
+    <ClCompile Include="UMIST.T.C" />
+    <ClCompile Include="uncorrectedSnGrads.C" />
+    <ClCompile Include="uniformDensityHydrostaticPressureFvPatchScalarField.C" />
+    <ClCompile Include="uniformFixedGradientFvPatchFields.C" />
+    <ClCompile Include="uniformFixedValueFvPatchFields.C" />
+    <ClCompile Include="uniformInletOutletFvPatchFields.C" />
+    <ClCompile Include="uniformJumpAMIFvPatchFields.C" />
+    <ClCompile Include="uniformJumpFvPatchFields.C" />
+    <ClCompile Include="uniformTotalPressureFvPatchScalarField.C" />
+    <ClCompile Include="unweightedLeastSquaresVectors.C" />
+    <ClCompile Include="upwind.C" />
+    <ClCompile Include="upwindCECCellToFaceStencilObject.C" />
+    <ClCompile Include="upwindCFCCellToFaceStencilObject.C" />
+    <ClCompile Include="upwindCPCCellToFaceStencilObject.C" />
+    <ClCompile Include="upwindFECCellToFaceStencilObject.C" />
+    <ClCompile Include="vanAlbada.C" />
+    <ClCompile Include="vanLeer.C" />
+    <ClCompile Include="variableHeightFlowRateFvPatchField.C" />
+    <ClCompile Include="variableHeightFlowRateInletVelocityFvPatchVectorField.C" />
+    <ClCompile Include="volFields.C" />
+    <ClCompile Include="volPointInterpolation.c" />
+    <ClCompile Include="volRegion.C" />
+    <ClCompile Include="wallDist.C" />
+    <ClCompile Include="wallFvPatch.C" />
+    <ClCompile Include="wallPointYPlus.C" />
+    <ClCompile Include="waveSurfacePressureFvPatchScalarField.C" />
+    <ClCompile Include="waveTransmissiveFvPatchFields.C" />
+    <ClCompile Include="wedgeFvPatch.C" />
+    <ClCompile Include="wedgeFvPatchFields.C" />
+    <ClCompile Include="wedgeFvPatchScalarField.C" />
+    <ClCompile Include="wedgeFvsPatchFields.C" />
+    <ClCompile Include="weighted.C" />
+    <ClCompile Include="zeroGradientFvPatchFields.C" />
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets">
+  </ImportGroup>
+</Project>

@@ -1,0 +1,542 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|Win32">
+      <Configuration>Debug</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|Win32">
+      <Configuration>Release</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Debug|x64">
+      <Configuration>Debug</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64">
+      <Configuration>Release</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="db\baseIOdictionary.C" />
+    <ClCompile Include="db\baseIOdictionaryIO.C" />
+    <ClCompile Include="db\calcEntry.C" />
+    <ClCompile Include="db\CallbackRegistryName.T.C" />
+    <ClCompile Include="db\codedBase.C" />
+    <ClCompile Include="db\codeStream.C" />
+    <ClCompile Include="db\decomposedBlockData.C" />
+    <ClCompile Include="db\dictionary.C" />
+    <ClCompile Include="db\dictionaryEntry.C" />
+    <ClCompile Include="db\dictionaryEntryIO.C" />
+    <ClCompile Include="db\dictionaryIO.C" />
+    <ClCompile Include="db\dictionaryListEntry.C" />
+    <ClCompile Include="db\dictionaryListEntryIO.C" />
+    <ClCompile Include="db\dlLibraryTable.C" />
+    <ClCompile Include="db\dynamicCode.C" />
+    <ClCompile Include="db\dynamicCodeContext.C" />
+    <ClCompile Include="db\entry.C" />
+    <ClCompile Include="db\entryIO.C" />
+    <ClCompile Include="db\error.C" />
+    <ClCompile Include="db\findInstance.C" />
+    <ClCompile Include="db\findTimes.C" />
+    <ClCompile Include="db\functionEntry.C" />
+    <ClCompile Include="db\functionObject.C" />
+    <ClCompile Include="db\functionObjectList.C" />
+    <ClCompile Include="db\GlobalIOFields.T.C" />
+    <ClCompile Include="db\globalIOLists.C" />
+    <ClCompile Include="db\gzstream.C" />
+    <ClCompile Include="db\IFstream.C" />
+    <ClCompile Include="db\includeEntry.C" />
+    <ClCompile Include="db\includeEtcEntry.C" />
+    <ClCompile Include="db\includeFuncEntry.C" />
+    <ClCompile Include="db\includeIfPresentEntry.C" />
+    <ClCompile Include="db\inputModeEntry.C" />
+    <ClCompile Include="db\instant.C" />
+    <ClCompile Include="db\IOdictionary.C" />
+    <ClCompile Include="db\IOdictionaryIO.C" />
+    <ClCompile Include="db\IOerror.C" />
+    <ClCompile Include="db\IOMapName.T.C" />
+    <ClCompile Include="db\IOobject.T.C" />
+    <ClCompile Include="db\IOobjectIO.T.C" />
+    <ClCompile Include="db\IOobjectList.T.C" />
+    <ClCompile Include="db\IOobjectReadHeader.T.C" />
+    <ClCompile Include="db\IOobjectWriteHeader.T.C" />
+    <ClCompile Include="db\IOstream.C" />
+    <ClCompile Include="db\IOstreams.C" />
+    <ClCompile Include="db\IPstream.C" />
+    <ClCompile Include="db\ISstream.C" />
+    <ClCompile Include="db\Istream.T.C" />
+    <ClCompile Include="db\ITstream.C" />
+    <ClCompile Include="db\localIOdictionary.C" />
+    <ClCompile Include="db\logFiles.C" />
+    <ClCompile Include="db\masterOFstream.C" />
+    <ClCompile Include="db\messageStream.C" />
+    <ClCompile Include="db\objectRegistry.C" />
+    <ClCompile Include="db\OFstream.C" />
+    <ClCompile Include="db\OPstream.C" />
+    <ClCompile Include="db\OSstream.C" />
+    <ClCompile Include="db\Ostream.C" />
+    <ClCompile Include="db\prefixOSstream.C" />
+    <ClCompile Include="db\primitiveEntry.C" />
+    <ClCompile Include="db\primitiveEntryIO.C" />
+    <ClCompile Include="db\Pstream.T.C" />
+    <ClCompile Include="db\PstreamBuffers.T.C" />
+    <ClCompile Include="db\readHexLabel.C" />
+    <ClCompile Include="db\regionFunctionObject.C" />
+    <ClCompile Include="db\regIOobject.C" />
+    <ClCompile Include="db\regIOobjectRead.C" />
+    <ClCompile Include="db\regIOobjectWrite.C" />
+    <ClCompile Include="db\removeEntry.C" />
+    <ClCompile Include="db\SstreamsPrint.C" />
+    <ClCompile Include="db\StringStreamsPrint.C" />
+    <ClCompile Include="db\subCycleTime.C" />
+    <ClCompile Include="db\Time.T.C" />
+    <ClCompile Include="db\timeControl.C" />
+    <ClCompile Include="db\timeControlFunctionObject.C" />
+    <ClCompile Include="db\TimeIO.T.C" />
+    <ClCompile Include="db\TimePaths.T.C" />
+    <ClCompile Include="db\timeSelector.C" />
+    <ClCompile Include="db\TimeState.T.C" />
+    <ClCompile Include="db\token.T.C" />
+    <ClCompile Include="db\tokenIO.C" />
+    <ClCompile Include="db\UIPstream.C" />
+    <ClCompile Include="db\unwatchedIOdictionary.C" />
+    <ClCompile Include="db\UOPstream.C" />
+    <ClCompile Include="db\UPstream.C" />
+    <ClCompile Include="db\UPstreamCommsStruct.C" />
+    <ClCompile Include="db\writeFile.C" />
+    <ClCompile Include="db\writeLocalObjects.C" />
+    <ClCompile Include="db\writeObjectsBase.C" />
+    <ClCompile Include="dimensionedTypes\dimensionedScalar.C" />
+    <ClCompile Include="dimensionedTypes\dimensionedSphericalTensor.C" />
+    <ClCompile Include="dimensionedTypes\dimensionedSymmTensor.C" />
+    <ClCompile Include="dimensionSet\dimensionSet.C" />
+    <ClCompile Include="dimensionSet\dimensionSetIO.C" />
+    <ClCompile Include="dimensionSet\dimensionSets.C" />
+    <ClCompile Include="global\argList.C" />
+    <ClCompile Include="global\atomicConstants.C" />
+    <ClCompile Include="global\clock.C" />
+    <ClCompile Include="global\collatedFileOperation.C" />
+    <ClCompile Include="global\constants.C" />
+    <ClCompile Include="global\debug.T.C" />
+    <ClCompile Include="global\dimensionedConstants.C" />
+    <ClCompile Include="global\electromagneticConstants.C" />
+    <ClCompile Include="global\etcFiles.C" />
+    <ClCompile Include="global\fileOperation.C" />
+    <ClCompile Include="global\fundamentalConstants.C" />
+    <ClCompile Include="global\JobInfo.C" />
+    <ClCompile Include="global\masterUncollatedFileOperation.C" />
+    <ClCompile Include="global\new.C" />
+    <ClCompile Include="global\OFstreamCollator.C" />
+    <ClCompile Include="global\physicoChemicalConstants.C" />
+    <ClCompile Include="global\thermodynamicConstants.C" />
+    <ClCompile Include="global\threadedCollatedOFstream.C" />
+    <ClCompile Include="global\uncollatedFileOperation.C" />
+    <ClCompile Include="global\universalConstants.C" />
+    <ClCompile Include="graph\curve.C" />
+    <ClCompile Include="graph\curveTools.C" />
+    <ClCompile Include="graph\gnuplotGraph.C" />
+    <ClCompile Include="graph\graph.C" />
+    <ClCompile Include="graph\jplotGraph.C" />
+    <ClCompile Include="graph\rawGraph.C" />
+    <ClCompile Include="graph\xmgrGraph.C" />
+    <ClCompile Include="matrices\algebraicPairGAMGAgglomeration.C" />
+    <ClCompile Include="matrices\cyclicGAMGInterface.C" />
+    <ClCompile Include="matrices\cyclicGAMGInterfaceField.C" />
+    <ClCompile Include="matrices\cyclicLduInterface.C" />
+    <ClCompile Include="matrices\cyclicLduInterfaceField.C" />
+    <ClCompile Include="matrices\diagonalPreconditioner.C" />
+    <ClCompile Include="matrices\diagonalSolver.C" />
+    <ClCompile Include="matrices\DICGaussSeidelSmoother.C" />
+    <ClCompile Include="matrices\DICPreconditioner.C" />
+    <ClCompile Include="matrices\DICSmoother.C" />
+    <ClCompile Include="matrices\DILUGaussSeidelSmoother.C" />
+    <ClCompile Include="matrices\DILUPreconditioner.C" />
+    <ClCompile Include="matrices\DILUSmoother.C" />
+    <ClCompile Include="matrices\dummyAgglomeration.C" />
+    <ClCompile Include="matrices\eagerGAMGProcAgglomeration.C" />
+    <ClCompile Include="matrices\FDICPreconditioner.C" />
+    <ClCompile Include="matrices\FDICSmoother.C" />
+    <ClCompile Include="matrices\GAMGAgglomerateLduAddressing.C" />
+    <ClCompile Include="matrices\GAMGAgglomeration.T.C" />
+    <ClCompile Include="matrices\GAMGInterface.T.C" />
+    <ClCompile Include="matrices\GAMGInterfaceField.T.C" />
+    <ClCompile Include="matrices\GAMGInterfaceFieldNew.T.C" />
+    <ClCompile Include="matrices\GAMGInterfaceNew.T.C" />
+    <ClCompile Include="matrices\GAMGPreconditioner.C" />
+    <ClCompile Include="matrices\GAMGProcAgglomeration.C" />
+    <ClCompile Include="matrices\GAMGSolver.C" />
+    <ClCompile Include="matrices\GAMGSolverAgglomerateMatrix.C" />
+    <ClCompile Include="matrices\GAMGSolverInterpolate.C" />
+    <ClCompile Include="matrices\GAMGSolverScale.C" />
+    <ClCompile Include="matrices\GAMGSolverSolve.C" />
+    <ClCompile Include="matrices\GaussSeidelSmoother.C" />
+    <ClCompile Include="matrices\lduAddressing.C" />
+    <ClCompile Include="matrices\lduInterface.C" />
+    <ClCompile Include="matrices\lduInterfaceField.C" />
+    <ClCompile Include="matrices\LduInterfaceFields.T.C" />
+    <ClCompile Include="matrices\lduMatrices.C" />
+    <ClCompile Include="matrices\lduMatrix.C" />
+    <ClCompile Include="matrices\lduMatrixATmul.C" />
+    <ClCompile Include="matrices\lduMatrixOperations.C" />
+    <ClCompile Include="matrices\lduMatrixPreconditioner.C" />
+    <ClCompile Include="matrices\lduMatrixSmoother.C" />
+    <ClCompile Include="matrices\lduMatrixSolver.C" />
+    <ClCompile Include="matrices\lduMatrixUpdateMatrixInterfaces.C" />
+    <ClCompile Include="matrices\lduPreconditioners.C" />
+    <ClCompile Include="matrices\lduSmoothers.C" />
+    <ClCompile Include="matrices\lduSolvers.C" />
+    <ClCompile Include="matrices\LUscalarMatrix.T.C" />
+    <ClCompile Include="matrices\manualGAMGProcAgglomeration.C" />
+    <ClCompile Include="matrices\masterCoarsestGAMGProcAgglomeration.C" />
+    <ClCompile Include="matrices\nonBlockingGaussSeidelSmoother.C" />
+    <ClCompile Include="matrices\noneGAMGProcAgglomeration.C" />
+    <ClCompile Include="matrices\noPreconditioner.C" />
+    <ClCompile Include="matrices\pairGAMGAgglomerate.C" />
+    <ClCompile Include="matrices\pairGAMGAgglomeration.C" />
+    <ClCompile Include="matrices\PBiCG.C" />
+    <ClCompile Include="matrices\PBiCGStab.C" />
+    <ClCompile Include="matrices\PCG.C" />
+    <ClCompile Include="matrices\processorCyclicGAMGInterface.C" />
+    <ClCompile Include="matrices\processorCyclicGAMGInterfaceField.C" />
+    <ClCompile Include="matrices\processorGAMGInterface.C" />
+    <ClCompile Include="matrices\processorGAMGInterfaceField.C" />
+    <ClCompile Include="matrices\processorLduInterface.C" />
+    <ClCompile Include="matrices\processorLduInterfaceField.C" />
+    <ClCompile Include="matrices\procFacesGAMGProcAgglomeration.C" />
+    <ClCompile Include="matrices\procLduInterface.C" />
+    <ClCompile Include="matrices\procLduMatrix.C" />
+    <ClCompile Include="matrices\scalarMatrices.C" />
+    <ClCompile Include="matrices\smoothSolver.C" />
+    <ClCompile Include="matrices\solution.C" />
+    <ClCompile Include="matrices\solverPerformance.C" />
+    <ClCompile Include="matrices\SVD.C" />
+    <ClCompile Include="matrices\symGaussSeidelSmoother.C" />
+    <ClCompile Include="matrices\tolerances.C" />
+    <ClCompile Include="meshes\bandCompression.C" />
+    <ClCompile Include="meshes\boundBox.C" />
+    <ClCompile Include="meshes\cell.C" />
+    <ClCompile Include="meshes\cellIOList.C" />
+    <ClCompile Include="meshes\cellMapper.C" />
+    <ClCompile Include="meshes\cellMatcher.C" />
+    <ClCompile Include="meshes\cellModel.C" />
+    <ClCompile Include="meshes\cellModelIO.C" />
+    <ClCompile Include="meshes\cellModeller.C" />
+    <ClCompile Include="meshes\cellShape.C" />
+    <ClCompile Include="meshes\cellShapeEqual.C" />
+    <ClCompile Include="meshes\cellShapeIO.C" />
+    <ClCompile Include="meshes\cellShapeIOList.C" />
+    <ClCompile Include="meshes\cellZone.C" />
+    <ClCompile Include="meshes\cellZoneNew.C" />
+    <ClCompile Include="meshes\commSchedule.C" />
+    <ClCompile Include="meshes\coupledFacePointPatch.C" />
+    <ClCompile Include="meshes\coupledPointPatch.C" />
+    <ClCompile Include="meshes\coupledPolyPatch.C" />
+    <ClCompile Include="meshes\coupleGroupIdentifier.C" />
+    <ClCompile Include="meshes\cyclicPointPatch.C" />
+    <ClCompile Include="meshes\cyclicPolyPatch.C" />
+    <ClCompile Include="meshes\cyclicSlipPointPatch.C" />
+    <ClCompile Include="meshes\cyclicSlipPolyPatch.C" />
+    <ClCompile Include="meshes\data.C" />
+    <ClCompile Include="meshes\degenerateMatcher.C" />
+    <ClCompile Include="meshes\edge.C" />
+    <ClCompile Include="meshes\edgeIOList.C" />
+    <ClCompile Include="meshes\emptyPointPatch.C" />
+    <ClCompile Include="meshes\emptyPolyPatch.C" />
+    <ClCompile Include="meshes\face.C" />
+    <ClCompile Include="meshes\faceAreaInContact.C" />
+    <ClCompile Include="meshes\faceContactSphere.C" />
+    <ClCompile Include="meshes\faceIntersection.C" />
+    <ClCompile Include="meshes\faceIOList.C" />
+    <ClCompile Include="meshes\faceMapper.C" />
+    <ClCompile Include="meshes\facePointPatch.C" />
+    <ClCompile Include="meshes\facePointPatchNew.C" />
+    <ClCompile Include="meshes\faceZone.C" />
+    <ClCompile Include="meshes\faceZoneNew.C" />
+    <ClCompile Include="meshes\genericPointPatch.C" />
+    <ClCompile Include="meshes\genericPolyPatch.C" />
+    <ClCompile Include="meshes\globalCellModeller.C" />
+    <ClCompile Include="meshes\globalIndex.C" />
+    <ClCompile Include="meshes\globalMeshData.C" />
+    <ClCompile Include="meshes\globalPoints.C" />
+    <ClCompile Include="meshes\hexMatcher.C" />
+    <ClCompile Include="meshes\intersection.C" />
+    <ClCompile Include="meshes\IOmapDistribute.C" />
+    <ClCompile Include="meshes\lduMesh.C" />
+    <ClCompile Include="meshes\lduPrimitiveMesh.C" />
+    <ClCompile Include="meshes\line.C" />
+    <ClCompile Include="meshes\mapAddedPolyMesh.C" />
+    <ClCompile Include="meshes\mapDistribute.C" />
+    <ClCompile Include="meshes\mapDistributeBase.C" />
+    <ClCompile Include="meshes\mapDistributePolyMesh.C" />
+    <ClCompile Include="meshes\mapPolyMesh.C" />
+    <ClCompile Include="meshes\matchPoints.C" />
+    <ClCompile Include="meshes\meshObject.C" />
+    <ClCompile Include="meshes\nonuniformTransformCyclicPointPatch.C" />
+    <ClCompile Include="meshes\nonuniformTransformCyclicPolyPatch.C" />
+    <ClCompile Include="meshes\oldCyclicPolyPatch.C" />
+    <ClCompile Include="meshes\oppositeCellFace.C" />
+    <ClCompile Include="meshes\patchIdentifier.C" />
+    <ClCompile Include="meshes\patchZones.C" />
+    <ClCompile Include="meshes\plane.C" />
+    <ClCompile Include="meshes\pointBoundaryMesh.C" />
+    <ClCompile Include="meshes\pointIndexHitIOList.C" />
+    <ClCompile Include="meshes\pointMapper.C" />
+    <ClCompile Include="meshes\pointMesh.C" />
+    <ClCompile Include="meshes\pointPatch.C" />
+    <ClCompile Include="meshes\pointPatchMapper.C" />
+    <ClCompile Include="meshes\pointZone.C" />
+    <ClCompile Include="meshes\pointZoneNew.C" />
+    <ClCompile Include="meshes\polyBoundaryMesh.C" />
+    <ClCompile Include="meshes\polyBoundaryMeshEntries.C" />
+    <ClCompile Include="meshes\polyMesh.C" />
+    <ClCompile Include="meshes\polyMeshCheck.C" />
+    <ClCompile Include="meshes\polyMeshClear.C" />
+    <ClCompile Include="meshes\polyMeshFromShapeMesh.C" />
+    <ClCompile Include="meshes\polyMeshInitMesh.C" />
+    <ClCompile Include="meshes\polyMeshIO.C" />
+    <ClCompile Include="meshes\polyMeshTetDecomposition.C" />
+    <ClCompile Include="meshes\polyMeshTools.C" />
+    <ClCompile Include="meshes\polyMeshUpdate.C" />
+    <ClCompile Include="meshes\polyPatch.C" />
+    <ClCompile Include="meshes\polyPatchNew.C" />
+    <ClCompile Include="meshes\preservePatchTypes.C" />
+    <ClCompile Include="meshes\primitiveMesh.C" />
+    <ClCompile Include="meshes\primitiveMeshCalcCellShapes.C" />
+    <ClCompile Include="meshes\primitiveMeshCellCells.C" />
+    <ClCompile Include="meshes\primitiveMeshCellCentresAndVols.C" />
+    <ClCompile Include="meshes\primitiveMeshCellEdges.C" />
+    <ClCompile Include="meshes\primitiveMeshCellPoints.C" />
+    <ClCompile Include="meshes\primitiveMeshCells.C" />
+    <ClCompile Include="meshes\primitiveMeshCheck.C" />
+    <ClCompile Include="meshes\primitiveMeshCheckEdgeLength.C" />
+    <ClCompile Include="meshes\primitiveMeshCheckPointNearness.C" />
+    <ClCompile Include="meshes\primitiveMeshClear.C" />
+    <ClCompile Include="meshes\primitiveMeshEdgeCells.C" />
+    <ClCompile Include="meshes\primitiveMeshEdgeFaces.C" />
+    <ClCompile Include="meshes\primitiveMeshEdges.C" />
+    <ClCompile Include="meshes\primitiveMeshFaceCentresAndAreas.C" />
+    <ClCompile Include="meshes\primitiveMeshFindCell.C" />
+    <ClCompile Include="meshes\primitiveMeshPointCells.C" />
+    <ClCompile Include="meshes\primitiveMeshPointFaces.C" />
+    <ClCompile Include="meshes\primitiveMeshPointPoints.C" />
+    <ClCompile Include="meshes\primitiveMeshTools.C" />
+    <ClCompile Include="meshes\PrimitivePatchName.T.C" />
+    <ClCompile Include="meshes\prismMatcher.C" />
+    <ClCompile Include="meshes\processorCyclicPointPatch.C" />
+    <ClCompile Include="meshes\processorCyclicPolyPatch.C" />
+    <ClCompile Include="meshes\processorPointPatch.C" />
+    <ClCompile Include="meshes\processorPolyPatch.C" />
+    <ClCompile Include="meshes\pyrMatcher.C" />
+    <ClCompile Include="meshes\symmetryPlanePointPatch.C" />
+    <ClCompile Include="meshes\symmetryPlanePolyPatch.C" />
+    <ClCompile Include="meshes\symmetryPointPatch.C" />
+    <ClCompile Include="meshes\symmetryPolyPatch.C" />
+    <ClCompile Include="meshes\syncTools.C" />
+    <ClCompile Include="meshes\tetCell.C" />
+    <ClCompile Include="meshes\tetIndices.C" />
+    <ClCompile Include="meshes\tetMatcher.C" />
+    <ClCompile Include="meshes\tetWedgeMatcher.C" />
+    <ClCompile Include="meshes\treeBoundBox.C" />
+    <ClCompile Include="meshes\walkPatch.C" />
+    <ClCompile Include="meshes\wallPointPatch.C" />
+    <ClCompile Include="meshes\wallPolyPatch.C" />
+    <ClCompile Include="meshes\wedgeMatcher.C" />
+    <ClCompile Include="meshes\wedgePointPatch.C" />
+    <ClCompile Include="meshes\wedgePolyPatch.C" />
+    <ClCompile Include="meshes\zone.C" />
+    <ClCompile Include="primitives\barycentric.C" />
+    <ClCompile Include="primitives\barycentric2D.C" />
+    <ClCompile Include="primitives\bool.C" />
+    <ClCompile Include="primitives\boolIO.C" />
+    <ClCompile Include="primitives\boolList.C" />
+    <ClCompile Include="primitives\cachedRandom.C" />
+    <ClCompile Include="primitives\charIO.C" />
+    <ClCompile Include="primitives\compactSpatialTensor.C" />
+    <ClCompile Include="primitives\complex.C" />
+    <ClCompile Include="primitives\complexVector.C" />
+    <ClCompile Include="primitives\cubicEqn.C" />
+    <ClCompile Include="primitives\diagTensor.C" />
+    <ClCompile Include="primitives\directionIO.C" />
+    <ClCompile Include="primitives\fileName.C" />
+    <ClCompile Include="primitives\fileNameIO.C" />
+    <ClCompile Include="primitives\flipOp.C" />
+    <ClCompile Include="primitives\floatTensor.C" />
+    <ClCompile Include="primitives\floatVector.C" />
+    <ClCompile Include="primitives\globalIndexAndTransform.C" />
+    <ClCompile Include="primitives\halfCosineRamp.C" />
+    <ClCompile Include="primitives\hashedWordList.C" />
+    <ClCompile Include="primitives\Hasher.T.C" />
+    <ClCompile Include="primitives\int32.C" />
+    <ClCompile Include="primitives\int32IO.C" />
+    <ClCompile Include="primitives\int64.C" />
+    <ClCompile Include="primitives\int64IO.C" />
+    <ClCompile Include="primitives\intIO.C" />
+    <ClCompile Include="primitives\invIncGamma.C" />
+    <ClCompile Include="primitives\keyType.C" />
+    <ClCompile Include="primitives\label.C" />
+    <ClCompile Include="primitives\labelIOList.C" />
+    <ClCompile Include="primitives\labelListIOList.C" />
+    <ClCompile Include="primitives\labelRange.C" />
+    <ClCompile Include="primitives\labelRanges.C" />
+    <ClCompile Include="primitives\labelSphericalTensor.C" />
+    <ClCompile Include="primitives\labelSymmTensor.C" />
+    <ClCompile Include="primitives\labelTensor.C" />
+    <ClCompile Include="primitives\labelVector.C" />
+    <ClCompile Include="primitives\linearRamp.C" />
+    <ClCompile Include="primitives\makeDataEntries.C" />
+    <ClCompile Include="primitives\nullObject.C" />
+    <ClCompile Include="primitives\polynomialFunction.C" />
+    <ClCompile Include="primitives\quadraticEqn.C" />
+    <ClCompile Include="primitives\quadraticRamp.C" />
+    <ClCompile Include="primitives\quarterCosineRamp.C" />
+    <ClCompile Include="primitives\quarterSineRamp.C" />
+    <ClCompile Include="primitives\quaternion.C" />
+    <ClCompile Include="primitives\ramp.C" />
+    <ClCompile Include="primitives\Random.C" />
+    <ClCompile Include="primitives\scalar.C" />
+    <ClCompile Include="primitives\scalarIOList.C" />
+    <ClCompile Include="primitives\scalarList.C" />
+    <ClCompile Include="primitives\scalarListIOList.C" />
+    <ClCompile Include="primitives\scalarRange.C" />
+    <ClCompile Include="primitives\scalarRanges.C" />
+    <ClCompile Include="primitives\septernion.C" />
+    <ClCompile Include="primitives\SHA1.C" />
+    <ClCompile Include="primitives\SHA1Digest.C" />
+    <ClCompile Include="primitives\spatialTensor.C" />
+    <ClCompile Include="primitives\spatialVector.C" />
+    <ClCompile Include="primitives\sphericalTensor.C" />
+    <ClCompile Include="primitives\sphericalTensor2D.C" />
+    <ClCompile Include="primitives\sphericalTensorList.C" />
+    <ClCompile Include="primitives\string.C" />
+    <ClCompile Include="primitives\stringIO.C" />
+    <ClCompile Include="primitives\stringIOList.C" />
+    <ClCompile Include="primitives\stringOps.C" />
+    <ClCompile Include="primitives\subModelBase.C" />
+    <ClCompile Include="primitives\Switch.C" />
+    <ClCompile Include="primitives\SwitchIO.C" />
+    <ClCompile Include="primitives\symmTensor.C" />
+    <ClCompile Include="primitives\symmTensor2D.C" />
+    <ClCompile Include="primitives\symmTensorList.C" />
+    <ClCompile Include="primitives\tensor.C" />
+    <ClCompile Include="primitives\tensor2D.C" />
+    <ClCompile Include="primitives\tensorList.C" />
+    <ClCompile Include="primitives\triad.C" />
+    <ClCompile Include="primitives\uint32.C" />
+    <ClCompile Include="primitives\uint32IO.C" />
+    <ClCompile Include="primitives\uint64.C" />
+    <ClCompile Include="primitives\uint64IO.C" />
+    <ClCompile Include="primitives\uintIO.C" />
+    <ClCompile Include="primitives\uLabel.C" />
+    <ClCompile Include="primitives\vector.C" />
+    <ClCompile Include="primitives\vector2D.C" />
+    <ClCompile Include="primitives\vectorIOList.C" />
+    <ClCompile Include="primitives\vectorList.C" />
+    <ClCompile Include="primitives\vectorListIOList.C" />
+    <ClCompile Include="primitives\vectorTensorTransform.C" />
+    <ClCompile Include="primitives\wcharIO.C" />
+    <ClCompile Include="primitives\word.C" />
+    <ClCompile Include="primitives\wordIO.C" />
+    <ClCompile Include="primitives\wordIOList.C" />
+    <ClCompile Include="primitives\wordRe.C" />
+  </ItemGroup>
+  <ItemGroup>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="db\version" />
+    <None Include="global\global.Cver" />
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <VCProjectVersion>15.0</VCProjectVersion>
+    <ProjectGuid>{8A451363-4878-4709-BCFC-18F303E3774F}</ProjectGuid>
+    <Keyword>Win32Proj</Keyword>
+    <WindowsTargetPlatformVersion>8.1</WindowsTargetPlatformVersion>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <PlatformToolset>v141</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
+    <ConfigurationType>DynamicLibrary</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v141</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <PlatformToolset>v141</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v141</PlatformToolset>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings">
+  </ImportGroup>
+  <ImportGroup Label="Shared">
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <PropertyGroup Label="UserMacros" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <LinkIncremental>true</LinkIncremental>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <LinkIncremental>true</LinkIncremental>
+  </PropertyGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <ClCompile>
+      <PreprocessorDefinitions>WIN32;_DEBUG;_WINDOWS;_USRDLL;OPENFOAM_EXPORTS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <RuntimeLibrary>MultiThreadedDebugDLL</RuntimeLibrary>
+      <WarningLevel>Level3</WarningLevel>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+      <Optimization>Disabled</Optimization>
+    </ClCompile>
+    <Link>
+      <TargetMachine>MachineX86</TargetMachine>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <SubSystem>Windows</SubSystem>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <ClCompile>
+      <PreprocessorDefinitions>WIN32;NDEBUG;_WINDOWS;_USRDLL;OPENFOAM_EXPORTS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <RuntimeLibrary>MultiThreadedDLL</RuntimeLibrary>
+      <WarningLevel>Level3</WarningLevel>
+      <DebugInformationFormat>ProgramDatabase</DebugInformationFormat>
+    </ClCompile>
+    <Link>
+      <TargetMachine>MachineX86</TargetMachine>
+      <GenerateDebugInformation>true</GenerateDebugInformation>
+      <SubSystem>Windows</SubSystem>
+      <EnableCOMDATFolding>true</EnableCOMDATFolding>
+      <OptimizeReferences>true</OptimizeReferences>
+    </Link>
+  </ItemDefinitionGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <ClCompile>
+      <AdditionalIncludeDirectories>.\algorithms;.\containers;.\db;.\dimensionedTypes;.\dimensionSet;.\fields;.\global;.\graph;.\include;.\interpolations;.\matrices;.\memory;.\meshes;.\primitives;..\OSspecific;..\dummyThirdParty;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <CompileAs>CompileAsCpp</CompileAs>
+      <PreprocessorDefinitions>WM_LABEL_SIZE=64;WM_DP;NoRepository;WIN32;WIN64;_WINDOWS;NOMINMAX;_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <LanguageStandard>stdcpp17</LanguageStandard>
+      <WarningLevel>Level4</WarningLevel>
+    </ClCompile>
+  </ItemDefinitionGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets">
+  </ImportGroup>
+</Project>

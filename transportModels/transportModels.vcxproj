@@ -1,0 +1,107 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|Win32">
+      <Configuration>Debug</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|Win32">
+      <Configuration>Release</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Debug|x64">
+      <Configuration>Debug</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64">
+      <Configuration>Release</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <VCProjectVersion>15.0</VCProjectVersion>
+    <ProjectGuid>{4478877B-3161-4118-916F-96881177A7A7}</ProjectGuid>
+    <WindowsTargetPlatformVersion>8.1</WindowsTargetPlatformVersion>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <PlatformToolset>v141</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v141</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <PlatformToolset>v141</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v141</PlatformToolset>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings">
+  </ImportGroup>
+  <ImportGroup Label="Shared">
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <PropertyGroup Label="UserMacros" />
+  <PropertyGroup />
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <ClCompile>
+      <AdditionalIncludeDirectories>..\OpenFOAM\algorithms;..\OpenFOAM\containers;..\OpenFOAM\db;..\OpenFOAM\dimensionedTypes;..\OpenFOAM\dimensionSet;..\OpenFOAM\fields;..\OpenFOAM\global;..\OpenFOAM\graph;..\OpenFOAM\include;..\OpenFOAM\interpolations;..\OpenFOAM\matrices;..\OpenFOAM\memory;..\OpenFOAM\meshes;..\OpenFOAM\primitives;..\OSspecific;..\fileFormats;..\dynamicMesh;..\fileFormats;..\finiteVolume;..\meshTools;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>WM_LABEL_SIZE=64;WM_DP;NoRepository;WIN32;WIN64;_WINDOWS;NOMINMAX;_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <CompileAs>CompileAsCpp</CompileAs>
+      <LanguageStandard>stdcpp17</LanguageStandard>
+      <WarningLevel>Level4</WarningLevel>
+    </ClCompile>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ClCompile Include="alphaContactAngleFvPatchScalarField.C" />
+    <ClCompile Include="alphaFixedPressureFvPatchScalarField.C" />
+    <ClCompile Include="BirdCarreau.C" />
+    <ClCompile Include="Casson.C" />
+    <ClCompile Include="compressibleTransportModel.C" />
+    <ClCompile Include="constantAlphaContactAngleFvPatchScalarField.C" />
+    <ClCompile Include="constantSurfaceTension.C" />
+    <ClCompile Include="CrossPowerLaw.C" />
+    <ClCompile Include="dynamicAlphaContactAngleFvPatchScalarField.C" />
+    <ClCompile Include="HerschelBulkley.C" />
+    <ClCompile Include="immiscibleIncompressibleTwoPhaseMixture.C" />
+    <ClCompile Include="incompressibleTwoPhaseMixture.C" />
+    <ClCompile Include="interfaceCompression.C" />
+    <ClCompile Include="interfaceProperties.C" />
+    <ClCompile Include="newSurfaceTensionModel.C" />
+    <ClCompile Include="Newtonian.C" />
+    <ClCompile Include="powerLaw.C" />
+    <ClCompile Include="singlePhaseTransportModel.C" />
+    <ClCompile Include="strainRateFunction.C" />
+    <ClCompile Include="surfaceTensionModel.C" />
+    <ClCompile Include="temperatureDependentAlphaContactAngleFvPatchScalarField.C" />
+    <ClCompile Include="temperatureDependentSurfaceTension.C" />
+    <ClCompile Include="timeVaryingAlphaContactAngleFvPatchScalarField.C" />
+    <ClCompile Include="transportModel.C" />
+    <ClCompile Include="twoPhaseMixture.C" />
+    <ClCompile Include="viscosityModel.C" />
+    <ClCompile Include="viscosityModelNew.C" />
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets">
+  </ImportGroup>
+</Project>

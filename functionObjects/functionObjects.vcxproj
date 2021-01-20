@@ -1,0 +1,145 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|Win32">
+      <Configuration>Debug</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|Win32">
+      <Configuration>Release</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Debug|x64">
+      <Configuration>Debug</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64">
+      <Configuration>Release</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <VCProjectVersion>15.0</VCProjectVersion>
+    <ProjectGuid>{4465334B-3060-4335-916F-9655D6D933A1}</ProjectGuid>
+    <WindowsTargetPlatformVersion>8.1</WindowsTargetPlatformVersion>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <PlatformToolset>v141</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v141</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <PlatformToolset>v141</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v141</PlatformToolset>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings">
+  </ImportGroup>
+  <ImportGroup Label="Shared">
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <PropertyGroup Label="UserMacros" />
+  <PropertyGroup />
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <ClCompile>
+      <AdditionalIncludeDirectories>..\OpenFOAM\algorithms;..\OpenFOAM\containers;..\OpenFOAM\db;..\OpenFOAM\dimensionedTypes;..\OpenFOAM\dimensionSet;..\OpenFOAM\fields;..\OpenFOAM\global;..\OpenFOAM\graph;..\OpenFOAM\include;..\OpenFOAM\interpolations;..\OpenFOAM\matrices;..\OpenFOAM\memory;..\OpenFOAM\meshes;..\OpenFOAM\primitives;..\OSspecific;..\finiteVolume;..\surfMesh;..\lagrangian;..\dynamicMesh;..\thermophysicalModels;..\sampling;..\meshTools;..\fileFormats;..\regionModels;..\transportModels;..\TurbulenceModels;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>WM_LABEL_SIZE=64;WM_DP;NoRepository;WIN32;WIN64;_WINDOWS;NOMINMAX;_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <CompileAs>CompileAsCpp</CompileAs>
+      <LanguageStandard>stdcpp17</LanguageStandard>
+      <WarningLevel>Level4</WarningLevel>
+    </ClCompile>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ClCompile Include="abort.C" />
+    <ClCompile Include="add.C" />
+    <ClCompile Include="blendingFactor.C" />
+    <ClCompile Include="cloudInfo.C" />
+    <ClCompile Include="codedFunctionObject.C" />
+    <ClCompile Include="components.C" />
+    <ClCompile Include="CourantNo.C" />
+    <ClCompile Include="div.C" />
+    <ClCompile Include="dsmcFields.C" />
+    <ClCompile Include="enstrophy.C" />
+    <ClCompile Include="fieldAverage.C" />
+    <ClCompile Include="fieldAverageItem.C" />
+    <ClCompile Include="fieldAverageItemIO.C" />
+    <ClCompile Include="fieldCoordinateSystemTransform.C" />
+    <ClCompile Include="fieldExpression.C" />
+    <ClCompile Include="fieldMinMax.C" />
+    <ClCompile Include="fieldsExpression.C" />
+    <ClCompile Include="fieldValue.C" />
+    <ClCompile Include="fieldValueDelta.C" />
+    <ClCompile Include="fieldValueNew.C" />
+    <ClCompile Include="findCellParticle.C" />
+    <ClCompile Include="findCellParticleCloud.C" />
+    <ClCompile Include="flowType.C" />
+    <ClCompile Include="forceCoeffs.C" />
+    <ClCompile Include="forces.C" />
+    <ClCompile Include="grad.C" />
+    <ClCompile Include="histogram.C" />
+    <ClCompile Include="icoUncoupledKinematicCloud.C" />
+    <ClCompile Include="interfaceHeight.C" />
+    <ClCompile Include="Lambda2.C" />
+    <ClCompile Include="MachNo.C" />
+    <ClCompile Include="mag.C" />
+    <ClCompile Include="magSqr.C" />
+    <ClCompile Include="nearWallFields.C" />
+    <ClCompile Include="PecletNo.C" />
+    <ClCompile Include="pressure.C" />
+    <ClCompile Include="processorField.C" />
+    <ClCompile Include="Q.C" />
+    <ClCompile Include="randomise.C" />
+    <ClCompile Include="readFields.C" />
+    <ClCompile Include="regionSizeDistribution.C" />
+    <ClCompile Include="removeRegisteredObject.C" />
+    <ClCompile Include="residuals.C" />
+    <ClCompile Include="scalarTransport.C" />
+    <ClCompile Include="setTimeStepFunctionObject.C" />
+    <ClCompile Include="streamFunction.C" />
+    <ClCompile Include="streamLine.C" />
+    <ClCompile Include="streamLineParticle.C" />
+    <ClCompile Include="streamLineParticleCloud.C" />
+    <ClCompile Include="subtract.C" />
+    <ClCompile Include="surfaceFieldValue.C" />
+    <ClCompile Include="surfaceInterpolate.C" />
+    <ClCompile Include="systemCall.C" />
+    <ClCompile Include="timeActivatedFileUpdate.C" />
+    <ClCompile Include="turbulenceFields.C" />
+    <ClCompile Include="volFieldValue.C" />
+    <ClCompile Include="vorticity.C" />
+    <ClCompile Include="wallHeatFlux.C" />
+    <ClCompile Include="wallShearStress.C" />
+    <ClCompile Include="writeCellCentres.C" />
+    <ClCompile Include="writeCellVolumes.C" />
+    <ClCompile Include="writeDictionary.C" />
+    <ClCompile Include="writeObjects.C" />
+    <ClCompile Include="XiReactionRate.C" />
+    <ClCompile Include="yPlus.C" />
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets">
+  </ImportGroup>
+</Project>

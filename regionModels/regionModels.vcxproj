@@ -1,0 +1,158 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|Win32">
+      <Configuration>Debug</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|Win32">
+      <Configuration>Release</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Debug|x64">
+      <Configuration>Debug</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64">
+      <Configuration>Release</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <VCProjectVersion>15.0</VCProjectVersion>
+    <ProjectGuid>{4465311B-3011-4225-916F-965112D933A1}</ProjectGuid>
+    <WindowsTargetPlatformVersion>8.1</WindowsTargetPlatformVersion>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <PlatformToolset>v141</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v141</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <PlatformToolset>v141</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v141</PlatformToolset>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings">
+  </ImportGroup>
+  <ImportGroup Label="Shared">
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <PropertyGroup Label="UserMacros" />
+  <PropertyGroup />
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <ClCompile>
+      <AdditionalIncludeDirectories>..\OpenFOAM\algorithms;..\OpenFOAM\containers;..\OpenFOAM\db;..\OpenFOAM\dimensionedTypes;..\OpenFOAM\dimensionSet;..\OpenFOAM\fields;..\OpenFOAM\global;..\OpenFOAM\graph;..\OpenFOAM\include;..\OpenFOAM\interpolations;..\OpenFOAM\matrices;..\OpenFOAM\memory;..\OpenFOAM\meshes;..\OpenFOAM\primitives;..\OSspecific;..\dynamicMesh;..\fileFormats;..\finiteVolume;..\mesh;..\meshTools;..\thermophysicalModels;..\TurbulenceModels;..\lagrangian;..\transportModels;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>WM_LABEL_SIZE=64;WM_DP;NoRepository;WIN32;WIN64;_WINDOWS;NOMINMAX;_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <CompileAs>CompileAsCpp</CompileAs>
+      <LanguageStandard>stdcpp17</LanguageStandard>
+      <WarningLevel>Level4</WarningLevel>
+    </ClCompile>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ClCompile Include="alphatFilmWallFunctionFvPatchScalarField.C" />
+    <ClCompile Include="ArrheniusViscosity.C" />
+    <ClCompile Include="BrunDrippingInjection.C" />
+    <ClCompile Include="constantFilmThermo.C" />
+    <ClCompile Include="constantHeatTransfer.C" />
+    <ClCompile Include="constantRadiation.C" />
+    <ClCompile Include="constantViscosity.C" />
+    <ClCompile Include="contactAngleForce.C" />
+    <ClCompile Include="curvatureSeparation.C" />
+    <ClCompile Include="distributionContactAngleForce.C" />
+    <ClCompile Include="drippingInjection.C" />
+    <ClCompile Include="filmHeightInletVelocityFvPatchVectorField.C" />
+    <ClCompile Include="filmPyrolysisRadiativeCoupledMixedFvPatchScalarField.C" />
+    <ClCompile Include="filmPyrolysisTemperatureCoupledFvPatchScalarField.C" />
+    <ClCompile Include="filmPyrolysisVelocityCoupledFvPatchVectorField.C" />
+    <ClCompile Include="filmRadiationModel.C" />
+    <ClCompile Include="filmRadiationModelNew.C" />
+    <ClCompile Include="filmSubModelBase.C" />
+    <ClCompile Include="filmThermoModel.C" />
+    <ClCompile Include="filmThermoModelNew.C" />
+    <ClCompile Include="filmTurbulenceModel.C" />
+    <ClCompile Include="filmTurbulenceModelNew.C" />
+    <ClCompile Include="filmViscosityModel.C" />
+    <ClCompile Include="filmViscosityModelNew.C" />
+    <ClCompile Include="force.C" />
+    <ClCompile Include="forceList.C" />
+    <ClCompile Include="forceNew.C" />
+    <ClCompile Include="heatTransferModel.C" />
+    <ClCompile Include="heatTransferModelNew.C" />
+    <ClCompile Include="inclinedFilmNusseltHeightFvPatchScalarField.C" />
+    <ClCompile Include="inclinedFilmNusseltInletVelocityFvPatchVectorField.C" />
+    <ClCompile Include="injectionModel.C" />
+    <ClCompile Include="injectionModelList.C" />
+    <ClCompile Include="injectionModelNew.C" />
+    <ClCompile Include="kinematicSingleLayer.C" />
+    <ClCompile Include="laminar.C" />
+    <ClCompile Include="liquidFilmThermo.C" />
+    <ClCompile Include="liquidViscosity.C" />
+    <ClCompile Include="mappedConvectiveHeatTransfer.C" />
+    <ClCompile Include="mappedVariableThicknessWallFvPatch.C" />
+    <ClCompile Include="noFilm.C" />
+    <ClCompile Include="noPhaseChange.C" />
+    <ClCompile Include="noPyrolysis.C" />
+    <ClCompile Include="noRadiation.C" />
+    <ClCompile Include="noThermo.C" />
+    <ClCompile Include="nutkFilmWallFunctionFvPatchScalarField.C" />
+    <ClCompile Include="patchInjection.C" />
+    <ClCompile Include="perturbedTemperatureDependentContactAngleForce.C" />
+    <ClCompile Include="phaseChangeModel.C" />
+    <ClCompile Include="phaseChangeModelNew.C" />
+    <ClCompile Include="primaryRadiation.C" />
+    <ClCompile Include="pyrolysisModel.C" />
+    <ClCompile Include="pyrolysisModelCollection.C" />
+    <ClCompile Include="pyrolysisModelNew.C" />
+    <ClCompile Include="reactingOneDim.C" />
+    <ClCompile Include="regionModel.C" />
+    <ClCompile Include="regionModel1D.C" />
+    <ClCompile Include="regionModelFunctionObject.C" />
+    <ClCompile Include="regionModelFunctionObjectList.C" />
+    <ClCompile Include="regionModelFunctionObjectNew.C" />
+    <ClCompile Include="regionProperties.C" />
+    <ClCompile Include="singleLayerRegion.C" />
+    <ClCompile Include="solidification.C" />
+    <ClCompile Include="standardPhaseChange.C" />
+    <ClCompile Include="standardRadiation.C" />
+    <ClCompile Include="surfaceFilmModel.C" />
+    <ClCompile Include="surfaceFilmModelNew.C" />
+    <ClCompile Include="temperatureDependentContactAngleForce.C" />
+    <ClCompile Include="thermalBaffle.C" />
+    <ClCompile Include="thermalBaffleFvPatchScalarField.C" />
+    <ClCompile Include="thermalBaffleModel.C" />
+    <ClCompile Include="thermalBaffleModelNew.C" />
+    <ClCompile Include="thermocapillaryForce.C" />
+    <ClCompile Include="thermoSingleLayer.C" />
+    <ClCompile Include="thixotropicViscosity.C" />
+    <ClCompile Include="transferModel.C" />
+    <ClCompile Include="transferModelList.C" />
+    <ClCompile Include="transferModelNew.C" />
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets">
+  </ImportGroup>
+</Project>

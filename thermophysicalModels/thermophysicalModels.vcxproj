@@ -1,0 +1,223 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|Win32">
+      <Configuration>Debug</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|Win32">
+      <Configuration>Release</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Debug|x64">
+      <Configuration>Debug</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64">
+      <Configuration>Release</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <VCProjectVersion>15.0</VCProjectVersion>
+    <ProjectGuid>{4418871B-3161-4A88-916F-968811D9A1A1}</ProjectGuid>
+    <WindowsTargetPlatformVersion>8.1</WindowsTargetPlatformVersion>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <PlatformToolset>v141</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v141</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <PlatformToolset>v141</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v141</PlatformToolset>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings">
+  </ImportGroup>
+  <ImportGroup Label="Shared">
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <PropertyGroup Label="UserMacros" />
+  <PropertyGroup />
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <ClCompile>
+      <AdditionalIncludeDirectories>..\OpenFOAM\algorithms;..\OpenFOAM\containers;..\OpenFOAM\db;..\OpenFOAM\dimensionedTypes;..\OpenFOAM\dimensionSet;..\OpenFOAM\fields;..\OpenFOAM\global;..\OpenFOAM\graph;..\OpenFOAM\include;..\OpenFOAM\interpolations;..\OpenFOAM\matrices;..\OpenFOAM\memory;..\OpenFOAM\meshes;..\OpenFOAM\primitives;..\OSspecific;..\lagrangian;..\fileFormats;..\dynamicMesh;..\finiteVolume;..\meshTools;..\TurbulenceModels;..\functionObjects;..\ODE;..\dummyThirdParty;..\transportModels;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>WM_LABEL_SIZE=64;WM_DP;NoRepository;WIN32;WIN64;_WINDOWS;NOMINMAX;_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <CompileAs>CompileAsCpp</CompileAs>
+      <LanguageStandard>stdcpp17</LanguageStandard>
+      <WarningLevel>Level4</WarningLevel>
+    </ClCompile>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ClCompile Include="absorptionCoeffs.C" />
+    <ClCompile Include="absorptionEmissionModel.C" />
+    <ClCompile Include="absorptionEmissionModelNew.C" />
+    <ClCompile Include="aC10H7CH3.C" />
+    <ClCompile Include="APIdiffCoefFunc.C" />
+    <ClCompile Include="Ar.C" />
+    <ClCompile Include="ash.C" />
+    <ClCompile Include="atomicWeights.C" />
+    <ClCompile Include="barotropicCompressibilityModel.C" />
+    <ClCompile Include="barotropicCompressibilityModelNew.C" />
+    <ClCompile Include="basicChemistryModel.C" />
+    <ClCompile Include="basicCombustionMixture.C" />
+    <ClCompile Include="basicMultiComponentMixture.C" />
+    <ClCompile Include="basicSolidChemistryModel.C" />
+    <ClCompile Include="basicSolidChemistryModelNew.C" />
+    <ClCompile Include="basicSolidChemistryModels.C" />
+    <ClCompile Include="basicSpecieMixture.C" />
+    <ClCompile Include="basicThermo.C" />
+    <ClCompile Include="bC10H7CH3.C" />
+    <ClCompile Include="binaryAbsorptionEmission.C" />
+    <ClCompile Include="blackBodyEmission.C" />
+    <ClCompile Include="C.C" />
+    <ClCompile Include="C10H22.C" />
+    <ClCompile Include="C12H26.C" />
+    <ClCompile Include="C13H28.C" />
+    <ClCompile Include="C14H30.C" />
+    <ClCompile Include="C16H34.C" />
+    <ClCompile Include="C2H5OH.C" />
+    <ClCompile Include="C2H6.C" />
+    <ClCompile Include="C2H6O.C" />
+    <ClCompile Include="C3H6O.C" />
+    <ClCompile Include="C3H8.C" />
+    <ClCompile Include="C4H10O.C" />
+    <ClCompile Include="C6H14.C" />
+    <ClCompile Include="C6H6.C" />
+    <ClCompile Include="C7H16.C" />
+    <ClCompile Include="C7H8.C" />
+    <ClCompile Include="C8H10.C" />
+    <ClCompile Include="C8H18.C" />
+    <ClCompile Include="C9H20.C" />
+    <ClCompile Include="CaCO3.C" />
+    <ClCompile Include="CH3OH.C" />
+    <ClCompile Include="CH4N2O.C" />
+    <ClCompile Include="chemkinReader.C" />
+    <ClCompile Include="Chung.C" />
+    <ClCompile Include="constant.C" />
+    <ClCompile Include="constantAbsorptionEmission.C" />
+    <ClCompile Include="constantScatter.C" />
+    <ClCompile Include="energyJumpAMIFvPatchScalarField.C" />
+    <ClCompile Include="energyJumpFvPatchScalarField.C" />
+    <ClCompile Include="fixedEnergyFvPatchScalarField.C" />
+    <ClCompile Include="fixedUnburntEnthalpyFvPatchScalarField.C" />
+    <ClCompile Include="fluidThermo.C" />
+    <ClCompile Include="fvDOM.C" />
+    <ClCompile Include="gradientEnergyFvPatchScalarField.C" />
+    <ClCompile Include="gradientUnburntEnthalpyFvPatchScalarField.C" />
+    <ClCompile Include="greyDiffusiveRadiationMixedFvPatchScalarField.C" />
+    <ClCompile Include="greyDiffusiveViewFactorFixedValueFvPatchScalarField.C" />
+    <ClCompile Include="greyMeanAbsorptionEmission.C" />
+    <ClCompile Include="greyMeanSolidAbsorptionEmission.C" />
+    <ClCompile Include="Gulders.C" />
+    <ClCompile Include="GuldersEGR.C" />
+    <ClCompile Include="H2O.C" />
+    <ClCompile Include="iC3H8O.C" />
+    <ClCompile Include="IC8H18.C" />
+    <ClCompile Include="IDEA.C" />
+    <ClCompile Include="laminarFlameSpeed.C" />
+    <ClCompile Include="laminarFlameSpeedNew.C" />
+    <ClCompile Include="linear_cm.C" />
+    <ClCompile Include="liquidMixtureProperties.C" />
+    <ClCompile Include="liquidProperties.C" />
+    <ClCompile Include="liquidThermo.C" />
+    <ClCompile Include="makeChemistryReaders.C" />
+    <ClCompile Include="makeChemistryReductionMethods.C" />
+    <ClCompile Include="makeChemistrySolvers.C" />
+    <ClCompile Include="makeChemistryTabulationMethods.C" />
+    <ClCompile Include="makeLangmuirHinshelwoodReactions.C" />
+    <ClCompile Include="makeReactions.C" />
+    <ClCompile Include="makeSolidChemistrySolvers.C" />
+    <ClCompile Include="makeSolidReactions.C" />
+    <ClCompile Include="MarshakRadiationFixedTemperatureFvPatchScalarField.C" />
+    <ClCompile Include="MarshakRadiationFvPatchScalarField.C" />
+    <ClCompile Include="MB.C" />
+    <ClCompile Include="mixedEnergyFvPatchScalarField.C" />
+    <ClCompile Include="mixedUnburntEnthalpyFvPatchScalarField.C" />
+    <ClCompile Include="mixtureFractionSoots.C" />
+    <ClCompile Include="moleFractionsFunctionObjects.C" />
+    <ClCompile Include="N2.C" />
+    <ClCompile Include="nC3H8O.C" />
+    <ClCompile Include="noAbsorptionEmission.C" />
+    <ClCompile Include="noRadiation.C" />
+    <ClCompile Include="noScatter.C" />
+    <ClCompile Include="noSoot.C" />
+    <ClCompile Include="NSRDSfunc0.C" />
+    <ClCompile Include="NSRDSfunc1.C" />
+    <ClCompile Include="NSRDSfunc14.C" />
+    <ClCompile Include="NSRDSfunc2.C" />
+    <ClCompile Include="NSRDSfunc3.C" />
+    <ClCompile Include="NSRDSfunc4.C" />
+    <ClCompile Include="NSRDSfunc5.C" />
+    <ClCompile Include="NSRDSfunc6.C" />
+    <ClCompile Include="NSRDSfunc7.C" />
+    <ClCompile Include="opaqueSolid.C" />
+    <ClCompile Include="P1.C" />
+    <ClCompile Include="psiChemistryModel.C" />
+    <ClCompile Include="psiChemistryModels.C" />
+    <ClCompile Include="psiReactionThermo.C" />
+    <ClCompile Include="psiReactionThermos.C" />
+    <ClCompile Include="psiThermo.C" />
+    <ClCompile Include="psiThermos.C" />
+    <ClCompile Include="psiuReactionThermo.C" />
+    <ClCompile Include="psiuReactionThermos.C" />
+    <ClCompile Include="radiation.C" />
+    <ClCompile Include="radiationCoupledBase.C" />
+    <ClCompile Include="radiationModel.C" />
+    <ClCompile Include="radiationModelNew.C" />
+    <ClCompile Include="radiativeIntensityRay.C" />
+    <ClCompile Include="RaviPetersen.C" />
+    <ClCompile Include="rhoChemistryModel.C" />
+    <ClCompile Include="rhoChemistryModels.C" />
+    <ClCompile Include="rhoReactionThermo.C" />
+    <ClCompile Include="rhoReactionThermos.C" />
+    <ClCompile Include="rhoThermo.C" />
+    <ClCompile Include="rhoThermos.C" />
+    <ClCompile Include="scatterModel.C" />
+    <ClCompile Include="scatterModelNew.C" />
+    <ClCompile Include="SLGThermo.C" />
+    <ClCompile Include="solidMixtureProperties.C" />
+    <ClCompile Include="solidProperties.C" />
+    <ClCompile Include="solidPropertiesNew.C" />
+    <ClCompile Include="solidReactionThermo.C" />
+    <ClCompile Include="solidReactionThermos.C" />
+    <ClCompile Include="solidThermo.C" />
+    <ClCompile Include="solidThermos.C" />
+    <ClCompile Include="sootModel.C" />
+    <ClCompile Include="sootModelNew.C" />
+    <ClCompile Include="specie.C" />
+    <ClCompile Include="thermophysicalFunction.C" />
+    <ClCompile Include="thermophysicalProperties.C" />
+    <ClCompile Include="viewFactor.C" />
+    <ClCompile Include="Wallis.C" />
+    <ClCompile Include="wideBandAbsorptionEmission.C" />
+    <ClCompile Include="wideBandDiffusiveRadiationMixedFvPatchScalarField.C" />
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets">
+  </ImportGroup>
+</Project>

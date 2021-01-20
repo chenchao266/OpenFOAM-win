@@ -1,0 +1,139 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|Win32">
+      <Configuration>Debug</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|Win32">
+      <Configuration>Release</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Debug|x64">
+      <Configuration>Debug</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64">
+      <Configuration>Release</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="alphatJayatillekeWallFunctionFvPatchScalarField_ic.C" />
+    <ClCompile Include="alphatJayatillekeWallFunctionFvPatchScalarField.C" />
+    <ClCompile Include="alphatPhaseChangeWallFunctionFvPatchScalarField.C" />
+    <ClCompile Include="alphatWallFunctionFvPatchScalarField.C" />
+    <ClCompile Include="anisotropicFilter.C" />
+    <ClCompile Include="atmBoundaryLayer.C" />
+    <ClCompile Include="atmBoundaryLayerInletEpsilonFvPatchScalarField.C" />
+    <ClCompile Include="atmBoundaryLayerInletKFvPatchScalarField.C" />
+    <ClCompile Include="atmBoundaryLayerInletVelocityFvPatchVectorField.C" />
+    <ClCompile Include="compressibleTurbulenceModel.C" />
+    <ClCompile Include="convectiveHeatTransferFvPatchScalarField.C" />
+    <ClCompile Include="cubeRootVolDelta.C" />
+    <ClCompile Include="epsilonWallFunctionFvPatchScalarField.C" />
+    <ClCompile Include="externalCoupledTemperatureMixedFvPatchScalarField.C" />
+    <ClCompile Include="externalWallHeatFluxTemperatureFvPatchScalarField.C" />
+    <ClCompile Include="fixedShearStressFvPatchVectorField.C" />
+    <ClCompile Include="fWallFunctionFvPatchScalarField.C" />
+    <ClCompile Include="IDDESDelta.C" />
+    <ClCompile Include="incompressibleTurbulenceModel.C" />
+    <ClCompile Include="kkLOmega.C" />
+    <ClCompile Include="kLowReWallFunctionFvPatchScalarField.C" />
+    <ClCompile Include="kqRWallFunctionFvPatchFields.C" />
+    <ClCompile Include="LamBremhorstKE.C" />
+    <ClCompile Include="laplaceFilter.C" />
+    <ClCompile Include="LESdelta.C" />
+    <ClCompile Include="LESfilter.C" />
+    <ClCompile Include="LienCubicKE.C" />
+    <ClCompile Include="LienLeschziner.C" />
+    <ClCompile Include="maxDeltaxyz.C" />
+    <ClCompile Include="nutkAtmRoughWallFunctionFvPatchScalarField.C" />
+    <ClCompile Include="nutkRoughWallFunctionFvPatchScalarField.C" />
+    <ClCompile Include="nutkWallFunctionFvPatchScalarField.C" />
+    <ClCompile Include="nutLowReWallFunctionFvPatchScalarField.C" />
+    <ClCompile Include="nutURoughWallFunctionFvPatchScalarField.C" />
+    <ClCompile Include="nutUSpaldingWallFunctionFvPatchScalarField.C" />
+    <ClCompile Include="nutUTabulatedWallFunctionFvPatchScalarField.C" />
+    <ClCompile Include="nutUWallFunctionFvPatchScalarField.C" />
+    <ClCompile Include="nutWallFunctionFvPatchScalarField.C" />
+    <ClCompile Include="omegaWallFunctionFvPatchScalarField.C" />
+    <ClCompile Include="porousBafflePressureFvPatchField.C" />
+    <ClCompile Include="PrandtlDelta.C" />
+    <ClCompile Include="qZeta.C" />
+    <ClCompile Include="ShihQuadraticKE.C" />
+    <ClCompile Include="simpleFilter.C" />
+    <ClCompile Include="smoothDelta.C" />
+    <ClCompile Include="temperatureCoupledBase.C" />
+    <ClCompile Include="thermalBaffle1DFvPatchScalarFields.C" />
+    <ClCompile Include="totalFlowRateAdvectiveDiffusiveFvPatchScalarField.C" />
+    <ClCompile Include="turbulenceModel.C" />
+    <ClCompile Include="turbulentFluidThermoModels.C" />
+    <ClCompile Include="turbulentMixingLengthDissipationRateInletFvPatchScalarField.C" />
+    <ClCompile Include="turbulentMixingLengthFrequencyInletFvPatchScalarField.C" />
+    <ClCompile Include="turbulentTemperatureCoupledBaffleMixedFvPatchScalarField.C" />
+    <ClCompile Include="turbulentTemperatureRadCoupledMixedFvPatchScalarField.C" />
+    <ClCompile Include="turbulentTransportModels.C" />
+    <ClCompile Include="v2fBase.C" />
+    <ClCompile Include="v2WallFunctionFvPatchScalarField.C" />
+    <ClCompile Include="vanDriestDelta.C" />
+    <ClCompile Include="wallHeatTransferFvPatchScalarField.C" />
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <VCProjectVersion>15.0</VCProjectVersion>
+    <ProjectGuid>{4377912B-3031-4685-937F-931597993194}</ProjectGuid>
+    <WindowsTargetPlatformVersion>8.1</WindowsTargetPlatformVersion>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <PlatformToolset>v141</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v141</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <PlatformToolset>v141</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v141</PlatformToolset>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings">
+  </ImportGroup>
+  <ImportGroup Label="Shared">
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <PropertyGroup Label="UserMacros" />
+  <PropertyGroup />
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <ClCompile>
+      <AdditionalIncludeDirectories>..\OpenFOAM\algorithms;..\OpenFOAM\containers;..\OpenFOAM\db;..\OpenFOAM\dimensionedTypes;..\OpenFOAM\dimensionSet;..\OpenFOAM\fields;..\OpenFOAM\global;..\OpenFOAM\graph;..\OpenFOAM\include;..\OpenFOAM\interpolations;..\OpenFOAM\matrices;..\OpenFOAM\memory;..\OpenFOAM\meshes;..\OpenFOAM\primitives;..\OSspecific;..\dynamicMesh;..\fileFormats;..\finiteVolume;..\transportModels;..\thermophysicalModels;..\meshTools;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>WM_LABEL_SIZE=64;WM_DP;NoRepository;WIN32;WIN64;_WINDOWS;NOMINMAX;_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <CompileAs>CompileAsCpp</CompileAs>
+      <LanguageStandard>stdcpp17</LanguageStandard>
+      <WarningLevel>Level4</WarningLevel>
+    </ClCompile>
+  </ItemDefinitionGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets">
+  </ImportGroup>
+</Project>

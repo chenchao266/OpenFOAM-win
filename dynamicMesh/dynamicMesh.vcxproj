@@ -1,0 +1,185 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|Win32">
+      <Configuration>Debug</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|Win32">
+      <Configuration>Release</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Debug|x64">
+      <Configuration>Debug</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64">
+      <Configuration>Release</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <VCProjectVersion>15.0</VCProjectVersion>
+    <ProjectGuid>{44CC874B-3060-4ACC-916F-96CCD6D9AEA1}</ProjectGuid>
+    <WindowsTargetPlatformVersion>8.1</WindowsTargetPlatformVersion>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <PlatformToolset>v141</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v141</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <PlatformToolset>v141</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v141</PlatformToolset>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings">
+  </ImportGroup>
+  <ImportGroup Label="Shared">
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <PropertyGroup Label="UserMacros" />
+  <PropertyGroup />
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <ClCompile>
+      <AdditionalIncludeDirectories>..\OpenFOAM\algorithms;..\OpenFOAM\containers;..\OpenFOAM\db;..\OpenFOAM\dimensionedTypes;..\OpenFOAM\dimensionSet;..\OpenFOAM\fields;..\OpenFOAM\global;..\OpenFOAM\graph;..\OpenFOAM\include;..\OpenFOAM\interpolations;..\OpenFOAM\matrices;..\OpenFOAM\memory;..\OpenFOAM\meshes;..\OpenFOAM\primitives;..\OSspecific;..\finiteVolume;..\triSurface;..\mesh;..\meshTools;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>WM_LABEL_SIZE=64;WM_DP;NoRepository;WIN32;WIN64;_WINDOWS;NOMINMAX;_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <CompileAs>CompileAsCpp</CompileAs>
+      <LanguageStandard>stdcpp17</LanguageStandard>
+      <WarningLevel>Level4</WarningLevel>
+    </ClCompile>
+  </ItemDefinitionGroup>
+  <ItemGroup>
+    <ClCompile Include="addCellLayer.C" />
+    <ClCompile Include="addPatchCellLayer.C" />
+    <ClCompile Include="attachDetach.C" />
+    <ClCompile Include="attachDetachPointMatchMap.C" />
+    <ClCompile Include="attachInterface.C" />
+    <ClCompile Include="attachPolyTopoChanger.C" />
+    <ClCompile Include="axisRotationMotion.C" />
+    <ClCompile Include="badQualityToCell.C" />
+    <ClCompile Include="badQualityToFace.C" />
+    <ClCompile Include="boundaryCutter.C" />
+    <ClCompile Include="boundaryMesh.C" />
+    <ClCompile Include="boundaryPatch.C" />
+    <ClCompile Include="cellCuts.C" />
+    <ClCompile Include="cellLooper.C" />
+    <ClCompile Include="combineFaces.C" />
+    <ClCompile Include="componentDisplacementMotionSolver.C" />
+    <ClCompile Include="componentVelocityMotionSolver.C" />
+    <ClCompile Include="coupleSlidingInterface.C" />
+    <ClCompile Include="createShellMesh.C" />
+    <ClCompile Include="decoupleSlidingInterface.C" />
+    <ClCompile Include="detachInterface.C" />
+    <ClCompile Include="directionInfo.C" />
+    <ClCompile Include="directions.C" />
+    <ClCompile Include="displacementInterpolationMotionSolver.C" />
+    <ClCompile Include="displacementLayeredMotionMotionSolver.C" />
+    <ClCompile Include="displacementMotionSolver.C" />
+    <ClCompile Include="duplicatePoints.C" />
+    <ClCompile Include="edgeCollapser.C" />
+    <ClCompile Include="edgeVertex.C" />
+    <ClCompile Include="enrichedPatch.C" />
+    <ClCompile Include="enrichedPatchCutFaces.C" />
+    <ClCompile Include="enrichedPatchFaces.C" />
+    <ClCompile Include="enrichedPatchMasterPoints.C" />
+    <ClCompile Include="enrichedPatchPointMap.C" />
+    <ClCompile Include="enrichedPatchPointPoints.C" />
+    <ClCompile Include="externalPointEdgePoint.C" />
+    <ClCompile Include="extrudePatchMesh.C" />
+    <ClCompile Include="faceCollapser.C" />
+    <ClCompile Include="faceCoupleInfo.C" />
+    <ClCompile Include="fvMeshAdder.C" />
+    <ClCompile Include="fvMeshDistribute.C" />
+    <ClCompile Include="fvMeshSubset.C" />
+    <ClCompile Include="fvMeshTools.C" />
+    <ClCompile Include="geomCellLooper.C" />
+    <ClCompile Include="hexCellLooper.C" />
+    <ClCompile Include="hexRef8.C" />
+    <ClCompile Include="hexRef8Data.C" />
+    <ClCompile Include="layerAdditionRemoval.C" />
+    <ClCompile Include="linearMotion.C" />
+    <ClCompile Include="meshCutAndRemove.C" />
+    <ClCompile Include="meshCutter.C" />
+    <ClCompile Include="motionSmoother.C" />
+    <ClCompile Include="motionSmootherAlgo.C" />
+    <ClCompile Include="motionSmootherAlgoCheck.C" />
+    <ClCompile Include="motionSmootherData.C" />
+    <ClCompile Include="motionSolver.C" />
+    <ClCompile Include="multiDirRefinement.C" />
+    <ClCompile Include="multiMotion.C" />
+    <ClCompile Include="multiSolidBodyMotionSolver.C" />
+    <ClCompile Include="oscillatingLinearMotion.C" />
+    <ClCompile Include="oscillatingRotatingMotion.C" />
+    <ClCompile Include="perfectInterface.C" />
+    <ClCompile Include="pointEdgeCollapse.C" />
+    <ClCompile Include="pointEdgeStructuredWalk.C" />
+    <ClCompile Include="pointPatchDist.C" />
+    <ClCompile Include="points0MotionSolver.C" />
+    <ClCompile Include="polyMeshAdder.C" />
+    <ClCompile Include="polyMeshFilter.C" />
+    <ClCompile Include="polyMeshFilterSettings.C" />
+    <ClCompile Include="polyMeshGeometry.C" />
+    <ClCompile Include="polyMeshModifier.C" />
+    <ClCompile Include="polyMeshModifierNew.C" />
+    <ClCompile Include="polyTopoChange.C" />
+    <ClCompile Include="polyTopoChanger.C" />
+    <ClCompile Include="refineCell.C" />
+    <ClCompile Include="refinementData.C" />
+    <ClCompile Include="refinementDistanceData.C" />
+    <ClCompile Include="refinementHistory.C" />
+    <ClCompile Include="refinementIterator.C" />
+    <ClCompile Include="removeCellLayer.C" />
+    <ClCompile Include="removeCells.C" />
+    <ClCompile Include="removeFaces.C" />
+    <ClCompile Include="removePoints.C" />
+    <ClCompile Include="repatchPolyTopoChanger.C" />
+    <ClCompile Include="rotatingMotion.C" />
+    <ClCompile Include="SDA.C" />
+    <ClCompile Include="setLayerPairing.C" />
+    <ClCompile Include="setUpdater.C" />
+    <ClCompile Include="slidingInterface.C" />
+    <ClCompile Include="slidingInterfaceAttachedAddressing.C" />
+    <ClCompile Include="slidingInterfaceClearCouple.C" />
+    <ClCompile Include="slidingInterfaceProjectPoints.C" />
+    <ClCompile Include="solidBodyMotionDisplacementPointPatchVectorField.C" />
+    <ClCompile Include="solidBodyMotionFunction.C" />
+    <ClCompile Include="solidBodyMotionFunctionNew.C" />
+    <ClCompile Include="solidBodyMotionSolver.C" />
+    <ClCompile Include="splitCell.C" />
+    <ClCompile Include="tabulated6DoFMotion.C" />
+    <ClCompile Include="tetDecomposer.C" />
+    <ClCompile Include="topoActions.C" />
+    <ClCompile Include="topoCellLooper.C" />
+    <ClCompile Include="undoableMeshCutter.C" />
+    <ClCompile Include="velocityMotionSolver.C" />
+    <ClCompile Include="wallLayerCells.C" />
+    <ClCompile Include="wallNormalInfo.C" />
+  </ItemGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets">
+  </ImportGroup>
+</Project>
