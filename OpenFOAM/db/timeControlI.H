@@ -1,9 +1,12 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2016 OpenFOAM Foundation
+    Copyright (C) 2019 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -24,16 +27,40 @@ License
 \*---------------------------------------------------------------------------*/
 
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
-namespace Foam {
+
+
+ namespace Foam{
 inline const Time& timeControl::time() const
 {
     return time_;
 }
 
 
+inline const word& timeControl::name() const
+{
+    return prefix_;
+}
+
+
+inline const word& timeControl::type() const
+{
+    return controlNames_[timeControl_];
+}
+
+
 inline timeControl::timeControls timeControl::control() const
 {
     return timeControl_;
+}
+
+
+inline bool timeControl::always() const
+{
+    return
+    (
+        (timeControls::ocAlways == timeControl_)
+     || (timeControls::ocTimeStep == timeControl_ && intInterval_ <= 1)
+    );
 }
 
 
@@ -48,5 +75,7 @@ inline label timeControl::executionIndex() const
     return executionIndex_;
 }
 
-}
+
 // ************************************************************************* //
+
+ } // End namespace Foam

@@ -1,9 +1,11 @@
-﻿/*---------------------------------------------------------------------------*\
+/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2015 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -23,7 +25,7 @@ License
 
 \*---------------------------------------------------------------------------*/
 
-//#include "noChemistrySolver.H"
+#include "noChemistrySolver.H"
 #include "addToRunTimeSelectionTable.H"
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
@@ -31,11 +33,10 @@ License
 template<class ChemistryModel>
 Foam::noChemistrySolver<ChemistryModel>::noChemistrySolver
 (
-    const fvMesh& mesh,
-    const word& phaseName
+    typename ChemistryModel::reactionThermo& thermo
 )
 :
-    chemistrySolver<ChemistryModel>(mesh, phaseName)
+    chemistrySolver<ChemistryModel>(thermo)
 {}
 
 

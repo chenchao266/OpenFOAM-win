@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2019-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -28,32 +31,42 @@ Group
     grpWallFunctions
 
 Description
-    This boundary condition provides a turbulent kinematic viscosity condition
-    when using wall functions.  As input, the user specifies a look-up table
-    of U+ as a function of near-wall Reynolds number.  The table should be
-    located in the $FOAM_CASE/constant directory.
+    This boundary condition provides a wall constraint on the turbulent
+    viscosity, i.e. \c nut, based on velocity, i.e. \c U, for low- and
+    high-Reynolds number turbulence models.
+
+    As input, the user specifies a look-up table of \c u+ as a function of
+    near-wall Reynolds number.
+
+    The table should be located in the \c $FOAM_CASE/constant directory.
 
 Usage
-    \table
-        Property     | Description             | Required    | Default value
-        uPlusTable   | U+ as a function of Re table name | yes |
-    \endtable
-
     Example of the boundary condition specification:
     \verbatim
     <patchName>
     {
+        // Mandatory entries (unmodifiable)
         type            nutTabulatedWallFunction;
         uPlusTable      myUPlusTable;
+
+        // Optional (inherited) entries
+        ...
     }
     \endverbatim
 
-Note
-    The tables are not registered since the same table object may be used for
-    more than one patch.
+    where the entries mean:
+    \table
+      Property    | Description                          | Type | Req'd | Dflt
+      type        | Type name: nutUTabulatedWallFunction | word | yes   | -
+      uPlusTable  | u+ as a function of Re table name    | word | yes   | -
+    \endtable
 
-See also
-    Foam::nutWallFunctionFvPatchScalarField
+    The inherited entries are elaborated in:
+      - \link nutWallFunctionFvPatchScalarField.H \endlink
+
+Note
+    - The tables are not registered since the same table object may be used for
+    more than one patch.
 
 SourceFiles
     nutUTabulatedWallFunctionFvPatchScalarField.C
@@ -81,18 +94,18 @@ class nutUTabulatedWallFunctionFvPatchScalarField
 {
 protected:
 
-    // Protected data
+    // Protected Data
 
         //- Name of u+ table
         word uPlusTableName_;
 
-        //- U+ table
+        //- u+ table
         uniformInterpolationTable<scalar> uPlusTable_;
 
 
     // Protected Member Functions
 
-        //- Calculate the turbulence viscosity
+        //- Calculate the turbulent viscosity
         virtual tmp<scalarField> calcNut() const;
 
         //- Calculate wall u+ from table
@@ -123,8 +136,8 @@ public:
         );
 
         //- Construct by mapping given
-        //  nutUTabulatedWallFunctionFvPatchScalarField
-        //  onto a new patch
+        //- nutUTabulatedWallFunctionFvPatchScalarField
+        //- onto a new patch
         nutUTabulatedWallFunctionFvPatchScalarField
         (
             const nutUTabulatedWallFunctionFvPatchScalarField&,
@@ -168,7 +181,7 @@ public:
         }
 
 
-    // Member functions
+    // Member Functions
 
         // Evaluation functions
 

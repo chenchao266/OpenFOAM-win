@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2017-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -26,9 +29,12 @@ Class
 
 Description
     Scotch domain decomposition.
+
     When run in parallel will collect the whole graph on to the master,
     decompose and send back. Use ptscotchDecomp for proper distributed
     decomposition.
+
+    Coefficients dictionary: \a scotchCoeffs, \a coeffs.
 
     Quoting from the Scotch forum, on the 2008-08-22 10:09, Francois
     PELLEGRINI posted the following details:
@@ -213,7 +219,7 @@ SourceFiles
 #ifndef scotchDecomp_H
 #define scotchDecomp_H
 
-#include "decompositionMethod.H"
+#include "metisLikeDecomp.H"
 
 namespace Foam
 {
@@ -224,35 +230,33 @@ namespace Foam
 
 class scotchDecomp
 :
-    public decompositionMethod
+    public metisLikeDecomp
 {
-    // Private Member Functions
+    // Private Data
 
-        //- Check and print error message
-        static void check(const int, const char*);
+        //- Output path and name for optional grf file.
+        mutable fileName graphPath_;
 
-        label decompose
-        (
-            const fileName& meshPath,
-            const List<label>& adjncy,
-            const List<label>& xadj,
-            const scalarField& cWeights,
-            List<label>& finalDecomp
-        );
+
+protected:
+
+    // Protected Member Functions
 
         //- Decompose non-parallel
-        label decomposeOneProc
+        virtual label decomposeSerial
         (
-            const fileName& meshPath,
-            const List<label>& adjncy,
-            const List<label>& xadj,
-            const scalarField& cWeights,
-            List<label>& finalDecomp
-        );
+            const labelList& adjncy,
+            const labelList& xadj,
+            const List<scalar>& cWeights,
+            labelList& decomp
+        ) const;
 
-        //- Disallow default bitwise copy construct and assignment
-        void operator=(const scotchDecomp&);
-        scotchDecomp(const scotchDecomp&);
+
+        //- No copy construct
+        scotchDecomp(const scotchDecomp&) = delete;
+
+        //- No copy assignment
+        void operator=(const scotchDecomp&) = delete;
 
 
 public:
@@ -263,65 +267,53 @@ public:
 
     // Constructors
 
-        //- Construct given the decomposition dictionary and mesh
-        scotchDecomp(const dictionary& decompositionDict);
+        //- Construct given decomposition dictionary and optional region name
+        explicit scotchDecomp
+        (
+            const dictionary& decompDict,
+            const word& regionName = ""
+        );
 
 
     //- Destructor
-    virtual ~scotchDecomp()
-    {}
+    virtual ~scotchDecomp() = default;
 
 
     // Member Functions
 
+        //- Knows about coupled boundaries
         virtual bool parallelAware() const
         {
-            // Knows about coupled boundaries
             return true;
         }
 
-        //- Inherit decompose from decompositionMethod
+        //- Inherit all decompose methods
         using decompositionMethod::decompose;
 
-        //- Return for every coordinate the wanted processor number. Use the
-        //  mesh connectivity (if needed)
-        //  Weights get normalised with minimum weight and truncated to
-        //  convert into integer so e.g. 3.5 is seen as 3. The overall sum
-        //  of weights might otherwise overflow.
+        //- Return for every coordinate the wanted processor number.
         virtual labelList decompose
         (
             const polyMesh& mesh,
             const pointField& points,
             const scalarField& pointWeights
-        );
+        ) const;
 
-        //- Return for every coordinate the wanted processor number. Gets
-        //  passed agglomeration map (from fine to coarse cells) and coarse cell
-        //  location. Can be overridden by decomposers that provide this
-        //  functionality natively.
-        //  See note on weights above.
+        //- Return for every coordinate the wanted processor number.
         virtual labelList decompose
         (
             const polyMesh& mesh,
             const labelList& agglom,
             const pointField& regionPoints,
             const scalarField& regionWeights
-        );
+        ) const;
 
-        //- Return for every coordinate the wanted processor number. Explicitly
-        //  provided mesh connectivity.
-        //  The connectivity is equal to mesh.cellCells() except for
-        //  - in parallel the cell numbers are global cell numbers (starting
-        //    from 0 at processor0 and then incrementing all through the
-        //    processors)
-        //  - the connections are across coupled patches
-        //  See note on weights above.
+        //- Return for every coordinate the wanted processor number.
         virtual labelList decompose
         (
             const labelListList& globalCellCells,
             const pointField& cc,
             const scalarField& cWeights
-        );
+        ) const;
 };
 
 

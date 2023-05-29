@@ -1,9 +1,12 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2015 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2013-2017 OpenFOAM Foundation
+    Copyright (C) 2019-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -23,77 +26,102 @@ License
 
 \*---------------------------------------------------------------------------*/
 
-#include "turbulenceModel.H"
+//#include "TurbulenceModel.H"
 #include "volFields.H"
 #include "surfaceFields.H"
-#include "wallFvPatch.H"
-
-// * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
-
-namespace Foam
-{
-    defineTypeNameAndDebug(turbulenceModel, 0);
-}
-
-const Foam::word Foam::turbulenceModel::propertiesName("turbulenceProperties");
-
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
-Foam::turbulenceModel::turbulenceModel
+template
+<
+    class Alpha,
+    class Rho,
+    class BasicTurbulenceModel,
+    class TransportModel
+>
+Foam::TurbulenceModel<Alpha, Rho, BasicTurbulenceModel, TransportModel>::
+TurbulenceModel
 (
+    const alphaField& alpha,
+    const rhoField& rho,
     const volVectorField& U,
     const surfaceScalarField& alphaRhoPhi,
     const surfaceScalarField& phi,
+    const transportModel& transport,
     const word& propertiesName
 )
 :
-    IOdictionary
+    BasicTurbulenceModel
+    (
+        rho,
+        U,
+        alphaRhoPhi,
+        phi,
+        propertiesName
+    ),
+    alpha_(alpha),
+    transport_(transport)
+{}
+
+
+// * * * * * * * * * * * * * * * * * Selectors * * * * * * * * * * * * * * * //
+
+template
+<
+    class Alpha,
+    class Rho,
+    class BasicTurbulenceModel,
+    class TransportModel
+>
+Foam::autoPtr
+<
+    Foam::TurbulenceModel<Alpha, Rho, BasicTurbulenceModel, TransportModel>
+>
+Foam::TurbulenceModel<Alpha, Rho, BasicTurbulenceModel, TransportModel>::New
+(
+    const alphaField& alpha,
+    const rhoField& rho,
+    const volVectorField& U,
+    const surfaceScalarField& alphaRhoPhi,
+    const surfaceScalarField& phi,
+    const transportModel& transport,
+    const word& propertiesName
+)
+{
+    const IOdictionary dict
     (
         IOobject
         (
-            IOobject::groupName(propertiesName, U.group()),
+            IOobject::groupName(propertiesName, alphaRhoPhi.group()),
             U.time().constant(),
             U.db(),
             IOobject::MUST_READ_IF_MODIFIED,
-            IOobject::NO_WRITE
+            IOobject::NO_WRITE,
+            false // Do not register
         )
-    ),
+    );
 
-    runTime_(U.time()),
-    mesh_(U.mesh()),
+    const word modelType(dict.get<word>("simulationType"));
 
-    U_(U),
-    alphaRhoPhi_(alphaRhoPhi),
-    phi_(phi),
-    y_(mesh_)
-{}
+    Info<< "Selecting turbulence model type " << modelType << endl;
 
+    auto* ctorPtr = dictionaryConstructorTable(modelType);
 
-// * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
-
-Foam::tmp<Foam::surfaceScalarField> Foam::turbulenceModel::phi() const
-{
-    return phi_;
-}
-
-
-bool Foam::turbulenceModel::read()
-{
-    return regIOobject::read();
-}
-
-
-void Foam::turbulenceModel::validate()
-{}
-
-
-void Foam::turbulenceModel::correct()
-{
-    if (mesh_.changing())
+    if (!ctorPtr)
     {
-        y_.correct();
+        FatalIOErrorInLookup
+        (
+            dict,
+            "simulationType",
+            modelType,
+            *dictionaryConstructorTablePtr_
+        ) << exit(FatalIOError);
     }
+
+    return autoPtr<TurbulenceModel>
+    (
+        ctorPtr(alpha, rho, U, alphaRhoPhi, phi, transport, propertiesName)
+    );
 }
 
 

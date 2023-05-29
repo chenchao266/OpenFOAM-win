@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2019-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -25,10 +28,10 @@ License
 
 #include "processorGAMGInterfaceField.H"
 #include "addToRunTimeSelectionTable.H"
-#include "lduMatrix.H"
+#include "lduMatrix2.H"
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
-using namespace Foam;
+
 namespace Foam
 {
     defineTypeNameAndDebug(processorGAMGInterfaceField, 0);
@@ -44,160 +47,162 @@ namespace Foam
         processorGAMGInterfaceField,
         lduInterfaceField
     );
-}
 
 
-// * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
-processorGAMGInterfaceField::processorGAMGInterfaceField
-(
-    const GAMGInterface& GAMGCp,
-    const lduInterfaceField& fineInterface
-) :    GAMGInterfaceField(GAMGCp, fineInterface),
-    procInterface_(refCast<const processorGAMGInterface>(GAMGCp)),
-    doTransform_(false),
-    rank_(0)
-{
-    const processorLduInterfaceField& p =
-        refCast<const processorLduInterfaceField>(fineInterface);
+    // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
-    doTransform_ = p.doTransform();
-    rank_ = p.rank();
-}
-
-
-processorGAMGInterfaceField::processorGAMGInterfaceField
-(
-    const GAMGInterface& GAMGCp,
-    const bool doTransform,
-    const int rank
-) :    GAMGInterfaceField(GAMGCp, doTransform, rank),
-    procInterface_(refCast<const processorGAMGInterface>(GAMGCp)),
-    doTransform_(doTransform),
-    rank_(rank)
-{}
-
-
-// * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
-
-processorGAMGInterfaceField::~processorGAMGInterfaceField()
-{}
-
-
-// * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
-
-void processorGAMGInterfaceField::initInterfaceMatrixUpdate
-(
-    scalarField&,
-    const scalarField& psiInternal,
-    const scalarField&,
-    const direction,
-    const Pstream::commsTypes commsType
-) const
-{
-    procInterface_.interfaceInternalField(psiInternal, scalarSendBuf_);
-
-    if
+    processorGAMGInterfaceField::processorGAMGInterfaceField
     (
-        commsType == Pstream::commsTypes::nonBlocking
-     && !Pstream::floatTransfer
+        const GAMGInterface& GAMGCp,
+        const lduInterfaceField& fineInterface
     )
+        :
+        GAMGInterfaceField(GAMGCp, fineInterface),
+        procInterface_(refCast<const processorGAMGInterface>(GAMGCp)),
+        doTransform_(false),
+        rank_(0)
     {
-        // Fast path.
-        scalarReceiveBuf_.setSize(scalarSendBuf_.size());
-        outstandingRecvRequest_ = UPstream::nRequests();
-        IPstream::read
-        (
-            Pstream::commsTypes::nonBlocking,
-            procInterface_.neighbProcNo(),
-            reinterpret_cast<char*>(scalarReceiveBuf_.begin()),
-            scalarReceiveBuf_.byteSize(),
-            procInterface_.tag(),
-            comm()
-        );
+        const processorLduInterfaceField& p =
+            refCast<const processorLduInterfaceField>(fineInterface);
 
-        outstandingSendRequest_ = UPstream::nRequests();
-        OPstream::write
-        (
-            Pstream::commsTypes::nonBlocking,
-            procInterface_.neighbProcNo(),
-            reinterpret_cast<const char*>(scalarSendBuf_.begin()),
-            scalarSendBuf_.byteSize(),
-            procInterface_.tag(),
-            comm()
-        );
-    }
-    else
-    {
-        procInterface_.compressedSend(commsType, scalarSendBuf_);
+        doTransform_ = p.doTransform();
+        rank_ = p.rank();
     }
 
-    const_cast<processorGAMGInterfaceField&>(*this).updatedMatrix() = false;
-}
 
-
-void processorGAMGInterfaceField::updateInterfaceMatrix
-(
-    scalarField& result,
-    const scalarField&,
-    const scalarField& coeffs,
-    const direction cmpt,
-    const Pstream::commsTypes commsType
-) const
-{
-    if (updatedMatrix())
-    {
-        return;
-    }
-
-    const labelUList& faceCells = procInterface_.faceCells();
-
-    if
+    processorGAMGInterfaceField::processorGAMGInterfaceField
     (
-        commsType == Pstream::commsTypes::nonBlocking
-     && !Pstream::floatTransfer
+        const GAMGInterface& GAMGCp,
+        const bool doTransform,
+        const int rank
     )
+        :
+        GAMGInterfaceField(GAMGCp, doTransform, rank),
+        procInterface_(refCast<const processorGAMGInterface>(GAMGCp)),
+        doTransform_(doTransform),
+        rank_(rank)
+    {}
+
+
+    // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
+
+    void processorGAMGInterfaceField::initInterfaceMatrixUpdate
+    (
+        solveScalarField&,
+        const bool,
+        const lduAddressing& lduAddr,
+        const label patchId,
+        const solveScalarField& psiInternal,
+        const scalarField&,
+        const direction,
+        const Pstream::commsTypes commsType
+    ) const
     {
-        // Fast path.
+        procInterface_.interfaceInternalField(psiInternal, scalarSendBuf_);
+
         if
-        (
-            outstandingRecvRequest_ >= 0
-         && outstandingRecvRequest_ < Pstream::nRequests()
-        )
+            (
+                commsType == Pstream::commsTypes::nonBlocking
+                && !Pstream::floatTransfer
+                )
         {
-            UPstream::waitRequest(outstandingRecvRequest_);
+            // Fast path.
+            scalarReceiveBuf_.setSize(scalarSendBuf_.size());
+            outstandingRecvRequest_ = UPstream::nRequests();
+            IPstream::read
+            (
+                Pstream::commsTypes::nonBlocking,
+                procInterface_.neighbProcNo(),
+                scalarReceiveBuf_.data_bytes(),
+                scalarReceiveBuf_.size_bytes(),
+                procInterface_.tag(),
+                comm()
+            );
+
+            outstandingSendRequest_ = UPstream::nRequests();
+            OPstream::write
+            (
+                Pstream::commsTypes::nonBlocking,
+                procInterface_.neighbProcNo(),
+                scalarSendBuf_.cdata_bytes(),
+                scalarSendBuf_.size_bytes(),
+                procInterface_.tag(),
+                comm()
+            );
         }
-        // Recv finished so assume sending finished as well.
-        outstandingSendRequest_ = -1;
-        outstandingRecvRequest_ = -1;
-
-        // Consume straight from scalarReceiveBuf_
-
-        // Transform according to the transformation tensor
-        transformCoupleField(scalarReceiveBuf_, cmpt);
-
-        // Multiply the field by coefficients and add into the result
-        forAll(faceCells, elemI)
+        else
         {
-            result[faceCells[elemI]] -= coeffs[elemI]*scalarReceiveBuf_[elemI];
+            procInterface_.compressedSend(commsType, scalarSendBuf_);
         }
+
+        const_cast<processorGAMGInterfaceField&>(*this).updatedMatrix() = false;
     }
-    else
+
+
+    void processorGAMGInterfaceField::updateInterfaceMatrix
+    (
+        solveScalarField& result,
+        const bool add,
+        const lduAddressing& lduAddr,
+        const label patchId,
+        const solveScalarField&,
+        const scalarField& coeffs,
+        const direction cmpt,
+        const Pstream::commsTypes commsType
+    ) const
     {
-        scalarField pnf
-        (
-            procInterface_.compressedReceive<scalar>(commsType, coeffs.size())
-        );
-        transformCoupleField(pnf, cmpt);
-
-        forAll(faceCells, elemI)
+        if (updatedMatrix())
         {
-            result[faceCells[elemI]] -= coeffs[elemI]*pnf[elemI];
+            return;
         }
+
+        const labelUList& faceCells = lduAddr.patchAddr(patchId);
+
+        if
+            (
+                commsType == Pstream::commsTypes::nonBlocking
+                && !Pstream::floatTransfer
+                )
+        {
+            // Fast path.
+            if
+                (
+                    outstandingRecvRequest_ >= 0
+                    && outstandingRecvRequest_ < Pstream::nRequests()
+                    )
+            {
+                UPstream::waitRequest(outstandingRecvRequest_);
+            }
+            // Recv finished so assume sending finished as well.
+            outstandingSendRequest_ = -1;
+            outstandingRecvRequest_ = -1;
+
+            // Consume straight from scalarReceiveBuf_
+
+            // Transform according to the transformation tensor
+            transformCoupleField(scalarReceiveBuf_, cmpt);
+
+            // Multiply the field by coefficients and add into the result
+            addToInternalField(result, !add, faceCells, coeffs, scalarReceiveBuf_);
+        }
+        else
+        {
+            solveScalarField pnf
+            (
+                procInterface_.compressedReceive<solveScalar>
+                (
+                    commsType,
+                    coeffs.size()
+                    )
+            );
+            transformCoupleField(pnf, cmpt);
+
+            addToInternalField(result, !add, faceCells, coeffs, pnf);
+        }
+
+        const_cast<processorGAMGInterfaceField&>(*this).updatedMatrix() = true;
     }
 
-    const_cast<processorGAMGInterfaceField&>(*this).updatedMatrix() = true;
 }
-
-
 // ************************************************************************* //

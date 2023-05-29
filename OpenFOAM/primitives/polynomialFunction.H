@@ -1,9 +1,12 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -53,7 +56,7 @@ SourceFiles
 #define polynomialFunction_H
 
 #include "scalarList.H"
-#include "Ostream.H"
+#include "_Ostream.H"
 #include "runTimeSelectionTables.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
@@ -61,20 +64,21 @@ SourceFiles
 namespace Foam
 {
 
-// Forward declaration of classes
+// Forward Declarations
 class polynomialFunction;
 
-// Forward declaration of friend functions
-Ostream& operator<<(Ostream&, const polynomialFunction&);
-
+Istream& operator>>(Istream&, polynomialFunction& poly);
+Ostream& operator<<(Ostream&, const polynomialFunction& poly);
 
 /*---------------------------------------------------------------------------*\
                      Class polynomialFunction Declaration
 \*---------------------------------------------------------------------------*/
 
-class polynomialFunction :    private scalarList
+class polynomialFunction
+:
+    private scalarList
 {
-    // Private data
+    // Private Data
 
         //- Include the log term? - only activated using integralMinus1()
         bool logActive_;
@@ -90,7 +94,7 @@ class polynomialFunction :    private scalarList
         static polynomialFunction cloneIntegral
         (
             const polynomialFunction&,
-            const scalar intConstant = 0.0
+            const scalar intConstant = 0
         );
 
         //- Return integral coefficients when lowest order is -1.
@@ -98,13 +102,11 @@ class polynomialFunction :    private scalarList
         static polynomialFunction cloneIntegralMinus1
         (
             const polynomialFunction&,
-            const scalar intConstant = 0.0
+            const scalar intConstant = 0
         );
 
-
-        //- Disallow default bitwise assignment
-        void operator=(const polynomialFunction&);
-
+        //- Check size is non-zero or trigger FatalErrot
+        void checkSize() const;
 
 
 public:
@@ -113,41 +115,49 @@ public:
     TypeName("polynomialFunction");
 
 
+    // Generated Methods: copy construct, copy assignment
+
+
     // Constructors
 
-        //- Construct a particular size, with all coefficients = 0.0
-        explicit polynomialFunction(const label);
+        //- Default construct as size 1 with coefficient == 0
+        polynomialFunction();
 
-        //- Copy constructor
-        polynomialFunction(const polynomialFunction&);
+        //- Construct a particular size, with all coefficients == 0
+        explicit polynomialFunction(const label order);
+
+        //- Construct from an initializer list of coefficients
+        explicit polynomialFunction(std::initializer_list<scalar> coeffs);
 
         //- Construct from a list of coefficients
         explicit polynomialFunction(const UList<scalar>& coeffs);
 
         //- Construct from Istream
-        polynomialFunction(Istream&);
+        explicit polynomialFunction(Istream& is);
 
 
     //- Destructor
-    virtual ~polynomialFunction();
+    virtual ~polynomialFunction() = default;
 
 
     // Member Functions
 
-            //- Return the number of coefficients
-            using scalarList::size;
+        //- Non-zero number of coefficients
+        using scalarList::empty;
 
-            //- Return coefficient
-            using scalarList::operator[];
+        //- The number of coefficients
+        using scalarList::size;
+
+        //- Return coefficient at given index
+        using scalarList::operator[];
 
 
         // Access
 
-
-            //- Return true if the log term is active
+            //- True if the log term is active
             bool logActive() const;
 
-            //- Return the log coefficient
+            //- The log coefficient
             scalar logCoeff() const;
 
 
@@ -164,18 +174,26 @@ public:
             //  Argument becomes zeroth element (constant of integration)
             polynomialFunction integral
             (
-                const scalar intConstant = 0.0
+                const scalar intConstant = 0
             ) const;
 
             //- Return integral coefficients when lowest order is -1.
             //  Argument becomes zeroth element (constant of integration)
             polynomialFunction integralMinus1
             (
-                const scalar intConstant = 0.0
+                const scalar intConstant = 0
             ) const;
 
 
     // Member Operators
+
+        //- Equality of coefficients, and logCoeff (if active)
+        bool operator==(const polynomialFunction& rhs) const;
+
+        bool operator!=(const polynomialFunction& rhs) const
+        {
+            return !operator==(rhs);
+        }
 
         polynomialFunction& operator+=(const polynomialFunction&);
         polynomialFunction& operator-=(const polynomialFunction&);
@@ -184,12 +202,12 @@ public:
         polynomialFunction& operator/=(const scalar);
 
 
-    //- Ostream Operator
-    friend Ostream& operator<<(Ostream&, const polynomialFunction&);
+    // IOstream Operators
+
+    friend Istream& operator>>(Istream&, polynomialFunction& poly);
+    friend Ostream& operator<<(Ostream&, const polynomialFunction& poly);
 };
 
-
-// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 // * * * * * * * * * * * * * * * Global Operators  * * * * * * * * * * * * * //
 

@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2015 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2015 OpenFOAM Foundation
+    Copyright (C) 2019 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -32,8 +35,8 @@ SourceFiles
 
 \*---------------------------------------------------------------------------*/
 
-#ifndef options_H
-#define options_H
+#ifndef fv_options_H
+#define fv_options_H
 
 #include "fvOptionList.H"
 #include "IOdictionary.H"
@@ -60,11 +63,11 @@ class options
         //- Create IO object if dictionary is present
         IOobject createIOobject(const fvMesh& mesh) const;
 
-        //- Disallow default bitwise copy construct
-        options(const options&);
+        //- No copy construct
+        options(const options&) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const options&);
+        //- No copy assignment
+        void operator=(const options&) = delete;
 
 
 public:
@@ -78,14 +81,13 @@ public:
         //- Construct from components with list of field names
         options(const fvMesh& mesh);
 
-        //- Construct fvOptions and register to datbase if not present
+        //- Construct fvOptions and register to database if not present
         //  otherwise lookup and return
         static options& New(const fvMesh& mesh);
 
 
     //- Destructor
-    virtual ~options()
-    {}
+    virtual ~options() = default;
 
 
     // Member Functions

@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -24,8 +27,8 @@ License
 \*---------------------------------------------------------------------------*/
 
 #include "boundaryPatch.H"
-#include "dictionary.H"
-#include "Ostream.H"
+#include "dictionary2.H"
+#include "_Ostream.H"
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
@@ -52,37 +55,17 @@ Foam::boundaryPatch::boundaryPatch
 )
 :
     patchIdentifier(name, dict, index),
-    size_(readLabel(dict.lookup("nFaces"))),
-    start_(readLabel(dict.lookup("startFace")))
-{}
-
-
-Foam::boundaryPatch::boundaryPatch(const boundaryPatch& p)
-:
-    patchIdentifier(p.name(), p.index(), p.physicalType()),
-    size_(p.size()),
-    start_(p.start())
+    size_(dict.get<label>("nFaces")),
+    start_(dict.get<label>("startFace"))
 {}
 
 
 Foam::boundaryPatch::boundaryPatch(const boundaryPatch& p, const label index)
 :
-    patchIdentifier(p.name(), index, p.physicalType()),
-    size_(p.size()),
-    start_(p.start())
-{}
-
-
-Foam::autoPtr<Foam::boundaryPatch> Foam::boundaryPatch::clone() const
+    boundaryPatch(p)
 {
-    return autoPtr<boundaryPatch>(new boundaryPatch(*this));
+    patchIdentifier::index() = index;
 }
-
-
-// * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
-
-Foam::boundaryPatch::~boundaryPatch()
-{}
 
 
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
@@ -90,17 +73,17 @@ Foam::boundaryPatch::~boundaryPatch()
 void Foam::boundaryPatch::write(Ostream& os) const
 {
     patchIdentifier::write(os);
-    os.writeKeyword("nFaces") << size_ << token::END_STATEMENT << nl;
-    os.writeKeyword("startFace") << start_ << token::END_STATEMENT << nl;
+    os.writeEntry("nFaces", size_);
+    os.writeEntry("startFace", start_);
 }
 
 
-// * * * * * * * * * * * * * * * Friend Operators  * * * * * * * * * * * * * //
+// * * * * * * * * * * * * * * * IOstream Operators  * * * * * * * * * * * * //
 
 Foam::Ostream& Foam::operator<<(Ostream& os, const boundaryPatch& p)
 {
     p.write(os);
-    os.check("Ostream& operator<<(Ostream& f, const boundaryPatch&)");
+    os.check(FUNCTION_NAME);
     return os;
 }
 

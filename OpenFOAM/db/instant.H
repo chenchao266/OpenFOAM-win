@@ -1,9 +1,11 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2018 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -22,20 +24,21 @@ License
     along with OpenFOAM.  If not, see <http://www.gnu.org/licenses/>.
 
 Class
-    Foam::instant
+    Foam::Instant
 
 Description
-    An instant of time. Contains the time value and name.
+    A tuple of value and key.
+    The value often corresponds to a time value, thus the naming of the class.
+    The key will usually be a time name or a file name etc.
 
 SourceFiles
-    instant.C
+    Instant.C
 
 \*---------------------------------------------------------------------------*/
 
-#ifndef instant_H
-#define instant_H
+#ifndef Instant_H
+#define Instant_H
 
-#include "word.H"
 #include "scalar.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
@@ -43,120 +46,133 @@ SourceFiles
 namespace Foam
 {
 
-// Forward declaration of friend functions and operators
-
-class instant;
-
-// Friend Operators
-
-bool operator==(const instant&, const instant&);
-bool operator!=(const instant&, const instant&);
-bool operator<(const instant&, const instant&);
-bool operator>(const instant&, const instant&);
-
-// IOstream Operators
-
-Istream& operator>>(Istream&, instant&);
-Ostream& operator<<(Ostream&, const instant&);
-
-
 /*---------------------------------------------------------------------------*\
-                           Class instant Declaration
+                           Class Instant Declaration
 \*---------------------------------------------------------------------------*/
 
-class instant
+template<class T>
+class Instant
 {
-    // Private data
+    // Private Data
 
-        scalar value_;
-        word name_;
+        //- The value (eg, time)
+        scalar val_;
+
+        //- The name/key
+        T key_;
+
 
 public:
 
     // Public classes
 
-        //- Less function class used in sorting instants
-        class less
+        //- Less function for sorting
+        struct less
         {
-        public:
-
-            bool operator()(const instant& a, const instant& b) const
+            bool operator()(const Instant& a, const Instant& b) const
             {
                 return a.value() < b.value();
             }
         };
 
 
-    // Static data members
-
-        static const char* const typeName;
-
-
     // Constructors
 
-        //- Construct null
-        instant();
+        //- Construct null, with value = 0.
+        Instant();
 
-        //- Construct from components
-        instant(const scalar, const word&);
+        //- Copy construct from components
+        Instant(scalar val, const T& key);
 
-        //- Construct from time value
-        explicit instant(const scalar);
+        //- Move construct from components
+        Instant(scalar val, T&& key);
 
-        //- Construct from word
-        explicit instant(const word&);
+        //- Copy construct
+        Instant(const Instant&) = default;
+
+        //- Move construct
+        Instant(Instant&&) = default;
 
 
     // Member Functions
 
-        // Access
+        //- The value (const access)
+        scalar value() const
+        {
+            return val_;
+        }
 
-            //- Value (const access)
-            scalar value() const
-            {
-                return value_;
-            }
+        //- The value (non-const access)
+        scalar& value()
+        {
+            return val_;
+        }
 
-            //- Value (non-const access)
-            scalar& value()
-            {
-                return value_;
-            }
+        //- The name/key (const access)
+        const T& name() const
+        {
+            return key_;
+        }
 
-            //- Name (const access)
-            const word& name() const
-            {
-                return name_;
-            }
+        //- The name/key (non-const access)
+        T& name()
+        {
+            return key_;
+        }
 
-            //- Name (non-const access)
-            word& name()
-            {
-                return name_;
-            }
+        //- True if values are equal (includes SMALL for rounding)
+        bool equal(scalar val) const;
 
-            //- Comparison used for instants to be equal
-            bool equal(const scalar) const;
-
-
-    // Friend Operators
-
-        friend bool operator==(const instant&, const instant&);
-        friend bool operator!=(const instant&, const instant&);
-        friend bool operator<(const instant&, const instant&);
-        friend bool operator>(const instant&, const instant&);
+        //- True if values are equal (includes SMALL for rounding)
+        template<class T2>
+        bool equal(const Instant<T2>& other) const;
 
 
-    // IOstream Operators
+    // Operators
 
-        friend Istream& operator>>(Istream&, instant&);
-        friend Ostream& operator<<(Ostream&, const instant&);
+        //- Copy assignment
+        Instant& operator=(const Instant&) = default;
+
+        //- Move assignment
+        Instant& operator=(Instant&&) = default;
 };
+
+
+// IOstream Operators
+
+template<class T> Istream& operator>>(Istream& is, Instant<T>& inst);
+template<class T> Ostream& operator<<(Ostream& os, const Instant<T>& inst);
+
+
+// Global Operators
+
+//- Compare instant values for equality
+template<class T1, class T2>
+bool operator==(const Instant<T1>& a, const Instant<T2>& b);
+
+//- Compare instant values for inequality
+template<class T1, class T2>
+bool operator!=(const Instant<T1>& a, const Instant<T2>& b);
+
+//- Compare instant values for less-than
+template<class T1, class T2>
+bool operator<(const Instant<T1>& a, const Instant<T2>& b);
+
+//- Compare instant values for greater-than
+template<class T1, class T2>
+bool operator>(const Instant<T1>& a, const Instant<T2>& b);
 
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 } // End namespace Foam
+
+
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+#ifdef NoRepository
+    #include "Instant.C"
+#endif
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 

@@ -1,9 +1,12 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2013 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2013 OpenFOAM Foundation
+    Copyright (C) 2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -32,7 +35,7 @@ SourceFiles
 
 \*---------------------------------------------------------------------------*/
 
-#include "Pstream.T.H"
+#include "Pstream.H"
 
 #ifndef IPstream_H
 #define IPstream_H
@@ -48,19 +51,22 @@ namespace Foam
                            Class IPstream Declaration
 \*---------------------------------------------------------------------------*/
 
-class IPstream :    public Pstream,
+class IPstream
+:
+    public Pstream,
     public UIPstream
 {
+    // Private Data
 
-    //- Receive index
-    label externalBufPosition_;
+        //- Receive index into Pstream::transferBuf_
+        label transferBufPosition_;
 
 public:
 
     // Constructors
 
-        //- Construct given process index to read from and optional buffer size,
-        //  read format and IO version
+        //- Construct given process index to read from
+        //- and optional buffer size, read format
         IPstream
         (
             const commsTypes commsType,
@@ -68,10 +74,8 @@ public:
             const label bufSize = 0,
             const int tag = UPstream::msgType(),
             const label comm = UPstream::worldComm,
-            streamFormat format=BINARY,
-            versionNumber version=currentVersion
+            IOstreamOption::streamFormat fmt = IOstreamOption::BINARY
         );
-
 };
 
 

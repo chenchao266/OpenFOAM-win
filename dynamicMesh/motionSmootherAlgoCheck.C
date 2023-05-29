@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2013 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2014 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -35,7 +38,8 @@ bool Foam::motionSmootherAlgo::checkMesh
     const polyMesh& mesh,
     const dictionary& dict,
     const labelList& checkFaces,
-    labelHashSet& wrongFaces
+    labelHashSet& wrongFaces,
+    const bool dryRun
 )
 {
     List<labelPair> emptyBaffles;
@@ -46,7 +50,8 @@ bool Foam::motionSmootherAlgo::checkMesh
         dict,
         checkFaces,
         emptyBaffles,
-        wrongFaces
+        wrongFaces,
+        dryRun
     );
 }
 
@@ -57,59 +62,101 @@ bool Foam::motionSmootherAlgo::checkMesh
     const dictionary& dict,
     const labelList& checkFaces,
     const List<labelPair>& baffles,
-    labelHashSet& wrongFaces
+    labelHashSet& wrongFaces,
+    const bool dryRun
 )
 {
     const scalar maxNonOrtho
     (
-        readScalar(dict.lookup("maxNonOrtho", true))
+        get<scalar>(dict, "maxNonOrtho", dryRun, keyType::REGEX_RECURSIVE)
     );
     const scalar minVol
     (
-        readScalar(dict.lookup("minVol", true))
+        get<scalar>(dict, "minVol", dryRun, keyType::REGEX_RECURSIVE)
     );
     const scalar minTetQuality
     (
-        readScalar(dict.lookup("minTetQuality", true))
+        get<scalar>(dict, "minTetQuality", dryRun, keyType::REGEX_RECURSIVE)
     );
     const scalar maxConcave
     (
-        readScalar(dict.lookup("maxConcave", true))
+        get<scalar>(dict, "maxConcave", dryRun, keyType::REGEX_RECURSIVE)
     );
     const scalar minArea
     (
-        readScalar(dict.lookup("minArea", true))
+        get<scalar>(dict, "minArea", dryRun, keyType::REGEX_RECURSIVE)
     );
     const scalar maxIntSkew
     (
-        readScalar(dict.lookup("maxInternalSkewness", true))
+        get<scalar>
+        (
+            dict, "maxInternalSkewness", dryRun, keyType::REGEX_RECURSIVE
+        )
     );
     const scalar maxBounSkew
     (
-        readScalar(dict.lookup("maxBoundarySkewness", true))
+        get<scalar>
+        (
+            dict, "maxBoundarySkewness", dryRun, keyType::REGEX_RECURSIVE
+        )
     );
     const scalar minWeight
     (
-        readScalar(dict.lookup("minFaceWeight", true))
+        get<scalar>(dict, "minFaceWeight", dryRun, keyType::REGEX_RECURSIVE)
     );
     const scalar minVolRatio
     (
-        readScalar(dict.lookup("minVolRatio", true))
+        get<scalar>(dict, "minVolRatio", dryRun, keyType::REGEX_RECURSIVE)
     );
     const scalar minTwist
     (
-        readScalar(dict.lookup("minTwist", true))
+        get<scalar>(dict, "minTwist", dryRun, keyType::REGEX_RECURSIVE)
     );
     const scalar minTriangleTwist
     (
-        readScalar(dict.lookup("minTriangleTwist", true))
+        get<scalar>(dict, "minTriangleTwist", dryRun, keyType::REGEX_RECURSIVE)
     );
-    scalar minFaceFlatness = -1.0;
-    dict.readIfPresent("minFaceFlatness", minFaceFlatness, true);
+    const scalar minFaceFlatness
+    (
+        dict.getOrDefault<scalar>
+        (
+            "minFaceFlatness", -1, keyType::REGEX_RECURSIVE
+        )
+    );
     const scalar minDet
     (
-        readScalar(dict.lookup("minDeterminant", true))
+        get<scalar>(dict, "minDeterminant", dryRun, keyType::REGEX_RECURSIVE)
     );
+
+
+    if (dryRun)
+    {
+        string errorMsg(FatalError.message());
+        string IOerrorMsg(FatalIOError.message());
+
+        if (errorMsg.size() || IOerrorMsg.size())
+        {
+            //errorMsg = "[dryRun] " + errorMsg;
+            //errorMsg.replaceAll("\n", "\n[dryRun] ");
+            //IOerrorMsg = "[dryRun] " + IOerrorMsg;
+            //IOerrorMsg.replaceAll("\n", "\n[dryRun] ");
+
+            IOWarningInFunction(dict)
+                << nl
+                << "Missing/incorrect required dictionary entries:" << nl
+                << nl
+                << IOerrorMsg.c_str() << nl
+                << errorMsg.c_str() << nl
+                //<< nl << "Exiting dry-run" << nl
+                << endl;
+
+            FatalError.clear();
+            FatalIOError.clear();
+        }
+        return false;
+    }
+
+
     label nWrongFaces = 0;
 
     Info<< "Checking faces in error :" << endl;
@@ -416,7 +463,8 @@ bool Foam::motionSmootherAlgo::checkMesh
     const bool report,
     const polyMesh& mesh,
     const dictionary& dict,
-    labelHashSet& wrongFaces
+    labelHashSet& wrongFaces,
+    const bool dryRun
 )
 {
     return checkMesh
@@ -425,7 +473,8 @@ bool Foam::motionSmootherAlgo::checkMesh
         mesh,
         dict,
         identity(mesh.nFaces()),
-        wrongFaces
+        wrongFaces,
+        dryRun
     );
 }
 
@@ -434,8 +483,10 @@ bool Foam::motionSmootherAlgo::checkMesh
     const bool report,
     const dictionary& dict,
     const polyMeshGeometry& meshGeom,
+    const pointField& points,
     const labelList& checkFaces,
-    labelHashSet& wrongFaces
+    labelHashSet& wrongFaces,
+    const bool dryRun
 )
 {
     List<labelPair> emptyBaffles;
@@ -445,9 +496,11 @@ bool Foam::motionSmootherAlgo::checkMesh
         report,
         dict,
         meshGeom,
+        points,
         checkFaces,
         emptyBaffles,
-        wrongFaces
+        wrongFaces,
+        dryRun
      );
 }
 
@@ -457,61 +510,95 @@ bool Foam::motionSmootherAlgo::checkMesh
     const bool report,
     const dictionary& dict,
     const polyMeshGeometry& meshGeom,
+    const pointField& points,
     const labelList& checkFaces,
     const List<labelPair>& baffles,
-    labelHashSet& wrongFaces
+    labelHashSet& wrongFaces,
+    const bool dryRun
 )
 {
     const scalar maxNonOrtho
     (
-        readScalar(dict.lookup("maxNonOrtho", true))
+        get<scalar>(dict, "maxNonOrtho", dryRun, keyType::REGEX_RECURSIVE)
     );
     const scalar minVol
     (
-        readScalar(dict.lookup("minVol", true))
+        get<scalar>(dict, "minVol", dryRun, keyType::REGEX_RECURSIVE)
     );
     const scalar minTetQuality
     (
-        readScalar(dict.lookup("minTetQuality", true))
+        get<scalar>(dict, "minTetQuality", dryRun, keyType::REGEX_RECURSIVE)
     );
     const scalar maxConcave
     (
-        readScalar(dict.lookup("maxConcave", true))
+        get<scalar>(dict, "maxConcave", dryRun, keyType::REGEX_RECURSIVE)
     );
     const scalar minArea
     (
-        readScalar(dict.lookup("minArea", true))
+        get<scalar>(dict, "minArea", dryRun, keyType::REGEX_RECURSIVE)
     );
-    //const scalar maxIntSkew
-    //(
-    //    readScalar(dict.lookup("maxInternalSkewness", true))
-    //);
-    //const scalar maxBounSkew
-    //(
-    //    readScalar(dict.lookup("maxBoundarySkewness", true))
-    //);
+    const scalar maxIntSkew
+    (
+        get<scalar>(dict, "maxInternalSkewness", dryRun, keyType::REGEX_RECURSIVE)
+    );
+    const scalar maxBounSkew
+    (
+        get<scalar>(dict, "maxBoundarySkewness", dryRun, keyType::REGEX_RECURSIVE)
+    );
     const scalar minWeight
     (
-        readScalar(dict.lookup("minFaceWeight", true))
+        get<scalar>(dict, "minFaceWeight", dryRun, keyType::REGEX_RECURSIVE)
     );
     const scalar minVolRatio
     (
-        readScalar(dict.lookup("minVolRatio", true))
+        get<scalar>(dict, "minVolRatio", dryRun, keyType::REGEX_RECURSIVE)
     );
     const scalar minTwist
     (
-        readScalar(dict.lookup("minTwist", true))
+        get<scalar>(dict, "minTwist", dryRun, keyType::REGEX_RECURSIVE)
     );
     const scalar minTriangleTwist
     (
-        readScalar(dict.lookup("minTriangleTwist", true))
+        get<scalar>(dict, "minTriangleTwist", dryRun, keyType::REGEX_RECURSIVE)
     );
     scalar minFaceFlatness = -1.0;
-    dict.readIfPresent("minFaceFlatness", minFaceFlatness, true);
+    dict.readIfPresent
+    (
+        "minFaceFlatness",
+        minFaceFlatness,
+        keyType::REGEX_RECURSIVE
+    );
     const scalar minDet
     (
-        readScalar(dict.lookup("minDeterminant", true))
+        get<scalar>(dict, "minDeterminant", dryRun, keyType::REGEX_RECURSIVE)
     );
+
+    if (dryRun)
+    {
+        string errorMsg(FatalError.message());
+        string IOerrorMsg(FatalIOError.message());
+
+        if (errorMsg.size() || IOerrorMsg.size())
+        {
+            //errorMsg = "[dryRun] " + errorMsg;
+            //errorMsg.replaceAll("\n", "\n[dryRun] ");
+            //IOerrorMsg = "[dryRun] " + IOerrorMsg;
+            //IOerrorMsg.replaceAll("\n", "\n[dryRun] ");
+
+            Perr<< nl
+                << "Missing/incorrect required dictionary entries:" << nl
+                << nl
+                << IOerrorMsg.c_str() << nl
+                << errorMsg.c_str() << nl
+                //<< nl << "Exiting dry-run" << nl
+                << endl;
+
+            FatalError.clear();
+            FatalIOError.clear();
+        }
+        return false;
+    }
+
 
     label nWrongFaces = 0;
 
@@ -544,8 +631,8 @@ bool Foam::motionSmootherAlgo::checkMesh
         meshGeom.checkFacePyramids
         (
             report,
-            minVol,
-            meshGeom.mesh().points(),
+            minTetQuality,
+            points,
             checkFaces,
             baffles,
             &wrongFaces
@@ -566,7 +653,7 @@ bool Foam::motionSmootherAlgo::checkMesh
         (
             report,
             minTetQuality,
-            meshGeom.mesh().points(),
+            points,
             checkFaces,
             baffles,
             &wrongFaces
@@ -575,7 +662,7 @@ bool Foam::motionSmootherAlgo::checkMesh
         label nNewWrongFaces = returnReduce(wrongFaces.size(), sumOp<label>());
 
         Info<< "    faces with face-decomposition tet quality < "
-            << setw(5) << minTetQuality << "                : "
+            << setw(5) << minTetQuality << "      : "
             << nNewWrongFaces-nWrongFaces << endl;
 
         nWrongFaces = nNewWrongFaces;
@@ -587,7 +674,7 @@ bool Foam::motionSmootherAlgo::checkMesh
         (
             report,
             maxConcave,
-            meshGeom.mesh().points(),
+            points,
             checkFaces,
             &wrongFaces
         );
@@ -604,7 +691,13 @@ bool Foam::motionSmootherAlgo::checkMesh
 
     if (minArea > -SMALL)
     {
-        meshGeom.checkFaceArea(report, minArea, checkFaces, &wrongFaces);
+        meshGeom.checkFaceArea
+        (
+            report,
+            minArea,
+            checkFaces,
+            &wrongFaces
+        );
 
         label nNewWrongFaces = returnReduce(wrongFaces.size(), sumOp<label>());
 
@@ -616,30 +709,32 @@ bool Foam::motionSmootherAlgo::checkMesh
         nWrongFaces = nNewWrongFaces;
     }
 
+    if (maxIntSkew > 0 || maxBounSkew > 0)
+    {
+        polyMeshGeometry::checkFaceSkewness
+        (
+            report,
+            maxIntSkew,
+            maxBounSkew,
+            meshGeom.mesh(),
+            points,
+            meshGeom.cellCentres(),
+            meshGeom.faceCentres(),
+            meshGeom.faceAreas(),
+            checkFaces,
+            baffles,
+            &wrongFaces
+        );
 
-    //- Note: cannot check the skewness without the points and don't want
-    //  to store them on polyMeshGeometry.
-    //if (maxIntSkew > 0 || maxBounSkew > 0)
-    //{
-    //    meshGeom.checkFaceSkewness
-    //    (
-    //        report,
-    //        maxIntSkew,
-    //        maxBounSkew,
-    //        checkFaces,
-    //        baffles,
-    //        &wrongFaces
-    //    );
-    //
-    //    label nNewWrongFaces = returnReduce(wrongFaces.size(),sumOp<label>());
-    //
-    //    Info<< "    faces with skewness > "
-    //        << setw(3) << maxIntSkew
-    //        << " (internal) or " << setw(3) << maxBounSkew
-    //        << " (boundary) : " << nNewWrongFaces-nWrongFaces << endl;
-    //
-    //    nWrongFaces = nNewWrongFaces;
-    //}
+        label nNewWrongFaces = returnReduce(wrongFaces.size(), sumOp<label>());
+
+        Info<< "    faces with skewness > "
+            << setw(3) << maxIntSkew
+            << " (internal) or " << setw(3) << maxBounSkew
+            << " (boundary) : " << nNewWrongFaces-nWrongFaces << endl;
+
+        nWrongFaces = nNewWrongFaces;
+    }
 
     if (minWeight >= 0 && minWeight < 1)
     {
@@ -691,7 +786,7 @@ bool Foam::motionSmootherAlgo::checkMesh
         (
             report,
             minTwist,
-            meshGeom.mesh().points(),
+            points,
             checkFaces,
             &wrongFaces
         );
@@ -714,7 +809,7 @@ bool Foam::motionSmootherAlgo::checkMesh
         (
             report,
             minTriangleTwist,
-            meshGeom.mesh().points(),
+            points,
             checkFaces,
             &wrongFaces
         );
@@ -729,13 +824,13 @@ bool Foam::motionSmootherAlgo::checkMesh
         nWrongFaces = nNewWrongFaces;
     }
 
-    if (minFaceFlatness > -1)
+    if (minFaceFlatness > -SMALL)
     {
         meshGeom.checkFaceFlatness
         (
             report,
             minFaceFlatness,
-            meshGeom.mesh().points(),
+            points,
             checkFaces,
             &wrongFaces
         );
@@ -757,7 +852,7 @@ bool Foam::motionSmootherAlgo::checkMesh
             report,
             minDet,
             checkFaces,
-            meshGeom.affectedCells(meshGeom.mesh(), checkFaces),
+            polyMeshGeometry::affectedCells(meshGeom.mesh(), checkFaces),
             &wrongFaces
         );
 

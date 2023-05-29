@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2016-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -28,144 +31,182 @@ License
 #include "dynamicCode.H"
 #include "dynamicCodeContext.H"
 #include "dlLibraryTable.H"
-#include "PstreamReduceOps.T.H"
+#include "objectRegistry.H"
+#include "IOdictionary.H"
+#include "Pstream.H"
+#include "PstreamReduceOps.H"
 #include "OSspecific.H"
+#include "_Ostream.H"
+#include "Time1.h"
 #include "regIOobject.H"
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
-using namespace Foam;
+
 namespace Foam
 {
     defineTypeNameAndDebug(codedBase, 0);
 }
 
 
+// * * * * * * * * * * * * * * * Local Functions * * * * * * * * * * * * * * //
+
+namespace Foam
+{
+
+static inline void writeEntryIfPresent
+(
+    Ostream& os,
+    const dictionary& dict,
+    const word& key
+)
+{
+    const entry* eptr = dict.findEntry(key, keyType::LITERAL);
+    if (!eptr)
+    {
+        // Nothing to do
+    }
+    else if (eptr->isDict())
+    {
+        eptr->dict().writeEntry(os);
+    }
+    else
+    {
+        const tokenList& toks = eptr->stream();
+
+        if (!toks.empty())  // Could also check that it is a string-type
+        {
+            os.writeEntry(key, toks[0]);
+        }
+    }
+}
+
+} // End namespace Foam
+
+
 // * * * * * * * * * * * * * Static Member Functions * * * * * * * * * * * * //
+
+
+ namespace Foam{
+void codedBase::writeCodeDict(Ostream& os, const dictionary& dict)
+{
+    writeEntryIfPresent(os, dict, "codeContext");
+    writeEntryIfPresent(os, dict, "codeInclude");
+    writeEntryIfPresent(os, dict, "localCode");
+    writeEntryIfPresent(os, dict, "code");
+    writeEntryIfPresent(os, dict, "codeOptions");
+    writeEntryIfPresent(os, dict, "codeLibs");
+}
+
+
+const dictionary&
+codedBase::codeDict
+(
+    const objectRegistry& obr,
+    const word& dictName
+)
+{
+    IOdictionary* dictptr = obr.getObjectPtr<IOdictionary>(dictName);
+
+    if (!dictptr)
+    {
+        dictptr = new IOdictionary
+        (
+            IOobject
+            (
+                dictName,
+                obr.time().system(),
+                obr,
+                IOobject::MUST_READ_IF_MODIFIED,
+                IOobject::NO_WRITE
+            )
+        );
+
+        obr.store(dictptr);
+    }
+
+    return *dictptr;
+}
+
+
+// * * * * * * * * * * * * * Private Member Functions  * * * * * * * * * * * //
 
 void* codedBase::loadLibrary
 (
     const fileName& libPath,
-    const string& globalFuncName,
-    const dictionary& contextDict
+    const std::string& funcName,
+    const dynamicCodeContext& context
 ) const
 {
-    void* lib = 0;
+    // Avoid compilation by loading an existing library
 
-    // avoid compilation by loading an existing library
-    if (!libPath.empty())
+    void* handle = libs().open(libPath, false);
+
+    if (!handle)
     {
-        if (libs().open(libPath, false))
+        return handle;
+    }
+
+    // Verify the loaded version and unload if needed
+
+    // Manual execution of code after loading.
+    // This is mandatory for codedBase.
+
+    const bool ok = libs().loadHook(handle, funcName, false);
+
+    if (!ok)
+    {
+        FatalIOErrorInFunction(context.dict())
+            << "Failed symbol lookup " << funcName.c_str() << nl
+            << "from " << libPath << nl
+            << exit(FatalIOError);
+
+        handle = nullptr;
+        if (!libs().close(libPath, false))
         {
-            lib = libs().findLibrary(libPath);
-
-            // verify the loaded version and unload if needed
-            if (lib)
-            {
-                // provision for manual execution of code after loading
-                if (dlSymFound(lib, globalFuncName))
-                {
-                    loaderFunctionType function =
-                        reinterpret_cast<loaderFunctionType>
-                        (
-                            dlSym(lib, globalFuncName)
-                        );
-
-                    if (function)
-                    {
-                        (*function)(true);    // force load
-                    }
-                    else
-                    {
-                        FatalIOErrorInFunction
-                        (
-                            contextDict
-                        )   << "Failed looking up symbol " << globalFuncName
-                            << nl << "from " << libPath << exit(FatalIOError);
-                    }
-                }
-                else
-                {
-                    FatalIOErrorInFunction
-                    (
-                        contextDict
-                    )   << "Failed looking up symbol " << globalFuncName << nl
-                        << "from " << libPath << exit(FatalIOError);
-
-                    lib = 0;
-                    if (!libs().close(libPath, false))
-                    {
-                        FatalIOErrorInFunction
-                        (
-                            contextDict
-                        )   << "Failed unloading library "
-                            << libPath
-                            << exit(FatalIOError);
-                    }
-                }
-            }
+            FatalIOErrorInFunction(context.dict())
+                << "Failed unloading library " << libPath << nl
+                << exit(FatalIOError);
         }
     }
 
-    return lib;
+    return handle;
 }
 
 
 void codedBase::unloadLibrary
 (
     const fileName& libPath,
-    const string& globalFuncName,
-    const dictionary& contextDict
+    const std::string& funcName,
+    const dynamicCodeContext& context
 ) const
 {
-    void* lib = 0;
+    void* handle = libs().open(libPath, false);
 
-    if (libPath.empty())
+    if (!handle)
     {
         return;
     }
 
-    lib = libs().findLibrary(libPath);
+    // Manual execution of code before unloading.
+    // This is mandatory for codedBase.
 
-    if (!lib)
+    const bool ok = libs().unloadHook(handle, funcName, false);
+
+    if (!ok)
     {
-        return;
-    }
-
-    // provision for manual execution of code before unloading
-    if (dlSymFound(lib, globalFuncName))
-    {
-        loaderFunctionType function =
-            reinterpret_cast<loaderFunctionType>
-            (
-                dlSym(lib, globalFuncName)
-            );
-
-        if (function)
-        {
-            (*function)(false);    // force unload
-        }
-        else
-        {
-            FatalIOErrorInFunction
-            (
-                contextDict
-            )   << "Failed looking up symbol " << globalFuncName << nl
-                << "from " << libPath << exit(FatalIOError);
-        }
+        IOWarningInFunction(context.dict())
+            << "Failed looking up symbol " << funcName << nl
+            << "from " << libPath << nl;
     }
 
     if (!libs().close(libPath, false))
     {
-        FatalIOErrorInFunction
-        (
-            contextDict
-        )   << "Failed unloading library " << libPath
+        FatalIOErrorInFunction(context.dict())
+            << "Failed unloading library " << libPath << nl
             << exit(FatalIOError);
     }
 }
 
-
-// * * * * * * * * * * * * * Private Member Functions  * * * * * * * * * * * //
 
 void codedBase::createLibrary
 (
@@ -175,7 +216,7 @@ void codedBase::createLibrary
 {
     bool create =
         Pstream::master()
-     || (regIOobject::fileModificationSkew <= 0);   // not NFS
+     || (IOobject::fileModificationSkew <= 0);   // not NFS
 
     if (create)
     {
@@ -189,10 +230,8 @@ void codedBase::createLibrary
 
             if (!dynCode.copyOrCreateFiles(true))
             {
-                FatalIOErrorInFunction
-                (
-                    context.dict()
-                )   << "Failed writing files for" << nl
+                FatalIOErrorInFunction(context.dict())
+                    << "Failed writing files for" << nl
                     << dynCode.libRelPath() << nl
                     << exit(FatalIOError);
             }
@@ -200,17 +239,15 @@ void codedBase::createLibrary
 
         if (!dynCode.wmakeLibso())
         {
-            FatalIOErrorInFunction
-            (
-                context.dict()
-            )   << "Failed wmake " << dynCode.libRelPath() << nl
+            FatalIOErrorInFunction(context.dict())
+                << "Failed wmake " << dynCode.libRelPath() << nl
                 << exit(FatalIOError);
         }
     }
 
 
     // all processes must wait for compile to finish
-    if (regIOobject::fileModificationSkew > 0)
+    if (IOobject::fileModificationSkew > 0)
     {
         //- Since the library has only been compiled on the master the
         //  other nodes need to pick this library up through NFS
@@ -219,60 +256,83 @@ void codedBase::createLibrary
 
         const fileName libPath = dynCode.libPath();
 
-        offset_t mySize = fileSize(libPath);
-        offset_t masterSize = mySize;
+        size_t mySize = fileSize(libPath);
+        size_t masterSize = mySize;
         Pstream::scatter(masterSize);
 
-        if (debug)
+        for
+        (
+            label iter = 0;
+            iter < IOobject::maxFileModificationPolls;
+            ++iter
+        )
         {
-            Pout<< endl<< "on processor " << Pstream::myProcNo()
+            DebugPout
+                << "on processor " << Pstream::myProcNo()
                 << " have masterSize:" << masterSize
                 << " and localSize:" << mySize
                 << endl;
-        }
 
-
-        if (mySize < masterSize)
-        {
-            if (debug)
+            if (mySize == masterSize)
             {
-                Pout<< "Local file " << libPath
-                    << " not of same size (" << mySize
-                    << ") as master ("
-                    << masterSize << "). Waiting for "
-                    << regIOobject::fileModificationSkew
-                    << " seconds." << endl;
+                break;
             }
-            sleep(regIOobject::fileModificationSkew);
-
-            // Recheck local size
-            mySize = fileSize(libPath);
-
-            if (mySize < masterSize)
+            else if (mySize > masterSize)
             {
-                FatalIOErrorInFunction
-                (
-                    context.dict()
-                )   << "Cannot read (NFS mounted) library " << nl
-                    << libPath << nl
+                FatalIOErrorInFunction(context.dict())
+                    << "Excessive size when reading (NFS mounted) library "
+                    << nl << libPath << nl
                     << "on processor " << Pstream::myProcNo()
                     << " detected size " << mySize
                     << " whereas master size is " << masterSize
                     << " bytes." << nl
-                    << "If your case is not NFS mounted"
+                    << "If your case is NFS mounted increase"
+                    << " fileModificationSkew or maxFileModificationPolls;"
+                    << nl << "If your case is not NFS mounted"
                     << " (so distributed) set fileModificationSkew"
                     << " to 0"
                     << exit(FatalIOError);
             }
+            else
+            {
+                DebugPout
+                    << "Local file " << libPath
+                    << " not of same size (" << mySize
+                    << ") as master ("
+                    << masterSize << "). Waiting for "
+                    << IOobject::fileModificationSkew
+                    << " seconds." << endl;
+
+                sleep(IOobject::fileModificationSkew);
+
+                // Recheck local size
+                mySize = fileSize(libPath);
+            }
         }
 
-        if (debug)
+
+        // Finished doing iterations. Do final check
+        if (mySize != masterSize)
         {
-            Pout<< endl<< "on processor " << Pstream::myProcNo()
-                << " after waiting: have masterSize:" << masterSize
-                << " and localSize:" << mySize
-                << endl;
+            FatalIOErrorInFunction(context.dict())
+                << "Cannot read (NFS mounted) library " << nl
+                << libPath << nl
+                << "on processor " << Pstream::myProcNo()
+                << " detected size " << mySize
+                << " whereas master size is " << masterSize
+                << " bytes." << nl
+                << "If your case is NFS mounted increase"
+                << " fileModificationSkew or maxFileModificationPolls;"
+                << nl << "If your case is not NFS mounted"
+                << " (so distributed) set fileModificationSkew"
+                << " to 0"
+                << exit(FatalIOError);
         }
+
+        DebugPout
+            << "on processor " << Pstream::myProcNo()
+            << " after waiting: have masterSize:" << masterSize
+            << " and localSize:" << mySize << endl;
     }
     reduce(create, orOp<bool>());
 }
@@ -280,20 +340,29 @@ void codedBase::createLibrary
 
 // * * * * * * * * * * * * Protected Member Functions  * * * * * * * * * * * //
 
+void codedBase::setCodeContext(const dictionary& dict)
+{
+    context_.setCodeContext(dict);
+}
+
+
+void codedBase::append(const std::string& str)
+{
+    context_.append(str);
+}
+
+
 void codedBase::updateLibrary
 (
-    const word& name
+    const word& name,
+    const dynamicCodeContext& context
 ) const
 {
-    const dictionary& dict = this->codeDict();
-
     dynamicCode::checkSecurity
     (
         "codedBase::updateLibrary()",
-        dict
+        context.dict()
     );
-
-    dynamicCodeContext context(dict);
 
     // codeName: name + _<sha1>
     // codeDir : name
@@ -302,54 +371,69 @@ void codedBase::updateLibrary
         name + context.sha1().str(true),
         name
     );
+
     const fileName libPath = dynCode.libPath();
 
 
-    // the correct library was already loaded => we are done
+    // The correct library was already loaded => we are done
     if (libs().findLibrary(libPath))
     {
         return;
     }
 
-    Info<< "Using dynamicCode for " << this->description().c_str()
-        << " at line " << dict.startLineNumber()
-        << " in " << dict.name() << endl;
+    DetailInfo
+        << "Using dynamicCode for " << this->description().c_str()
+        << " at line " << context.dict().startLineNumber()
+        << " in " << context.dict().name() << endl;
 
 
-    // remove instantiation of fvPatchField provided by library
+    // Remove instantiation of fvPatchField provided by library
     this->clearRedirect();
 
-    // may need to unload old library
+    // May need to unload old library
     unloadLibrary
     (
         oldLibPath_,
-        dynamicCode::libraryBaseName(oldLibPath_),
-        context.dict()
+        dlLibraryTable::basename(oldLibPath_),
+        context
     );
 
-    // try loading an existing library (avoid compilation when possible)
-    if (!loadLibrary(libPath, dynCode.codeName(), context.dict()))
+    // Try loading an existing library (avoid compilation when possible)
+    if (!loadLibrary(libPath, dynCode.codeName(), context))
     {
         createLibrary(dynCode, context);
 
-        loadLibrary(libPath, dynCode.codeName(), context.dict());
+        loadLibrary(libPath, dynCode.codeName(), context);
     }
 
-    // retain for future reference
+    // Retain for future reference
     oldLibPath_ = libPath;
 }
 
 
-// * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
+void codedBase::updateLibrary
+(
+    const word& name,
+    const dictionary& dict
+) const
+{
+    updateLibrary(name, dynamicCodeContext(dict));
+}
 
-codedBase::codedBase()
-{}
 
-
-// * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
-
-codedBase::~codedBase()
-{}
+void codedBase::updateLibrary(const word& name) const
+{
+    if (context_.valid())
+    {
+        updateLibrary(name, context_);
+    }
+    else
+    {
+        updateLibrary(name, dynamicCodeContext(this->codeDict()));
+    }
+}
 
 
 // ************************************************************************* //
+
+ } // End namespace Foam

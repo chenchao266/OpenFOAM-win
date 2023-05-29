@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2017 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -48,6 +51,7 @@ SourceFiles
 #include "volFields.H"
 #include "fvMatricesFwd.H"
 #include "Switch.H"
+#include "absorptionEmissionModel.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -61,7 +65,7 @@ namespace radiation
 {
 
 // Forward declaration of classes
-class absorptionEmissionModel;
+//class absorptionEmissionModel;
 class scatterModel;
 class sootModel;
 
@@ -73,7 +77,23 @@ class radiationModel
 :
     public IOdictionary
 {
+public:
+
+    // Static data
+
+        //- Static name external radiative fluxes
+        static const word externalRadHeatFieldName_;
+
+        //- Static name for primary solar fluxes
+        static const word primaryFluxName_;
+
+        //- Static name for reflected solar fluxes
+        static const word relfectedFluxName_;
+
+
 protected:
+
+
 
     // Protected data
 
@@ -111,6 +131,9 @@ protected:
             //- Soot model
             autoPtr<sootModel> soot_;
 
+            //- Transmissivity model
+            //autoPtr<transmissivityModel> transmissivity_;
+
 
 private:
 
@@ -122,11 +145,11 @@ private:
         //- Initialise
         void initialise();
 
-        //- Disallow default bitwise copy construct
-        radiationModel(const radiationModel&);
+        //- No copy construct
+        radiationModel(const radiationModel&) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const radiationModel&);
+        //- No copy assignment
+        void operator=(const radiationModel&) = delete;
 
 
 public:
@@ -237,11 +260,27 @@ public:
                 volScalarField& T
             ) const;
 
+            //- Temperature source term
+            virtual tmp<fvScalarMatrix> ST
+            (
+                tmp<volScalarField> rhoCp,
+                volScalarField& T
+            ) const;
+
+            //- Temperature source term
+            virtual tmp<fvScalarMatrix> ST
+            (
+                volScalarField& T
+            ) const;
+
+            virtual label nBands() const = 0;
+
             //- Access to absorptionEmission model
             const absorptionEmissionModel& absorptionEmission() const;
 
             //- Access to soot Model
             const sootModel& soot() const;
+
 };
 
 

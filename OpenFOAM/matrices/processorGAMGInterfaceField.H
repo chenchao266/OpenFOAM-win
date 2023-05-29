@@ -1,9 +1,12 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2014 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2014 OpenFOAM Foundation
+    Copyright (C) 2019 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -35,7 +38,7 @@ SourceFiles
 #ifndef processorGAMGInterfaceField_H
 #define processorGAMGInterfaceField_H
 
-#include "GAMGInterfaceField.T.H"
+#include "GAMGInterfaceField.H"
 #include "processorGAMGInterface.H"
 #include "processorLduInterfaceField.H"
 
@@ -48,7 +51,9 @@ namespace Foam
                   Class processorGAMGInterfaceField Declaration
 \*---------------------------------------------------------------------------*/
 
-class processorGAMGInterfaceField :    public GAMGInterfaceField,
+class processorGAMGInterfaceField
+:
+    public GAMGInterfaceField,
     public processorLduInterfaceField
 {
     // Private data
@@ -72,20 +77,23 @@ class processorGAMGInterfaceField :    public GAMGInterfaceField,
             mutable label outstandingRecvRequest_;
 
             //- Scalar send buffer
-            mutable Field<scalar> scalarSendBuf_;
+            mutable solveScalarField scalarSendBuf_;
 
             //- Scalar receive buffer
-            mutable Field<scalar> scalarReceiveBuf_;
+            mutable solveScalarField scalarReceiveBuf_;
 
 
 
     // Private Member Functions
 
-        //- Disallow default bitwise copy construct
-        processorGAMGInterfaceField(const processorGAMGInterfaceField&);
+        //- No copy construct
+        processorGAMGInterfaceField
+        (
+            const processorGAMGInterfaceField&
+        ) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const processorGAMGInterfaceField&);
+        //- No copy assignment
+        void operator=(const processorGAMGInterfaceField&) = delete;
 
 
 public:
@@ -113,7 +121,7 @@ public:
 
 
     //- Destructor
-    virtual ~processorGAMGInterfaceField();
+    virtual ~processorGAMGInterfaceField() = default;
 
 
     // Member Functions
@@ -132,8 +140,11 @@ public:
             //- Initialise neighbour matrix update
             virtual void initInterfaceMatrixUpdate
             (
-                scalarField& result,
-                const scalarField& psiInternal,
+                solveScalarField& result,
+                const bool add,
+                const lduAddressing& lduAddr,
+                const label patchId,
+                const solveScalarField& psiInternal,
                 const scalarField& coeffs,
                 const direction cmpt,
                 const Pstream::commsTypes commsType
@@ -142,8 +153,11 @@ public:
             //- Update result field based on interface functionality
             virtual void updateInterfaceMatrix
             (
-                scalarField& result,
-                const scalarField& psiInternal,
+                solveScalarField& result,
+                const bool add,
+                const lduAddressing& lduAddr,
+                const label patchId,
+                const solveScalarField& psiInternal,
                 const scalarField& coeffs,
                 const direction cmpt,
                 const Pstream::commsTypes commsType
@@ -164,13 +178,13 @@ public:
                 return procInterface_.myProcNo();
             }
 
-            //- Return neigbour processor number
+            //- Return neighbour processor number
             virtual int neighbProcNo() const
             {
                 return procInterface_.neighbProcNo();
             }
 
-            //- Does the interface field perform the transfromation
+            //- Does the interface field perform the transformation
             virtual bool doTransform() const
             {
                 return doTransform_;

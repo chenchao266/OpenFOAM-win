@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2015 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2015 OpenFOAM Foundation
+    Copyright (C) 2018-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -21,106 +24,125 @@ License
     You should have received a copy of the GNU General Public License
     along with OpenFOAM.  If not, see <http://www.gnu.org/licenses/>.
 
-Description
-    Istream constructor and IOstream operators for keyType.
-
 \*---------------------------------------------------------------------------*/
 
 #include "keyType.H"
 #include "regExp.H"
+#include "token.H"
 #include "IOstreams.H"
+#include <algorithm>  // For swap
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
-namespace Foam {
-    const keyType keyType::null;
 
 
-    // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
+ namespace Foam{
+const keyType keyType::null;
 
-    keyType::keyType(Istream& is) : word(),
-        isPattern_(false)
+
+// * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
+
+keyType::keyType(Istream& is)
+{
+    is  >> *this;
+}
+
+
+// * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
+
+void keyType::swap(keyType& rhs)
+{
+    if (this == &rhs)
     {
-        is >> *this;
+        return;  // Self-swap is a no-op
     }
 
+    word::swap(static_cast<word&>(rhs));
+    std::swap(type_, rhs.type_);
+}
 
-    // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
 
-    bool keyType::match
-    (
-        const std::string& str,
-        bool literalMatch
-    ) const
+bool keyType::match(const std::string& text, bool literal) const
+{
+    if (!literal && isPattern())
     {
-        if (literalMatch || !isPattern_)
-        {
-            // check as string
-            return (str == *this);
-        }
-        else
-        {
-            // check as regex
-            return regExp(*this).match(str);
-        }
+        return regExp(*this).match(text);  // Match as regex
     }
 
+    return !compare(text);  // Compare as literal
+}
 
-    // * * * * * * * * * * * * * * * IOstream Operators  * * * * * * * * * * * * //
 
-    Istream& operator>>(Istream& is, keyType& kw)
+bool keyType::assign(const token& tok)
+{
+    if (tok.isWord())
     {
-        token t(is);
+        // Assign from word - literal
+        assign(tok.wordToken());
+        uncompile();
+        return true;
+    }
+    else if (tok.isQuotedString())
+    {
+        // Assign from quoted string - regular expression
+        assign(tok.stringToken());
+        compile();
+        return true;
+    }
 
-        if (!t.good())
-        {
-            is.setBad();
-            return is;
-        }
+    return false;
+}
 
-        if (t.isWord())
-        {
-            kw = t.wordToken();
-        }
-        else if (t.isString())
-        {
-            // Assign from string. Set as regular expression.
-            kw = t.stringToken();
-            kw.isPattern_ = true;
 
-            // flag empty strings as an error
-            if (kw.empty())
-            {
-                is.setBad();
-                FatalIOErrorInFunction(is)
-                    << "empty word/expression "
-                    << exit(FatalIOError);
-                return is;
-            }
-        }
-        else
+// * * * * * * * * * * * * * * * IOstream Operators  * * * * * * * * * * * * //
+
+Istream& operator>>(Istream& is, keyType& val)
+{
+    token tok(is);
+
+    if (val.assign(tok))
+    {
+        if (val.empty())
         {
-            is.setBad();
+            // Empty strings are an error
             FatalIOErrorInFunction(is)
-                << "wrong token type - expected word or string, found "
-                << t.info()
+                << "Zero-length regex"
                 << exit(FatalIOError);
-
+            is.setBad();
             return is;
         }
-
-        // Check state of IOstream
-        is.check("Istream& operator>>(Istream&, keyType&)");
-
+    }
+    else
+    {
+        FatalIOErrorInFunction(is);
+        if (tok.good())
+        {
+            FatalIOError
+                << "Wrong token type - expected word or string, found "
+                << tok.info();
+        }
+        else
+        {
+            FatalIOError
+                << "Bad token - could not get keyType";
+        }
+        FatalIOError << exit(FatalIOError);
+        is.setBad();
         return is;
     }
 
-
-    Ostream& operator<<(Ostream& os, const keyType& kw)
-    {
-        os.write(kw);
-        os.check("Ostream& operator<<(Ostream&, const keyType&)");
-        return os;
-    }
-
+    is.check(FUNCTION_NAME);
+    return is;
 }
+
+
+Ostream& operator<<(Ostream& os, const keyType& val)
+{
+    os.writeQuoted(val, val.isPattern());
+    os.check(FUNCTION_NAME);
+    return os;
+}
+
+
 // ************************************************************************* //
+
+ } // End namespace Foam

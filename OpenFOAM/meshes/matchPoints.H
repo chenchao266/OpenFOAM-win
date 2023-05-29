@@ -1,9 +1,12 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2012 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2012 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -56,7 +59,7 @@ bool matchPoints
     const UList<scalar>& matchDistance,
     const bool verbose,
     labelList& from0To1,
-    const point& origin = point::_zero
+    const point& origin = point::zero_  //!< point::max = use average origin
 );
 
 
@@ -73,7 +76,7 @@ bool matchPoints
     const UList<scalar>& matchDistance,
     const bool verbose,
     labelList& from0To1,
-    const point& origin = point::_zero
+    const point& origin = point::zero_  //!< point::max = use average origin
 );
 
 

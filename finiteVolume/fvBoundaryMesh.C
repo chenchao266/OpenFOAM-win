@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2018-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -25,7 +28,6 @@ License
 
 #include "fvBoundaryMesh.H"
 #include "fvMesh.H"
-
 
 // * * * * * * * * * * * * * Private Member Functions  * * * * * * * * * * * //
 
@@ -50,7 +52,7 @@ Foam::fvBoundaryMesh::fvBoundaryMesh
     const fvMesh& m
 )
 :
-    fvPatchList(0),
+    fvPatchList(),
     mesh_(m)
 {}
 
@@ -70,8 +72,33 @@ Foam::fvBoundaryMesh::fvBoundaryMesh
 
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
 
+Foam::labelList Foam::fvBoundaryMesh::indices
+(
+    const wordRe& matcher,
+    const bool useGroups
+) const
+{
+    return mesh().boundaryMesh().indices(matcher, useGroups);
+}
+
+
+Foam::labelList Foam::fvBoundaryMesh::indices
+(
+    const wordRes& matcher,
+    const bool useGroups
+) const
+{
+    return mesh().boundaryMesh().indices(matcher, useGroups);
+}
+
+
 Foam::label Foam::fvBoundaryMesh::findPatchID(const word& patchName) const
 {
+    if (patchName.empty())
+    {
+        return -1;
+    }
+
     const fvPatchList& patches = *this;
 
     forAll(patches, patchi)
@@ -87,47 +114,55 @@ Foam::label Foam::fvBoundaryMesh::findPatchID(const word& patchName) const
 }
 
 
-Foam::labelList Foam::fvBoundaryMesh::findIndices
-(
-    const keyType& key,
-    const bool usePatchGroups
-) const
+void Foam::fvBoundaryMesh::movePoints()
 {
-    return mesh().boundaryMesh().findIndices(key, usePatchGroups);
+    fvPatchList& patches = *this;
+
+    for (fvPatch& p : patches)
+    {
+        p.initMovePoints();
+    }
+
+    for (fvPatch& p : patches)
+    {
+        p.movePoints();
+    }
 }
 
 
-void Foam::fvBoundaryMesh::movePoints()
+Foam::UPtrList<const Foam::labelUList>
+Foam::fvBoundaryMesh::faceCells() const
 {
-    forAll(*this, patchi)
+    const fvPatchList& patches = *this;
+
+    UPtrList<const labelUList> list(patches.size());
+
+    forAll(list, patchi)
     {
-        operator[](patchi).initMovePoints();
+        list.set(patchi, &patches[patchi].faceCells());
     }
 
-    forAll(*this, patchi)
-    {
-        operator[](patchi).movePoints();
-    }
+    return list;
 }
 
 
 Foam::lduInterfacePtrsList Foam::fvBoundaryMesh::interfaces() const
 {
-    lduInterfacePtrsList interfaces(size());
+    const fvPatchList& patches = *this;
 
-    forAll(interfaces, patchi)
+    lduInterfacePtrsList list(patches.size());
+
+    forAll(list, patchi)
     {
-        if (isA<lduInterface>(this->operator[](patchi)))
+        const lduInterface* lduPtr = isA<lduInterface>(patches[patchi]);
+
+        if (lduPtr)
         {
-            interfaces.set
-            (
-                patchi,
-               &refCast<const lduInterface>(this->operator[](patchi))
-            );
+            list.set(patchi, lduPtr);
         }
     }
 
-    return interfaces;
+    return list;
 }
 
 

@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2015 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -80,7 +83,7 @@ void Foam::momentOfInertia::massPropertiesSolid
     const scalar r120 = 1.0/120.0;
 
     // order:  1, x, y, z, x^2, y^2, z^2, xy, yz, zx
-    scalarField integrals(10, 0.0);
+    scalarField integrals(10, Zero);
 
     forAll(triFaces, i)
     {
@@ -192,7 +195,8 @@ void Foam::momentOfInertia::massPropertiesShell
     scalar density,
     scalar& mass,
     vector& cM,
-    tensor& J
+    tensor& J,
+    bool doReduce
 )
 {
     // Reset properties for accumulation
@@ -221,6 +225,12 @@ void Foam::momentOfInertia::massPropertiesShell
         mass += triMag;
     }
 
+    if (doReduce)
+    {
+        reduce(cM, sumOp<vector>());
+        reduce(mass, sumOp<scalar>());
+    }
+
     cM /= mass;
 
     mass *= density;
@@ -237,6 +247,11 @@ void Foam::momentOfInertia::massPropertiesShell
             pts[tri[1]],
             pts[tri[2]]
         ).inertia(cM, density);
+    }
+
+    if (doReduce)
+    {
+        reduce(J, sumOp<tensor>());
     }
 }
 
@@ -267,7 +282,8 @@ void Foam::momentOfInertia::massPropertiesShell
     scalar density,
     scalar& mass,
     vector& cM,
-    tensor& J
+    tensor& J,
+    bool doReduce
 )
 {
     triFaceList faces(surf.size());
@@ -277,7 +293,41 @@ void Foam::momentOfInertia::massPropertiesShell
         faces[i] = triFace(surf[i]);
     }
 
-    massPropertiesShell(surf.points(), faces, density, mass, cM, J);
+    massPropertiesShell(surf.points(), faces, density, mass, cM, J, doReduce);
+}
+
+
+void Foam::momentOfInertia::massPropertiesPatch
+(
+    const polyPatch& pp,
+    scalar density,
+    scalar& mass,
+    vector& cM,
+    tensor& J,
+    bool doReduce
+)
+{
+    DynamicList<triFace> faces(3*pp.size());
+
+    // decompose patch faces using triangle fan
+    forAll(pp, faceI)
+    {
+        const face& f = pp[faceI];
+
+        if (f.size() > 2)
+        {
+            const label v0 = 0;
+
+            for (label i = 1; i < f.size() - 1; i++)
+            {
+                faces.append(triFace(f[v0], f[i],f[i + 1]));
+            }
+        }
+    }
+
+    triFaceList triFaces;
+    triFaces.transfer(faces);
+    massPropertiesShell(pp.points(), triFaces, density, mass, cM, J, doReduce);
 }
 
 

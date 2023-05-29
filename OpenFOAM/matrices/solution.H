@@ -1,9 +1,12 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2020-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -36,19 +39,25 @@ SourceFiles
 #define solution_H
 
 #include "IOdictionary.H"
+#include "HashPtrTable.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 namespace Foam
 {
 
+// Forward Declarations
+template<class Type> class Function1;
+
 /*---------------------------------------------------------------------------*\
                           Class solution Declaration
 \*---------------------------------------------------------------------------*/
 
-class solution :    public IOdictionary
+class solution
+:
+    public IOdictionary
 {
-    // Private data
+    // Private Data
 
         //- Dictionary of temporary fields to cache
         dictionary cache_;
@@ -59,14 +68,20 @@ class solution :    public IOdictionary
         //- Dictionary of relaxation factors for all the fields
         dictionary fieldRelaxDict_;
 
+        //- Cache of Function1s in above dictionary
+        mutable HashPtrTable<Function1<scalar>> fieldRelaxCache_;
+
         //- Dictionary of relaxation factors for all the equations
         dictionary eqnRelaxDict_;
 
+        //- Cache of Function1s in above dictionary
+        mutable HashPtrTable<Function1<scalar>> eqnRelaxCache_;
+
         //- Optional default relaxation factor for all the fields
-        scalar fieldRelaxDefault_;
+        autoPtr<Function1<scalar>> fieldRelaxDefault_;
 
         //- Optional default relaxation factor for all the equations
-        scalar eqnRelaxDefault_;
+        autoPtr<Function1<scalar>> eqnRelaxDefault_;
 
         //- Dictionary of solver parameters for all the fields
         dictionary solvers_;
@@ -77,9 +92,11 @@ class solution :    public IOdictionary
         //- Read settings from the dictionary
         void read(const dictionary&);
 
-        //- Disallow default bitwise copy construct and assignment
-        solution(const solution&);
-        void operator=(const solution&);
+        //- No copy construct
+        solution(const solution&) = delete;
+
+        //- No copy assignment
+        void operator=(const solution&) = delete;
 
 
 public:
@@ -95,12 +112,31 @@ public:
 
     // Constructors
 
-        //- Construct for given objectRegistry and dictionary
+        //- Construct for given objectRegistry, dictionary name and optional
+        //- fallback dictionary content (for a NO_READ or missing file)
+        //  A null dictionary pointer is treated like an empty dictionary.
         solution
         (
             const objectRegistry& obr,
-            const fileName& dictName
+            const fileName& dictName,
+            const dictionary* fallback = nullptr
         );
+
+        //- Construct for given objectRegistry, dictionary name and
+        //- fallback dictionary content (for a NO_READ or missing file)
+        solution
+        (
+            const objectRegistry& obr,
+            const fileName& dictName,
+            const dictionary& dict
+        )
+        :
+            solution(obr, dictName, &dict)
+        {}
+
+
+    //- Destructor
+    virtual ~solution();
 
 
     // Member Functions
@@ -109,15 +145,6 @@ public:
 
             //- Return true if the given field should be cached
             bool cache(const word& name) const;
-
-            //- Helper for printing cache message
-            template<class FieldType>
-            static void cachePrintMessage
-            (
-                const char* message,
-                const word& name,
-                const FieldType& vf
-            );
 
             //- Return true if the relaxation factor is given for the field
             bool relaxField(const word& name) const;
@@ -128,7 +155,7 @@ public:
             //- Return the relaxation factor for the given field
             scalar fieldRelaxationFactor(const word& name) const;
 
-            //- Return the relaxation factor for the given eqation
+            //- Return the relaxation factor for the given equation
             scalar equationRelaxationFactor(const word& name) const;
 
             //- Return the selected sub-dictionary of solvers if the "select"
@@ -146,6 +173,18 @@ public:
 
             //- Read the solution dictionary
             bool read();
+
+
+        // Other
+
+            //- Helper for printing cache message
+            template<class FieldType>
+            static void cachePrintMessage
+            (
+                const char* message,
+                const word& name,
+                const FieldType& vf
+            );
 };
 
 

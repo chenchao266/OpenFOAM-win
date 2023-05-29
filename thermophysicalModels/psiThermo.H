@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2017 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -23,6 +26,9 @@ License
 
 Class
     Foam::psiThermo
+
+Group
+    grpPsiThermo
 
 Description
     Basic thermodynamic properties based on compressibility
@@ -86,6 +92,17 @@ public:
     );
 
 
+    //- Declare run-time constructor selection table for dictionary based
+    declareRunTimeSelectionTable
+    (
+        autoPtr,
+        psiThermo,
+        fvMeshDictPhase,
+        (const fvMesh& mesh, const word& phaseName, const word& dictName),
+        (mesh, phaseName, dictName)
+    );
+
+
     // Constructors
 
         //- Construct from mesh and phase name
@@ -96,11 +113,28 @@ public:
         );
 
 
+        //- Construct from mesh,dictionary,phase name with a single temperature
+        psiThermo
+        (
+            const fvMesh&,
+            const word& phaseName,
+            const word& dictionaryName
+        );
+
+
     //- Selector
     static autoPtr<psiThermo> New
     (
         const fvMesh& mesh,
         const word& phaseName=word::null
+    );
+
+    //- Selector
+    static autoPtr<psiThermo> New
+    (
+        const fvMesh&,
+        const word& dictName,
+        const word& phaseName
     );
 
 
@@ -115,7 +149,19 @@ public:
             //- Add the given density correction to the density field.
             //  Used to update the density field following pressure solution.
             //  For psiThermo does nothing.
-            virtual void correctRho(const volScalarField& deltaRho);
+            virtual void correctRho
+            (
+                const volScalarField& deltaRho,
+                const dimensionedScalar& rhoMin,
+                const dimensionedScalar& rhoMax
+            );
+
+            //- Add the given density correction to the density field.
+            //  Used to update the density field following pressure solution
+            virtual void correctRho
+            (
+                const volScalarField& deltaRho
+            );
 
             //- Density [kg/m^3] - uses current value of pressure
             virtual tmp<volScalarField> rho() const;

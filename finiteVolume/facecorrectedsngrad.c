@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -27,33 +30,26 @@ License
 #include "volPointInterpolation.H"
 #include "triangle.H"
 
-// * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
-
-template<class Type>
-Foam::fv::faceCorrectedSnGrad<Type>::~faceCorrectedSnGrad()
-{}
-
-
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
 
 template<class Type>
 Foam::tmp<Foam::GeometricField<Type, Foam::fvsPatchField, Foam::surfaceMesh>>
 Foam::fv::faceCorrectedSnGrad<Type>::fullGradCorrection
 (
-    const volFieldType<Type>& vf
+    const GeometricField<Type, fvPatchField, volMesh>& vf
 ) const
 {
     const fvMesh& mesh = this->mesh();
 
-    pointFieldType<Type> pvf
+    GeometricField<Type, pointPatchField, pointMesh> pvf
     (
         volPointInterpolation::New(mesh).interpolate(vf)
     );
 
-    // construct surfaceFieldType<Type>
-    tmp<surfaceFieldType<Type>> tsfCorr
+    // construct GeometricField<Type, fvsPatchField, surfaceMesh>
+    tmp<GeometricField<Type, fvsPatchField, surfaceMesh>> tsfCorr
     (
-        new surfaceFieldType<Type>
+        new GeometricField<Type, fvsPatchField, surfaceMesh>
         (
             IOobject
             (
@@ -82,23 +78,23 @@ Foam::fv::faceCorrectedSnGrad<Type>::fullGradCorrection
     {
         typename outerProduct<vector, Type>::type fgrad
         (
-            outerProduct<vector, Type>::type::_zero
+            outerProduct<vector, Type>::type::zero_
         );
 
         const face& fi = faces[facei];
 
-        vector nf(Sf[facei]/magSf[facei]);
+        const vector nf(Sf[facei]/magSf[facei]);
 
-        for (label pi=0; pi<fi.size(); pi++)
+        for (label pi = 0; pi < fi.size(); ++pi)
         {
             // Next point index
-            label pj = (pi+1)%fi.size();
+            const label pj = fi.fcIndex(pi);
 
             // Edge normal in plane of face
-            vector edgen(nf^(points[fi[pj]] - points[fi[pi]]));
+            const vector edgen(nf^(points[fi[pj]] - points[fi[pi]]));
 
             // Edge centre field value
-            Type pvfe(0.5*(pvf[fi[pj]] + pvf[fi[pi]]));
+            const Type pvfe(0.5*(pvf[fi[pj]] + pvf[fi[pi]]));
 
             // Integrate face gradient
             fgrad += edgen*pvfe;
@@ -110,8 +106,6 @@ Foam::fv::faceCorrectedSnGrad<Type>::fullGradCorrection
         // Calculate correction vector
         vector dCorr(C[neighbour[facei]] - C[owner[facei]]);
         dCorr /= (nf & dCorr);
-
-        // if (mag(dCorr) > 2) dCorr *= 2/mag(dCorr);
 
         sfCorr[facei] = dCorr&fgrad;
     }
@@ -126,15 +120,15 @@ template<class Type>
 Foam::tmp<Foam::GeometricField<Type, Foam::fvsPatchField, Foam::surfaceMesh>>
 Foam::fv::faceCorrectedSnGrad<Type>::correction
 (
-    const volFieldType<Type>& vf
+    const GeometricField<Type, fvPatchField, volMesh>& vf
 ) const
 {
     const fvMesh& mesh = this->mesh();
 
-    // construct surfaceFieldType<Type>
-    tmp<surfaceFieldType<Type>> tssf
+    // construct GeometricField<Type, fvsPatchField, surfaceMesh>
+    tmp<GeometricField<Type, fvsPatchField, surfaceMesh>> tssf
     (
-        new surfaceFieldType<Type>
+        new GeometricField<Type, fvsPatchField, surfaceMesh>
         (
             IOobject
             (
@@ -148,9 +142,9 @@ Foam::fv::faceCorrectedSnGrad<Type>::correction
             vf.dimensions()*mesh.nonOrthDeltaCoeffs().dimensions()
         )
     );
-    surfaceFieldType<Type>& ssf = tssf.ref();
+    GeometricField<Type, fvsPatchField, surfaceMesh>& ssf = tssf.ref();
 
-    for (direction cmpt = 0; cmpt < pTraits<Type>::nComponents; cmpt++)
+    for (direction cmpt = 0; cmpt < pTraits<Type>::nComponents; ++cmpt)
     {
         ssf.replace
         (

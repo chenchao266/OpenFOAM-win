@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2013-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2013-2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -94,7 +96,7 @@ bool Foam::sixDoFRigidBodyMotionRestraints::linearDamper::read
 {
     sixDoFRigidBodyMotionRestraint::read(sDoFRBMRDict);
 
-    sDoFRBMRCoeffs_.lookup("coeff") >> coeff_;
+    sDoFRBMRCoeffs_.readEntry("coeff", coeff_);
 
     return true;
 }
@@ -105,8 +107,7 @@ void Foam::sixDoFRigidBodyMotionRestraints::linearDamper::write
     Ostream& os
 ) const
 {
-    os.writeKeyword("coeff")
-        << coeff_ << token::END_STATEMENT << nl;
+    os.writeEntry("coeff", coeff_);
 }
 
 

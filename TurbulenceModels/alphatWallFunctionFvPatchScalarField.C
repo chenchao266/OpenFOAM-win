@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -70,7 +73,7 @@ alphatWallFunctionFvPatchScalarField::alphatWallFunctionFvPatchScalarField
 )
 :
     fixedValueFvPatchScalarField(p, iF, dict),
-    Prt_(dict.lookupOrDefault<scalar>("Prt", 0.85))
+    Prt_(dict.getOrDefault<scalar>("Prt", 0.85))
 {}
 
 
@@ -129,7 +132,7 @@ void alphatWallFunctionFvPatchScalarField::updateCoeffs()
 void alphatWallFunctionFvPatchScalarField::write(Ostream& os) const
 {
     fvPatchField<scalar>::write(os);
-    os.writeKeyword("Prt") << Prt_ << token::END_STATEMENT << nl;
+    os.writeEntry("Prt", Prt_);
     writeEntry("value", os);
 }
 

@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011 OpenFOAM Foundation
+    Copyright (C) 2020-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -49,21 +52,46 @@ class fvSolution
 :
     public solution
 {
-    // Private Member Functions
-
-        //- Disallow default bitwise copy construct and assignment
-        fvSolution(const fvSolution&);
-        void operator=(const fvSolution&);
-
-
 public:
+
+    //- No copy construct
+    fvSolution(const fvSolution&) = delete;
+
+    //- No copy assignment
+    void operator=(const fvSolution&) = delete;
+
 
     // Constructors
 
-        //- Construct for objectRegistry
-        fvSolution(const objectRegistry& obr)
+        //- Construct for objectRegistry, dictionary name and optional
+        //- fallback dictionary content (for a NO_READ or missing file)
+        //  A null dictionary pointer is treated like an empty dictionary.
+        fvSolution
+        (
+            const objectRegistry& obr,
+            const word& dictName,
+            const dictionary* fallback = nullptr
+        )
         :
-            solution(obr, "fvSolution")
+            solution(obr, dictName, fallback)
+        {}
+
+        //- Construct for objectRegistry, and optional
+        //- fallback dictionary content (for a NO_READ or missing file)
+        //  A null dictionary pointer is treated like an empty dictionary.
+        explicit fvSolution
+        (
+            const objectRegistry& obr,
+            const dictionary* fallback = nullptr
+        )
+        :
+            fvSolution(obr, "fvSolution", fallback)
+        {}
+
+        //- Construct for objectRegistry and optional contents
+        fvSolution(const objectRegistry& obr, const dictionary& dict)
+        :
+            fvSolution(obr, "fvSolution", &dict)
         {}
 };
 

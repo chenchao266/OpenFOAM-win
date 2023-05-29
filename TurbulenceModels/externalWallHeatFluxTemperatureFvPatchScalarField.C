@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2015-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -33,27 +36,16 @@ using Foam::constant::physicoChemical::sigma;
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
-namespace Foam
-{
-    template<>
-    const char*
-    NamedEnum
-    <
-        externalWallHeatFluxTemperatureFvPatchScalarField::operationMode,
-        3
-    >::names[] =
-    {
-        "power",
-        "flux",
-        "coefficient"
-    };
-}
-
-const Foam::NamedEnum
+const Foam::Enum
 <
-    Foam::externalWallHeatFluxTemperatureFvPatchScalarField::operationMode,
-    3
-> Foam::externalWallHeatFluxTemperatureFvPatchScalarField::operationModeNames;
+    Foam::externalWallHeatFluxTemperatureFvPatchScalarField::operationMode
+>
+Foam::externalWallHeatFluxTemperatureFvPatchScalarField::operationModeNames
+({
+    { operationMode::fixedPower, "power" },
+    { operationMode::fixedHeatFlux, "flux" },
+    { operationMode::fixedHeatTransferCoeff, "coefficient" },
+});
 
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
@@ -66,10 +58,19 @@ externalWallHeatFluxTemperatureFvPatchScalarField
 )
 :
     mixedFvPatchScalarField(p, iF),
-    temperatureCoupledBase(patch(), "undefined", "undefined", "undefined-K"),
+    temperatureCoupledBase
+    (
+        patch(),
+        "undefined",
+        "undefined",
+        "undefined-K",
+        "undefined-alpha"
+    ),
     mode_(fixedHeatFlux),
-    Q_(0),
-    Ta_(),
+    Q_(nullptr),
+    q_(nullptr),
+    h_(nullptr),
+    Ta_(nullptr),
     relaxation_(1),
     emissivity_(0),
     qrRelaxation_(1),
@@ -93,13 +94,15 @@ externalWallHeatFluxTemperatureFvPatchScalarField
 :
     mixedFvPatchScalarField(p, iF),
     temperatureCoupledBase(patch(), dict),
-    mode_(operationModeNames.read(dict.lookup("mode"))),
-    Q_(0),
-    Ta_(),
-    relaxation_(dict.lookupOrDefault<scalar>("relaxation", 1)),
-    emissivity_(dict.lookupOrDefault<scalar>("emissivity", 0)),
-    qrRelaxation_(dict.lookupOrDefault<scalar>("qrRelaxation", 1)),
-    qrName_(dict.lookupOrDefault<word>("qr", "none")),
+    mode_(operationModeNames.get("mode", dict)),
+    Q_(nullptr),
+    q_(nullptr),
+    h_(nullptr),
+    Ta_(nullptr),
+    relaxation_(dict.getOrDefault<scalar>("relaxation", 1)),
+    emissivity_(dict.getOrDefault<scalar>("emissivity", 0)),
+    qrRelaxation_(dict.getOrDefault<scalar>("qrRelaxation", 1)),
+    qrName_(dict.getOrDefault<word>("qr", "none")),
     thicknessLayers_(),
     kappaLayers_()
 {
@@ -107,25 +110,33 @@ externalWallHeatFluxTemperatureFvPatchScalarField
     {
         case fixedPower:
         {
-            dict.lookup("Q") >> Q_;
-
+            Q_ = Function1<scalar>::New("Q", dict, &db());
             break;
         }
         case fixedHeatFlux:
         {
-            q_ = scalarField("q", dict, p.size());
-
+            q_ = PatchFunction1<scalar>::New(patch().patch(), "q", dict);
             break;
         }
         case fixedHeatTransferCoeff:
         {
-            h_ = scalarField("h", dict, p.size());
-            Ta_ = Function1<scalar>::New("Ta", dict);
+            h_ = PatchFunction1<scalar>::New(patch().patch(), "h", dict);
+            Ta_ = Function1<scalar>::New("Ta", dict, &db());
 
-            if (dict.found("thicknessLayers"))
+            if (dict.readIfPresent("thicknessLayers", thicknessLayers_))
             {
-                dict.lookup("thicknessLayers") >> thicknessLayers_;
-                dict.lookup("kappaLayers") >> kappaLayers_;
+                dict.readEntry("kappaLayers", kappaLayers_);
+
+                if (thicknessLayers_.size() != kappaLayers_.size())
+                {
+                    FatalIOErrorInFunction(dict)
+                        << "\n number of layers for thicknessLayers and "
+                        << "kappaLayers must be the same"
+                        << "\n for patch " << p.name()
+                        << " of field " << internalField().name()
+                        << " in file " << internalField().objectPath()
+                        << exit(FatalIOError);
+                }
             }
 
             break;
@@ -142,7 +153,7 @@ externalWallHeatFluxTemperatureFvPatchScalarField
         }
         else
         {
-            qrPrevious_.setSize(p.size(), 0);
+            qrPrevious_.resize(p.size(), Zero);
         }
     }
 
@@ -166,50 +177,31 @@ externalWallHeatFluxTemperatureFvPatchScalarField
 Foam::externalWallHeatFluxTemperatureFvPatchScalarField::
 externalWallHeatFluxTemperatureFvPatchScalarField
 (
-    const externalWallHeatFluxTemperatureFvPatchScalarField& ptf,
+    const externalWallHeatFluxTemperatureFvPatchScalarField& rhs,
     const fvPatch& p,
     const DimensionedField<scalar, volMesh>& iF,
     const fvPatchFieldMapper& mapper
 )
 :
-    mixedFvPatchScalarField(ptf, p, iF, mapper),
-    temperatureCoupledBase(patch(), ptf),
-    mode_(ptf.mode_),
-    Q_(ptf.Q_),
-    Ta_(ptf.Ta_, false),
-    relaxation_(ptf.relaxation_),
-    emissivity_(ptf.emissivity_),
-    qrRelaxation_(ptf.qrRelaxation_),
-    qrName_(ptf.qrName_),
-    thicknessLayers_(ptf.thicknessLayers_),
-    kappaLayers_(ptf.kappaLayers_)
+    mixedFvPatchScalarField(rhs, p, iF, mapper),
+    temperatureCoupledBase(patch(), rhs),
+    mode_(rhs.mode_),
+    Q_(rhs.Q_.clone()),
+    q_(rhs.q_.clone(patch().patch())),
+    h_(rhs.h_.clone(patch().patch())),
+    Ta_(rhs.Ta_.clone()),
+    relaxation_(rhs.relaxation_),
+    emissivity_(rhs.emissivity_),
+    qrPrevious_(),
+    qrRelaxation_(rhs.qrRelaxation_),
+    qrName_(rhs.qrName_),
+    thicknessLayers_(rhs.thicknessLayers_),
+    kappaLayers_(rhs.kappaLayers_)
 {
-    switch (mode_)
-    {
-        case fixedPower:
-        {
-            break;
-        }
-        case fixedHeatFlux:
-        {
-            q_.setSize(mapper.size());
-            q_.map(ptf.q_, mapper);
-
-            break;
-        }
-        case fixedHeatTransferCoeff:
-        {
-            h_.setSize(mapper.size());
-            h_.map(ptf.h_, mapper);
-
-            break;
-        }
-    }
-
     if (qrName_ != "none")
     {
-        qrPrevious_.setSize(mapper.size());
-        qrPrevious_.map(ptf.qrPrevious_, mapper);
+        qrPrevious_.resize(mapper.size());
+        qrPrevious_.map(rhs.qrPrevious_, mapper);
     }
 }
 
@@ -217,47 +209,47 @@ externalWallHeatFluxTemperatureFvPatchScalarField
 Foam::externalWallHeatFluxTemperatureFvPatchScalarField::
 externalWallHeatFluxTemperatureFvPatchScalarField
 (
-    const externalWallHeatFluxTemperatureFvPatchScalarField& tppsf
+    const externalWallHeatFluxTemperatureFvPatchScalarField& rhs
 )
 :
-    mixedFvPatchScalarField(tppsf),
-    temperatureCoupledBase(tppsf),
-    mode_(tppsf.mode_),
-    Q_(tppsf.Q_),
-    q_(tppsf.q_),
-    h_(tppsf.h_),
-    Ta_(tppsf.Ta_, false),
-    relaxation_(tppsf.relaxation_),
-    emissivity_(tppsf.emissivity_),
-    qrPrevious_(tppsf.qrPrevious_),
-    qrRelaxation_(tppsf.qrRelaxation_),
-    qrName_(tppsf.qrName_),
-    thicknessLayers_(tppsf.thicknessLayers_),
-    kappaLayers_(tppsf.kappaLayers_)
+    mixedFvPatchScalarField(rhs),
+    temperatureCoupledBase(rhs),
+    mode_(rhs.mode_),
+    Q_(rhs.Q_.clone()),
+    q_(rhs.q_.clone(patch().patch())),
+    h_(rhs.h_.clone(patch().patch())),
+    Ta_(rhs.Ta_.clone()),
+    relaxation_(rhs.relaxation_),
+    emissivity_(rhs.emissivity_),
+    qrPrevious_(rhs.qrPrevious_),
+    qrRelaxation_(rhs.qrRelaxation_),
+    qrName_(rhs.qrName_),
+    thicknessLayers_(rhs.thicknessLayers_),
+    kappaLayers_(rhs.kappaLayers_)
 {}
 
 
 Foam::externalWallHeatFluxTemperatureFvPatchScalarField::
 externalWallHeatFluxTemperatureFvPatchScalarField
 (
-    const externalWallHeatFluxTemperatureFvPatchScalarField& tppsf,
+    const externalWallHeatFluxTemperatureFvPatchScalarField& rhs,
     const DimensionedField<scalar, volMesh>& iF
 )
 :
-    mixedFvPatchScalarField(tppsf, iF),
-    temperatureCoupledBase(patch(), tppsf),
-    mode_(tppsf.mode_),
-    Q_(tppsf.Q_),
-    q_(tppsf.q_),
-    h_(tppsf.h_),
-    Ta_(tppsf.Ta_, false),
-    relaxation_(tppsf.relaxation_),
-    emissivity_(tppsf.emissivity_),
-    qrPrevious_(tppsf.qrPrevious_),
-    qrRelaxation_(tppsf.qrRelaxation_),
-    qrName_(tppsf.qrName_),
-    thicknessLayers_(tppsf.thicknessLayers_),
-    kappaLayers_(tppsf.kappaLayers_)
+    mixedFvPatchScalarField(rhs, iF),
+    temperatureCoupledBase(patch(), rhs),
+    mode_(rhs.mode_),
+    Q_(rhs.Q_.clone()),
+    q_(rhs.q_.clone(patch().patch())),
+    h_(rhs.h_.clone(patch().patch())),
+    Ta_(rhs.Ta_.clone()),
+    relaxation_(rhs.relaxation_),
+    emissivity_(rhs.emissivity_),
+    qrPrevious_(rhs.qrPrevious_),
+    qrRelaxation_(rhs.qrRelaxation_),
+    qrName_(rhs.qrName_),
+    thicknessLayers_(rhs.thicknessLayers_),
+    kappaLayers_(rhs.kappaLayers_)
 {}
 
 
@@ -265,34 +257,24 @@ externalWallHeatFluxTemperatureFvPatchScalarField
 
 void Foam::externalWallHeatFluxTemperatureFvPatchScalarField::autoMap
 (
-    const fvPatchFieldMapper& m
+    const fvPatchFieldMapper& mapper
 )
 {
-    mixedFvPatchScalarField::autoMap(m);
+    mixedFvPatchScalarField::autoMap(mapper);
+    temperatureCoupledBase::autoMap(mapper);
 
-    switch (mode_)
+    if (q_)
     {
-        case fixedPower:
-        {
-            break;
-        }
-        case fixedHeatFlux:
-        {
-            q_.autoMap(m);
-
-            break;
-        }
-        case fixedHeatTransferCoeff:
-        {
-            h_.autoMap(m);
-
-            break;
-        }
+        q_->autoMap(mapper);
+    }
+    if (h_)
+    {
+        h_->autoMap(mapper);
     }
 
     if (qrName_ != "none")
     {
-        qrPrevious_.autoMap(m);
+        qrPrevious_.autoMap(mapper);
     }
 }
 
@@ -305,32 +287,24 @@ void Foam::externalWallHeatFluxTemperatureFvPatchScalarField::rmap
 {
     mixedFvPatchScalarField::rmap(ptf, addr);
 
-    const externalWallHeatFluxTemperatureFvPatchScalarField& tiptf =
+    const auto& rhs =
         refCast<const externalWallHeatFluxTemperatureFvPatchScalarField>(ptf);
 
-    switch (mode_)
+    temperatureCoupledBase::rmap(rhs, addr);
+
+
+    if (q_)
     {
-        case fixedPower:
-        {
-            break;
-        }
-        case fixedHeatFlux:
-        {
-            q_.rmap(tiptf.q_, addr);
-
-            break;
-        }
-        case fixedHeatTransferCoeff:
-        {
-            h_.rmap(tiptf.h_, addr);
-
-            break;
-        }
+        q_->rmap(rhs.q_(), addr);
+    }
+    if (h_)
+    {
+        h_->rmap(rhs.h_(), addr);
     }
 
     if (qrName_ != "none")
     {
-        qrPrevious_.rmap(tiptf.qrPrevious_, addr);
+        qrPrevious_.rmap(rhs.qrPrevious_, addr);
     }
 }
 
@@ -344,7 +318,10 @@ void Foam::externalWallHeatFluxTemperatureFvPatchScalarField::updateCoeffs()
 
     const scalarField& Tp(*this);
 
-    scalarField qr(Tp.size(), 0);
+    const scalarField valueFraction0(valueFraction());
+    const scalarField refValue0(refValue());
+
+    scalarField qr(Tp.size(), Zero);
     if (qrName_ != "none")
     {
         qr =
@@ -359,7 +336,10 @@ void Foam::externalWallHeatFluxTemperatureFvPatchScalarField::updateCoeffs()
     {
         case fixedPower:
         {
-            refGrad() = (Q_/gSum(patch().magSf()) + qr)/kappa(Tp);
+            const scalar heatPower =
+                Q_->value(this->db().time().timeOutputValue());
+
+            refGrad() = (heatPower/gSum(patch().magSf()) + qr)/kappa(Tp);
             refValue() = 0;
             valueFraction() = 0;
 
@@ -367,7 +347,10 @@ void Foam::externalWallHeatFluxTemperatureFvPatchScalarField::updateCoeffs()
         }
         case fixedHeatFlux:
         {
-            refGrad() = (q_ + qr)/kappa(Tp);
+            tmp<scalarField> heatFlux =
+                q_->value(this->db().time().timeOutputValue());
+
+            refGrad() = (heatFlux + qr)/kappa(Tp);
             refValue() = 0;
             valueFraction() = 0;
 
@@ -375,6 +358,12 @@ void Foam::externalWallHeatFluxTemperatureFvPatchScalarField::updateCoeffs()
         }
         case fixedHeatTransferCoeff:
         {
+            tmp<scalarField> thtcCoeff =
+            (
+                h_->value(this->db().time().timeOutputValue()) + VSMALL
+            );
+            const auto& htcCoeff = thtcCoeff();
+
             scalar totalSolidRes = 0;
             if (thicknessLayers_.size())
             {
@@ -387,9 +376,11 @@ void Foam::externalWallHeatFluxTemperatureFvPatchScalarField::updateCoeffs()
                     }
                 }
             }
-            scalarField hp(1/(1/h_ + totalSolidRes));
+            scalarField hp(1/(1/htcCoeff + totalSolidRes));
 
-            const scalar Ta = Ta_->value(this->db().time().timeOutputValue());
+            const scalar Ta =
+                Ta_->value(this->db().time().timeOutputValue());
+
             scalarField hpTa(hp*Ta);
 
             if (emissivity_ > 0)
@@ -400,19 +391,19 @@ void Foam::externalWallHeatFluxTemperatureFvPatchScalarField::updateCoeffs()
                 {
                     // ... including the effect of the solid wall thermal
                     // resistance
-                    scalarField TpLambda(h_/(h_ + 1/totalSolidRes));
+                    scalarField TpLambda(htcCoeff/(htcCoeff + 1/totalSolidRes));
                     scalarField Ts(TpLambda*Tp + (1 - TpLambda)*Ta);
                     scalarField lambdaTa4(pow4((1 - TpLambda)*Ta));
 
                     hp += emissivity_*sigma.value()*(pow4(Ts) - lambdaTa4)/Tp;
-                    hpTa += sigma.value()*(emissivity_*lambdaTa4 + pow4(Ta));
+                    hpTa += emissivity_*sigma.value()*(lambdaTa4 + pow4(Ta));
                 }
                 else
                 {
                     // ... if there is no solid wall thermal resistance use
                     // the current wall temperature
                     hp += emissivity_*sigma.value()*pow3(Tp);
-                    hpTa += sigma.value()*pow4(Ta);
+                    hpTa += emissivity_*sigma.value()*pow4(Ta);
                 }
             }
 
@@ -443,25 +434,20 @@ void Foam::externalWallHeatFluxTemperatureFvPatchScalarField::updateCoeffs()
         }
     }
 
-    valueFraction() = relaxation_*valueFraction() + (1 - relaxation_);
-    refValue() = relaxation_*refValue() + (1 - relaxation_)*Tp;
+    valueFraction() =
+        relaxation_*valueFraction() + (1 - relaxation_)*valueFraction0;
+    refValue() = relaxation_*refValue() + (1 - relaxation_)*refValue0;
 
     mixedFvPatchScalarField::updateCoeffs();
 
-    if (debug)
-    {
-        const scalar Q = gSum(kappa(Tp)*patch().magSf()*snGrad());
-
-        Info<< patch().boundaryMesh().mesh().name() << ':'
-            << patch().name() << ':'
-            << this->internalField().name() << " :"
-            << " heat transfer rate:" << Q
-            << " walltemperature "
-            << " min:" << gMin(*this)
-            << " max:" << gMax(*this)
-            << " avg:" << gAverage(*this)
-            << endl;
-    }
+    DebugInfo
+        << patch().boundaryMesh().mesh().name() << ':' << patch().name() << ':'
+        << internalField().name() << " :"
+        << " heat transfer rate:" << gSum(kappa(Tp)*patch().magSf()*snGrad())
+        << " wall temperature "
+        << " min:" << gMin(*this)
+        << " max:" << gMax(*this)
+        << " avg:" << gAverage(*this) << nl;
 }
 
 
@@ -472,40 +458,38 @@ void Foam::externalWallHeatFluxTemperatureFvPatchScalarField::write
 {
     fvPatchScalarField::write(os);
 
-    os.writeKeyword("mode")
-        << operationModeNames[mode_] << token::END_STATEMENT << nl;
+    os.writeEntry("mode", operationModeNames[mode_]);
     temperatureCoupledBase::write(os);
+
+    if (Q_)
+    {
+        Q_->writeData(os);
+    }
+    if (q_)
+    {
+        q_->writeData(os);
+    }
+    if (h_)
+    {
+        h_->writeData(os);
+    }
+    if (Ta_)
+    {
+        Ta_->writeData(os);
+    }
 
     switch (mode_)
     {
-        case fixedPower:
-        {
-            os.writeKeyword("Q")
-                << Q_ << token::END_STATEMENT << nl;
-
-            break;
-        }
-        case fixedHeatFlux:
-        {
-            q_.writeEntry("q", os);
-
-            break;
-        }
         case fixedHeatTransferCoeff:
         {
-            h_.writeEntry("h", os);
-            Ta_->writeData(os);
-
             if (relaxation_ < 1)
             {
-                os.writeKeyword("relaxation")
-                    << relaxation_ << token::END_STATEMENT << nl;
+                os.writeEntry("relaxation", relaxation_);
             }
 
             if (emissivity_ > 0)
             {
-                os.writeKeyword("emissivity")
-                    << emissivity_ << token::END_STATEMENT << nl;
+                os.writeEntry("emissivity", emissivity_);
             }
 
             if (thicknessLayers_.size())
@@ -516,14 +500,16 @@ void Foam::externalWallHeatFluxTemperatureFvPatchScalarField::write
 
             break;
         }
+
+        default:
+            break;
     }
 
-    os.writeKeyword("qr")<< qrName_ << token::END_STATEMENT << nl;
+    os.writeEntry("qr", qrName_);
 
     if (qrName_ != "none")
     {
-        os.writeKeyword("qrRelaxation")
-            << qrRelaxation_ << token::END_STATEMENT << nl;
+        os.writeEntry("qrRelaxation", qrRelaxation_);
 
         qrPrevious_.writeEntry("qrPrevious", os);
     }

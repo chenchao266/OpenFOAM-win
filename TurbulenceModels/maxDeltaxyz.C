@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2016-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -47,19 +50,24 @@ void Foam::LESModels::maxDeltaxyz::calcDelta()
     label nD = mesh.nGeometricD();
 
     const cellList& cells = mesh.cells();
+    const vectorField& cellC = mesh.cellCentres();
+    const vectorField& faceC = mesh.faceCentres();
+    const vectorField faceN(mesh.faceAreas()/mag(mesh.faceAreas()));
     scalarField hmax(cells.size());
 
-    forAll(cells,celli)
+    forAll(cells, celli)
     {
         scalar deltaMaxTmp = 0.0;
-        const labelList& cFaces = mesh.cells()[celli];
-        const point& centrevector = mesh.cellCentres()[celli];
+        const labelList& cFaces = cells[celli];
+        const point& cc = cellC[celli];
 
         forAll(cFaces, cFacei)
         {
             label facei = cFaces[cFacei];
-            const point& facevector = mesh.faceCentres()[facei];
-            scalar tmp = mag(facevector - centrevector);
+            const point& fc = faceC[facei];
+            const vector& n = faceN[facei];
+
+            scalar tmp = mag(n & (fc - cc));
             if (tmp > deltaMaxTmp)
             {
                 deltaMaxTmp = tmp;
@@ -76,7 +84,7 @@ void Foam::LESModels::maxDeltaxyz::calcDelta()
     else if (nD == 2)
     {
         WarningInFunction
-            << "Case is 2D, LES is not strictly applicable\n"
+            << "Case is 2D, LES is not strictly applicable" << nl
             << endl;
 
         delta_.primitiveFieldRef() = hmax;
@@ -87,6 +95,9 @@ void Foam::LESModels::maxDeltaxyz::calcDelta()
             << "Case is not 3D or 2D, LES is not applicable"
             << exit(FatalError);
     }
+
+    // Handle coupled boundaries
+    delta_.correctBoundaryConditions();
 }
 
 
@@ -102,10 +113,10 @@ Foam::LESModels::maxDeltaxyz::maxDeltaxyz
     LESdelta(name, turbulence),
     deltaCoeff_
     (
-        dict.optionalSubDict(type() + "Coeffs").lookupOrDefault<scalar>
+        dict.optionalSubDict(type() + "Coeffs").getOrDefault<scalar>
         (
             "deltaCoeff",
-            1
+            2
         )
     )
 {

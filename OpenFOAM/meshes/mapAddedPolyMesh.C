@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -29,7 +31,9 @@ License
 
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
-using namespace Foam;
+
+
+ namespace Foam{
 mapAddedPolyMesh::mapAddedPolyMesh
 (
     const label nOldPoints,
@@ -50,7 +54,9 @@ mapAddedPolyMesh::mapAddedPolyMesh
     const labelList& addedPatchMap,
     const labelList& oldPatchSizes,
     const labelList& oldPatchStarts
-) :    nOldPoints_(nOldPoints),
+)
+:
+    nOldPoints_(nOldPoints),
     nOldFaces_(nOldFaces),
     nOldCells_(nOldCells),
     nAddedPoints_(nAddedPoints),
@@ -77,3 +83,5 @@ mapAddedPolyMesh::mapAddedPolyMesh
 
 
 // ************************************************************************* //
+
+ } // End namespace Foam

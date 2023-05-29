@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2012 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2012 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -114,6 +116,13 @@ void Foam::gradientEnergyFvPatchScalarField::updateCoeffs()
         );
 
     fixedGradientFvPatchScalarField::updateCoeffs();
+}
+
+
+void Foam::gradientEnergyFvPatchScalarField::write(Ostream& os) const
+{
+    fixedGradientFvPatchScalarField::write(os);
+    this->writeEntry("value", os);
 }
 
 

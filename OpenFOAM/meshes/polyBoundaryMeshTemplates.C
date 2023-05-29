@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2013-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2013-2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -24,23 +26,27 @@ License
 \*---------------------------------------------------------------------------*/
 
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
-namespace Foam {
-    template<class Type>
-    labelHashSet polyBoundaryMesh::findPatchIDs() const
+
+
+ namespace Foam{
+template<class Type>
+labelHashSet polyBoundaryMesh::findPatchIDs() const
+{
+    const polyBoundaryMesh& patches = *this;
+
+    labelHashSet patchIDs(patches.size());
+
+    forAll(patches, patchi)
     {
-        const polyBoundaryMesh& bm = *this;
-
-        labelHashSet patchIDs(bm.size());
-
-        forAll(bm, patchi)
+        if (isA<Type>(patches[patchi]))
         {
-            if (isA<Type>(bm[patchi]))
-            {
-                patchIDs.insert(patchi);
-            }
+            patchIDs.insert(patchi);
         }
-        return patchIDs;
     }
-
+    return patchIDs;
 }
+
+
 // ************************************************************************* //
+
+ } // End namespace Foam

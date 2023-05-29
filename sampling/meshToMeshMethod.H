@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2013-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2013-2016 OpenFOAM Foundation
+    Copyright (C) 2015 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -36,8 +39,8 @@ SourceFiles
 #define meshToMeshMethod_H
 
 #include "polyMesh.H"
-
-// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+#include "pointList.H"
+#include "Tuple2.H"
 
 namespace Foam
 {
@@ -85,7 +88,14 @@ protected:
             const label tgtCelli
         ) const;
 
-        //- Append target cell neihgbour cells to cellIDs list
+        //- Return the intersection volume and centroid between two cells
+        virtual Tuple2<scalar, point> interVolAndCentroid
+        (
+            const label srcCellI,
+            const label tgtCellI
+        );
+
+        //- Append target cell neighbour cells to cellIDs list
         virtual void appendNbrCells
         (
             const label tgtCelli,
@@ -107,11 +117,11 @@ private:
 
     // Private member functions
 
-        //- Disallow default bitwise copy construct
-        meshToMeshMethod(const meshToMeshMethod&);
+        //- No copy construct
+        meshToMeshMethod(const meshToMeshMethod&) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const meshToMeshMethod&);
+        //- No copy assignment
+        void operator=(const meshToMeshMethod&) = delete;
 
 
 public:
@@ -152,13 +162,15 @@ public:
 
         // Evaluate
 
-            //- Calculate addressing and weights
+            //- Calculate addressing and weights and optionally offset vectors
             virtual void calculate
             (
                 labelListList& srcToTgtAddr,
                 scalarListList& srcToTgtWght,
-                labelListList& tgtToTgtAddr,
-                scalarListList& tgtToTgtWght
+                pointListList& srcToTgtVec,
+                labelListList& tgtToSrcAddr,
+                scalarListList& tgtToSrcWght,
+                pointListList& tgtToSrcVec
             ) = 0;
 
 

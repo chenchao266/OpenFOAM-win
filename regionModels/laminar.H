@@ -1,9 +1,11 @@
-﻿/*---------------------------------------------------------------------------*\
+/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2013-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2013-2017 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -32,8 +34,8 @@ SourceFiles
 
 \*---------------------------------------------------------------------------*/
 
-#ifndef laminar_RM_H
-#define laminar_RM_H
+#ifndef regionModels_surfaceFilmModels_laminar_H
+#define regionModels_surfaceFilmModels_laminar_H
 
 #include "filmTurbulenceModel.H"
 
@@ -64,11 +66,11 @@ private:
 
     // Private member functions
 
-        //- Disallow default bitwise copy construct
-        laminar(const laminar&);
+        //- No copy construct
+        laminar(const laminar&) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const laminar&);
+        //- No copy assignment
+        void operator=(const laminar&) = delete;
 
 
 public:
@@ -80,7 +82,7 @@ public:
     // Constructors
 
         //- Construct from surface film model
-        laminar(surfaceFilmModel& film, const dictionary& dict);
+        laminar(surfaceFilmRegionModel& film, const dictionary& dict);
 
 
     //- Destructor

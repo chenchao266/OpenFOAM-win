@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2019-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -26,34 +29,33 @@ License
 #include "facePointPatch.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
-using namespace Foam;
+
+
+ namespace Foam{
 autoPtr<facePointPatch> facePointPatch::New
 (
     const polyPatch& patch,
     const pointBoundaryMesh& bm
 )
 {
-    if (debug)
+    DebugInFunction << "Constructing facePointPatch" << endl;
+
+    auto* ctorPtr = polyPatchConstructorTable(patch.type());
+
+    if (!ctorPtr)
     {
-        InfoInFunction << "Constructing facePointPatch" << endl;
+        FatalErrorInLookup
+        (
+            "facePointPatch",
+            patch.type(),
+            *polyPatchConstructorTablePtr_
+        ) << exit(FatalError);
     }
 
-    polyPatchConstructorTable::iterator cstrIter =
-        polyPatchConstructorTablePtr_->find(patch.type());
-
-    if (cstrIter == polyPatchConstructorTablePtr_->end())
-    {
-        FatalErrorInFunction
-            << "Unknown facePointPatch type "
-            << patch.type()
-            << nl << nl
-            << "Valid facePointPatch types are :" << endl
-            << polyPatchConstructorTablePtr_->sortedToc()
-            << exit(FatalError);
-    }
-
-    return autoPtr<facePointPatch>(cstrIter()(patch, bm));
+    return autoPtr<facePointPatch>(ctorPtr(patch, bm));
 }
 
 
 // ************************************************************************* //
+
+ } // End namespace Foam

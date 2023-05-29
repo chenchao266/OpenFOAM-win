@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2016-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2016-2017 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -28,7 +30,7 @@ License
 
 #include "chemistryTabulationMethod.H"
 #include "noChemistryTabulation.H"
-#include "ISAT.T.H"
+#include "ISAT.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -57,7 +59,9 @@ License
     defineTemplateTypeNameAndDebugWithName                                     \
     (                                                                          \
         chemistryTabulationMethod##CompChemModel##Thermo,                      \
-        "chemistryTabulationMethod<"#CompChemModel","#Thermo">",               \
+        (word(chemistryTabulationMethod##CompChemModel##Thermo::typeName_()) + \
+        '<' + word(CompChemModel::typeName_()) + "," + Thermo::typeName() + '>'\
+        ).c_str(),                                                             \
         0                                                                      \
     );                                                                         \
                                                                                \

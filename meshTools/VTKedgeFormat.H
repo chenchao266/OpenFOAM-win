@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -52,37 +55,12 @@ class VTKedgeFormat
 :
     public edgeMesh
 {
-    // Private Member Functions
-
-        //- Disallow default bitwise copy construct
-        VTKedgeFormat(const VTKedgeFormat&);
-
-        //- Disallow default bitwise assignment
-        void operator=(const VTKedgeFormat&);
-
-
-protected:
-
-    // Protected Member Functions
-
-        //- Write header information with points
-        static void writeHeader
-        (
-            Ostream&,
-            const pointField&
-        );
-
-        //- Write edges
-        static void writeEdges(Ostream&, const UList<edge>&);
-
-
 public:
-
 
     // Constructors
 
-        //- Construct from file name
-        VTKedgeFormat(const fileName&);
+        //- Read construct from file name
+        explicit VTKedgeFormat(const fileName& filename);
 
 
     // Selectors
@@ -90,30 +68,40 @@ public:
         //- Read file and return surface
         static autoPtr<edgeMesh> New(const fileName& name)
         {
-            return autoPtr<edgeMesh>
-            (
-                new VTKedgeFormat(name)
-            );
+            return autoPtr<edgeMesh>::NewFrom<VTKedgeFormat>(name);
         }
 
 
     //- Destructor
-    virtual ~VTKedgeFormat()
-    {}
+    virtual ~VTKedgeFormat() = default;
+
+
+    // Static Functions
+
+        //- Write edge mesh to file
+        static void write
+        (
+            const fileName& filename,
+            const edgeMesh& mesh,
+            IOstreamOption /*ignored*/ = IOstreamOption(),
+            const dictionary& options = dictionary::null
+        );
 
 
     // Member Functions
 
-        //- Write surface mesh components by proxy
-        static void write(const fileName&, const edgeMesh&);
-
         //- Read from file
-        virtual bool read(const fileName&);
+        virtual bool read(const fileName& name);
 
-        //- Write object file
-        virtual void write(const fileName& name) const
+        //- Write to file
+        virtual void write
+        (
+            const fileName& name,
+            IOstreamOption streamOpt = IOstreamOption(),
+            const dictionary& options = dictionary::null
+        ) const
         {
-            write(name, *this);
+            write(name, *this, streamOpt, options);
         }
 };
 

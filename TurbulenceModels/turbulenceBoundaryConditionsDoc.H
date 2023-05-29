@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2015 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2015 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -23,16 +25,16 @@ License
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
-\defgroup grpTurbulenceBoundaryConditions turbulence boundary conditions
+\defgroup grpIcoTurbulenceBoundaryConditions Boundary conditions
 @{
-    \ingroup grpTurbulence
-    This group contains turbulence model boundary conditions
+    \ingroup grpIcoTurbulence
+    This group contains incompressible turbulence model boundary conditions
 @}
 
-\defgroup grpWallFunctions wall functions
+\defgroup grpIcoWallFunctions Wall functions
 @{
-    \ingroup grpTurbulenceBoundaryConditions
-    This group contains turbulence model wall functions
+    \ingroup grpIcoTurbulenceBoundaryConditions
+    This group contains incompressible turbulence model wall functions
 @}
 
 

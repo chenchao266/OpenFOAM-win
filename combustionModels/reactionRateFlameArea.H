@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -37,7 +39,7 @@ SourceFiles
 #define reactionRateFlameArea_H
 
 #include "runTimeSelectionTables.H"
-#include "dictionary.H"
+#include "dictionary2.H"
 #include "autoPtr.H"
 #include "volFields.H"
 #include "combustionModel.H"
@@ -65,7 +67,7 @@ protected:
         //- Mesh reference
         const fvMesh& mesh_;
 
-        //- Combstion model owner
+        //- Combustion model owner
         const combustionModel& combModel_;
 
         //- Fuel name
@@ -79,11 +81,11 @@ private:
 
     // Private member functions
 
-         //- Disallow copy construct
-        reactionRateFlameArea(const reactionRateFlameArea&);
+         //- No copy construct
+        reactionRateFlameArea(const reactionRateFlameArea&) = delete;
 
-         //- Disallow default bitwise assignment
-        void operator=(const reactionRateFlameArea&);
+         //- No copy assignment
+        void operator=(const reactionRateFlameArea&) = delete;
 
 
 public:

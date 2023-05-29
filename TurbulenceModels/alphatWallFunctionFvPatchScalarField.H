@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -28,7 +30,7 @@ Group
     grpCmpWallFunctions
 
 Description
-    This boundary condition provides a turbulent thermal diffusivity conditon
+    This boundary condition provides a turbulent thermal diffusivity condition
     when using wall functions
     - replicates OpenFOAM v1.5 (and earlier) behaviour
 
@@ -72,8 +74,8 @@ SourceFiles
 
 \*---------------------------------------------------------------------------*/
 
-#ifndef compressibleAlphatWallFunctionFvPatchScalarField_H
-#define compressibleAlphatWallFunctionFvPatchScalarField_H
+#ifndef compressible_alphatWallFunctionFvPatchScalarField_H
+#define compressible_alphatWallFunctionFvPatchScalarField_H
 
 #include "fixedValueFvPatchFields.H"
 

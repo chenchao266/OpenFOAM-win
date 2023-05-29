@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2012-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2012-2016 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -40,8 +43,8 @@ SourceFiles
 #define polyMeshFilter_H
 
 #include "IOdictionary.H"
-#include "Time.T.H"
-#include "List.T.H"
+#include "Time1.H"
+#include "List.H"
 #include "autoPtr.H"
 #include "scalarField.H"
 #include "polyMeshFilterSettings.H"
@@ -53,8 +56,8 @@ namespace Foam
 
 class polyMesh;
 class fvMesh;
-class PackedBoolList;
 class faceSet;
+class bitSet;
 
 /*---------------------------------------------------------------------------*\
                        Class polyMeshFilter Declaration
@@ -114,7 +117,7 @@ class polyMeshFilter
         //- Increment pointErrorCount for points attached to a bad face
         void updatePointErrorCount
         (
-            const PackedBoolList& isErrorPoint,
+            const bitSet& isErrorPoint,
             const labelList& oldToNewMesh,
             labelList& pointErrorCount
         ) const;
@@ -126,7 +129,7 @@ class polyMeshFilter
         (
             const polyMesh& newMesh,
             const labelList& oldToNewMesh,
-            const PackedBoolList& isErrorPoint,
+            const bitSet& isErrorPoint,
             const labelList& pointErrorCount
         );
 
@@ -136,7 +139,7 @@ class polyMeshFilter
         (
             const polyMesh& newMesh,
             const labelList& oldToNewMesh,
-            const PackedBoolList& isErrorPoint,
+            const bitSet& isErrorPoint,
             const labelList& pointErrorCount
         );
 
@@ -186,11 +189,11 @@ class polyMeshFilter
             labelList& origToCurrentPointMap
         ) const;
 
-        //- Disallow default bitwise copy construct
-        polyMeshFilter(const polyMeshFilter&);
+        //- No copy construct
+        polyMeshFilter(const polyMeshFilter&) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const polyMeshFilter&);
+        //- No copy assignment
+        void operator=(const polyMeshFilter&) = delete;
 
 
 public:
@@ -217,7 +220,7 @@ public:
 
 
     //- Destructor
-    ~polyMeshFilter();
+    ~polyMeshFilter() = default;
 
 
     // Member Functions

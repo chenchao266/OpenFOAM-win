@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2012-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2012-2017 OpenFOAM Foundation
+    Copyright (C) 2018-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -35,12 +38,7 @@ namespace Foam
 namespace fv
 {
     defineTypeNameAndDebug(limitTemperature, 0);
-    addToRunTimeSelectionTable
-    (
-        option,
-        limitTemperature,
-        dictionary
-    );
+    addToRunTimeSelectionTable(option, limitTemperature, dictionary);
 }
 }
 
@@ -55,19 +53,22 @@ Foam::fv::limitTemperature::limitTemperature
     const fvMesh& mesh
 )
 :
-    cellSetOption(name, modelType, dict, mesh),
-    Tmin_(readScalar(coeffs_.lookup("min"))),
-    Tmax_(readScalar(coeffs_.lookup("max")))
+    fv::cellSetOption(name, modelType, dict, mesh),
+    Tmin_(coeffs_.get<scalar>("min")),
+    Tmax_(coeffs_.get<scalar>("max")),
+    phase_(coeffs_.getOrDefault<word>("phase", word::null))
 {
-    // Set the field name to that of the energy field from which the temperature
-    // is obtained
+    // Set the field name to that of the energy
+    // field from which the temperature is obtained
+    const auto& thermo =
+        mesh_.lookupObject<basicThermo>
+        (
+            IOobject::groupName(basicThermo::dictName, phase_)
+        );
 
-    const basicThermo& thermo =
-        mesh_.lookupObject<basicThermo>(basicThermo::dictName);
+    fieldNames_.resize(1, thermo.he().name());
 
-    fieldNames_.setSize(1, thermo.he().name());
-
-    applied_.setSize(1, false);
+    fv::option::resetApplied();
 }
 
 
@@ -75,24 +76,42 @@ Foam::fv::limitTemperature::limitTemperature
 
 bool Foam::fv::limitTemperature::read(const dictionary& dict)
 {
-    if (cellSetOption::read(dict))
+    if (fv::cellSetOption::read(dict))
     {
-        coeffs_.lookup("min") >> Tmin_;
-        coeffs_.lookup("max") >> Tmax_;
+        coeffs_.readEntry("min", Tmin_);
+        coeffs_.readEntry("max", Tmax_);
+
+        if (Tmax_ < Tmin_)
+        {
+            FatalIOErrorInFunction(dict)
+                << "Minimum temperature limit cannot exceed maximum limit" << nl
+                << "min = " << Tmin_ << nl
+                << "max = " << Tmax_
+                << exit(FatalIOError);
+        }
+
+        if (Tmin_ < 0)
+        {
+            FatalIOErrorInFunction(dict)
+                << "Minimum temperature limit cannot be negative" << nl
+                << "min = " << Tmin_
+                << exit(FatalIOError);
+        }
 
         return true;
     }
-    else
-    {
-        return false;
-    }
+
+    return false;
 }
 
 
 void Foam::fv::limitTemperature::correct(volScalarField& he)
 {
-    const basicThermo& thermo =
-        mesh_.lookupObject<basicThermo>(basicThermo::dictName);
+    const auto& thermo =
+        mesh_.lookupObject<basicThermo>
+        (
+            IOobject::groupName(basicThermo::dictName, phase_)
+        );
 
     scalarField Tmin(cells_.size(), Tmin_);
     scalarField Tmax(cells_.size(), Tmax_);
@@ -102,14 +121,49 @@ void Foam::fv::limitTemperature::correct(volScalarField& he)
 
     scalarField& hec = he.primitiveFieldRef();
 
+    const scalarField& T = thermo.T();
+
+    scalar Tmin0 = min(T);
+    scalar Tmax0 = max(T);
+
+    label nOverTmax = 0;
+    label nLowerTmin = 0;
+
     forAll(cells_, i)
     {
-        label celli = cells_[i];
+        const label celli = cells_[i];
+        if (hec[celli] < heMin[i])
+        {
+            nLowerTmin++;
+        }
+        else if (hec[celli] > heMax[i])
+        {
+            nOverTmax++;
+        }
         hec[celli]= max(min(hec[celli], heMax[i]), heMin[i]);
     }
 
-    // handle boundaries in the case of 'all'
-    if (selectionMode_ == smAll)
+    reduce(nOverTmax, sumOp<label>());
+    reduce(nLowerTmin, sumOp<label>());
+
+    reduce(Tmin0, minOp<scalar>());
+    reduce(Tmax0, maxOp<scalar>());
+
+    Info<< type() << " " << name_ << " Lower limited "
+        << nLowerTmin << " ("
+        << 100*scalar(nLowerTmin)/mesh_.globalData().nTotalCells()
+        << "%) of cells" << endl;
+
+    Info<< type() << " " << name_ << " Upper limited "
+        << nOverTmax << " ("
+        << 100*scalar(nOverTmax)/mesh_.globalData().nTotalCells()
+        << "%) of cells" << endl;
+
+    Info<< type() << " " << name_ << " Unlimited Tmax " << Tmax0 << nl
+        <<  "Unlimited Tmin " << Tmin0 << endl;
+
+    // Handle boundaries in the case of 'all'
+    if (!cellSetOption::useSubMesh())
     {
         volScalarField::Boundary& bf = he.boundaryFieldRef();
 
@@ -135,6 +189,10 @@ void Foam::fv::limitTemperature::correct(volScalarField& he)
             }
         }
     }
+
+    // We've changed internal values so give
+    // boundary conditions opportunity to correct
+    he.correctBoundaryConditions();
 }
 
 

@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2015 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2015 OpenFOAM Foundation
+    Copyright (C) 2016-2019 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -50,7 +53,7 @@ SourceFiles
 #include "pointField.H"
 #include "sixDoFRigidBodyMotionRestraint.H"
 #include "sixDoFRigidBodyMotionConstraint.H"
-#include "Tuple2.T.H"
+#include "Tuple2.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -70,6 +73,9 @@ class sixDoFRigidBodyMotion
 
     // Private data
 
+        //- Reference to time database
+        const Time& time_;
+
         //- Motion state data object
         sixDoFRigidBodyMotionState motionState_;
 
@@ -79,7 +85,7 @@ class sixDoFRigidBodyMotion
         //- Motion restraints
         PtrList<sixDoFRigidBodyMotionRestraint> restraints_;
 
-        //- Motion constaints
+        //- Motion constraints
         PtrList<sixDoFRigidBodyMotionConstraint> constraints_;
 
         //- Translational constraint tensor
@@ -110,8 +116,8 @@ class sixDoFRigidBodyMotion
         //- Acceleration damping coefficient (for steady-state simulations)
         scalar aDamp_;
 
-        //- Switch to turn reporting of motion data on and off
-        Switch report_;
+        //- Reporting of motion data (on or off)
+        bool report_;
 
         //- Motion solver
         autoPtr<sixDoFSolver> solver_;
@@ -190,9 +196,6 @@ class sixDoFRigidBodyMotion
             //- Return non-const access to the orientation
             inline tensor& Q();
 
-            //- Return non-const access to vector
-            inline vector& v();
-
             //- Return non-const access to acceleration
             inline vector& a();
 
@@ -208,13 +211,14 @@ public:
     // Constructors
 
         //- Construct null
-        sixDoFRigidBodyMotion();
+        sixDoFRigidBodyMotion(const Time&);
 
         //- Construct from constant and state dictionaries
         sixDoFRigidBodyMotion
         (
             const dictionary& dict,
-            const dictionary& stateDict
+            const dictionary& stateDict,
+            const Time& time
         );
 
         //- Construct as copy
@@ -258,10 +262,17 @@ public:
             //- Return the current velocity
             inline const vector& v() const;
 
+            //- Return non-const access to vector
+            inline vector& v();
+
+            //- Return the current momentArm
             inline vector momentArm() const;
 
             //- Return the report Switch
             inline bool report() const;
+
+            //- Return time
+            inline const Time& time() const;
 
 
         // Edit

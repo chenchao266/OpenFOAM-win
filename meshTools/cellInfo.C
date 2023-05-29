@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -25,17 +28,26 @@ License
 
 #include "cellInfo.H"
 
+// * * * * * * * * * * * * * * * IOstream Operators  * * * * * * * * * * * * //
 
-// * * * * * * * * * * * * * * * Friend Operators  * * * * * * * * * * * * * //
-
-Foam::Ostream& Foam::operator<<(Foam::Ostream& os, const Foam::cellInfo& wDist)
+Foam::Ostream& Foam::operator<<
+(
+    Ostream& os,
+    const cellInfo& rhs
+)
 {
-    return os << wDist.type_;
+    return os << rhs.type();
 }
 
-Foam::Istream& Foam::operator>>(Foam::Istream& is, Foam::cellInfo& wDist)
+
+Foam::Istream& Foam::operator>>
+(
+    Istream& is,
+    cellInfo& rhs
+)
 {
-    return is >> wDist.type_;
+    return is >> rhs.type();
 }
+
 
 // ************************************************************************* //

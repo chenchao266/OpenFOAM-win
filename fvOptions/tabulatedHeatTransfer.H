@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -24,10 +27,60 @@ License
 Class
     Foam::fv::tabulatedHeatTransfer
 
+Group
+    grpFvOptionsSources
+
 Description
-    Tabulated heat transfer model. The heat exchange area per unit volume
-    must be provided.  The 2D table returns the heat transfer coefficient
-    by querying the local and neighbour region velocities
+    Applies a tabulated heat transfer model for inter-region heat exchanges.
+
+    The 2D table returns the heat transfer coefficient
+    by querying the local and neighbour region velocities.
+
+    Required fields:
+    \verbatim
+      AoV       | Area per unit volume of heat exchanger    [1/m]
+    \endverbatim
+
+Usage
+    Minimal example by using \c constant/fvOptions:
+    \verbatim
+    tabulatedHeatTransfer1
+    {
+        // Mandatory entries (unmodifiable)
+        type            tabulatedHeatTransfer;
+        outOfBounds     clamp;
+        file            "table";
+
+        // Optional entries (unmodifiable)
+        U               <Uname>;
+        UNbr            <UnbrName>;
+
+        // Mandatory/Optional (inherited) entries
+        ...
+    }
+    \endverbatim
+
+    where the entries mean:
+    \table
+      Property  | Description                      | Type  | Reqd | Dflt
+      type      | Type name: tabulatedHeatTransfer | word  | yes  | -
+      file  | Heat transfer coefficient table  | interpolate2DTable | yes | -
+      U         | Name of operand velocity field   | word  | no   | U
+      UNbr      | Name of operand neighbour velocity field | word | no | U
+    \endtable
+
+    The inherited entries are elaborated in:
+     - \link interRegionHeatTransfer.H \endlink
+     - \link interpolate2DTable.H \endlink
+
+See also
+  - Foam::fv::interRegionHeatTransferModel
+  - Foam::fv::constantHeatTransfer
+  - Foam::fv::tabulatedNTUHeatTransfer
+  - Foam::fv::variableHeatTransfer
+
+SourceFiles
+    tabulatedHeatTransfer.C
 
 \*---------------------------------------------------------------------------*/
 
@@ -53,14 +106,13 @@ class tabulatedHeatTransfer
 :
     public interRegionHeatTransferModel
 {
-private:
 
-    // Private data
+    // Private Data
 
-        //- Name of velocity field; default = U
+        //- Name of operand velocity field
         word UName_;
 
-        //- Name of neighbour velocity field; default = U
+        //- Name of neighbour velocity field
         word UNbrName_;
 
         //- 2D look up table
@@ -82,7 +134,7 @@ private:
 public:
 
     //- Runtime type information
-        TypeName("tabulatedHeatTransfer");
+    TypeName("tabulatedHeatTransfer");
 
 
     // Constructors
@@ -96,9 +148,15 @@ public:
             const fvMesh& mesh
         );
 
+        //- No copy construct
+        tabulatedHeatTransfer(const tabulatedHeatTransfer&) = delete;
+
+        //- No copy assignment
+        void operator=(const tabulatedHeatTransfer&) = delete;
+
 
     //- Destructor
-    virtual ~tabulatedHeatTransfer();
+    virtual ~tabulatedHeatTransfer() = default;
 
 
     // Public Functions
@@ -106,11 +164,8 @@ public:
         //- Calculate the heat transfer coefficient
         virtual void calculateHtc();
 
-
-        // IO
-
-            //- Read dictionary
-            virtual bool read(const dictionary& dict);
+        //- Read dictionary
+        virtual bool read(const dictionary& dict);
 };
 
 

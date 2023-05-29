@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2017 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -53,8 +56,8 @@ Foam::surfaceTensionModels::temperatureDependent::temperatureDependent
 )
 :
     surfaceTensionModel(mesh),
-    TName_(dict.lookupOrDefault<word>("T", "T")),
-    sigma_(Function1<scalar>::New("sigma", dict))
+    TName_(dict.getOrDefault<word>("T", "T")),
+    sigma_(Function1<scalar>::New("sigma", dict, &mesh))
 {}
 
 
@@ -69,24 +72,21 @@ Foam::surfaceTensionModels::temperatureDependent::~temperatureDependent()
 Foam::tmp<Foam::volScalarField>
 Foam::surfaceTensionModels::temperatureDependent::sigma() const
 {
-    tmp<volScalarField> tsigma
+    auto tsigma = tmp<volScalarField>::New
     (
-        new volScalarField
+        IOobject
         (
-            IOobject
-            (
-                "sigma",
-                mesh_.time().timeName(),
-                mesh_,
-                IOobject::NO_READ,
-                IOobject::NO_WRITE,
-                false
-            ),
+            "sigma",
+            mesh_.time().timeName(),
             mesh_,
-            dimSigma
-        )
+            IOobject::NO_READ,
+            IOobject::NO_WRITE,
+            false
+        ),
+        mesh_,
+        dimSigma
     );
-    volScalarField& sigma = tsigma.ref();
+    auto& sigma = tsigma.ref();
 
     const volScalarField& T = mesh_.lookupObject<volScalarField>(TName_);
 
@@ -111,8 +111,8 @@ bool Foam::surfaceTensionModels::temperatureDependent::readDict
 {
     const dictionary& sigmaDict = surfaceTensionModel::sigmaDict(dict);
 
-    TName_ = sigmaDict.lookupOrDefault<word>("T", "T");
-    sigma_ = Function1<scalar>::New("sigma", sigmaDict);
+    TName_ = sigmaDict.getOrDefault<word>("T", "T");
+    sigma_ = Function1<scalar>::New("sigma", sigmaDict, &mesh_);
 
     return true;
 }
@@ -128,10 +128,8 @@ bool Foam::surfaceTensionModels::temperatureDependent::writeData
         os  << sigma_() << token::END_STATEMENT << nl;
         return os.good();
     }
-    else
-    {
-        return false;
-    }
+
+    return false;
 }
 
 

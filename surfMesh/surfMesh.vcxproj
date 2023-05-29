@@ -21,18 +21,18 @@
   <PropertyGroup Label="Globals">
     <VCProjectVersion>15.0</VCProjectVersion>
     <ProjectGuid>{4468874B-3060-4A88-916F-9688D6D9AEA1}</ProjectGuid>
-    <WindowsTargetPlatformVersion>8.1</WindowsTargetPlatformVersion>
+    <WindowsTargetPlatformVersion>10.0.17763.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
-    <PlatformToolset>v141</PlatformToolset>
+    <PlatformToolset>v143</PlatformToolset>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
-    <PlatformToolset>v141</PlatformToolset>
+    <PlatformToolset>v143</PlatformToolset>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
     <ConfigurationType>StaticLibrary</ConfigurationType>
@@ -65,49 +65,71 @@
   <PropertyGroup />
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
-      <AdditionalIncludeDirectories>..\OpenFOAM\algorithms;..\OpenFOAM\containers;..\OpenFOAM\db;..\OpenFOAM\dimensionedTypes;..\OpenFOAM\dimensionSet;..\OpenFOAM\fields;..\OpenFOAM\global;..\OpenFOAM\graph;..\OpenFOAM\include;..\OpenFOAM\interpolations;..\OpenFOAM\matrices;..\OpenFOAM\memory;..\OpenFOAM\meshes;..\OpenFOAM\primitives;..\OSspecific;..\fileFormats;..\dynamicMesh;..\dummyThirdParty;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..\OpenFOAM\algorithms;..\OpenFOAM\containers;..\OpenFOAM\db;..\OpenFOAM\dimensionedTypes;..\OpenFOAM\dimensionSet;..\OpenFOAM\fields;..\OpenFOAM\global;..\OpenFOAM\graph;..\OpenFOAM\include;..\OpenFOAM\interpolations;..\OpenFOAM\matrices;..\OpenFOAM\memory;..\OpenFOAM\meshes;..\OpenFOAM\primitives;..\OSspecific;..\fileFormats;..\dynamicMesh;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>WM_LABEL_SIZE=64;WM_DP;NoRepository;WIN32;WIN64;_WINDOWS;NOMINMAX;_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <CompileAs>CompileAsCpp</CompileAs>
       <LanguageStandard>stdcpp17</LanguageStandard>
-      <WarningLevel>Level4</WarningLevel>
     </ClCompile>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="AC3DsurfaceFormatRunTime.T.C" />
-    <ClCompile Include="GTSsurfaceFormatRunTime.T.C" />
-    <ClCompile Include="MeshedSurfaceCore.T.C" />
-    <ClCompile Include="MeshedSurfaceIOAllocator.T.C" />
-    <ClCompile Include="MeshedSurfaceProxyCore.T.C" />
-    <ClCompile Include="MeshedSurfaces.T.C" />
-    <ClCompile Include="NASsurfaceFormatRunTime.T.C" />
-    <ClCompile Include="OBJstream.C" />
-    <ClCompile Include="OBJsurfaceFormatRunTime.T.C" />
-    <ClCompile Include="OFFsurfaceFormatRunTime.T.C" />
-    <ClCompile Include="OFSsurfaceFormatCore.T.C" />
-    <ClCompile Include="OFSsurfaceFormatRunTime.T.C" />
-    <ClCompile Include="SMESHsurfaceFormatRunTime.T.C" />
-    <ClCompile Include="STARCDsurfaceFormatRunTime.T.C" />
-    <ClCompile Include="STLsurfaceFormatCore.T.C" />
-    <ClCompile Include="STLsurfaceFormatRunTime.T.C" />
+    <ClCompile Include="AC3DsurfaceFormatCore.C" />
+    <ClCompile Include="AC3DsurfaceFormatRunTime.C" />
+    <ClCompile Include="boundaryDataSurfaceWriter.C" />
+    <ClCompile Include="ensightSurfaceWriter.C" />
+    <ClCompile Include="FLMAsurfaceFormatRunTime.C" />
+    <ClCompile Include="foamSurfaceWriter.C" />
+    <ClCompile Include="GTSsurfaceFormatRunTime.C" />
+    <ClCompile Include="mergedSurf.C" />
+    <ClCompile Include="MeshedSurfaceCore.C" />
+    <ClCompile Include="MeshedSurfaceIOAllocator.C" />
+    <ClCompile Include="MeshedSurfaceProxys.C" />
+    <ClCompile Include="MeshedSurfaces.C" />
+    <ClCompile Include="NASsurfaceFormatRunTime.C" />
+    <ClCompile Include="nastranSurfaceWriter.C" />
+    <ClCompile Include="nullSurfaceWriter.C" />
+    <ClCompile Include="OBJsurfaceFormatRunTime.C" />
+    <ClCompile Include="OFFsurfaceFormatRunTime.C" />
+    <ClCompile Include="polySurface.C" />
+    <ClCompile Include="polySurfaceClear.C" />
+    <ClCompile Include="polySurfaceFields.C" />
+    <ClCompile Include="polySurfaceIO.C" />
+    <ClCompile Include="polySurfacePointFields.C" />
+    <ClCompile Include="proxySurfaceWriter.C" />
+    <ClCompile Include="rawSurfaceWriter.C" />
+    <ClCompile Include="SMESHsurfaceFormatRunTime.C" />
+    <ClCompile Include="STARCDsurfaceFormatCore.C" />
+    <ClCompile Include="STARCDsurfaceFormatRunTime.C" />
+    <ClCompile Include="starcdSurfaceWriter.C" />
+    <ClCompile Include="STLsurfaceFormatRunTime.C" />
     <ClCompile Include="surfaceFormatsCore.C" />
+    <ClCompile Include="surfacePatch.C" />
     <ClCompile Include="surfaceRegistry.C" />
+    <ClCompile Include="surfaceWriter.C" />
     <ClCompile Include="surfFields.C" />
     <ClCompile Include="surfMesh.C" />
     <ClCompile Include="surfMeshClear.C" />
     <ClCompile Include="surfMeshIO.C" />
     <ClCompile Include="surfPointFields.C" />
     <ClCompile Include="surfZone.C" />
-    <ClCompile Include="surfZoneIdentifier.C" />
     <ClCompile Include="surfZoneIOList.C" />
-    <ClCompile Include="TRIsurfaceFormatCore.T.C" />
-    <ClCompile Include="TRIsurfaceFormatRunTime.T.C" />
-    <ClCompile Include="UnsortedMeshedSurfaces.T.C" />
-    <ClCompile Include="VTKsurfaceFormatCore.T.C" />
-    <ClCompile Include="VTKsurfaceFormatRunTime.T.C" />
-    <ClCompile Include="WRLsurfaceFormatCore.T.C" />
-    <ClCompile Include="WRLsurfaceFormatRunTime.T.C" />
-    <ClCompile Include="X3DsurfaceFormatCore.T.C" />
-    <ClCompile Include="X3DsurfaceFormatRunTime.T.C" />
+    <ClCompile Include="TRIReader.C" />
+    <ClCompile Include="triSurface.C" />
+    <ClCompile Include="triSurfaceAddressing.C" />
+    <ClCompile Include="triSurfaceFields.C" />
+    <ClCompile Include="TRIsurfaceFormatRunTime.C" />
+    <ClCompile Include="triSurfaceGTSformat.C" />
+    <ClCompile Include="triSurfaceIO.C" />
+    <ClCompile Include="triSurfaceStitch.C" />
+    <ClCompile Include="triSurfaceSTLformat.C" />
+    <ClCompile Include="UnsortedMeshedSurfaces.C" />
+    <ClCompile Include="VTKsurfaceFormatCore.C" />
+    <ClCompile Include="VTKsurfaceFormatRunTime.C" />
+    <ClCompile Include="vtkSurfaceWriter.C" />
+    <ClCompile Include="VTPsurfaceFormatCore.C" />
+    <ClCompile Include="VTPsurfaceFormatRunTime.C" />
+    <ClCompile Include="X3DsurfaceFormatCore.C" />
+    <ClCompile Include="X3DsurfaceFormatRunTime.C" />
+    <ClCompile Include="x3dSurfaceWriter.C" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">

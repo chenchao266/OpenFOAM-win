@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2015 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2015 OpenFOAM Foundation
+    Copyright (C) 2017-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -24,25 +27,57 @@ License
 \*---------------------------------------------------------------------------*/
 
 #include "entry.H"
-#include "dictionary.H"
-#include "OStringStream.H"
+#include "dictionary2.H"
+#include "StringStream.H"
+#include "JobInfo.H"
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
-using namespace Foam;
+
+
+ namespace Foam{
 int entry::disableFunctionEntries
 (
     debug::infoSwitch("disableFunctionEntries", 0)
 );
 
 
+entry::inputMode entry::globalInputMode = entry::MERGE;
+
+
+// * * * * * * * * * * * * * Static Member Functions * * * * * * * * * * * * //
+
+void entry::reportReadWarning
+(
+    const IOstream& is,
+    const std::string& msg
+)
+{
+    std::cerr
+        << "--> FOAM Warning :\n"
+        << "    Reading \"" << is.relativeName()
+        << "\" at line " << is.lineNumber() << '\n'
+        << "    " << msg << std::endl;
+}
+
+
+void entry::resetInputMode()
+{
+    globalInputMode = entry::MERGE;
+}
+
+
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
-entry::entry(const keyType& keyword) :    IDLList<entry>::link(),
+entry::entry(const keyType& keyword)
+:
+    IDLList<entry>::link(),
     keyword_(keyword)
 {}
 
 
-entry::entry(const entry& e) :    IDLList<entry>::link(),
+entry::entry(const entry& e)
+:
+    IDLList<entry>::link(),
     keyword_(e.keyword_)
 {}
 
@@ -53,16 +88,116 @@ autoPtr<entry> entry::clone() const
 }
 
 
+// * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
+
+void entry::raiseBadInput(const ITstream& is) const
+{
+    const word& keyword = keyword_;
+
+    // Can use FatalIOError instead of SafeFatalIOError
+    // since predicate checks are not used at the earliest stages
+    FatalIOError
+    (
+        "",                 // functionName
+        "",                 // sourceFileName
+        0,                  // sourceFileLineNumber
+        this->relativeName(), // ioFileName
+        is.lineNumber()     // ioStartLineNumber
+    )
+        << "Entry '" << keyword << "' with invalid input" << nl << nl
+        << exit(FatalIOError);
+}
+
+
+void entry::checkITstream(const ITstream& is) const
+{
+    const word& keyword = keyword_;
+
+    if (is.nRemainingTokens())
+    {
+        const label remaining = is.nRemainingTokens();
+
+        // Similar to SafeFatalIOError
+        if (JobInfo::constructed)
+        {
+            OSstream& err =
+                FatalIOError
+                (
+                    "",                 // functionName
+                    "",                 // sourceFileName
+                    0,                  // sourceFileLineNumber
+                    this->relativeName(), // ioFileName
+                    is.lineNumber()     // ioStartLineNumber
+                );
+
+            err << "Entry '" << keyword << "' has "
+                << remaining << " excess tokens in stream" << nl << nl
+                << "    ";
+            is.writeList(err, 0);
+
+            err << exit(FatalIOError);
+        }
+        else
+        {
+            std::cerr
+                << nl
+                << "--> FOAM FATAL IO ERROR:" << nl;
+
+            std::cerr
+                << "Entry '" << keyword << "' has "
+                << remaining << " excess tokens in stream" << nl << nl;
+
+            std::cerr
+                << "file: " << this->relativeName()
+                << " at line " << is.lineNumber() << '.' << nl
+                << std::endl;
+
+            std::exit(1);
+        }
+    }
+    else if (!is.size())
+    {
+        // Similar to SafeFatalIOError
+        if (JobInfo::constructed)
+        {
+            FatalIOError
+            (
+                "",                 // functionName
+                "",                 // sourceFileName
+                0,                  // sourceFileLineNumber
+                this->relativeName(), // ioFileName
+                is.lineNumber()     // ioStartLineNumber
+            )
+                << "Entry '" << keyword
+                << "' had no tokens in stream" << nl << nl
+                << exit(FatalIOError);
+        }
+        else
+        {
+            std::cerr
+                << nl
+                << "--> FOAM FATAL IO ERROR:" << nl
+                << "Entry '" << keyword
+                << "' had no tokens in stream" << nl << nl;
+
+            std::cerr
+                << "file: " << this->relativeName()
+                << " at line " << is.lineNumber() << '.' << nl
+                << std::endl;
+
+            std::exit(1);
+        }
+    }
+}
+
+
 // * * * * * * * * * * * * * * * Member Operators  * * * * * * * * * * * * * //
 
 void entry::operator=(const entry& e)
 {
-    // check for assignment to self
     if (this == &e)
     {
-        FatalErrorInFunction
-            << "attempted assignment to self"
-            << abort(FatalError);
+        return;  // Self-assignment is a no-op
     }
 
     keyword_ = e.keyword_;
@@ -71,20 +206,24 @@ void entry::operator=(const entry& e)
 
 bool entry::operator==(const entry& e) const
 {
+    if (this == &e)
+    {
+        return true;
+    }
     if (keyword_ != e.keyword_)
     {
         return false;
     }
-    else
-    {
-        OStringStream oss1;
-        oss1 << *this;
 
-        OStringStream oss2;
-        oss2 << e;
+    // Compare contents (as strings)
 
-        return oss1.str() == oss2.str();
-    }
+    OStringStream oss1;
+    oss1 << *this;
+
+    OStringStream oss2;
+    oss2 << e;
+
+    return oss1.str() == oss2.str();
 }
 
 
@@ -95,3 +234,5 @@ bool entry::operator!=(const entry& e) const
 
 
 // ************************************************************************* //
+
+ } // End namespace Foam

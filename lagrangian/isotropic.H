@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2013-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2013-2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -23,6 +25,9 @@ License
 
 Class
     Foam::TimeScaleModels::isotropic
+
+Group
+    grpLagrangianIntermediateMPPICTimeScaleSubModels
 
 Description
     Model for the time scale over which the velocity field of a dispersed phase
@@ -44,7 +49,7 @@ SourceFiles
 #ifndef isotropic_H
 #define isotropic_H
 
-#include "TimeScaleModel.T.H"
+#include "TimeScaleModel.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 

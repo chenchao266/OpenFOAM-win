@@ -1,9 +1,12 @@
-﻿/*---------------------------------------------------------------------------*\
+/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2018-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -23,7 +26,7 @@ License
 
 \*---------------------------------------------------------------------------*/
 
-//#include "sampledIsoSurface.H"
+#include "sampledIsoSurface.H"
 #include "volFieldsFwd.H"
 #include "pointFields.H"
 #include "volPointInterpolation.H"
@@ -32,70 +35,85 @@ License
 
 template<class Type>
 Foam::tmp<Foam::Field<Type>>
-Foam::sampledIsoSurface::sampleField
+Foam::sampledIsoSurface::sampleOnFaces
 (
-    const GeometricField<Type, fvPatchField, volMesh>& vField
+    const interpolation<Type>& sampler
 ) const
 {
-    // Recreate geometry if time has changed
-    updateGeometry();
+    updateGeometry();  // Recreate geometry if time has changed
 
-    return tmp<Field<Type>>(new Field<Type>(vField, surface().meshCells()));
+    return sampledSurface::sampleOnFaces
+    (
+        sampler,
+        meshCells(),
+        surface(),
+        points()
+    );
 }
 
 
 template<class Type>
 Foam::tmp<Foam::Field<Type>>
-Foam::sampledIsoSurface::interpolateField
+Foam::sampledIsoSurface::sampleOnPoints
 (
     const interpolation<Type>& interpolator
 ) const
 {
-    // Get fields to sample. Assume volPointInterpolation!
-    const GeometricField<Type, fvPatchField, volMesh>& volFld =
-        interpolator.psi();
+    updateGeometry();  // Recreate geometry if time has changed
 
-    // Recreate geometry if time has changed
-    updateGeometry();
-
-    if (subMeshPtr_.valid())
+    if (isoSurfacePtr_)
     {
-        tmp<GeometricField<Type, fvPatchField, volMesh>> tvolSubFld =
-            subMeshPtr_().interpolate(volFld);
-
-        const GeometricField<Type, fvPatchField, volMesh>& volSubFld =
-            tvolSubFld();
-
-        tmp<GeometricField<Type, pointPatchField, pointMesh>> tpointSubFld =
-            volPointInterpolation::New(volSubFld.mesh()).interpolate(volSubFld);
-
-        // Sample.
-        return surface().interpolate
-        (
-            (
-                average_
-              ? pointAverage(tpointSubFld())()
-              : volSubFld
-            ),
-            tpointSubFld()
-        );
+        return this->sampleOnIsoSurfacePoints(interpolator);
     }
-    else
+
+    return sampledSurface::sampleOnPoints
+    (
+        interpolator,
+        meshCells(),
+        faces(),
+        points()
+    );
+}
+
+
+template<class Type>
+Foam::tmp<Foam::Field<Type>>
+Foam::sampledIsoSurface::sampleOnIsoSurfacePoints
+(
+    const interpolation<Type>& interpolator
+) const
+{
+    if (!isoSurfacePtr_)
     {
-        tmp<GeometricField<Type, pointPatchField, pointMesh>> tpointFld =
-            volPointInterpolation::New(volFld.mesh()).interpolate(volFld);
-
-        // Sample.
-        return surface().interpolate
-        (
-            (
-                average_
-              ? pointAverage(tpointFld())()
-              : volFld
-            ),
-            tpointFld()
-        );
+        FatalErrorInFunction
+            << "cannot call without an iso-surface" << nl
+            << exit(FatalError);
     }
+
+    // Assume volPointInterpolation for the point field!
+    const auto& volFld = interpolator.psi();
+
+    tmp<GeometricField<Type, fvPatchField, volMesh>> tvolFld(volFld);
+    tmp<GeometricField<Type, pointPatchField, pointMesh>> tpointFld;
+
+    if (subMeshPtr_)
+    {
+        // Replace with subset
+        tvolFld.reset(subMeshPtr_->interpolate(volFld));
+    }
+
+    // Interpolated point field
+    tpointFld.reset
+    (
+        volPointInterpolation::New(tvolFld().mesh()).interpolate(tvolFld())
+    );
+
+    if (average_)
+    {
+        tvolFld.reset(pointAverage(tpointFld()));
+    }
+
+    return isoSurfacePtr_->interpolate(tvolFld(), tpointFld());
 }
 
 

@@ -1,9 +1,12 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2016-2019 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -98,7 +101,7 @@ SourceFiles
 
 #include "labelList.H"
 #include "lduSchedule.H"
-#include "Tuple2.T.H"
+#include "Tuple2.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -111,7 +114,7 @@ namespace Foam
 
 class lduAddressing
 {
-    // Private data
+    // Private Data
 
         //- Number of equations
         label size_;
@@ -131,11 +134,11 @@ class lduAddressing
 
     // Private Member Functions
 
-        //- Disallow default bitwise copy construct
-        lduAddressing(const lduAddressing&);
+        //- No copy construct
+        lduAddressing(const lduAddressing&) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const lduAddressing&);
+        //- No copy assignment
+        void operator=(const lduAddressing&) = delete;
 
         //- Calculate losort
         void calcLosort() const;
@@ -149,8 +152,8 @@ class lduAddressing
 
 public:
 
-    // Constructor
-    lduAddressing(const label nEqns)
+    //- Construct with size (number of equations)
+    explicit lduAddressing(const label nEqns)
     :
         size_(nEqns),
         losortPtr_(nullptr),
@@ -183,8 +186,11 @@ public:
             const label patchNo
         ) const = 0;
 
-        // Return patch field evaluation schedule
+        //- Return patch field evaluation schedule
         virtual const lduSchedule& patchSchedule() const = 0;
+
+        //- Clear additional addressing
+        void clearOut();
 
         //- Return losort addressing
         const labelUList& losortAddr() const;

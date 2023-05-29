@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2016-2019 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -24,97 +27,127 @@ License
 \*---------------------------------------------------------------------------*/
 
 #include "timeControl.H"
-#include "PstreamReduceOps.T.H"
+#include "PstreamReduceOps.H"
 
 // * * * * * * * * * * * * * Static Member Data  * * * * * * * * * * * * * * //
-using namespace Foam;
-namespace Foam
-{
-    template<>
-    const char* NamedEnum<timeControl::timeControls, 8>::
-    names[] =
-    {
-        "timeStep",
-        "writeTime",
-        "outputTime",
-        "adjustableRunTime",
-        "runTime",
-        "clockTime",
-        "cpuTime",
-        "none"
-    };
-}
 
-const NamedEnum<timeControl::timeControls, 8>
-    timeControl::timeControlNames_;
+
+ namespace Foam{
+const Enum
+<
+    timeControl::timeControls
+>
+timeControl::controlNames_
+({
+    { timeControl::ocNone, "none" },
+    { timeControl::ocAlways, "always" },
+    { timeControl::ocTimeStep, "timeStep" },
+    { timeControl::ocWriteTime, "writeTime" },
+    { timeControl::ocWriteTime, "outputTime" },
+    { timeControl::ocRunTime, "runTime" },
+    { timeControl::ocAdjustableRunTime, "adjustable" },
+    { timeControl::ocAdjustableRunTime, "adjustableRunTime" },
+    { timeControl::ocClockTime, "clockTime" },
+    { timeControl::ocCpuTime, "cpuTime" },
+    { timeControl::ocOnEnd, "onEnd" },
+});
 
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
 timeControl::timeControl
 (
-    const Time& t,
+    const Time& runTime,
+    const word& prefix
+)
+:
+    time_(runTime),
+    prefix_(prefix),
+    timeControl_(ocAlways),
+    intInterval_(0),
+    interval_(0),
+    executionIndex_(0)
+{}
+
+
+timeControl::timeControl
+(
+    const Time& runTime,
     const dictionary& dict,
     const word& prefix
-) :    time_(t),
-    prefix_(prefix),
-    timeControl_(ocTimeStep),
-    intervalSteps_(0),
-    interval_(-1),
-    executionIndex_(0)
+)
+:
+    timeControl(runTime, prefix)
 {
     read(dict);
 }
 
 
-// * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
+// * * * * * * * * * * * * * Static Member Functions * * * * * * * * * * * * //
 
-timeControl::~timeControl()
-{}
+bool timeControl::entriesPresent
+(
+    const dictionary& dict,
+    const word& prefix
+)
+{
+    const word controlName(prefix + "Control");
+
+    return dict.found(controlName);
+}
 
 
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
 
+void timeControl::clear()
+{
+    timeControl_ = ocAlways;
+    intInterval_ = 0;
+    interval_ = 0;
+    executionIndex_ = 0;
+}
+
+
 void timeControl::read(const dictionary& dict)
 {
+    // Default is timeStep
+    timeControl_ = ocTimeStep;
+    intInterval_ = 0;
+    interval_ = 0;
+
     word controlName(prefix_ + "Control");
     word intervalName(prefix_ + "Interval");
 
-    // For backward compatibility support the deprecated 'outputControl' option
-    // now superseded by 'writeControl' for compatibility with Time
-    if (prefix_ == "write" && dict.found("outputControl"))
+    if (prefix_ == "write")
     {
-        IOWarningInFunction(dict)
-            << "Using deprecated 'outputControl'" << nl
-            << "    Please use 'writeControl' with 'writeInterval'"
-            << endl;
+        // TBD: Could have   timeControl_ = ocWriteTime;
 
-        // Change to the old names for this option
-        controlName = "outputControl";
-        intervalName = "outputInterval";
+        if (dict.found("outputControl"))
+        {
+            // Accept deprecated 'outputControl' instead of 'writeControl'
+
+            // Change to the old names for this option
+            controlName = "outputControl";
+            intervalName = "outputInterval";
+
+            IOWarningInFunction(dict)
+                << "Found deprecated 'outputControl'" << nl
+                << "    Use 'writeControl' with 'writeInterval'"
+                << endl;
+            error::warnAboutAge("keyword", 1606);
+        }
     }
 
-    if (dict.found(controlName))
-    {
-        timeControl_ = timeControlNames_.read(dict.lookup(controlName));
-    }
-    else
-    {
-        timeControl_ = ocTimeStep;
-    }
+
+    timeControl_ = controlNames_.getOrDefault(controlName, dict, timeControl_);
 
     switch (timeControl_)
     {
         case ocTimeStep:
-        {
-            intervalSteps_ = dict.lookupOrDefault<label>(intervalName, 0);
-            break;
-        }
-
         case ocWriteTime:
-        case ocOutputTime:
         {
-            intervalSteps_ = dict.lookupOrDefault<label>(intervalName, 1);
+            intInterval_ = dict.getOrDefault<label>(intervalName, 0);
+            interval_ = intInterval_;  // Mirrored as scalar (for output)
             break;
         }
 
@@ -123,7 +156,8 @@ void timeControl::read(const dictionary& dict)
         case ocCpuTime:
         case ocAdjustableRunTime:
         {
-            interval_ = readScalar(dict.lookup(intervalName));
+            const scalar userTime = dict.get<scalar>(intervalName);
+            interval_ = time_.userTimeToTime(userTime);
             break;
         }
 
@@ -139,23 +173,38 @@ bool timeControl::execute()
 {
     switch (timeControl_)
     {
+        case ocNone:
+        {
+            return false;
+            break;
+        }
+
+        case ocAlways:
+        {
+            return true;
+            break;
+        }
+
         case ocTimeStep:
         {
             return
             (
-                (intervalSteps_ <= 1)
-             || !(time_.timeIndex() % intervalSteps_)
+                (intInterval_ <= 1)
+             || !(time_.timeIndex() % intInterval_)
             );
             break;
         }
 
         case ocWriteTime:
-        case ocOutputTime:
         {
             if (time_.writeTime())
             {
-                executionIndex_++;
-                return !(executionIndex_ % intervalSteps_);
+                ++executionIndex_;
+                return
+                (
+                    (intInterval_ <= 1)
+                 || !(executionIndex_ % intInterval_)
+                );
             }
             break;
         }
@@ -199,7 +248,7 @@ bool timeControl::execute()
         {
             label executionIndex = label
             (
-                returnReduce(label(time_.elapsedClockTime()), maxOp<label>())
+                returnReduce(time_.elapsedClockTime(), maxOp<double>())
                /interval_
             );
             if (executionIndex > executionIndex_)
@@ -210,16 +259,18 @@ bool timeControl::execute()
             break;
         }
 
-        case ocNone:
+        case ocOnEnd:
         {
-            return false;
+            scalar endTime = time_.endTime().value() - 0.5*time_.deltaTValue();
+            return time_.value() > endTime;
+            break;
         }
 
         default:
         {
             FatalErrorInFunction
-                << "Undefined output control: "
-                << timeControlNames_[timeControl_] << nl
+                << "Undefined time control: "
+                << controlNames_[timeControl_] << nl
                 << abort(FatalError);
             break;
         }
@@ -230,3 +281,5 @@ bool timeControl::execute()
 
 
 // ************************************************************************* //
+
+ } // End namespace Foam

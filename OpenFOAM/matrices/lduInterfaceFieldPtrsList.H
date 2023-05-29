@@ -1,9 +1,11 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -21,26 +23,46 @@ License
     You should have received a copy of the GNU General Public License
     along with OpenFOAM.  If not, see <http://www.gnu.org/licenses/>.
 
-Typedef
-    Foam::lduInterfaceFieldPtrsList
+Type
+    lduInterfaceFieldPtrsList
 
 Description
     List of coupled interface fields to be used in coupling.
 
 \*---------------------------------------------------------------------------*/
 
-#ifndef lduInterfaceFieldPtrsList_H
-#define lduInterfaceFieldPtrsList_H
+#ifndef LduInterfaceFieldPtrsList_H
+#define LduInterfaceFieldPtrsList_H
 
-#include "lduInterfaceField.H"
-#include "UPtrList.T.H"
+#include "LduInterfaceField.H"
+#include "UPtrList.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 namespace Foam
 {
-    typedef UPtrList<const lduInterfaceField> lduInterfaceFieldPtrsList;
-}
+
+/*---------------------------------------------------------------------------*\
+                   Class LduInterfaceFieldPtrsList Declaration
+\*---------------------------------------------------------------------------*/
+
+template<class Type>
+class LduInterfaceFieldPtrsList
+:
+    public UPtrList<const LduInterfaceField<Type>>
+{
+public:
+
+    LduInterfaceFieldPtrsList(label size)
+    :
+        UPtrList<const LduInterfaceField<Type>>(size)
+    {}
+};
+
+
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+} // End namespace Foam
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 

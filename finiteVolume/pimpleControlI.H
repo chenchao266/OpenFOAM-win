@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -51,7 +54,9 @@ inline bool Foam::pimpleControl::SIMPLErho() const
 
 inline bool Foam::pimpleControl::correct()
 {
-    corrPISO_++;
+    setFirstIterFlag();
+
+    ++corrPISO_;
 
     if (debug)
     {
@@ -62,11 +67,12 @@ inline bool Foam::pimpleControl::correct()
     {
         return true;
     }
-    else
-    {
-        corrPISO_ = 0;
-        return false;
-    }
+
+    corrPISO_ = 0;
+
+    setFirstIterFlag();
+
+    return false;
 }
 
 
@@ -91,9 +97,18 @@ inline bool Foam::pimpleControl::finalIter() const
 
 inline bool Foam::pimpleControl::finalInnerIter() const
 {
-    return
-       corrPISO_ == nCorrPISO_
-    && corrNonOrtho_ == nNonOrthCorr_ + 1;
+    bool finalInnerIter =
+        corrPISO_ == nCorrPISO_
+     && corrNonOrtho_ == nNonOrthCorr_ + 1;
+
+    if (finalOnLastPimpleIterOnly_)
+    {
+        return finalInnerIter && finalIter();
+    }
+    else
+    {
+        return finalInnerIter;
+    }
 }
 
 
@@ -103,9 +118,34 @@ inline bool Foam::pimpleControl::solveFlow() const
 }
 
 
-inline bool Foam::pimpleControl::turbCorr() const
+inline bool Foam::pimpleControl::turbCorr()
 {
+    if (turbOnFinalIterOnly_)
+    {
+        if (finalIter())
+        {
+            setFirstIterFlag(true, true);
+        }
+    }
+    else
+    {
+        if (firstIter())
+        {
+            setFirstIterFlag(true, true);
+        }
+        else
+        {
+            setFirstIterFlag();
+        }
+    }
+
     return !turbOnFinalIterOnly_ || finalIter();
+}
+
+
+inline bool Foam::pimpleControl::ddtCorr() const
+{
+    return ddtCorr_;
 }
 
 

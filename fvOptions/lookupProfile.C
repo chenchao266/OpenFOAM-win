@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2015 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2015 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -25,7 +28,7 @@ License
 
 #include "lookupProfile.H"
 #include "addToRunTimeSelectionTable.H"
-#include "vector.H"
+#include "vector2.H"
 #include "unitConversion.H"
 #include "IFstream.H"
 
@@ -50,7 +53,7 @@ void Foam::lookupProfile::interpolateWeights
 ) const
 {
     i2 = 0;
-    label nElem = values.size();
+    const label nElem = values.size();
 
     if (nElem == 1)
     {
@@ -108,10 +111,10 @@ Foam::lookupProfile::lookupProfile
     }
     else
     {
-        dict.lookup("data") >> data;
+        dict.readEntry("data", data);
     }
 
-    if (data.size() > 0)
+    if (data.size())
     {
         AOA_.setSize(data.size());
         Cd_.setSize(data.size());
@@ -126,8 +129,9 @@ Foam::lookupProfile::lookupProfile
     }
     else
     {
-        FatalErrorInFunction
-            << "No profile data specified" << exit(FatalError);
+        FatalIOErrorInFunction(dict)
+            << "No profile data specified"
+            << exit(FatalIOError);
     }
 }
 

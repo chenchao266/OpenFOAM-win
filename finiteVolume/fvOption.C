@@ -2,8 +2,13 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2019-2021 OpenCFD Ltd.
+    Copyright (C) 2020 PCOpt/NTUA
+    Copyright (C) 2020 FOSS GP
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -38,6 +43,15 @@ namespace Foam
 }
 
 
+// * * * * * * * * * * * * Protected Member Functions  * * * * * * * * * * * //
+
+void Foam::fv::option::resetApplied()
+{
+    applied_.resize(fieldNames_.size());
+    applied_ = false;
+}
+
+
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
 Foam::fv::option::option
@@ -53,11 +67,12 @@ Foam::fv::option::option
     mesh_(mesh),
     dict_(dict),
     coeffs_(dict.optionalSubDict(modelType + "Coeffs")),
-    active_(dict_.lookupOrDefault<Switch>("active", true)),
     fieldNames_(),
-    applied_()
+    applied_(),
+    active_(dict_.getOrDefault("active", true)),
+    log(true)
 {
-    Info<< incrIndent << indent << "Source: " << name_ << endl << decrIndent;
+    Log << incrIndent << indent << "Source: " << name_ << endl << decrIndent;
 }
 
 
@@ -70,36 +85,33 @@ Foam::autoPtr<Foam::fv::option> Foam::fv::option::New
     const fvMesh& mesh
 )
 {
-    word modelType(coeffs.lookup("type"));
+    const word modelType(coeffs.get<word>("type"));
 
     Info<< indent
-        << "Selecting finite volume options model type " << modelType << endl;
+        << "Selecting finite volume options type " << modelType << endl;
 
-    const_cast<Time&>(mesh.time()).libs().open
+    mesh.time().libs().open
     (
         coeffs,
         "libs",
         dictionaryConstructorTablePtr_
     );
 
-    dictionaryConstructorTable::iterator cstrIter =
-        dictionaryConstructorTablePtr_->find(modelType);
+    auto* ctorPtr = dictionaryConstructorTable(modelType);
 
-    if (cstrIter == dictionaryConstructorTablePtr_->end())
+    if (!ctorPtr)
     {
-        FatalErrorInFunction
-            << "Unknown Model type " << modelType << nl << nl
-            << "Valid model types are:" << nl
-            << dictionaryConstructorTablePtr_->sortedToc()
-            << exit(FatalError);
+        FatalIOErrorInLookup
+        (
+            coeffs,
+            "fvOption",
+            modelType,
+            *dictionaryConstructorTablePtr_
+        ) << exit(FatalIOError);
     }
 
-    return autoPtr<option>(cstrIter()(name, modelType, coeffs, mesh));
+    return autoPtr<fv::option>(ctorPtr(name, modelType, coeffs, mesh));
 }
-
-
-Foam::fv::option::~option()
-{}
 
 
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
@@ -112,7 +124,7 @@ bool Foam::fv::option::isActive()
 
 Foam::label Foam::fv::option::applyToField(const word& fieldName) const
 {
-    return findIndex(fieldNames_, fieldName);
+    return fieldNames_.find(fieldName);
 }
 
 
@@ -320,6 +332,33 @@ void Foam::fv::option::correct(volSymmTensorField& field)
 
 
 void Foam::fv::option::correct(volTensorField& field)
+{}
+
+
+void Foam::fv::option::postProcessSens
+(
+    scalarField& sensField,
+    const word& fieldName,
+    const word& designVariablesName
+)
+{}
+
+
+void Foam::fv::option::postProcessSens
+(
+    vectorField& sensField,
+    const word& fieldName,
+    const word& designVariablesName
+)
+{}
+
+
+void Foam::fv::option::postProcessSens
+(
+    tensorField& sensField,
+    const word& fieldName,
+    const word& designVariablesName
+)
 {}
 
 

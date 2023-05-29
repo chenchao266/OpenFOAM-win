@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2015 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2015 OpenFOAM Foundation
+    Copyright (C) 2019 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -53,13 +56,13 @@ template<class Type> class indexedOctree;
 
 class treeDataEdge
 {
-    // Static data
+    // Static Data
 
         //- Tolerance on linear dimensions
         static scalar tol;
 
 
-    // Private data
+    // Private Data
 
         //- Reference to edgeList
         const edgeList& edges_;
@@ -143,7 +146,8 @@ public:
 
     // Constructors
 
-        //- Construct from selected edges. !Holds references to edges and points
+        //- Construct from selected edges.
+        //  \note Holds references to edges and points!
         treeDataEdge
         (
             const bool cacheBb,
@@ -153,13 +157,13 @@ public:
         );
 
         //- Construct from selected edges, transferring contents.
-        // !Holds references to edges and points
+        //  \note Holds references to edges and points!
         treeDataEdge
         (
             const bool cacheBb,
             const edgeList& edges,
             const pointField& points,
-            const Xfer<labelList>& edgeLabels
+            labelList&& edgeLabels
         );
 
 
@@ -187,8 +191,8 @@ public:
                 return edgeLabels_.size();
             }
 
-            //- Get representative point cloud for all shapes inside
-            //  (one point per shape)
+            //- Representative point cloud for all shapes inside
+            //- (one point per shape)
             pointField shapePoints() const;
 
 

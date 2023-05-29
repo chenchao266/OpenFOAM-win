@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017, 2019 OpenFOAM Foundation
+    Copyright (C) 2019-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -28,23 +31,33 @@ Group
     grpWallFunctions
 
 Description
-    This boundary condition provides a suitable condition for turbulence
-    \c k, \c q, and \c R fields for the case of high Reynolds number flow using
-    wall functions.
-
-    It is a simple wrapper around the zero-gradient condition.
+    This boundary condition provides a simple wrapper around the zero-gradient
+    condition, which can be used for the turbulent kinetic energy, i.e. \c k,
+    square-root of turbulent kinetic energy, i.e. \c q, and Reynolds stress
+    tensor fields, i.e. \c R, for the cases of high Reynolds number flow
+    using wall functions.
 
 Usage
     Example of the boundary condition specification:
     \verbatim
     <patchName>
     {
+        // Mandatory entries (unmodifiable)
         type            kqRWallFunction;
+
+        // Optional (inherited) entries
+        ...
     }
     \endverbatim
 
-See also
-    Foam::zeroGradientFvPatchField
+    where the entries mean:
+    \table
+      Property  | Description                   | Type | Req'd  | Dflt
+      type      | Type name: kqRWallFunction    | word | yes    | -
+    \endtable
+
+    The inherited entries are elaborated in:
+      - \link zeroGradientFvPatchField.H \endlink
 
 SourceFiles
     kqRWallFunctionFvPatchField.C
@@ -70,13 +83,6 @@ class kqRWallFunctionFvPatchField
 :
     public zeroGradientFvPatchField<Type>
 {
-
-    // Private Member Functions
-
-        //- Check the type of the patch
-        void checkType();
-
-
 public:
 
     //- Runtime type information
@@ -101,8 +107,8 @@ public:
         );
 
         //- Construct by mapping given
-        // kqRWallFunctionFvPatchField
-        //  onto a new patch
+        //- kqRWallFunctionFvPatchField
+        //- onto a new patch
         kqRWallFunctionFvPatchField
         (
             const kqRWallFunctionFvPatchField&,
@@ -146,7 +152,7 @@ public:
         }
 
 
-    // Member functions
+    // Member Functions
 
         //- Evaluate the patchField
         virtual void evaluate

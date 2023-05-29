@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -26,7 +28,7 @@ License
 #include "relaxation.H"
 #include "addToRunTimeSelectionTable.H"
 #include "fvm.H"
-#include "LESModel.T.H"
+#include "LESModel.H"
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
 
@@ -57,11 +59,8 @@ Foam::reactionRateFlameAreaModels::relaxation::relaxation
 :
     reactionRateFlameArea(modelType, dict, mesh, combModel),
     correlation_(dict.optionalSubDict(typeName + "Coeffs").subDict(fuel_)),
-    C_(readScalar(dict.optionalSubDict(typeName + "Coeffs").lookup("C"))),
-    alpha_
-    (
-        readScalar(dict.optionalSubDict(typeName + "Coeffs").lookup("alpha"))
-    )
+    C_(dict.optionalSubDict(typeName + "Coeffs").get<scalar>("C")),
+    alpha_(dict.optionalSubDict(typeName + "Coeffs").get<scalar>("alpha"))
 {}
 
 
@@ -116,8 +115,6 @@ void Foam::reactionRateFlameAreaModels::relaxation::correct
 
     const volScalarField omegaInf(correlation_.omega0Sigma(sigmaTotal));
 
-    dimensionedScalar sigma0("sigma0", sigma.dimensions(), 0.0);
-
     const volScalarField tau(C_*mag(sigmaTotal));
 
     volScalarField Rc
@@ -152,18 +149,16 @@ bool  Foam::reactionRateFlameAreaModels::relaxation::read
     if (reactionRateFlameArea::read(dict))
     {
         coeffDict_ = dict.optionalSubDict(typeName + "Coeffs");
-        coeffDict_.lookup("C") >> C_;
-        coeffDict_.lookup("alpha") >> alpha_;
+        coeffDict_.readEntry("C", C_);
+        coeffDict_.readEntry("alpha", alpha_);
         correlation_.read
         (
             coeffDict_.subDict(fuel_)
         );
         return true;
     }
-    else
-    {
-        return false;
-    }
+
+    return false;
 }
 
 // ************************************************************************* //

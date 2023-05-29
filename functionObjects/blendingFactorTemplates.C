@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2013-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2013-2016 OpenFOAM Foundation
+    Copyright (C) 2016 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -24,17 +27,67 @@ License
 \*---------------------------------------------------------------------------*/
 
 #include "gaussConvectionScheme.H"
+#include "boundedConvectionScheme.H"
 #include "blendedSchemeBase.H"
 #include "fvcCellReduce.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 template<class Type>
-bool Foam::functionObjects::blendingFactor::calcBF()
+void Foam::functionObjects::blendingFactor::calcBlendingFactor
+(
+    const GeometricField<Type, fvPatchField, volMesh>& field,
+    const typename fv::convectionScheme<Type>& cs
+)
 {
-    typedef volFieldType<Type> FieldType;
+    if (!isA<fv::gaussConvectionScheme<Type>>(cs))
+    {
+        WarningInFunction
+            << "Scheme for field " << field.name() << " is not a "
+            << fv::gaussConvectionScheme<Type>::typeName
+            << " scheme. Not calculating " << resultName_ << endl;
 
-    if (!foundObject<FieldType>(fieldName_))
+        return;
+    }
+
+    const fv::gaussConvectionScheme<Type>& gcs =
+        refCast<const fv::gaussConvectionScheme<Type>>(cs);
+
+
+    const surfaceInterpolationScheme<Type>& interpScheme = gcs.interpScheme();
+
+    if (!isA<blendedSchemeBase<Type>>(interpScheme))
+    {
+        WarningInFunction
+            << interpScheme.type() << " is not a blended scheme"
+            << ". Not calculating " << resultName_ << endl;
+
+        return;
+    }
+
+    // Retrieve the face-based blending factor
+    const blendedSchemeBase<Type>& blendedScheme =
+        refCast<const blendedSchemeBase<Type>>(interpScheme);
+    const surfaceScalarField factorf(blendedScheme.blendingFactor(field));
+
+    // Convert into vol field whose values represent the local face minima
+    // Note:
+    // - factor applied to 1st scheme, and (1-factor) to 2nd scheme
+    // - not using the store(...) mechanism due to need to correct BCs
+    volScalarField& indicator =
+        lookupObjectRef<volScalarField>(resultName_);
+
+    indicator = 1 - fvc::cellReduce(factorf, minEqOp<scalar>(), GREAT);
+    indicator.correctBoundaryConditions();
+}
+
+
+template<class Type>
+bool Foam::functionObjects::blendingFactor::calcScheme()
+{
+    typedef GeometricField<Type, fvPatchField, volMesh> FieldType;
+
+    if (!foundObject<FieldType>(fieldName_, false))
     {
         return false;
     }
@@ -46,33 +99,25 @@ bool Foam::functionObjects::blendingFactor::calcBF()
 
     const surfaceScalarField& phi = lookupObject<surfaceScalarField>(phiName_);
 
-    tmp<fv::convectionScheme<Type>> cs =
+    tmp<fv::convectionScheme<Type>> tcs =
         fv::convectionScheme<Type>::New(mesh_, phi, its);
 
-    const fv::gaussConvectionScheme<Type>& gcs =
-        refCast<const fv::gaussConvectionScheme<Type>>(cs());
-
-    const surfaceInterpolationScheme<Type>& interpScheme =
-        gcs.interpScheme();
-
-    if (!isA<blendedSchemeBase<Type>>(interpScheme))
+    if (isA<fv::boundedConvectionScheme<Type>>(tcs()))
     {
-        FatalErrorInFunction
-            << interpScheme.typeName << " is not a blended scheme"
-            << exit(FatalError);
+        const fv::boundedConvectionScheme<Type>& bcs =
+            refCast<const fv::boundedConvectionScheme<Type>>(tcs());
+
+        calcBlendingFactor(field, bcs.scheme());
+    }
+    else
+    {
+        const fv::gaussConvectionScheme<Type>& gcs =
+            refCast<const fv::gaussConvectionScheme<Type>>(tcs());
+
+        calcBlendingFactor(field, gcs);
     }
 
-    // Retrieve the face-based blending factor
-    const blendedSchemeBase<Type>& blendedScheme =
-        refCast<const blendedSchemeBase<Type>>(interpScheme);
-    tmp<surfaceScalarField> factorf(blendedScheme.blendingFactor(field));
-
-    // Convert into vol field whose values represent the local face maxima
-    return store
-    (
-        resultName_,
-        fvc::cellReduce(factorf, maxEqOp<scalar>())
-    );
+    return true;
 }
 
 

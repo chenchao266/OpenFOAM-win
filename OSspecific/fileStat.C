@@ -2,15 +2,14 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
 -------------------------------------------------------------------------------
+    Copyright (C) 2011-2015 OpenFOAM Foundation
+    Copyright (C) 2016-2019 OpenCFD Ltd.
+-------------------------------------------------------------------------------
 License
-    This file is part of blueCAPE's unofficial mingw patches for OpenFOAM.
-    For more information about these patches, visit:
-         http://bluecfd.com/Core
-
-    This file is a derivative work of OpenFOAM.
+    This file is part of OpenFOAM.
 
     OpenFOAM is free software: you can redistribute it and/or modify it
     under the terms of the GNU General Public License as published by
@@ -25,65 +24,48 @@ License
     You should have received a copy of the GNU General Public License
     along with OpenFOAM.  If not, see <http://www.gnu.org/licenses/>.
 
-Modifications
-    This file is based on the original version for POSIX:
-        OpenFOAM/src/OSspecific/POSIX/
-
-    This file was developed for Windows by:
-        Copyright            : (C) 2011 Symscape
-        Website              : www.symscape.com
-
-    This copy of this file has been created by blueCAPE's unofficial mingw
-    patches for OpenFOAM.
-    For more information about these patches, visit:
-        http://bluecfd.com/Core
-
-    Modifications made:
-      - Derived from the patches for blueCFD 2.1 and 2.2.
-
-Description
-    Wrapper for stat() system call.
-
 \*---------------------------------------------------------------------------*/
 
 #include "fileStat.H"
 #include "IOstreams.H"
 #include "timer.H"
 
+#include "List.H"
+#include "FixedList.H"
+#include "token.H"
 #include <unistd.h>
-
-
 
 #undef major
 #undef minor
 #undef makedev
 
-# define major(dev) (int(((dev) >> 8) & 0xff))
-# define minor(dev) (int((dev) & 0xff))
-# define makedev(major, minor) ((((unsigned int)(major)) << 8) \
-                                | ((unsigned int)(minor)))
+#define major(dev)  int(((dev) >> 8) & 0xff)
+#define minor(dev)  int((dev) & 0xff)
+#define makedev(majNum, minNum) (((unsigned(majNum)) << 8) | (unsigned(minNum)))
 
-
-// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
-
-namespace Foam
-{
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
-fileStat::fileStat()
+Foam::fileStat::fileStat()
 :
-    isValid_(false)
+    valid_(false)
 {}
 
 
-fileStat::fileStat
+Foam::fileStat::fileStat
 (
-    const fileName& fName,
+    const char* fName,
     const bool followLink,
     const unsigned int maxTime
 )
+:
+    valid_(false)
 {
+    if (!fName || !fName[0])
+    {
+        return;
+    }
+
     // Work on volatile
     volatile bool locIsValid = false;
 
@@ -91,28 +73,37 @@ fileStat::fileStat
 
     if (!timedOut(myTimer))
     {
-        if (::stat(fName.c_str(), &status_) != 0)
+        #ifdef _WIN32
+        locIsValid = (::stat(fName, &status_) == 0);
+        #else
+        if (followLink)
         {
-            locIsValid = false;
+            locIsValid = (::stat(fName, &status_) == 0);
         }
         else
         {
-            // FIXME: Need to populate the 'st_atim' branch in 'stat_extended'
-            // Task assigned to this: https://github.com/blueCFD/Core/issues/65
-
-            status_.st_atim.tv_sec = 0;
-            status_.st_atim.tv_nsec = 0;
-
-            locIsValid = true;
+            locIsValid = (::lstat(fName, &status_) == 0);
         }
+        #endif
     }
 
     // Copy into (non-volatile, possible register based) member var
-    isValid_ = locIsValid;
+    valid_ = locIsValid;
 }
 
 
-fileStat::fileStat(Istream& is)
+Foam::fileStat::fileStat
+(
+    const fileName& fName,
+    const bool followLink,
+    const unsigned int maxTime
+)
+:
+    fileStat(fName.c_str(), followLink, maxTime)
+{}
+
+
+Foam::fileStat::fileStat(Istream& is)
 {
     is >> *this;
 }
@@ -120,109 +111,108 @@ fileStat::fileStat(Istream& is)
 
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
 
-bool fileStat::sameDevice(const fileStat& stat2) const
+Foam::label Foam::fileStat::size() const
+{
+    return valid_ ? label(status_.st_size) : 0;
+}
+
+
+time_t Foam::fileStat::modTime() const
+{
+    return valid_ ? status_.st_mtime : 0;
+}
+
+
+double Foam::fileStat::dmodTime() const
 {
     return
-        isValid_
+    (
+        valid_
+      ?
+        #ifdef __APPLE__
+        (status_.st_mtime + 1e-9*status_.st_mtimespec.tv_nsec)
+        #elif defined (_WIN32)
+        (status_.st_mtime)
+        #else
+        (status_.st_mtime + 1e-9*status_.st_mtim.tv_nsec)
+        #endif
+      : 0
+    );
+}
+
+
+bool Foam::fileStat::sameDevice(const fileStat& other) const
+{
+    return
+        valid_
      && (
-            major(status_.st_dev) == major(stat2.status().st_dev)
-         && minor(status_.st_dev) == minor(stat2.status().st_dev)
+            major(status_.st_dev) == major(other.status_.st_dev)
+         && minor(status_.st_dev) == minor(other.status_.st_dev)
         );
 }
 
-bool fileStat::sameINode(const fileStat& stat2) const
+
+bool Foam::fileStat::sameINode(const fileStat& other) const
 {
-    return isValid_ && (status_.st_ino == stat2.status().st_ino);
+    return valid_ && (status_.st_ino == other.status_.st_ino);
 }
 
-bool fileStat::sameINode(const label iNode) const
+
+bool Foam::fileStat::sameINode(const label iNode) const
 {
-    return isValid_ && (status_.st_ino == ino_t(iNode));
+    return valid_ && (status_.st_ino == ino_t(iNode));
 }
 
 
 // * * * * * * * * * * * * * * * Friend Operators  * * * * * * * * * * * * * //
 
-Istream& operator>>(Istream& is, fileStat& fStat)
+Foam::Istream& Foam::operator>>(Istream& is, fileStat& fs)
 {
-    // Read beginning of machine info list
-    is.readBegin("fileStat");
+    FixedList<label, 13> list(is);
 
-    label 
-        devMaj, devMin,
-        ino, mode, uid, gid,
-        rdevMaj, rdevMin,
-        size, atime, mtime, ctime;
+    fs.valid_ = list[0];
 
-    is  >> fStat.isValid_
-        >> devMaj
-        >> devMin
-        >> ino
-        >> mode
-        >> uid
-        >> gid
-        >> rdevMaj
-        >> rdevMin
-        >> size
-        >> atime
-        >> mtime
-        >> ctime;
+    dev_t st_dev = makedev(list[1], list[2]);
+    fs.status_.st_dev = st_dev;
 
-    dev_t st_dev = makedev(devMaj, devMin);
-    fStat.status_.st_dev = st_dev;
+    fs.status_.st_ino = list[3];
+    fs.status_.st_mode = list[4];
+    fs.status_.st_uid = list[5];
+    fs.status_.st_gid = list[6];
 
-    fStat.status_.st_ino = ino;
-    fStat.status_.st_mode = mode;
-    fStat.status_.st_uid = uid;
-    fStat.status_.st_gid = gid;
+    dev_t st_rdev = makedev(list[7], list[8]);
+    fs.status_.st_rdev = st_rdev;
 
-    dev_t st_rdev = makedev(rdevMaj, rdevMin);
-    fStat.status_.st_rdev = st_rdev;
+    fs.status_.st_size = list[9];
+    fs.status_.st_atime = list[10];
+    fs.status_.st_mtime = list[11];
+    fs.status_.st_ctime = list[12];
 
-    fStat.status_.st_size = size;
-    fStat.status_.st_atime = atime;
-    fStat.status_.st_mtime = mtime;
-    fStat.status_.st_ctime = ctime;
-
-    // Read end of machine info list
-    is.readEnd("fileStat");
-
-    // Check state of Istream
-    is.check("Istream& operator>>(Istream&, fileStat&)");
-
+    is.check(FUNCTION_NAME);
     return is;
 }
 
 
-Ostream& operator<<(Ostream& os, const fileStat& fStat)
+Foam::Ostream& Foam::operator<<(Ostream& os, const fileStat& fs)
 {
-    //Set precision so 32bit unsigned int can be printed
-//    int oldPrecision = os.precision();
-    int oldPrecision = 0;
-    os.precision(10);
+    FixedList<label, 13> list;
 
-    os  << token::BEGIN_LIST << fStat.isValid_
-        << token::SPACE << label(major(fStat.status_.st_dev))
-        << token::SPACE << label(minor(fStat.status_.st_dev))
-        << token::SPACE << label(fStat.status_.st_ino)
-        << token::SPACE << label(fStat.status_.st_mode)
-        << token::SPACE << label(fStat.status_.st_uid)
-        << token::SPACE << label(fStat.status_.st_gid)
-        << token::SPACE << label(major(fStat.status_.st_rdev))
-        << token::SPACE << label(minor(fStat.status_.st_rdev))
-        << token::SPACE << label(fStat.status_.st_size)
-        << token::SPACE << label(fStat.status_.st_atime)
-        << token::SPACE << label(fStat.status_.st_mtime)
-        << token::SPACE << label(fStat.status_.st_ctime)
-        << token::END_LIST;
+    list[0] = label(fs.valid_);
+    list[1] = label(major(fs.status_.st_dev));
+    list[2] = label(minor(fs.status_.st_dev));
+    list[3] = label(fs.status_.st_ino);
+    list[4] = label(fs.status_.st_mode);
+    list[5] = label(fs.status_.st_uid);
+    list[6] = label(fs.status_.st_gid);
+    list[7] = label(major(fs.status_.st_rdev));
+    list[8] = label(minor(fs.status_.st_rdev));
+    list[9] = label(fs.status_.st_size);
+    list[10] = label(fs.status_.st_atime);
+    list[11] = label(fs.status_.st_mtime);
+    list[12] = label(fs.status_.st_ctime);
 
-    os.precision(oldPrecision);
-    return os;
+    return os << list;
 }
 
-
-// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
-
-} // End namespace Foam
 
 // ************************************************************************* //

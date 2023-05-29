@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -23,6 +25,9 @@ License
 
 Class
     Foam::displacementSBRStressFvMotionSolver
+
+Group
+    grpMeshMotionSolvers
 
 Description
     Mesh motion solver for an fvMesh.  Based on solving the cell-centre
@@ -45,6 +50,7 @@ namespace Foam
 {
 
 // Forward class declarations
+class motionInterpolation;
 class motionDiffusivity;
 
 /*---------------------------------------------------------------------------*\
@@ -61,20 +67,23 @@ class displacementSBRStressFvMotionSolver
         //- Cell-centre motion field
         mutable volVectorField cellDisplacement_;
 
+        //- Interpolation used to transfer cell displacement to the points
+        autoPtr<motionInterpolation> interpolationPtr_;
+
         //- Diffusivity used to control the motion
         autoPtr<motionDiffusivity> diffusivityPtr_;
 
 
     // Private Member Functions
 
-        //- Disallow default bitwise copy construct
+        //- No copy construct
         displacementSBRStressFvMotionSolver
         (
             const displacementSBRStressFvMotionSolver&
-        );
+        ) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const displacementSBRStressFvMotionSolver&);
+        //- No copy assignment
+        void operator=(const displacementSBRStressFvMotionSolver&) = delete;
 
 
 public:
@@ -90,6 +99,15 @@ public:
         (
             const polyMesh&,
             const IOdictionary&
+        );
+
+        //- Construct from components
+        displacementSBRStressFvMotionSolver
+        (
+            const polyMesh& mesh,
+            const IOdictionary& dict,
+            const pointVectorField& pointDisplacement,
+            const pointIOField& points0
         );
 
 
@@ -114,7 +132,7 @@ public:
         //- Return diffusivity
         motionDiffusivity& diffusivity()
         {
-            return diffusivityPtr_();
+            return *diffusivityPtr_;
         }
 
         //- Return point location obtained from the current motion field

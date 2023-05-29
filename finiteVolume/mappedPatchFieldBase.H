@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2013-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2013-2016 OpenFOAM Foundation
+    Copyright (C) 2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -30,13 +33,22 @@ Description
     area-weighted average.
 
     Example usage:
-
+    \verbatim
     {
-        fieldName           T;          // default is same as fvPatchField
+        field               T;          // default is same as fvPatchField
         setAverage          false;
         average             1.0;        // only if setAverage=true
         interpolationScheme cellPoint;  // default is cell
     }
+    \endverbatim
+
+    \table
+        Property     | Description                      | Required | Default
+        field        | name of field to be mapped       | no  | this field name
+        setAverage   | use average value                | no  | false |
+        average      | average value to apply if \c setAverage = yes | partly |
+        interpolationScheme | interpolation scheme      | partly | cell |
+    \endtable
 
 SourceFiles
     mappedPatchFieldBase.C
@@ -54,20 +66,27 @@ SourceFiles
 namespace Foam
 {
 
-class mappedPatchBase;
+// Forward Declarations
 template<class> class interpolation;
+class mapDistribute;
+class mappedPatchBase;
 
 /*---------------------------------------------------------------------------*\
-                  Class mappedPatchFieldBase Declaration
+                    Class mappedPatchFieldBase Declaration
 \*---------------------------------------------------------------------------*/
 
 template<class Type>
 class mappedPatchFieldBase
 {
+    // Private Member Functions
+
+        //- Selective retrieval of "average" entry from the dictionary
+        static Type getAverage(const dictionary& dict, bool mandatory);
+
 
 protected:
 
-    // Protected data
+    // Protected Data
 
         //- Mapping engine
         const mappedPatchBase& mapper_;
@@ -82,11 +101,80 @@ protected:
         const bool setAverage_;
 
         //- Average value the mapped field is adjusted to maintain if
-        //  setAverage_ is set true
+        //- setAverage_ is set true
         const Type average_;
 
         //- Interpolation scheme to use for nearestcell mode
         word interpolationScheme_;
+
+
+    // Protected Member Functions
+
+        //- Construct field from registered elements
+        template<class T>
+        void initRetrieveField
+        (
+            const objectRegistry& obr,
+            const word& region,
+            const word& patch,
+            const labelListList& map,
+            const word& fieldName,
+            const Field<T>& fld
+        ) const;
+
+        //- Helper : storeField and retrieveField and interpolate. Leaves fld
+        //  unchanged (and returns false) if new values cannot be retrieved.
+        //  Returns true otherwise.
+        template<class T>
+        bool storeAndRetrieveField
+        (
+            const word& fieldName,
+            const label myComm,
+            const labelListList& subMap,
+            const label constructSize,
+            const labelListList& constructMap,
+            const labelListList& address,
+            const scalarListList& weights,
+            Field<T>& fld
+        ) const;
+
+
+        //- Initialise field to retrieve (e.g. when value read from dictionary)
+        template<class T>
+        void initRetrieveField
+        (
+            const word& fieldName,
+            const Field<T>& fld
+        ) const;
+
+
+        //- Store elements of field onto (sub) registry
+        template<class T>
+        void storeField
+        (
+            const objectRegistry& obr,
+            const word& region,
+            const word& patch,
+            const label myComm,
+            const labelListList& procToMap,
+            const word& fieldName,
+            const Field<T>& fld
+        ) const;
+
+        //- Construct field from registered elements.
+        //  \return true if successful
+        template<class T>
+        bool retrieveField
+        (
+            const bool allowUnset,
+            const objectRegistry& obr,
+            const word& region,
+            const word& patch,
+            const label myComm,
+            const labelListList& procToMap,
+            const word& fieldName,
+            Field<T>& fld
+        ) const;
 
 
 public:
@@ -112,6 +200,16 @@ public:
             const dictionary& dict
         );
 
+        //- Construct from dictionary and initial field value
+        //  (for when running in database mode)
+        mappedPatchFieldBase
+        (
+            const mappedPatchBase& mapper,
+            const fvPatchField<Type>& patchField,
+            const dictionary& dict,
+            const Field<Type>& fld
+        );
+
         //- Construct empty
         mappedPatchFieldBase
         (
@@ -120,7 +218,7 @@ public:
         );
 
         //- Construct copy
-        mappedPatchFieldBase
+        explicit mappedPatchFieldBase
         (
             const mappedPatchFieldBase<Type>& mapper
         );
@@ -135,11 +233,17 @@ public:
 
 
     //- Destructor
-    virtual ~mappedPatchFieldBase<Type>()
-    {}
+    virtual ~mappedPatchFieldBase<Type>() = default;
 
 
-    // Member functions
+    // Member Functions
+
+        //- Field to sample. Either on my or nbr mesh
+        template<class T>
+        const GeometricField<T, fvPatchField, volMesh>& sampleField
+        (
+            const word& fieldName
+        ) const;
 
         //- Field to sample. Either on my or nbr mesh
         const GeometricField<Type, fvPatchField, volMesh>& sampleField() const;
@@ -147,8 +251,37 @@ public:
         //- Map sampleField onto *this patch
         virtual tmp<Field<Type>> mappedField() const;
 
+        //- Map internal of sampleField onto *this patch
+        virtual tmp<Field<Type>> mappedInternalField() const;
+
+        //- Map optional weightField onto *this patch. Default is deltaCoeffs
+        virtual tmp<scalarField> mappedWeightField() const;
+
+        //- Map optional weightField (given by name) onto *this patch
+        virtual void mappedWeightField
+        (
+            const word& weightFieldName,
+            tmp<scalarField>& thisWeights,
+            tmp<scalarField>& nbrWeights
+        ) const;
+
         //- Write
-        virtual void write(Ostream&) const;
+        virtual void write(Ostream& os) const;
+
+
+    // Helpers
+
+        //- Check that patch is of correct type
+        static const mappedPatchBase& mapper
+        (
+            const fvPatch& p,
+            const DimensionedField<Type, volMesh>& iF
+        );
+
+        //- Wrapper for mapDistribute::distribute that knows about
+        //- dabase mapping
+        template<class T>
+        void distribute(const word& fieldName, Field<T>& newValues) const;
 };
 
 

@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2017 OpenFOAM Foundation
+    Copyright (C) 2020-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -26,42 +29,56 @@ License
 #include "ramp.H"
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
-using namespace Foam;
+
+
+ namespace Foam{
 void Function1Types::ramp::read(const dictionary& coeffs)
 {
-    start_ = coeffs.lookupOrDefault<scalar>("start", 0);
-    duration_ = coeffs.lookupType<scalar>("duration");
+    start_ = coeffs.getOrDefault<scalar>("start", 0);
+    coeffs.readEntry("duration", duration_);
 }
 
 
 Function1Types::ramp::ramp
 (
     const word& entryName,
-    const dictionary& dict
-) :    Function1<scalar>(entryName)
+    const dictionary& dict,
+    const objectRegistry* obrPtr
+)
+:
+    Function1<scalar>(entryName, dict, obrPtr)
 {
     read(dict);
 }
 
 
-// * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
-
-Function1Types::ramp::~ramp()
-{}
-
-
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
+
+void Function1Types::ramp::writeEntries(Ostream& os) const
+{
+    os.writeEntry("start", start_);
+    os.writeEntry("duration", duration_);
+}
+
+
+void Function1Types::ramp::userTimeToTime(const Time& t)
+{
+    start_ = t.userTimeToTime(start_);
+    duration_ = t.userTimeToTime(duration_);
+}
+
 
 void Function1Types::ramp::writeData(Ostream& os) const
 {
     Function1<scalar>::writeData(os);
-    os  << token::END_STATEMENT << nl;
-    os  << indent << word(this->name() + "Coeffs") << nl;
-    os  << indent << token::BEGIN_BLOCK << incrIndent << nl;
-    os.writeKeyword("start") << start_ << token::END_STATEMENT << nl;
-    os.writeKeyword("duration") << duration_ << token::END_STATEMENT << nl;
-    os  << decrIndent << indent << token::END_BLOCK << endl;
+    os.endEntry();
+
+    os.beginBlock(word(this->name() + "Coeffs"));
+    writeEntries(os);
+    os.endBlock();
 }
 
 
 // ************************************************************************* //
+
+ } // End namespace Foam

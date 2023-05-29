@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2020      OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -24,8 +27,11 @@ License
 Class
     Foam::veryInhomogeneousMixture
 
+Group
+    grpReactionThermophysicalMixtures
+
 Description
-    Foam::veryInhomogeneousMixture
+    The very inhomogeneous mixture contains species ("ft", "fu", "b").
 
 SourceFiles
     veryInhomogeneousMixture.C
@@ -51,10 +57,7 @@ class veryInhomogeneousMixture
 :
     public basicCombustionMixture
 {
-    // Private data
-
-        static const int nSpecies_ = 3;
-        static const char* specieNames_[3];
+    // Private Data
 
         dimensionedScalar stoicRatio_;
 
@@ -73,8 +76,11 @@ class veryInhomogeneousMixture
         //- Regress variable
         volScalarField& b_;
 
-        //- Construct as copy (not implemented)
-        veryInhomogeneousMixture(const veryInhomogeneousMixture<ThermoType>&);
+        //- No copy construct
+        veryInhomogeneousMixture
+        (
+            const veryInhomogeneousMixture<ThermoType>&
+        ) = delete;
 
 
 public:
@@ -88,18 +94,23 @@ public:
         //- Construct from dictionary, mesh and phase name
         veryInhomogeneousMixture
         (
-            const dictionary&,
-            const fvMesh&,
-            const word&
+            const dictionary& thermoDict,
+            const fvMesh& mesh,
+            const word& phaseName
         );
 
 
     //- Destructor
-    virtual ~veryInhomogeneousMixture()
-    {}
+    virtual ~veryInhomogeneousMixture() = default;
 
 
     // Member functions
+
+        //- Return the instantiated type name
+        static word typeName()
+        {
+            return "veryInhomogeneousMixture<" + ThermoType::typeName() + '>';
+        }
 
         const dimensionedScalar& stoicRatio() const
         {
@@ -109,6 +120,16 @@ public:
         const ThermoType& mixture(const scalar, const scalar) const;
 
         const ThermoType& cellMixture(const label celli) const
+        {
+            return mixture(ft_[celli], fu_[celli]);
+        }
+
+        const ThermoType& cellVolMixture
+        (
+            const scalar p,
+            const scalar T,
+            const label celli
+        ) const
         {
             return mixture(ft_[celli], fu_[celli]);
         }
@@ -125,6 +146,22 @@ public:
                 fu_.boundaryField()[patchi][facei]
             );
         }
+
+        const ThermoType& patchFaceVolMixture
+        (
+            const scalar p,
+            const scalar T,
+            const label patchi,
+            const label facei
+        ) const
+        {
+            return mixture
+            (
+                ft_.boundaryField()[patchi][facei],
+                fu_.boundaryField()[patchi][facei]
+            );
+        }
+
 
         const ThermoType& cellReactants(const label celli) const
         {
@@ -172,7 +209,7 @@ public:
 
 } // End namespace Foam
 
-// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 #ifdef NoRepository
     #include "veryInhomogeneousMixture.C"

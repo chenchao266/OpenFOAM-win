@@ -2,15 +2,14 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
 -------------------------------------------------------------------------------
+    Copyright (C) 2011-2015 OpenFOAM Foundation
+    Copyright (C) 2018-2021 OpenCFD Ltd.
+-------------------------------------------------------------------------------
 License
-    This file is part of blueCAPE's unofficial mingw patches for OpenFOAM.
-    For more information about these patches, visit:
-         http://bluecfd.com/Core
-
-    This file is a derivative work of OpenFOAM.
+    This file is part of OpenFOAM.
 
     OpenFOAM is free software: you can redistribute it and/or modify it
     under the terms of the GNU General Public License as published by
@@ -25,59 +24,31 @@ License
     You should have received a copy of the GNU General Public License
     along with OpenFOAM.  If not, see <http://www.gnu.org/licenses/>.
 
-Modifications
-    This file is based on the original version for POSIX:
-        OpenFOAM/src/OSspecific/POSIX/
-
-    This file was developed for Windows by:
-        Copyright            : (C) 2011 Symscape
-        Website              : www.symscape.com
-
-    This copy of this file has been created by blueCAPE's unofficial mingw
-    patches for OpenFOAM.
-    For more information about these patches, visit:
-        http://bluecfd.com/Core
-
-    Modifications made:
-      - Derived from the patches for blueCFD 2.1 and 2.2.
-
-Class
-    sigSegv
-
 \*---------------------------------------------------------------------------*/
 
-#include "error.H"
 #include "sigSegv.H"
+#include "error.H"
 #include "JobInfo.H"
 #include "IOstreams.H"
 
+// File-local functions
+#include "signalMacros.C"
+
+
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
 
-__p_sig_fn_t Foam::sigSegv::oldAction_ = SIG_DFL;
+bool Foam::sigSegv::sigActive_ = false;
+
 
 // * * * * * * * * * * * * * Private Member Functions  * * * * * * * * * * * //
 
-void Foam::sigSegv::sigSegvHandler(int)
+void Foam::sigSegv::sigHandler(int)
 {
-    // Reset old handling
-    const __p_sig_fn_t success = ::signal(SIGSEGV, oldAction_);
+    resetHandler("SIGSEGV", SIGSEGV);
 
-    if (SIG_ERR == success)
-    {
-         FatalErrorIn
-        (
-            "Foam::sigSegv::sigSegvHandler()"
-        )   << "Cannot reset SIGSEGV trapping"
-            << abort(FatalError);    
-    }
-
-    // Update jobInfo file
-    jobInfo.signalEnd();
-
+    JobInfo::shutdown();        // From running -> finished
     error::printStack(Perr);
-
-    // Throw signal (to old handler)
-    ::raise(SIGSEGV);
+    ::raise(SIGSEGV);           // Throw signal (to old handler)
 }
 
 
@@ -85,7 +56,7 @@ void Foam::sigSegv::sigSegvHandler(int)
 
 Foam::sigSegv::sigSegv()
 {
-    oldAction_ = SIG_DFL;
+    set(false);
 }
 
 
@@ -93,46 +64,33 @@ Foam::sigSegv::sigSegv()
 
 Foam::sigSegv::~sigSegv()
 {
-    // Reset old handling
-    const __p_sig_fn_t success = ::signal(SIGSEGV, oldAction_);
-    oldAction_ = SIG_DFL;
-
-    if (SIG_ERR == success)
-    {
-        FatalErrorIn
-        (
-            "Foam::sigSegv::~sigSegv()"
-        )   << "Cannot reset SIGSEGV trapping"
-            << abort(FatalError);    
-    }
+    unset(false);
 }
 
 
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
 
-void Foam::sigSegv::set(const bool verbose)
+void Foam::sigSegv::set(bool)
 {
-    if (SIG_DFL != oldAction_)
+    if (sigActive_)
     {
-        FatalErrorIn
-        (
-            "Foam::sigSegv::set()"
-        )   << "Cannot call sigSegv::set() more than once"
-            << abort(FatalError);
+        return;
     }
+    sigActive_ = true;
 
-    oldAction_ = ::signal(SIGSEGV, &Foam::sigSegv::sigSegvHandler);        
+    setHandler("SIGSEGV", SIGSEGV, sigHandler);
+}
 
-    if (SIG_ERR == oldAction_)
+
+void Foam::sigSegv::unset(bool)
+{
+    if (!sigActive_)
     {
-        oldAction_ = SIG_DFL;
-
-        FatalErrorIn
-        (
-            "Foam::sigSegv::set()"
-        )   << "Cannot set SIGSEGV trapping"
-            << abort(FatalError);    
+        return;
     }
+    sigActive_ = false;
+
+    resetHandler("SIGSEGV", SIGSEGV);
 }
 
 

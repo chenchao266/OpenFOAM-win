@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -23,6 +25,9 @@ License
 
 Class
     Foam::midPoint
+
+Group
+    grpFvSurfaceInterpolationSchemes
 
 Description
     Mid-point interpolation (weighting factors = 0.5) scheme class.
@@ -54,8 +59,8 @@ class midPoint
 {
     // Private Member Functions
 
-        //- Disallow default bitwise assignment
-        void operator=(const midPoint&);
+        //- No copy assignment
+        void operator=(const midPoint&) = delete;
 
 
 public:

@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -43,9 +46,9 @@ SourceFiles
 #define patchDataWave_H
 
 #include "cellDistFuncs.H"
-#include "FieldField.T.H"
-#include "UPtrList.T.H"
-#include "MeshWave.T.H"
+#include "FieldField.H"
+#include "UPtrList.H"
+#include "MeshWave.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -60,7 +63,7 @@ class wallPoint;
                         Class patchDataWave Declaration
 \*---------------------------------------------------------------------------*/
 
-template<class TransferType>
+template<class TransferType, class TrackingData = int>
 class patchDataWave
 :
     public cellDistFuncs
@@ -81,6 +84,10 @@ private:
 
         //- Do accurate distance calculation for near-wall cells.
         bool correctWalls_;
+
+        //- Additional data to be passed into underlying containers
+        TrackingData& td_;
+
 
         //
         // After construction:
@@ -113,7 +120,14 @@ private:
         ) const;
 
         //- Copy MeshWave values into *this
-        label getValues(const MeshWave<TransferType>&);
+        label getValues(const MeshWave<TransferType, TrackingData>&);
+
+
+  // Private static data
+
+        //- Used as default trackdata value to satisfy default template
+        //  argument.
+        static int dummyTrackData_;
 
 
 public:
@@ -129,7 +143,8 @@ public:
             const polyMesh& mesh,
             const labelHashSet& patchIDs,
             const UPtrList<Field<Type>>& initialPatchValuePtrs,
-            bool correctWalls = true
+            const bool correctWalls = true,
+            TrackingData& td = dummyTrackData_
         );
 
 

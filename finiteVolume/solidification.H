@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2017 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -63,14 +65,9 @@ Description
             // use the global coordinate system
             coordinateSystem
             {
-                type    cartesian;
                 origin  (0 0 0);
-                coordinateRotation
-                {
-                    type    axesRotation;
-                    e1      (1 0 0);
-                    e2      (0 1 0);
-                }
+                e1      (1 0 0);
+                e2      (0 1 0);
             }
         }
     \endverbatim
@@ -81,11 +78,11 @@ SourceFiles
 
 \*---------------------------------------------------------------------------*/
 
-#ifndef solidification_H
-#define solidification_H
+#ifndef porosityModels_solidification_H
+#define porosityModels_solidification_H
 
 #include "porosityModel.H"
-#include "Function1.T.H"
+#include "Function1.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -159,11 +156,11 @@ class solidification
             const volVectorField& U
         ) const;
 
-        //- Disallow default bitwise copy construct
-        solidification(const solidification&);
+        //- No copy construct
+        solidification(const solidification&) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const solidification&);
+        //- No copy assignment
+        void operator=(const solidification&) = delete;
 
 
 public:

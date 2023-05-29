@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -26,19 +29,18 @@ License
 #include "polyMesh.H"
 #include "primitiveMesh.H"
 #include "globalMeshData.H"
-#include "MeshObject.T.H"
+#include "MeshObject.H"
 #include "indexedOctree.H"
 #include "treeDataCell.H"
 #include "pointMesh.H"
 
 // * * * * * * * * * * * * * Private Member Functions  * * * * * * * * * * * //
-using namespace Foam;
+
+
+ namespace Foam{
 void polyMesh::removeBoundary()
 {
-    if (debug)
-    {
-        InfoInFunction << "Removing boundary patches." << endl;
-    }
+    DebugInFunction << "Removing boundary patches." << endl;
 
     // Remove the point zones
     boundary_.clear();
@@ -52,10 +54,7 @@ void polyMesh::removeBoundary()
 
 void polyMesh::clearGeom()
 {
-    if (debug)
-    {
-        InfoInFunction << "Clearing geometric data" << endl;
-    }
+    DebugInFunction << "Clearing geometric data" << endl;
 
     // Clear all geometric mesh objects
     meshObject::clear<pointMesh, GeometricMeshObject>(*this);
@@ -74,13 +73,88 @@ void polyMesh::clearGeom()
 }
 
 
+void polyMesh::updateGeomPoints
+(
+    pointIOField&& newPoints,
+    autoPtr<labelIOList>& newTetBasePtIsPtr
+)
+{
+    DebugInFunction
+        << "Updating geometric data with newPoints:"
+        << newPoints.size() << " newTetBasePtIs:"
+        << bool(newTetBasePtIsPtr) << endl;
+
+    if (points_.size() != 0 && points_.size() != newPoints.size())
+    {
+        FatalErrorInFunction
+            << "Point motion detected but number of points "
+            << newPoints.size() << " in "
+            << newPoints.objectPath() << " does not correspond to "
+            << " current " << points_.size()
+            << exit(FatalError);
+    }
+
+    // Clear all geometric mesh objects that are not 'movable'
+    meshObject::clearUpto
+    <
+        pointMesh,
+        TopologicalMeshObject,
+        MoveableMeshObject
+    >
+    (
+        *this
+    );
+    meshObject::clearUpto
+    <
+        polyMesh,
+        TopologicalMeshObject,
+        MoveableMeshObject
+    >
+    (
+        *this
+    );
+
+    primitiveMesh::clearGeom();
+
+    boundary_.clearGeom();
+
+    // Reset valid directions (could change with rotation)
+    geometricD_ = Zero;
+    solutionD_ = Zero;
+
+    // Remove the cell tree
+    cellTreePtr_.clear();
+
+    // Update local data
+    points_.instance() = newPoints.instance();
+    points_.transfer(newPoints);
+
+    // Optional new tet base points
+    if (newTetBasePtIsPtr)
+    {
+        tetBasePtIsPtr_ = std::move(newTetBasePtIsPtr);
+    }
+
+    // Calculate the geometry for the patches (transformation tensors etc.)
+    boundary_.calcGeometry();
+
+    // Derived info
+    bounds_ = boundBox(points_);
+
+    // Rotation can cause direction vector to change
+    geometricD_ = Zero;
+    solutionD_ = Zero;
+
+    // Update all 'movable' objects
+    meshObject::movePoints<polyMesh>(*this);
+    meshObject::movePoints<pointMesh>(*this);
+}
+
+
 void polyMesh::clearAddressing(const bool isMeshUpdate)
 {
-    if (debug)
-    {
-        InfoInFunction
-            << "Clearing topology  isMeshUpdate:" << isMeshUpdate << endl;
-    }
+    DebugInFunction
+        << "Clearing topology  isMeshUpdate:" << isMeshUpdate << endl;
 
     if (isMeshUpdate)
     {
@@ -156,10 +230,7 @@ void polyMesh::clearOut()
 
 void polyMesh::clearTetBasePtIs()
 {
-    if (debug)
-    {
-        InfoInFunction << "Clearing tet base points" << endl;
-    }
+    DebugInFunction << "Clearing tet base points" << endl;
 
     tetBasePtIsPtr_.clear();
 }
@@ -167,13 +238,12 @@ void polyMesh::clearTetBasePtIs()
 
 void polyMesh::clearCellTree()
 {
-    if (debug)
-    {
-        InfoInFunction << "Clearing cell tree" << endl;
-    }
+    DebugInFunction << "Clearing cell tree" << endl;
 
     cellTreePtr_.clear();
 }
 
 
 // ************************************************************************* //
+
+ } // End namespace Foam

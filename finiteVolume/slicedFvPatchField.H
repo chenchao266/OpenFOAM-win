@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2017 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -152,10 +155,6 @@ public:
 
             //- Return patch-normal gradient
             virtual tmp<Field<Type>> snGrad() const;
-
-            //- Update the coefficients associated with the patch field
-            //  Sets Updated to true
-            virtual void updateCoeffs();
 
             //- Return internal field next to patch as patch field
             virtual tmp<Field<Type>> patchInternalField() const;

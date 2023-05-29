@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2014 OpenFOAM Foundation
+    Copyright (C) 2015-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -34,20 +37,27 @@ SourceFiles
 #ifndef snappyRefineDriver_H
 #define snappyRefineDriver_H
 
-#include "treeBoundBox.H"
+#include "wordPairHashes.H"
+#include "labelList.H"
+#include "scalarField.H"
+#include "Tuple2.H"
+#include "writer.H"
+#include "DynamicList.H"
+#include "labelVector.H"
+#include "meshRefinement.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 namespace Foam
 {
 
-// Forward declaration of classes
+// Forward Declarations
 class refinementParameters;
 class snapParameters;
 
-class meshRefinement;
 class decompositionMethod;
 class fvMeshDistribute;
+class fvMesh;
 
 /*---------------------------------------------------------------------------*\
                            Class snappyRefineDriver Declaration
@@ -72,8 +82,29 @@ class snappyRefineDriver
         //- From surface region to patch
         const labelList globalToSlavePatch_;
 
+        //- How to write lines. Used e.g. when writing leak-paths
+        const writer<scalar>& setFormatter_;
+
+        //- Are we operating in test mode?
+        const bool dryRun_;
+
 
     // Private Member Functions
+
+        void addNeighbours
+        (
+            const labelVector& n,
+            const labelList& cellLevel,
+            const labelVector& voxel,
+            const label voxeli,
+            DynamicList<labelVector>& front
+        ) const;
+
+        //- Rough estimate of cell size and cell count
+        void estimateCellSizeAndCount
+        (
+            const refinementParameters& refineParams
+        ) const;
 
         //- Refine all cells pierced by explicit feature edges
         label featureEdgeRefine
@@ -81,6 +112,13 @@ class snappyRefineDriver
             const refinementParameters& refineParams,
             const label maxIter,
             const label minRefine
+        );
+
+        //- Refine all cells containing small surface features
+        label smallFeatureRefine
+        (
+            const refinementParameters& refineParams,
+            const label maxIter
         );
 
         //- Refine all cells interacting with the surface
@@ -97,11 +135,48 @@ class snappyRefineDriver
             const label maxIter
         );
 
+        //- Block all cells in small gaps
+        label surfaceProximityBlock
+        (
+            const refinementParameters& refineParams,
+            const label maxIter
+        );
+
+        //- Refine all cells in large gaps
+        label bigGapOnlyRefine
+        (
+            const refinementParameters& refineParams,
+            const bool spreadGapSize,
+            const label maxIter
+        );
+
         //- Refine cells with almost all sides refined
         label danglingCellRefine
         (
             const refinementParameters& refineParams,
             const label nFaces,
+            const label maxIter
+        );
+
+        //- Refine cells with opposite faces with differing refinement level
+        label refinementInterfaceRefine
+        (
+            const refinementParameters& refineParams,
+            const label maxIter
+        );
+
+        //- Helper: see if any element in f has higher level than cLevel
+        bool usesHigherLevel
+        (
+            const labelUList& boundaryPointLevel,
+            const labelUList& f,
+            const label cLevel
+        ) const;
+
+        //- Refine cells with a point/edge but not face on the boundary
+        label boundaryRefinementInterfaceRefine
+        (
+            const refinementParameters& refineParams,
             const label maxIter
         );
 
@@ -112,12 +187,33 @@ class snappyRefineDriver
             const label nBufferLayers
         );
 
-        //- Remove all cells inside/outside shell
+        //- Refine all cells inside/outside shell
         label shellRefine
         (
             const refinementParameters& refineParams,
             const label maxIter
         );
+
+        // Directional refinement and smoothing
+
+            //- Refine (directional) all cells inside/outside shell
+            label directionalShellRefine
+            (
+                const refinementParameters& refineParams,
+                const label maxIter
+            );
+
+            //- Calculate local edge length from cell volumes
+            void mergeAndSmoothRatio
+            (
+                const scalarList& allSeedPointDist,
+                const label nSmoothExpansion,
+                List<Tuple2<scalar, scalar>>&  keyAndValue
+            );
+
+            //- Smooth the directional expansion ratio
+            label directionalSmooth(const refinementParameters& refineParams);
+
 
         //- Add baffles and remove unreachable cells
         void baffleAndSplitMesh
@@ -129,7 +225,11 @@ class snappyRefineDriver
         );
 
         //- Add zones
-        void zonify(const refinementParameters& refineParams);
+        void zonify
+        (
+            const refinementParameters& refineParams,
+            wordPairHashTable& zonesToFaceZone
+        );
 
         void splitAndMergeBaffles
         (
@@ -142,16 +242,20 @@ class snappyRefineDriver
         //- Merge refined boundary faces (from exposing coarser cell)
         void mergePatchFaces
         (
+            const meshRefinement::FaceMergeType mergeType,
             const refinementParameters& refineParams,
             const dictionary& motionDict
         );
 
+        //- Optionally delete some small regions
+        void deleteSmallRegions(const refinementParameters&);
 
-        //- Disallow default bitwise copy construct
-        snappyRefineDriver(const snappyRefineDriver&);
 
-        //- Disallow default bitwise assignment
-        void operator=(const snappyRefineDriver&);
+        //- No copy construct
+        snappyRefineDriver(const snappyRefineDriver&) = delete;
+
+        //- No copy assignment
+        void operator=(const snappyRefineDriver&) = delete;
 
 
 public:
@@ -168,8 +272,10 @@ public:
             meshRefinement& meshRefiner,
             decompositionMethod& decomposer,
             fvMeshDistribute& distributor,
-            const labelList& globalToMasterPatch,
-            const labelList& globalToSlavePatch
+            const labelUList& globalToMasterPatch,
+            const labelUList& globalToSlavePatch,
+            const writer<scalar>& setFormatter,
+            const bool dryRun = false
         );
 
 
@@ -182,7 +288,16 @@ public:
             const refinementParameters& refineParams,
             const snapParameters& snapParams,
             const bool prepareForSnapping,
+            const meshRefinement::FaceMergeType mergeType,
             const dictionary& motionDict
+        );
+
+        //- Helper: add faceZones and patches
+        static void addFaceZones
+        (
+            meshRefinement& meshRefiner,
+            const refinementParameters& refineParams,
+            const HashTable<Pair<word>>& faceZoneToPatches
         );
 };
 

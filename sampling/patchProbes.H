@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2016-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -25,9 +28,42 @@ Class
     Foam::patchProbes
 
 Description
-    Set of locations to sample.at patches
+    Set of locations to sample at patches
 
     Call write() to sample and write files.
+    - find nearest location on nearest face
+    - update *this with location (so header contains 'snapped' locations
+    - use *this as the sampling location
+
+    Example of function object specification:
+    \verbatim
+    patchProbes
+    {
+        type            patchProbes;
+        libs            (sampling);
+
+        // Name of the directory for probe data
+        name            patchProbes;
+
+        // Patches to sample (wildcards allowed)
+        patches         (".*inl.*");
+
+        // Write at same frequency as fields
+        writeControl    writeTime;
+        writeInterval   1;
+
+        // Fields to be probed
+        fields          (p U);
+
+        // Locations to probe. These get snapped onto the nearest point
+        // on the selected patches
+        probeLocations
+        (
+            ( -100 0 0.01 )      // at inlet
+        );
+    }
+    \endverbatim
+
 
 SourceFiles
     patchProbes.C
@@ -58,13 +94,15 @@ class patchProbes
 :
     public probes
 {
-    // Private data
+protected:
 
-        //- Patch name
-        word patchName_;
+    // Protected data
+
+        //- Patches to sample
+        wordRes patchNames_;
 
 
-    // Private Member Functions
+    // Protected Member Functions
 
         //- Sample and write a particular volume field
         template<class Type>
@@ -73,7 +111,6 @@ class patchProbes
             const GeometricField<Type, fvPatchField, volMesh>&
         );
 
-
         //- Sample and write a particular surface field
         template<class Type>
         void sampleAndWrite
@@ -81,16 +118,13 @@ class patchProbes
             const GeometricField<Type, fvsPatchField, surfaceMesh>&
         );
 
-
         //- Sample and write all the fields of the given type
         template<class Type>
         void sampleAndWrite(const fieldGroup<Type>&);
 
-
          //- Sample and write all the surface fields of the given type
         template<class Type>
         void sampleAndWriteSurfaceFields(const fieldGroup<Type>&);
-
 
         //- Sample a volume field at all locations
         template<class Type>
@@ -99,7 +133,6 @@ class patchProbes
             const GeometricField<Type, fvPatchField, volMesh>&
         ) const;
 
-
         //- Sample a surface field at all locations
         template<class Type>
         tmp<Field<Type>> sample
@@ -107,17 +140,21 @@ class patchProbes
             const GeometricField<Type, fvsPatchField, surfaceMesh>&
         ) const;
 
-
         //- Sample a single field on all sample locations
         template<class Type>
         tmp<Field<Type>> sample(const word& fieldName) const;
 
+        //- Find elements containing patchProbes
+        virtual void findElements(const fvMesh&);
 
-        //- Disallow default bitwise copy construct
-        patchProbes(const patchProbes&);
 
-        //- Disallow default bitwise assignment
-        void operator=(const patchProbes&);
+private:
+
+        //- No copy construct
+        patchProbes(const patchProbes&) = delete;
+
+        //- No copy assignment
+        void operator=(const patchProbes&) = delete;
 
 
 public:
@@ -133,22 +170,13 @@ public:
         (
             const word& name,
             const Time& time,
-            const dictionary& dict
+            const dictionary& dict,
+            const bool loadFromFiles = false,
+            const bool readFields = true
         );
-
-        //- Construct for given objectRegistry and dictionary.
-        //  Allow the possibility to load fields from files
-        patchProbes
-        (
-            const word& name,
-            const objectRegistry&,
-            const dictionary&,
-            const bool loadFromFiles = false
-        );
-
 
     //- Destructor
-    virtual ~patchProbes();
+    virtual ~patchProbes() = default;
 
 
     //- Public members
@@ -158,9 +186,6 @@ public:
 
         //- Read
         virtual bool read(const dictionary&);
-
-        //- Find elements containing patchProbes
-        virtual void findElements(const fvMesh&);
 };
 
 

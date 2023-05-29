@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2016 OpenFOAM Foundation
+    Copyright (C) 2019-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -22,7 +25,7 @@ License
     along with OpenFOAM.  If not, see <http://www.gnu.org/licenses/>.
 
 Class
-    Foam::projectCurveEdge
+    Foam::blockEdges::projectCurveEdge
 
 Description
     Defines the edge from the projection onto a surface (single surface)
@@ -33,8 +36,8 @@ SourceFiles
 
 \*---------------------------------------------------------------------------*/
 
-#ifndef projectCurveEdge_H
-#define projectCurveEdge_H
+#ifndef blockEdges_projectCurveEdge_H
+#define blockEdges_projectCurveEdge_H
 
 #include "blockEdge.H"
 
@@ -43,7 +46,11 @@ SourceFiles
 namespace Foam
 {
 
+// Forward Declarations
 class pointConstraint;
+
+namespace blockEdges
+{
 
 /*---------------------------------------------------------------------------*\
                       Class projectCurveEdge Declaration
@@ -53,7 +60,7 @@ class projectCurveEdge
 :
     public blockEdge
 {
-    // Private data
+    // Private Data
 
         const searchableSurfaces& geometry_;
 
@@ -63,11 +70,11 @@ class projectCurveEdge
 
     // Private Member Functions
 
-        //- Disallow default bitwise copy construct
-        projectCurveEdge(const projectCurveEdge&);
+        //- No copy construct
+        projectCurveEdge(const projectCurveEdge&) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const projectCurveEdge&);
+        //- No copy assignment
+        void operator=(const projectCurveEdge&) = delete;
 
 
 public:
@@ -78,47 +85,41 @@ public:
 
     // Constructors
 
-        //- Construct from Istream setting pointsList
+        //- Construct from Istream and point field.
         projectCurveEdge
         (
             const dictionary& dict,
             const label index,
             const searchableSurfaces& geometry,
-            const pointField& points,
-            Istream&
+            const pointField& points,   //!< Referenced point field
+            Istream& is
         );
 
 
     //- Destructor
-    virtual ~projectCurveEdge()
-    {}
+    virtual ~projectCurveEdge() = default;
 
 
     // Member Functions
 
-        //- Return the point positions corresponding to the curve parameters
+        //- The point position corresponding to the curve parameter
         //  0 <= lambda <= 1
-        virtual point position(const scalar) const
-        {
-            NotImplemented;
-            return point::max;
-        }
+        //  \note NotImplemented
+        virtual point position(const scalar) const;
 
-        //- Return the point positions corresponding to the curve parameters
+        //- The point positions corresponding to the curve parameters
         //  0 <= lambda <= 1
         virtual tmp<pointField> position(const scalarList&) const;
 
-        //- Return the length of the curve
-        virtual scalar length() const
-        {
-            NotImplemented;
-            return 1;
-        }
+        //- The length of the curve
+        //  \note NotImplemented
+        virtual scalar length() const;
 };
 
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
+} // End namespace blockEdges
 } // End namespace Foam
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //

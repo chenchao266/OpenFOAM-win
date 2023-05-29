@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2015 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2015 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -23,6 +25,9 @@ License
 
 Class
     Foam::sixDoFSolver
+
+Group
+    grpSixDoFRigidBodySolvers
 
 Description
 
@@ -55,6 +60,9 @@ protected:
 
         //- The rigid body
         sixDoFRigidBodyMotion& body_;
+
+        //- Model dictionary
+        dictionary dict_;
 
 
     // Protected member functions
@@ -145,7 +153,10 @@ public:
     // Constructors
 
         // Construct for given body
-        sixDoFSolver(sixDoFRigidBodyMotion& body);
+        sixDoFSolver(const dictionary& dict, sixDoFRigidBodyMotion& body);
+
+        //- Construct and return a clone
+        virtual autoPtr<sixDoFSolver> clone() const = 0;
 
 
     //- Destructor
@@ -172,6 +183,10 @@ public:
             scalar deltaT,
             scalar deltaT0
         ) = 0;
+
+
+    //- Write
+    void write(Ostream&) const;
 };
 
 

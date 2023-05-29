@@ -1,9 +1,12 @@
-﻿/*---------------------------------------------------------------------------*\
+/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2015-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -23,7 +26,7 @@ License
 
 \*---------------------------------------------------------------------------*/
 
-//#include "nearWallFields.H"
+#include "nearWallFields.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -37,9 +40,9 @@ void Foam::functionObjects::nearWallFields::createFields
 
     HashTable<const VolFieldType*> flds(obr_.lookupClass<VolFieldType>());
 
-    forAllConstIter(typename HashTable<const VolFieldType*>, flds, iter)
+    forAllConstIters(flds, iter)
     {
-        const VolFieldType& fld = *iter();
+        const VolFieldType& fld = *(iter.val());
 
         if (fieldMap_.found(fld.name()))
         {
@@ -47,8 +50,9 @@ void Foam::functionObjects::nearWallFields::createFields
 
             if (obr_.found(sampleFldName))
             {
-                Log << "    a field " << sampleFldName
-                    << " already exists on the mesh."
+                WarningInFunction
+                    << "    a field named " << sampleFldName
+                    << " already exists on the mesh"
                     << endl;
             }
             else
@@ -56,19 +60,22 @@ void Foam::functionObjects::nearWallFields::createFields
                 label sz = sflds.size();
                 sflds.setSize(sz+1);
 
+                IOobject io(fld);
+                io.readOpt(IOobject::NO_READ);
+                io.writeOpt(IOobject::NO_WRITE);
+
+                io.rename(sampleFldName);
+
+                // Override bc to be calculated
                 sflds.set
                 (
                     sz,
                     new VolFieldType
                     (
-                        IOobject
-                        (
-                            sampleFldName,
-                            time_.timeName(),
-                            mesh_
-                        ),
+                        io,
                         fld,
-                        calculatedFvPatchScalarField::typeName
+                        patchSet_.toc(),
+                        calculatedFvPatchField<Type>::typeName
                     )
                 );
 
@@ -113,10 +120,8 @@ void Foam::functionObjects::nearWallFields::sampleBoundaryField
 
     // Pick up data
     label nPatchFaces = 0;
-    forAllConstIter(labelHashSet, patchSet_, iter)
+    for (const label patchi : patchSet_)
     {
-        label patchi = iter.key();
-
         fvPatchField<Type>& pfld = fldBf[patchi];
 
         Field<Type> newFld(pfld.size());

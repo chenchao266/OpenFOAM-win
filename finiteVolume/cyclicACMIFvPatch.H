@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2013-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2013-2016 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -58,16 +61,26 @@ class cyclicACMIFvPatch
 
         const cyclicACMIPolyPatch& cyclicACMIPolyPatch_;
 
+        //- Flag to detect whether AMI is up to date with mesh points
+        mutable uniformDimensionedScalarField areaTime_;
+
+
 
 protected:
 
     // Protected Member functions
 
-        //- Update the patch areas after AMI update
-        void updateAreas() const;
+        //- Update the AMI and patch areas. Return true if anything updated
+        virtual bool updateAreas() const;
+
+        //- Helper function to reset the FV patch areas from the primitive patch
+        void resetPatchAreas(const fvPatch& fvp) const;
 
         //- Make patch weighting factors
         void makeWeights(scalarField&) const;
+
+        //- Correct patches after moving points
+        virtual void movePoints();
 
 
 public:
@@ -79,15 +92,19 @@ public:
     // Constructors
 
         //- Construct from polyPatch
-        cyclicACMIFvPatch(const polyPatch& patch, const fvBoundaryMesh& bm)
-        :
-            coupledFvPatch(patch, bm),
-            cyclicACMILduInterface(),
-            cyclicACMIPolyPatch_(refCast<const cyclicACMIPolyPatch>(patch))
-        {}
+        cyclicACMIFvPatch(const polyPatch& patch, const fvBoundaryMesh& bm);
 
 
     // Member functions
+
+//         // Implicit treatment functions
+//
+//             //- Return number of new internal sub-faces and new proc faces
+//             virtual void newInternalProcFaces(label&, label&) const;
+//
+//             //- Return collocated faces
+//             virtual refPtr<labelListList> mapCollocatedFaces() const;
+
 
         // Access
 
@@ -132,12 +149,7 @@ public:
             //- Return a reference to the AMI interpolator
             virtual const AMIPatchToPatchInterpolation& AMI() const
             {
-                const AMIPatchToPatchInterpolation& AMI =
-                    cyclicACMIPolyPatch_.AMI();
-
-                updateAreas();
-
-                return AMI;
+                return cyclicACMIPolyPatch_.AMI();
             }
 
             //- Are the cyclic planes parallel
@@ -166,9 +178,9 @@ public:
                 );
             }
 
-            //- Return true if this patch is coupled. This is equivalent
-            //  to the coupledPolyPatch::coupled() if parallel running or
-            //  both sides present, false otherwise
+            //- Return true if this patch is coupled.
+            //  This is equivalent to coupledPolyPatch::coupled()
+            //  if parallel running or both sides present, false otherwise
             virtual bool coupled() const;
 
             //- Return delta (P to N) vectors across coupled patch
@@ -181,6 +193,7 @@ public:
                 const Field<Type>& fld
             ) const
             {
+                // Make sure areas are up-to-date
                 updateAreas();
 
                 return
@@ -190,7 +203,7 @@ public:
                     );
             }
 
-            //- Interpolate (make sure to have uptodate areas)
+            //- Interpolate (make sure to have up-to-date areas)
             template<class Type>
             tmp<Field<Type>> interpolate
             (
@@ -204,10 +217,18 @@ public:
         // Interface transfer functions
 
             //- Return the values of the given internal data adjacent to
-            //  the interface as a field
+            //- the interface as a field
             virtual tmp<labelField> interfaceInternalField
             (
                 const labelUList& internalData
+            ) const;
+
+            //- Return the values of the given internal data adjacent to
+            //- the interface as a field using a mapping faceCell
+            virtual tmp<labelField> interfaceInternalField
+            (
+                const labelUList& internalData,
+                const labelUList& faceCells
             ) const;
 
             //- Return neighbour field
@@ -216,6 +237,7 @@ public:
                 const Pstream::commsTypes commsType,
                 const labelUList& internalData
             ) const;
+
 };
 
 

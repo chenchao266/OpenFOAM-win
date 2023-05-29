@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2012-2014 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2012-2014 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -36,7 +38,7 @@ SourceFiles
 #define porosityModelList_H
 
 #include "fvMesh.H"
-#include "dictionary.H"
+#include "dictionary2.H"
 #include "fvMatricesFwd.H"
 #include "porosityModel.H"
 
@@ -45,7 +47,7 @@ SourceFiles
 namespace Foam
 {
 
-// Forward declaration of friend functions and operators
+// Forward declarations
 class porosityModelList;
 Ostream& operator<<(Ostream& os, const porosityModelList& models);
 
@@ -61,11 +63,11 @@ private:
 
     // Private Member Functions
 
-        //- Disallow default bitwise copy construct
-        porosityModelList(const porosityModelList&);
+        //- No copy construct
+        porosityModelList(const porosityModelList&) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const porosityModelList&);
+        //- No copy assignment
+        void operator=(const porosityModelList&) = delete;
 
 
 protected:
@@ -82,13 +84,13 @@ public:
     porosityModelList(const fvMesh& mesh, const dictionary& dict);
 
     //- Destructor
-    ~porosityModelList();
+    ~porosityModelList() = default;
 
 
     // Member Functions
 
         //- Return active status
-        bool active(const bool active = false) const;
+        bool active(const bool warn = false) const;
 
         //- Reset the source list
         void reset(const dictionary& dict);

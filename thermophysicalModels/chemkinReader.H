@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -24,6 +27,9 @@ License
 Class
     Foam::chemkinReader
 
+Group
+    grpReactionThermophysicalChemistryReaders
+
 Description
     Foam::chemkinReader
 
@@ -39,10 +45,7 @@ SourceFiles
 #include "chemistryReader.H"
 #include "fileName.H"
 #include "typeInfo.H"
-#include "Switch.H"
-#include "HashPtrTable.T.H"
-#include "ReactionList.T.H"
-#include "DynamicList.T.H"
+#include "DynamicList.H"
 #include "labelList.H"
 #include "speciesTable.H"
 #include "atomicWeights.H"
@@ -64,10 +67,9 @@ class chemkinReader
     public chemistryReader<gasHThermoPhysics>,
     public yyFlexLexer
 {
-
 public:
 
-    // Public data types
+    // Public Data Types
 
         enum phase
         {
@@ -172,7 +174,7 @@ private:
         HashTable<phase> speciePhase_;
 
         //- Table of the thermodynamic data given in the CHEMKIN file
-        HashPtrTable<gasHThermoPhysics> speciesThermo_;
+        ReactionTable<gasHThermoPhysics> speciesThermo_;
 
         //- Table of species composition
         speciesCompositionTable speciesComposition_;
@@ -184,7 +186,7 @@ private:
         dictionary transportDict_;
 
         //- Flag to indicate that file is in new format
-        Switch newFormat_;
+        bool newFormat_;
 
         //- Tolerance for element imbalance in a reaction
         scalar imbalanceTol_;
@@ -217,7 +219,7 @@ private:
             }
             else if (elementName[0] == 'E')
             {
-                elementName = 'e';
+                elementName = "e";
             }
         }
 
@@ -281,11 +283,11 @@ private:
             const fileName& transportFileName
         );
 
-        //- Disallow default bitwise copy construct
-        chemkinReader(const chemkinReader&);
+        //- No copy construct
+        chemkinReader(const chemkinReader&) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const chemkinReader&);
+        //- No copy assignment
+        void operator=(const chemkinReader&) = delete;
 
 
 public:
@@ -311,8 +313,7 @@ public:
 
 
     //- Destructor
-    virtual ~chemkinReader()
-    {}
+    virtual ~chemkinReader() = default;
 
 
     // Member functions
@@ -354,7 +355,7 @@ public:
         }
 
         //- Table of the thermodynamic data given in the CHEMKIN file
-        const HashPtrTable<gasHThermoPhysics>& speciesThermo() const
+        const ReactionTable<gasHThermoPhysics>& speciesThermo() const
         {
             return speciesThermo_;
         }

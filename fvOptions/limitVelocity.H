@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2016-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2016-2017 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -25,20 +28,52 @@ Class
     Foam::fv::limitVelocity
 
 Description
-    Limits the maximum velocity magnitude to the specified \c max value.
+    Corrects velocity field (i.e. \c T) within a specified
+    region by applying a given maximum velocity magnitude limit.
+
+    Corrections applied to:
+    \verbatim
+      U    | Velocity                   [m/s]
+    \endverbatim
+
+    Required fields:
+    \verbatim
+      U    | Velocity                   [m/s]
+    \endverbatim
 
 Usage
-    Example usage:
+    Minimal example by using \c constant/fvOptions:
     \verbatim
-    limitU
+    limitVelocity1
     {
+        // Mandatory entries (unmodifiable)
         type            limitVelocity;
-        active          yes;
 
-        selectionMode   all;
-        max             100;
+        // Mandatory entries (runtime modifiable)
+        max             <maxValue>;
+
+        // Optional entries (runtime modifiable)
+        U               <Uname>;
+
+        // Mandatory/Optional (inherited) entries
+        ...
     }
     \endverbatim
+
+    where the entries mean:
+    \table
+      Property  | Description                   | Type   | Reqd  | Dflt
+      type      | Type name: limitVelocity      | word   | yes   | -
+      max       | Maximum velocity limit [m/s]  | scalar | yes   | -
+      U         | Name of operand velocity field | word  | no    | U
+    \endtable
+
+    The inherited entries are elaborated in:
+     - \link fvOption.H \endlink
+     - \link cellSetOption.H \endlink
+
+See also
+  - Foam::fv::velocityDampingConstraint
 
 SourceFiles
     limitVelocity.C
@@ -63,29 +98,17 @@ namespace fv
 
 class limitVelocity
 :
-    public cellSetOption
+    public fv::cellSetOption
 {
-
 protected:
 
-    // Protected data
+    // Protected Data
 
-        //- Velocity field name, default = U
+        //- Name of operand velocity field
         word UName_;
 
         //- Maximum velocity magnitude
         scalar max_;
-
-
-private:
-
-    // Private Member Functions
-
-        //- Disallow default bitwise copy construct
-        limitVelocity(const limitVelocity&);
-
-        //- Disallow default bitwise assignment
-        void operator=(const limitVelocity&);
 
 
 public:
@@ -105,10 +128,15 @@ public:
             const fvMesh& mesh
         );
 
+        //- No copy construct
+        limitVelocity(const limitVelocity&) = delete;
+
+        //- No copy assignment
+        void operator=(const limitVelocity&) = delete;
+
 
     //- Destructor
-    virtual ~limitVelocity()
-    {}
+    virtual ~limitVelocity() = default;
 
 
     // Member Functions
@@ -116,7 +144,7 @@ public:
         //- Read dictionary
         virtual bool read(const dictionary& dict);
 
-        //- Correct the energy field
+        //- Correct the velocity field
         virtual void correct(volVectorField& U);
 };
 

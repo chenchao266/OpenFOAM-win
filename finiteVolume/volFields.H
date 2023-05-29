@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -34,7 +36,7 @@ SourceFiles
 #ifndef volFields_H
 #define volFields_H
 
-#include "GeometricFields.T.H"
+#include "GeometricFields.H"
 #include "volMesh.H"
 #include "fvMesh.H"
 #include "fvPatchField.H"
@@ -46,7 +48,7 @@ SourceFiles
 namespace Foam
 {
 
-// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+// Specializations
 
 template<>
 tmp<GeometricField<scalar, fvPatchField, volMesh>>

@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2015 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2015 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -39,8 +42,8 @@ SourceFiles
 #define tabulated6DoFAcceleration_H
 
 #include "primitiveFields.H"
-#include "Vector2D.T.H"
-#include "Time.T.H"
+#include "Vector2D.H"
+#include "Time1.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -53,10 +56,12 @@ namespace Foam
 
 class tabulated6DoFAcceleration
 {
-    // Private data
+    // Private Data
 
+        //- Reference to Time
         const Time& time_;
 
+        //- Dictionary
         dictionary accelerationCoeffs_;
 
         //- Time data file name read from dictionary
@@ -70,15 +75,6 @@ class tabulated6DoFAcceleration
 
         //- Field of acceleration "vectors"
         Field<accelerationVectors> values_;
-
-
-    // Private Member Functions
-
-        //- Disallow copy construct
-        tabulated6DoFAcceleration(const tabulated6DoFAcceleration&);
-
-        //- Disallow default bitwise assignment
-        void operator=(const tabulated6DoFAcceleration&);
 
 
 public:
@@ -96,9 +92,15 @@ public:
             const Time& runTime
         );
 
+        //- No copy construct
+        tabulated6DoFAcceleration(const tabulated6DoFAcceleration&) = delete;
+
+        //- No copy assignment
+        void operator=(const tabulated6DoFAcceleration&) = delete;
+
 
     //- Destructor
-    virtual ~tabulated6DoFAcceleration();
+    virtual ~tabulated6DoFAcceleration() = default;
 
 
     // Member Functions

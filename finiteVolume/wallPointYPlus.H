@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2019 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -51,7 +54,6 @@ SourceFiles
 namespace Foam
 {
 
-
 /*---------------------------------------------------------------------------*\
                            Class wallPointYPlus Declaration
 \*---------------------------------------------------------------------------*/
@@ -79,7 +81,7 @@ public:
 
     // Static data members
 
-        //- cut-off value for y+
+        //- The cut-off value for y+
         static scalar yPlusCutOff;
 
 
@@ -142,12 +144,11 @@ public:
 };
 
 
-//- Data associated with pointEdgePoint type as contiguous as underlying type
+// * * * * * * * * * * * * * * * * * Traits  * * * * * * * * * * * * * * * * //
+
+//- Contiguous data for wallPointYPlus
 template<>
-inline bool contiguous<wallPointYPlus>()
-{
-    return contiguous<wallPointData<scalar>>();
-}
+struct is_contiguous<wallPointYPlus> : is_contiguous<wallPointData<scalar>> {};
 
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //

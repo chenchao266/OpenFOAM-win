@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2013-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2013-2014 OpenFOAM Foundation
+    Copyright (C) 2018-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -26,7 +29,7 @@ License
 #include "meshToMeshMethod.H"
 #include "tetOverlapVolume.H"
 #include "OFstream.H"
-#include "Time.T.H"
+#include "Time1.H"
 #include "treeBoundBox.H"
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
@@ -84,7 +87,14 @@ bool Foam::meshToMeshMethod::intersect
 
     tetOverlapVolume overlapEngine;
 
-    treeBoundBox bbTgtCell(tgt_.points(), tgt_.cellPoints()[tgtCelli]);
+    // Note: avoid demand-driven construction of cellPoints
+    // treeBoundBox bbTgtCell(tgt_.points(), tgt_.cellPoints()[tgtCelli]);
+    const UList<label>& cellFaces = tgt_.cells()[tgtCelli];
+    treeBoundBox bbTgtCell(tgt_.points(), tgt_.faces()[cellFaces[0]]);
+    for (label i = 1; i < cellFaces.size(); ++i)
+    {
+        bbTgtCell.add(tgt_.points(), tgt_.faces()[cellFaces[i]]);
+    }
 
     return overlapEngine.cellCellOverlapMinDecomp
     (
@@ -106,7 +116,14 @@ Foam::scalar Foam::meshToMeshMethod::interVol
 {
     tetOverlapVolume overlapEngine;
 
-    treeBoundBox bbTgtCell(tgt_.points(), tgt_.cellPoints()[tgtCelli]);
+    // Note: avoid demand-driven construction of cellPoints
+    // treeBoundBox bbTgtCell(tgt_.points(), tgt_.cellPoints()[tgtCelli]);
+    const UList<label>& cellFaces = tgt_.cells()[tgtCelli];
+    treeBoundBox bbTgtCell(tgt_.points(), tgt_.faces()[cellFaces[0]]);
+    for (label i = 1; i < cellFaces.size(); ++i)
+    {
+        bbTgtCell.add(tgt_.points(), tgt_.faces()[cellFaces[i]]);
+    }
 
     scalar vol = overlapEngine.cellCellOverlapVolumeMinDecomp
     (
@@ -121,6 +138,49 @@ Foam::scalar Foam::meshToMeshMethod::interVol
 }
 
 
+Foam::Tuple2<Foam::scalar, Foam::point>
+Foam::meshToMeshMethod::interVolAndCentroid
+(
+    const label srcCelli,
+    const label tgtCelli
+)
+{
+    tetOverlapVolume overlapEngine;
+
+    // Note: avoid demand-driven construction of cellPoints
+    // treeBoundBox bbTgtCell(tgt_.points(), tgt_.cellPoints()[tgtCelli]);
+    const UList<label>& cellFaces = tgt_.cells()[tgtCelli];
+    treeBoundBox bbTgtCell(tgt_.points(), tgt_.faces()[cellFaces[0]]);
+    for (label i = 1; i < cellFaces.size(); ++i)
+    {
+        bbTgtCell.add(tgt_.points(), tgt_.faces()[cellFaces[i]]);
+    }
+
+    Tuple2<scalar, point> volAndInertia =
+    overlapEngine.cellCellOverlapMomentMinDecomp
+    (
+        src_,
+        srcCelli,
+        tgt_,
+        tgtCelli,
+        bbTgtCell
+    );
+
+    // Convert from inertia to centroid
+    if (volAndInertia.first() <= ROOTVSMALL)
+    {
+        volAndInertia.first() = 0.0;
+        volAndInertia.second() = Zero;
+    }
+    else
+    {
+        volAndInertia.second() /= volAndInertia.first();
+    }
+
+    return volAndInertia;
+}
+
+
 void Foam::meshToMeshMethod::appendNbrCells
 (
     const label celli,
@@ -132,17 +192,11 @@ void Foam::meshToMeshMethod::appendNbrCells
     const labelList& nbrCells = mesh.cellCells()[celli];
 
     // filter out cells already visited from cell neighbours
-    forAll(nbrCells, i)
+    for (const label nbrCelli : nbrCells)
     {
-        label nbrCelli = nbrCells[i];
-
-        if
-        (
-            (findIndex(visitedCells, nbrCelli) == -1)
-         && (findIndex(nbrCellIDs, nbrCelli) == -1)
-        )
+        if (!visitedCells.found(nbrCelli))
         {
-            nbrCellIDs.append(nbrCelli);
+            nbrCellIDs.appendUniq(nbrCelli);
         }
     }
 }
@@ -169,7 +223,7 @@ bool Foam::meshToMeshMethod::initialise
     {
         if (debug)
         {
-            Pout<< "mesh interpolation: hhave " << src_.nCells() << " source "
+            Pout<< "mesh interpolation: have " << src_.nCells() << " source "
                 << " cells but no target cells" << endl;
         }
 

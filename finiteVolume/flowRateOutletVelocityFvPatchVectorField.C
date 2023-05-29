@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2017 OpenFOAM Foundation
+    Copyright (C) 2020-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -54,26 +57,25 @@ flowRateOutletVelocityFvPatchVectorField
 )
 :
     fixedValueFvPatchField<vector>(p, iF, dict, false),
-    rhoOutlet_(dict.lookupOrDefault<scalar>("rhoOutlet", -VGREAT))
+    rhoOutlet_(dict.getOrDefault<scalar>("rhoOutlet", -VGREAT))
 {
     if (dict.found("volumetricFlowRate"))
     {
         volumetric_ = true;
-        flowRate_ = Function1<scalar>::New("volumetricFlowRate", dict);
+        flowRate_ =
+            Function1<scalar>::New("volumetricFlowRate", dict, &db());
         rhoName_ = "rho";
     }
     else if (dict.found("massFlowRate"))
     {
         volumetric_ = false;
-        flowRate_ = Function1<scalar>::New("massFlowRate", dict);
-        rhoName_ = word(dict.lookupOrDefault<word>("rho", "rho"));
+        flowRate_ = Function1<scalar>::New("massFlowRate", dict, &db());
+        rhoName_ = dict.getOrDefault<word>("rho", "rho");
     }
     else
     {
-        FatalIOErrorInFunction
-        (
-            dict
-        )   << "Please supply either 'volumetricFlowRate' or"
+        FatalIOErrorInFunction(dict)
+            << "Please supply either 'volumetricFlowRate' or"
             << " 'massFlowRate' and 'rho'" << exit(FatalIOError);
     }
 
@@ -102,7 +104,7 @@ flowRateOutletVelocityFvPatchVectorField
 )
 :
     fixedValueFvPatchField<vector>(ptf, p, iF, mapper),
-    flowRate_(ptf.flowRate_, false),
+    flowRate_(ptf.flowRate_.clone()),
     volumetric_(ptf.volumetric_),
     rhoName_(ptf.rhoName_),
     rhoOutlet_(ptf.rhoOutlet_)
@@ -116,7 +118,7 @@ flowRateOutletVelocityFvPatchVectorField
 )
 :
     fixedValueFvPatchField<vector>(ptf),
-    flowRate_(ptf.flowRate_, false),
+    flowRate_(ptf.flowRate_.clone()),
     volumetric_(ptf.volumetric_),
     rhoName_(ptf.rhoName_),
     rhoOutlet_(ptf.rhoOutlet_)
@@ -131,7 +133,7 @@ flowRateOutletVelocityFvPatchVectorField
 )
 :
     fixedValueFvPatchField<vector>(ptf, iF),
-    flowRate_(ptf.flowRate_, false),
+    flowRate_(ptf.flowRate_.clone()),
     volumetric_(ptf.volumetric_),
     rhoName_(ptf.rhoName_),
     rhoOutlet_(ptf.rhoOutlet_)
@@ -165,7 +167,7 @@ void Foam::flowRateOutletVelocityFvPatchVectorField::updateValues
     const scalar flowRate = flowRate_->value(t);
     const scalar estimatedFlowRate = gSum(rho*(this->patch().magSf()*nUp));
 
-    if (estimatedFlowRate/flowRate > 0.5)
+    if (estimatedFlowRate > 0.5*flowRate)
     {
         nUp *= (mag(flowRate)/mag(estimatedFlowRate));
     }
@@ -191,7 +193,7 @@ void Foam::flowRateOutletVelocityFvPatchVectorField::updateCoeffs()
 
     if (volumetric_ || rhoName_ == "none")
     {
-        updateValues(one());
+        updateValues(one{});
     }
     else
     {
@@ -228,8 +230,8 @@ void Foam::flowRateOutletVelocityFvPatchVectorField::write(Ostream& os) const
     flowRate_->writeData(os);
     if (!volumetric_)
     {
-        writeEntryIfDifferent<word>(os, "rho", "rho", rhoName_);
-        writeEntryIfDifferent<scalar>(os, "rhoOutlet", -VGREAT, rhoOutlet_);
+        os.writeEntryIfDifferent<word>("rho", "rho", rhoName_);
+        os.writeEntryIfDifferent<scalar>("rhoOutlet", -VGREAT, rhoOutlet_);
     }
     writeEntry("value", os);
 }

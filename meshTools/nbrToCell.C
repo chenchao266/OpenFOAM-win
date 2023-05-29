@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2018-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -25,20 +28,31 @@ License
 
 #include "nbrToCell.H"
 #include "polyMesh.H"
-
 #include "addToRunTimeSelectionTable.H"
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
 
 namespace Foam
 {
-
-defineTypeNameAndDebug(nbrToCell, 0);
-
-addToRunTimeSelectionTable(topoSetSource, nbrToCell, word);
-
-addToRunTimeSelectionTable(topoSetSource, nbrToCell, istream);
-
+    defineTypeNameAndDebug(nbrToCell, 0);
+    addToRunTimeSelectionTable(topoSetSource, nbrToCell, word);
+    addToRunTimeSelectionTable(topoSetSource, nbrToCell, istream);
+    addToRunTimeSelectionTable(topoSetCellSource, nbrToCell, word);
+    addToRunTimeSelectionTable(topoSetCellSource, nbrToCell, istream);
+    addNamedToRunTimeSelectionTable
+    (
+        topoSetCellSource,
+        nbrToCell,
+        word,
+        nbr
+    );
+    addNamedToRunTimeSelectionTable
+    (
+        topoSetCellSource,
+        nbrToCell,
+        istream,
+        nbr
+    );
 }
 
 
@@ -54,22 +68,25 @@ Foam::topoSetSource::addToUsageTable Foam::nbrToCell::usage_
 
 void Foam::nbrToCell::combine(topoSet& set, const bool add) const
 {
+    if (minNbrs_ < 1)
+    {
+        return;  // Nothing to do
+    }
+
     const cellList& cells = mesh().cells();
     const polyBoundaryMesh& patches = mesh_.boundaryMesh();
 
-    boolList isCoupled(mesh_.nFaces()-mesh_.nInternalFaces(), false);
+    boolList isCoupled(mesh_.nBoundaryFaces(), false);
 
-    forAll(patches, patchi)
+    for (const polyPatch& pp : patches)
     {
-        const polyPatch& pp = patches[patchi];
-
         if (pp.coupled())
         {
             label facei = pp.start();
             forAll(pp, i)
             {
                 isCoupled[facei-mesh_.nInternalFaces()] = true;
-                facei++;
+                ++facei;
             }
         }
     }
@@ -80,17 +97,15 @@ void Foam::nbrToCell::combine(topoSet& set, const bool add) const
 
         label nNbrCells = 0;
 
-        forAll(cFaces, i)
+        for (const label facei : cFaces)
         {
-            label facei = cFaces[i];
-
             if (mesh_.isInternalFace(facei))
             {
-                nNbrCells++;
+                ++nNbrCells;
             }
             else if (isCoupled[facei-mesh_.nInternalFaces()])
             {
-                nNbrCells++;
+                ++nNbrCells;
             }
         }
 
@@ -104,45 +119,35 @@ void Foam::nbrToCell::combine(topoSet& set, const bool add) const
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
-// Construct from components
 Foam::nbrToCell::nbrToCell
 (
     const polyMesh& mesh,
     const label minNbrs
 )
 :
-    topoSetSource(mesh),
+    topoSetCellSource(mesh),
     minNbrs_(minNbrs)
 {}
 
 
-// Construct from dictionary
 Foam::nbrToCell::nbrToCell
 (
     const polyMesh& mesh,
     const dictionary& dict
 )
 :
-    topoSetSource(mesh),
-    minNbrs_(readLabel(dict.lookup("neighbours")))
+    nbrToCell(mesh, dict.getCheck<label>("neighbours", labelMinMax::ge(1)))
 {}
 
 
-// Construct from Istream
 Foam::nbrToCell::nbrToCell
 (
     const polyMesh& mesh,
     Istream& is
 )
 :
-    topoSetSource(mesh),
+    topoSetCellSource(mesh),
     minNbrs_(readLabel(checkIs(is)))
-{}
-
-
-// * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
-
-Foam::nbrToCell::~nbrToCell()
 {}
 
 
@@ -154,17 +159,23 @@ void Foam::nbrToCell::applyToSet
     topoSet& set
 ) const
 {
-    if ((action == topoSetSource::NEW) || (action == topoSetSource::ADD))
+    if (action == topoSetSource::ADD || action == topoSetSource::NEW)
     {
-        Info<< "    Adding cells with only " << minNbrs_ << " or less"
-                " neighbouring cells" << " ..." << endl;
+        if (verbose_)
+        {
+            Info<< "    Adding cells with only " << minNbrs_
+                << " or fewer neighbouring cells" << " ..." << endl;
+        }
 
         combine(set, true);
     }
-    else if (action == topoSetSource::DELETE)
+    else if (action == topoSetSource::SUBTRACT)
     {
-        Info<< "    Removing cells with only " << minNbrs_ << " or less"
-                " neighbouring cells" << " ..." << endl;
+        if (verbose_)
+        {
+            Info<< "    Removing cells with only " << minNbrs_
+                << " or fewer neighbouring cells" << " ..." << endl;
+        }
 
         combine(set, false);
     }

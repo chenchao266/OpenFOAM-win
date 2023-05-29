@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -236,6 +239,37 @@ inline Foam::scalar Foam::janafThermo<EquationOfState>::S
     ) + EquationOfState::S(p, T);
 }
 
+
+template<class EquationOfState>
+inline Foam::scalar Foam::janafThermo<EquationOfState>::Gstd
+(
+    const scalar T
+) const
+{
+    const coeffArray& a = coeffs(T);
+    return
+    (
+        (
+            a[0]*(1 - log(T))
+          - (((a[4]/20.0*T + a[3]/12.0)*T + a[2]/6.0)*T + a[1]/2.0)*T
+          - a[6]
+        )*T
+      + a[5]
+    );
+}
+
+
+template<class EquationOfState>
+inline Foam::scalar Foam::janafThermo<EquationOfState>::dCpdT
+(
+    const scalar p,
+    const scalar T
+) const
+{
+    const coeffArray& a = coeffs(T);
+    return
+        (((4*a[4]*T + 3*a[3])*T + 2*a[2])*T + a[1]);
+}
 
 // * * * * * * * * * * * * * * * Member Operators  * * * * * * * * * * * * * //
 

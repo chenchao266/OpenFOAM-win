@@ -1,9 +1,12 @@
-﻿/*---------------------------------------------------------------------------*\
+/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2012 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2012 OpenFOAM Foundation
+    Copyright (C) 2017-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -30,158 +33,156 @@ License
 #include "surfaceFields.H"
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
-namespace Foam {
-    variableHeightFlowRateFvPatchScalarField
-        ::variableHeightFlowRateFvPatchScalarField
-        (
-            const fvPatch& p,
-            const DimensionedField<scalar, volMesh>& iF
-        )
-        :
-        mixedFvPatchField<scalar>(p, iF),
-        phiName_("phi"),
-        lowerBound_(0.0),
-        upperBound_(1.0)
+
+Foam::variableHeightFlowRateFvPatchScalarField
+::variableHeightFlowRateFvPatchScalarField
+(
+    const fvPatch& p,
+    const DimensionedField<scalar, volMesh>& iF
+)
+:
+    mixedFvPatchField<scalar>(p, iF),
+    phiName_("phi"),
+    lowerBound_(0.0),
+    upperBound_(1.0)
+{
+    this->refValue() = 0.0;
+    this->refGrad() = 0.0;
+    this->valueFraction() = 0.0;
+}
+
+
+Foam::variableHeightFlowRateFvPatchScalarField
+::variableHeightFlowRateFvPatchScalarField
+(
+    const variableHeightFlowRateFvPatchScalarField& ptf,
+    const fvPatch& p,
+    const DimensionedField<scalar, volMesh>& iF,
+    const fvPatchFieldMapper& mapper
+)
+:
+    mixedFvPatchScalarField(ptf, p, iF, mapper),
+    phiName_(ptf.phiName_),
+    lowerBound_(ptf.lowerBound_),
+    upperBound_(ptf.upperBound_)
+{}
+
+
+Foam::variableHeightFlowRateFvPatchScalarField
+::variableHeightFlowRateFvPatchScalarField
+(
+    const fvPatch& p,
+    const DimensionedField<scalar, volMesh>& iF,
+    const dictionary& dict
+)
+:
+    mixedFvPatchScalarField(p, iF),
+    phiName_(dict.getOrDefault<word>("phi", "phi")),
+    lowerBound_(dict.get<scalar>("lowerBound")),
+    upperBound_(dict.get<scalar>("upperBound"))
+{
+    patchType() = dict.getOrDefault<word>("patchType", word::null);
+    this->refValue() = 0.0;
+
+    if (dict.found("value"))
     {
-        this->refValue() = 0.0;
-        this->refGrad() = 0.0;
-        this->valueFraction() = 0.0;
+        fvPatchScalarField::operator=
+        (
+            scalarField("value", dict, p.size())
+        );
+    }
+    else
+    {
+        fvPatchScalarField::operator=(this->patchInternalField());
     }
 
-
-    variableHeightFlowRateFvPatchScalarField
-        ::variableHeightFlowRateFvPatchScalarField
-        (
-            const variableHeightFlowRateFvPatchScalarField& ptf,
-            const fvPatch& p,
-            const DimensionedField<scalar, volMesh>& iF,
-            const fvPatchFieldMapper& mapper
-        )
-        :
-        mixedFvPatchScalarField(ptf, p, iF, mapper),
-        phiName_(ptf.phiName_),
-        lowerBound_(ptf.lowerBound_),
-        upperBound_(ptf.upperBound_)
-    {}
+    this->refGrad() = 0.0;
+    this->valueFraction() = 0.0;
+}
 
 
-    variableHeightFlowRateFvPatchScalarField
-        ::variableHeightFlowRateFvPatchScalarField
-        (
-            const fvPatch& p,
-            const DimensionedField<scalar, volMesh>& iF,
-            const dictionary& dict
-        )
-        :
-        mixedFvPatchScalarField(p, iF),
-        phiName_(dict.lookupOrDefault<word>("phi", "phi")),
-        lowerBound_(readScalar(dict.lookup("lowerBound"))),
-        upperBound_(readScalar(dict.lookup("upperBound")))
+Foam::variableHeightFlowRateFvPatchScalarField
+    ::variableHeightFlowRateFvPatchScalarField
+(
+    const variableHeightFlowRateFvPatchScalarField& ptf
+)
+:
+    mixedFvPatchScalarField(ptf),
+    phiName_(ptf.phiName_),
+    lowerBound_(ptf.lowerBound_),
+    upperBound_(ptf.upperBound_)
+{}
+
+
+Foam::variableHeightFlowRateFvPatchScalarField
+    ::variableHeightFlowRateFvPatchScalarField
+(
+    const variableHeightFlowRateFvPatchScalarField& ptf,
+    const DimensionedField<scalar, volMesh>& iF
+)
+:
+    mixedFvPatchScalarField(ptf, iF),
+    phiName_(ptf.phiName_),
+    lowerBound_(ptf.lowerBound_),
+    upperBound_(ptf.upperBound_)
+{}
+
+
+// * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
+
+void Foam::variableHeightFlowRateFvPatchScalarField::updateCoeffs()
+{
+    if (this->updated())
     {
-        this->refValue() = 0.0;
-
-        if (dict.found("value"))
-        {
-            fvPatchScalarField::operator=
-                (
-                    scalarField("value", dict, p.size())
-                    );
-        }
-        else
-        {
-            fvPatchScalarField::operator=(this->patchInternalField());
-        }
-
-        this->refGrad() = 0.0;
-        this->valueFraction() = 0.0;
+        return;
     }
 
+    const fvsPatchField<scalar>& phip =
+        patch().lookupPatchField<surfaceScalarField, scalar>(phiName_);
 
-    variableHeightFlowRateFvPatchScalarField
-        ::variableHeightFlowRateFvPatchScalarField
-        (
-            const variableHeightFlowRateFvPatchScalarField& ptf
-        )
-        :
-        mixedFvPatchScalarField(ptf),
-        phiName_(ptf.phiName_),
-        lowerBound_(ptf.lowerBound_),
-        upperBound_(ptf.upperBound_)
-    {}
+    scalarField alphap(this->patchInternalField());
 
 
-    variableHeightFlowRateFvPatchScalarField
-        ::variableHeightFlowRateFvPatchScalarField
-        (
-            const variableHeightFlowRateFvPatchScalarField& ptf,
-            const DimensionedField<scalar, volMesh>& iF
-        )
-        :
-        mixedFvPatchScalarField(ptf, iF),
-        phiName_(ptf.phiName_),
-        lowerBound_(ptf.lowerBound_),
-        upperBound_(ptf.upperBound_)
-    {}
-
-
-    // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
-
-    void variableHeightFlowRateFvPatchScalarField::updateCoeffs()
+    forAll(phip, i)
     {
-        if (this->updated())
+        if (phip[i] < -SMALL)
         {
-            return;
-        }
-
-        const fvsPatchField<scalar>& phip =
-            patch().lookupPatchField<surfaceScalarField, scalar>(phiName_);
-
-        scalarField alphap(this->patchInternalField());
-
-
-        forAll(phip, i)
-        {
-            if (phip[i] < -SMALL)
+            if (alphap[i] < lowerBound_)
             {
-                if (alphap[i] < lowerBound_)
-                {
-                    this->refValue()[i] = 0.0;
-                }
-                else if (alphap[i] > upperBound_)
-                {
-                    this->refValue()[i] = 1.0;
-                }
-                else
-                {
-                    this->refValue()[i] = alphap[i];
-                }
-
-                this->valueFraction()[i] = 1.0;
+                this->refValue()[i] = 0.0;
+            }
+            else if (alphap[i] > upperBound_)
+            {
+                this->refValue()[i] = 1.0;
             }
             else
             {
-                this->refValue()[i] = 0.0;
-                this->valueFraction()[i] = 0.0;
+                this->refValue()[i] = alphap[i];
             }
+
+            this->valueFraction()[i] = 1.0;
         }
-
-        mixedFvPatchScalarField::updateCoeffs();
-    }
-
-
-    void variableHeightFlowRateFvPatchScalarField::write(Ostream& os) const
-    {
-        fvPatchScalarField::write(os);
-        if (phiName_ != "phi")
+        else
         {
-            os.writeKeyword("phi") << phiName_ << token::END_STATEMENT << nl;
+            this->refValue()[i] = 0.0;
+            this->valueFraction()[i] = 0.0;
         }
-        os.writeKeyword("lowerBound") << lowerBound_ << token::END_STATEMENT << nl;
-        os.writeKeyword("upperBound") << upperBound_ << token::END_STATEMENT << nl;
-        this->writeEntry("value", os);
     }
 
+    mixedFvPatchScalarField::updateCoeffs();
 }
+
+
+void Foam::variableHeightFlowRateFvPatchScalarField::write(Ostream& os) const
+{
+    fvPatchScalarField::write(os);
+    os.writeEntryIfDifferent<word>("phi", "phi", phiName_);
+    os.writeEntry("lowerBound", lowerBound_);
+    os.writeEntry("upperBound", upperBound_);
+    this->writeEntry("value", os);
+}
+
+
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 namespace Foam

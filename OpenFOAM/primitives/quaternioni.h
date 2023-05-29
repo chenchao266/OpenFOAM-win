@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2019-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -24,17 +27,26 @@ License
 \*---------------------------------------------------------------------------*/
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
-namespace Foam {
-inline quaternion::quaternion()
+
+
+ namespace Foam{
+inline quaternion::quaternion(const ::Foam::zero)
+:
+    w_(0),
+    v_(Zero)
 {}
 
 
-inline quaternion::quaternion(const scalar w, const vector& v) :    w_(w),
+inline quaternion::quaternion(const scalar w, const vector& v)
+:
+    w_(w),
     v_(v)
 {}
 
 
-inline quaternion::quaternion(const vector& d, const scalar theta) :    w_(cos(0.5*theta)),
+inline quaternion::quaternion(const vector& d, const scalar theta)
+:
+    w_(cos(0.5*theta)),
     v_((sin(0.5*theta)/mag(d))*d)
 {}
 
@@ -60,12 +72,16 @@ inline quaternion::quaternion
 }
 
 
-inline quaternion::quaternion(const scalar w) :    w_(w),
+inline quaternion::quaternion(const scalar w)
+:
+    w_(w),
     v_(Zero)
 {}
 
 
-inline quaternion::quaternion(const vector& v) :    w_(0),
+inline quaternion::quaternion(const vector& v)
+:
+    w_(0),
     v_(v)
 {}
 
@@ -78,87 +94,112 @@ inline quaternion quaternion::unit(const vector& v)
 
 inline quaternion::quaternion
 (
-    const rotationSequence rs,
+    const eulerOrder order,
     const vector& angles
 )
 {
-    switch(rs)
+    switch (order)
     {
         case ZYX:
+        {
             operator=(quaternion(vector(0, 0, 1), angles.x()));
             operator*=(quaternion(vector(0, 1, 0), angles.y()));
             operator*=(quaternion(vector(1, 0, 0), angles.z()));
             break;
+        }
 
         case ZYZ:
+        {
             operator=(quaternion(vector(0, 0, 1), angles.x()));
             operator*=(quaternion(vector(0, 1, 0), angles.y()));
             operator*=(quaternion(vector(0, 0, 1), angles.z()));
             break;
+        }
 
         case ZXY:
+        {
             operator=(quaternion(vector(0, 0, 1), angles.x()));
             operator*=(quaternion(vector(1, 0, 0), angles.y()));
             operator*=(quaternion(vector(0, 1, 0), angles.z()));
             break;
+        }
 
         case ZXZ:
+        {
             operator=(quaternion(vector(0, 0, 1), angles.x()));
             operator*=(quaternion(vector(1, 0, 0), angles.y()));
             operator*=(quaternion(vector(0, 0, 1), angles.z()));
             break;
+        }
 
         case YXZ:
+        {
             operator=(quaternion(vector(0, 1, 0), angles.x()));
             operator*=(quaternion(vector(1, 0, 0), angles.y()));
             operator*=(quaternion(vector(0, 0, 1), angles.z()));
             break;
+        }
 
         case YXY:
+        {
             operator=(quaternion(vector(0, 1, 0), angles.x()));
             operator*=(quaternion(vector(1, 0, 0), angles.y()));
             operator*=(quaternion(vector(0, 1, 0), angles.z()));
             break;
+        }
 
         case YZX:
+        {
             operator=(quaternion(vector(0, 1, 0), angles.x()));
             operator*=(quaternion(vector(0, 0, 1), angles.y()));
             operator*=(quaternion(vector(1, 0, 0), angles.z()));
             break;
+        }
 
         case YZY:
+        {
             operator=(quaternion(vector(0, 1, 0), angles.x()));
             operator*=(quaternion(vector(0, 0, 1), angles.y()));
             operator*=(quaternion(vector(0, 1, 0), angles.z()));
             break;
+        }
 
         case XYZ:
+        {
             operator=(quaternion(vector(1, 0, 0), angles.x()));
             operator*=(quaternion(vector(0, 1, 0), angles.y()));
             operator*=(quaternion(vector(0, 0, 1), angles.z()));
             break;
+        }
 
         case XYX:
+        {
             operator=(quaternion(vector(1, 0, 0), angles.x()));
             operator*=(quaternion(vector(0, 1, 0), angles.y()));
             operator*=(quaternion(vector(1, 0, 0), angles.z()));
             break;
+        }
 
         case XZY:
+        {
             operator=(quaternion(vector(1, 0, 0), angles.x()));
             operator*=(quaternion(vector(0, 0, 1), angles.y()));
             operator*=(quaternion(vector(0, 1, 0), angles.z()));
             break;
+        }
 
         case XZX:
+        {
             operator=(quaternion(vector(1, 0, 0), angles.x()));
             operator*=(quaternion(vector(0, 0, 1), angles.y()));
             operator*=(quaternion(vector(1, 0, 0), angles.z()));
             break;
+        }
 
         default:
             FatalErrorInFunction
-                << "Unknown rotation sequence " << rs << abort(FatalError);
+                << "Unknown euler rotation order "
+                << int(order) << abort(FatalError);
             break;
     }
 }
@@ -191,7 +232,7 @@ inline quaternion::quaternion
          && rotationTensor.xx() > rotationTensor.zz()
         )
         {
-            scalar s = 2.0*sqrt
+            const scalar s = 2.0*sqrt
             (
                 1.0
               + rotationTensor.xx()
@@ -209,7 +250,7 @@ inline quaternion::quaternion
             rotationTensor.yy() > rotationTensor.zz()
         )
         {
-            scalar s = 2.0*sqrt
+            const scalar s = 2.0*sqrt
             (
                 1.0
               + rotationTensor.yy()
@@ -217,14 +258,14 @@ inline quaternion::quaternion
               - rotationTensor.zz()
             );
 
-            w_ = (rotationTensor.xz() - rotationTensor.xz())/s;
+            w_ = (rotationTensor.xz() - rotationTensor.zx())/s;
             v_[0] = (rotationTensor.xy() + rotationTensor.yx())/s;
             v_[1] = 0.25*s;
             v_[2] = (rotationTensor.yz() + rotationTensor.zy())/s;
         }
         else
         {
-            scalar s = 2.0*sqrt
+            const scalar s = 2.0*sqrt
             (
                 1.0
               + rotationTensor.zz()
@@ -299,7 +340,7 @@ inline vector quaternion::invTransform(const vector& u) const
 
 inline quaternion quaternion::transform(const quaternion& q) const
 {
-    return ::Foam::normalize((*this)*q);
+    return  ::Foam::normalize((*this)*q);
 }
 
 
@@ -308,7 +349,7 @@ inline quaternion quaternion::invTransform
     const quaternion& q
 ) const
 {
-    return ::Foam::normalize(conjugate(*this)*q);
+    return  ::Foam::normalize(conjugate(*this)*q);
 }
 
 
@@ -363,7 +404,7 @@ inline vector quaternion::threeAxes
 
 inline vector quaternion::eulerAngles
 (
-    const rotationSequence rs
+    const eulerOrder order
 ) const
 {
     const scalar w2 = sqr(w());
@@ -371,9 +412,10 @@ inline vector quaternion::eulerAngles
     const scalar y2 = sqr(v().y());
     const scalar z2 = sqr(v().z());
 
-    switch(rs)
+    switch (order)
     {
         case ZYX:
+        {
             return threeAxes
             (
                 2*(v().x()*v().y() + w()*v().z()),
@@ -383,8 +425,10 @@ inline vector quaternion::eulerAngles
                 w2 - x2 - y2 + z2
             );
             break;
+        }
 
         case ZYZ:
+        {
             return twoAxes
             (
                 2*(v().y()*v().z() - w()*v().x()),
@@ -394,8 +438,10 @@ inline vector quaternion::eulerAngles
                 2*(w()*v().y() - v().x()*v().z())
             );
             break;
+        }
 
         case ZXY:
+        {
             return threeAxes
             (
                 2*(w()*v().z() - v().x()*v().y()),
@@ -405,8 +451,10 @@ inline vector quaternion::eulerAngles
                 w2 - x2 - y2 + z2
             );
             break;
+        }
 
         case ZXZ:
+        {
             return twoAxes
             (
                 2*(v().x()*v().z() + w()*v().y()),
@@ -416,8 +464,10 @@ inline vector quaternion::eulerAngles
                 2*(v().y()*v().z() + w()*v().x())
             );
             break;
+        }
 
         case YXZ:
+        {
             return threeAxes
             (
                 2*(v().x()*v().z() + w()*v().y()),
@@ -427,8 +477,10 @@ inline vector quaternion::eulerAngles
                 w2 - x2 + y2 - z2
             );
             break;
+        }
 
         case YXY:
+        {
             return twoAxes
             (
                 2*(v().x()*v().y() - w()*v().z()),
@@ -438,8 +490,10 @@ inline vector quaternion::eulerAngles
                 2*(w()*v().x() - v().y()*v().z())
             );
             break;
+        }
 
         case YZX:
+        {
             return threeAxes
             (
                 2*(w()*v().y() - v().x()*v().z()),
@@ -449,8 +503,10 @@ inline vector quaternion::eulerAngles
                 w2 - x2 + y2 - z2
             );
             break;
+        }
 
         case YZY:
+        {
             return twoAxes
             (
                 2*(v().y()*v().z() + w()*v().x()),
@@ -460,8 +516,10 @@ inline vector quaternion::eulerAngles
                 2*(v().x()*v().y() + w()*v().z())
             );
             break;
+        }
 
         case XYZ:
+        {
             return threeAxes
             (
                 2*(w()*v().x() - v().y()*v().z()),
@@ -471,8 +529,10 @@ inline vector quaternion::eulerAngles
                 w2 + x2 - y2 - z2
             );
             break;
+        }
 
         case XYX:
+        {
             return twoAxes
             (
                 2*(v().x()*v().y() + w()*v().z()),
@@ -482,8 +542,10 @@ inline vector quaternion::eulerAngles
                 2*(v().x()*v().z() + w()*v().y())
             );
             break;
+        }
 
         case XZY:
+        {
             return threeAxes
             (
                 2*(v().y()*v().z() + w()*v().x()),
@@ -493,8 +555,10 @@ inline vector quaternion::eulerAngles
                 w2 + x2 - y2 - z2
             );
             break;
+        }
 
         case XZX:
+        {
             return twoAxes
             (
                 2*(v().x()*v().z() - w()*v().y()),
@@ -504,22 +568,20 @@ inline vector quaternion::eulerAngles
                 2*(w()*v().z() - v().x()*v().y())
             );
             break;
+        }
+
         default:
             FatalErrorInFunction
-                << "Unknown rotation sequence " << rs << abort(FatalError);
-            return Zero;
+                << "Unknown euler rotation order "
+                << int(order) << abort(FatalError);
             break;
     }
+
+    return Zero;
 }
 
 
 // * * * * * * * * * * * * * * * Member Operators  * * * * * * * * * * * * * //
-
-inline void quaternion::operator=(const quaternion& q)
-{
-    w_ = q.w_;
-    v_ = q.v_;
-}
 
 inline void quaternion::operator+=(const quaternion& q)
 {
@@ -691,5 +753,7 @@ inline quaternion operator/(const quaternion& q, const scalar s)
     return quaternion(q.w()/s, q.v()/s);
 }
 
-}
+
 // ************************************************************************* //
+
+ } // End namespace Foam

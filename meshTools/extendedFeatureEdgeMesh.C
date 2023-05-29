@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -24,7 +27,7 @@ License
 \*---------------------------------------------------------------------------*/
 
 #include "extendedFeatureEdgeMesh.H"
-#include "Time.T.H"
+#include "Time1.H"
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
 
@@ -120,10 +123,10 @@ Foam::extendedFeatureEdgeMesh::extendedFeatureEdgeMesh
 Foam::extendedFeatureEdgeMesh::extendedFeatureEdgeMesh
 (
     const IOobject& io,
-    const PrimitivePatch<face, List, pointField, point>& surf,
-    const labelList& featureEdges,
-    const labelList& regionFeatureEdges,
-    const labelList& featurePoints
+    const PrimitivePatch<faceList, pointField>& surf,
+    const labelUList& featureEdges,
+    const labelUList& regionFeatureEdges,
+    const labelUList& featurePoints
 )
 :
     regIOobject(io),
@@ -177,15 +180,6 @@ Foam::extendedFeatureEdgeMesh::extendedFeatureEdgeMesh
 {}
 
 
-// * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
-
-Foam::extendedFeatureEdgeMesh::~extendedFeatureEdgeMesh()
-{}
-
-
-// * * * * * * * * * * * * Private Member Functions  * * * * * * * * * * * * //
-
-
 // * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * * //
 
 bool Foam::extendedFeatureEdgeMesh::readData(Istream& is)
@@ -198,7 +192,6 @@ bool Foam::extendedFeatureEdgeMesh::readData(Istream& is)
 bool Foam::extendedFeatureEdgeMesh::writeData(Ostream& os) const
 {
     os << *this;
-
     return os.good();
 }
 
@@ -250,9 +243,7 @@ bool Foam::extendedFeatureEdgeMesh::writeData(Ostream& os) const
 //
 //    vt = static_cast<Foam::extendedFeatureEdgeMesh::sideVolumeType>(type);
 //
-//    // Check state of Istream
-//    is.check("operator>>(Istream&, sideVolumeType&)");
-//
+//    is.check(FUNCTION_NAME);
 //    return is;
 //}
 //
@@ -267,6 +258,6 @@ bool Foam::extendedFeatureEdgeMesh::writeData(Ostream& os) const
 //
 //    return os;
 //}
-//
+
 
 // ************************************************************************* //

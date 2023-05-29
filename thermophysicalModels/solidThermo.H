@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2017 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -35,12 +38,7 @@ SourceFiles
 #ifndef solidThermo_H
 #define solidThermo_H
 
-#include "volFields.H"
-#include "runTimeSelectionTables.H"
-#include "fvMesh.H"
-#include "IOdictionary.H"
-#include "autoPtr.H"
-#include "basicThermo.H"
+#include "rhoThermo.H"
 #include "autoPtr.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
@@ -54,16 +52,8 @@ namespace Foam
 
 class solidThermo
 :
-    public basicThermo
+    public rhoThermo
 {
-
-protected:
-
-    // Protected data
-
-        //- Density field [kg/m^3]
-        //  Named 'rhoThermo' to avoid (potential) conflict with solver density
-        volScalarField rho_;
 
 
 public:
@@ -91,6 +81,16 @@ public:
         (mesh, dict, phaseName)
     );
 
+   //- Declare run-time constructor selection table for dictionary based
+    declareRunTimeSelectionTable
+    (
+        autoPtr,
+        solidThermo,
+        fvMeshDictPhase,
+        (const fvMesh& mesh, const word& phaseName, const word& dictName),
+        (mesh, phaseName, dictName)
+    );
+
 
     // Constructors
 
@@ -109,6 +109,15 @@ public:
             const word& phaseName
         );
 
+        //- Construct from mesh with dictionary name and without
+        // constructing T phaseName
+        solidThermo
+        (
+            const fvMesh&,
+            const word& phaseName,
+            const word& dictionaryName
+        );
+
         //- Return a pointer to a new solidThermo created from
         //  the solidThermophysicalProperties dictionary
         static autoPtr<solidThermo> New
@@ -124,6 +133,16 @@ public:
             const fvMesh&,
             const dictionary&,
             const word& phaseName=word::null
+        );
+
+
+        //- Return a pointer to a new solidThermo created from
+        //  local dictionary and phase name
+        static autoPtr<solidThermo> New
+        (
+            const fvMesh&,
+            const word& phaseName,
+            const word& dictName
         );
 
 

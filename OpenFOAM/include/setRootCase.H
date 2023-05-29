@@ -1,12 +1,24 @@
-#include "listOptions.H"
+﻿// Construct from (int argc, char* argv[]),
+// - use argList::argsMandatory() to decide on checking command arguments.
+// - check validity of the options
 
-Foam::argList args(argc, argv);
+
+ namespace Foam{
+argList args(argc, argv);
 if (!args.checkRootCase())
 {
-    Foam::FatalError.exit();
+    FatalError.exit();
 }
 
-//Hack by blueCAPE Lda 2009
-#include "forceLoadLibraries.H"
+// User can also perform checks on otherwise optional arguments.
+// Eg,
+//
+//  if (!args.check(true, false))
+//  {
+//      Foam::FatalError.exit();
+//  }
 
-#include "listOutput.H"
+// Force dlOpen of FOAM_DLOPEN_LIBS (principally for Windows applications)
+#include "foamDlOpenLibs.H"
+
+ } // End namespace Foam

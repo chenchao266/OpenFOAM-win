@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2012-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2012-2016 OpenFOAM Foundation
+    Copyright (C) 2019-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -31,33 +34,34 @@ Foam::autoPtr<Foam::functionObjects::fieldValue>
 Foam::functionObjects::fieldValue::New
 (
     const word& name,
-    const objectRegistry& obr,
+    const Time& runTime,
     const dictionary& dict,
     const bool output
 )
 {
-    const word modelType(dict.lookup("type"));
+    const word modelType(dict.get<word>("type"));
 
     if (output)
     {
-        Info<< "Selecting " << typeName << " " << modelType << endl;
+        Info<< "Selecting " << typeName << ' ' << modelType << endl;
     }
 
-    dictionaryConstructorTable::iterator cstrIter =
-        dictionaryConstructorTablePtr_->find(modelType);
+    auto* ctorPtr = runTimeConstructorTable(modelType);
 
-    if (cstrIter == dictionaryConstructorTablePtr_->end())
+    if (!ctorPtr)
     {
-        FatalErrorInFunction
-            << "Unknown " << typeName << " type "
-            << modelType << nl << nl
-            << "Valid " << typeName << " types are:" << nl
-            << dictionaryConstructorTablePtr_->sortedToc()
-            << exit(FatalError);
+        FatalIOErrorInLookup
+        (
+            dict,
+            typeName,
+            modelType,
+            *runTimeConstructorTablePtr_
+        ) << exit(FatalIOError);
     }
 
-    return autoPtr<fieldValue>(cstrIter()(name, obr, dict));
+    return autoPtr<fieldValue>(ctorPtr(name, runTime, dict));
 }
+
 
 
 // ************************************************************************* //

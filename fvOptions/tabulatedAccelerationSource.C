@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2015-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2015-2016 OpenFOAM Foundation
+    Copyright (C) 2020-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -36,12 +39,7 @@ namespace Foam
 namespace fv
 {
     defineTypeNameAndDebug(tabulatedAccelerationSource, 0);
-    addToRunTimeSelectionTable
-    (
-        option,
-        tabulatedAccelerationSource,
-        dictionary
-    );
+    addToRunTimeSelectionTable(option, tabulatedAccelerationSource, dictionary);
 }
 }
 
@@ -56,17 +54,17 @@ Foam::fv::tabulatedAccelerationSource::tabulatedAccelerationSource
     const fvMesh& mesh
 )
 :
-    option(name, modelType, dict, mesh),
+    fv::option(name, modelType, dict, mesh),
     motion_(coeffs_, mesh.time()),
-    UName_(coeffs_.lookupOrDefault<word>("U", "U")),
+    UName_(coeffs_.getOrDefault<word>("U", "U")),
     g0_("g0", dimAcceleration, Zero)
 {
-    fieldNames_.setSize(1, UName_);
-    applied_.setSize(1, false);
+    fieldNames_.resize(1, UName_);
+    fv::option::resetApplied();
 
-    if (mesh.foundObject<uniformDimensionedVectorField>("g"))
+    if (mesh.time().foundObject<uniformDimensionedVectorField>("g"))
     {
-        g0_ = mesh.lookupObject<uniformDimensionedVectorField>("g");
+        g0_ = mesh.time().lookupObject<uniformDimensionedVectorField>("g");
     }
 }
 
@@ -96,14 +94,12 @@ void Foam::fv::tabulatedAccelerationSource::addSup
 
 bool Foam::fv::tabulatedAccelerationSource::read(const dictionary& dict)
 {
-    if (option::read(dict))
+    if (fv::option::read(dict))
     {
         return motion_.read(coeffs_);
     }
-    else
-    {
-        return false;
-    }
+
+    return false;
 }
 
 

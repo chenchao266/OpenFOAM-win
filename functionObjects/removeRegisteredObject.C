@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2013-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2013-2016 OpenFOAM Foundation
+    Copyright (C) 2015-2019 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -24,7 +27,7 @@ License
 \*---------------------------------------------------------------------------*/
 
 #include "removeRegisteredObject.H"
-#include "Time.T.H"
+#include "Time1.H"
 #include "polyMesh.H"
 #include "addToRunTimeSelectionTable.H"
 
@@ -55,31 +58,20 @@ Foam::functionObjects::removeRegisteredObject::removeRegisteredObject
     const dictionary& dict
 )
 :
-    functionObject(name),
-    obr_
-    (
-        runTime.lookupObject<objectRegistry>
-        (
-            dict.lookupOrDefault("region", polyMesh::defaultRegion)
-        )
-    ),
+    regionFunctionObject(name, runTime, dict),
     objectNames_()
 {
     read(dict);
 }
 
 
-// * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
-
-Foam::functionObjects::removeRegisteredObject::~removeRegisteredObject()
-{}
-
-
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
 
 bool Foam::functionObjects::removeRegisteredObject::read(const dictionary& dict)
 {
-    dict.lookup("objects") >> objectNames_;
+    regionFunctionObject::read(dict);
+
+    dict.readEntry("objects", objectNames_);
 
     return true;
 }
@@ -87,22 +79,17 @@ bool Foam::functionObjects::removeRegisteredObject::read(const dictionary& dict)
 
 bool Foam::functionObjects::removeRegisteredObject::execute()
 {
-    forAll(objectNames_, i)
+    for (const word& objName : objectNames_)
     {
-        if (obr_.foundObject<regIOobject>(objectNames_[i]))
+        regIOobject* ptr = findObject<regIOobject>(objName);
+
+        if (ptr && ptr->ownedByRegistry())
         {
-            regIOobject& obj =
-                obr_.lookupObjectRef<regIOobject>(objectNames_[i]);
+            Log << type() << " " << name() << " output:" << nl
+                << "    removing object " << ptr->name() << nl
+                << endl;
 
-            if (obj.ownedByRegistry())
-            {
-                Info<< type() << " " << name() << " write:" << nl
-                    << "    removing object " << obj.name() << nl
-                    << endl;
-
-                obj.release();
-                delete &obj;
-            }
+            ptr->checkOut();
         }
     }
 

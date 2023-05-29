@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011 OpenFOAM Foundation
+    Copyright (C) 2018-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -25,6 +28,16 @@ Class
     Foam::simpleGeomDecomp
 
 Description
+    Simple geometric decomposition, selectable as \c simple
+
+    Method coefficients:
+    \table
+        Property  | Description                             | Required | Default
+        n         | (nx ny nz)                              | yes |
+        order     | order of operation (unused)             | no  | xyz
+        delta     | delta (jitter) for rotation matrix      | no  | 0.001
+        transform | cartesian coordinate transformation     | no  |
+    \endtable
 
 SourceFiles
     simpleGeomDecomp.C
@@ -40,7 +53,7 @@ namespace Foam
 {
 
 /*---------------------------------------------------------------------------*\
-                           Class simpleGeomDecomp Declaration
+                      Class simpleGeomDecomp Declaration
 \*---------------------------------------------------------------------------*/
 
 class simpleGeomDecomp
@@ -49,16 +62,20 @@ class simpleGeomDecomp
 {
     // Private Member Functions
 
-        void assignToProcessorGroup(labelList&, const label) const;
+        static void assignToProcessorGroup
+        (
+            labelList& processorGroup,
+            const label nProcGroup
+        );
 
-        void assignToProcessorGroup
+        static void assignToProcessorGroup
         (
             labelList& processorGroup,
             const label nProcGroup,
             const labelList& indices,
             const scalarField& weights,
             const scalar summedWeights
-        ) const;
+        );
 
         labelList decomposeOneProc(const pointField& points) const;
 
@@ -68,12 +85,14 @@ class simpleGeomDecomp
             const scalarField& weights
         ) const;
 
-        //- Disallow default bitwise copy construct and assignment
-        void operator=(const simpleGeomDecomp&);
-        simpleGeomDecomp(const simpleGeomDecomp&);
-
 
 public:
+
+    //- No copy construct
+    void operator=(const simpleGeomDecomp&) = delete;
+
+    //- No copy assignment
+    simpleGeomDecomp(const simpleGeomDecomp&) = delete;
 
     //- Runtime type information
     TypeName("simple");
@@ -81,50 +100,66 @@ public:
 
     // Constructors
 
-        //- Construct given the decomposition dictionary
-        simpleGeomDecomp(const dictionary& decompositionDict);
+        //- Construct given decomposition dictionary and optional region name
+        explicit simpleGeomDecomp
+        (
+            const dictionary& decompDict,
+            const word& regionName = ""
+        );
 
 
     //- Destructor
-    virtual ~simpleGeomDecomp()
-    {}
+    virtual ~simpleGeomDecomp() = default;
 
 
     // Member Functions
 
+        //- Simple sends all points to the master for decomposition.
         virtual bool parallelAware() const
         {
-            // simpleDecomp sends all points to the master which does
-            // the decomposition.
             return true;
         }
 
-        virtual labelList decompose(const pointField&);
+        //- Decompose with uniform weights.
+        virtual labelList decompose(const pointField& points) const;
 
-        virtual labelList decompose(const pointField&, const scalarField&);
+        //- Return for every coordinate the wanted processor number.
+        virtual labelList decompose
+        (
+            const pointField& points,
+            const scalarField& weights
+        ) const;
 
-        virtual labelList decompose(const polyMesh&, const pointField& points)
+        //- Decompose with uniform weights.
+        virtual labelList decompose
+        (
+            const polyMesh& mesh,
+            const pointField& points
+        ) const
         {
+            checkDecompositionDirections(mesh.geometricD());
             return decompose(points);
         }
 
+        //- Return for every coordinate the wanted processor number.
         virtual labelList decompose
         (
-            const polyMesh&,
+            const polyMesh& mesh,
             const pointField& points,
-            const scalarField& pointWeights
-        )
+            const scalarField& weights
+        ) const
         {
-            return decompose(points, pointWeights);
+            checkDecompositionDirections(mesh.geometricD());
+            return decompose(points, weights);
         }
 
         //- Explicitly provided connectivity
         virtual labelList decompose
         (
-            const labelListList& globalCellCells,
+            const labelListList& globalCellCells,  // unused
             const pointField& cc,
             const scalarField& cWeights
-        )
+        ) const
         {
             return decompose(cc, cWeights);
         }

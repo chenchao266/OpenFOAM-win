@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2015-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -23,36 +26,29 @@ License
 
 \*---------------------------------------------------------------------------*/
 
-
 #include "UPstream.H"
-#include "Pstream.T.H"
-#include "debug.T.H"
+#include "debug.H"
 #include "registerSwitch.H"
-#include "dictionary.H"
+#include "dictionary2.H"
 #include "IOstreams.H"
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
- 
+
 namespace Foam
 {
     defineTypeNameAndDebug(UPstream, 0);
 
-    template<>
-    const char* NamedEnum
-    <
-        UPstream::commsTypes,
-        3
-    >::names[] =
-    {
-        "blocking",
-        "scheduled",
-        "nonBlocking"
-    };
-}
 
-namespace Foam {
-    const NamedEnum<UPstream::commsTypes, 3>
-        UPstream::commsTypeNames;
+    const Enum
+        <
+        UPstream::commsTypes
+        >
+        UPstream::commsTypeNames
+        ({
+            { commsTypes::blocking, "blocking" },
+            { commsTypes::scheduled, "scheduled" },
+            { commsTypes::nonBlocking, "nonBlocking" },
+            });
 
 
     // * * * * * * * * * * * * * Private Member Functions  * * * * * * * * * * * //
@@ -65,10 +61,10 @@ namespace Foam {
             haveThreads_ = haveThreads;
 
             freeCommunicator(UPstream::worldComm);
-            label comm = allocateCommunicator(-1, labelList(1, label(0)), false);
+            label comm = allocateCommunicator(-1, labelList(one{}, 0), false);
             if (comm != UPstream::worldComm)
             {
-                FatalErrorIn("UPstream::setParRun(const label)")
+                FatalErrorInFunction
                     << "problem : comm:" << comm
                     << "  UPstream::worldComm:" << UPstream::worldComm
                     << ::Foam::exit(FatalError);
@@ -94,160 +90,17 @@ namespace Foam {
                     << ::Foam::exit(FatalError);
             }
 
-            Pout.prefix() = '[' + name(myProcNo(Pstream::worldComm)) + "] ";
-            Perr.prefix() = '[' + name(myProcNo(Pstream::worldComm)) + "] ";
+            Pout.prefix() = '[' + name(myProcNo(comm)) + "] ";
+            Perr.prefix() = '[' + name(myProcNo(comm)) + "] ";
         }
-    }
 
-
-    List<UPstream::commsStruct> UPstream::calcLinearComm
-    (
-        const label nProcs
-    )
-    {
-        List<commsStruct> linearCommunication(nProcs);
-
-        // Master
-        labelList belowIDs(nProcs - 1);
-        forAll(belowIDs, i)
+        if (debug)
         {
-            belowIDs[i] = i + 1;
+            Pout << "UPstream::setParRun :"
+                << " nProcs:" << nProcs
+                << " haveThreads:" << haveThreads
+                << endl;
         }
-
-        linearCommunication[0] = commsStruct
-        (
-            nProcs,
-            0,
-            -1,
-            belowIDs,
-            labelList(0)
-        );
-
-        // Slaves. Have no below processors, only communicate up to master
-        for (label procID = 1; procID < nProcs; procID++)
-        {
-            linearCommunication[procID] = commsStruct
-            (
-                nProcs,
-                procID,
-                0,
-                labelList(0),
-                labelList(0)
-            );
-        }
-        return linearCommunication;
-    }
-
-
-    void UPstream::collectReceives
-    (
-        const label procID,
-        const List<DynamicList<label>>& receives,
-        DynamicList<label>& allReceives
-    )
-    {
-        // Append my children (and my children children etc.) to allReceives.
-
-        const DynamicList<label>& myChildren = receives[procID];
-
-        forAll(myChildren, childI)
-        {
-            allReceives.append(myChildren[childI]);
-            collectReceives(myChildren[childI], receives, allReceives);
-        }
-    }
-
-
-    List<UPstream::commsStruct> UPstream::calcTreeComm
-    (
-        label nProcs
-    )
-    {
-        // Tree like schedule. For 8 procs:
-        // (level 0)
-        //      0 receives from 1
-        //      2 receives from 3
-        //      4 receives from 5
-        //      6 receives from 7
-        // (level 1)
-        //      0 receives from 2
-        //      4 receives from 6
-        // (level 2)
-        //      0 receives from 4
-        //
-        // The sends/receives for all levels are collected per processor
-        //  (one send per processor; multiple receives possible) creating a table:
-        //
-        // So per processor:
-        // proc     receives from   sends to
-        // ----     -------------   --------
-        //  0       1,2,4           -
-        //  1       -               0
-        //  2       3               0
-        //  3       -               2
-        //  4       5               0
-        //  5       -               4
-        //  6       7               4
-        //  7       -               6
-
-        label nLevels = 1;
-        while ((1 << nLevels) < nProcs)
-        {
-            nLevels++;
-        }
-
-        List<DynamicList<label>> receives(nProcs);
-        labelList sends(nProcs, -1);
-
-        // Info<< "Using " << nLevels << " communication levels" << endl;
-
-        label offset = 2;
-        label childOffset = offset / 2;
-
-        for (label level = 0; level < nLevels; level++)
-        {
-            label receiveID = 0;
-            while (receiveID < nProcs)
-            {
-                // Determine processor that sends and we receive from
-                label sendID = receiveID + childOffset;
-
-                if (sendID < nProcs)
-                {
-                    receives[receiveID].append(sendID);
-                    sends[sendID] = receiveID;
-                }
-
-                receiveID += offset;
-            }
-
-            offset <<= 1;
-            childOffset <<= 1;
-        }
-
-        // For all processors find the processors it receives data from
-        // (and the processors they receive data from etc.)
-        List<DynamicList<label>> allReceives(nProcs);
-        for (label procID = 0; procID < nProcs; procID++)
-        {
-            collectReceives(procID, receives, allReceives[procID]);
-        }
-
-
-        List<commsStruct> treeCommunication(nProcs);
-
-        for (label procID = 0; procID < nProcs; procID++)
-        {
-            treeCommunication[procID] = commsStruct
-            (
-                nProcs,
-                procID,
-                sends[procID],
-                receives[procID].shrink(),
-                allReceives[procID].shrink()
-            );
-        }
-        return treeCommunication;
     }
 
 
@@ -261,7 +114,7 @@ namespace Foam {
         label index;
         if (!freeComms_.empty())
         {
-            index = freeComms_.pop();
+            index = freeComms_.remove();  // LIFO pop
         }
         else
         {
@@ -269,10 +122,10 @@ namespace Foam {
             index = parentCommunicator_.size();
 
             myProcNo_.append(-1);
-            procIDs_.append(List<int>(0));
+            procIDs_.append(List<int>());
             parentCommunicator_.append(-1);
-            linearCommunication_.append(List<commsStruct>(0));
-            treeCommunication_.append(List<commsStruct>(0));
+            linearCommunication_.append(List<commsStruct>());
+            treeCommunication_.append(List<commsStruct>());
         }
 
         if (debug)
@@ -304,9 +157,9 @@ namespace Foam {
         }
         parentCommunicator_[index] = parentIndex;
 
-        linearCommunication_[index] = calcLinearComm(procIDs_[index].size());
-        treeCommunication_[index] = calcTreeComm(procIDs_[index].size());
-
+        // Size but do not fill structure - this is done on-the-fly
+        linearCommunication_[index] = List<commsStruct>(procIDs_[index].size());
+        treeCommunication_[index] = List<commsStruct>(procIDs_[index].size());
 
         if (doPstream && parRun())
         {
@@ -341,7 +194,7 @@ namespace Foam {
         linearCommunication_[communicator].clear();
         treeCommunication_[communicator].clear();
 
-        freeComms_.push(communicator);
+        freeComms_.append(communicator);  // LIFO push
     }
 
 
@@ -380,12 +233,12 @@ namespace Foam {
 
         if (parentComm == -1)
         {
-            return findIndex(parentRanks, baseProcID);
+            return parentRanks.find(baseProcID);
         }
         else
         {
-            label parentRank = procNo(parentComm, baseProcID);
-            return findIndex(parentRanks, parentRank);
+            const label parentRank = procNo(parentComm, baseProcID);
+            return parentRanks.find(parentRank);
         }
     }
 
@@ -402,13 +255,123 @@ namespace Foam {
     }
 
 
+    template<>
+    UPstream::commsStruct&
+        UList<UPstream::commsStruct>::operator[](const label procID)
+    {
+        UPstream::commsStruct& t = v_[procID];
+
+        if (t.allBelow().size() + t.allNotBelow().size() + 1 != size())
+        {
+            // Not yet allocated
+
+            label above(-1);
+            labelList below;
+            labelList allBelow;
+
+            if (size() < UPstream::nProcsSimpleSum)
+            {
+                // Linear schedule
+
+                if (procID == 0)
+                {
+                    below.setSize(size() - 1);
+                    for (label procI = 1; procI < size(); procI++)
+                    {
+                        below[procI - 1] = procI;
+                    }
+                }
+                else
+                {
+                    above = 0;
+                }
+            }
+            else
+            {
+                // Use tree like schedule. For 8 procs:
+                // (level 0)
+                //      0 receives from 1
+                //      2 receives from 3
+                //      4 receives from 5
+                //      6 receives from 7
+                // (level 1)
+                //      0 receives from 2
+                //      4 receives from 6
+                // (level 2)
+                //      0 receives from 4
+                //
+                // The sends/receives for all levels are collected per processor
+                // (one send per processor; multiple receives possible) creating
+                // a table:
+                //
+                // So per processor:
+                // proc     receives from   sends to
+                // ----     -------------   --------
+                //  0       1,2,4           -
+                //  1       -               0
+                //  2       3               0
+                //  3       -               2
+                //  4       5               0
+                //  5       -               4
+                //  6       7               4
+                //  7       -               6
+
+                label mod = 0;
+
+                for (label step = 1; step < size(); step = mod)
+                {
+                    mod = step * 2;
+
+                    if (procID % mod)
+                    {
+                        above = procID - (procID % mod);
+                        break;
+                    }
+                    else
+                    {
+                        for
+                            (
+                                label j = procID + step;
+                                j < size() && j < procID + mod;
+                                j += step
+                                )
+                        {
+                            below.append(j);
+                        }
+                        for
+                            (
+                                label j = procID + step;
+                                j < size() && j < procID + mod;
+                                j++
+                                )
+                        {
+                            allBelow.append(j);
+                        }
+                    }
+                }
+            }
+            t = UPstream::commsStruct(size(), procID, above, below, allBelow);
+        }
+        return t;
+    }
+
+
+    template<>
+    const UPstream::commsStruct&
+        UList<UPstream::commsStruct>::operator[](const label procID) const
+    {
+        return const_cast<UList<UPstream::commsStruct>&>(*this).operator[](procID);
+    }
+
+
     // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
 
     bool UPstream::parRun_(false);
 
     bool UPstream::haveThreads_(false);
 
-    LIFOStack<label> UPstream::freeComms_;
+    int UPstream::msgType_(1);
+
 
     DynamicList<int> UPstream::myProcNo_(10);
 
@@ -416,8 +379,10 @@ namespace Foam {
 
     DynamicList<label> UPstream::parentCommunicator_(10);
 
-    int UPstream::msgType_(1);
+    DynamicList<label> UPstream::freeComms_;
 
+    wordList UPstream::allWorlds_(one{}, "");
+    labelList UPstream::worldIDs_(one{}, 0);
 
     DynamicList<List<UPstream::commsStruct>>
         UPstream::linearCommunication_(10);
@@ -431,7 +396,7 @@ namespace Foam {
     UPstream::communicator serialComm
     (
         -1,
-        labelList(1, label(0)),
+        labelList(one{}, 0),
         false
     );
 
@@ -460,41 +425,42 @@ namespace Foam {
 
     UPstream::commsTypes UPstream::defaultCommsType
     (
-        commsTypeNames.read(debug::optimisationSwitches().lookup("commsType"))
+        commsTypeNames.get
+        (
+            "commsType",
+            debug::optimisationSwitches()
+        )
     );
 
-    
-        // Register re-reader
-        class addcommsTypeToOpt
+
+    // Register re-reader
+    class addcommsTypeToOpt
+        :
+        public ::Foam::simpleRegIOobject
+    {
+    public:
+
+        addcommsTypeToOpt(const char* name)
             :
-            public simpleRegIOobject
+            ::Foam::simpleRegIOobject(debug::addOptimisationObject, name)
+        {}
+
+        virtual ~addcommsTypeToOpt() = default;
+
+        virtual void readData(Istream& is)
         {
-        public:
+            UPstream::defaultCommsType =
+                UPstream::commsTypeNames.read(is);
+        }
 
-            addcommsTypeToOpt(const char* name)
-                :
-                simpleRegIOobject(debug::addOptimisationObject, name)
-            {}
+        virtual void writeData(Ostream& os) const
+        {
+            os << UPstream::commsTypeNames[UPstream::defaultCommsType];
+        }
+    };
 
-            virtual ~addcommsTypeToOpt()
-            {}
+    addcommsTypeToOpt addcommsTypeToOpt_("commsType");
 
-            virtual void readData(Istream& is)
-            {
-                UPstream::defaultCommsType = UPstream::commsTypeNames.read
-                (
-                    is
-                );
-            }
-
-            virtual void writeData(Ostream& os) const
-            {
-                os << UPstream::commsTypeNames[UPstream::defaultCommsType];
-            }
-        };
-
-        addcommsTypeToOpt addcommsTypeToOpt_("commsType");
-    
 
     label UPstream::worldComm(0);
 
@@ -509,6 +475,24 @@ namespace Foam {
         "nPollProcInterfaces",
         int,
         UPstream::nPollProcInterfaces
+    );
+
+
+    int UPstream::maxCommsSize
+    (
+        debug::optimisationSwitch("maxCommsSize", 0)
+    );
+    registerOptSwitch
+    (
+        "maxCommsSize",
+        int,
+        UPstream::maxCommsSize
+    );
+
+
+    const int UPstream::mpiBufferSize
+    (
+        debug::optimisationSwitch("mpiBufferSize", 0)
     );
 
 }

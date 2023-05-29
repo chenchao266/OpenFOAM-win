@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011 OpenFOAM Foundation
+    Copyright (C) 2018 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -51,14 +54,21 @@ Foam::vectorField Foam::turbGen::U()
 
     forAll(K, i)
     {
-        s[i] = RanGen.vector01();
-        rndPhases[i] = RanGen.scalar01();
+        s[i] = RanGen.sample01<vector>();
+        rndPhases[i] = RanGen.sample01<scalar>();
     }
 
     s = K ^ s;
     s = s/(mag(s) + 1.0e-20);
 
     s = Ek(Ea, k0, mag(K))*s;
+
+    label ntot = 1;
+    forAll(K.nn(), idim)
+    {
+        ntot *= K.nn()[idim];
+    }
+    const scalar recRootN = 1.0/sqrt(scalar(ntot));
 
     complexVectorField up
     (
@@ -67,7 +77,7 @@ Foam::vectorField Foam::turbGen::U()
             ComplexField(cos(constant::mathematical::twoPi*rndPhases)*s,
             sin(constant::mathematical::twoPi*rndPhases)*s),
             K.nn()
-        )
+        )*recRootN
     );
 
     return ReImSum(up);

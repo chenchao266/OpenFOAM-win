@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -26,39 +28,43 @@ License
 #include "interpolatePointToCell.H"
 
 // * * * * * * * * * * * * * * * Global Functions  * * * * * * * * * * * * * //
-namespace Foam {
-    template<class Type>
-    Type interpolatePointToCell
-    (
-        const GeometricField<Type, pointPatchField, pointMesh>& ptf,
-        const label celli
-    )
+
+
+ namespace Foam{
+template<class Type>
+Type interpolatePointToCell
+(
+    const GeometricField<Type, pointPatchField, pointMesh>& ptf,
+    const label celli
+)
+{
+    const primitiveMesh& mesh = ptf.mesh()();
+
+    const cell& cFaces = mesh.cells()[celli];
+
+    labelHashSet pointHad(10*cFaces.size());
+
+    Type sum = Zero;
+
+    forAll(cFaces, i)
     {
-        const primitiveMesh& mesh = ptf.mesh()();
+        const face& f = mesh.faces()[cFaces[i]];
 
-        const cell& cFaces = mesh.cells()[celli];
-
-        labelHashSet pointHad(10 * cFaces.size());
-
-        Type sum = Zero;
-
-        forAll(cFaces, i)
+        forAll(f, fp)
         {
-            const face& f = mesh.faces()[cFaces[i]];
+            label v = f[fp];
 
-            forAll(f, fp)
+            if (pointHad.insert(v))
             {
-                label v = f[fp];
-
-                if (pointHad.insert(v))
-                {
-                    sum += ptf[v];
-                }
+                sum += ptf[v];
             }
         }
-
-        return sum / pointHad.size();
     }
 
+    return sum/pointHad.size();
 }
+
+
 // ************************************************************************* //
+
+ } // End namespace Foam

@@ -1,9 +1,12 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2019 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -37,7 +40,7 @@ SourceFiles
 #ifndef subModelBase_H
 #define subModelBase_H
 
-#include "dictionary.H"
+#include "dictionary2.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -53,8 +56,8 @@ class subModelBase
 {
     // Private Member Functions
 
-        //- Disallow default bitwise assignment
-        void operator=(const subModelBase&);
+        //- No copy assignment
+        void operator=(const subModelBase&) = delete;
 
 
 protected:
@@ -149,11 +152,14 @@ public:
             //- Return the model 'active' status - default active = true
             virtual bool active() const;
 
-            //- Cache dependant sub-model fields
+            //- Cache dependent sub-model fields
             virtual void cacheFields(const bool store);
 
             //- Flag to indicate when to write a property
             virtual bool writeTime() const;
+
+            //- Output directory
+            virtual fileName localPath() const;
 
 
         // Edit
@@ -165,7 +171,7 @@ public:
                 Type getBaseProperty
                 (
                     const word& entryName,
-                    const Type& defaultValue = pTraits<Type>::_zero
+                    const Type& defaultValue = Type(Zero)
                 ) const;
 
                 //- Retrieve generic property from the base model
@@ -179,6 +185,13 @@ public:
 
             // Model properties
 
+                //- Retrieve dictionary, return true if set
+                bool getModelDict
+                (
+                    const word& entryName,
+                    dictionary& dict
+                ) const;
+
                 //- Retrieve generic property from the sub-model
                 template<class Type>
                 void getModelProperty(const word& entryName, Type& value) const;
@@ -188,7 +201,7 @@ public:
                 Type getModelProperty
                 (
                     const word& entryName,
-                    const Type& defaultValue = pTraits<Type>::_zero
+                    const Type& defaultValue = Type(Zero)
                 ) const;
 
                 //- Add generic property to the sub-model

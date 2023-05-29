@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2013 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2013 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -26,16 +28,20 @@ License
 //#include "lduMesh.H"
 
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
-namespace Foam {
-    template<class T, class BinaryOp>
-    void lduMesh::reduce
-    (
-        T& Value,
-        const BinaryOp& bop
-    ) const
-    {
-        ::Foam::reduce(Value, bop, Pstream::msgType(), comm());
-    }
 
+
+ namespace Foam{
+template<class T, class BinaryOp>
+void lduMesh::reduce
+(
+    T& Value,
+    const BinaryOp& bop
+) const
+{
+    ::Foam::reduce(Value, bop, Pstream::msgType(), comm());
 }
+
+
 // ************************************************************************* //
+
+ } // End namespace Foam

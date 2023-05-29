@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2015 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2015 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -51,14 +53,16 @@ class CuthillMcKeeRenumber
 {
     // Private data
 
-        const Switch reverse_;
+        const bool reverse_;
 
 
     // Private Member Functions
 
-        //- Disallow default bitwise copy construct and assignment
-        void operator=(const CuthillMcKeeRenumber&);
-        CuthillMcKeeRenumber(const CuthillMcKeeRenumber&);
+        //- No copy construct
+        CuthillMcKeeRenumber(const CuthillMcKeeRenumber&) = delete;
+
+        //- No copy assignment
+        void operator=(const CuthillMcKeeRenumber&) = delete;
 
 
 public:
@@ -74,8 +78,7 @@ public:
 
 
     //- Destructor
-    virtual ~CuthillMcKeeRenumber()
-    {}
+    virtual ~CuthillMcKeeRenumber() = default;
 
 
     // Member Functions

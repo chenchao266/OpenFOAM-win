@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2017-2019 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -26,31 +29,70 @@ Class
 
 Description
     This function object reports the height of the interface above a set of
-    locations. For each location, it writes the vertical distance of the
+    locations.
+
+    For each location, it writes the vertical distance of the
     interface above both the location and the lowest boundary. It also writes
     the point on the interface from which these heights are computed. It uses
     an integral approach, so if there are multiple interfaces above or below a
     location then this method will generate average values.
 
-    Example of function object specification:
+    Operands:
+    \table
+      Operand        | Type | Location
+      input          | -    | -
+      output file 1  | dat  | $FOAM_CASE/postProcessing/\<FO\>/\<time\>/height
+      output file 2  | dat  | $FOAM_CASE/postProcessing/\<FO\>/\<time\>/position
+      output field   | -    | -
+    \endtable
+
+Usage
+    Minimal example by using \c system/controlDict.functions:
     \verbatim
     interfaceHeight1
     {
-        type           interfaceHeight;
-        libs           ("libfieldFunctionObjects.so");
-        alpha          alpha.water;
-        locations      ((0 0 0) (10 0 0) (20 0 0));
+        // Mandatory entries (unmodifiable)
+        type            interfaceHeight;
+        libs            (fieldFunctionObjects);
+
+        // Mandatory entries (runtime modifiable)
+        locations       ((0 0 0) (10 0 0) (20 0 0));
+
+        // Optional entries (runtime modifiable)
+        alpha           alpha.water;
+        liquid          true;
+        direction       (1 0 0);
+        interpolationScheme    cellPoint;
+
+        // Optional (inherited) entries
+        ...
     }
     \endverbatim
 
-Usage
+    where the entries mean:
     \table
-        Property     | Description               | Required | Default value
-        type         | type name                 | yes      |
-        alpha        | name of the alpha field   | no       | alpha
-        locations    | list of locations to report the height at | yes |
-        liquid       | is the alpha field that of the liquid | no | true
+      Property     | Description                        | Type | Req'd | Dflt
+      type         | Type name: interfaceHeight         | word |  yes  | -
+      libs         | Library name: fieldFunctionObjects | word |  yes  | -
+      locations    | Locations to report the height at  | vectorList | yes | -
+      alpha        | Name of alpha field                | word |  no   | alpha
+      liquid       | Flag if the alpha field that of the liquid | bool | no | true
+      direction    | Direction of interface               | vector | no  | g
+      interpolationScheme | Interpolation scheme        | word | no | cellPoint
     \endtable
+
+    The inherited entries are elaborated in:
+     - \link functionObject.H \endlink
+     - \link writeFile.H \endlink
+
+    Usage by the \c postProcess utility is not available.
+
+See also
+    - Foam::functionObject
+    - Foam::functionObjects::fvMeshFunctionObject
+    - Foam::functionObjects::writeFile
+    - Foam::functionObjects::logFile
+    - ExtendedCodeGuide::functionObjects::field::interfaceHeight
 
 SourceFiles
     interfaceHeight.C
@@ -61,8 +103,8 @@ SourceFiles
 #define interfaceHeight_H
 
 #include "fvMeshFunctionObject.H"
-#include "midPointAndFaceSet.H"
 #include "logFiles.H"
+#include "point.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -80,19 +122,22 @@ class interfaceHeight
     public fvMeshFunctionObject,
     public logFiles
 {
-    // Private data
-
-        //- Name of the alpha field
-        word alphaName_;
+    // Private Data
 
         //- Is the alpha field that of the liquid under the wave?
         bool liquid_;
 
-        //- List of locations to report the height at
-        List<point> locations_;
+        //- Name of the alpha field
+        word alphaName_;
 
         //- Interpolation scheme
         word interpolationScheme_;
+
+        //- Direction of interface motion
+        vector direction_;
+
+        //- List of locations to report the height at
+        List<point> locations_;
 
 
     // Private Member Functions
@@ -104,10 +149,10 @@ class interfaceHeight
     // Private Enumerations
 
         //- File enumeration
-        enum fileID
+        enum class fileID
         {
-            HEIGHT_FILE = 0,
-            POSITION_FILE = 1
+            heightFile = 0,
+            positionFile = 1
         };
 
 
@@ -116,7 +161,7 @@ protected:
     // Protected Member Functions
 
         //- Output file header information
-        virtual void writeFileHeader(const label i = 0);
+        virtual void writeFileHeader(const fileID fid);
 
 
 public:
@@ -135,12 +180,28 @@ public:
             const dictionary& dict
         );
 
+        //- No copy construct
+        interfaceHeight(const interfaceHeight&) = delete;
+
+        //- No copy assignment
+        void operator=(const interfaceHeight&) = delete;
+
 
     //- Destructor
-    virtual ~interfaceHeight();
+    virtual ~interfaceHeight() = default;
 
 
     // Member Functions
+
+        //- Inherit logFiles methods
+        using logFiles::files;
+
+        //- Return file corresponding to enumeration
+        OFstream& files(const fileID fid)
+        {
+            return logFiles::files(label(fid));
+        }
+
 
         //- Read
         virtual bool read(const dictionary&);

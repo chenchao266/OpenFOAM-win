@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -28,16 +30,18 @@ License
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
-#include "CellZoneInjection.T.H"
-#include "ConeInjection.T.H"
-#include "ConeNozzleInjection.T.H"
-#include "FieldActivatedInjection.T.H"
-#include "InflationInjection.T.H"
-#include "KinematicLookupTableInjection.T.H"
-#include "ManualInjection.T.H"
-#include "NoInjection.T.H"
-#include "PatchInjection.T.H"
-#include "PatchFlowRateInjection.T.H"
+#include "CellZoneInjection.H"
+#include "ConeInjection.H"
+#include "ConeNozzleInjection.H"
+#include "FieldActivatedInjection.H"
+#include "InjectedParticleDistributionInjection.H"
+#include "InjectedParticleInjection.H"
+#include "InflationInjection.H"
+#include "KinematicLookupTableInjection.H"
+#include "ManualInjection.H"
+#include "NoInjection.H"
+#include "PatchInjection.H"
+#include "PatchFlowRateInjection.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -49,6 +53,8 @@ License
     makeInjectionModelType(ConeInjection, CloudType);                          \
     makeInjectionModelType(ConeNozzleInjection, CloudType);                    \
     makeInjectionModelType(FieldActivatedInjection, CloudType);                \
+    makeInjectionModelType(InjectedParticleDistributionInjection, CloudType);  \
+    makeInjectionModelType(InjectedParticleInjection, CloudType);              \
     makeInjectionModelType(InflationInjection, CloudType);                     \
     makeInjectionModelType(KinematicLookupTableInjection, CloudType);          \
     makeInjectionModelType(ManualInjection, CloudType);                        \

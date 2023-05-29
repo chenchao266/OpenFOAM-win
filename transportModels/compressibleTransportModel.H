@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2014 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2014 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -53,11 +55,11 @@ class compressibleTransportModel
 {
     // Private Member Functions
 
-        //- Disallow copy construct
-        compressibleTransportModel(const compressibleTransportModel&);
+        //- No copy construct
+        compressibleTransportModel(const compressibleTransportModel&) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const compressibleTransportModel&);
+        //- No copy assignment
+        void operator=(const compressibleTransportModel&) = delete;
 
 
 public:

@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2018 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -30,14 +33,14 @@ Group
 Description
     This boundary condition provides a self-contained version of the \c mapped
     condition.  It does not use information on the patch; instead it holds
-    thr data locally.
+    the data locally.
 
 Usage
     \table
-        Property     | Description             | Required    | Default value
-        fieldName    | name of field to be mapped | no       | this field name
-        setAverage   | flag to activate setting of average value | yes |
-        average      | average value to apply if \c setAverage = yes | yes |
+        Property     | Description                      | Required | Default
+        field        | Name of field to be mapped       | no  | this field name
+        setAverage   | Use average value                | no  | false |
+        average      | Average value to use if \c setAverage = yes | partly |
     \endtable
 
     Example of the boundary condition specification:
@@ -45,7 +48,7 @@ Usage
     <patchName>
     {
         type            mappedField;
-        fieldName       T;              // optional field name
+        field           T;              // optional field name
         setAverage      no;             // apply an average value
         average         0;              // average to apply if setAverage
         value           uniform 0;      // place holder

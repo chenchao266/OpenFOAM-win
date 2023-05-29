@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2015 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2015 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -30,14 +32,14 @@ Description
 
 \*---------------------------------------------------------------------------*/
 
-#ifndef radiationAbsorptionEmissionModel_H
-#define radiationAbsorptionEmissionModel_H
+#ifndef radiation_absorptionEmissionModel_H
+#define radiation_absorptionEmissionModel_H
 
 #include "IOdictionary.H"
 #include "autoPtr.H"
 #include "runTimeSelectionTables.H"
 #include "volFields.H"
-#include "Vector2D.T.H"
+#include "Vector2D.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 

@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2015 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2015 OpenFOAM Foundation
+    Copyright (C) 2017-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -27,6 +30,31 @@ Class
 Description
     Metis domain decomposition
 
+    When run in parallel will collect the entire graph on to the master,
+    decompose and send back.
+
+    Coefficients dictionary: \a metisCoeffs, \a coeffs.
+
+    \verbatim
+    numberOfSubdomains   N;
+    method               metis;
+
+    metisCoeffs
+    {
+        method           recursive;  // k-way
+        options          ( ...);
+        processorWeights ( ... );
+    }
+    \endverbatim
+
+    Method coefficients:
+    \table
+        Property  | Description                 | Required | Default
+        method    | recursive / k-way           | no | recursive
+        options   | metis options               | no
+        processorWeights | list of weighting per partition  | no
+    \endtable
+
 SourceFiles
     metisDecomp.C
 
@@ -35,7 +63,7 @@ SourceFiles
 #ifndef metisDecomp_H
 #define metisDecomp_H
 
-#include "decompositionMethod.H"
+#include "metisLikeDecomp.H"
 
 namespace Foam
 {
@@ -46,23 +74,27 @@ namespace Foam
 
 class metisDecomp
 :
-    public decompositionMethod
+    public metisLikeDecomp
 {
+protected:
 
-    // Private Member Functions
+    // Protected Member Functions
 
-        //- Call Metis with options from dictionary.
-        label decompose
+        //- Decompose non-parallel
+        virtual label decomposeSerial
         (
-            const List<label>& adjncy,
-            const List<label>& xadj,
-            const scalarField& cellWeights,
-            List<label>& finalDecomp
-        );
+            const labelList& adjncy,
+            const labelList& xadj,
+            const List<scalar>& cellWeights,
+            labelList& decomp
+        ) const;
 
-        //- Disallow default bitwise copy construct and assignment
-        void operator=(const metisDecomp&);
-        metisDecomp(const metisDecomp&);
+
+        //- No copy construct
+        metisDecomp(const metisDecomp&) = delete;
+
+        //- No copy assignment
+        void operator=(const metisDecomp&) = delete;
 
 
 public:
@@ -73,65 +105,24 @@ public:
 
     // Constructors
 
-        //- Construct given the decomposition dictionary
-        metisDecomp(const dictionary&);
+        //- Construct given decomposition dictionary and optional region name
+        explicit metisDecomp
+        (
+            const dictionary& decompDict,
+            const word& regionName = ""
+        );
 
 
     //- Destructor
-    virtual ~metisDecomp()
-    {}
+    virtual ~metisDecomp() = default;
 
 
     // Member Functions
 
         virtual bool parallelAware() const
         {
-            // Metis does not know about proc boundaries
-            return false;
+            return true;
         }
-
-        //- Inherit decompose from decompositionMethod
-        using decompositionMethod::decompose;
-
-        //- Return for every coordinate the wanted processor number. Use the
-        //  mesh connectivity (if needed)
-        //  Weights get normalised so the minimum value is 1 before truncation
-        //  to an integer so the weights should be multiples of the minimum
-        //  value. The overall sum of weights might otherwise overflow.
-        virtual labelList decompose
-        (
-            const polyMesh& mesh,
-            const pointField& points,
-            const scalarField& pointWeights
-        );
-
-        //- Return for every coordinate the wanted processor number. Gets
-        //  passed agglomeration map (from fine to coarse cells) and coarse cell
-        //  location. Can be overridden by decomposers that provide this
-        //  functionality natively.
-        //  See note on weights above.
-        virtual labelList decompose
-        (
-            const polyMesh& mesh,
-            const labelList& agglom,
-            const pointField& regionPoints,
-            const scalarField& regionWeights
-        );
-
-        //- Return for every coordinate the wanted processor number. Explicitly
-        //  provided mesh connectivity.
-        //  The connectivity is equal to mesh.cellCells() except for
-        //  - in parallel the cell numbers are global cell numbers (starting
-        //    from 0 at processor0 and then incrementing all through the
-        //    processors)
-        //  - the connections are across coupled patches
-        //  See note on weights above.
-        virtual labelList decompose
-        (
-            const labelListList& globalCellCells,
-            const pointField& cc,
-            const scalarField& cWeights
-        );
 };
 
 

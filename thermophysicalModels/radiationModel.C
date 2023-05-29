@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2016-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -42,6 +45,14 @@ namespace Foam
     }
 }
 
+const Foam::word Foam::radiation::radiationModel::externalRadHeatFieldName_ =
+    "qrExt";
+
+const Foam::word Foam::radiation::radiationModel::primaryFluxName_ =
+    "qprimaryRad";
+
+ const Foam::word Foam::radiation::radiationModel::relfectedFluxName_ =
+    "qreflective";
 
 // * * * * * * * * * * * * * Private Member Functions  * * * * * * * * * * * //
 
@@ -61,14 +72,14 @@ Foam::IOobject Foam::radiation::radiationModel::createIOobject
 
     if (io.typeHeaderOk<IOdictionary>(true))
     {
-        io.readOpt() = IOobject::MUST_READ_IF_MODIFIED;
-        return io;
+        io.readOpt(IOobject::MUST_READ_IF_MODIFIED);
     }
     else
     {
-        io.readOpt() = IOobject::NO_READ;
-        return io;
+        io.readOpt(IOobject::NO_READ);
     }
+
+    return io;
 }
 
 
@@ -76,16 +87,25 @@ void Foam::radiation::radiationModel::initialise()
 {
     if (radiation_)
     {
-        solverFreq_ = max(1, lookupOrDefault<label>("solverFreq", 1));
+        solverFreq_ = max(1, getOrDefault<label>("solverFreq", 1));
 
-        absorptionEmission_.reset
-        (
-            absorptionEmissionModel::New(*this, mesh_).ptr()
-        );
+        if (this->found("absorptionEmissionModel"))
+        {
+            absorptionEmission_.reset
+            (
+                absorptionEmissionModel::New(*this, mesh_).ptr()
+            );
+        }
 
-        scatter_.reset(scatterModel::New(*this, mesh_).ptr());
+        if (this->found("scatterModel"))
+        {
+            scatter_.reset(scatterModel::New(*this, mesh_).ptr());
+        }
 
-        soot_.reset(sootModel::New(*this, mesh_).ptr());
+        if (this->found("sootModel"))
+        {
+            soot_.reset(sootModel::New(*this, mesh_).ptr());
+        }
     }
 }
 
@@ -109,7 +129,7 @@ Foam::radiation::radiationModel::radiationModel(const volScalarField& T)
     time_(T.time()),
     T_(T),
     radiation_(false),
-    coeffs_(dictionary::null),
+    coeffs_(),
     solverFreq_(0),
     firstIter_(true),
     absorptionEmission_(nullptr),
@@ -128,7 +148,7 @@ Foam::radiation::radiationModel::radiationModel
     mesh_(T.mesh()),
     time_(T.time()),
     T_(T),
-    radiation_(lookupOrDefault("radiation", true)),
+    radiation_(getOrDefault("radiation", true)),
     coeffs_(subOrEmptyDict(type + "Coeffs")),
     solverFreq_(1),
     firstIter_(true),
@@ -167,7 +187,7 @@ Foam::radiation::radiationModel::radiationModel
     mesh_(T.mesh()),
     time_(T.time()),
     T_(T),
-    radiation_(lookupOrDefault("radiation", true)),
+    radiation_(getOrDefault("radiation", true)),
     coeffs_(subOrEmptyDict(type + "Coeffs")),
     solverFreq_(1),
     firstIter_(true),
@@ -191,18 +211,16 @@ bool Foam::radiation::radiationModel::read()
 {
     if (regIOobject::read())
     {
-        lookup("radiation") >> radiation_;
+        readEntry("radiation", radiation_);
         coeffs_ = subOrEmptyDict(type() + "Coeffs");
 
-        solverFreq_ = lookupOrDefault<label>("solverFreq", 1);
+        solverFreq_ = getOrDefault<label>("solverFreq", 1);
         solverFreq_ = max(1, solverFreq_);
 
         return true;
     }
-    else
-    {
-        return false;
-    }
+
+    return false;
 }
 
 
@@ -219,7 +237,7 @@ void Foam::radiation::radiationModel::correct()
         firstIter_ = false;
     }
 
-    if (!soot_.empty())
+    if (soot_)
     {
         soot_->correct();
     }
@@ -258,32 +276,73 @@ Foam::tmp<Foam::fvScalarMatrix> Foam::radiation::radiationModel::ST
 }
 
 
+Foam::tmp<Foam::fvScalarMatrix> Foam::radiation::radiationModel::ST
+(
+    tmp<volScalarField> rhoCp,
+    volScalarField& T
+) const
+{
+    return
+    (
+        Ru()/rhoCp.ref()
+      - fvm::Sp(Rp()*pow3(T)/rhoCp.ref(), T)
+    );
+}
+
+
+Foam::tmp<Foam::fvScalarMatrix> Foam::radiation::radiationModel::ST
+(
+    volScalarField& T
+) const
+{
+    return
+    (
+        Ru()
+      - fvm::Sp(Rp()*pow3(T), T)
+    );
+}
+
+
 const Foam::radiation::absorptionEmissionModel&
 Foam::radiation::radiationModel::absorptionEmission() const
 {
-    if (!absorptionEmission_.valid())
+    if (!absorptionEmission_)
     {
         FatalErrorInFunction
             << "Requested radiation absorptionEmission model, but model is "
             << "not activate" << abort(FatalError);
     }
 
-    return absorptionEmission_();
+    return *absorptionEmission_;
 }
 
 
 const Foam::radiation::sootModel&
 Foam::radiation::radiationModel::soot() const
 {
-    if (!soot_.valid())
+    if (!soot_)
     {
         FatalErrorInFunction
             << "Requested radiation sootModel model, but model is "
             << "not activate" << abort(FatalError);
     }
 
-    return soot_();
+    return *soot_;
 }
 
+/*
+const Foam::radiation::transmissivityModel&
+Foam::radiation::radiationModel::transmissivity() const
+{
+    if (!transmissivity_)
+    {
+        FatalErrorInFunction
+            << "Requested radiation sootModel model, but model is "
+            << "not activate" << abort(FatalError);
+    }
+
+    return *transmissivity_;
+}
+*/
 
 // ************************************************************************* //

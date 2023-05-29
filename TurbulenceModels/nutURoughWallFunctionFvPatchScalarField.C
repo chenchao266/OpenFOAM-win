@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2019-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -24,19 +27,16 @@ License
 \*---------------------------------------------------------------------------*/
 
 #include "nutURoughWallFunctionFvPatchScalarField.H"
-#include "turbulenceModel.H"
+#include "turbulenceModel2.H"
 #include "fvPatchFieldMapper.H"
 #include "volFields.H"
 #include "addToRunTimeSelectionTable.H"
 
-// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
-
-namespace Foam
-{
 
 // * * * * * * * * * * * * Protected Member Functions  * * * * * * * * * * * //
 
-tmp<scalarField> nutURoughWallFunctionFvPatchScalarField::calcNut() const
+Foam::tmp<Foam::scalarField>
+Foam::nutURoughWallFunctionFvPatchScalarField::calcNut() const
 {
     const label patchi = patch().index();
 
@@ -49,7 +49,7 @@ tmp<scalarField> nutURoughWallFunctionFvPatchScalarField::calcNut() const
         )
     );
     const scalarField& y = turbModel.y()[patchi];
-    const fvPatchVectorField& Uw = turbModel.U().boundaryField()[patchi];
+    const fvPatchVectorField& Uw = U(turbModel).boundaryField()[patchi];
     const tmp<scalarField> tnuw = turbModel.nu(patchi);
     const scalarField& nuw = tnuw();
 
@@ -59,12 +59,12 @@ tmp<scalarField> nutURoughWallFunctionFvPatchScalarField::calcNut() const
     tmp<scalarField> tyPlus = calcYPlus(magUp);
     scalarField& yPlus = tyPlus.ref();
 
-    tmp<scalarField> tnutw(new scalarField(patch().size(), 0.0));
+    tmp<scalarField> tnutw(new scalarField(patch().size(), Zero));
     scalarField& nutw = tnutw.ref();
 
     forAll(yPlus, facei)
     {
-        if (yPlus[facei] > yPlusLam_)
+        if (yPlusLam_ < yPlus[facei])
         {
             const scalar Re = magUp[facei]*y[facei]/nuw[facei] + ROOTVSMALL;
             nutw[facei] = nuw[facei]*(sqr(yPlus[facei])/Re - 1);
@@ -75,7 +75,8 @@ tmp<scalarField> nutURoughWallFunctionFvPatchScalarField::calcNut() const
 }
 
 
-tmp<scalarField> nutURoughWallFunctionFvPatchScalarField::calcYPlus
+Foam::tmp<Foam::scalarField>
+Foam::nutURoughWallFunctionFvPatchScalarField::calcYPlus
 (
     const scalarField& magUp
 ) const
@@ -94,10 +95,10 @@ tmp<scalarField> nutURoughWallFunctionFvPatchScalarField::calcYPlus
     const tmp<scalarField> tnuw = turbModel.nu(patchi);
     const scalarField& nuw = tnuw();
 
-    tmp<scalarField> tyPlus(new scalarField(patch().size(), 0.0));
+    tmp<scalarField> tyPlus(new scalarField(patch().size(), Zero));
     scalarField& yPlus = tyPlus.ref();
 
-    if (roughnessHeight_ > 0.0)
+    if (0.0 < roughnessHeight_)
     {
         // Rough Walls
         const scalar c_1 = 1/(90 - 2.25) + roughnessConstant_;
@@ -161,8 +162,8 @@ tmp<scalarField> nutURoughWallFunctionFvPatchScalarField::calcYPlus
                     }
                 } while
                 (
-                    mag(ryPlusLam*(yp - yPlusLast)) > 0.0001
-                 && ++iter < 10
+                    mag(ryPlusLam*(yp - yPlusLast)) > tolerance_
+                 && ++iter < maxIter_
                  && yp > VSMALL
                 );
 
@@ -190,7 +191,12 @@ tmp<scalarField> nutURoughWallFunctionFvPatchScalarField::calcYPlus
                 yPlusLast = yp;
                 yp = (kappaRe + yp)/(1.0 + log(E_*yp));
 
-            } while (mag(ryPlusLam*(yp - yPlusLast)) > 0.0001 && ++iter < 10);
+            }
+            while
+            (
+                mag(ryPlusLam*(yp - yPlusLast)) > tolerance_
+             && ++iter < maxIter_
+            );
 
             yPlus[facei] = max(0.0, yp);
         }
@@ -200,9 +206,24 @@ tmp<scalarField> nutURoughWallFunctionFvPatchScalarField::calcYPlus
 }
 
 
+void Foam::nutURoughWallFunctionFvPatchScalarField::writeLocalEntries
+(
+    Ostream& os
+) const
+{
+    nutWallFunctionFvPatchScalarField::writeLocalEntries(os);
+    os.writeEntry("roughnessHeight", roughnessHeight_);
+    os.writeEntry("roughnessConstant", roughnessConstant_);
+    os.writeEntry("roughnessFactor", roughnessFactor_);
+    os.writeEntryIfDifferent<label>("maxIter", 10, maxIter_);
+    os.writeEntryIfDifferent<scalar>("tolerance", 0.0001, tolerance_);
+}
+
+
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
-nutURoughWallFunctionFvPatchScalarField::nutURoughWallFunctionFvPatchScalarField
+Foam::nutURoughWallFunctionFvPatchScalarField::
+nutURoughWallFunctionFvPatchScalarField
 (
     const fvPatch& p,
     const DimensionedField<scalar, volMesh>& iF
@@ -211,11 +232,14 @@ nutURoughWallFunctionFvPatchScalarField::nutURoughWallFunctionFvPatchScalarField
     nutWallFunctionFvPatchScalarField(p, iF),
     roughnessHeight_(Zero),
     roughnessConstant_(Zero),
-    roughnessFactor_(Zero)
+    roughnessFactor_(Zero),
+    maxIter_(10),
+    tolerance_(0.0001)
 {}
 
 
-nutURoughWallFunctionFvPatchScalarField::nutURoughWallFunctionFvPatchScalarField
+Foam::nutURoughWallFunctionFvPatchScalarField::
+nutURoughWallFunctionFvPatchScalarField
 (
     const nutURoughWallFunctionFvPatchScalarField& ptf,
     const fvPatch& p,
@@ -226,11 +250,14 @@ nutURoughWallFunctionFvPatchScalarField::nutURoughWallFunctionFvPatchScalarField
     nutWallFunctionFvPatchScalarField(ptf, p, iF, mapper),
     roughnessHeight_(ptf.roughnessHeight_),
     roughnessConstant_(ptf.roughnessConstant_),
-    roughnessFactor_(ptf.roughnessFactor_)
+    roughnessFactor_(ptf.roughnessFactor_),
+    maxIter_(ptf.maxIter_),
+    tolerance_(ptf.tolerance_)
 {}
 
 
-nutURoughWallFunctionFvPatchScalarField::nutURoughWallFunctionFvPatchScalarField
+Foam::nutURoughWallFunctionFvPatchScalarField::
+nutURoughWallFunctionFvPatchScalarField
 (
     const fvPatch& p,
     const DimensionedField<scalar, volMesh>& iF,
@@ -238,13 +265,16 @@ nutURoughWallFunctionFvPatchScalarField::nutURoughWallFunctionFvPatchScalarField
 )
 :
     nutWallFunctionFvPatchScalarField(p, iF, dict),
-    roughnessHeight_(readScalar(dict.lookup("roughnessHeight"))),
-    roughnessConstant_(readScalar(dict.lookup("roughnessConstant"))),
-    roughnessFactor_(readScalar(dict.lookup("roughnessFactor")))
+    roughnessHeight_(dict.get<scalar>("roughnessHeight")),
+    roughnessConstant_(dict.get<scalar>("roughnessConstant")),
+    roughnessFactor_(dict.get<scalar>("roughnessFactor")),
+    maxIter_(dict.getOrDefault<label>("maxIter", 10)),
+    tolerance_(dict.getOrDefault<scalar>("tolerance", 0.0001))
 {}
 
 
-nutURoughWallFunctionFvPatchScalarField::nutURoughWallFunctionFvPatchScalarField
+Foam::nutURoughWallFunctionFvPatchScalarField::
+nutURoughWallFunctionFvPatchScalarField
 (
     const nutURoughWallFunctionFvPatchScalarField& rwfpsf
 )
@@ -252,11 +282,14 @@ nutURoughWallFunctionFvPatchScalarField::nutURoughWallFunctionFvPatchScalarField
     nutWallFunctionFvPatchScalarField(rwfpsf),
     roughnessHeight_(rwfpsf.roughnessHeight_),
     roughnessConstant_(rwfpsf.roughnessConstant_),
-    roughnessFactor_(rwfpsf.roughnessFactor_)
+    roughnessFactor_(rwfpsf.roughnessFactor_),
+    maxIter_(rwfpsf.maxIter_),
+    tolerance_(rwfpsf.tolerance_)
 {}
 
 
-nutURoughWallFunctionFvPatchScalarField::nutURoughWallFunctionFvPatchScalarField
+Foam::nutURoughWallFunctionFvPatchScalarField::
+nutURoughWallFunctionFvPatchScalarField
 (
     const nutURoughWallFunctionFvPatchScalarField& rwfpsf,
     const DimensionedField<scalar, volMesh>& iF
@@ -265,13 +298,16 @@ nutURoughWallFunctionFvPatchScalarField::nutURoughWallFunctionFvPatchScalarField
     nutWallFunctionFvPatchScalarField(rwfpsf, iF),
     roughnessHeight_(rwfpsf.roughnessHeight_),
     roughnessConstant_(rwfpsf.roughnessConstant_),
-    roughnessFactor_(rwfpsf.roughnessFactor_)
+    roughnessFactor_(rwfpsf.roughnessFactor_),
+    maxIter_(rwfpsf.maxIter_),
+    tolerance_(rwfpsf.tolerance_)
 {}
 
 
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
 
-tmp<scalarField> nutURoughWallFunctionFvPatchScalarField::yPlus() const
+Foam::tmp<Foam::scalarField>
+Foam::nutURoughWallFunctionFvPatchScalarField::yPlus() const
 {
     const label patchi = patch().index();
 
@@ -283,37 +319,33 @@ tmp<scalarField> nutURoughWallFunctionFvPatchScalarField::yPlus() const
             internalField().group()
         )
     );
-    const fvPatchVectorField& Uw = turbModel.U().boundaryField()[patchi];
+    const fvPatchVectorField& Uw = U(turbModel).boundaryField()[patchi];
     tmp<scalarField> magUp = mag(Uw.patchInternalField() - Uw);
 
     return calcYPlus(magUp());
 }
 
 
-void nutURoughWallFunctionFvPatchScalarField::write(Ostream& os) const
+void Foam::nutURoughWallFunctionFvPatchScalarField::write
+(
+    Ostream& os
+) const
 {
     fvPatchField<scalar>::write(os);
     writeLocalEntries(os);
-    os.writeKeyword("roughnessHeight")
-        << roughnessHeight_ << token::END_STATEMENT << nl;
-    os.writeKeyword("roughnessConstant")
-        << roughnessConstant_ << token::END_STATEMENT << nl;
-    os.writeKeyword("roughnessFactor")
-        << roughnessFactor_ << token::END_STATEMENT << nl;
     writeEntry("value", os);
 }
 
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
-makePatchTypeField
-(
-    fvPatchScalarField,
-    nutURoughWallFunctionFvPatchScalarField
-);
-
-// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
-
-} // End namespace Foam
+namespace Foam
+{
+    makePatchTypeField
+    (
+        fvPatchScalarField,
+        nutURoughWallFunctionFvPatchScalarField
+    );
+}
 
 // ************************************************************************* //

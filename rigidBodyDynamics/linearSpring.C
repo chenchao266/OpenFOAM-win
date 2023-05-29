@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -74,7 +76,8 @@ Foam::RBD::restraints::linearSpring::~linearSpring()
 void Foam::RBD::restraints::linearSpring::restrain
 (
     scalarField& tau,
-    Field<spatialVector>& fx
+    Field<spatialVector>& fx,
+    const rigidBodyModelState& state
 ) const
 {
     point attachmentPt = bodyPoint(refAttachmentPt_);
@@ -117,11 +120,11 @@ bool Foam::RBD::restraints::linearSpring::read
 {
     restraint::read(dict);
 
-    coeffs_.lookup("anchor") >> anchor_;
-    coeffs_.lookup("refAttachmentPt") >> refAttachmentPt_;
-    coeffs_.lookup("stiffness") >> stiffness_;
-    coeffs_.lookup("damping") >> damping_;
-    coeffs_.lookup("restLength") >> restLength_;
+    coeffs_.readEntry("anchor", anchor_);
+    coeffs_.readEntry("refAttachmentPt", refAttachmentPt_);
+    coeffs_.readEntry("stiffness", stiffness_);
+    coeffs_.readEntry("damping", damping_);
+    coeffs_.readEntry("restLength", restLength_);
 
     return true;
 }
@@ -134,20 +137,11 @@ void Foam::RBD::restraints::linearSpring::write
 {
     restraint::write(os);
 
-    os.writeKeyword("anchor")
-        << anchor_ << token::END_STATEMENT << nl;
-
-    os.writeKeyword("refAttachmentPt")
-        << refAttachmentPt_ << token::END_STATEMENT << nl;
-
-    os.writeKeyword("stiffness")
-        << stiffness_ << token::END_STATEMENT << nl;
-
-    os.writeKeyword("damping")
-        << damping_ << token::END_STATEMENT << nl;
-
-    os.writeKeyword("restLength")
-        << restLength_ << token::END_STATEMENT << nl;
+    os.writeEntry("anchor", anchor_);
+    os.writeEntry("refAttachmentPt", refAttachmentPt_);
+    os.writeEntry("stiffness", stiffness_);
+    os.writeEntry("damping", damping_);
+    os.writeEntry("restLength", restLength_);
 }
 
 

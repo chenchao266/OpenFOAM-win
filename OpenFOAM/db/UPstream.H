@@ -1,9 +1,12 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2015-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -30,8 +33,9 @@ Description
 SourceFiles
     UPstream.C
     UPstreamCommsStruct.C
-    gatherScatter.C
+    UPstreamTemplates.C
     combineGatherScatter.C
+    gatherScatter.C
     gatherScatterList.C
 
 \*---------------------------------------------------------------------------*/
@@ -40,12 +44,11 @@ SourceFiles
 #define UPstream_H
 
 #include "labelList.H"
-#include "DynamicList.T.H"
-#include "HashTable.T.H"
-#include "string.T.H"
-#include "NamedEnum.T.H"
-#include "ListOps.T.H"
-#include "LIFOStack.T.H"
+#include "DynamicList.H"
+#include "HashTable.H"
+#include "_string.H"
+#include "Enum.H"
+#include "ListOps.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -58,25 +61,29 @@ namespace Foam
 
 class UPstream
 {
-
 public:
 
+    //- Int ranges are used for MPI ranks (processes)
+    typedef IntRange<int> rangeType;
+
     //- Types of communications
-    enum class commsTypes
+    enum class commsTypes : char
     {
         blocking,
         scheduled,
         nonBlocking
     };
 
-    static const NamedEnum<commsTypes, 3> commsTypeNames;
+    //- Names of the communication types
+    static const Enum<commsTypes> commsTypeNames;
 
-    // Public classes
+
+    // Public Classes
 
         //- Structure for communicating between processors
         class commsStruct
         {
-            // Private data
+            // Private Data
 
                 //- procID of above processor
                 label above_;
@@ -87,8 +94,8 @@ public:
                 //- procIDs of all processors below (so not just directly below)
                 labelList allBelow_;
 
-                //- procIDs of all processors not below. (inverse set of
-                //  allBelow_ and minus myProcNo)
+                //- procIDs of all processors not below.
+                //  (inverse set of allBelow_ and minus myProcNo)
                 labelList allNotBelow_;
 
 
@@ -96,16 +103,16 @@ public:
 
             // Constructors
 
-                //- Construct null
+                //- Default construct. Above == -1
                 commsStruct();
 
                 //- Construct from components
                 commsStruct
                 (
-                    const label,
-                    const labelList&,
-                    const labelList&,
-                    const labelList&
+                    const label above,
+                    const labelList& below,
+                    const labelList& allBelow,
+                    const labelList& allNotBelow
                 );
 
                 //- Construct from components; construct allNotBelow_
@@ -113,41 +120,38 @@ public:
                 (
                     const label nProcs,
                     const label myProcID,
-                    const label,
-                    const labelList&,
-                    const labelList&
+                    const label above,
+                    const labelList& below,
+                    const labelList& allBelow
                 );
 
 
             // Member Functions
 
-                // Access
+                label above() const noexcept
+                {
+                    return above_;
+                }
 
-                    label above() const
-                    {
-                        return above_;
-                    }
+                const labelList& below() const noexcept
+                {
+                    return below_;
+                }
 
-                    const labelList& below() const
-                    {
-                        return below_;
-                    }
+                const labelList& allBelow() const noexcept
+                {
+                    return allBelow_;
+                }
 
-                    const labelList& allBelow() const
-                    {
-                        return allBelow_;
-                    }
-
-                    const labelList& allNotBelow() const
-                    {
-                        return allNotBelow_;
-                    }
+                const labelList& allNotBelow() const noexcept
+                {
+                    return allNotBelow_;
+                }
 
 
-            // Member operators
+            // Member Operators
 
                 bool operator==(const commsStruct&) const;
-
                 bool operator!=(const commsStruct&) const;
 
 
@@ -158,11 +162,8 @@ public:
 
 
         //- combineReduce operator for lists. Used for counting.
-        class listEq
+        struct listEq
         {
-
-        public:
-
             template<class T>
             void operator()(T& x, const T& y) const
             {
@@ -179,7 +180,7 @@ public:
 
 private:
 
-    // Private data
+    // Private Static Data
 
         //- By default this is not a parallel run
         static bool parRun_;
@@ -190,10 +191,14 @@ private:
         //- Standard transfer message type
         static int msgType_;
 
-        // Communicator specific data
+        //- Names of all worlds
+        static wordList allWorlds_;
 
-        //- Free communicators
-        static LIFOStack<label> freeComms_;
+        //- Per processor the name of the world
+        static labelList worldIDs_;
+
+
+        // Communicator specific data
 
         //- My processor number
         static DynamicList<int> myProcNo_;
@@ -203,6 +208,9 @@ private:
 
         //- Parent communicator
         static DynamicList<label> parentCommunicator_;
+
+        //- Free communicators
+        static DynamicList<label> freeComms_;
 
         //- Linear communication schedule
         static DynamicList<List<commsStruct>> linearCommunication_;
@@ -247,10 +255,11 @@ private:
 
 protected:
 
-    // Protected data
+    // Protected Data
 
         //- Communications type of this stream
         commsTypes commsType_;
+
 
 public:
 
@@ -258,15 +267,15 @@ public:
     ClassName("UPstream");
 
 
-    // Static data
+    // Static Data
 
         //- Should compact transfer be used in which floats replace doubles
-        //  reducing the bandwidth requirement at the expense of some loss
-        //  in accuracy
+        //- reducing the bandwidth requirement at the expense of some loss
+        //- in accuracy
         static bool floatTransfer;
 
         //- Number of processors at which the sum algorithm changes from linear
-        //  to tree
+        //- to tree
         static int nProcsSimpleSum;
 
         //- Default commsType
@@ -274,6 +283,12 @@ public:
 
         //- Number of polling cycles in processor updates
         static int nPollProcInterfaces;
+
+        //- Optional maximum message size (bytes)
+        static int maxCommsSize;
+
+        //- MPI buffer-size (bytes)
+        static const int mpiBufferSize;
 
         //- Default communicator (all processors)
         static label worldComm;
@@ -284,14 +299,14 @@ public:
 
     // Constructors
 
-        //- Construct given optional buffer size
-        UPstream(const commsTypes commsType)
+        //- Construct for given communication type
+        explicit UPstream(const commsTypes commsType)
         :
             commsType_(commsType)
         {}
 
 
-    // Member functions
+    // Member Functions
 
         //- Allocate a new communicator
         static label allocateCommunicator
@@ -316,9 +331,11 @@ public:
         {
             label comm_;
 
-            //- Disallow copy and assignment
-            communicator(const communicator&);
-            void operator=(const communicator&);
+            //- No copy construct
+            communicator(const communicator&) = delete;
+
+            //- No copy assignment
+            void operator=(const communicator&) = delete;
 
         public:
 
@@ -337,22 +354,22 @@ public:
                 freeCommunicator(comm_);
             }
 
-            operator label() const
+            operator label() const noexcept
             {
                 return comm_;
             }
         };
 
         //- Return physical processor number (i.e. processor number in
-        //  worldComm) given communicator and procssor
+        //- worldComm) given communicator and procssor
         static int baseProcNo(const label myComm, const int procID);
 
         //- Return processor number in communicator (given physical processor
-        //  number) (= reverse of baseProcNo)
+        //- number) (= reverse of baseProcNo)
         static label procNo(const label comm, const int baseProcID);
 
         //- Return processor number in communicator (given processor number
-        //  and communicator)
+        //- and communicator)
         static label procNo
         (
             const label myComm,
@@ -361,12 +378,21 @@ public:
         );
 
         //- Add the valid option this type of communications library
-        //  adds/requires on the command line
+        //- adds/requires on the command line
         static void addValidParOptions(HashTable<string>& validParOptions);
 
         //- Initialisation function called from main
-        //  Spawns slave processes and initialises inter-communication
-        static bool init(int& argc, char**& argv);
+        //  Spawns sub-processes and initialises inter-communication
+        static bool init(int& argc, char**& argv, const bool needsThread);
+
+        //- Special purpose initialisation function.
+        //  Performs a basic MPI_Init without any other setup.
+        //  Only used for applications that need MPI communication when
+        //  OpenFOAM is running in a non-parallel mode.
+        //  \note Behaves as a no-op if MPI has already been initialized.
+        //      Fatal if MPI has already been finalized.
+        static bool initNull();
+
 
         // Non-blocking comms
 
@@ -394,38 +420,48 @@ public:
             static void freeTag(const word&, const int tag);
 
 
-        //- Is this a parallel run?
-        static bool& parRun()
+        //- Set as parallel run on/off.
+        //  \return the previous value
+        static bool parRun(const bool on) noexcept
+        {
+            bool old(parRun_);
+            parRun_ = on;
+            return old;
+        }
+
+        //- Test if this a parallel run
+        //  Modify access is deprecated
+        static bool& parRun() noexcept
         {
             return parRun_;
         }
 
         //- Have support for threads
-        static bool haveThreads()
+        static bool haveThreads() noexcept
         {
             return haveThreads_;
         }
 
-        //- Number of processes in parallel run
-        static label nProcs(const label communicator = 0)
+        //- Number of processes in parallel run, and 1 for serial run
+        static label nProcs(const label communicator = worldComm)
         {
             return procIDs_[communicator].size();
         }
 
-        //- Process index of the master
-        static int masterNo()
+        //- Process index of the master (always 0)
+        static constexpr int masterNo() noexcept
         {
             return 0;
         }
 
         //- Am I the master process
-        static bool master(const label communicator = 0)
+        static bool master(const label communicator = worldComm)
         {
             return myProcNo_[communicator] == masterNo();
         }
 
         //- Number of this process (starting from masterNo() = 0)
-        static int myProcNo(const label communicator = 0)
+        static int myProcNo(const label communicator = worldComm)
         {
             return myProcNo_[communicator];
         }
@@ -441,22 +477,52 @@ public:
             return procIDs_[communicator];
         }
 
-        //- Process index of first slave
-        static int firstSlave()
+
+        // Worlds
+
+            //- All worlds
+            static const wordList& allWorlds() noexcept
+            {
+                return allWorlds_;
+            }
+
+            //- worldID (index in allWorlds) of all processes
+            static const labelList& worldIDs() noexcept
+            {
+                return worldIDs_;
+            }
+
+            //- My worldID
+            static label myWorldID()
+            {
+                return worldIDs_[myProcNo(0)];
+            }
+
+            //- My world
+            static const word& myWorld()
+            {
+                return allWorlds()[myWorldID()];
+            }
+
+
+        //- Range of process indices for all processes
+        static rangeType allProcs(const label communicator = worldComm)
         {
-            return 1;
+            // Proc 0 -> nProcs (int value)
+            return rangeType(static_cast<int>(nProcs(communicator)));
         }
 
-        //- Process index of last slave
-        static int lastSlave(const label communicator = 0)
+        //- Range of process indices for sub-processes
+        static rangeType subProcs(const label communicator = worldComm)
         {
-            return nProcs(communicator) - 1;
+            // Proc 1 -> nProcs (int value)
+            return rangeType(1, static_cast<int>(nProcs(communicator)-1));
         }
 
         //- Communication schedule for linear all-to-master (proc 0)
         static const List<commsStruct>& linearCommunication
         (
-            const label communicator = 0
+            const label communicator = worldComm
         )
         {
             return linearCommunication_[communicator];
@@ -465,39 +531,43 @@ public:
         //- Communication schedule for tree all-to-master (proc 0)
         static const List<commsStruct>& treeCommunication
         (
-            const label communicator = 0
+            const label communicator = worldComm
         )
         {
             return treeCommunication_[communicator];
         }
 
         //- Message tag of standard messages
-        static int& msgType()
+        static int& msgType() noexcept
         {
             return msgType_;
         }
 
 
-            //- Get the communications type of the stream
-            commsTypes commsType() const
-            {
-                return commsType_;
-            }
+        //- Get the communications type of the stream
+        commsTypes commsType() const noexcept
+        {
+            return commsType_;
+        }
 
-            //- Set the communications type of the stream
-            commsTypes commsType(const commsTypes ct)
-            {
-                commsTypes oldCommsType = commsType_;
-                commsType_ = ct;
-                return oldCommsType;
-            }
+        //- Set the communications type of the stream
+        commsTypes commsType(const commsTypes ct) noexcept
+        {
+            commsTypes old(commsType_);
+            commsType_ = ct;
+            return old;
+        }
 
 
-        //- Exit program
-        static void exit(int errnum = 1);
+        //- Shutdown (finalize) MPI as required.
+        //  Uses MPI_Abort instead of MPI_Finalize if errNo is non-zero
+        static void shutdown(int errNo = 0);
 
-        //- Abort program
+        //- Call MPI_Abort with no other checks or cleanup
         static void abort();
+
+        //- Shutdown (finalize) MPI as required and exit program with errNo.
+        static void exit(int errNo = 1);
 
         //- Exchange label with all processors (in the communicator).
         //  sendData[proci] is the label to send to proci.
@@ -506,7 +576,7 @@ public:
         (
             const labelUList& sendData,
             labelUList& recvData,
-            const label communicator = 0
+            const label communicator = worldComm
         );
 
         //- Exchange data with all processors (in the communicator)
@@ -523,7 +593,29 @@ public:
             const UList<int>& recvSizes,
             const UList<int>& recvOffsets,
 
-            const label communicator = 0
+            const label communicator = worldComm
+        );
+
+        //- Receive data from all processors on the master (low-level)
+        static void mpiGather
+        (
+            const char* sendData,
+            int sendSize,
+
+            char* recvData,
+            int recvSize,
+            const label communicator = worldComm
+        );
+
+        //- Send data to all processors from master (low-level)
+        static void mpiScatter
+        (
+            const char* sendData,
+            int sendSize,
+
+            char* recvData,
+            int recvSize,
+            const label communicator = worldComm
         );
 
         //- Receive data from all processors on the master
@@ -535,7 +627,7 @@ public:
             char* recvData,
             const UList<int>& recvSizes,
             const UList<int>& recvOffsets,
-            const label communicator = 0
+            const label communicator = worldComm
         );
 
         //- Send data to all processors from the root of the communicator
@@ -547,17 +639,70 @@ public:
 
             char* recvData,
             int recvSize,
-            const label communicator = 0
+            const label communicator = worldComm
         );
+
+
+    // Gather single, contiguous value(s)
+
+        //- Individual values into list locations.
+        //  On master list length == nProcs, otherwise zero length
+        template<class T>
+        static List<T> listGatherValues
+        (
+            const T& localValue,
+            const label communicator = worldComm
+        );
+
+        //- Individual values into list locations.
+        //  On master list length == nProcs, otherwise zero length
+        template<class T>
+        static T listScatterValues
+        (
+            const UList<T>& allValues,
+            const label communicator = worldComm
+        );
+
+
+    // Housekeeping
+
+        //- Process index of first sub-process
+        //  \deprecated(2020-09) use subProcs() method instead
+        static constexpr int firstSlave() noexcept
+        {
+            return 1;
+        }
+
+        //- Process index of last sub-process
+        //  \deprecated(2020-09) use subProcs() method instead
+        static int lastSlave(const label communicator = worldComm)
+        {
+            return nProcs(communicator) - 1;
+        }
 };
 
 
 Ostream& operator<<(Ostream&, const UPstream::commsStruct&);
 
+// Template specialisation for access of commsStruct
+template<>
+UPstream::commsStruct&
+UList<UPstream::commsStruct>::operator[](const label);
+
+template<>
+const UPstream::commsStruct&
+UList<UPstream::commsStruct>::operator[](const label) const;
+
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 } // End namespace Foam
+
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+#ifdef NoRepository
+    #include "UPstreamTemplates.C"
+#endif
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 

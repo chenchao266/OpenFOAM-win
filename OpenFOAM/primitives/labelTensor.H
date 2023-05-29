@@ -1,9 +1,12 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011 OpenFOAM Foundation
+    Copyright (C) 2019 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -25,7 +28,7 @@ Typedef
     Foam::labelTensor
 
 Description
-    3D labelTensor obtained from generic Tensor
+    A Tensor of label (integer) values
 
 SourceFiles
     labelTensor.C
@@ -35,8 +38,7 @@ SourceFiles
 #ifndef labelTensor_H
 #define labelTensor_H
 
-#include "Tensor.T.H"
-#include "contiguous.H"
+#include "Tensor.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -46,11 +48,6 @@ namespace Foam
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 typedef Tensor<label> labelTensor;
-
-//- Specify data associated with labelTensor type are contiguous
-template<>
-inline bool contiguous<labelTensor>() {return true;}
-
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 

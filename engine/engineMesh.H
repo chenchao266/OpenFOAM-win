@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -46,7 +48,7 @@ namespace Foam
 {
 
 /*---------------------------------------------------------------------------*\
-                           Class engineMesh Declaration
+                         Class engineMesh Declaration
 \*---------------------------------------------------------------------------*/
 
 class engineMesh
@@ -55,11 +57,11 @@ class engineMesh
 {
     // Private Member Functions
 
-        //- Disallow default bitwise copy construct
-        engineMesh(const engineMesh&);
+        //- No copy construct
+        engineMesh(const engineMesh&) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const engineMesh&);
+        //- No copy assignment
+        void operator=(const engineMesh&) = delete;
 
 
 protected:
@@ -112,9 +114,13 @@ public:
 
     // Member Functions
 
-        // Edit
+        //- Is mesh dynamic
+        virtual bool dynamic() const
+        {
+            return true;
+        }
 
-            virtual void move() = 0;
+        virtual void move() = 0;
 };
 
 

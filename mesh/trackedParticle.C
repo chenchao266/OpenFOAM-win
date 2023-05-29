@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2017-2019 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -24,6 +27,13 @@ License
 \*---------------------------------------------------------------------------*/
 
 #include "trackedParticle.H"
+
+// * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
+
+const std::size_t Foam::trackedParticle::sizeofFields_
+(
+    sizeof(trackedParticle) - offsetof(trackedParticle, start_)
+);
 
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
@@ -78,38 +88,43 @@ Foam::trackedParticle::trackedParticle
 (
     const polyMesh& mesh,
     Istream& is,
-    bool readFields
+    bool readFields,
+    bool newFormat
 )
 :
-    particle(mesh, is, readFields)
+    particle(mesh, is, readFields, newFormat)
 {
     if (readFields)
     {
         if (is.format() == IOstream::ASCII)
         {
-            is >> start_ >> end_;
-            level_ = readLabel(is);
-            i_ = readLabel(is);
-            j_ = readLabel(is);
-            k_ = readLabel(is);
+            is >> start_ >> end_ >> level_ >> i_ >> j_ >> k_;
+        }
+        else if (!is.checkLabelSize<>() || !is.checkScalarSize<>())
+        {
+            // Non-native label or scalar size
+            is.beginRawRead();
+
+            readRawScalar(is, start_.data(), vector::nComponents);
+            readRawScalar(is, end_.data(), vector::nComponents);
+            readRawLabel(is, &level_);
+            readRawLabel(is, &i_);
+            readRawLabel(is, &j_);
+            readRawLabel(is, &k_);
+
+            is.endRawRead();
         }
         else
         {
             is.read
             (
                 reinterpret_cast<char*>(&start_),
-                sizeof(start_) + sizeof(end_) + sizeof(level_)
-              + sizeof(i_) + sizeof(j_) + sizeof(k_)
+                sizeofFields_
             );
         }
     }
 
-    // Check state of Istream
-    is.check
-    (
-        "trackedParticle::trackedParticle"
-        "(const Cloud<trackedParticle>&, Istream&, bool)"
-    );
+    is.check(FUNCTION_NAME);
 }
 
 
@@ -117,6 +132,7 @@ Foam::trackedParticle::trackedParticle
 
 bool Foam::trackedParticle::move
 (
+    Cloud<trackedParticle>& cloud,
     trackingData& td,
     const scalar trackTime
 )
@@ -144,7 +160,8 @@ bool Foam::trackedParticle::move
             td.maxLevel_[cell()] = max(td.maxLevel_[cell()], level_);
 
             const scalar f = 1 - stepFraction();
-            trackToFace(f*(end_ - start_), f, td);
+            const vector s = end_ - start_;
+            trackToAndHitFace(f*s, f, cloud, td);
         }
     }
 
@@ -152,14 +169,7 @@ bool Foam::trackedParticle::move
 }
 
 
-bool Foam::trackedParticle::hitPatch
-(
-    const polyPatch&,
-    trackingData& td,
-    const label patchi,
-    const scalar trackFraction,
-    const tetIndices& tetIs
-)
+bool Foam::trackedParticle::hitPatch(Cloud<trackedParticle>&, trackingData&)
 {
     return false;
 }
@@ -167,7 +177,7 @@ bool Foam::trackedParticle::hitPatch
 
 void Foam::trackedParticle::hitWedgePatch
 (
-    const wedgePolyPatch&,
+    Cloud<trackedParticle>&,
     trackingData& td
 )
 {
@@ -178,7 +188,7 @@ void Foam::trackedParticle::hitWedgePatch
 
 void Foam::trackedParticle::hitSymmetryPlanePatch
 (
-    const symmetryPlanePolyPatch&,
+    Cloud<trackedParticle>&,
     trackingData& td
 )
 {
@@ -189,7 +199,7 @@ void Foam::trackedParticle::hitSymmetryPlanePatch
 
 void Foam::trackedParticle::hitSymmetryPatch
 (
-    const symmetryPolyPatch&,
+    Cloud<trackedParticle>&,
     trackingData& td
 )
 {
@@ -200,7 +210,7 @@ void Foam::trackedParticle::hitSymmetryPatch
 
 void Foam::trackedParticle::hitCyclicPatch
 (
-    const cyclicPolyPatch&,
+    Cloud<trackedParticle>&,
     trackingData& td
 )
 {
@@ -211,7 +221,19 @@ void Foam::trackedParticle::hitCyclicPatch
 
 void Foam::trackedParticle::hitCyclicAMIPatch
 (
-    const cyclicAMIPolyPatch&,
+    Cloud<trackedParticle>&,
+    trackingData& td,
+    const vector& direction
+)
+{
+    // Remove particle
+    td.keepParticle = false;
+}
+
+
+void Foam::trackedParticle::hitCyclicACMIPatch
+(
+    Cloud<trackedParticle>&,
     trackingData& td,
     const vector&
 )
@@ -223,7 +245,7 @@ void Foam::trackedParticle::hitCyclicAMIPatch
 
 void Foam::trackedParticle::hitProcessorPatch
 (
-    const processorPolyPatch&,
+    Cloud<trackedParticle>&,
     trackingData& td
 )
 {
@@ -234,19 +256,7 @@ void Foam::trackedParticle::hitProcessorPatch
 
 void Foam::trackedParticle::hitWallPatch
 (
-    const wallPolyPatch& wpp,
-    trackingData& td,
-    const tetIndices&
-)
-{
-    // Remove particle
-    td.keepParticle = false;
-}
-
-
-void Foam::trackedParticle::hitPatch
-(
-    const polyPatch& wpp,
+    Cloud<trackedParticle>&,
     trackingData& td
 )
 {
@@ -270,7 +280,7 @@ void Foam::trackedParticle::correctAfterParallelTransfer
 
         // Mark edge we're currently on (was set on sending processor but not
         // receiving sender)
-        td.featureEdgeVisited_[featI].set(edgeI, 1u);
+        td.featureEdgeVisited_[featI].set(edgeI);
     }
 }
 
@@ -295,14 +305,11 @@ Foam::Ostream& Foam::operator<<(Ostream& os, const trackedParticle& p)
         os.write
         (
             reinterpret_cast<const char*>(&p.start_),
-            sizeof(p.start_) + sizeof(p.end_) + sizeof(p.level_)
-          + sizeof(p.i_) + sizeof(p.j_) + sizeof(p.k_)
+            trackedParticle::sizeofFields_
         );
     }
 
-    // Check state of Ostream
-    os.check("Ostream& operator<<(Ostream&, const trackedParticle&)");
-
+    os.check(FUNCTION_NAME);
     return os;
 }
 

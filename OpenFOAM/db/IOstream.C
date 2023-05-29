@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2015 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2015 OpenFOAM Foundation
+    Copyright (C) 2018-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -23,212 +26,133 @@ License
 
 \*---------------------------------------------------------------------------*/
 
-#include "IOstream.H"
+#include "_IOstream.H"
 #include "error.H"
-#include "Switch.H"
-#include <sstream>
+#include "argList.H"
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
-namespace Foam {
-    fileName IOstream::name_("IOstream");
 
 
-    // * * * * * * * * * * * * Static Member Functions * * * * * * * * * * * * * //
-
-    IOstream::streamFormat
-        IOstream::formatEnum(const word& format)
-    {
-        if (format == "ascii")
-        {
-            return IOstream::ASCII;
-        }
-        else if (format == "binary")
-        {
-            return IOstream::BINARY;
-        }
-        else
-        {
-            WarningInFunction
-                << "bad format specifier '" << format << "', using 'ascii'"
-                << endl;
-
-            return IOstream::ASCII;
-        }
-    }
+ namespace Foam{
+fileName IOstream::staticName_("stream");
 
 
-    IOstream::compressionType
-        IOstream::compressionEnum(const word& compression)
-    {
-        // get Switch (bool) value, but allow it to fail
-        Switch sw(compression, true);
+// * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
 
-        if (sw.valid())
-        {
-            return sw ? IOstream::COMPRESSED : IOstream::UNCOMPRESSED;
-        }
-        else if (compression == "uncompressed")
-        {
-            return IOstream::UNCOMPRESSED;
-        }
-        else if (compression == "compressed")
-        {
-            return IOstream::COMPRESSED;
-        }
-        else
-        {
-            WarningInFunction
-                << "bad compression specifier '" << compression
-                << "', using 'uncompressed'"
-                << endl;
-
-            return IOstream::UNCOMPRESSED;
-        }
-    }
-
-
-    // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
-
-    bool IOstream::check(const char* operation) const
-    {
-        if (bad())
-        {
-            FatalIOErrorInFunction(*this)
-                << "error in IOstream " << name() << " for operation " << operation
-                << exit(FatalIOError);
-        }
-
-        return !bad();
-    }
-
-
-    void IOstream::fatalCheck(const char* operation) const
-    {
-        if (bad())
-        {
-            FatalIOErrorInFunction(*this)
-                << "error in IOstream " << name() << " for operation " << operation
-                << exit(FatalIOError);
-        }
-    }
-
-
-    string IOstream::versionNumber::str() const
-    {
-        std::ostringstream os;
-        os.precision(1);
-        os.setf(ios_base::fixed, ios_base::floatfield);
-        os << versionNumber_;
-        return os.str();
-    }
-
-
-    void IOstream::print(Ostream& os) const
-    {
-        os << "IOstream: " << "Version " << version_ << ", format ";
-
-        switch (format_)
-        {
-        case ASCII:
-            os << "ASCII";
-            break;
-
-        case BINARY:
-            os << "BINARY";
-            break;
-        }
-
-        os << ", line " << lineNumber();
-
-        if (opened())
-        {
-            os << ", OPENED";
-        }
-
-        if (closed())
-        {
-            os << ", CLOSED";
-        }
-
-        if (good())
-        {
-            os << ", GOOD";
-        }
-
-        if (eof())
-        {
-            os << ", EOF";
-        }
-
-        if (fail())
-        {
-            os << ", FAIL";
-        }
-
-        if (bad())
-        {
-            os << ", BAD";
-        }
-
-        os << endl;
-    }
-
-
-    void IOstream::print(Ostream& os, const int streamState) const
-    {
-        if (streamState == ios_base::goodbit)
-        {
-            os << "ios_base::goodbit set : the last operation on stream succeeded"
-                << endl;
-        }
-        else if (streamState & ios_base::badbit)
-        {
-            os << "ios_base::badbit set : characters possibly lost"
-                << endl;
-        }
-        else if (streamState & ios_base::failbit)
-        {
-            os << "ios_base::failbit set : some type of formatting error"
-                << endl;
-        }
-        else if (streamState & ios_base::eofbit)
-        {
-            os << "ios_base::eofbit set : at end of stream"
-                << endl;
-        }
-    }
-
-
-    // * * * * * * * * * * * * * * * Friend Operators  * * * * * * * * * * * * * //
-
-    Ostream& operator<<(Ostream& os, const IOstream::streamFormat& sf)
-    {
-        if (sf == IOstream::ASCII)
-        {
-            os << "ascii";
-        }
-        else
-        {
-            os << "binary";
-        }
-
-        return os;
-    }
-
-
-    Ostream& operator<<(Ostream& os, const IOstream::versionNumber& vn)
-    {
-        os << vn.str().c_str();
-        return os;
-    }
-
-
-    template<>
-    Ostream& operator<<(Ostream& os, const InfoProxy<IOstream>& ip)
-    {
-        ip.t_.print(os);
-        return os;
-    }
-
+const fileName& IOstream::name() const
+{
+    return staticName_;
 }
+
+
+fileName& IOstream::name()
+{
+    return staticName_;
+}
+
+
+fileName IOstream::relativeName() const
+{
+    return argList::envRelativePath(this->name());
+}
+
+
+bool IOstream::check(const char* operation) const
+{
+    return fatalCheck(operation);
+}
+
+
+bool IOstream::fatalCheck(const char* operation) const
+{
+    const bool ok = !bad();
+
+    if (!ok)
+    {
+        FatalIOErrorInFunction(*this)
+            << "error in IOstream " << relativeName()
+            << " for operation " << operation
+            << exit(FatalIOError);
+    }
+
+    return ok;
+}
+
+
+void IOstream::print(Ostream& os) const
+{
+    os  << "IOstream: " << "Version "  << version() << ", format "
+        << format() << ", line " << lineNumber();
+
+    if (opened())
+    {
+        os  << ", OPENED";
+    }
+
+    if (closed())
+    {
+        os  << ", CLOSED";
+    }
+
+    if (good())
+    {
+        os  << ", GOOD";
+    }
+
+    if (eof())
+    {
+        os  << ", EOF";
+    }
+
+    if (fail())
+    {
+        os  << ", FAIL";
+    }
+
+    if (bad())
+    {
+        os  << ", BAD";
+    }
+
+    os  << endl;
+}
+
+
+void IOstream::print(Ostream& os, const int streamState) const
+{
+    if (streamState == ios_base::goodbit)
+    {
+        os  << "ios_base::goodbit set : the last operation on stream succeeded"
+            << endl;
+    }
+    else if (streamState & ios_base::badbit)
+    {
+        os  << "ios_base::badbit set : characters possibly lost"
+            << endl;
+    }
+    else if (streamState & ios_base::failbit)
+    {
+        os  << "ios_base::failbit set : some type of formatting error"
+            << endl;
+    }
+    else if (streamState & ios_base::eofbit)
+    {
+        os  << "ios_base::eofbit set : at end of stream"
+            << endl;
+    }
+}
+
+
+// * * * * * * * * * * * * * * * Friend Operators  * * * * * * * * * * * * * //
+
+template<>
+Ostream& operator<<(Ostream& os, const InfoProxy<IOstream>& ip)
+{
+    ip.t_.print(os);
+    return os;
+}
+
+
 // ************************************************************************* //
+
+ } // End namespace Foam

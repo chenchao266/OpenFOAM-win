@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011 OpenFOAM Foundation
+    Copyright (C) 2017-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -24,12 +27,152 @@ License
 \*---------------------------------------------------------------------------*/
 
 #include "word.H"
-#include "debug.T.H"
+#include "debug.H"
+#include <cctype>
+#include <sstream>
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
-namespace Foam {
-    const char* const word::typeName = "word";
-    int word::debug(debug::debugSwitch(word::typeName, 0));
-    const word word::null;
+
+
+ namespace Foam{
+const char* const word::typeName = "word";
+
+int word::debug(debug::debugSwitch(word::typeName, 0));
+
+const word word::null;
+
+
+// * * * * * * * * * * * * * Static Member Functions * * * * * * * * * * * * //
+
+word word::validate(const std::string& s, const bool prefix)
+{
+    word out;
+    out.resize(s.size() + (prefix ? 1 : 0));
+
+    std::string::size_type len = 0;
+
+    // As per validate, but optionally detect if the first character
+    // is a digit, which we'd like to avoid having since this will
+    // cause parse issues when read back later.
+    for (auto iter = s.cbegin(); iter != s.cend(); ++iter)
+    {
+        const char c = *iter;
+
+        if (word::valid(c))
+        {
+            if (!len && prefix && isdigit(c))
+            {
+                // First valid character was a digit - prefix with '_'
+                out[len++] = '_';
+            }
+
+            out[len++] = c;
+        }
+    }
+
+    out.erase(len);
+
+    return out;
 }
+
+
+word word::validate
+(
+    const char* first,
+    const char* last,
+    const bool prefix
+)
+{
+    std::string::size_type len = (last - first) + (prefix ? 1 : 0);
+
+    word out;
+    out.resize(len);
+
+    for (len=0; first != last; ++first)
+    {
+        const char c = *first;
+
+        if (word::valid(c))
+        {
+            if (!len && prefix && isdigit(c))
+            {
+                // First valid character was a digit - prefix with '_'
+                out[len++] = '_';
+            }
+
+            out[len++] = c;
+        }
+    }
+
+    out.erase(len);
+
+    return out;
+}
+
+
+// * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
+
+word word::lessExt() const
+{
+    const auto i = find_ext();
+
+    if (i == npos)
+    {
+        return *this;
+    }
+
+    return substr(0, i);
+}
+
+
+word word::ext() const
+{
+    return string::ext();
+}
+
+
+word& word::ext(const word& ending)
+{
+    string::ext(ending);
+    return *this;
+}
+
+
+// * * * * * * * * * * * * * * * Global Operators  * * * * * * * * * * * * * //
+
+word operator&(const word& a, const word& b)
+{
+    if (a.size())
+    {
+        if (b.size())
+        {
+            // Two non-empty words: can concatenate and perform camel case
+            word camelCase(a + b);
+            camelCase[a.size()] = char(toupper(b[0]));
+
+            return camelCase;
+        }
+
+        return a;
+    }
+
+    // Or, if the first string is empty (or both are empty)
+
+    return b;
+}
+
+
+// * * * * * * * * * * * * * * Global Functions  * * * * * * * * * * * * * * //
+
+word name(const void* ptr)
+{
+    std::ostringstream buf;
+    buf << "0x" << std::hex << uintptr_t(ptr);
+
+    return word(buf.str(), false);  // Needs no stripping
+}
+
+
 // ************************************************************************* //
+
+ } // End namespace Foam

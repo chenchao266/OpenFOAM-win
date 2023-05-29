@@ -1,9 +1,12 @@
-﻿/*---------------------------------------------------------------------------*\
+/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2017-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -41,29 +44,13 @@ namespace Foam
 
 Foam::treeBoundBox Foam::treeDataFace::calcBb(const label facei) const
 {
-    const pointField& points = mesh_.points();
-
-    const face& f = mesh_.faces()[facei];
-
-    treeBoundBox bb(points[f[0]], points[f[0]]);
-
-    for (label fp = 1; fp < f.size(); fp++)
-    {
-        const point& p = points[f[fp]];
-
-        bb.min() = min(bb.min(), p);
-        bb.max() = max(bb.max(), p);
-    }
-    return bb;
+    return treeBoundBox(mesh_.points(), mesh_.faces()[facei]);
 }
 
 
 void Foam::treeDataFace::update()
 {
-    forAll(faceLabels_, i)
-    {
-        isTreeFace_.set(faceLabels_[i], 1);
-    }
+    isTreeFace_.set(faceLabels_);
 
     if (cacheBb_)
     {
@@ -88,7 +75,7 @@ Foam::treeDataFace::treeDataFace
 :
     mesh_(mesh),
     faceLabels_(faceLabels),
-    isTreeFace_(mesh.nFaces(), 0),
+    isTreeFace_(mesh.nFaces(), false),
     cacheBb_(cacheBb)
 {
     update();
@@ -99,12 +86,12 @@ Foam::treeDataFace::treeDataFace
 (
     const bool cacheBb,
     const primitiveMesh& mesh,
-    const Xfer<labelList>& faceLabels
+    labelList&& faceLabels
 )
 :
     mesh_(mesh),
-    faceLabels_(faceLabels),
-    isTreeFace_(mesh.nFaces(), 0),
+    faceLabels_(std::move(faceLabels)),
+    isTreeFace_(mesh.nFaces(), false),
     cacheBb_(cacheBb)
 {
     update();
@@ -119,7 +106,7 @@ Foam::treeDataFace::treeDataFace
 :
     mesh_(mesh),
     faceLabels_(identity(mesh_.nFaces())),
-    isTreeFace_(mesh.nFaces(), 0),
+    isTreeFace_(mesh.nFaces(), false),
     cacheBb_(cacheBb)
 {
     update();
@@ -133,12 +120,8 @@ Foam::treeDataFace::treeDataFace
 )
 :
     mesh_(patch.boundaryMesh().mesh()),
-    faceLabels_
-    (
-        identity(patch.size())
-      + patch.start()
-    ),
-    isTreeFace_(mesh_.nFaces(), 0),
+    faceLabels_(identity(patch.range())),
+    isTreeFace_(mesh_.nFaces(), false),
     cacheBb_(cacheBb)
 {
     update();
@@ -267,14 +250,11 @@ Foam::volumeType Foam::treeDataFace::getVolumeType
 
             vector pointNormal(Zero);
 
-            forAll(pFaces, i)
+            for (const label facei : pFaces)
             {
-                if (isTreeFace_.get(pFaces[i]) == 1)
+                if (isTreeFace_.test(facei))
                 {
-                    vector n = mesh_.faceAreas()[pFaces[i]];
-                    n /= mag(n) + VSMALL;
-
-                    pointNormal += n;
+                    pointNormal += normalised(mesh_.faceAreas()[facei]);
                 }
             }
 
@@ -336,14 +316,11 @@ Foam::volumeType Foam::treeDataFace::getVolumeType
 
             vector edgeNormal(Zero);
 
-            forAll(eFaces, i)
+            for (const label facei : eFaces)
             {
-                if (isTreeFace_.get(eFaces[i]) == 1)
+                if (isTreeFace_.test(facei))
                 {
-                    vector n = mesh_.faceAreas()[eFaces[i]];
-                    n /= mag(n) + VSMALL;
-
-                    edgeNormal += n;
+                    edgeNormal += normalised(mesh_.faceAreas()[facei]);
                 }
             }
 
@@ -386,11 +363,8 @@ Foam::volumeType Foam::treeDataFace::getVolumeType
             vector ePrev = points[f[f.rcIndex(fp)]] - fc;
             vector eNext = points[f[f.fcIndex(fp)]] - fc;
 
-            vector nLeft = ePrev ^ e;
-            nLeft /= mag(nLeft) + VSMALL;
-
-            vector nRight = e ^ eNext;
-            nRight /= mag(nRight) + VSMALL;
+            vector nLeft = normalised(ePrev ^ e);
+            vector nRight = normalised(e ^ eNext);
 
             if (debug & 2)
             {
@@ -486,6 +460,7 @@ bool Foam::treeDataFace::overlaps
             return true;
         }
     }
+
     return false;
 }
 
@@ -502,10 +477,8 @@ void Foam::treeDataFace::findNearestOp::operator()
 {
     const treeDataFace& shape = tree_.shapes();
 
-    forAll(indices, i)
+    for (const label index : indices)
     {
-        const label index = indices[i];
-
         const face& f = shape.mesh().faces()[shape.faceLabels()[index]];
 
         pointHit nearHit = f.nearestPoint(sample, shape.mesh().points());
@@ -562,7 +535,7 @@ bool Foam::treeDataFace::findIntersectOp::operator()
 
     const vector dir(end - start);
 
-    pointHit inter = shape.mesh_.faces()[facei].intersect
+    pointHit inter = shape.mesh_.faces()[facei].intersection
     (
         start,
         dir,
@@ -578,10 +551,8 @@ bool Foam::treeDataFace::findIntersectOp::operator()
         intersectionPoint = inter.hitPoint();
         return true;
     }
-    else
-    {
-        return false;
-    }
+
+    return false;
 }
 
 

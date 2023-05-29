@@ -1,9 +1,11 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2015 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2015 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -23,11 +25,11 @@ License
 
 \*---------------------------------------------------------------------------*/
 
-#include "dsmcParcel.H"
-#include "DSMCCloud.T.H"
-#include "NoBinaryCollision.T.H"
-#include "VariableHardSphere.T.H"
-#include "LarsenBorgnakkeVariableHardSphere.T.H"
+#include "dsmcParcel2.H"
+#include "DSMCCloud.H"
+#include "NoBinaryCollision.H"
+#include "VariableHardSphere.H"
+#include "LarsenBorgnakkeVariableHardSphere.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 

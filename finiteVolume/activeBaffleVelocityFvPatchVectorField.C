@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -86,22 +89,23 @@ activeBaffleVelocityFvPatchVectorField
 )
 :
     fixedValueFvPatchVectorField(p, iF, dict, false),
-    pName_(dict.lookupOrDefault<word>("p", "p")),
+    pName_(dict.getOrDefault<word>("p", "p")),
     cyclicPatchName_(dict.lookup("cyclicPatch")),
     cyclicPatchLabel_(p.patch().boundaryMesh().findPatchID(cyclicPatchName_)),
-    orientation_(readLabel(dict.lookup("orientation"))),
+    orientation_(dict.get<label>("orientation")),
     initWallSf_(p.Sf()),
     initCyclicSf_(p.boundaryMesh()[cyclicPatchLabel_].Sf()),
     nbrCyclicSf_
     (
         refCast<const cyclicFvPatch>
         (
-            p.boundaryMesh()[cyclicPatchLabel_]
+            p.boundaryMesh()[cyclicPatchLabel_],
+            dict
         ).neighbFvPatch().Sf()
     ),
-    openFraction_(readScalar(dict.lookup("openFraction"))),
-    openingTime_(readScalar(dict.lookup("openingTime"))),
-    maxOpenFractionDelta_(readScalar(dict.lookup("maxOpenFractionDelta"))),
+    openFraction_(dict.get<scalar>("openFraction")),
+    openingTime_(dict.get<scalar>("openingTime")),
+    maxOpenFractionDelta_(dict.get<scalar>("maxOpenFractionDelta")),
     curTimeIndex_(-1)
 {
     fvPatchVectorField::operator=(Zero);
@@ -292,18 +296,12 @@ void Foam::activeBaffleVelocityFvPatchVectorField::updateCoeffs()
 void Foam::activeBaffleVelocityFvPatchVectorField::write(Ostream& os) const
 {
     fvPatchVectorField::write(os);
-    writeEntryIfDifferent<word>(os, "p", "p", pName_);
-    os.writeKeyword("cyclicPatch")
-        << cyclicPatchName_ << token::END_STATEMENT << nl;
-    os.writeKeyword("orientation")
-        << orientation_ << token::END_STATEMENT << nl;
-    os.writeKeyword("openingTime")
-        << openingTime_ << token::END_STATEMENT << nl;
-    os.writeKeyword("maxOpenFractionDelta")
-        << maxOpenFractionDelta_ << token::END_STATEMENT << nl;
-    os.writeKeyword("openFraction")
-        << openFraction_ << token::END_STATEMENT << nl;
-    writeEntryIfDifferent<word>(os, "p", "p", pName_);
+    os.writeEntryIfDifferent<word>("p", "p", pName_);
+    os.writeEntry("cyclicPatch", cyclicPatchName_);
+    os.writeEntry("orientation", orientation_);
+    os.writeEntry("openingTime", openingTime_);
+    os.writeEntry("maxOpenFractionDelta", maxOpenFractionDelta_);
+    os.writeEntry("openFraction", openFraction_);
     writeEntry("value", os);
 }
 

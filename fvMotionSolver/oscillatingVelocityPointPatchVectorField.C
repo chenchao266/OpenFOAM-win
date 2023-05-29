@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -26,7 +28,7 @@ License
 #include "oscillatingVelocityPointPatchVectorField.H"
 #include "pointPatchFields.H"
 #include "addToRunTimeSelectionTable.H"
-#include "Time.T.H"
+#include "Time1.H"
 #include "polyMesh.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
@@ -60,7 +62,7 @@ oscillatingVelocityPointPatchVectorField
 :
     fixedValuePointPatchField<vector>(p, iF, dict),
     amplitude_(dict.lookup("amplitude")),
-    omega_(readScalar(dict.lookup("omega")))
+    omega_(dict.get<scalar>("omega"))
 {
     if (!dict.found("value"))
     {
@@ -160,10 +162,8 @@ void oscillatingVelocityPointPatchVectorField::updateCoeffs()
 void oscillatingVelocityPointPatchVectorField::write(Ostream& os) const
 {
     pointPatchField<vector>::write(os);
-    os.writeKeyword("amplitude")
-        << amplitude_ << token::END_STATEMENT << nl;
-    os.writeKeyword("omega")
-        << omega_ << token::END_STATEMENT << nl;
+    os.writeEntry("amplitude", amplitude_);
+    os.writeEntry("omega", omega_);
     p0_.writeEntry("p0", os);
     writeEntry("value", os);
 }

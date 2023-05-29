@@ -1,9 +1,12 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2019-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -45,34 +48,33 @@ namespace Foam
 {
 
 /*---------------------------------------------------------------------------*\
-                           Class oneField Declaration
+                        Class oneFieldField Declaration
 \*---------------------------------------------------------------------------*/
 
-class oneFieldField :    public one
+class oneFieldField
+:
+    public one
 {
-
 public:
 
     // Constructors
 
-        //- Construct null
-        oneFieldField()
-        {}
+        //- Default construct
+        oneFieldField() noexcept = default;
 
 
     // Member Operators
 
-        inline oneField operator[](const label) const;
+        oneField operator[](const label) const noexcept
+        {
+            return oneField{};
+        }
 };
 
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 } // End namespace Foam
-
-// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
-
-    #include "oneFieldFieldI.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 

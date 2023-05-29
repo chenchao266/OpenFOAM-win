@@ -1,9 +1,12 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2013 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2019 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -22,133 +25,101 @@ License
     along with OpenFOAM.  If not, see <http://www.gnu.org/licenses/>.
 
 Class
-    Foam::lduInterfaceField
+    Foam::LduInterfaceField
 
 Description
     An abstract base class for implicitly-coupled interface fields
     e.g. processor and cyclic patch fields.
 
 SourceFiles
-    lduInterfaceField.C
+    LduInterfaceField.C
 
 \*---------------------------------------------------------------------------*/
 
-#ifndef lduInterfaceField_H
-#define lduInterfaceField_H
+#ifndef LduInterfaceField_H
+#define LduInterfaceField_H
 
-#include "lduInterface.H"
+#include "lduInterfaceField2.H"
 #include "primitiveFieldsFwd.H"
-#include "Pstream.T.H"
+#include "Pstream.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 namespace Foam
 {
 
-// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
-
+// Forward declarations
 class lduMatrix;
 
 /*---------------------------------------------------------------------------*\
-                     Class lduInterfaceField Declaration
+                     Class LduInterfaceField Declaration
 \*---------------------------------------------------------------------------*/
 
-class lduInterfaceField
+template<class Type>
+class LduInterfaceField
+:
+    public lduInterfaceField
 {
-    // Private data
-
-        //- Reference to the coupled patch this field is defined for
-        const lduInterface& interface_;
-
-        //- Update index used so that updateInterfaceMatrix is called only once
-        //  during the construction of the matrix
-        bool updatedMatrix_;
-
-
     // Private Member Functions
 
-        //- Disallow default bitwise copy construct
-        lduInterfaceField(const lduInterfaceField&);
+        //- No copy construct
+        LduInterfaceField(const LduInterfaceField&) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const lduInterfaceField&);
+        //- No copy assignment
+        void operator=(const LduInterfaceField&) = delete;
 
 
 public:
 
     //- Runtime type information
-    TypeName("lduInterfaceField");
+    TypeName("LduInterfaceField");
 
 
     // Constructors
 
         //- Construct given coupled patch
-        lduInterfaceField(const lduInterface& patch)
+        LduInterfaceField(const lduInterface& patch)
         :
-            interface_(patch),
-            updatedMatrix_(false)
+            lduInterfaceField(patch)
         {}
 
 
     //- Destructor
-    virtual ~lduInterfaceField();
+    virtual ~LduInterfaceField() = default;
 
 
     // Member Functions
 
-        // Access
+        // Coupled interface functionality
 
-            //- Return the interface
-            const lduInterface& interface() const
-            {
-                return interface_;
-            }
-
-            //- Return the interface type
-            virtual const word& interfaceFieldType() const
-            {
-                return type();
-            }
-
-
-        // Coupled interface matrix update
-
-            //- Whether matrix has been updated
-            bool updatedMatrix() const
-            {
-                return updatedMatrix_;
-            }
-
-            //- Whether matrix has been updated
-            bool& updatedMatrix()
-            {
-                return updatedMatrix_;
-            }
-
-            //- Is all data available
-            virtual bool ready() const
-            {
-                return true;
-            }
+            //- Inherit initInterfaceMatrixUpdate from lduInterfaceField
+            using lduInterfaceField::initInterfaceMatrixUpdate;
 
             //- Initialise neighbour matrix update
             virtual void initInterfaceMatrixUpdate
             (
-                scalarField&,
+                Field<Type>&,
+                const bool add,
+                const lduAddressing&,
+                const label interfacei,
+                const Field<Type>&,
                 const scalarField&,
-                const scalarField&,
-                const direction,
                 const Pstream::commsTypes commsType
             ) const
             {}
 
+            //- Inherit updateInterfaceMatrix from lduInterfaceField
+            using lduInterfaceField::updateInterfaceMatrix;
+
             //- Update result field based on interface functionality
             virtual void updateInterfaceMatrix
             (
-                scalarField&,
+                Field<Type>&,
+                const bool add,
+                const lduAddressing&,
+                const label interfacei,
+                const Field<Type>&,
                 const scalarField&,
-                const scalarField&,
-                const direction,
                 const Pstream::commsTypes commsType
             ) const = 0;
 };

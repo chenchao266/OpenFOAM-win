@@ -1,9 +1,11 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -25,18 +27,35 @@ Typedef
     Foam::faceList
 
 Description
+    A List of faces.
+
+Typedef
+    Foam::faceUList
+
+Description
+    A UList of faces.
+
+Typedef
+    Foam::faceSubList
+
+Description
+    A SubList of faces.
+
+Typedef
+    Foam::faceListList
+
+Description
+    A List of faceList.
 
 \*---------------------------------------------------------------------------*/
 
 #ifndef faceList_H
 #define faceList_H
 
-#include "face.T.H"
-#include "List.T.H"
-#include "SubList.T.H"
+#include "face.H"
+#include "List.H"
+#include "SubList.H"
 #include "faceListFwd.H"
-
-// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 #endif
 

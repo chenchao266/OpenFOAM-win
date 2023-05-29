@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -71,11 +73,11 @@ class contactAngleForce
         //- Initialise
         void initialise();
 
-        //- Disallow default bitwise copy construct
-        contactAngleForce(const contactAngleForce&);
+        //- No copy construct
+        contactAngleForce(const contactAngleForce&) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const contactAngleForce&);
+        //- No copy assignment
+        void operator=(const contactAngleForce&) = delete;
 
 
 protected:
@@ -96,7 +98,7 @@ public:
         contactAngleForce
         (
             const word& typeName,
-            surfaceFilmModel& film,
+            surfaceFilmRegionModel& film,
             const dictionary& dict
         );
 

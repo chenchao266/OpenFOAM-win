@@ -1,9 +1,11 @@
-﻿/*---------------------------------------------------------------------------*\
+/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -23,7 +25,7 @@ License
 
 \*---------------------------------------------------------------------------*/
 
-//#include "constTransport.H"
+#include "constTransport.H"
 #include "IOstreams.H"
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
@@ -32,8 +34,8 @@ template<class Thermo>
 Foam::constTransport<Thermo>::constTransport(const dictionary& dict)
 :
     Thermo(dict),
-    mu_(readScalar(dict.subDict("transport").lookup("mu"))),
-    rPr_(1.0/readScalar(dict.subDict("transport").lookup("Pr")))
+    mu_(dict.subDict("transport").get<scalar>("mu")),
+    rPr_(1.0/dict.subDict("transport").get<scalar>("Pr"))
 {}
 
 
@@ -42,17 +44,19 @@ Foam::constTransport<Thermo>::constTransport(const dictionary& dict)
 template<class Thermo>
 void Foam::constTransport<Thermo>::constTransport::write(Ostream& os) const
 {
-    os  << this->name() << endl;
-    os  << token::BEGIN_BLOCK  << incrIndent << nl;
+    os.beginBlock(this->name());
 
     Thermo::write(os);
 
-    dictionary dict("transport");
-    dict.add("mu", mu_);
-    dict.add("Pr", 1.0/rPr_);
-    os  << indent << dict.dictName() << dict;
+    // Entries in dictionary format
+    {
+        os.beginBlock("transport");
+        os.writeEntry("mu", mu_);
+        os.writeEntry("Pr", scalar(1.0/rPr_));
+        os.endBlock();
+    }
 
-    os  << decrIndent << token::END_BLOCK << nl;
+    os.endBlock();
 }
 
 

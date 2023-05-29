@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -86,7 +88,7 @@ private:
     // Private data
 
         //- Project mode names
-        static const NamedEnum<projectMode, 3> projectModeNames_;
+        static const Enum<projectMode> projectModeNames_;
 
         //- Names of surfaces
         const dictionary surfacesDict_;
@@ -112,8 +114,11 @@ private:
         //- Calculate displacement (w.r.t. points0()) to project onto surface
         void calcProjection(vectorField& displacement) const;
 
-        //- Disallow default bitwise assignment
-        void operator=(const surfaceSlipDisplacementPointPatchVectorField&);
+        //- No copy assignment
+        void operator=
+        (
+            const surfaceSlipDisplacementPointPatchVectorField&
+        ) = delete;
 
 
 public:

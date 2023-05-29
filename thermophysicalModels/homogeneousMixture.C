@@ -1,9 +1,11 @@
-﻿/*---------------------------------------------------------------------------*\
+/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -23,14 +25,8 @@ License
 
 \*---------------------------------------------------------------------------*/
 
-//#include "homogeneousMixture.H"
+#include "homogeneousMixture.H"
 #include "fvMesh.H"
-
-// * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
-
-template<class ThermoType>
-const char* Foam::homogeneousMixture<ThermoType>::specieNames_[1] = {"b"};
-
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
@@ -45,7 +41,7 @@ Foam::homogeneousMixture<ThermoType>::homogeneousMixture
     basicCombustionMixture
     (
         thermoDict,
-        speciesTable(nSpecies_, specieNames_),
+        speciesTable({"b"}),
         mesh,
         phaseName
     ),

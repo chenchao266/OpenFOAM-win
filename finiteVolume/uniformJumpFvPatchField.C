@@ -1,9 +1,12 @@
-﻿/*---------------------------------------------------------------------------*\
+/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2012-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2012-2017 OpenFOAM Foundation
+    Copyright (C) 2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -26,114 +29,119 @@ License
 //#include "uniformJumpFvPatchField.H"
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
-namespace Foam {
-    template<class Type>
-    uniformJumpFvPatchField<Type>::uniformJumpFvPatchField
-    (
-        const fvPatch& p,
-        const DimensionedField<Type, volMesh>& iF
-    )
-        :
-        fixedJumpFvPatchField<Type>(p, iF),
-        jumpTable_()
-    {}
+
+template<class Type>
+Foam::uniformJumpFvPatchField<Type>::uniformJumpFvPatchField
+(
+    const fvPatch& p,
+    const DimensionedField<Type, volMesh>& iF
+)
+:
+    fixedJumpFvPatchField<Type>(p, iF),
+    jumpTable_()
+{}
 
 
-    template<class Type>
-    uniformJumpFvPatchField<Type>::uniformJumpFvPatchField
-    (
-        const uniformJumpFvPatchField<Type>& ptf,
-        const fvPatch& p,
-        const DimensionedField<Type, volMesh>& iF,
-        const fvPatchFieldMapper& mapper
-    )
-        :
-        fixedJumpFvPatchField<Type>(ptf, p, iF, mapper),
-        jumpTable_(ptf.jumpTable_, false)
-    {}
+template<class Type>
+Foam::uniformJumpFvPatchField<Type>::uniformJumpFvPatchField
+(
+    const uniformJumpFvPatchField<Type>& ptf,
+    const fvPatch& p,
+    const DimensionedField<Type, volMesh>& iF,
+    const fvPatchFieldMapper& mapper
+)
+:
+    fixedJumpFvPatchField<Type>(ptf, p, iF, mapper),
+    jumpTable_(ptf.jumpTable_.clone())
+{}
 
 
-    template<class Type>
-    uniformJumpFvPatchField<Type>::uniformJumpFvPatchField
-    (
-        const fvPatch& p,
-        const DimensionedField<Type, volMesh>& iF,
-        const dictionary& dict
-    )
-        :
-        fixedJumpFvPatchField<Type>(p, iF),
-        jumpTable_()
+template<class Type>
+Foam::uniformJumpFvPatchField<Type>::uniformJumpFvPatchField
+(
+    const fvPatch& p,
+    const DimensionedField<Type, volMesh>& iF,
+    const dictionary& dict,
+    const bool valueRequired
+)
+:
+    fixedJumpFvPatchField<Type>(p, iF, dict, false), // Pass no valueRequired
+    jumpTable_()
+{
+    if (valueRequired)
     {
         if (this->cyclicPatch().owner())
         {
-            jumpTable_ = Function1<Type>::New("jumpTable", dict);
+            jumpTable_ = Function1<Type>::New("jumpTable", dict, &this->db());
         }
 
         if (dict.found("value"))
         {
             fvPatchField<Type>::operator=
-                (
-                    Field<Type>("value", dict, p.size())
-                    );
+            (
+                Field<Type>("value", dict, p.size())
+            );
         }
         else
         {
             this->evaluate(Pstream::commsTypes::blocking);
         }
     }
-
-
-    template<class Type>
-    uniformJumpFvPatchField<Type>::uniformJumpFvPatchField
-    (
-        const uniformJumpFvPatchField<Type>& ptf
-    )
-        :
-        fixedJumpFvPatchField<Type>(ptf),
-        jumpTable_(ptf.jumpTable_, false)
-    {}
-
-
-    template<class Type>
-    uniformJumpFvPatchField<Type>::uniformJumpFvPatchField
-    (
-        const uniformJumpFvPatchField<Type>& ptf,
-        const DimensionedField<Type, volMesh>& iF
-    )
-        :
-        fixedJumpFvPatchField<Type>(ptf, iF),
-        jumpTable_(ptf.jumpTable_, false)
-    {}
-
-
-    // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
-
-    template<class Type>
-    void uniformJumpFvPatchField<Type>::updateCoeffs()
-    {
-        if (this->updated())
-        {
-            return;
-        }
-
-        if (this->cyclicPatch().owner())
-        {
-            this->jump_ = jumpTable_->value(this->db().time().value());
-        }
-
-        fixedJumpFvPatchField<Type>::updateCoeffs();
-    }
-
-
-    template<class Type>
-    void uniformJumpFvPatchField<Type>::write(Ostream& os) const
-    {
-        fixedJumpFvPatchField<Type>::write(os);
-        if (this->cyclicPatch().owner())
-        {
-            jumpTable_->writeData(os);
-        }
-    }
-
 }
+
+
+template<class Type>
+Foam::uniformJumpFvPatchField<Type>::uniformJumpFvPatchField
+(
+    const uniformJumpFvPatchField<Type>& ptf
+)
+:
+    fixedJumpFvPatchField<Type>(ptf),
+    jumpTable_(ptf.jumpTable_.clone())
+{}
+
+
+template<class Type>
+Foam::uniformJumpFvPatchField<Type>::uniformJumpFvPatchField
+(
+    const uniformJumpFvPatchField<Type>& ptf,
+    const DimensionedField<Type, volMesh>& iF
+)
+:
+    fixedJumpFvPatchField<Type>(ptf, iF),
+    jumpTable_(ptf.jumpTable_.clone())
+{}
+
+
+// * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
+
+template<class Type>
+void Foam::uniformJumpFvPatchField<Type>::updateCoeffs()
+{
+    if (this->updated())
+    {
+        return;
+    }
+
+    if (this->cyclicPatch().owner())
+    {
+        this->setJump(jumpTable_->value(this->db().time().value()));
+    }
+
+    fixedJumpFvPatchField<Type>::updateCoeffs();
+}
+
+
+template<class Type>
+void Foam::uniformJumpFvPatchField<Type>::write(Ostream& os) const
+{
+    fixedJumpFvPatchField<Type>::write(os);
+
+    if (this->cyclicPatch().owner())
+    {
+        jumpTable_->writeData(os);
+    }
+}
+
+
 // ************************************************************************* //

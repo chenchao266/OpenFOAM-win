@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -26,61 +28,65 @@ License
 #include "floatTensor.H"
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
-namespace Foam {
-    template<>
-    const char* const floatTensor::vsType::typeName = "floatTensor";
 
-    template<>
-    const char* const floatTensor::vsType::componentNames[] =
-    {
-        "xx", "xy", "xz",
-        "yx", "yy", "yz",
-        "zx", "zy", "zz"
-    };
 
-    template<>
-    const floatTensor floatTensor::vsType::_zero
-    (
-        floatTensor::uniform(0)
-    );
+ namespace Foam{
+template<>
+const char* const floatTensor::vsType::typeName = "floatTensor";
 
-    template<>
-    const floatTensor floatTensor::vsType::one
-    (
-        floatTensor::uniform(1)
-    );
+template<>
+const char* const floatTensor::vsType::componentNames[] =
+{
+    "xx", "xy", "xz",
+    "yx", "yy", "yz",
+    "zx", "zy", "zz"
+};
 
-    template<>
-    const floatTensor floatTensor::vsType::max
-    (
-        floatTensor::uniform(floatScalarVGREAT)
-    );
+template<>
+const floatTensor floatTensor::vsType::zero_
+(
+    floatTensor::uniform(0)
+);
 
-    template<>
-    const floatTensor floatTensor::vsType::min
-    (
-        floatTensor::uniform(-floatScalarVGREAT)
-    );
+template<>
+const floatTensor floatTensor::vsType::one_
+(
+    floatTensor::uniform(1)
+);
 
-    template<>
-    const floatTensor floatTensor::vsType::rootMax
-    (
-        floatTensor::uniform(floatScalarROOTVGREAT)
-    );
+template<>
+const floatTensor floatTensor::vsType::max_
+(
+    floatTensor::uniform(floatScalarVGREAT)
+);
 
-    template<>
-    const floatTensor floatTensor::vsType::rootMin
-    (
-        floatTensor::uniform(-floatScalarROOTVGREAT)
-    );
+template<>
+const floatTensor floatTensor::vsType::min_
+(
+    floatTensor::uniform(-floatScalarVGREAT)
+);
 
-    template<>
-    const floatTensor floatTensor::I
-    (
-        1, 0, 0,
-        0, 1, 0,
-        0, 0, 1
-    );
-}
+template<>
+const floatTensor floatTensor::vsType::rootMax_
+(
+    floatTensor::uniform(floatScalarROOTVGREAT)
+);
+
+template<>
+const floatTensor floatTensor::vsType::rootMin_
+(
+    floatTensor::uniform(-floatScalarROOTVGREAT)
+);
+
+template<>
+const floatTensor floatTensor::I
+(
+    1, 0, 0,
+    0, 1, 0,
+    0, 0, 1
+);
+
 
 // ************************************************************************* //
+
+ } // End namespace Foam

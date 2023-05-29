@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -22,7 +24,7 @@ License
     along with OpenFOAM.  If not, see <http://www.gnu.org/licenses/>.
 
 Class
-    Foam::phaseChangeModel
+    Foam::regionModels::surfaceFilmModels::phaseChangeModel
 
 Description
     Base class for surface film phase change models
@@ -61,11 +63,11 @@ private:
 
     // Private Member Functions
 
-        //- Disallow default bitwise copy construct
-        phaseChangeModel(const phaseChangeModel&);
+        //- No copy construct
+        phaseChangeModel(const phaseChangeModel&) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const phaseChangeModel&);
+        //- No copy assignment
+        void operator=(const phaseChangeModel&) = delete;
 
 
 protected:
@@ -93,7 +95,7 @@ public:
              phaseChangeModel,
              dictionary,
              (
-                surfaceFilmModel& film,
+                surfaceFilmRegionModel& film,
                 const dictionary& dict
              ),
              (film, dict)
@@ -102,13 +104,13 @@ public:
     // Constructors
 
         //- Construct null
-        phaseChangeModel(surfaceFilmModel& film);
+        phaseChangeModel(surfaceFilmRegionModel& film);
 
         //- Construct from type name, dictionary and surface film model
         phaseChangeModel
         (
             const word& modelType,
-            surfaceFilmModel& film,
+            surfaceFilmRegionModel& film,
             const dictionary& dict
         );
 
@@ -118,7 +120,7 @@ public:
         //- Return a reference to the selected phase change model
         static autoPtr<phaseChangeModel> New
         (
-            surfaceFilmModel& film,
+            surfaceFilmRegionModel& film,
             const dictionary& dict
         );
 

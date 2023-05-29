@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2017 OpenFOAM Foundation
+    Copyright (C) 2019 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -38,7 +41,7 @@ SourceFiles
 #ifndef thermophysicalProperties_H
 #define thermophysicalProperties_H
 
-#include "dictionary.H"
+#include "dictionary2.H"
 #include "runTimeSelectionTables.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
@@ -104,8 +107,7 @@ public:
 
 
     //- Destructor
-    virtual ~thermophysicalProperties()
-    {}
+    virtual ~thermophysicalProperties() = default;
 
 
     // Member Functions
@@ -115,7 +117,7 @@ public:
             //- Molecular weight [kg/kmol]
             inline scalar W() const;
 
-            //- Limit the temperature to be in the range Tlow_ to Thigh_
+            //- Limit temperature to be within the range
             inline scalar limit(const scalar T) const;
 
 
@@ -139,14 +141,14 @@ public:
             //- Heat capacity at constant pressure [J/(kg K)]
             virtual scalar Cp(const scalar p, const scalar T) const = 0;
 
-            //- Absolute Enthalpy [J/kg]
-            virtual scalar Ha(const scalar p, const scalar T) const = 0;
-
             //- Sensible enthalpy [J/kg]
             virtual scalar Hs(const scalar p, const scalar T) const = 0;
 
             //- Chemical enthalpy [J/kg]
             virtual scalar Hc() const = 0;
+
+            //- Absolute Enthalpy [J/kg]
+            virtual scalar Ha(const scalar p, const scalar T) const = 0;
 
             // Entropy [J/(kg K)]
             virtual scalar S(const scalar p, const scalar T) const = 0;

@@ -1,9 +1,12 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2017-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -25,7 +28,7 @@ Class
     Foam::treeBoundBox
 
 Description
-    Standard boundBox + extra functionality for use in octree.
+    Standard boundBox with extra functionality for use in octree.
 
     Numbering of corner points is according to octant numbering.
 
@@ -46,6 +49,10 @@ Description
 
     For the front plane add 4 to the point labels.
 
+Note
+    When a bounding box is created without any points, it creates an inverted
+    bounding box. Points can be added later and the bounding box will grow to
+    include them.
 
 SourceFiles
     treeBoundBoxI.H
@@ -67,78 +74,55 @@ SourceFiles
 namespace Foam
 {
 
+// Forward Declarations
 class Random;
-
-
-// Forward declaration of friend functions and operators
-
 class treeBoundBox;
-
-bool operator==(const treeBoundBox&, const treeBoundBox&);
-bool operator!=(const treeBoundBox&, const treeBoundBox&);
-
-Istream& operator>>(Istream& is, treeBoundBox&);
-Ostream& operator<<(Ostream& os, const treeBoundBox&);
-
+Istream& operator>>(Istream& is, treeBoundBox& bb);
+Ostream& operator<<(Ostream& os, const treeBoundBox& bb);
 
 /*---------------------------------------------------------------------------*\
                         Class treeBoundBox Declaration
 \*---------------------------------------------------------------------------*/
 
-class treeBoundBox :    public boundBox
+class treeBoundBox
+:
+    public boundBox
 {
-
-private:
-
-        //- To initialise edges.
-        static edgeList calcEdges(const label[12][2]);
-
-        //- To initialise faceNormals.
-        static FixedList<vector, 6> calcFaceNormals();
-
 public:
 
-    // Static data members
+    // Enumerations
 
-        //- The great value used for greatBox and invertedBox
-        static const scalar great;
-
-        //- As per boundBox::greatBox, but with GREAT instead of VGREAT
-        static const treeBoundBox greatBox;
-
-        //- As per boundBox::invertedBox, but with GREAT instead of VGREAT
-        static const treeBoundBox invertedBox;
-
-        //- Bits used for octant/point coding.
-        //  Every octant/corner point is the combination of three faces.
-        enum octantBit
+        //- Bits used for octant/point encoding.
+        //  Every octant/corner point is the combination of three directions.
+        enum octantBit : direction
         {
-            RIGHTHALF = 0x1 << 0,
-            TOPHALF   = 0x1 << 1,
-            FRONTHALF = 0x1 << 2
+            RIGHTHALF = 0x1,  //!< 1: positive x-direction
+            TOPHALF   = 0x2,  //!< 2: positive y-direction
+            FRONTHALF = 0x4   //!< 4: positive z-direction
         };
 
-        //- Face codes
+        //- Face codes. Identical order and meaning as per hex cellmodel
+        //- and boundBox, but have a different point ordering.
         enum faceId
         {
-            LEFT   = 0,
-            RIGHT  = 1,
-            BOTTOM = 2,
-            TOP    = 3,
-            BACK   = 4,
-            FRONT  = 5
+            LEFT   = 0,  //!< 0: x-min, left
+            RIGHT  = 1,  //!< 1: x-max, right
+            BOTTOM = 2,  //!< 2: y-min, bottom
+            TOP    = 3,  //!< 3: y-max, top
+            BACK   = 4,  //!< 4: z-min, back
+            FRONT  = 5   //!< 5: z-max, front
         };
 
-        //- Bits used for face coding
-        enum faceBit
+        //- Bits used for face encoding
+        enum faceBit : direction
         {
             NOFACE    = 0,
-            LEFTBIT   = 0x1 << LEFT,    //1
-            RIGHTBIT  = 0x1 << RIGHT,   //2
-            BOTTOMBIT = 0x1 << BOTTOM,  //4
-            TOPBIT    = 0x1 << TOP,     //8
-            BACKBIT   = 0x1 << BACK,    //16
-            FRONTBIT  = 0x1 << FRONT,   //32
+            LEFTBIT   = 0x1 << LEFT,    //!<  1: x-min, left
+            RIGHTBIT  = 0x1 << RIGHT,   //!<  2: x-max, right
+            BOTTOMBIT = 0x1 << BOTTOM,  //!<  4: y-min, bottom
+            TOPBIT    = 0x1 << TOP,     //!<  8: y-max, top
+            BACKBIT   = 0x1 << BACK,    //!< 16: z-min, back
+            FRONTBIT  = 0x1 << FRONT    //!< 32: z-max, front
         };
 
         //- Edges codes.
@@ -161,48 +145,51 @@ public:
             E26 = 11
         };
 
+
+    // Static Data Members
+
         //- Face to point addressing
         static const faceList faces;
 
         //- Edge to point addressing
         static const edgeList edges;
 
-        //- Per face the unit normal
-        static const FixedList<vector, 6> faceNormals;
-
 
     // Constructors
 
-        //- Construct null setting points to zero
+        //- Construct without any points - an inverted bounding box
         inline treeBoundBox();
 
         //- Construct from a boundBox
-        explicit inline treeBoundBox(const boundBox& bb);
+        inline explicit treeBoundBox(const boundBox& bb);
+
+        //- Construct a bounding box containing a single initial point
+        inline explicit treeBoundBox(const point& pt);
 
         //- Construct from components
         inline treeBoundBox(const point& min, const point& max);
 
         //- Construct as the bounding box of the given pointField.
         //  Local processor domain only (no reduce as in boundBox)
-        explicit treeBoundBox(const UList<point>&);
+        explicit treeBoundBox(const UList<point>& points);
 
         //- Construct as subset of points
         //  Local processor domain only (no reduce as in boundBox)
-        treeBoundBox(const UList<point>&, const labelUList& indices);
+        treeBoundBox(const UList<point>& points, const labelUList& indices);
 
         //- Construct as subset of points
         //  The indices could be from edge/triFace etc.
         //  Local processor domain only (no reduce as in boundBox)
-        template<unsigned Size>
+        template<unsigned N>
         treeBoundBox
         (
-            const UList<point>&,
-            const FixedList<label, Size>& indices
+            const UList<point>& points,
+            const FixedList<label, N>& indices
         );
 
 
         //- Construct from Istream
-        inline treeBoundBox(Istream&);
+        inline treeBoundBox(Istream& is);
 
 
     // Member functions
@@ -218,13 +205,13 @@ public:
 
         // Check
 
-            //- Corner point given octant
-            inline point corner(const direction) const;
+            //- Corner point of given octant
+            inline point corner(const direction octant) const;
 
-            //- Sub box given by octant number. Midpoint calculated.
-            treeBoundBox subBbox(const direction) const;
+            //- Sub-box of given octant. Midpoint calculated.
+            treeBoundBox subBbox(const direction octant) const;
 
-            //- Sub box given by octant number. Midpoint provided.
+            //- Sub-box given by octant number. Midpoint provided.
             treeBoundBox subBbox(const point& mid, const direction) const;
 
             //- Returns octant number given point and the calculated midpoint.
@@ -316,10 +303,10 @@ public:
             bool contains(const vector& dir, const point&) const;
 
             //- Code position of point on bounding box faces
-            direction faceBits(const point&) const;
+            direction faceBits(const point& pt) const;
 
             //- Position of point relative to bounding box
-            direction posBits(const point&) const;
+            direction posBits(const point& pt) const;
 
             //- Calculate nearest and furthest (to point) vertex coords of
             //  bounding box
@@ -331,7 +318,7 @@ public:
             ) const;
 
             //- Returns distance point to furthest away corner.
-            scalar maxDist(const point&) const;
+            scalar maxDist(const point& pt) const;
 
             //- Compare distance to point with other bounding box
             //  return:
@@ -340,28 +327,37 @@ public:
             //  +1 : all vertices of my bounding box are further away than
             //       any of other
             //   0 : none of the above.
-            label distanceCmp(const point&, const treeBoundBox& other) const;
+            label distanceCmp(const point& pt, const treeBoundBox& other) const;
 
             //- Return slightly wider bounding box
-            //  Extends all dimensions with s*span*Random::scalar01()
+            //  Extends all dimensions with s*span*Random::sample01<scalar>()
             //  and guarantees in any direction s*mag(span) minimum width
-            inline treeBoundBox extend(Random&, const scalar s) const;
+            inline treeBoundBox extend(Random& rndGen, const scalar s) const;
 
-    // Friend Operators
-
-        friend bool operator==(const treeBoundBox&, const treeBoundBox&);
-        friend bool operator!=(const treeBoundBox&, const treeBoundBox&);
 
     // IOstream operator
 
-        friend Istream& operator>>(Istream& is, treeBoundBox&);
-        friend Ostream& operator<<(Ostream& os, const treeBoundBox&);
+        friend Istream& operator>>(Istream& is, treeBoundBox& bb);
+        friend Ostream& operator<<(Ostream& os, const treeBoundBox& bb);
 };
 
 
-//- Data associated with treeBoundBox type are contiguous
-template<>
-inline bool contiguous<treeBoundBox>() {return contiguous<boundBox>();}
+// * * * * * * * * * * * * * * * * * Traits  * * * * * * * * * * * * * * * * //
+
+//- Contiguous data for treeBoundBox
+template<> struct is_contiguous<treeBoundBox> : is_contiguous<boundBox> {};
+
+//- Contiguous scalar data for treeBoundBox
+template<> struct is_contiguous_scalar<treeBoundBox>
+:
+    is_contiguous_scalar<boundBox>
+{};
+
+
+// * * * * * * * * * * * * * * * Global Operators  * * * * * * * * * * * * * //
+
+inline bool operator==(const treeBoundBox& a, const treeBoundBox& b);
+inline bool operator!=(const treeBoundBox& a, const treeBoundBox& b);
 
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //

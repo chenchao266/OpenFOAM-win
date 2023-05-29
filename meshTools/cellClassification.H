@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -93,7 +95,7 @@ SourceFiles
 #define cellClassification_H
 
 #include "pointField.H"
-#include "Map.T.H"
+#include "Map.H"
 #include "boolList.H"
 #include "labelList.H"
 #include "faceList.H"

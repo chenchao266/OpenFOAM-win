@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2015 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2015 OpenFOAM Foundation
+    Copyright (C) 2018-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -25,7 +28,55 @@ Class
     Foam::labelToPoint
 
 Description
-    A topoSetSource to select points given explicitly provided labels.
+    A \c topoSetPointSource to select points
+    based on explicitly given point labels.
+
+    Operands:
+    \table
+      Operand   | Type     | Location
+      output    | pointSet | $FOAM_CASE/constant/polyMesh/sets/\<set\>
+    \endtable
+
+Usage
+    Minimal example by using \c system/topoSetDict.actions:
+    \verbatim
+    {
+        // Mandatory (inherited) entries
+        name        <name>;
+        type        pointSet;
+        action      <action>;
+
+        // Mandatory entries
+        source      labelToPoint;
+        value
+        (
+            <pointLabel1>
+            <pointLabel2>
+            ...
+        );
+    }
+    \endverbatim
+
+    where the entries mean:
+    \table
+      Property   | Description                          | Type | Req'd | Dflt
+      name       | Name of pointSet                     | word |  yes  | -
+      type       | Type name: pointSet                  | word |  yes  | -
+      action     | Action applied on points - see below | word |  yes  | -
+      source     | Source name: labelToPoint            | word |  yes  | -
+      value      | Input point labels                   | labelList | yes | -
+    \endtable
+
+    Options for the \c action entry:
+    \verbatim
+      new      | Create a new pointSet from selected points
+      add      | Add selected points into this pointSet
+      subtract | Remove selected points from this pointSet
+    \endverbatim
+
+See also
+    - Foam::topoSetSource
+    - Foam::topoSetPointSource
 
 SourceFiles
     labelToPoint.C
@@ -35,7 +86,7 @@ SourceFiles
 #ifndef labelToPoint_H
 #define labelToPoint_H
 
-#include "topoSetSource.H"
+#include "topoSetPointSource.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -48,10 +99,9 @@ namespace Foam
 
 class labelToPoint
 :
-    public topoSetSource
+    public topoSetPointSource
 {
-
-    // Private data
+    // Private Data
 
         //- Add usage string
         static addToUsageTable usage_;
@@ -60,57 +110,38 @@ class labelToPoint
         labelList labels_;
 
 
-    // Private Member Functions
-
-        void combine(topoSet& set, const bool add) const;
-
-
 public:
 
     //- Runtime type information
     TypeName("labelToPoint");
 
+
     // Constructors
 
-        //- Construct from components
-        labelToPoint
-        (
-            const polyMesh& mesh,
-            const labelList& labels
-        );
+        //- Construct from components, copying labels
+        labelToPoint(const polyMesh& mesh, const labelList& labels);
+
+        //- Construct from components, moving labels
+        labelToPoint(const polyMesh& mesh, labelList&& labels);
 
         //- Construct from dictionary
-        labelToPoint
-        (
-            const polyMesh& mesh,
-            const dictionary& dict
-        );
+        labelToPoint(const polyMesh& mesh, const dictionary& dict);
 
         //- Construct from Istream
-        labelToPoint
-        (
-            const polyMesh& mesh,
-            Istream&
-        );
+        labelToPoint(const polyMesh& mesh, Istream& is);
 
 
     //- Destructor
-    virtual ~labelToPoint();
+    virtual ~labelToPoint() = default;
 
 
     // Member Functions
 
-        virtual sourceType setType() const
-        {
-            return POINTSETSOURCE;
-        }
-
         virtual void applyToSet
         (
             const topoSetSource::setAction action,
-            topoSet&
+            topoSet& set
         ) const;
-
 };
 
 

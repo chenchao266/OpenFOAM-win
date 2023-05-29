@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -24,11 +27,13 @@ License
 \*---------------------------------------------------------------------------*/
 
 #include "matchPoints.H"
-#include "SortableList.T.H"
-#include "ListOps.T.H"
+#include "SortableList.H"
+#include "ListOps.H"
 
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
-using namespace Foam;
+
+
+ namespace Foam{
 bool matchPoints
 (
     const UList<point>& pts0,
@@ -46,11 +51,16 @@ bool matchPoints
 
     point compareOrigin = origin;
 
-    if (origin == point(VGREAT, VGREAT, VGREAT))
+    if (origin == point::max_)
     {
         if (pts1.size())
         {
             compareOrigin = sum(pts1)/pts1.size();
+        }
+        else
+        {
+            // Unusable, but avoid comparison with VGREAT!
+            compareOrigin = point::zero_;
         }
     }
 
@@ -158,11 +168,16 @@ bool matchPoints
 
     point compareOrigin = origin;
 
-    if (origin == point(VGREAT, VGREAT, VGREAT))
+    if (origin == point::max_)
     {
         if (pts1.size())
         {
             compareOrigin = sum(pts1)/pts1.size();
+        }
+        else
+        {
+            // Unusable, but avoid comparison with VGREAT!
+            compareOrigin = point::zero_;
         }
     }
 
@@ -187,8 +202,10 @@ bool matchPoints
 
         // Go through range of equal mag and find nearest vector.
         scalar minDistSqr = VGREAT;
-        scalar minDistNorm = 0;
         label minFacei = -1;
+
+        // Valid candidate points should have opposite normal
+        const scalar minDistNorm = 0;
 
         for
         (
@@ -220,7 +237,6 @@ bool matchPoints
                 // Check that the normals point in equal and opposite directions
                 if (distNorm < minDistNorm)
                 {
-                    minDistNorm = distNorm;
                     minDistSqr = distSqr;
                     minFacei = facei;
                 }
@@ -268,3 +284,5 @@ bool matchPoints
 
 
 // ************************************************************************* //
+
+ } // End namespace Foam

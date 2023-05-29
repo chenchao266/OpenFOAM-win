@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2013-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2013-2016 OpenFOAM Foundation
+    Copyright (C) 2015-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -28,11 +31,55 @@ Group
     grpFieldFunctionObjects
 
 Description
-    Calculates and outputs the Peclet number as a surfaceScalarField.
+    Computes the Peclet number as a \c surfaceScalarField.
+
+    Operands:
+    \table
+      Operand        | Type               | Location
+      input          | surfaceScalarField | $FOAM_CASE/\<time\>/\<inpField\>
+      output file    | -                  | -
+      output field   | surfaceScalarField | $FOAM_CASE/\<time\>/\<outField\>
+    \endtable
+
+Usage
+    Minimal example by using \c system/controlDict.functions:
+    \verbatim
+    PecletNo1
+    {
+        // Mandatory entries (unmodifiable)
+        type            PecletNo;
+        libs            (fieldFunctionObjects);
+
+        // Optional entries (runtime modifiable)
+        rho             rho;
+
+        // Optional (inherited) entries
+        ...
+    }
+    \endverbatim
+
+    where the entries mean:
+    \table
+      Property     | Description                        | Type | Req'd | Dflt
+      type         | Type name: PecletNo                | word |  yes  | -
+      libs         | Library name: fieldFunctionObjects | word |  yes  | -
+      rho          | Name of density field              | word |  no   | rho
+    \endtable
+
+    The inherited entries are elaborated in:
+     - \link functionObject.H \endlink
+     - \link fieldExpression.H \endlink
+
+    Minimal example by using the \c postProcess utility:
+    \verbatim
+        postProcess -func PecletNo
+    \endverbatim
 
 See also
-    Foam::functionObjects::fieldExpression
-    Foam::functionObjects::fvMeshFunctionObject
+    - Foam::functionObject
+    - Foam::functionObjects::fvMeshFunctionObject
+    - Foam::functionObjects::fieldExpression
+    - ExtendedCodeGuide::functionObjects::field::PecletNo
 
 SourceFiles
     PecletNo.C
@@ -43,6 +90,7 @@ SourceFiles
 #define functionObjects_PecletNo_H
 
 #include "fieldExpression.H"
+#include "surfaceFieldsFwd.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -59,7 +107,16 @@ class PecletNo
 :
     public fieldExpression
 {
+    // Private Data
+
+        //- Name of density field
+        word rhoName_;
+
+
     // Private Member Functions
+
+        //- Optionally scale the flux for compressible cases
+        tmp<surfaceScalarField> rhoScale(const surfaceScalarField& phi) const;
 
         //- Calculate the Peclet number field and return true if successful
         virtual bool calc();
@@ -73,8 +130,7 @@ public:
 
     // Constructors
 
-        //- Construct for given objectRegistry and dictionary.
-        //  Allow the possibility to load fields from files
+        //- Construct from Time and dictionary
         PecletNo
         (
             const word& name,
@@ -82,9 +138,21 @@ public:
             const dictionary& dict
         );
 
+        //- No copy construct
+        PecletNo(const PecletNo&) = delete;
+
+        //- No copy assignment
+        void operator=(const PecletNo&) = delete;
+
 
     //- Destructor
-    virtual ~PecletNo();
+    virtual ~PecletNo() = default;
+
+
+    // Member Functions
+
+        //- Read the PecletNo data
+        virtual bool read(const dictionary&);
 };
 
 

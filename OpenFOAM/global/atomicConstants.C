@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2013 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2013 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -23,13 +25,12 @@ License
 
 \*---------------------------------------------------------------------------*/
 
+#include "fundamentalConstants.H"
 #include "mathematicalConstants.H"
 #include "universalConstants.H"
 #include "electromagneticConstants.H"
 #include "atomicConstants.H"
-
 #include "dimensionedConstants.H"
-#include "fundamentalConstants.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -38,9 +39,6 @@ namespace Foam
 namespace constant
 {
 
-const char* const atomic::group = "atomic";
-
-
 // Note: cannot use dimless etc. since not guaranteed to be constructed
 defineDimensionedConstantWithDefault
 (
@@ -48,10 +46,10 @@ defineDimensionedConstantWithDefault
     atomic::alpha,
     dimensionedScalar
     (
-        word("alpha"),
+        "alpha",
         sqr(electromagnetic::e)
        /(
-            dimensionedScalar(word("C"), dimensionSet(0, 0, 0, 0, 0), 2.0)
+            dimensionedScalar("C", dimensionSet(0, 0, 0, 0, 0), 2.0)
            *electromagnetic::epsilon0
            *universal::h
            *universal::c
@@ -68,14 +66,14 @@ defineDimensionedConstantWithDefault
     atomic::Rinf,
     dimensionedScalar
     (
-        word("Rinf"),
+        "Rinf",
         sqr(atomic::alpha)
        *atomic::me
        *universal::c
        /(
             dimensionedScalar
             (
-                word("C"),
+                "C",
                 dimensionSet(0, 0, 0, 0, 0),
                 2.0
             )
@@ -93,12 +91,12 @@ defineDimensionedConstantWithDefault
     atomic::a0,
     dimensionedScalar
     (
-        word("a0"),
+        "a0",
         atomic::alpha
        /(
             dimensionedScalar
             (
-                word("C"),
+                "C",
                 dimensionSet(0, 0, 0, 0, 0),
                 4.0*mathematical::pi
             )
@@ -116,12 +114,12 @@ defineDimensionedConstantWithDefault
     atomic::re,
     dimensionedScalar
     (
-        word("re"),
+        "re",
         sqr(electromagnetic::e)
        /(
             dimensionedScalar
             (
-                word("C"),
+                "C",
                 dimensionSet(0, 0, 0, 0, 0),
                 4.0*mathematical::pi
             )
@@ -141,8 +139,8 @@ defineDimensionedConstantWithDefault
     atomic::Eh,
     dimensionedScalar
     (
-        word("Eh"),
-        dimensionedScalar(word("C"), dimensionSet(0, 0, 0, 0, 0), 2.0)
+        "Eh",
+        dimensionedScalar("C", dimensionSet(0, 0, 0, 0, 0), 2.0)
        *atomic::Rinf*universal::h*universal::c
     ),
     constantatomicEh,

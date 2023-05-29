@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2013-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2013-2016 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -28,8 +31,8 @@ License
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
-#include "NoIsotropy.T.H"
-#include "Stochastic.T.H"
+#include "NoIsotropy.H"
+#include "Stochastic.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -40,6 +43,13 @@ License
     makeIsotropyModelType(NoIsotropy, CloudType);                              \
     makeIsotropyModelType(Stochastic, CloudType);
 
+
+#define makeMPPICCloudParcelIsotropyModels(CloudType)                          \
+                                                                               \
+    makeIsotropyModelMPPIC(CloudType);                                         \
+                                                                               \
+    makeIsotropyModelTypeMPPIC(NoIsotropy, CloudType);                         \
+    makeIsotropyModelTypeMPPIC(Stochastic, CloudType);
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 

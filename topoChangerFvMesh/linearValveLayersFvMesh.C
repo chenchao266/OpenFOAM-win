@@ -1,9 +1,12 @@
-﻿/*---------------------------------------------------------------------------*\
+/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2018-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -24,7 +27,7 @@ License
 \*---------------------------------------------------------------------------*/
 
 #include "linearValveLayersFvMesh.H"
-#include "Time.T.H"
+#include "Time1.H"
 #include "slidingInterface.H"
 #include "layerAdditionRemoval.H"
 #include "pointField.H"
@@ -76,89 +79,61 @@ void Foam::linearValveLayersFvMesh::addZonesAndModifiers()
     List<cellZone*> cz(0);
 
 
-    // Add an empty zone for cut points
-
-    pz[0] = new pointZone
-    (
-        "cutPointZone",
-        labelList(0),
-        0,
-        pointZones()
-    );
+    // An empty zone for cut points
+    pz[0] = new pointZone("cutPointZone", 0, pointZones());
 
 
     // Do face zones for slider
 
     // Inner slider
-    const word innerSliderName(motionDict_.subDict("slider").lookup("inside"));
+    const word innerSliderName
+    (
+        motionDict_.subDict("slider").get<word>("inside")
+    );
     const polyPatch& innerSlider = boundaryMesh()[innerSliderName];
-
-    labelList isf(innerSlider.size());
-
-    forAll(isf, i)
-    {
-        isf[i] = innerSlider.start() + i;
-    }
 
     fz[0] = new faceZone
     (
         "insideSliderZone",
-        isf,
-        boolList(innerSlider.size(), false),
+        identity(innerSlider.range()),
+        false, // none are flipped
         0,
         faceZones()
     );
 
     // Outer slider
-    const word outerSliderName(motionDict_.subDict("slider").lookup("outside"));
+    const word outerSliderName
+    (
+        motionDict_.subDict("slider").get<word>("outside")
+    );
     const polyPatch& outerSlider = boundaryMesh()[outerSliderName];
-
-    labelList osf(outerSlider.size());
-
-    forAll(osf, i)
-    {
-        osf[i] = outerSlider.start() + i;
-    }
 
     fz[1] = new faceZone
     (
         "outsideSliderZone",
-        osf,
-        boolList(outerSlider.size(), false),
+        identity(outsideSlider.range()),
+        false, // none are flipped
         1,
         faceZones()
     );
 
-    // Add empty zone for cut faces
-    fz[2] = new faceZone
-    (
-        "cutFaceZone",
-        labelList(0),
-        boolList(0, false),
-        2,
-        faceZones()
-    );
+    // An empty zone for cut faces
+    fz[2] = new faceZone("cutFaceZone", 2, faceZones());
 
     // Add face zone for layer addition
     const word layerPatchName
     (
-        motionDict_.subDict("layer").lookup("patch")
+        motionDict_.subDict("layer").get<word>("patch")
     );
 
     const polyPatch& layerPatch = boundaryMesh()[layerPatchName];
 
-    labelList lpf(layerPatch.size());
-
-    forAll(lpf, i)
-    {
-        lpf[i] = layerPatch.start() + i;
-    }
-
     fz[3] = new faceZone
     (
         "valveLayerZone",
+        identity(layerPatch.range()),
         lpf,
-        boolList(layerPatch.size(), true),
+        true, // all are flipped
         0,
         faceZones()
     );
@@ -193,19 +168,13 @@ void Foam::linearValveLayersFvMesh::addZonesAndModifiers()
             1,
             topoChanger_,
             "valveLayerZone",
-            readScalar
-            (
-                motionDict_.subDict("layer").lookup("minThickness")
-            ),
-            readScalar
-            (
-                motionDict_.subDict("layer").lookup("maxThickness")
-            )
+            motionDict_.subDict("layer").get<scalar>("minThickness"),
+            motionDict_.subDict("layer").get<scalar>("maxThickness")
         );
 
 
     Info<< "Adding topology modifiers" << endl;
-    topoChanger_.addTopologyModifiers(tm);
+    addTopologyModifiers(tm);
 
     // Write mesh
     write();
@@ -315,7 +284,7 @@ Foam::tmp<Foam::pointField> Foam::linearValveLayersFvMesh::newPoints() const
 
     const word layerPatchName
     (
-        motionDict_.subDict("layer").lookup("patch")
+        motionDict_.subDict("layer").get<word>("patch")
     );
 
     const polyPatch& layerPatch = boundaryMesh()[layerPatchName];
@@ -324,7 +293,7 @@ Foam::tmp<Foam::pointField> Foam::linearValveLayersFvMesh::newPoints() const
 
     const vector vel
     (
-        motionDict_.lookup("pistonVelocity")
+        motionDict_.get<vector>("pistonVelocity")
     );
 
     forAll(patchPoints, ppI)
@@ -370,7 +339,7 @@ Foam::linearValveLayersFvMesh::~linearValveLayersFvMesh()
 
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
 
-bool Foam::linearValveLayersFvMesh::update()
+void Foam::linearValveLayersFvMesh::update()
 {
     // Detaching the interface
     if (attached())
@@ -395,8 +364,8 @@ bool Foam::linearValveLayersFvMesh::update()
     resetMorph();
     setMorphTimeIndex(3*time().timeIndex() + 1);
     updateMesh();
-    autoPtr<mapPolyMesh> topoChangeMap = topoChanger_.changeMesh(true);//??
-    if (topoChangeMap.valid())
+
+    if (topoChangeMap)
     {
         if (topoChangeMap().hasMotionPoints())
         {
@@ -422,7 +391,6 @@ bool Foam::linearValveLayersFvMesh::update()
     //movePoints(p);
 
     Info<< "Sliding interfaces coupled: " << attached() << endl;
-    return true;
 }
 
 

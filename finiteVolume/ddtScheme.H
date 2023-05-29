@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2018 OpenFOAM Foundation
+    Copyright (C) 2017 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -23,6 +26,9 @@ License
 
 Class
     Foam::fv::ddtScheme
+
+Group
+    grpFvDdtSchemes
 
 Description
     Abstract base class for ddt schemes.
@@ -61,10 +67,24 @@ namespace fv
                            Class ddtScheme Declaration
 \*---------------------------------------------------------------------------*/
 
+class ddtSchemeBase
+{
+public:
+
+        //- Flag to use experimental ddtCorr from org version
+        //- Default is off for backwards compatibility
+        static bool experimentalDdtCorr;
+
+        ddtSchemeBase()
+        {}
+};
+
+
 template<class Type>
 class ddtScheme
 :
-    public tmp<ddtScheme<Type>>::refCount
+    public refCount,
+    public ddtSchemeBase
 {
 
 protected:
@@ -73,14 +93,19 @@ protected:
 
         const fvMesh& mesh_;
 
+        //- Input for fvcDdtPhiCoeff
+        //  If set to -1 (default) the code will calculate the coefficient
+        //  If > 0 the coupling coeff is set to this value
+        scalar ddtPhiCoeff_;
+
 
     // Private Member Functions
 
-        //- Disallow copy construct
-        ddtScheme(const ddtScheme&);
+        //- No copy construct
+        ddtScheme(const ddtScheme&) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const ddtScheme&);
+        //- No copy assignment
+        void operator=(const ddtScheme&) = delete;
 
 
 public:
@@ -106,13 +131,15 @@ public:
         //- Construct from mesh
         ddtScheme(const fvMesh& mesh)
         :
-            mesh_(mesh)
+            mesh_(mesh),
+            ddtPhiCoeff_(-1)
         {}
 
         //- Construct from mesh and Istream
-        ddtScheme(const fvMesh& mesh, Istream&)
+        ddtScheme(const fvMesh& mesh, Istream& is)
         :
-            mesh_(mesh)
+            mesh_(mesh),
+            ddtPhiCoeff_(-1)
         {}
 
 
@@ -127,7 +154,7 @@ public:
 
 
     //- Destructor
-    virtual ~ddtScheme();
+    virtual ~ddtScheme() = default;
 
 
     // Member Functions
@@ -138,62 +165,62 @@ public:
             return mesh_;
         }
 
-        virtual tmp<volFieldType<Type>> fvcDdt
+        virtual tmp<GeometricField<Type, fvPatchField, volMesh>> fvcDdt
         (
             const dimensioned<Type>&
         ) = 0;
 
-        virtual tmp<volFieldType<Type>> fvcDdt
+        virtual tmp<GeometricField<Type, fvPatchField, volMesh>> fvcDdt
         (
-            const volFieldType<Type>&
+            const GeometricField<Type, fvPatchField, volMesh>&
         ) = 0;
 
-        virtual tmp<volFieldType<Type>> fvcDdt
+        virtual tmp<GeometricField<Type, fvPatchField, volMesh>> fvcDdt
         (
             const dimensionedScalar&,
-            const volFieldType<Type>&
+            const GeometricField<Type, fvPatchField, volMesh>&
         ) = 0;
 
-        virtual tmp<volFieldType<Type>> fvcDdt
+        virtual tmp<GeometricField<Type, fvPatchField, volMesh>> fvcDdt
         (
             const volScalarField&,
-            const volFieldType<Type>&
+            const GeometricField<Type, fvPatchField, volMesh>&
         ) = 0;
 
-        virtual tmp<volFieldType<Type>> fvcDdt
+        virtual tmp<GeometricField<Type, fvPatchField, volMesh>> fvcDdt
         (
             const volScalarField& alpha,
             const volScalarField& rho,
-            const volFieldType<Type>&
+            const GeometricField<Type, fvPatchField, volMesh>&
         ) = 0;
 
-        virtual tmp<surfaceFieldType<Type>> fvcDdt
+        virtual tmp<GeometricField<Type, fvsPatchField, surfaceMesh>> fvcDdt
         (
-            const surfaceFieldType<Type>&
+            const GeometricField<Type, fvsPatchField, surfaceMesh>&
         );
 
         virtual tmp<fvMatrix<Type>> fvmDdt
         (
-            const volFieldType<Type>&
+            const GeometricField<Type, fvPatchField, volMesh>&
         ) = 0;
 
         virtual tmp<fvMatrix<Type>> fvmDdt
         (
             const dimensionedScalar&,
-            const volFieldType<Type>&
+            const GeometricField<Type, fvPatchField, volMesh>&
         ) = 0;
 
         virtual tmp<fvMatrix<Type>> fvmDdt
         (
             const volScalarField&,
-            const volFieldType<Type>&
+            const GeometricField<Type, fvPatchField, volMesh>&
         ) = 0;
 
         virtual tmp<fvMatrix<Type>> fvmDdt
         (
             const volScalarField& alpha,
             const volScalarField& rho,
-            const volFieldType<Type>& vf
+            const GeometricField<Type, fvPatchField, volMesh>& vf
         ) = 0;
 
         typedef GeometricField
@@ -205,46 +232,68 @@ public:
 
         tmp<surfaceScalarField> fvcDdtPhiCoeff
         (
-            const volFieldType<Type>& U,
+            const GeometricField<Type, fvPatchField, volMesh>& U,
+            const fluxFieldType& phi,
+            const fluxFieldType& phiCorr
+        );
+
+        tmp<surfaceScalarField> fvcDdtPhiCoeffExperimental
+        (
+            const GeometricField<Type, fvPatchField, volMesh>& U,
             const fluxFieldType& phi,
             const fluxFieldType& phiCorr
         );
 
         tmp<surfaceScalarField> fvcDdtPhiCoeff
         (
-            const volFieldType<Type>& U,
+            const GeometricField<Type, fvPatchField, volMesh>& U,
+            const fluxFieldType& phi,
+            const fluxFieldType& phiCorr,
+            const volScalarField& rho
+        );
+
+        tmp<surfaceScalarField> fvcDdtPhiCoeff
+        (
+            const GeometricField<Type, fvPatchField, volMesh>& U,
             const fluxFieldType& phi
+        );
+
+        tmp<surfaceScalarField> fvcDdtPhiCoeff
+        (
+            const GeometricField<Type, fvPatchField, volMesh>& rhoU,
+            const fluxFieldType& phi,
+            const volScalarField& rho
         );
 
         virtual tmp<fluxFieldType> fvcDdtUfCorr
         (
-            const volFieldType<Type>& U,
-            const surfaceFieldType<Type>& Uf
+            const GeometricField<Type, fvPatchField, volMesh>& U,
+            const GeometricField<Type, fvsPatchField, surfaceMesh>& Uf
         ) = 0;
 
         virtual tmp<fluxFieldType> fvcDdtPhiCorr
         (
-            const volFieldType<Type>& U,
+            const GeometricField<Type, fvPatchField, volMesh>& U,
             const fluxFieldType& phi
         ) = 0;
 
         virtual tmp<fluxFieldType> fvcDdtUfCorr
         (
             const volScalarField& rho,
-            const volFieldType<Type>& U,
-            const surfaceFieldType<Type>& Uf
+            const GeometricField<Type, fvPatchField, volMesh>& U,
+            const GeometricField<Type, fvsPatchField, surfaceMesh>& Uf
         ) = 0;
 
         virtual tmp<fluxFieldType> fvcDdtPhiCorr
         (
             const volScalarField& rho,
-            const volFieldType<Type>& U,
+            const GeometricField<Type, fvPatchField, volMesh>& U,
             const fluxFieldType& phi
         ) = 0;
 
         virtual tmp<surfaceScalarField> meshPhi
         (
-            const volFieldType<Type>&
+            const GeometricField<Type, fvPatchField, volMesh>&
         ) = 0;
 };
 

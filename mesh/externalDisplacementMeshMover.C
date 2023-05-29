@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2013-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2013-2015 OpenFOAM Foundation
+    Copyright (C) 2015-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -25,6 +28,7 @@ License
 
 #include "externalDisplacementMeshMover.H"
 #include "mapPolyMesh.H"
+#include "zeroFixedValuePointPatchFields.H"
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
 
@@ -35,17 +39,94 @@ namespace Foam
 }
 
 
+// * * * * * * * * * * * *  Protected Member Functions * * * * * * * * * * * //
+
+Foam::labelList Foam::externalDisplacementMeshMover::getFixedValueBCs
+(
+    const pointVectorField& field
+)
+{
+    DynamicList<label> adaptPatchIDs;
+
+    forAll(field.boundaryField(), patchI)
+    {
+        const pointPatchField<vector>& patchField =
+            field.boundaryField()[patchI];
+
+        if (isA<valuePointPatchField<vector>>(patchField))
+        {
+            if (isA<zeroFixedValuePointPatchField<vector>>(patchField))
+            {
+                // Special condition of fixed boundary condition. Does not
+                // get adapted
+            }
+            else
+            {
+                adaptPatchIDs.append(patchI);
+            }
+        }
+    }
+
+    return adaptPatchIDs;
+}
+
+
+Foam::autoPtr<Foam::indirectPrimitivePatch>
+Foam::externalDisplacementMeshMover::getPatch
+(
+    const polyMesh& mesh,
+    const labelList& patchIDs
+)
+{
+    const polyBoundaryMesh& patches = mesh.boundaryMesh();
+
+    // Count faces.
+    label nFaces = 0;
+
+    forAll(patchIDs, i)
+    {
+        const polyPatch& pp = patches[patchIDs[i]];
+
+        nFaces += pp.size();
+    }
+
+    // Collect faces.
+    labelList addressing(nFaces);
+    nFaces = 0;
+
+    forAll(patchIDs, i)
+    {
+        const polyPatch& pp = patches[patchIDs[i]];
+
+        label meshFaceI = pp.start();
+
+        forAll(pp, i)
+        {
+            addressing[nFaces++] = meshFaceI++;
+        }
+    }
+
+    return autoPtr<indirectPrimitivePatch>::New
+    (
+        IndirectList<face>(mesh.faces(), addressing),
+        mesh.points()
+    );
+}
+
+
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
 Foam::externalDisplacementMeshMover::externalDisplacementMeshMover
 (
     const dictionary& dict,
     const List<labelPair>& baffles,
-    pointVectorField& pointDisplacement
+    pointVectorField& pointDisplacement,
+    const bool dryRun
 )
 :
     baffles_(baffles),
-    pointDisplacement_(pointDisplacement)
+    pointDisplacement_(pointDisplacement),
+    dryRun_(dryRun)
 {}
 
 
@@ -57,27 +138,28 @@ Foam::externalDisplacementMeshMover::New
     const word& type,
     const dictionary& dict,
     const List<labelPair>& baffles,
-    pointVectorField& pointDisplacement
+    pointVectorField& pointDisplacement,
+    const bool dryRun
 )
 {
     Info<< "Selecting externalDisplacementMeshMover " << type << endl;
 
-    dictionaryConstructorTable::iterator cstrIter =
-        dictionaryConstructorTablePtr_->find(type);
+    auto* ctorPtr = dictionaryConstructorTable(type);
 
-    if (cstrIter == dictionaryConstructorTablePtr_->end())
+    if (!ctorPtr)
     {
-        FatalErrorInFunction
-            << "Unknown externalDisplacementMeshMover type "
-            << type << nl << nl
-            << "Valid externalDisplacementMeshMover types:" << endl
-            << dictionaryConstructorTablePtr_->sortedToc()
-            << exit(FatalError);
+        FatalIOErrorInLookup
+        (
+            dict,
+            "externalDisplacementMeshMover",
+            type,
+            *dictionaryConstructorTablePtr_
+        ) << exit(FatalIOError);
     }
 
     return autoPtr<externalDisplacementMeshMover>
     (
-        cstrIter()(dict, baffles, pointDisplacement)
+        ctorPtr(dict, baffles, pointDisplacement, dryRun)
     );
 }
 

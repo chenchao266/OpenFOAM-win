@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2019-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -24,45 +27,10 @@ License
 \*---------------------------------------------------------------------------*/
 
 #include "meshReader.H"
-#include "Time.T.H"
+#include "Time1.H"
 #include "polyMesh.H"
 #include "faceSet.H"
 #include "emptyPolyPatch.H"
-#include "cellModeller.H"
-#include "demandDrivenData.H"
-
-// * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
-
-const Foam::cellModel* Foam::meshReader::unknownModel = Foam::cellModeller::
-lookup
-(
-    "unknown"
-);
-
-const Foam::cellModel* Foam::meshReader::tetModel = Foam::cellModeller::
-lookup
-(
-    "tet"
-);
-
-const Foam::cellModel* Foam::meshReader::pyrModel = Foam::cellModeller::
-lookup
-(
-    "pyr"
-);
-
-const Foam::cellModel* Foam::meshReader::prismModel = Foam::cellModeller::
-lookup
-(
-    "prism"
-);
-
-const Foam::cellModel* Foam::meshReader::hexModel = Foam::cellModeller::
-lookup
-(
-    "hex"
-);
-
 
 // * * * * * * * * * * * * * Private Member Functions  * * * * * * * * * * * //
 
@@ -84,13 +52,7 @@ void Foam::meshReader::addFaceZones(polyMesh& mesh) const
     }
 
     nZone = 0;
-    for
-    (
-        HashTable<List<label>, word, string::hash>::const_iterator
-        iter = monitoringSets_.begin();
-        iter != monitoringSets_.end();
-        ++iter
-    )
+    forAllConstIters(monitoringSets_, iter)
     {
         Info<< "faceZone " << nZone
             << " (size: " << iter().size() << ") name: "
@@ -103,7 +65,7 @@ void Foam::meshReader::addFaceZones(polyMesh& mesh) const
             (
                 iter.key(),
                 iter(),
-                List<bool>(iter().size(), false),
+                false, // none are flipped
                 nZone,
                 mesh.faceZones()
             )
@@ -111,7 +73,7 @@ void Foam::meshReader::addFaceZones(polyMesh& mesh) const
 
         nZone++;
     }
-    mesh.faceZones().writeOpt() = IOobject::AUTO_WRITE;
+    mesh.faceZones().writeOpt(IOobject::AUTO_WRITE);
     warnDuplicates("faceZones", mesh.faceZones().names());
 }
 
@@ -131,50 +93,44 @@ Foam::autoPtr<Foam::polyMesh> Foam::meshReader::mesh
     createPolyBoundary();
     clearExtraStorage();
 
-    autoPtr<polyMesh> mesh
+    auto meshPtr = autoPtr<polyMesh>::New
     (
-        new polyMesh
+        IOobject
         (
-            IOobject
-            (
-                polyMesh::defaultRegion,
-                registry.time().constant(),
-                registry
-            ),
-            xferMove(points_),
-            xferMove(meshFaces_),
-            xferMove(cellPolys_)
-        )
+            polyMesh::defaultRegion,
+            registry.time().constant(),
+            registry,
+            IOobject::NO_READ,
+            IOobject::AUTO_WRITE
+        ),
+        std::move(points_),
+        std::move(meshFaces_),
+        std::move(cellPolys_)
     );
+    polyMesh& mesh = *meshPtr;
 
-    // adding patches also checks the mesh
-    mesh().addPatches(polyBoundaryPatches(mesh));
+    // Adding patches also checks the mesh
+    mesh.addPatches(polyBoundaryPatches(mesh));
 
-    warnDuplicates("boundaries", mesh().boundaryMesh().names());
+    warnDuplicates("boundaries", mesh.boundaryMesh().names());
 
-    addCellZones(mesh());
-    addFaceZones(mesh());
+    addCellZones(mesh);
+    addFaceZones(mesh);
 
-    return mesh;
+    return meshPtr;
 }
 
 
 void Foam::meshReader::writeMesh
 (
     const polyMesh& mesh,
-    IOstream::streamFormat fmt
+    IOstreamOption streamOpt
 ) const
 {
     mesh.removeFiles();
 
     Info<< "Writing polyMesh" << endl;
-    mesh.writeObject
-    (
-        fmt,
-        IOstream::currentVersion,
-        IOstream::UNCOMPRESSED,
-        true
-    );
+    mesh.writeObject(streamOpt, true);
     writeAux(mesh);
 }
 
@@ -186,7 +142,7 @@ void Foam::meshReader::clearExtraStorage()
     boundaryIds_.clear();
     baffleIds_.clear();
 
-    deleteDemandDrivenData(pointCellsPtr_);
+    pointCellsPtr_.reset(nullptr);
 }
 
 
@@ -197,15 +153,13 @@ Foam::meshReader::meshReader
     const fileName& fileOrPrefix,
     const scalar scaleFactor
 )
-    :
+:
     pointCellsPtr_(nullptr),
-    nInternalFaces_(0),
-    patchStarts_(0),
-    patchSizes_(0),
     interfaces_(0),
     baffleIds_(0),
-    meshFaces_(0),
     cellPolys_(0),
+    monitoringSets_(),
+    // protected
     geometryFile_(fileOrPrefix),
     scaleFactor_(scaleFactor),
     points_(0),
@@ -214,18 +168,20 @@ Foam::meshReader::meshReader
     patchTypes_(0),
     patchNames_(0),
     patchPhysicalTypes_(0),
+    patchStarts_(0),
+    patchSizes_(0),
+    nInternalFaces_(0),
+    meshFaces_(0),
     cellFaces_(0),
     baffleFaces_(0),
     cellTableId_(0),
     cellTable_()
-{}
-
-
-// * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
-
-Foam::meshReader::~meshReader()
 {
-    deleteDemandDrivenData(pointCellsPtr_);
+    // Sanity
+    if (scaleFactor_ <= VSMALL)
+    {
+        scaleFactor_ = 1;
+    }
 }
 
 

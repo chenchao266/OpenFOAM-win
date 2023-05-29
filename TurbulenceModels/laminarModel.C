@@ -1,9 +1,12 @@
-﻿/*---------------------------------------------------------------------------*\
+/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2016-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2016-2017 OpenFOAM Foundation
+    Copyright (C) 2019-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -23,8 +26,8 @@ License
 
 \*---------------------------------------------------------------------------*/
 
-//#include "laminarModel.H"
-#include "Stokes.T.H"
+#include "laminarModel.H"
+#include "Stokes.H"
 
 // * * * * * * * * * * * * * Protected Member Functions  * * * * * * * * * * //
 
@@ -66,7 +69,7 @@ Foam::laminarModel<BasicTurbulenceModel>::laminarModel
     ),
 
     laminarDict_(this->subOrEmptyDict("laminar")),
-    printCoeffs_(laminarDict_.lookupOrDefault<Switch>("printCoeffs", false)),
+    printCoeffs_(laminarDict_.getOrDefault<Switch>("printCoeffs", false)),
     coeffDict_(laminarDict_.optionalSubDict(type + "Coeffs"))
 {
     // Force the construction of the mesh deltaCoeffs which may be needed
@@ -90,46 +93,49 @@ Foam::laminarModel<BasicTurbulenceModel>::New
     const word& propertiesName
 )
 {
-    IOdictionary modelDict
+    const IOdictionary modelDict
     (
         IOobject
         (
-            IOobject::groupName(propertiesName, U.group()),
+            IOobject::groupName(propertiesName, alphaRhoPhi.group()),
             U.time().constant(),
             U.db(),
             IOobject::MUST_READ_IF_MODIFIED,
             IOobject::NO_WRITE,
-            false
+            false // Do not register
         )
     );
 
-    if (modelDict.found("laminar"))
+    const dictionary* dictptr = modelDict.findDict("laminar");
+
+    if (dictptr)
     {
-        // get model name, but do not register the dictionary
-        // otherwise it is registered in the database twice
+        const dictionary& dict = *dictptr;
+
         const word modelType
         (
-            modelDict.subDict("laminar").lookup("laminarModel")
+            // laminarModel -> model (after v2006)
+            dict.getCompat<word>("model", {{"laminarModel", -2006}})
         );
 
         Info<< "Selecting laminar stress model " << modelType << endl;
 
-        typename dictionaryConstructorTable::iterator cstrIter =
-            dictionaryConstructorTablePtr_->find(modelType);
+        auto* ctorPtr = dictionaryConstructorTable(modelType);
 
-        if (cstrIter == dictionaryConstructorTablePtr_->end())
+        if (!ctorPtr)
         {
-            FatalErrorInFunction
-                << "Unknown laminarModel type "
-                << modelType << nl << nl
-                << "Valid laminarModel types:" << endl
-                << dictionaryConstructorTablePtr_->sortedToc()
-                << exit(FatalError);
+            FatalIOErrorInLookup
+            (
+                dict,
+                "laminar model",
+                modelType,
+                *dictionaryConstructorTablePtr_
+            ) << exit(FatalIOError);
         }
 
         return autoPtr<laminarModel>
         (
-            cstrIter()
+            ctorPtr
             (
                 alpha,
                 rho,
@@ -174,10 +180,8 @@ bool Foam::laminarModel<BasicTurbulenceModel>::read()
 
         return true;
     }
-    else
-    {
-        return false;
-    }
+
+    return false;
 }
 
 
@@ -185,22 +189,19 @@ template<class BasicTurbulenceModel>
 Foam::tmp<Foam::volScalarField>
 Foam::laminarModel<BasicTurbulenceModel>::nut() const
 {
-    return tmp<volScalarField>
+    return tmp<volScalarField>::New
     (
-        new volScalarField
+        IOobject
         (
-            IOobject
-            (
-                IOobject::groupName("nut", this->U_.group()),
-                this->runTime_.timeName(),
-                this->mesh_,
-                IOobject::NO_READ,
-                IOobject::NO_WRITE,
-                false
-            ),
+            IOobject::groupName("nut", this->alphaRhoPhi_.group()),
+            this->runTime_.timeName(),
             this->mesh_,
-            dimensionedScalar("nut", dimViscosity, 0.0)
-        )
+            IOobject::NO_READ,
+            IOobject::NO_WRITE,
+            false
+        ),
+        this->mesh_,
+        dimensionedScalar(dimViscosity, Zero)
     );
 }
 
@@ -214,7 +215,7 @@ Foam::laminarModel<BasicTurbulenceModel>::nut
 {
     return tmp<scalarField>
     (
-        new scalarField(this->mesh_.boundary()[patchi].size(), 0.0)
+        new scalarField(this->mesh_.boundary()[patchi].size(), Zero)
     );
 }
 
@@ -227,7 +228,7 @@ Foam::laminarModel<BasicTurbulenceModel>::nuEff() const
     (
         new volScalarField
         (
-            IOobject::groupName("nuEff", this->U_.group()), this->nu()
+            IOobject::groupName("nuEff", this->alphaRhoPhi_.group()), this->nu()
         )
     );
 }
@@ -248,22 +249,19 @@ template<class BasicTurbulenceModel>
 Foam::tmp<Foam::volScalarField>
 Foam::laminarModel<BasicTurbulenceModel>::k() const
 {
-    return tmp<volScalarField>
+    return tmp<volScalarField>::New
     (
-        new volScalarField
+        IOobject
         (
-            IOobject
-            (
-                IOobject::groupName("k", this->U_.group()),
-                this->runTime_.timeName(),
-                this->mesh_,
-                IOobject::NO_READ,
-                IOobject::NO_WRITE,
-                false
-            ),
+            IOobject::groupName("k", this->alphaRhoPhi_.group()),
+            this->runTime_.timeName(),
             this->mesh_,
-            dimensionedScalar("k", sqr(this->U_.dimensions()), 0.0)
-        )
+            IOobject::NO_READ,
+            IOobject::NO_WRITE,
+            false
+        ),
+        this->mesh_,
+        dimensionedScalar(sqr(this->U_.dimensions()), Zero)
     );
 }
 
@@ -272,25 +270,40 @@ template<class BasicTurbulenceModel>
 Foam::tmp<Foam::volScalarField>
 Foam::laminarModel<BasicTurbulenceModel>::epsilon() const
 {
-    return tmp<volScalarField>
+    return tmp<volScalarField>::New
     (
-        new volScalarField
+        IOobject
         (
-            IOobject
-            (
-                IOobject::groupName("epsilon", this->U_.group()),
-                this->runTime_.timeName(),
-                this->mesh_,
-                IOobject::NO_READ,
-                IOobject::NO_WRITE,
-                false
-            ),
+            IOobject::groupName("epsilon", this->alphaRhoPhi_.group()),
+            this->runTime_.timeName(),
             this->mesh_,
-            dimensionedScalar
-            (
-                "epsilon", sqr(this->U_.dimensions())/dimTime, 0.0
-            )
-        )
+            IOobject::NO_READ,
+            IOobject::NO_WRITE,
+            false
+        ),
+        this->mesh_,
+        dimensionedScalar(sqr(this->U_.dimensions())/dimTime, Zero)
+    );
+}
+
+
+template<class BasicTurbulenceModel>
+Foam::tmp<Foam::volScalarField>
+Foam::laminarModel<BasicTurbulenceModel>::omega() const
+{
+    return tmp<volScalarField>::New
+    (
+        IOobject
+        (
+            IOobject::groupName("omega", this->alphaRhoPhi_.group()),
+            this->runTime_.timeName(),
+            this->mesh_,
+            IOobject::NO_READ,
+            IOobject::NO_WRITE,
+            false
+        ),
+        this->mesh_,
+        dimensionedScalar(dimless/dimTime, Zero)
     );
 }
 
@@ -299,25 +312,19 @@ template<class BasicTurbulenceModel>
 Foam::tmp<Foam::volSymmTensorField>
 Foam::laminarModel<BasicTurbulenceModel>::R() const
 {
-    return tmp<volSymmTensorField>
+    return tmp<volSymmTensorField>::New
     (
-        new volSymmTensorField
+        IOobject
         (
-            IOobject
-            (
-                IOobject::groupName("R", this->U_.group()),
-                this->runTime_.timeName(),
-                this->mesh_,
-                IOobject::NO_READ,
-                IOobject::NO_WRITE,
-                false
-            ),
+            IOobject::groupName("R", this->alphaRhoPhi_.group()),
+            this->runTime_.timeName(),
             this->mesh_,
-            dimensionedSymmTensor
-            (
-                "R", sqr(this->U_.dimensions()), Zero
-            )
-        )
+            IOobject::NO_READ,
+            IOobject::NO_WRITE,
+            false
+        ),
+        this->mesh_,
+        dimensionedSymmTensor(sqr(this->U_.dimensions()), Zero)
     );
 }
 

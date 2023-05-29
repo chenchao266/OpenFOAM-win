@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -36,32 +38,28 @@ namespace blockVertices
     addToRunTimeSelectionTable(blockVertex, pointVertex, Istream);
 }
 }
-namespace Foam
+
+
+// * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
+
+Foam::blockVertices::pointVertex::pointVertex
+(
+    const dictionary&,
+    const label index,
+    const searchableSurfaces& geometry,
+    Istream& is
+)
+:
+    vertex_(is)
+{}
+
+
+// * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
+
+Foam::blockVertices::pointVertex::operator Foam::point() const
 {
-    namespace blockVertices
-    {
-
-        // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
-
-        pointVertex::pointVertex
-        (
-            const dictionary&,
-            const label index,
-            const searchableSurfaces& geometry,
-            Istream& is
-        )
-            :
-            vertex_(is)
-        {}
-
-
-        // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
-
-        pointVertex::operator point() const
-        {
-            return vertex_;
-        }
-    }
+    return vertex_;
 }
+
 
 // ************************************************************************* //

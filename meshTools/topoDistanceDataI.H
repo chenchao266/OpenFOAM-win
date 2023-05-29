@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2019-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -25,46 +28,45 @@ License
 
 #include "polyMesh.H"
 
-// * * * * * * * * * * * * * Private Member Functions  * * * * * * * * * * * //
-
-
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
-// Null constructor
-inline Foam::topoDistanceData::topoDistanceData()
+template<class Type>
+inline Foam::topoDistanceData<Type>::topoDistanceData()
 :
-    data_(-1),
-    distance_(-1)
+    distance_(-1),
+    data_()
 {}
 
 
-// Construct from components
-inline Foam::topoDistanceData::topoDistanceData
+template<class Type>
+inline Foam::topoDistanceData<Type>::topoDistanceData
 (
-    const label data,
-    const label distance
+    const label distance,
+    const Type& data
 )
 :
-    data_(data),
-    distance_(distance)
+    distance_(distance),
+    data_(data)
 {}
 
 
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
 
+template<class Type>
 template<class TrackingData>
-inline bool Foam::topoDistanceData::valid(TrackingData& td) const
+inline bool Foam::topoDistanceData<Type>::valid(TrackingData& td) const
 {
     return distance_ != -1;
 }
 
 
 // No geometric data so never any problem on cyclics
+template<class Type>
 template<class TrackingData>
-inline bool Foam::topoDistanceData::sameGeometry
+inline bool Foam::topoDistanceData<Type>::sameGeometry
 (
     const polyMesh&,
-    const topoDistanceData&,
+    const topoDistanceData<Type>&,
     const scalar,
     TrackingData&
 ) const
@@ -74,8 +76,9 @@ inline bool Foam::topoDistanceData::sameGeometry
 
 
 // No geometric data.
+template<class Type>
 template<class TrackingData>
-inline void Foam::topoDistanceData::leaveDomain
+inline void Foam::topoDistanceData<Type>::leaveDomain
 (
     const polyMesh&,
     const polyPatch& patch,
@@ -87,8 +90,9 @@ inline void Foam::topoDistanceData::leaveDomain
 
 
 // No geometric data.
+template<class Type>
 template<class TrackingData>
-inline void Foam::topoDistanceData::transform
+inline void Foam::topoDistanceData<Type>::transform
 (
     const polyMesh&,
     const tensor& rotTensor,
@@ -98,8 +102,9 @@ inline void Foam::topoDistanceData::transform
 
 
 // No geometric data.
+template<class Type>
 template<class TrackingData>
-inline void Foam::topoDistanceData::enterDomain
+inline void Foam::topoDistanceData<Type>::enterDomain
 (
     const polyMesh&,
     const polyPatch& patch,
@@ -111,37 +116,37 @@ inline void Foam::topoDistanceData::enterDomain
 
 
 // Update cell with neighbouring face information
+template<class Type>
 template<class TrackingData>
-inline bool Foam::topoDistanceData::updateCell
+inline bool Foam::topoDistanceData<Type>::updateCell
 (
     const polyMesh&,
     const label thisCelli,
     const label neighbourFacei,
-    const topoDistanceData& neighbourInfo,
+    const topoDistanceData<Type>& neighbourInfo,
     const scalar tol,
     TrackingData&
 )
 {
     if (distance_ == -1)
     {
-        operator=(neighbourInfo);
+        this->operator=(neighbourInfo);
         return true;
     }
-    else
-    {
-        return false;
-    }
+
+    return false;
 }
 
 
 // Update face with neighbouring cell information
+template<class Type>
 template<class TrackingData>
-inline bool Foam::topoDistanceData::updateFace
+inline bool Foam::topoDistanceData<Type>::updateFace
 (
     const polyMesh& mesh,
     const label thisFacei,
     const label neighbourCelli,
-    const topoDistanceData& neighbourInfo,
+    const topoDistanceData<Type>& neighbourInfo,
     const scalar tol,
     TrackingData&
 )
@@ -150,24 +155,23 @@ inline bool Foam::topoDistanceData::updateFace
 
     if (distance_ == -1)
     {
-        data_ = neighbourInfo.data_;
         distance_ = neighbourInfo.distance_ + 1;
+        data_ = neighbourInfo.data_;
         return true;
     }
-    else
-    {
-        return false;
-    }
+
+    return false;
 }
 
 
 // Update face with coupled face information
+template<class Type>
 template<class TrackingData>
-inline bool Foam::topoDistanceData::updateFace
+inline bool Foam::topoDistanceData<Type>::updateFace
 (
     const polyMesh&,
     const label thisFacei,
-    const topoDistanceData& neighbourInfo,
+    const topoDistanceData<Type>& neighbourInfo,
     const scalar tol,
     TrackingData&
 )
@@ -175,20 +179,19 @@ inline bool Foam::topoDistanceData::updateFace
     // From face to face (e.g. coupled faces)
     if (distance_ == -1)
     {
-        operator=(neighbourInfo);
+        this->operator=(neighbourInfo);
         return true;
     }
-    else
-    {
-        return false;
-    }
+
+    return false;
 }
 
 
+template<class Type>
 template<class TrackingData>
-inline bool Foam::topoDistanceData::equal
+inline bool Foam::topoDistanceData<Type>::equal
 (
-    const topoDistanceData& rhs,
+    const topoDistanceData<Type>& rhs,
     TrackingData& td
 ) const
 {
@@ -198,18 +201,20 @@ inline bool Foam::topoDistanceData::equal
 
 // * * * * * * * * * * * * * * * Member Operators  * * * * * * * * * * * * * //
 
-inline bool Foam::topoDistanceData::operator==
+template<class Type>
+inline bool Foam::topoDistanceData<Type>::operator==
 (
-    const Foam::topoDistanceData& rhs
+    const Foam::topoDistanceData<Type>& rhs
 ) const
 {
-    return data() == rhs.data() && distance() == rhs.distance();
+    return distance() == rhs.distance() && data() == rhs.data();
 }
 
 
-inline bool Foam::topoDistanceData::operator!=
+template<class Type>
+inline bool Foam::topoDistanceData<Type>::operator!=
 (
-    const Foam::topoDistanceData& rhs
+    const Foam::topoDistanceData<Type>& rhs
 ) const
 {
     return !(*this == rhs);

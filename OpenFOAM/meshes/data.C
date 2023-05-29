@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2015 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2015 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -24,15 +27,20 @@ License
 \*---------------------------------------------------------------------------*/
 
 #include "data.H"
-#include "Time.T.H"
+#include "Time1.h"
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
-using namespace Foam;
-int data::debug(debug::debugSwitch("data", false));
+
+
+ namespace Foam{
+int data::debug(debug::debugSwitch("data", 0));
+
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
-data::data(const objectRegistry& obr) :    IOdictionary
+data::data(const objectRegistry& obr)
+:
+    IOdictionary
     (
         IOobject
         (
@@ -49,6 +57,24 @@ data::data(const objectRegistry& obr) :    IOdictionary
 }
 
 
+data::data(const objectRegistry& obr, const dictionary& dict)
+:
+    IOdictionary
+    (
+        IOobject
+        (
+            "data",
+            obr.time().system(),
+            obr,
+            IOobject::NO_READ,
+            IOobject::NO_WRITE
+        ),
+        dict
+    ),
+    prevTimeIndex_(0)
+{}
+
+
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
 
 const dictionary& data::solverPerformanceDict() const
@@ -58,3 +84,5 @@ const dictionary& data::solverPerformanceDict() const
 
 
 // ************************************************************************* //
+
+ } // End namespace Foam

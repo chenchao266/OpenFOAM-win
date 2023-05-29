@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -44,9 +46,9 @@ inline Foam::ArrheniusReactionRate::ArrheniusReactionRate
     const dictionary& dict
 )
 :
-    A_(readScalar(dict.lookup("A"))),
-    beta_(readScalar(dict.lookup("beta"))),
-    Ta_(readScalar(dict.lookup("Ta")))
+    A_(dict.get<scalar>("A")),
+    beta_(dict.get<scalar>("beta")),
+    Ta_(dict.get<scalar>("Ta"))
 {}
 
 
@@ -77,9 +79,9 @@ inline Foam::scalar Foam::ArrheniusReactionRate::operator()
 
 inline void Foam::ArrheniusReactionRate::write(Ostream& os) const
 {
-    os.writeKeyword("A") << A_ << token::END_STATEMENT << nl;
-    os.writeKeyword("beta") << beta_ << token::END_STATEMENT << nl;
-    os.writeKeyword("Ta") << Ta_ << token::END_STATEMENT << nl;
+    os.writeEntry("A", A_);
+    os.writeEntry("beta", beta_);
+    os.writeEntry("Ta", Ta_);
 }
 
 

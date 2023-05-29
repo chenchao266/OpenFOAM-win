@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2013 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2015 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -25,6 +27,8 @@ License
 
 #include "cyclicAMIPointPatch.H"
 #include "pointBoundaryMesh.H"
+#include "pointMesh.H"
+#include "Time1.H"
 #include "addToRunTimeSelectionTable.H"
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
@@ -37,6 +41,13 @@ namespace Foam
         facePointPatch,
         cyclicAMIPointPatch,
         polyPatch
+    );
+    addNamedToRunTimeSelectionTable
+    (
+        facePointPatch,
+        cyclicAMIPointPatch,
+        polyPatch,
+        cyclicPeriodicAMI
     );
 }
 
@@ -94,6 +105,16 @@ Foam::cyclicAMIPointPatch::cyclicAMIPointPatch
 
 Foam::cyclicAMIPointPatch::~cyclicAMIPointPatch()
 {}
+
+
+// * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
+
+bool Foam::cyclicAMIPointPatch::coupled() const
+{
+    return
+        Pstream::parRun()
+     || !this->boundaryMesh().mesh().time().processorCase();
+}
 
 
 // ************************************************************************* //

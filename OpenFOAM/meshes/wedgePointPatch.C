@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2014 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2014 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -28,7 +30,7 @@ License
 #include "addToRunTimeSelectionTable.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
-using namespace Foam;
+
 namespace Foam
 {
     defineTypeNameAndDebug(wedgePointPatch, 0);
@@ -40,30 +42,32 @@ namespace Foam
         wedgePointPatch,
         polyPatch
     );
+
+
+
+    // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
+
+    wedgePointPatch::wedgePointPatch
+    (
+        const polyPatch& patch,
+        const pointBoundaryMesh& bm
+    )
+        :
+        facePointPatch(patch, bm),
+        wedgePolyPatch_(refCast<const wedgePolyPatch>(patch))
+    {}
+
+
+    // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
+
+    void wedgePointPatch::applyConstraint
+    (
+        const label pointi,
+        pointConstraint& pc
+    ) const
+    {
+        pc.applyConstraint(wedgePolyPatch_.n());
+    }
+
 }
-
-
-// * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
-
-wedgePointPatch::wedgePointPatch
-(
-    const polyPatch& patch,
-    const pointBoundaryMesh& bm
-) :    facePointPatch(patch, bm),
-    wedgePolyPatch_(refCast<const wedgePolyPatch>(patch))
-{}
-
-
-// * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
-
-void wedgePointPatch::applyConstraint
-(
-    const label pointi,
-    pointConstraint& pc
-) const
-{
-    pc.applyConstraint(wedgePolyPatch_.n());
-}
-
-
 // ************************************************************************* //

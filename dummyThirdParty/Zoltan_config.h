@@ -1,4 +1,4 @@
-/* src/include/Zoltan_config.h.in.  Generated from configure.ac by autoheader.  */
+﻿/* src/include/Zoltan_config.h.in.  Generated from configure.ac by autoheader.  */
 
 /* Define to dummy `main' function (if any) required to link to the Fortran
    libraries. */
@@ -78,4 +78,4 @@
 #undef UNSIGNED_LONG_GLOBAL_IDS
 
 /* define if ZOLTAN_ID_TYPE is unsigned long long */
-#undef UNSIGNED_LONG_LONG_GLOBAL_IDS
+#define UNSIGNED_LONG_LONG_GLOBAL_IDS 

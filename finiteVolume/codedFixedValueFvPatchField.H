@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2019-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -31,14 +34,29 @@ Description
     Constructs on-the-fly a new boundary condition (derived from
     fixedValueFvPatchField) which is then used to evaluate.
 
+    The code entries:
+    \plaintable
+       codeInclude | include files
+       codeOptions | compiler line: added to EXE_INC (Make/options)
+       codeLibs    | linker line: added to LIB_LIBS (Make/options)
+       localCode   | c++; local static functions
+       code        | c++; patch value assignment
+       codeContext | additional dictionary context for the code
+    \endplaintable
+
 Usage
     Example:
     \verbatim
     <patchName>
     {
-        type            codedFixedValue;
-        value           uniform 0;
+        type    codedFixedValue;
+        value   uniform 0;
         name    rampedFixedValue;   // name of generated BC
+
+        codeContext
+        {
+            ...
+        }
 
         code
         #{
@@ -71,6 +89,10 @@ Usage
     }
     \endverbatim
 
+Note
+    The code context dictionary can be supplied separately as the
+    \c codeContext entry.
+
 See also
     Foam::dynamicCode
     Foam::functionEntries::codeStream
@@ -91,11 +113,6 @@ SourceFiles
 namespace Foam
 {
 
-// Forward declaration of classes
-class dynamicCode;
-class dynamicCodeContext;
-class IOdictionary;
-
 /*---------------------------------------------------------------------------*\
                  Class codedFixedValueFvPatchField Declaration
 \*---------------------------------------------------------------------------*/
@@ -104,12 +121,16 @@ template<class Type>
 class codedFixedValueFvPatchField
 :
     public fixedValueFvPatchField<Type>,
-    public codedBase
+    protected codedBase
 {
-    // Private data
+    //- The parent boundary condition type
+    typedef fixedValueFvPatchField<Type> parent_bctype;
+
+
+    // Private Data
 
         //- Dictionary contents for the boundary condition
-        const dictionary dict_;
+        dictionary dict_;
 
         const word name_;
 
@@ -118,25 +139,23 @@ class codedFixedValueFvPatchField
 
     // Private Member Functions
 
-        const IOdictionary& dict() const;
-
-        //- Set the rewrite vars controlling the Type
-        static void setFieldTemplates(dynamicCode& dynCode);
-
-        //- Get the loaded dynamic libraries
+        //- Mutable access to the loaded dynamic libraries
         virtual dlLibraryTable& libs() const;
+
+        //- Description (type + name) for the output
+        virtual string description() const;
+
+        //- Clear redirected object(s)
+        virtual void clearRedirect() const;
+
+        //- Additional 'codeContext' dictionary to pass through
+        virtual const dictionary& codeContext() const;
+
+        //- The code dictionary. Inline "code" or from system/codeDict
+        virtual const dictionary& codeDict() const;
 
         //- Adapt the context for the current object
         virtual void prepare(dynamicCode&, const dynamicCodeContext&) const;
-
-        // Return a description (type + name) for the output
-        virtual string description() const;
-
-        // Clear the ptr to the redirected object
-        virtual void clearRedirect() const;
-
-        // Get the dictionary to initialize the codeContext
-        virtual const dictionary& codeDict() const;
 
 
 public:
@@ -144,10 +163,12 @@ public:
     // Static data members
 
         //- Name of the C code template to be used
-        static const word codeTemplateC;
+        static constexpr const char* const codeTemplateC
+            = "fixedValueFvPatchFieldTemplate.C";
 
         //- Name of the H code template to be used
-        static const word codeTemplateH;
+        static constexpr const char* const codeTemplateH
+            = "fixedValueFvPatchFieldTemplate.H";
 
 
     //- Runtime type information

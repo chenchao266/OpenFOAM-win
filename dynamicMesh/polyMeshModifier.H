@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -50,14 +53,10 @@ SourceFiles
 namespace Foam
 {
 
-// Forward declaration of classes
+// Forward Declarations
 class polyTopoChanger;
 class polyTopoChange;
 class mapPolyMesh;
-
-
-// Forward declaration of friend functions and operators
-
 class polyMeshModifier;
 
 Ostream& operator<<(Ostream&, const polyMeshModifier&);
@@ -86,11 +85,11 @@ class polyMeshModifier
 
     // Private Member Functions
 
-        //- Disallow default bitwise copy construct
-        polyMeshModifier(const polyMeshModifier&);
+        //- No copy construct
+        polyMeshModifier(const polyMeshModifier&) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const polyMeshModifier&);
+        //- No copy assignment
+        void operator=(const polyMeshModifier&) = delete;
 
 
 public:
@@ -143,7 +142,7 @@ public:
 
 
     //- Destructor
-    virtual ~polyMeshModifier();
+    virtual ~polyMeshModifier() = default;
 
 
     // Member Functions
@@ -178,7 +177,8 @@ public:
 
         // Activation and deactivation
 
-            const Switch& active() const
+            //- If modifier activate?
+            Switch active() const
             {
                 return active_;
             }

@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2016-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2016-2017 OpenFOAM Foundation
+    Copyright (C) 2016-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -29,6 +32,7 @@ License
 #include "surfaceInterpolate.H"
 #include "fvcSnGrad.H"
 #include "wallPolyPatch.H"
+#include "turbulentFluidThermoModel.H"
 #include "addToRunTimeSelectionTable.H"
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
@@ -45,16 +49,15 @@ namespace functionObjects
 
 // * * * * * * * * * * * * * Protected Member Functions  * * * * * * * * * * //
 
-void Foam::functionObjects::wallHeatFlux::writeFileHeader(const label i)
+void Foam::functionObjects::wallHeatFlux::writeFileHeader(Ostream& os) const
 {
-    // Add headers to output data
-    writeHeader(file(), "Wall heat-flux");
-    writeCommented(file(), "Time");
-    writeTabbed(file(), "patch");
-    writeTabbed(file(), "min");
-    writeTabbed(file(), "max");
-    writeTabbed(file(), "integral");
-    file() << endl;
+    writeHeader(os, "Wall heat-flux");
+    writeCommented(os, "Time");
+    writeTabbed(os, "patch");
+    writeTabbed(os, "min");
+    writeTabbed(os, "max");
+    writeTabbed(os, "integral");
+    os  << endl;
 }
 
 
@@ -65,30 +68,25 @@ void Foam::functionObjects::wallHeatFlux::calcHeatFlux
     volScalarField& wallHeatFlux
 )
 {
-    surfaceScalarField heatFlux
-    (
-        fvc::interpolate(alpha)*fvc::snGrad(he)
-    );
+    volScalarField::Boundary& wallHeatFluxBf = wallHeatFlux.boundaryFieldRef();
 
-    volScalarField::Boundary& wallHeatFluxBf =
-        wallHeatFlux.boundaryFieldRef();
+    const volScalarField::Boundary& heBf = he.boundaryField();
 
-    const surfaceScalarField::Boundary& heatFluxBf =
-        heatFlux.boundaryField();
+    const volScalarField::Boundary& alphaBf = alpha.boundaryField();
 
-    forAll(wallHeatFluxBf, patchi)
+    for (const label patchi : patchSet_)
     {
-        wallHeatFluxBf[patchi] = heatFluxBf[patchi];
+        wallHeatFluxBf[patchi] = alphaBf[patchi]*heBf[patchi].snGrad();
     }
 
-    if (foundObject<volScalarField>("qr"))
+
+    const auto* qrPtr = cfindObject<volScalarField>(qrName_);
+
+    if (qrPtr)
     {
-        const volScalarField& qr = lookupObject<volScalarField>("qr");
+        const volScalarField::Boundary& radHeatFluxBf = qrPtr->boundaryField();
 
-        const volScalarField::Boundary& radHeatFluxBf =
-            qr.boundaryField();
-
-        forAll(wallHeatFluxBf, patchi)
+        for (const label patchi : patchSet_)
         {
             wallHeatFluxBf[patchi] -= radHeatFluxBf[patchi];
         }
@@ -106,9 +104,9 @@ Foam::functionObjects::wallHeatFlux::wallHeatFlux
 )
 :
     fvMeshFunctionObject(name, runTime, dict),
-    logFiles(obr_, name),
-    writeLocalObjects(obr_, log),
-    patchSet_()
+    writeFile(obr_, name, typeName, dict),
+    patchSet_(),
+    qrName_("qr")
 {
     volScalarField* wallHeatFluxPtr
     (
@@ -116,29 +114,23 @@ Foam::functionObjects::wallHeatFlux::wallHeatFlux
         (
             IOobject
             (
-                type(),
+                scopedName(typeName),
                 mesh_.time().timeName(),
                 mesh_,
                 IOobject::NO_READ,
                 IOobject::NO_WRITE
             ),
             mesh_,
-            dimensionedScalar("0", dimMass/pow3(dimTime), 0)
+            dimensionedScalar(dimMass/pow3(dimTime), Zero)
         )
     );
 
     mesh_.objectRegistry::store(wallHeatFluxPtr);
 
     read(dict);
-    resetName(typeName);
-    resetLocalObjectName(typeName);
+
+    writeFileHeader(file());
 }
-
-
-// * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
-
-Foam::functionObjects::wallHeatFlux::~wallHeatFlux()
-{}
 
 
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
@@ -146,15 +138,17 @@ Foam::functionObjects::wallHeatFlux::~wallHeatFlux()
 bool Foam::functionObjects::wallHeatFlux::read(const dictionary& dict)
 {
     fvMeshFunctionObject::read(dict);
-    writeLocalObjects::read(dict);
+    writeFile::read(dict);
 
     const polyBoundaryMesh& pbm = mesh_.boundaryMesh();
 
     patchSet_ =
         mesh_.boundaryMesh().patchSet
         (
-            wordReList(dict.lookupOrDefault("patches", wordReList()))
+            dict.getOrDefault<wordRes>("patches", wordRes())
         );
+
+    dict.readIfPresent("qr", qrName_);
 
     Info<< type() << " " << name() << ":" << nl;
 
@@ -174,9 +168,8 @@ bool Foam::functionObjects::wallHeatFlux::read(const dictionary& dict)
     {
         Info<< "    processing wall patches: " << nl;
         labelHashSet filteredPatchSet;
-        forAllConstIter(labelHashSet, patchSet_, iter)
+        for (const label patchi : patchSet_)
         {
-            label patchi = iter.key();
             if (isA<wallPolyPatch>(pbm[patchi]))
             {
                 filteredPatchSet.insert(patchi);
@@ -201,7 +194,7 @@ bool Foam::functionObjects::wallHeatFlux::read(const dictionary& dict)
 
 bool Foam::functionObjects::wallHeatFlux::execute()
 {
-    volScalarField& wallHeatFlux = lookupObjectRef<volScalarField>(type());
+    auto& wallHeatFlux = lookupObjectRef<volScalarField>(scopedName(typeName));
 
     if
     (
@@ -219,8 +212,20 @@ bool Foam::functionObjects::wallHeatFlux::execute()
 
         calcHeatFlux
         (
-            turbModel.alphaEff(),
+            turbModel.alphaEff()(),
             turbModel.transport().he(),
+            wallHeatFlux
+        );
+    }
+    else if (foundObject<fluidThermo>(fluidThermo::dictName))
+    {
+        const fluidThermo& thermo =
+            lookupObject<fluidThermo>(fluidThermo::dictName);
+
+        calcHeatFlux
+        (
+            thermo.alpha(),
+            thermo.he(),
             wallHeatFlux
         );
     }
@@ -238,29 +243,12 @@ bool Foam::functionObjects::wallHeatFlux::execute()
             << "database" << exit(FatalError);
     }
 
-    return true;
-}
-
-
-bool Foam::functionObjects::wallHeatFlux::write()
-{
-    Log << type() << " " << name() << " write:" << nl;
-
-    writeLocalObjects::write();
-
-    logFiles::write();
-
-    const volScalarField& wallHeatFlux =
-        obr_.lookupObject<volScalarField>(type());
-
     const fvPatchList& patches = mesh_.boundary();
 
-    const surfaceScalarField::Boundary& magSf =
-        mesh_.magSf().boundaryField();
+    const surfaceScalarField::Boundary& magSf = mesh_.magSf().boundaryField();
 
-    forAllConstIter(labelHashSet, patchSet_, iter)
+    for (const label patchi : patchSet_)
     {
-        label patchi = iter.key();
         const fvPatch& pp = patches[patchi];
 
         const scalarField& hfp = wallHeatFlux.boundaryField()[patchi];
@@ -271,8 +259,9 @@ bool Foam::functionObjects::wallHeatFlux::write()
 
         if (Pstream::master())
         {
+            writeCurrentTime(file());
+
             file()
-                << mesh_.time().value()
                 << token::TAB << pp.name()
                 << token::TAB << minHfp
                 << token::TAB << maxHfp
@@ -282,9 +271,26 @@ bool Foam::functionObjects::wallHeatFlux::write()
 
         Log << "    min/max/integ(" << pp.name() << ") = "
             << minHfp << ", " << maxHfp << ", " << integralHfp << endl;
+
+        this->setResult("min(" + pp.name() + ")", minHfp);
+        this->setResult("max(" + pp.name() + ")", maxHfp);
+        this->setResult("int(" + pp.name() + ")", integralHfp);
     }
 
-    Log << endl;
+
+    return true;
+}
+
+
+bool Foam::functionObjects::wallHeatFlux::write()
+{
+    const auto& wallHeatFlux =
+        lookupObject<volScalarField>(scopedName(typeName));
+
+    Log << type() << " " << name() << " write:" << nl
+        << "    writing field " << wallHeatFlux.name() << endl;
+
+    wallHeatFlux.write();
 
     return true;
 }

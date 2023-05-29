@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -23,6 +25,9 @@ License
 
 Class
     Foam::localMin
+
+Group
+    grpFvSurfaceInterpolationSchemes
 
 Description
     LocalMin-mean differencing scheme class.
@@ -58,8 +63,8 @@ class localMin
 {
     // Private Member Functions
 
-        //- Disallow default bitwise assignment
-        void operator=(const localMin&);
+        //- No copy assignment
+        void operator=(const localMin&) = delete;
 
 
 public:
@@ -105,7 +110,7 @@ public:
         //- Return the interpolation weighting factors
         virtual tmp<surfaceScalarField> weights
         (
-            const volFieldType<Type>&
+            const GeometricField<Type, fvPatchField, volMesh>&
         ) const
         {
             NotImplemented;
@@ -114,17 +119,17 @@ public:
         }
 
         //- Return the face-interpolate of the given cell field
-        virtual tmp<surfaceFieldType<Type>>
+        virtual tmp<GeometricField<Type, fvsPatchField, surfaceMesh>>
         interpolate
         (
-            const volFieldType<Type>& vf
+            const GeometricField<Type, fvPatchField, volMesh>& vf
         ) const
         {
             const fvMesh& mesh = vf.mesh();
 
-            tmp<surfaceFieldType<Type>> tvff
+            tmp<GeometricField<Type, fvsPatchField, surfaceMesh>> tvff
             (
-                new surfaceFieldType<Type>
+                new GeometricField<Type, fvsPatchField, surfaceMesh>
                 (
                     IOobject
                     (
@@ -136,17 +141,17 @@ public:
                     vf.dimensions()
                 )
             );
-            surfaceFieldType<Type>& vff = tvff.ref();
+            GeometricField<Type, fvsPatchField, surfaceMesh>& vff = tvff.ref();
 
             const labelUList& own = mesh.owner();
             const labelUList& nei = mesh.neighbour();
 
             forAll(vff, facei)
             {
-                vff[facei] = minMod(vf[own[facei]], vf[nei[facei]]);
+                vff[facei] = min(vf[own[facei]], vf[nei[facei]]);
             }
 
-            typename surfaceFieldType<Type>::
+            typename GeometricField<Type, fvsPatchField, surfaceMesh>::
                 Boundary& bff = vff.boundaryFieldRef();
 
             forAll(bff, patchi)
@@ -164,7 +169,7 @@ public:
 
                     forAll(pff, i)
                     {
-                        pff[i] = minMod(pif[i], pnf[i]);
+                        pff[i] = min(pif[i], pnf[i]);
                     }
                 }
                 else

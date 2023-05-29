@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2016 OpenFOAM Foundation
+    Copyright (C) 2019-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -34,13 +37,7 @@ namespace Foam
 namespace functionObjects
 {
     defineTypeNameAndDebug(MachNo, 0);
-
-    addToRunTimeSelectionTable
-    (
-        functionObject,
-        MachNo,
-        dictionary
-    );
+    addToRunTimeSelectionTable(functionObject, MachNo, dictionary);
 }
 }
 
@@ -66,10 +63,8 @@ bool Foam::functionObjects::MachNo::calc()
             mag(U)/sqrt(thermo.gamma()*thermo.p()/thermo.rho())
         );
     }
-    else
-    {
-        return false;
-    }
+
+    return false;
 }
 
 
@@ -86,12 +81,6 @@ Foam::functionObjects::MachNo::MachNo
 {
     setResultName("Ma", "U");
 }
-
-
-// * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
-
-Foam::functionObjects::MachNo::~MachNo()
-{}
 
 
 // ************************************************************************* //

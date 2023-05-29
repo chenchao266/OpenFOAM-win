@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -24,6 +26,9 @@ License
 Class
     Foam::radiation::P1
 
+Group
+    grpRadiationModels
+
 Description
     Works well for combustion applications where optical thickness, tau is
     large, i.e. tau = a*L > 3 (L = distance between objects)
@@ -38,8 +43,8 @@ SourceFiles
 
 \*---------------------------------------------------------------------------*/
 
-#ifndef radiationModelP1_H
-#define radiationModelP1_H
+#ifndef radiation_P1_H
+#define radiation_P1_H
 
 #include "radiationModel.H"
 #include "volFields.H"
@@ -79,11 +84,11 @@ class P1
 
     // Private Member Functions
 
-        //- Disallow default bitwise copy construct
-        P1(const P1&);
+        //- No copy construct
+        P1(const P1&) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const P1&);
+        //- No copy assignment
+        void operator=(const P1&) = delete;
 
 
 public:
@@ -102,7 +107,7 @@ public:
 
 
     //- Destructor
-    virtual ~P1();
+    virtual ~P1() = default;
 
 
     // Member functions
@@ -123,6 +128,9 @@ public:
 
             //- Source term component (constant)
             virtual tmp<volScalarField::Internal> Ru() const;
+
+            //- Number of bands
+            label nBands() const;
 };
 
 

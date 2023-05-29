@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2013 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2017-2018 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -38,10 +41,12 @@ SourceFiles
 #define faceAreaIntersect_H
 
 #include "pointField.H"
-#include "FixedList.T.H"
+#include "FixedList.H"
 #include "plane.H"
-#include "face.T.H"
-#include "NamedEnum.T.H"
+#include "face.H"
+#include "triPoints.H"
+#include "Enum.H"
+#include "searchableSurface.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -49,14 +54,12 @@ namespace Foam
 {
 
 /*---------------------------------------------------------------------------*\
-                       Class faceAreaIntersect Declaration
+                      Class faceAreaIntersect Declaration
 \*---------------------------------------------------------------------------*/
 
 class faceAreaIntersect
 {
 public:
-
-    typedef FixedList<point, 3> triPoints;
 
     enum triangulationMode
     {
@@ -64,25 +67,38 @@ public:
         tmMesh
     };
 
-    static const NamedEnum<triangulationMode, 2> triangulationModeNames_;
+    static const Enum<triangulationMode> triangulationModeNames_;
 
 
 private:
 
     // Private data
 
-        //- Reference to the points of sideA
+        //- Reference to the points of face A
         const pointField& pointsA_;
 
-        //- Reference to the points of sideB
+        //- Reference to the points of face B
         const pointField& pointsB_;
+
+        //- Triangle decomposition of face A
+        const DynamicList<face>& trisA_;
+
+        //- Triangle decomposition of face B
+        const DynamicList<face>& trisB_;
 
         //- Flag to reverse B faces
         const bool reverseB_;
 
+        //- Flag to cache the final triangulation
+        bool cacheTriangulation_;
+
+        //- Final triangulation
+        mutable DynamicList<triPoints> triangles_;
+
 
     // Static data members
 
+        //- Tolerance
         static scalar tol;
 
 
@@ -106,13 +122,6 @@ private:
             FixedList<triPoints, 10>& tris
         ) const;
 
-        //- Decompose face into triangle fan
-        inline void triangleFan
-        (
-            const face& f,
-            DynamicList<face>& faces
-        ) const;
-
         //- Return point of intersection between plane and triangle edge
         inline point planeIntersection
         (
@@ -125,24 +134,30 @@ private:
         //- Return triangle area
         inline scalar triArea(const triPoints& t) const;
 
+        //- Return triangle centre
+        inline vector triCentroid(const triPoints& t) const;
 
         //- Slice triangle with plane and generate new cut sub-triangles
         void triSliceWithPlane
         (
             const triPoints& tri,
-            const plane& p,
+            const plane& pln,
             FixedList<triPoints, 10>& tris,
             label& nTris,
             const scalar len
-        );
+        ) const;
 
         //- Return area of intersection of triangles src and tgt
-        scalar triangleIntersect
+        void triangleIntersect
         (
             const triPoints& src,
-            const triPoints& tgt,
-            const vector& n
-        );
+            const point& tgt0,
+            const point& tgt1,
+            const point& tgt2,
+            const vector& n,
+            scalar& area,
+            vector& centroid
+        ) const;
 
 
 public:
@@ -154,7 +169,10 @@ public:
         (
             const pointField& pointsA,
             const pointField& pointsB,
-            const bool reverseB = false
+            const DynamicList<face>& trisA,
+            const DynamicList<face>& trisB,
+            const bool reverseB = false,
+            const bool cacheTriangulation = false
         );
 
 
@@ -163,14 +181,50 @@ public:
         //- Fraction of local length scale to use as intersection tolerance
         inline static scalar& tolerance();
 
-        //- Return area of intersection of faceA with faceB
-        scalar calc
+        //- Triangulate a face using the given triangulation mode
+        static void triangulate
+        (
+            const face& f,
+            const pointField& points,
+            const triangulationMode& triMode,
+            faceList& faceTris
+        );
+
+        //- Const access to the cacheTriangulation flag
+        inline bool cacheTriangulation() const;
+
+        //- Const access to the triangulation
+        inline const DynamicList<triPoints> triangles() const;
+
+        //- Non-const access to the triangulation
+        inline DynamicList<triPoints>& triangles();
+
+        //- Decompose face into triangle fan
+        static inline void triangleFan
+        (
+            const face& f,
+            DynamicList<face>& faces
+        );
+
+        //- Return area of intersection of faceA with faceB and effective
+        //- face centre
+        void calc
         (
             const face& faceA,
             const face& faceB,
             const vector& n,
-            const triangulationMode& triMode
-        );
+            scalar& area,
+            vector& centroid
+        ) const;
+
+        //- Return area of intersection of faceA with faceB
+        bool overlaps
+        (
+            const face& faceA,
+            const face& faceB,
+            const vector& n,
+            const scalar threshold
+        ) const;
 };
 
 

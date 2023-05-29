@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -22,7 +24,7 @@ License
     along with OpenFOAM.  If not, see <http://www.gnu.org/licenses/>.
 
 Class
-    Foam::singleLayerRegion
+    Foam::regionModels::singleLayerRegion
 
 Description
     Base class for single layer region models
@@ -54,11 +56,11 @@ class singleLayerRegion
 {
     // Private Member Functions
 
-        //- Disallow default bitwise copy construct
-        singleLayerRegion(const singleLayerRegion&);
+        //- No copy construct
+        singleLayerRegion(const singleLayerRegion&) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const singleLayerRegion&);
+        //- No copy assignment
+        void operator=(const singleLayerRegion&) = delete;
 
         //- Construct region mesh and fields
         void constructMeshObjects();

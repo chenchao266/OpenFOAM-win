@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2016 OpenFOAM Foundation
+    Copyright (C) 2019-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -33,13 +36,13 @@ bool Foam::functionObjects::components::calcFieldComponents()
 {
     typedef typename GeoFieldType::value_type Type;
 
-    const GeoFieldType& field(lookupObject<GeoFieldType>(fieldName_));
+    const GeoFieldType& field = lookupObject<GeoFieldType>(fieldName_);
 
     resultNames_.setSize(Type::nComponents);
 
     bool stored = true;
 
-    for (direction i=0; i<Type::nComponents; i++)
+    for (direction i = 0; i < Type::nComponents; ++i)
     {
         resultName_ = fieldName_ + word(Type::componentNames[i]);
         resultNames_[i] = resultName_;
@@ -54,21 +57,19 @@ bool Foam::functionObjects::components::calcFieldComponents()
 template<class Type>
 bool Foam::functionObjects::components::calcComponents()
 {
-    typedef volFieldType<Type> VolFieldType;
-    typedef surfaceFieldType<Type> SurfaceFieldType;
+    typedef GeometricField<Type, fvPatchField, volMesh> VolFieldType;
+    typedef GeometricField<Type, fvsPatchField, surfaceMesh> SurfaceFieldType;
 
-    if (foundObject<VolFieldType>(fieldName_))
+    if (foundObject<VolFieldType>(fieldName_, false))
     {
         return calcFieldComponents<VolFieldType>();
     }
-    else if (foundObject<SurfaceFieldType>(fieldName_))
+    else if (foundObject<SurfaceFieldType>(fieldName_, false))
     {
         return calcFieldComponents<SurfaceFieldType>();
     }
-    else
-    {
-        return false;
-    }
+
+    return false;
 }
 
 

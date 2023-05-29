@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2019-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -106,7 +109,7 @@ kEpsilon<BasicTurbulenceModel>::kEpsilon
 
     Cmu_
     (
-        dimensioned<scalar>::lookupOrAddToDict
+        dimensioned<scalar>::getOrAddToDict
         (
             "Cmu",
             this->coeffDict_,
@@ -115,7 +118,7 @@ kEpsilon<BasicTurbulenceModel>::kEpsilon
     ),
     C1_
     (
-        dimensioned<scalar>::lookupOrAddToDict
+        dimensioned<scalar>::getOrAddToDict
         (
             "C1",
             this->coeffDict_,
@@ -124,7 +127,7 @@ kEpsilon<BasicTurbulenceModel>::kEpsilon
     ),
     C2_
     (
-        dimensioned<scalar>::lookupOrAddToDict
+        dimensioned<scalar>::getOrAddToDict
         (
             "C2",
             this->coeffDict_,
@@ -133,7 +136,7 @@ kEpsilon<BasicTurbulenceModel>::kEpsilon
     ),
     C3_
     (
-        dimensioned<scalar>::lookupOrAddToDict
+        dimensioned<scalar>::getOrAddToDict
         (
             "C3",
             this->coeffDict_,
@@ -142,7 +145,7 @@ kEpsilon<BasicTurbulenceModel>::kEpsilon
     ),
     sigmak_
     (
-        dimensioned<scalar>::lookupOrAddToDict
+        dimensioned<scalar>::getOrAddToDict
         (
             "sigmak",
             this->coeffDict_,
@@ -151,7 +154,7 @@ kEpsilon<BasicTurbulenceModel>::kEpsilon
     ),
     sigmaEps_
     (
-        dimensioned<scalar>::lookupOrAddToDict
+        dimensioned<scalar>::getOrAddToDict
         (
             "sigmaEps",
             this->coeffDict_,
@@ -163,7 +166,7 @@ kEpsilon<BasicTurbulenceModel>::kEpsilon
     (
         IOobject
         (
-            IOobject::groupName("k", U.group()),
+            IOobject::groupName("k", alphaRhoPhi.group()),
             this->runTime_.timeName(),
             this->mesh_,
             IOobject::MUST_READ,
@@ -175,7 +178,7 @@ kEpsilon<BasicTurbulenceModel>::kEpsilon
     (
         IOobject
         (
-            IOobject::groupName("epsilon", U.group()),
+            IOobject::groupName("epsilon", alphaRhoPhi.group()),
             this->runTime_.timeName(),
             this->mesh_,
             IOobject::MUST_READ,
@@ -210,10 +213,8 @@ bool kEpsilon<BasicTurbulenceModel>::read()
 
         return true;
     }
-    else
-    {
-        return false;
-    }
+
+    return false;
 }
 
 
@@ -230,22 +231,24 @@ void kEpsilon<BasicTurbulenceModel>::correct()
     const rhoField& rho = this->rho_;
     const surfaceScalarField& alphaRhoPhi = this->alphaRhoPhi_;
     const volVectorField& U = this->U_;
-    volScalarField& nut = this->nut_;
+    const volScalarField& nut = this->nut_;
+
     fv::options& fvOptions(fv::options::New(this->mesh_));
 
     eddyViscosity<RASModel<BasicTurbulenceModel>>::correct();
 
-    volScalarField::Internal divU
+    const volScalarField::Internal divU
     (
         fvc::div(fvc::absolute(this->phi(), U))().v()
     );
 
     tmp<volTensorField> tgradU = fvc::grad(U);
-    volScalarField::Internal G
+    const volScalarField::Internal GbyNu
     (
-        this->GName(),
-        nut.v()*(dev(twoSymm(tgradU().v())) && tgradU().v())
+        this->type() + ":GbyNu",
+        tgradU().v() && dev(twoSymm(tgradU().v()))
     );
+    const volScalarField::Internal G(this->GName(), nut()*GbyNu);
     tgradU.clear();
 
     // Update epsilon and G at the wall
@@ -258,7 +261,7 @@ void kEpsilon<BasicTurbulenceModel>::correct()
       + fvm::div(alphaRhoPhi, epsilon_)
       - fvm::laplacian(alpha*rho*DepsilonEff(), epsilon_)
      ==
-        C1_*alpha()*rho()*G*epsilon_()/k_()
+        C1_*alpha()*rho()*GbyNu*Cmu_*k_()
       - fvm::SuSp(((2.0/3.0)*C1_ - C3_)*alpha()*rho()*divU, epsilon_)
       - fvm::Sp(C2_*alpha()*rho()*epsilon_()/k_(), epsilon_)
       + epsilonSource()

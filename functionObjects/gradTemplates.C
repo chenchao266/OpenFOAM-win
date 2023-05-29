@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2012-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2012-2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -33,7 +35,7 @@ bool Foam::functionObjects::grad::calcGrad()
     typedef GeometricField<Type, fvPatchField, volMesh> VolFieldType;
     typedef GeometricField<Type, fvsPatchField, surfaceMesh> SurfaceFieldType;
 
-    if (foundObject<VolFieldType>(fieldName_))
+    if (foundObject<VolFieldType>(fieldName_, false))
     {
         return store
         (
@@ -42,7 +44,7 @@ bool Foam::functionObjects::grad::calcGrad()
             mesh_.changing() && mesh_.cache(resultName_)
         );
     }
-    else if (foundObject<SurfaceFieldType>(fieldName_))
+    else if (foundObject<SurfaceFieldType>(fieldName_, false))
     {
         return store
         (
@@ -51,10 +53,8 @@ bool Foam::functionObjects::grad::calcGrad()
             mesh_.changing() && mesh_.cache(resultName_)
         );
     }
-    else
-    {
-        return false;
-    }
+
+    return false;
 }
 
 

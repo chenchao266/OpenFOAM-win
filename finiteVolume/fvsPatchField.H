@@ -1,9 +1,12 @@
-﻿/*---------------------------------------------------------------------------*\
+/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2019 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -32,7 +35,7 @@ Description
     zero-gradient, fixed-gradient, fixed-value and mixed conditions.
 
     The next level of derivation covers all the specialised typed with
-    specific evaluation proceedures, particularly with respect to specific
+    specific evaluation procedures, particularly with respect to specific
     fields.
 
 SourceFiles
@@ -45,7 +48,7 @@ SourceFiles
 #define fvsPatchField_H
 
 #include "fvPatch.H"
-#include "DimensionedField.T.H"
+#include "DimensionedField.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -77,7 +80,9 @@ Ostream& operator<<(Ostream&, const fvsPatchField<Type>&);
 \*---------------------------------------------------------------------------*/
 
 template<class Type>
-class fvsPatchField :    public Field<Type>
+class fvsPatchField
+:
+    public Field<Type>
 {
     // Private data
 
@@ -183,7 +188,7 @@ public:
         //- Construct and return a clone
         virtual tmp<fvsPatchField<Type>> clone() const
         {
-            return tmp<fvsPatchField<Type>>(new fvsPatchField<Type>(*this));
+            return tmp<fvsPatchField<Type>>::New(*this);
         }
 
         //- Construct as copy setting internal field reference
@@ -199,10 +204,7 @@ public:
             const DimensionedField<Type, surfaceMesh>& iF
         ) const
         {
-            return tmp<fvsPatchField<Type>>
-            (
-                new fvsPatchField<Type>(*this, iF)
-            );
+            return tmp<fvsPatchField<Type>>::New(*this, iF);
         }
 
 
@@ -266,8 +268,7 @@ public:
 
 
     //- Destructor
-    virtual ~fvsPatchField<Type>()
-    {}
+    virtual ~fvsPatchField<Type>() = default;
 
 
     // Member functions
@@ -284,8 +285,7 @@ public:
             }
 
             //- Return dimensioned internal field reference
-            const DimensionedField<Type, surfaceMesh>&
-            internalField() const
+            const DimensionedField<Type, surfaceMesh>& internalField() const
             {
                 return internalField_;
             }
@@ -383,7 +383,8 @@ public:
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 #ifdef NoRepository
-    #include "fvsPatchField.C" 
+    #include "fvsPatchField.C"
+    #include "calculatedFvsPatchField.H"
 #endif
 
 
@@ -447,7 +448,5 @@ typedef type##FvsPatchField<tensor> type##FvsPatchTensorField;
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 #endif
-#ifdef NoRepository 
-#include "calculatedFvsPatchField.H"
-#endif
+
 // ************************************************************************* //

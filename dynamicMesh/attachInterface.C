@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2019 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -112,6 +115,9 @@ void Foam::attachDetach::attachInterface
 
     const boolList& mfFlip = mesh.faceZones()[faceZoneID_.index()].flipMap();
 
+    // Keep track of which faces have been modified
+    bitSet faceModified(mesh.nFaces());
+
     forAll(masterFaceCells, facei)
     {
         // If slave neighbour is greater than master, face does not need
@@ -153,6 +159,7 @@ void Foam::attachDetach::attachInterface
                 )
             );
         }
+        faceModified[masterPatchStart + facei] = true;
     }
 
     // Renumber faces affected by point removal
@@ -173,7 +180,11 @@ void Foam::attachDetach::attachInterface
 
         forAll(curFaces, facei)
         {
-            if (!ref.faceRemoved(curFaces[facei]))
+            if
+            (
+               !ref.faceRemoved(curFaces[facei])
+            && !faceModified[curFaces[facei]]
+            )
             {
                 facesToModifyMap.insert(curFaces[facei]);
             }
@@ -194,10 +205,9 @@ void Foam::attachDetach::attachInterface
 
         forAll(newFace, pointi)
         {
-            Map<label>::const_iterator rpmIter =
-                removedPointMap.find(newFace[pointi]);
+            const auto rpmIter = removedPointMap.cfind(newFace[pointi]);
 
-            if (rpmIter != removedPointMap.end())
+            if (rpmIter.found())
             {
                 // Point mapped. Replace it
                 newFace[pointi] = rpmIter();
@@ -223,7 +233,7 @@ void Foam::attachDetach::attachInterface
         }
 
 
-        label patchID = mesh.boundaryMesh().whichPatch(curFaceID);
+        const label patchID = mesh.boundaryMesh().whichPatch(curFaceID);
         label neiCell;
         if (patchID == -1)
         {

@@ -1,17 +1,15 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
 -------------------------------------------------------------------------------
- 2011 Symscape: Added math definitions for 'j0f' and so on.
- 2014-02-21 blueCAPE Lda: Modifications for blueCFD-Core 2.3
- 2016-07-27 blueCAPE Lda: Workaround Strict ANSI for still including
-                          transcendental functions, such as jnf
-------------------------------------------------------------------------------
+    Copyright (C) 2011 OpenFOAM Foundation
+    Copyright (C) 2018-2021 OpenCFD Ltd.
+-------------------------------------------------------------------------------
 License
-    This file is a derivative work of OpenFOAM.
+    This file is part of OpenFOAM.
 
     OpenFOAM is free software: you can redistribute it and/or modify it
     under the terms of the GNU General Public License as published by
@@ -26,12 +24,6 @@ License
     You should have received a copy of the GNU General Public License
     along with OpenFOAM.  If not, see <http://www.gnu.org/licenses/>.
 
-Modifications
-    This file has been modified by blueCAPE's unofficial mingw patches for
-    OpenFOAM.
-    For more information about these patches, visit:
-        http://bluecfd.com/Core
-
 \*---------------------------------------------------------------------------*/
 
 #ifndef doubleFloat_H
@@ -40,26 +32,10 @@ Modifications
 #include "label.H"
 #include "products.H"
 
-#if (defined( WIN32 ) || defined( WIN64 )) && defined(__STRICT_ANSI__)
-#undef __STRICT_ANSI__
-#define REDEFINE_SA__
-#endif
-
 #include <cmath>
-
-#if defined( WIN32 ) || defined( WIN64 )
-#ifdef REDEFINE_SA__
-#define __STRICT_ANSI__ 1
-#endif
-
-#define j0f _j0
-#define j1f _j1
-#define jnf _jn
-#define y0f _y0
-#define y1f _y1
-#define ynf _yn
-#endif
-
+#define _USE_MATH_DEFINES
+#include <math.h>
+#define  Foam_no_besselFunc
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 namespace Foam
@@ -67,26 +43,7 @@ namespace Foam
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
-template<class Cmpt>
-class typeOfRank<Cmpt, 0>
-{
-public:
-
-    typedef Cmpt type;
-};
-
-
-template<class Cmpt>
-class symmTypeOfRank<Cmpt, 0>
-{
-public:
-
-    typedef Cmpt type;
-};
-
-
-// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
-
+//- Compare two values for equality
 template<class T>
 inline bool equal(const T& s1, const T& s2)
 {
@@ -94,28 +51,35 @@ inline bool equal(const T& s1, const T& s2)
 }
 
 
-#define MAXMINPOW(retType, type1, type2)          \
-                                                  \
-MAXMIN(retType, type1, type2)                     \
-                                                  \
-inline double pow(const type1 s, const type2 e)   \
-{                                                 \
-    return ::pow(double(s), double(e));           \
+#define MAXMINPOW(retType, type1, type2)                \
+                                                        \
+MAXMIN(retType, type1, type2)                           \
+                                                        \
+/*! \brief Raise base to the power expon */             \
+inline double pow(const type1 base, const type2 expon)  \
+{                                                       \
+    return ::pow(double(base), double(expon));          \
 }
 
 
 MAXMINPOW(double, double, double)
 MAXMINPOW(double, double, float)
 MAXMINPOW(double, float, double)
-MAXMINPOW(float, float, float)
 MAXMINPOW(double, double, int)
 MAXMINPOW(double, int, double)
 MAXMINPOW(double, double, long)
 MAXMINPOW(double, long, double)
+MAXMINPOW(float, float, float)
 MAXMINPOW(float, float, int)
 MAXMINPOW(float, int, float)
 MAXMINPOW(float, float, long)
 MAXMINPOW(float, long, float)
+#if defined(__APPLE__) && WM_LABEL_SIZE == 64
+MAXMINPOW(double, double, int64_t)
+MAXMINPOW(double, int64_t, double)
+MAXMINPOW(float, float, int64_t)
+MAXMINPOW(float, int64_t, float)
+#endif
 
 #undef MAXMINPOW
 

@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2012-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2012-2017 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -39,8 +41,8 @@ SourceFiles
 
 \*---------------------------------------------------------------------------*/
 
-#ifndef fixedCoeff_H
-#define fixedCoeff_H
+#ifndef porosityModels_fixedCoeff_H
+#define porosityModels_fixedCoeff_H
 
 #include "porosityModel.H"
 #include "dimensionedTensor.H"
@@ -95,11 +97,11 @@ class fixedCoeff
             const scalar rho
         ) const;
 
-        //- Disallow default bitwise copy construct
-        fixedCoeff(const fixedCoeff&);
+        //- No copy construct
+        fixedCoeff(const fixedCoeff&) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const fixedCoeff&);
+        //- No copy assignment
+        void operator=(const fixedCoeff&) = delete;
 
 
 public:
@@ -118,7 +120,7 @@ public:
     );
 
     //- Destructor
-    virtual ~fixedCoeff();
+    virtual ~fixedCoeff() = default;
 
 
     // Member Functions

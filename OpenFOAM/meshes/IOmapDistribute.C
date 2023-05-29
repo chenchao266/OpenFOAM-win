@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2014-2015 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2014-2015 OpenFOAM Foundation
+    Copyright (C) 2015-2018 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -26,128 +29,107 @@ License
 #include "IOmapDistribute.H"
 
 /* * * * * * * * * * * * * * * Static Member Data  * * * * * * * * * * * * * */
-using namespace Foam;
+
 namespace Foam
 {
     defineTypeNameAndDebug(IOmapDistribute, 0);
-}
 
 
-// * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
-IOmapDistribute::IOmapDistribute(const IOobject& io) :    regIOobject(io)
-{
-    // Temporary warning
-    if (io.readOpt() == IOobject::MUST_READ_IF_MODIFIED)
+    // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
+
+    IOmapDistribute::IOmapDistribute(const IOobject& io)
+        :
+        regIOobject(io)
     {
-        WarningInFunction
-            << "IOmapDistribute " << name()
-            << " constructed with IOobject::MUST_READ_IF_MODIFIED"
-            " but IOmapDistribute does not support automatic rereading."
-            << endl;
+        // Warn for MUST_READ_IF_MODIFIED
+        warnNoRereading<IOmapDistribute>();
+
+        if
+            (
+            (
+                io.readOpt() == IOobject::MUST_READ
+                || io.readOpt() == IOobject::MUST_READ_IF_MODIFIED
+                )
+                || (io.readOpt() == IOobject::READ_IF_PRESENT && headerOk())
+                )
+        {
+            readStream(typeName) >> *this;
+            close();
+        }
     }
 
-    if
+
+    IOmapDistribute::IOmapDistribute
     (
-        (
-            io.readOpt() == IOobject::MUST_READ
-         || io.readOpt() == IOobject::MUST_READ_IF_MODIFIED
-        )
-     || (io.readOpt() == IOobject::READ_IF_PRESENT && headerOk())
+        const IOobject& io,
+        const mapDistribute& map
     )
+        :
+        regIOobject(io)
     {
-        readStream(typeName) >> *this;
-        close();
+        // Warn for MUST_READ_IF_MODIFIED
+        warnNoRereading<IOmapDistribute>();
+
+        if
+            (
+            (
+                io.readOpt() == IOobject::MUST_READ
+                || io.readOpt() == IOobject::MUST_READ_IF_MODIFIED
+                )
+                || (io.readOpt() == IOobject::READ_IF_PRESENT && headerOk())
+                )
+        {
+            readStream(typeName) >> *this;
+            close();
+        }
+        else
+        {
+            mapDistribute::operator=(map);
+        }
     }
-}
 
 
-IOmapDistribute::IOmapDistribute
-(
-    const IOobject& io,
-    const mapDistribute& map
-) :    regIOobject(io)
-{
-     // Temporary warning
-    if (io.readOpt() == IOobject::MUST_READ_IF_MODIFIED)
-    {
-        WarningInFunction
-            << "IOmapDistribute " << name()
-            << " constructed with IOobject::MUST_READ_IF_MODIFIED"
-            " but IOmapDistribute does not support automatic rereading."
-            << endl;
-    }
-
-    if
+    IOmapDistribute::IOmapDistribute
     (
-        (
-            io.readOpt() == IOobject::MUST_READ
-         || io.readOpt() == IOobject::MUST_READ_IF_MODIFIED
-        )
-     || (io.readOpt() == IOobject::READ_IF_PRESENT && headerOk())
+        const IOobject& io,
+        mapDistribute&& map
     )
+        :
+        regIOobject(io)
     {
-        readStream(typeName) >> *this;
-        close();
-    }
-    else
-    {
-        mapDistribute::operator=(map);
-    }
-}
+        // Warn for MUST_READ_IF_MODIFIED
+        warnNoRereading<IOmapDistribute>();
 
+        mapDistribute::transfer(map);
 
-IOmapDistribute::IOmapDistribute
-(
-    const IOobject& io,
-    const Xfer<mapDistribute>& map
-) :    regIOobject(io)
-{
-    // Temporary warning
-    if (io.readOpt() == IOobject::MUST_READ_IF_MODIFIED)
-    {
-        WarningInFunction
-            << "IOmapDistribute " << name()
-            << " constructed with IOobject::MUST_READ_IF_MODIFIED"
-            " but IOmapDistribute does not support automatic rereading."
-            << endl;
+        if
+            (
+            (
+                io.readOpt() == IOobject::MUST_READ
+                || io.readOpt() == IOobject::MUST_READ_IF_MODIFIED
+                )
+                || (io.readOpt() == IOobject::READ_IF_PRESENT && headerOk())
+                )
+        {
+            readStream(typeName) >> *this;
+            close();
+        }
     }
 
-    mapDistribute::transfer(map());
 
-    if
-    (
-        (
-            io.readOpt() == IOobject::MUST_READ
-         || io.readOpt() == IOobject::MUST_READ_IF_MODIFIED
-        )
-     || (io.readOpt() == IOobject::READ_IF_PRESENT && headerOk())
-    )
+    // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
+
+    bool IOmapDistribute::readData(Istream& is)
     {
-        readStream(typeName) >> *this;
-        close();
+        return (is >> *this).good();
     }
+
+
+    bool IOmapDistribute::writeData(Ostream& os) const
+    {
+        return (os << *this).good();
+    }
+
 }
-
-
-// * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * * //
-
-IOmapDistribute::~IOmapDistribute()
-{}
-
-
-// * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
-
-bool IOmapDistribute::readData(Istream& is)
-{
-    return (is >> *this).good();
-}
-
-
-bool IOmapDistribute::writeData(Ostream& os) const
-{
-    return (os << *this).good();
-}
-
-
 // ************************************************************************* //

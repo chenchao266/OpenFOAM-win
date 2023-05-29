@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2018 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -26,10 +29,9 @@ License
 #include "fieldToCell.H"
 #include "polyMesh.H"
 #include "cellSet.H"
-#include "Time.T.H"
+#include "Time1.H"
 #include "IFstream.H"
 #include "fieldDictionary.H"
-
 #include "addToRunTimeSelectionTable.H"
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
@@ -39,6 +41,22 @@ namespace Foam
     defineTypeNameAndDebug(fieldToCell, 0);
     addToRunTimeSelectionTable(topoSetSource, fieldToCell, word);
     addToRunTimeSelectionTable(topoSetSource, fieldToCell, istream);
+    addToRunTimeSelectionTable(topoSetCellSource, fieldToCell, word);
+    addToRunTimeSelectionTable(topoSetCellSource, fieldToCell, istream);
+    addNamedToRunTimeSelectionTable
+    (
+        topoSetCellSource,
+        fieldToCell,
+        word,
+        field
+    );
+    addNamedToRunTimeSelectionTable
+    (
+        topoSetCellSource,
+        fieldToCell,
+        istream,
+        field
+    );
 }
 
 
@@ -59,32 +77,40 @@ void Foam::fieldToCell::applyToSet
     topoSet& set
 ) const
 {
-    Info<< "    Field min:" << min(field)
-        << " max:" << max(field) << endl;
-
-    if ((action == topoSetSource::NEW) || (action == topoSetSource::ADD))
+    if (verbose_)
     {
-        Info<< "    Adding all cells with value of field " << fieldName_
-            << " within range " << min_ << ".." << max_ << endl;
+        Info << "    Field min:" << min(field) << " max:" << max(field) << nl;
+    }
+
+    if (action == topoSetSource::ADD || action == topoSetSource::NEW)
+    {
+        if (verbose_)
+        {
+            Info<< "    Adding all cells with value of field " << fieldName_
+                << " within range " << min_ << ".." << max_ << endl;
+        }
 
         forAll(field, celli)
         {
             if (field[celli] >= min_ && field[celli] <= max_)
             {
-                set.insert(celli);
+                set.set(celli);
             }
         }
     }
-    else if (action == topoSetSource::DELETE)
+    else if (action == topoSetSource::SUBTRACT)
     {
-        Info<< "    Removing all cells with value of field " << fieldName_
-            << " within range " << min_ << ".." << max_ << endl;
+        if (verbose_)
+        {
+            Info<< "    Removing all cells with value of field " << fieldName_
+                << " within range " << min_ << ".." << max_ << endl;
+        }
 
         forAll(field, celli)
         {
             if (field[celli] >= min_ && field[celli] <= max_)
             {
-                set.erase(celli);
+                set.unset(celli);
             }
         }
     }
@@ -93,7 +119,6 @@ void Foam::fieldToCell::applyToSet
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
-// Construct from components
 Foam::fieldToCell::fieldToCell
 (
     const polyMesh& mesh,
@@ -102,44 +127,47 @@ Foam::fieldToCell::fieldToCell
     const scalar max
 )
 :
-    topoSetSource(mesh),
+    topoSetCellSource(mesh),
     fieldName_(fieldName),
     min_(min),
     max_(max)
-{}
+{
+    if (min_ > max_)
+    {
+        WarningInFunction
+            << "Input min value = " << min_ << " is larger than "
+            << "input max value = " << max_ << " for field = " << fieldName_
+            << endl;
+    }
+}
 
 
-// Construct from dictionary
 Foam::fieldToCell::fieldToCell
 (
     const polyMesh& mesh,
     const dictionary& dict
 )
 :
-    topoSetSource(mesh),
-    fieldName_(dict.lookup("field")),
-    min_(readScalar(dict.lookup("min"))),
-    max_(readScalar(dict.lookup("max")))
+    fieldToCell
+    (
+        mesh,
+        dict.get<word>("field"),
+        dict.get<scalar>("min"),
+        dict.get<scalar>("max")
+    )
 {}
 
 
-// Construct from Istream
 Foam::fieldToCell::fieldToCell
 (
     const polyMesh& mesh,
     Istream& is
 )
 :
-    topoSetSource(mesh),
+    topoSetCellSource(mesh),
     fieldName_(checkIs(is)),
     min_(readScalar(checkIs(is))),
     max_(readScalar(checkIs(is)))
-{}
-
-
-// * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
-
-Foam::fieldToCell::~fieldToCell()
 {}
 
 
@@ -151,34 +179,6 @@ void Foam::fieldToCell::applyToSet
     topoSet& set
 ) const
 {
-
-//    // Construct temporary fvMesh from polyMesh
-//    fvMesh fMesh
-//    (
-//        mesh(), // IOobject
-//        mesh().points(),
-//        mesh().faces(),
-//        mesh().cells()
-//    );
-//
-//    const polyBoundaryMesh& patches = mesh().boundaryMesh();
-//
-//    List<polyPatch*> newPatches(patches.size());
-//    forAll(patches, patchi)
-//    {
-//        const polyPatch& pp = patches[patchi];
-//
-//        newPatches[patchi] =
-//            patches[patchi].clone
-//            (
-//                fMesh.boundaryMesh(),
-//                patchi,
-//                pp.size(),
-//                pp.start()
-//            ).ptr();
-//    }
-//    fMesh.addFvPatches(newPatches);
-
     // Try to load field
     IOobject fieldObject
     (
@@ -190,7 +190,7 @@ void Foam::fieldToCell::applyToSet
         false
     );
 
-    // Note: should check for volScalarField but that introduces depencendy
+    // Note: should check for volScalarField but that introduces dependency
     //       on volMesh so just use another type with processor-local scope
     if (!fieldObject.typeHeaderOk<labelIOList>(false))
     {
@@ -198,22 +198,25 @@ void Foam::fieldToCell::applyToSet
             << "Cannot read field " << fieldName_
             << " from time " << mesh().time().timeName() << endl;
     }
-    else if (fieldObject.headerClassName() == "volScalarField")
+    // Note: should use volScalarField::typeName instead below
+    //       but that would introduce linkage problems (finiteVolume needs
+    //       meshTools)
+    else if ("volScalarField" == fieldObject.headerClassName())
     {
         IFstream str(typeFilePath<labelIOList>(fieldObject));
 
-        // Read dictionary
+        // Read as dictionary
         fieldDictionary fieldDict(fieldObject, fieldObject.headerClassName());
 
         scalarField internalVals("internalField", fieldDict, mesh().nCells());
 
         applyToSet(action, internalVals, set);
     }
-    else if (fieldObject.headerClassName() == "volVectorField")
+    else if ("volVectorField" == fieldObject.headerClassName())
     {
         IFstream str(typeFilePath<labelIOList>(fieldObject));
 
-        // Read dictionary
+        // Read as dictionary
         fieldDictionary fieldDict(fieldObject, fieldObject.headerClassName());
 
         vectorField internalVals("internalField", fieldDict, mesh().nCells());

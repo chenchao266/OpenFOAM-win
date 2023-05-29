@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -170,7 +172,7 @@ public:
                 const tmp<scalarField>&
             ) const
             {
-                return tmp<Field<Type>>(new Field<Type>(0));
+                return tmp<Field<Type>>::New();
             }
 
             //- Return the matrix source coefficients corresponding to the
@@ -180,21 +182,21 @@ public:
                 const tmp<scalarField>&
             ) const
             {
-                return tmp<Field<Type>>(new Field<Type>(0));
+                return tmp<Field<Type>>::New();
             }
 
             //- Return the matrix diagonal coefficients corresponding to the
             //  evaluation of the gradient of this patchField
             tmp<Field<Type>> gradientInternalCoeffs() const
             {
-                return tmp<Field<Type>>(new Field<Type>(0));
+                return tmp<Field<Type>>::New();
             }
 
             //- Return the matrix source coefficients corresponding to the
             //  evaluation of the gradient of this patchField
             tmp<Field<Type>> gradientBoundaryCoeffs() const
             {
-                return tmp<Field<Type>>(new Field<Type>(0));
+                return tmp<Field<Type>>::New();
             }
 };
 

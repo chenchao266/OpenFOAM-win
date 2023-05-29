@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -23,6 +26,9 @@ License
 
 Class
     Foam::eConstThermo
+
+Group
+    grpSpecieThermo
 
 Description
     Constant properties thermodynamics package templated on an equation of
@@ -96,6 +102,12 @@ class eConstThermo
         //  Note: input in [J/kg], but internally uses [J/kmol]
         scalar Hf_;
 
+        //- Reference temperature around which to linearise [K]
+        scalar Tref_;
+
+        //- Reference sensible enthalpy around which to linearise [J/kg]
+        scalar Esref_;
+
 
     // Private Member Functions
 
@@ -104,7 +116,9 @@ class eConstThermo
         (
             const EquationOfState& st,
             const scalar cv,
-            const scalar hf
+            const scalar hf,
+            const scalar Tref,
+            const scalar Esref
         );
 
 
@@ -133,26 +147,38 @@ public:
             return "eConst<" + EquationOfState::typeName() + '>';
         }
 
-        //- Limit the temperature to be in the range Tlow_ to Thigh_
+        //- Limit temperature to be within the range
         inline scalar limit(const scalar T) const;
 
 
         // Fundamental properties
 
-            //- Heat capacity at constant pressure [J/(kg K)]
-            inline scalar Cp(const scalar p, const scalar T) const;
+            //- Heat capacity at constant volume [J/(kg K)]
+            inline scalar Cv(const scalar p, const scalar T) const;
 
-            //- Absolute Enthalpy [J/kg]
-            inline scalar Ha(const scalar p, const scalar T) const;
+            //- Sensible internal energy [J/kg]
+            inline scalar Es(const scalar p, const scalar T) const;
 
-            //- Sensible enthalpy [J/kg]
-            inline scalar Hs(const scalar p, const scalar T) const;
+            //- Absolute internal energy [J/kg]
+            inline scalar Ea(const scalar p, const scalar T) const;
 
             //- Chemical enthalpy [J/kg]
             inline scalar Hc() const;
 
             //- Entropy [J/(kg K)]
             inline scalar S(const scalar p, const scalar T) const;
+
+            //- Gibbs free energy of the mixture in the standard state [J/kg]
+            inline scalar Gstd(const scalar T) const;
+
+            #include "EtoHthermo.H"
+
+
+        // Derivative term used for Jacobian
+
+
+            //- Temperature derivative of heat capacity at constant pressure
+            inline scalar dCpdT(const scalar p, const scalar T) const;
 
 
         // I-O

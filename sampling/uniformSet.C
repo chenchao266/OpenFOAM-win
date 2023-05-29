@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -25,7 +28,7 @@ License
 
 #include "uniformSet.H"
 #include "meshSearch.H"
-#include "DynamicList.T.H"
+#include "DynamicList.H"
 #include "polyMesh.H"
 
 #include "addToRunTimeSelectionTable.H"
@@ -36,8 +39,6 @@ namespace Foam
 {
     defineTypeNameAndDebug(uniformSet, 0);
     addToRunTimeSelectionTable(sampledSet, uniformSet, word);
-
-    const scalar uniformSet::tol = 1e-3;
 }
 
 
@@ -54,14 +55,14 @@ bool Foam::uniformSet::nextSample
 {
     bool pointFound = false;
 
-    const vector normOffset = offset/mag(offset);
+    const vector normOffset(offset/mag(offset));
 
     samplePt += offset;
-    sampleI++;
+    ++sampleI;
 
-    for (; sampleI < nPoints_; sampleI++)
+    for (; sampleI < nPoints_; ++sampleI)
     {
-        scalar s = (samplePt - currentPt) & normOffset;
+        const scalar s = (samplePt - currentPt) & normOffset;
 
         if (s > -smallDist)
         {
@@ -90,15 +91,12 @@ bool Foam::uniformSet::trackToBoundary
 ) const
 {
     // distance vector between sampling points
-    const vector offset = (end_ - start_)/(nPoints_ - 1);
-    const vector smallVec = tol*offset;
-    const scalar smallDist = mag(smallVec);
+    const vector offset((end_ - start_)/(nPoints_ - 1));
+    const scalar smallDist = mag(tol_*offset);
 
     point trackPt = singleParticle.position();
 
-    particle::TrackingData<passiveParticleCloud> trackData(particleCloud);
-
-    while(true)
+    while (true)
     {
         // Find next samplePt on/after trackPt. Update samplePt, sampleI
         if (!nextSample(trackPt, offset, smallDist, samplePt, sampleI))
@@ -205,9 +203,9 @@ void Foam::uniformSet::calcSamples
             << exit(FatalError);
     }
 
-    const vector offset = (end_ - start_)/(nPoints_ - 1);
-    const vector normOffset = offset/mag(offset);
-    const vector smallVec = tol*offset;
+    const vector offset((end_ - start_)/(nPoints_ - 1));
+    const vector normOffset(offset/mag(offset));
+    const vector smallVec(tol_*offset);
     const scalar smallDist = mag(smallVec);
 
     // Force calculation of cloud addressing on all processors
@@ -236,7 +234,7 @@ void Foam::uniformSet::calcSamples
     label trackCelli = -1;
     label trackFacei = -1;
 
-    bool isSample =
+    const bool isSample =
         getTrackingPoint
         (
             start_,
@@ -256,6 +254,7 @@ void Foam::uniformSet::calcSamples
         // Set points and cell/face labels to empty lists
 
         const_cast<polyMesh&>(mesh()).moving(oldMoving);
+
         return;
     }
 
@@ -283,7 +282,7 @@ void Foam::uniformSet::calcSamples
     // index in bHits; current boundary intersection
     label bHitI = 1;
 
-    while(true)
+    while (true)
     {
         // Initialize tracking starting from trackPt
         passiveParticle singleParticle(mesh(), trackPt, trackCelli);
@@ -324,7 +323,7 @@ void Foam::uniformSet::calcSamples
 
         while (bHitI < bHits.size())
         {
-            scalar dist =
+            const scalar dist =
                 (bHits[bHitI].hitPoint() - singleParticle.position())
               & normOffset;
 
@@ -340,12 +339,14 @@ void Foam::uniformSet::calcSamples
             if (dist > smallDist)
             {
                 // hitpoint is past tracking position
+                bPoint = bHits[bHitI].hitPoint();
+                bFacei = bHits[bHitI].index();
                 foundValidB = true;
                 break;
             }
             else
             {
-                bHitI++;
+                ++bHitI;
             }
         }
 
@@ -360,7 +361,7 @@ void Foam::uniformSet::calcSamples
         trackPt = pushIn(bPoint, trackFacei);
         trackCelli = getBoundaryCell(trackFacei);
 
-        segmentI++;
+        ++segmentI;
 
         startSegmentI = samplingPts.size();
     }
@@ -393,14 +394,20 @@ void Foam::uniformSet::genSamples()
     samplingSegments.shrink();
     samplingCurveDist.shrink();
 
+    // Move into *this
     setSamples
     (
-        samplingPts,
-        samplingCells,
-        samplingFaces,
-        samplingSegments,
-        samplingCurveDist
+        std::move(samplingPts),
+        std::move(samplingCells),
+        std::move(samplingFaces),
+        std::move(samplingSegments),
+        std::move(samplingCurveDist)
     );
+
+    if (debug)
+    {
+        write(Pout);
+    }
 }
 
 
@@ -420,14 +427,10 @@ Foam::uniformSet::uniformSet
     sampledSet(name, mesh, searchEngine, axis),
     start_(start),
     end_(end),
+    tol_(1e-3),
     nPoints_(nPoints)
 {
     genSamples();
-
-    if (debug)
-    {
-        write(Pout);
-    }
 }
 
 
@@ -440,23 +443,13 @@ Foam::uniformSet::uniformSet
 )
 :
     sampledSet(name, mesh, searchEngine, dict),
-    start_(dict.lookup("start")),
-    end_(dict.lookup("end")),
-    nPoints_(readLabel(dict.lookup("nPoints")))
+    start_(dict.get<point>("start")),
+    end_(dict.get<point>("end")),
+    tol_(dict.getCheckOrDefault<scalar>("tol", 1e-3, scalarMinMax::ge(0))),
+    nPoints_(dict.get<label>("nPoints"))
 {
     genSamples();
-
-    if (debug)
-    {
-        write(Pout);
-    }
 }
-
-
-// * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
-
-Foam::uniformSet::~uniformSet()
-{}
 
 
 // ************************************************************************* //

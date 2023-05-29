@@ -1,9 +1,12 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2019 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -22,20 +25,20 @@ License
     along with OpenFOAM.  If not, see <http://www.gnu.org/licenses/>.
 
 Class
-    Foam::noPreconditioner
+    Foam::NoPreconditioner
 
 Description
     Null preconditioner for both symmetric and asymmetric matrices.
 
 SourceFiles
-    noPreconditioner.C
+    NoPreconditioner.C
 
 \*---------------------------------------------------------------------------*/
 
-#ifndef noPreconditioner_H
-#define noPreconditioner_H
+#ifndef NoPreconditioner_H
+#define NoPreconditioner_H
 
-#include "lduMatrix.H"
+#include "LduMatrix.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -43,18 +46,21 @@ namespace Foam
 {
 
 /*---------------------------------------------------------------------------*\
-                           Class noPreconditioner Declaration
+                           Class NoPreconditioner Declaration
 \*---------------------------------------------------------------------------*/
 
-class noPreconditioner :    public lduMatrix::preconditioner
+template<class Type, class DType, class LUType>
+class NoPreconditioner
+:
+    public LduMatrix<Type, DType, LUType>::preconditioner
 {
     // Private Member Functions
 
-        //- Disallow default bitwise copy construct
-        noPreconditioner(const noPreconditioner&);
+        //- No copy construct
+        NoPreconditioner(const NoPreconditioner&) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const noPreconditioner&);
+        //- No copy assignment
+        void operator=(const NoPreconditioner&) = delete;
 
 
 public:
@@ -65,38 +71,41 @@ public:
 
     // Constructors
 
-        //- Construct from matrix components and preconditioner solver controls
-        noPreconditioner
+        //- Construct from matrix components and preconditioner data dictionary
+        NoPreconditioner
         (
-            const lduMatrix::solver&,
-            const dictionary& solverControlsUnused
+            const typename LduMatrix<Type, DType, LUType>::solver& sol,
+            const dictionary& preconditionerDict
         );
 
 
-    //- Destructor
-    virtual ~noPreconditioner()
-    {}
+    // Destructor
+
+        virtual ~NoPreconditioner() = default;
 
 
     // Member Functions
 
+        //- Read and reset the preconditioner parameters from the given
+        //  dictionary
+        virtual void read(const dictionary& preconditionerDict);
+
         //- Return wA the preconditioned form of residual rA
         virtual void precondition
         (
-            scalarField& wA,
-            const scalarField& rA,
-            const direction cmpt=0
+            Field<Type>& wA,
+            const Field<Type>& rA
         ) const;
 
-        //- Return wT the transpose-matrix preconditioned form of residual rT.
+        //- Return wT the transpose-matrix preconditioned form of
+        //  residual rT.
         virtual void preconditionT
         (
-            scalarField& wT,
-            const scalarField& rT,
-            const direction cmpt=0
+            Field<Type>& wT,
+            const Field<Type>& rT
         ) const
         {
-            return precondition(wT, rT, cmpt);
+            return(precondition(wT, rT));
         }
 };
 
@@ -104,6 +113,12 @@ public:
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 } // End namespace Foam
+
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+#ifdef NoRepository
+    #include "NoPreconditioner.C"
+#endif
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 

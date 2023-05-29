@@ -72,8 +72,8 @@
 #define SCOTCH_PATCHLEVEL 3
 
 /*+ Integer type. +*/
-#include <stdint.h>
-typedef int SCOTCH_Idx;
+
+typedef int64_t SCOTCH_Idx;
 
 typedef int64_t SCOTCH_Num;
 

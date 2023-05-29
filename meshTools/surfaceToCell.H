@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2018-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -25,16 +28,87 @@ Class
     Foam::surfaceToCell
 
 Description
-    A topoSetSource to select cells based on relation to surface.
+    A \c topoSetCellSource to select cells based on
+    relation to a surface given by an external file.
 
-    Selects:
-    - all cells inside/outside/cut by surface
-    - all cells inside/outside surface ('useSurfaceOrientation', requires closed
-      surface)
+    \c surfaceToCell can select:
+    - all cells inside/outside/cut by a surface
+    - all cells inside/outside surface (\c useSurfaceOrientation,
+    requires closed surface)
     - cells with centre nearer than XXX to surface
     - cells with centre nearer than XXX to surface \b and with normal
       at nearest point to centre and cell-corners differing by
-      more than YYY (i.e., point of high curvature)
+      more than YYY (i.e. point of high curvature)
+
+    Operands:
+    \table
+      Operand    | Type       | Location
+      input      | triSurface | $FOAM_CASE/constant/triSurface/\<file\>
+      output     | cellSet    | $FOAM_CASE/constant/polyMesh/sets/\<set\>
+    \endtable
+
+Usage
+    Minimal example by using \c system/topoSetDict.actions:
+    \verbatim
+    {
+        // Mandatory (inherited) entries
+        name            <name>;
+        type            cellSet;
+        action          <action>;
+
+        // Mandatory entries
+        source          surfaceToCell;
+        file            <surfaceFileName>;
+        outsidePoints
+        (
+            (<p1x> <p1y> <p1z>)
+            (<p2x> <p2y> <p2z>)
+            ...
+        );
+        includeCut      false;
+        includeInside   false;
+        includeOutside  true;
+        nearDistance    0.5;
+        curvature       1.0;
+
+        // Optional entries
+        useSurfaceOrientation false;
+        fileType        stl;
+        scale           2.0;
+    }
+    \endverbatim
+
+    where the entries mean:
+    \table
+      Property   | Description                         | Type | Req'd | Dflt
+      name       | Name of cellSet                     | word |  yes  | -
+      type       | Type name: cellSet                  | word |  yes  | -
+      action     | Action applied on cells - see below | word |  yes  | -
+      source     | Source name: surfaceToCell          | word |  yes  | -
+      file       | The surface "filename"              | word |  yes  | -
+      outsidePoints | List of points that define outside of the surface <!--
+                                                   --> | vectorList | yes | -
+      includeCut | Flag to include cut cells           | bool |  yes  | -
+      includeInside | Flag to include inside cells     | bool |  yes  | -
+      includeOutside | Flag to include outside cells   | bool |  yes  | -
+      useSurfaceOrientation | Flag to use inherently the orientation of <!--
+                            --> the surface            | bool |  no   | false
+      nearDistance | Near distance to the surface      | scalar | yes | -
+      curvature    | Surface curvature                 | scalar | yes | -
+      fileType     | The format of the surface file    | word   | no  | ""
+      scale        | Surface scaling factor            | scalar | no  | -1
+    \endtable
+
+    Options for the \c action entry:
+    \verbatim
+      new      | Create a new cellSet from selected cells
+      add      | Add selected cells into this cellSet
+      subtract | Remove selected cells from this cellSet
+    \endverbatim
+
+See also
+    - Foam::topoSetSource
+    - Foam::topoSetCellSource
 
 SourceFiles
     surfaceToCell.C
@@ -44,15 +118,17 @@ SourceFiles
 #ifndef surfaceToCell_H
 #define surfaceToCell_H
 
-#include "topoSetSource.H"
-#include "Map.T.H"
+#include "topoSetCellSource.H"
+#include "Map.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 namespace Foam
 {
-class triSurfaceSearch;
+
+// Forward Declarations
 class triSurface;
+class triSurfaceSearch;
 
 /*---------------------------------------------------------------------------*\
                            Class surfaceToCell Declaration
@@ -60,10 +136,9 @@ class triSurface;
 
 class surfaceToCell
 :
-    public topoSetSource
+    public topoSetCellSource
 {
-
-    // Private data
+    // Private Data
 
         //- Add usage string
         static addToUsageTable usage_;
@@ -183,18 +258,10 @@ public:
         );
 
         //- Construct from dictionary
-        surfaceToCell
-        (
-            const polyMesh& mesh,
-            const dictionary& dict
-        );
+        surfaceToCell(const polyMesh& mesh, const dictionary& dict);
 
         //- Construct from Istream
-        surfaceToCell
-        (
-            const polyMesh& mesh,
-            Istream&
-        );
+        surfaceToCell(const polyMesh& mesh, Istream& is);
 
 
     //- Destructor
@@ -203,17 +270,11 @@ public:
 
     // Member Functions
 
-        virtual sourceType setType() const
-        {
-            return CELLSETSOURCE;
-        }
-
         virtual void applyToSet
         (
             const topoSetSource::setAction action,
             topoSet&
         ) const;
-
 };
 
 

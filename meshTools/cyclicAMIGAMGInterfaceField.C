@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2013 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2013 OpenFOAM Foundation
+    Copyright (C) 2019 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -82,7 +85,7 @@ Foam::cyclicAMIGAMGInterfaceField::cyclicAMIGAMGInterfaceField
 {}
 
 
-// * * * * * * * * * * * * * * * * Desstructor * * * * * * * * * * * * * * * //
+// * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
 
 Foam::cyclicAMIGAMGInterfaceField::~cyclicAMIGAMGInterfaceField()
 {}
@@ -92,18 +95,25 @@ Foam::cyclicAMIGAMGInterfaceField::~cyclicAMIGAMGInterfaceField()
 
 void Foam::cyclicAMIGAMGInterfaceField::updateInterfaceMatrix
 (
-    scalarField& result,
-    const scalarField& psiInternal,
+    solveScalarField& result,
+    const bool add,
+    const lduAddressing& lduAddr,
+    const label patchId,
+    const solveScalarField& psiInternal,
     const scalarField& coeffs,
     const direction cmpt,
     const Pstream::commsTypes
 ) const
 {
     // Get neighbouring field
-    scalarField pnf
-    (
-        cyclicAMIInterface_.neighbPatch().interfaceInternalField(psiInternal)
-    );
+
+    const labelList& nbrFaceCells =
+        lduAddr.patchAddr
+        (
+            cyclicAMIInterface_.neighbPatchID()
+        );
+
+    solveScalarField pnf(psiInternal, nbrFaceCells);
 
     // Transform according to the transformation tensors
     transformCoupleField(pnf, cmpt);
@@ -117,12 +127,9 @@ void Foam::cyclicAMIGAMGInterfaceField::updateInterfaceMatrix
         pnf = cyclicAMIInterface_.neighbPatch().AMI().interpolateToTarget(pnf);
     }
 
-    const labelUList& faceCells = cyclicAMIInterface_.faceCells();
+    const labelUList& faceCells = lduAddr.patchAddr(patchId);
 
-    forAll(faceCells, elemI)
-    {
-        result[faceCells[elemI]] -= coeffs[elemI]*pnf[elemI];
-    }
+    this->addToInternalField(result, !add, faceCells, coeffs, pnf);
 }
 
 

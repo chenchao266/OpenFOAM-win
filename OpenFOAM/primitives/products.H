@@ -1,9 +1,12 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2019 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -32,6 +35,7 @@ Description
 #ifndef products_H
 #define products_H
 
+#include "direction.H"
 #include "pTraits.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
@@ -42,13 +46,13 @@ namespace Foam
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 //- Abstract template class to provide the form resulting from
-//  the inner-product of two forms
+//- the inner-product of two forms
 template<class Cmpt, class Form1, class Form2>
 class typeOfInnerProduct
 {};
 
 //- Abstract template class to provide the form resulting from
-//  the outer-product of two forms
+//- the outer-product of two forms
 template<class Cmpt, class Form1, class Form2>
 class typeOfOuterProduct
 {};
@@ -67,6 +71,26 @@ class typeOfRank
 template<class Cmpt, direction rank>
 class symmTypeOfRank
 {};
+
+
+//- The extended precision type (solveScalar for float)
+template<class Type>
+class typeOfSolve
+{
+public:
+
+    typedef Type type;
+};
+
+
+//- The magnitude type for given argument.
+template<class arg1>
+class typeOfMag
+{
+public:
+
+    typedef typename pTraits<typename pTraits<arg1>::cmptType>::magType type;
+};
 
 
 template<class arg1, class arg2>
@@ -88,6 +112,16 @@ public:
         typename pTraits<arg1>::cmptType,
         direction(pTraits<arg1>::rank) + direction(pTraits<arg2>::rank)
     >::type type;
+};
+
+
+//- Outer-product of identical types
+template<class arg1>
+class outerProduct1
+:
+    public outerProduct<arg1, arg1>
+{
+public:
 };
 
 
@@ -134,6 +168,28 @@ public:
         typename pTraits<arg1>::cmptType,
         arg2*direction(pTraits<arg1>::rank)
     >::type type;
+};
+
+
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+// Partial Specializations for non-VectorSpace quantities
+
+template<class Cmpt>
+class typeOfRank<Cmpt, 0>
+{
+public:
+
+    typedef Cmpt type;
+};
+
+
+template<class Cmpt>
+class symmTypeOfRank<Cmpt, 0>
+{
+public:
+
+    typedef Cmpt type;
 };
 
 

@@ -1,29 +1,12 @@
-fileName dictPath = "";
-if (args.optionFound("dict"))
-{
-    dictPath = args["dict"];
-    if (isDir(dictPath))
-    {
-        dictPath = dictPath / dictName;
-    }
-}
-
-IOobject dictIO
+﻿IOobject dictIO = IOobject::selectIO
 (
-    dictName,
-    runTime.system(),
-    mesh,
-    IOobject::MUST_READ_IF_MODIFIED,
-    IOobject::NO_WRITE
-);
-
-if (dictPath.size())
-{
-    dictIO = IOobject
+    IOobject
     (
-        dictPath,
+        dictName,
+        runTime.system(),
         mesh,
         IOobject::MUST_READ_IF_MODIFIED,
         IOobject::NO_WRITE
-    );
-}
+    ),
+    args.getOrDefault<fileName>("dict", "")
+);

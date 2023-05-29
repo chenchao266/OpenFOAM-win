@@ -1,9 +1,11 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -21,15 +23,12 @@ License
     You should have received a copy of the GNU General Public License
     along with OpenFOAM.  If not, see <http://www.gnu.org/licenses/>.
 
-Description
-    Specialisation of Field\<T\> for label.
-
 \*---------------------------------------------------------------------------*/
 
 #include "labelField.H"
 
 #define TEMPLATE
-#include "FieldFunctionsM.T.C"
+#include "FieldFunctionsM.C"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -48,6 +47,7 @@ tmp<labelField> labelField::component(const direction) const
     return *this;
 }
 
+
 template<>
 void component
 (
@@ -58,6 +58,7 @@ void component
 {
     lf = f;
 }
+
 
 template<>
 void labelField::replace(const direction, const labelUList& lf)

@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2015 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2015 OpenFOAM Foundation
+    Copyright (C) 2019-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -31,31 +34,31 @@ Foam::autoPtr<Foam::sixDoFRigidBodyMotionConstraint>
 Foam::sixDoFRigidBodyMotionConstraint::New
 (
     const word& name,
-    const dictionary& sDoFRBMCDict,
+    const dictionary& dict,
     const sixDoFRigidBodyMotion& motion
 )
 {
-    const word constraintType
+    const word modelType
     (
-        sDoFRBMCDict.lookup("sixDoFRigidBodyMotionConstraint")
+        dict.get<word>("sixDoFRigidBodyMotionConstraint")
     );
 
-    dictionaryConstructorTable::iterator cstrIter =
-        dictionaryConstructorTablePtr_->find(constraintType);
+    auto* ctorPtr = dictionaryConstructorTable(modelType);
 
-    if (cstrIter == dictionaryConstructorTablePtr_->end())
+    if (!ctorPtr)
     {
-        FatalErrorInFunction
-            << "Unknown sixDoFRigidBodyMotionConstraint type "
-            << constraintType << nl << nl
-            << "Valid sixDoFRigidBodyMotionConstraints are : " << endl
-            << dictionaryConstructorTablePtr_->sortedToc()
-            << exit(FatalError);
+        FatalIOErrorInLookup
+        (
+            dict,
+            "sixDoFRigidBodyMotionConstraint",
+            modelType,
+            *dictionaryConstructorTablePtr_
+        ) << exit(FatalIOError);
     }
 
     return autoPtr<sixDoFRigidBodyMotionConstraint>
     (
-        cstrIter()(name, sDoFRBMCDict, motion)
+        ctorPtr(name, dict, motion)
     );
 }
 

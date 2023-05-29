@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2019 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -34,17 +37,12 @@ Description
 \*---------------------------------------------------------------------------*/
 
 #include "SHA1.H"
+#include "endian.H"
 #include "IOstreams.H"
-
 #include <cstring>
 
-#if defined (__GLIBC__)
-    #include <endian.h>
-#endif
-
-using namespace Foam;
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
-
+ namespace Foam{
 //! \cond fileScope
 //  The bytes used to pad buffer to the next 64-byte boundary.
 //  (RFC 1321, 3.1: Step 1)
@@ -54,63 +52,44 @@ static const unsigned char fillbuf[64] = { 0x80, 0 /* , 0, 0, ...  */ };
 
 // * * * * * * * * * * * * Static Member Functions * * * * * * * * * * * * * //
 
-inline uint32_t SHA1::swapBytes(uint32_t n)
+//! \cond fileScope
+//- Swap bytes from internal to network (big-endian) order
+static inline uint32_t swapBytes(uint32_t n)
 {
-    #ifdef __BYTE_ORDER
-        #if (__BYTE_ORDER == __BIG_ENDIAN)
-        return n;
-        #else
-        return
-        (
-            ((n) << 24)
-          | (((n) & 0xff00) << 8)
-          | (((n) >> 8) & 0xff00)
-          | ((n) >> 24)
-        );
-        #endif
-    #else
-        const short x = 0x0100;
+#ifdef WM_LITTLE_ENDIAN
 
-        // yields 0x01 for big endian
-        if (*(reinterpret_cast<const char*>(&x)))
-        {
-            return n;
-        }
-        else
-        {
-            return
-            (
-                ((n) << 24)
-              | (((n) & 0xff00) << 8)
-              | (((n) >> 8) & 0xff00)
-              | ((n) >> 24)
-            );
-        }
-    #endif
+
+    return endian::swap32(n);
+#else
+    return n;
+#endif
 }
 
-
-inline void SHA1::set_uint32(unsigned char *cp, uint32_t v)
+//- Copy the 4-byte value into the memory location pointed to by *dst.
+//  If the architecture allows unaligned access this is equivalent to
+//  *(uint32_t *) cp = val
+static inline void set_uint32(unsigned char *dst, uint32_t v)
 {
-    memcpy(cp, &v, sizeof(uint32_t));
+    std::memcpy(dst, &v, sizeof(uint32_t));
 }
+//! \endcond
 
 
 // * * * * * * * * * * * * Private Member Functions  * * * * * * * * * * * * //
 
 void SHA1::processBytes(const void *data, size_t len)
 {
-    // already finalized, thus need to restart from nothing
+    // Already finalized, thus need to restart from nothing
     if (finalized_)
     {
         clear();
     }
 
-    // complete filling of internal buffer
+    // Complete filling of internal buffer
     if (bufLen_)
     {
-        size_t remaining = bufLen_;
-        size_t add =
+        const size_t remaining = bufLen_;
+        const size_t add =
         (
             sizeof(buffer_) - remaining > len
           ? len
@@ -119,7 +98,7 @@ void SHA1::processBytes(const void *data, size_t len)
 
         unsigned char* bufp = reinterpret_cast<unsigned char*>(buffer_);
 
-        memcpy(&bufp[remaining], data, add);
+        std::memcpy(&bufp[remaining], data, add);
         bufLen_ += add;
 
         if (bufLen_ > 64)
@@ -129,7 +108,7 @@ void SHA1::processBytes(const void *data, size_t len)
             bufLen_ &= 63;
             // The regions in the following copy operation do not
             // (cannot) overlap
-            memcpy(buffer_, &bufp[(remaining + add) & ~63], bufLen_);
+            std::memcpy(buffer_, &bufp[(remaining + add) & ~63], bufLen_);
         }
 
         data = reinterpret_cast<const unsigned char*>(data) + add;
@@ -139,7 +118,7 @@ void SHA1::processBytes(const void *data, size_t len)
     // Process available complete blocks
     while (len >= 64)
     {
-        processBlock(memcpy(buffer_, data, 64), 64);
+        processBlock(std::memcpy(buffer_, data, 64), 64);
         data = reinterpret_cast<const unsigned char*>(data) + 64;
         len -= 64;
     }
@@ -150,13 +129,13 @@ void SHA1::processBytes(const void *data, size_t len)
         unsigned char* bufp = reinterpret_cast<unsigned char*>(buffer_);
         size_t remaining = bufLen_;
 
-        memcpy (&bufp[remaining], data, len);
+        std::memcpy(&bufp[remaining], data, len);
         remaining += len;
         if (remaining >= 64)
         {
             processBlock(buffer_, 64);
             remaining -= 64;
-            memcpy(buffer_, &buffer_[16], remaining);
+            std::memcpy(buffer_, &buffer_[16], remaining);
         }
         bufLen_ = remaining;
     }
@@ -181,10 +160,10 @@ void SHA1::processBytes(const void *data, size_t len)
 void SHA1::processBlock(const void *data, size_t len)
 {
     const uint32_t *words = reinterpret_cast<const uint32_t*>(data);
-    size_t nwords = len / sizeof(uint32_t);
+    const size_t nwords = len / sizeof(uint32_t);
     const uint32_t *endp = words + nwords;
 
-    // calculate with sixteen words of 32-bits
+    // Calculate with sixteen words of 32-bits
     uint32_t x[16];
     uint32_t a = hashsumA_;
     uint32_t b = hashsumB_;
@@ -318,7 +297,7 @@ void SHA1::calcDigest(SHA1Digest& dig) const
 {
     if (bufTotal_[0] || bufTotal_[1])
     {
-        unsigned char *r = dig.v_;
+        unsigned char *r = dig.data();
 
         set_uint32(r + 0 * sizeof(uint32_t), swapBytes(hashsumA_));
         set_uint32(r + 1 * sizeof(uint32_t), swapBytes(hashsumB_));
@@ -328,15 +307,14 @@ void SHA1::calcDigest(SHA1Digest& dig) const
     }
     else
     {
-        // no data!
-        dig.clear();
+        dig.clear();   // No data!
     }
 }
 
 
 // * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * * //
 
-void SHA1::clear()
+void SHA1::clear() noexcept
 {
     hashsumA_ = 0x67452301;
     hashsumB_ = 0xefcdab89;
@@ -357,58 +335,36 @@ bool SHA1::finalize()
     {
         finalized_ = true;
 
-        // account for unprocessed bytes
-        uint32_t bytes = bufLen_;
-        size_t size = (bytes < 56 ? 64 : 128) / sizeof(uint32_t);
+        // Account for unprocessed bytes
+        const uint32_t bytes = bufLen_;
+        const size_t size = (bytes < 56 ? 64 : 128) / sizeof(uint32_t);
 
-        // count remaining bytes.
+        // Count remaining bytes.
         bufTotal_[0] += bytes;
         if (bufTotal_[0] < bytes)
         {
             ++bufTotal_[1];
         }
 
-        // finalized, but no data!
+        // Finalized, but no data!
         if (!bufTotal_[0] && !bufTotal_[1])
         {
             return false;
         }
 
-        // place the 64-bit file length in *bits* at the end of the buffer.
+        // Place the 64-bit length in *bits* at the end of the buffer.
         buffer_[size-2] = swapBytes((bufTotal_[1] << 3) | (bufTotal_[0] >> 29));
         buffer_[size-1] = swapBytes(bufTotal_[0] << 3);
 
         unsigned char* bufp = reinterpret_cast<unsigned char *>(buffer_);
 
-        memcpy(&bufp[bytes], fillbuf, (size-2) * sizeof(uint32_t) - bytes);
+        std::memcpy(&bufp[bytes], fillbuf, (size-2) * sizeof(uint32_t) - bytes);
 
         // Process remaining bytes
         processBlock(buffer_, size * sizeof(uint32_t));
     }
 
     return true;
-}
-
-
-SHA1Digest SHA1::digest() const
-{
-    SHA1Digest dig;
-
-    if (finalized_)
-    {
-        calcDigest(dig);
-    }
-    else
-    {
-        // avoid disturbing our data - use a copy
-        SHA1 sha(*this);
-        if (sha.finalize())
-        {
-            sha.calcDigest(dig);
-        }
-    }
-
-    return dig;
 }
 
 
@@ -429,3 +385,5 @@ SHA1Digest SHA1::digest() const
 #undef R
 
 // ************************************************************************* //
+
+ } // End namespace Foam

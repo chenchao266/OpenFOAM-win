@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2018-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -26,20 +29,17 @@ License
 #include "pointToPoint.H"
 #include "polyMesh.H"
 #include "pointSet.H"
-
 #include "addToRunTimeSelectionTable.H"
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
 
 namespace Foam
 {
-
-defineTypeNameAndDebug(pointToPoint, 0);
-
-addToRunTimeSelectionTable(topoSetSource, pointToPoint, word);
-
-addToRunTimeSelectionTable(topoSetSource, pointToPoint, istream);
-
+    defineTypeNameAndDebug(pointToPoint, 0);
+    addToRunTimeSelectionTable(topoSetSource, pointToPoint, word);
+    addToRunTimeSelectionTable(topoSetSource, pointToPoint, istream);
+    addToRunTimeSelectionTable(topoSetPointSource, pointToPoint, word);
+    addToRunTimeSelectionTable(topoSetPointSource, pointToPoint, istream);
 }
 
 
@@ -53,45 +53,43 @@ Foam::topoSetSource::addToUsageTable Foam::pointToPoint::usage_
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
-// Construct from components
 Foam::pointToPoint::pointToPoint
 (
     const polyMesh& mesh,
     const word& setName
 )
 :
-    topoSetSource(mesh),
-    setName_(setName)
+    topoSetPointSource(mesh),
+    names_(one{}, setName)
 {}
 
 
-// Construct from dictionary
 Foam::pointToPoint::pointToPoint
 (
     const polyMesh& mesh,
     const dictionary& dict
 )
 :
-    topoSetSource(mesh),
-    setName_(dict.lookup("set"))
-{}
+    topoSetPointSource(mesh),
+    names_()
+{
+    // Look for 'sets' or 'set'
+    if (!dict.readIfPresent("sets", names_))
+    {
+        names_.resize(1);
+        dict.readEntry("set", names_.first());
+    }
+}
 
 
-// Construct from Istream
 Foam::pointToPoint::pointToPoint
 (
     const polyMesh& mesh,
     Istream& is
 )
 :
-    topoSetSource(mesh),
-    setName_(checkIs(is))
-{}
-
-
-// * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
-
-Foam::pointToPoint::~pointToPoint()
+    topoSetPointSource(mesh),
+    names_(one{}, word(checkIs(is)))
 {}
 
 
@@ -103,23 +101,35 @@ void Foam::pointToPoint::applyToSet
     topoSet& set
 ) const
 {
-    if ((action == topoSetSource::NEW) || (action == topoSetSource::ADD))
+    if (action == topoSetSource::ADD || action == topoSetSource::NEW)
     {
-        Info<< "    Adding all from pointSet " << setName_ << " ..." << endl;
+        if (verbose_)
+        {
+            Info<< "    Adding all elements of pointSet "
+                << flatOutput(names_) << nl;
+        }
 
-        // Load the set
-        pointSet loadedSet(mesh_, setName_);
+        for (const word& setName : names_)
+        {
+            pointSet loadedSet(mesh_, setName);
 
-        set.addSet(loadedSet);
+            set.addSet(loadedSet);
+        }
     }
-    else if (action == topoSetSource::DELETE)
+    else if (action == topoSetSource::SUBTRACT)
     {
-        Info<< "    Removing all from pointSet " << setName_ << " ..." << endl;
+        if (verbose_)
+        {
+            Info<< "    Removing all elements of pointSet "
+                << flatOutput(names_) << nl;
+        }
 
-        // Load the set
-        pointSet loadedSet(mesh_, setName_);
+        for (const word& setName : names_)
+        {
+            pointSet loadedSet(mesh_, setName);
 
-        set.deleteSet(loadedSet);
+            set.subtractSet(loadedSet);
+        }
     }
 }
 

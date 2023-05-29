@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2016 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -25,143 +28,138 @@ License
 
 #include "spatialTransform.H"
 #include "transform.H"
-#include "dictionary.H"
+#include "dictionary2.H"
 
 // * * * * * * * * * * * * * Static Member Functions * * * * * * * * * * * * //
 
-namespace Foam
+inline Foam::symmTensor Foam::RBD::rigidBodyInertia::Ioc
+(
+    const scalar m,
+    const vector& c
+)
 {
-    namespace RBD
-    {
-        inline Foam::symmTensor rigidBodyInertia::Ioc
-        (
-            const scalar m,
-            const vector& c
-        )
-        {
-            return m * (Foam::I*magSqr(c) - sqr(c));
-        }
-
-
-        // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
-
-        inline rigidBodyInertia::rigidBodyInertia()
-            :
-            m_(0),
-            c_(Zero),
-            Ic_(Zero)
-        {}
-
-
-        inline rigidBodyInertia::rigidBodyInertia
-        (
-            const scalar m,
-            const vector& c,
-            const symmTensor& Ic
-        )
-            :
-            m_(m),
-            c_(c),
-            Ic_(Ic)
-        {}
-
-
-        inline rigidBodyInertia::rigidBodyInertia(const dictionary& dict)
-            :
-            m_(readScalar(dict.lookup("mass"))),
-            c_(dict.lookup("centreOfMass")),
-            Ic_(dict.lookup("inertia"))
-        {}
-
-
-        inline rigidBodyInertia::rigidBodyInertia(const spatialTensor& st)
-            :
-            m_(st(3, 3)),
-            c_(vector(-st(1, 5), st(0, 5), -st(0, 4)) / m_),
-            Ic_(symm(st.block<tensor, 0, 0>()()) - Ioc())
-        {}
-
-
-        inline rigidBodyInertia::rigidBodyInertia(Istream& is)
-            :
-            m_(readScalar(is)),
-            c_(is),
-            Ic_(is)
-        {}
-
-
-        // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
-
-        inline Foam::scalar rigidBodyInertia::m() const
-        {
-            return m_;
-        }
-
-        inline const Foam::vector& rigidBodyInertia::c() const
-        {
-            return c_;
-        }
-
-        inline const Foam::symmTensor& rigidBodyInertia::Ic() const
-        {
-            return Ic_;
-        }
-
-        inline Foam::symmTensor rigidBodyInertia::Ioc() const
-        {
-            return Ioc(m_, c_);
-        }
-
-        inline Foam::symmTensor rigidBodyInertia::Icc(const vector& c) const
-        {
-            return Ioc(m_, c - c_);
-        }
-
-        inline Foam::symmTensor rigidBodyInertia::Io() const
-        {
-            return Ic_ + Ioc();
-        }
-
-
-        // * * * * * * * * * * * * * * * Member Operators  * * * * * * * * * * * * * //
-
-        inline rigidBodyInertia::operator spatialTensor() const
-        {
-            tensor mcStar(m_*(*c_));
-
-            return spatialTensor
-            (
-                Io(), mcStar,
-                -mcStar, m_*I
-            );
-        }
-
-
-        // * * * * * * * * * * * * * * IOstream Operators  * * * * * * * * * * * * * //
-
-        inline Foam::Istream& operator>>
-            (
-                Istream& is,
-                rigidBodyInertia& rbi
-                )
-        {
-            is >> rbi.m_ >> rbi.c_ >> rbi.Ic_;
-            return is;
-        }
-
-
-        inline Foam::Ostream& operator<<
-            (
-                Ostream& os,
-                const rigidBodyInertia& rbi
-                )
-        {
-            os << rbi.m_ << nl << rbi.c_ << nl << rbi.Ic_ << endl;
-            return os;
-        }
-
-    }
+    return m*(Foam::I*magSqr(c) - sqr(c));
 }
+
+
+// * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
+
+inline Foam::RBD::rigidBodyInertia::rigidBodyInertia()
+:
+    m_(Zero),
+    c_(Zero),
+    Ic_(Zero)
+{}
+
+
+inline Foam::RBD::rigidBodyInertia::rigidBodyInertia
+(
+    const scalar m,
+    const vector& c,
+    const symmTensor& Ic
+)
+:
+    m_(m),
+    c_(c),
+    Ic_(Ic)
+{}
+
+
+inline Foam::RBD::rigidBodyInertia::rigidBodyInertia(const dictionary& dict)
+:
+    m_(dict.get<scalar>("mass")),
+    c_(dict.get<vector>("centreOfMass")),
+    Ic_(dict.get<symmTensor>("inertia"))
+{}
+
+
+inline Foam::RBD::rigidBodyInertia::rigidBodyInertia(const spatialTensor& st)
+:
+    m_(st(3, 3)),
+    c_(vector(-st(1, 5), st(0, 5), -st(0, 4))/m_),
+    Ic_(symm(st.block<tensor, 0, 0>()()) - Ioc())
+{}
+
+
+inline Foam::RBD::rigidBodyInertia::rigidBodyInertia(Istream& is)
+:
+    m_(readScalar(is)),
+    c_(is),
+    Ic_(is)
+{}
+
+
+// * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
+
+inline Foam::scalar Foam::RBD::rigidBodyInertia::m() const
+{
+    return m_;
+}
+
+inline const Foam::vector& Foam::RBD::rigidBodyInertia::c() const
+{
+    return c_;
+}
+
+inline const Foam::symmTensor& Foam::RBD::rigidBodyInertia::Ic() const
+{
+    return Ic_;
+}
+
+inline Foam::symmTensor Foam::RBD::rigidBodyInertia::Ioc() const
+{
+    return Ioc(m_, c_);
+}
+
+inline Foam::symmTensor Foam::RBD::rigidBodyInertia::Icc(const vector& c) const
+{
+    return Ioc(m_, c - c_);
+}
+
+inline Foam::symmTensor Foam::RBD::rigidBodyInertia::Io() const
+{
+    return Ic_ + Ioc();
+}
+
+
+// * * * * * * * * * * * * * * * Member Operators  * * * * * * * * * * * * * //
+
+inline Foam::RBD::rigidBodyInertia::operator Foam::spatialTensor() const
+{
+    tensor mcStar(m_*(*c_));
+
+    return spatialTensor
+    (
+        Io(),   mcStar,
+       -mcStar, m_*I
+    );
+}
+
+
+// * * * * * * * * * * * * * * IOstream Operators  * * * * * * * * * * * * * //
+
+inline Foam::Istream& Foam::RBD::operator>>
+(
+    Istream& is,
+    rigidBodyInertia& rbi
+)
+{
+    is  >> rbi.m_ >> rbi.c_ >> rbi.Ic_;
+    return is;
+}
+
+
+inline Foam::Ostream& Foam::RBD::operator<<
+(
+    Ostream& os,
+    const rigidBodyInertia& rbi
+)
+{
+    os  << rbi.m_ << nl << rbi.c_ << nl << rbi.Ic_ << endl;
+    return os;
+}
+
+
 // * * * * * * * * * * * * * * * Global Operators  * * * * * * * * * * * * * //
 
 namespace Foam
@@ -228,10 +226,13 @@ inline rigidBodyInertia transform
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
+} // End namespace RBD
+} // End namespace Foam
+
 
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
 
-inline Foam::scalar rigidBodyInertia::kineticEnergy
+inline Foam::scalar Foam::RBD::rigidBodyInertia::kineticEnergy
 (
     const spatialVector& v
 )
@@ -242,7 +243,7 @@ inline Foam::scalar rigidBodyInertia::kineticEnergy
 
 // * * * * * * * * * * * * * * * Member Operators  * * * * * * * * * * * * * //
 
-inline void rigidBodyInertia::operator+=
+inline void Foam::RBD::rigidBodyInertia::operator+=
 (
     const rigidBodyInertia& rbi
 )
@@ -250,8 +251,5 @@ inline void rigidBodyInertia::operator+=
     *this = *this + rbi;
 }
 
-
-} // End namespace RBD
-} // End namespace Foam
 
 // ************************************************************************* //

@@ -1,9 +1,11 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2016-2017 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -38,6 +40,8 @@ SourceFiles
 #ifndef zoneCombustion_H
 #define zoneCombustion_H
 
+#include "CombustionModel2.H"
+
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 namespace Foam
@@ -49,15 +53,15 @@ namespace combustionModels
                             Class zoneCombustion Declaration
 \*---------------------------------------------------------------------------*/
 
-template<class Type>
+template<class ReactionThermo>
 class zoneCombustion
 :
-    public Type
+    public CombustionModel<ReactionThermo>
 {
     // Private data
 
         //- The combustion model to be zone-filtered
-        autoPtr<Type> combustionModelPtr_;
+        autoPtr<CombustionModel<ReactionThermo>> combustionModelPtr_;
 
         //- List of zone names in which the reactions are active
         wordList zoneNames_;
@@ -71,11 +75,11 @@ class zoneCombustion
         //- Filter the given field on the cellZones
         tmp<volScalarField> filter(const tmp<volScalarField>& tS) const;
 
-        //- Disallow copy construct
-        zoneCombustion(const zoneCombustion&);
+        //- No copy construct
+        zoneCombustion(const zoneCombustion&) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const zoneCombustion&);
+        //- No copy assignment
+        void operator=(const zoneCombustion&) = delete;
 
 
 public:
@@ -90,9 +94,9 @@ public:
         zoneCombustion
         (
             const word& modelType,
-            const fvMesh& mesh,
-            const word& combustionProperties,
-            const word& phaseName
+            ReactionThermo& thermo,
+            const compressibleTurbulenceModel& turb,
+            const word& combustionProperties
         );
 
 
@@ -103,10 +107,10 @@ public:
     // Member Functions
 
         //- Return access to the thermo package
-        virtual typename Type::ReactionThermo& thermo();
+        virtual ReactionThermo& thermo();
 
         //- Return const access to the thermo package
-        virtual const typename Type::ReactionThermo& thermo() const;
+        virtual const ReactionThermo& thermo() const;
 
         //- Correct combustion rate
         virtual void correct();

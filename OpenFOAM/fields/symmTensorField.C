@@ -1,9 +1,12 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2019 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -27,14 +30,14 @@ License
 #include "transformField.H"
 
 #define TEMPLATE
-#include "FieldFunctionsM.T.C"
+#include "FieldFunctionsM.C"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 namespace Foam
 {
 
-// * * * * * * * * * * * * * * * global functions  * * * * * * * * * * * * * //
+// * * * * * * * * * * * * * * * Global Functions  * * * * * * * * * * * * * //
 
 UNARY_FUNCTION(symmTensor, vector, sqr)
 UNARY_FUNCTION(symmTensor, symmTensor, innerSqr)
@@ -107,17 +110,17 @@ void inv(Field<symmTensor>& tf, const UList<symmTensor>& tf1)
 
 tmp<symmTensorField> inv(const UList<symmTensor>& tf)
 {
-    tmp<symmTensorField> result(new symmTensorField(tf.size()));
-    inv(result.ref(), tf);
-    return result;
+    auto tresult = tmp<symmTensorField>::New(tf.size());
+    inv(tresult.ref(), tf);
+    return tresult;
 }
 
 tmp<symmTensorField> inv(const tmp<symmTensorField>& tf)
 {
-    tmp<symmTensorField> tRes = New(tf);
-    inv(tRes.ref(), tf());
+    tmp<symmTensorField> tresult = New(tf);
+    inv(tresult.ref(), tf());
     tf.clear();
-    return tRes;
+    return tresult;
 }
 
 

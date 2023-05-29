@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2013-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2013-2017 OpenFOAM Foundation
+    Copyright (C) 2019-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -41,7 +44,7 @@ filmModel() const
     HashTable<const filmModelType*> models
         = db().time().lookupClass<filmModelType>();
 
-    forAllConstIter(HashTable<const filmModelType*>, models, iter)
+    forAllConstIters(models, iter)
     {
         if (iter()->regionMesh().name() == filmRegionName_)
         {
@@ -50,7 +53,7 @@ filmModel() const
     }
 
     DynamicList<word> modelNames;
-    forAllConstIter(HashTable<const filmModelType*>, models, iter)
+    forAllConstIters(models, iter)
     {
         modelNames.append(iter()->regionMesh().name());
     }
@@ -72,7 +75,7 @@ pyrModel() const
     HashTable<const pyrolysisModelType*> models =
         db().time().lookupClass<pyrolysisModelType>();
 
-    forAllConstIter(HashTable<const pyrolysisModelType*>, models, iter)
+    forAllConstIters(models, iter)
     {
         if (iter()->regionMesh().name() == pyrolysisRegionName_)
         {
@@ -81,11 +84,10 @@ pyrModel() const
     }
 
     DynamicList<word> modelNames;
-    forAllConstIter(HashTable<const pyrolysisModelType*>, models, iter)
+    forAllConstIters(models, iter)
     {
         modelNames.append(iter()->regionMesh().name());
     }
-
 
     FatalErrorInFunction
         << "Unable to locate pyrolysis region " << pyrolysisRegionName_
@@ -106,7 +108,14 @@ filmPyrolysisRadiativeCoupledMixedFvPatchScalarField
 )
 :
     mixedFvPatchScalarField(p, iF),
-    temperatureCoupledBase(patch(), "undefined", "undefined", "undefined-K"),
+    temperatureCoupledBase
+    (
+        patch(),
+        "undefined",
+        "undefined",
+        "undefined-K",
+        "undefined-alpha"
+    ),
     filmRegionName_("surfaceFilmProperties"),
     pyrolysisRegionName_("pyrolysisProperties"),
     TnbrName_("undefined-Tnbr"),
@@ -154,17 +163,17 @@ filmPyrolysisRadiativeCoupledMixedFvPatchScalarField
     temperatureCoupledBase(patch(), dict),
     filmRegionName_
     (
-        dict.lookupOrDefault<word>("filmRegion", "surfaceFilmProperties")
+        dict.getOrDefault<word>("filmRegion", "surfaceFilmProperties")
     ),
     pyrolysisRegionName_
     (
-        dict.lookupOrDefault<word>("pyrolysisRegion", "pyrolysisProperties")
+        dict.getOrDefault<word>("pyrolysisRegion", "pyrolysisProperties")
     ),
     TnbrName_(dict.lookup("Tnbr")),
     qrName_(dict.lookup("qr")),
-    convectiveScaling_(dict.lookupOrDefault<scalar>("convectiveScaling", 1.0)),
-    filmDeltaDry_(readScalar(dict.lookup("filmDeltaDry"))),
-    filmDeltaWet_(readScalar(dict.lookup("filmDeltaWet")))
+    convectiveScaling_(dict.getOrDefault<scalar>("convectiveScaling", 1)),
+    filmDeltaDry_(dict.get<scalar>("filmDeltaDry")),
+    filmDeltaWet_(dict.get<scalar>("filmDeltaWet"))
 {
     if (!isA<mappedPatchBase>(this->patch().patch()))
     {
@@ -216,6 +225,34 @@ filmPyrolysisRadiativeCoupledMixedFvPatchScalarField
 
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
 
+void filmPyrolysisRadiativeCoupledMixedFvPatchScalarField::autoMap
+(
+    const fvPatchFieldMapper& mapper
+)
+{
+    mixedFvPatchScalarField::autoMap(mapper);
+    temperatureCoupledBase::autoMap(mapper);
+}
+
+
+void filmPyrolysisRadiativeCoupledMixedFvPatchScalarField::rmap
+(
+    const fvPatchField<scalar>& ptf,
+    const labelList& addr
+)
+{
+    mixedFvPatchScalarField::rmap(ptf, addr);
+
+    const filmPyrolysisRadiativeCoupledMixedFvPatchScalarField& tiptf =
+        refCast
+        <
+            const filmPyrolysisRadiativeCoupledMixedFvPatchScalarField
+        >(ptf);
+
+    temperatureCoupledBase::rmap(tiptf, addr);
+}
+
+
 void filmPyrolysisRadiativeCoupledMixedFvPatchScalarField::updateCoeffs()
 {
     if (updated())
@@ -261,15 +298,15 @@ void filmPyrolysisRadiativeCoupledMixedFvPatchScalarField::updateCoeffs()
 
     scalarField myKDelta(K*patch().deltaCoeffs());
 
-    scalarList Tfilm(patch().size(), 0.0);
-    scalarList htcwfilm(patch().size(), 0.0);
-    scalarList filmDelta(patch().size(), 0.0);
+    scalarList Tfilm(patch().size(), Zero);
+    scalarList htcwfilm(patch().size(), Zero);
+    scalarList filmDelta(patch().size(), Zero);
 
     const pyrolysisModelType& pyrolysis = pyrModel();
     const filmModelType& film = filmModel();
 
     // Obtain Rad heat (qr)
-    scalarField qr(patch().size(), 0.0);
+    scalarField qr(patch().size(), Zero);
 
     label coupledPatchi = -1;
     if (pyrolysisRegionName_ == mesh.name())
@@ -384,28 +421,23 @@ void filmPyrolysisRadiativeCoupledMixedFvPatchScalarField::write
 ) const
 {
     mixedFvPatchScalarField::write(os);
-    writeEntryIfDifferent<word>
+    os.writeEntryIfDifferent<word>
     (
-        os,
         "filmRegion",
         "surfaceFilmProperties",
         filmRegionName_
     );
-    writeEntryIfDifferent<word>
+    os.writeEntryIfDifferent<word>
     (
-        os,
         "pyrolysisRegion",
         "pyrolysisProperties",
         pyrolysisRegionName_
     );
-    os.writeKeyword("Tnbr")<< TnbrName_ << token::END_STATEMENT << nl;
-    os.writeKeyword("qr")<< qrName_ << token::END_STATEMENT << nl;
-    os.writeKeyword("convectiveScaling") << convectiveScaling_
-        << token::END_STATEMENT << nl;
-    os.writeKeyword("filmDeltaDry") << filmDeltaDry_
-        << token::END_STATEMENT << nl;
-    os.writeKeyword("filmDeltaWet") << filmDeltaWet_
-        << token::END_STATEMENT << endl;
+    os.writeEntry("Tnbr", TnbrName_);
+    os.writeEntry("qr", qrName_);
+    os.writeEntry("convectiveScaling", convectiveScaling_);
+    os.writeEntry("filmDeltaDry", filmDeltaDry_);
+    os.writeEntry("filmDeltaWet", filmDeltaWet_);
     temperatureCoupledBase::write(os);
 }
 

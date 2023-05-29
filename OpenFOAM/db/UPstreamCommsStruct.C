@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -24,100 +27,105 @@ License
 \*---------------------------------------------------------------------------*/
 
 #include "UPstream.H"
-#include "boolList.H"
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
-namespace Foam {
-    UPstream::commsStruct::commsStruct() : above_(-1),
-        below_(0),
-        allBelow_(0),
-        allNotBelow_(0)
-    {}
 
 
-    UPstream::commsStruct::commsStruct
-    (
-        const label above,
-        const labelList& below,
-        const labelList& allBelow,
-        const labelList& allNotBelow
-    ) : above_(above),
-        below_(below),
-        allBelow_(allBelow),
-        allNotBelow_(allNotBelow)
-    {}
+ namespace Foam{
+UPstream::commsStruct::commsStruct()
+:
+    above_(-1),
+    below_(),
+    allBelow_(),
+    allNotBelow_()
+{}
 
 
-    UPstream::commsStruct::commsStruct
-    (
-        const label nProcs,
-        const label myProcID,
-        const label above,
-        const labelList& below,
-        const labelList& allBelow
-    ) : above_(above),
-        below_(below),
-        allBelow_(allBelow),
-        allNotBelow_(nProcs - allBelow.size() - 1)
+UPstream::commsStruct::commsStruct
+(
+    const label above,
+    const labelList& below,
+    const labelList& allBelow,
+    const labelList& allNotBelow
+)
+:
+    above_(above),
+    below_(below),
+    allBelow_(allBelow),
+    allNotBelow_(allNotBelow)
+{}
+
+
+UPstream::commsStruct::commsStruct
+(
+    const label nProcs,
+    const label myProcID,
+    const label above,
+    const labelList& below,
+    const labelList& allBelow
+)
+:
+    above_(above),
+    below_(below),
+    allBelow_(allBelow),
+    allNotBelow_(nProcs - allBelow.size() - 1)
+{
+    boolList inBelow(nProcs, false);
+
+    forAll(allBelow, belowI)
     {
-        boolList inBelow(nProcs, false);
+        inBelow[allBelow[belowI]] = true;
+    }
 
-        forAll(allBelow, belowI)
+    label notI = 0;
+    forAll(inBelow, proci)
+    {
+        if ((proci != myProcID) && !inBelow[proci])
         {
-            inBelow[allBelow[belowI]] = true;
-        }
-
-        label notI = 0;
-        forAll(inBelow, proci)
-        {
-            if ((proci != myProcID) && !inBelow[proci])
-            {
-                allNotBelow_[notI++] = proci;
-            }
-        }
-        if (notI != allNotBelow_.size())
-        {
-            FatalErrorInFunction << "problem!" << ::Foam::abort(FatalError);
+            allNotBelow_[notI++] = proci;
         }
     }
-
-
-    // * * * * * * * * * * * * * * * Member Operators  * * * * * * * * * * * * * //
-
-    bool UPstream::commsStruct::operator==(const commsStruct& comm) const
+    if (notI != allNotBelow_.size())
     {
-        return
-            (
-            (above_ == comm.above())
-                && (below_ == comm.below())
-                && (allBelow_ == allBelow())
-                && (allNotBelow_ == allNotBelow())
-                );
+        FatalErrorInFunction << "problem!" << ::Foam::abort(FatalError);
     }
-
-
-    bool UPstream::commsStruct::operator!=(const commsStruct& comm) const
-    {
-        return !operator==(comm);
-    }
-
-
-    // * * * * * * * * * * * * * * * Ostream Operator  * * * * * * * * * * * * * //
-
-    Ostream& operator<<(Ostream& os, const UPstream::commsStruct& comm)
-    {
-        os << comm.above_ << token::SPACE
-            << comm.below_ << token::SPACE
-            << comm.allBelow_ << token::SPACE
-            << comm.allNotBelow_;
-
-        os.check
-        (
-            "Ostream& operator<<(Ostream&, const commsStruct&)"
-        );
-
-        return os;
-    }
-
 }
+
+
+// * * * * * * * * * * * * * * * Member Operators  * * * * * * * * * * * * * //
+
+bool UPstream::commsStruct::operator==(const commsStruct& comm) const
+{
+    return
+    (
+        (above_ == comm.above())
+     && (below_ == comm.below())
+     && (allBelow_ == allBelow())
+     && (allNotBelow_ == allNotBelow())
+    );
+}
+
+
+bool UPstream::commsStruct::operator!=(const commsStruct& comm) const
+{
+    return !operator==(comm);
+}
+
+
+// * * * * * * * * * * * * * * * Ostream Operator  * * * * * * * * * * * * * //
+
+Ostream& operator<<(Ostream& os, const UPstream::commsStruct& comm)
+{
+    os  << comm.above_ << token::SPACE
+        << comm.below_ << token::SPACE
+        << comm.allBelow_ << token::SPACE
+        << comm.allNotBelow_;
+
+    os.check(FUNCTION_NAME);
+    return os;
+}
+
+
 // ************************************************************************* //
+
+ } // End namespace Foam

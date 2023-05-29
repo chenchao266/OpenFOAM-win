@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2017-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -36,7 +39,7 @@ SourceFiles
 #define polyTopoChanger_H
 
 #include "regIOobject.H"
-#include "PtrList.T.H"
+#include "PtrList.H"
 #include "polyMeshModifier.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
@@ -44,15 +47,10 @@ SourceFiles
 namespace Foam
 {
 
-// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
-
+// Forward Declarations
 class polyMesh;
 class mapPolyMesh;
 class polyBoundaryMesh;
-
-
-// Forward declaration of friend functions and operators
-
 class polyTopoChanger;
 
 Ostream& operator<<(Ostream&, const polyTopoChanger&);
@@ -69,13 +67,13 @@ class polyTopoChanger
 {
     // Private Member Functions
 
-        //- Disallow default bitwise copy construct
-        polyTopoChanger(const polyTopoChanger&);
-
-        //- Disallow default bitwise assignment
-        void operator=(const polyTopoChanger&);
-
         void readModifiers();
+
+        //- No copy construct
+        polyTopoChanger(const polyTopoChanger&) = delete;
+
+        //- No copy assignment
+        void operator=(const polyTopoChanger&) = delete;
 
 
 protected:
@@ -93,16 +91,19 @@ public:
 
     // Constructors
 
-        //- Read constructor given IOobject and a polyMesh
-        polyTopoChanger(const IOobject&, polyMesh&);
+        //- Read construct given IOobject and a polyMesh
+        polyTopoChanger(const IOobject& io, polyMesh& mesh);
 
-        //- Read constructor for given polyMesh
-        explicit polyTopoChanger(polyMesh&);
+        //- Read construct for given polyMesh and read-option
+        polyTopoChanger(polyMesh& mesh, const IOobject::readOption rOpt);
+
+        //- Read construct for given polyMesh.
+        //  Uses read-option READ_IF_PRESENT
+        explicit polyTopoChanger(polyMesh& mesh);
 
 
     //- Destructor
-    virtual ~polyTopoChanger()
-    {}
+    virtual ~polyTopoChanger() = default;
 
 
     // Member functions
@@ -156,7 +157,7 @@ public:
         bool operator==(const polyTopoChanger&) const;
 
 
-    // Ostream operator
+    // Ostream Operator
 
         friend Ostream& operator<<(Ostream&, const polyTopoChanger&);
 };

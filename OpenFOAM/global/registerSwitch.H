@@ -1,9 +1,12 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2015-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2015-2016 OpenFOAM Foundation
+    Copyright (C) 2019 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -46,34 +49,36 @@ namespace Foam
 \*---------------------------------------------------------------------------*/
 
 template<class Type>
-class RegisterSwitch :    public simpleRegIOobject
+class RegisterSwitch
+:
+    public simpleRegIOobject
 {
-    Type& optSwitch_;
-
 public:
+
+    //- Reference to the switch variable that has been registered
+    Type& value;
 
     RegisterSwitch
     (
         void (*registryFn)(const char* name, simpleRegIOobject*),
         const char* name,
-        Type& optSwitch
+        Type& switchVar
     )
     :
         simpleRegIOobject(registryFn, name),
-        optSwitch_(optSwitch)
+        value(switchVar)
     {}
 
-    virtual ~RegisterSwitch()
-    {}
+    virtual ~RegisterSwitch() = default;
 
-    virtual void readData(Foam::Istream& is)
+    virtual void readData(Istream& is)
     {
-        is >> optSwitch_;
+        is >> value;
     }
 
-    virtual void writeData(Foam::Ostream& os) const
+    virtual void writeData(Ostream& os) const
     {
-        os << optSwitch_;
+        os << value;
     }
 };
 
@@ -84,14 +89,14 @@ public:
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
-#define registerOptSwitch(Name, Type, Switch)                                  \
-    static Foam::RegisterSwitch<Type> FILE_UNIQUE(_addToOpt_)                  \
-        (Foam::debug::addOptimisationObject, Name, Switch)
+#define registerOptSwitch(Name, Type, SwitchVar)                               \
+    static RegisterSwitch<Type> FILE_UNIQUE(_addToOpt_)                  \
+    (debug::addOptimisationObject, Name, SwitchVar)
 
 
-#define registerInfoSwitch(Name, Type, Switch)                                 \
-    static Foam::RegisterSwitch<Type> FILE_UNIQUE(_addToOpt_)                  \
-        (Foam::debug::addInfoObject, Name, Switch)
+#define registerInfoSwitch(Name, Type, SwitchVar)                              \
+    static RegisterSwitch<Type> FILE_UNIQUE(_addToOpt_)                  \
+    (debug::addInfoObject, Name, SwitchVar)
 
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
@@ -99,3 +104,5 @@ public:
 #endif
 
 // ************************************************************************* //
+
+

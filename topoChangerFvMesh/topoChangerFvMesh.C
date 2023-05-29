@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2012 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2012 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -24,7 +27,7 @@ License
 \*---------------------------------------------------------------------------*/
 
 #include "topoChangerFvMesh.H"
-#include "Time.T.H"
+#include "Time1.H"
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
 
@@ -36,9 +39,13 @@ namespace Foam
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
-Foam::topoChangerFvMesh::topoChangerFvMesh(const IOobject& io)
+Foam::topoChangerFvMesh::topoChangerFvMesh
+(
+    const IOobject& io,
+    const bool doInit
+)
 :
-    dynamicFvMesh(io),
+    dynamicFvMesh(io, doInit),
     topoChanger_(*this)
 {}
 

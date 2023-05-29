@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2013-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2013-2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -51,10 +53,10 @@ SourceFiles
 namespace Foam
 {
 
-// Forward class declarations
+// Forward declarations
 class polyMesh;
 class fvMesh;
-class cachedRandom;
+class Random;
 
 /*---------------------------------------------------------------------------*\
                      Class patchInjectionBase Declaration
@@ -106,7 +108,7 @@ public:
 
 
     //- Destructor
-    virtual ~patchInjectionBase();
+    virtual ~patchInjectionBase() = default;
 
 
     // Member Functions
@@ -115,20 +117,38 @@ public:
         virtual void updateMesh(const polyMesh& mesh);
 
         //- Set the injection position and owner cell, tetFace and tetPt
-        virtual void setPositionAndCell
+        //  Supply the fraction used to determine the location on the patch
+        //  Returns the seed patch face index
+        label setPositionAndCell
         (
             const fvMesh& mesh,
-            cachedRandom& rnd,
+            const scalar fraction01,
+            Random& rnd,
             vector& position,
             label& cellOwner,
             label& tetFacei,
             label& tetPti
         );
+
+        //- Set the injection position and owner cell, tetFace and tetPt
+        //  Returns the seed patch face index
+        virtual label setPositionAndCell
+        (
+            const fvMesh& mesh,
+            Random& rnd,
+            vector& position,
+            label& cellOwner,
+            label& tetFacei,
+            label& tetPti
+        );
+
+        //- Return the processor that has the location specified by the fraction
+        label whichProc(const scalar fraction01) const;
 };
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
-} // end namespace Foam
+} // End namespace Foam
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 

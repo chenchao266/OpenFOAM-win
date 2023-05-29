@@ -1,9 +1,12 @@
-﻿/*---------------------------------------------------------------------------*\
+/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2019-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -21,13 +24,10 @@ License
     You should have received a copy of the GNU General Public License
     along with OpenFOAM.  If not, see <http://www.gnu.org/licenses/>.
 
-Description
-    Abstract base class for surface interpolation schemes.
-
 \*---------------------------------------------------------------------------*/
 
 #include "fv.H"
-//#include "multivariateSurfaceInterpolationScheme.H"
+#include "multivariateSurfaceInterpolationScheme.H"
 #include "volFields.H"
 #include "surfaceFields.H"
 
@@ -68,30 +68,21 @@ Foam::multivariateSurfaceInterpolationScheme<Type>::New
 
     const word schemeName(schemeData);
 
-    typename IstreamConstructorTable::iterator constructorIter =
-        IstreamConstructorTablePtr_->find(schemeName);
+    auto* ctorPtr = IstreamConstructorTable(schemeName);
 
-    if (constructorIter == IstreamConstructorTablePtr_->end())
+    if (!ctorPtr)
     {
-        FatalIOErrorInFunction
+        FatalIOErrorInLookup
         (
-            schemeData
-        )   << "Unknown discretisation scheme " << schemeName << nl << nl
-            << "Valid schemes are :" << endl
-            << IstreamConstructorTablePtr_->sortedToc()
-            << exit(FatalIOError);
+            schemeData,
+            "discretisation",
+            schemeName,
+            *IstreamConstructorTablePtr_
+        ) << exit(FatalIOError);
     }
 
-    return constructorIter()(mesh, vtfs, faceFlux, schemeData);
+    return ctorPtr(mesh, vtfs, faceFlux, schemeData);
 }
-
-
-// * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
-
-template<class Type>
-Foam::multivariateSurfaceInterpolationScheme<Type>::
-~multivariateSurfaceInterpolationScheme()
-{}
 
 
 // ************************************************************************* //

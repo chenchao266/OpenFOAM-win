@@ -1,9 +1,12 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2019 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -41,9 +44,10 @@ SourceFiles
 #define pointConstraint_H
 
 #include "label.H"
-#include "vector.H"
-#include "Tuple2.T.H"
+#include "vector2.H"
+#include "Tuple2.H"
 #include "transform.H"
+#include "contiguous.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -54,7 +58,9 @@ namespace Foam
                            Class pointConstraint Declaration
 \*---------------------------------------------------------------------------*/
 
-class pointConstraint :    public Tuple2<label, vector>
+class pointConstraint
+:
+    public Tuple2<label, vector>
 {
 
 public:
@@ -91,6 +97,12 @@ public:
 };
 
 
+// * * * * * * * * * * * * * * * * * Traits  * * * * * * * * * * * * * * * * //
+
+//- Contiguous data for pointConstraint
+template<> struct is_contiguous<pointConstraint> : std::true_type {};
+
+
 //- Reduce operator
 class combineConstraintsEqOp
 {
@@ -98,14 +110,11 @@ public:
     inline void operator()(pointConstraint&, const pointConstraint&) const;
 };
 
+
+// * * * * * * * * * * * * * * * Global Functions  * * * * * * * * * * * * * //
+
 //- Transformation function
 inline pointConstraint transform(const tensor& tt, const pointConstraint& v);
-
-//- contiguous
-template<class T> bool contiguous();
-template<>
-inline bool contiguous<pointConstraint>() {return true;}
-
 
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //

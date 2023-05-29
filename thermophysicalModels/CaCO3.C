@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2018-2019 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -39,7 +42,7 @@ namespace Foam
 
 Foam::CaCO3::CaCO3()
 :
-    solidProperties(2710, 850, 1.3, 0.0, 1.0)
+    solidProperties(2710, 850, 1.3, 0.0, 1.0, 100.086, 0.0, 0.0)
 {
     if (debug)
     {

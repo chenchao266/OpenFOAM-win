@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2015 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2015 OpenFOAM Foundation
+    Copyright (C) 2019-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -32,7 +35,6 @@ Foam::autoPtr<Foam::laminarFlameSpeed> Foam::laminarFlameSpeed::New
     const psiuReactionThermo& ct
 )
 {
-    // do not register the dictionary
     IOdictionary propDict
     (
         IOobject
@@ -42,30 +44,28 @@ Foam::autoPtr<Foam::laminarFlameSpeed> Foam::laminarFlameSpeed::New
             ct.T().db(),
             IOobject::MUST_READ_IF_MODIFIED,
             IOobject::NO_WRITE,
-            false
+            false // Do not register
         )
     );
 
-    const word corrType(propDict.lookup("laminarFlameSpeedCorrelation"));
+    const word modelType(propDict.get<word>("laminarFlameSpeedCorrelation"));
 
-    Info<< "Selecting laminar flame speed correlation " << corrType << endl;
+    Info<< "Selecting laminar flame speed correlation " << modelType << endl;
 
-    dictionaryConstructorTable::iterator cstrIter =
-        dictionaryConstructorTablePtr_->find(corrType);
+    auto* ctorPtr = dictionaryConstructorTable(modelType);
 
-    if (cstrIter == dictionaryConstructorTablePtr_->end())
+    if (!ctorPtr)
     {
-        FatalIOErrorInFunction
+        FatalIOErrorInLookup
         (
-            propDict
-        )   << "Unknown laminarFlameSpeed type "
-            << corrType << nl << nl
-            << "Valid laminarFlameSpeed types are :" << endl
-            << dictionaryConstructorTablePtr_->sortedToc()
-            << exit(FatalIOError);
+            propDict,
+            "laminarFlameSpeedCorrelation",
+            modelType,
+            *dictionaryConstructorTablePtr_
+        ) << exit(FatalIOError);
     }
 
-    return autoPtr<laminarFlameSpeed>(cstrIter()(propDict, ct));
+    return autoPtr<laminarFlameSpeed>(ctorPtr(propDict, ct));
 }
 
 

@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -27,32 +30,24 @@ License
 #include "polyMesh.H"
 #include "twoDPointCorrector.H"
 #include "directionInfo.H"
-#include "MeshWave.T.H"
+#include "MeshWave.H"
 #include "OFstream.H"
 #include "meshTools.H"
 #include "hexMatcher.H"
-#include "Switch.H"
 #include "globalMeshData.H"
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
 
-namespace Foam
-{
-    template<>
-    const char* Foam::NamedEnum
-    <
-        Foam::directions::directionType,
-        3
-    >::names[] =
-    {
-        "tan1",
-        "tan2",
-        "normal"
-    };
-}
-
-const Foam::NamedEnum<Foam::directions::directionType, 3>
-    Foam::directions::directionTypeNames_;
+const Foam::Enum
+<
+    Foam::directions::directionType
+>
+Foam::directions::directionTypeNames_
+({
+    { directionType::TAN1, "tan1" },
+    { directionType::TAN2, "tan2" },
+    { directionType::NORMAL, "normal" },
+});
 
 
 // * * * * * * * * * * * * * Private Member Functions  * * * * * * * * * * * //
@@ -156,7 +151,7 @@ Foam::vectorField Foam::directions::propagateDirection
 
             label celli = mesh.faceOwner()[meshFacei];
 
-            if (!hexMatcher().isA(mesh, celli))
+            if (!hexMatcher::test(mesh, celli))
             {
                 FatalErrorInFunction
                     << "useHexTopology specified but cell " << celli
@@ -281,10 +276,12 @@ Foam::directions::directions
     const twoDPointCorrector* correct2DPtr
 )
 :
-    List<vectorField>(wordList(dict.lookup("directions")).size())
+    List<vectorField>()
 {
-    const wordList wantedDirs(dict.lookup("directions"));
-    const word coordSystem(dict.lookup("coordinateSystem"));
+    const wordList wantedDirs(dict.get<wordList>("directions"));
+    const word coordSystem(dict.get<word>("coordinateSystem"));
+
+    List<vectorField>::resize(wantedDirs.size());
 
     bool wantNormal = false;
     bool wantTan1 = false;
@@ -293,9 +290,9 @@ Foam::directions::directions
 
     if (coordSystem != "fieldBased")
     {
-        forAll(wantedDirs, i)
+        for (const word& wantedName : wantedDirs)
         {
-            directionType wantedDir = directionTypeNames_[wantedDirs[i]];
+            directionType wantedDir = directionTypeNames_[wantedName];
 
             if (wantedDir == NORMAL)
             {
@@ -317,14 +314,13 @@ Foam::directions::directions
     {
         const dictionary& globalDict = dict.subDict("globalCoeffs");
 
-        vector tan1(globalDict.lookup("tan1"));
+        vector tan1(globalDict.get<vector>("tan1"));
         check2D(correct2DPtr, tan1);
 
-        vector tan2(globalDict.lookup("tan2"));
+        vector tan2(globalDict.get<vector>("tan2"));
         check2D(correct2DPtr, tan2);
 
-        vector normal = tan1 ^ tan2;
-        normal /= mag(normal);
+        const vector normal = normalised(tan1 ^ tan2);
 
         Info<< "Global Coordinate system:" << endl
             << "     normal : " << normal << endl
@@ -349,7 +345,7 @@ Foam::directions::directions
     {
         const dictionary& patchDict = dict.subDict("patchLocalCoeffs");
 
-        const word patchName(patchDict.lookup("patch"));
+        const word patchName(patchDict.get<word>("patch"));
 
         const label patchi = mesh.boundaryMesh().findPatchID(patchName);
 
@@ -364,7 +360,7 @@ Foam::directions::directions
         // Take zeroth face on patch
         const polyPatch& pp = mesh.boundaryMesh()[patchi];
 
-        vector tan1(patchDict.lookup("tan1"));
+        vector tan1(patchDict.get<vector>("tan1"));
 
         const vector& n0 = pp.faceNormals()[0];
 
@@ -378,7 +374,7 @@ Foam::directions::directions
                 << tan1 << endl << endl;
         }
 
-        Switch useTopo(dict.lookup("useHexTopology"));
+        const bool useTopo(dict.get<bool>("useHexTopology"));
 
         vectorField normalDirs;
         vectorField tan1Dirs;

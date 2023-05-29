@@ -1,9 +1,11 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2013 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2013 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -27,19 +29,21 @@ License
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
+
+ namespace Foam{
 template<class Type>
-inline void Foam::demandDrivenEntry<Type>::initialise() const
+inline void demandDrivenEntry<Type>::initialise() const
 {
     if (!stored_)
     {
-        dict_.lookup(keyword_) >> value_;
+        dict_.readEntry(keyword_, value_);
         stored_ = true;
     }
 }
 
 
 template<class Type>
-inline const Type& Foam::demandDrivenEntry<Type>::value() const
+inline const Type& demandDrivenEntry<Type>::value() const
 {
     initialise();
 
@@ -48,7 +52,7 @@ inline const Type& Foam::demandDrivenEntry<Type>::value() const
 
 
 template<class Type>
-inline void Foam::demandDrivenEntry<Type>::setValue(const Type& value)
+inline void demandDrivenEntry<Type>::setValue(const Type& value)
 {
 //    dict_.set<Type>(keyword_, value);
     value_ = value;
@@ -57,10 +61,12 @@ inline void Foam::demandDrivenEntry<Type>::setValue(const Type& value)
 
 
 template<class Type>
-inline void Foam::demandDrivenEntry<Type>::reset()
+inline void demandDrivenEntry<Type>::reset()
 {
     stored_ = false;
 }
 
 
 // ************************************************************************* //
+
+ } // End namespace Foam

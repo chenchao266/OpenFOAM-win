@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -35,8 +38,8 @@ SourceFiles
 #ifndef edgeMeshFormatsCore_H
 #define edgeMeshFormatsCore_H
 
-#include "Map.T.H"
-#include "HashSet.T.H"
+#include "Map.H"
+#include "HashSet.H"
 #include "labelList.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
@@ -44,9 +47,8 @@ SourceFiles
 namespace Foam
 {
 
-// Forward declaration of classes
-
-class IFstream;
+// Forward Declarations
+class ISstream;
 class Time;
 
 namespace fileFormats
@@ -63,7 +65,7 @@ protected:
     // Protected Member Functions
 
         //- Read non-comment line
-        static string getLineNoComment(IFstream&);
+        static string getLineNoComment(ISstream& is, const char comment='#');
 
 public:
 
@@ -73,14 +75,16 @@ public:
         //  Normally "eMesh" (edge-mesh)
         static word nativeExt;
 
+
     // Static Member Functions
 
+        //- Verbose checking of fileType in the list of available types
         static bool checkSupport
         (
             const wordHashSet& available,
-            const word& ext,
-            const bool verbose,
-            const word& functionName
+            const word& fileType,
+            const bool verbose = false,
+            const char* functionName = nullptr
         );
 
        // //- Return the local file name (within time directory)
@@ -100,15 +104,13 @@ public:
        // static fileName findMeshFile(const Time&, const word& edgeName="");
 
 
-    // Constructors
+    // Generated Methods
 
-        //- Construct null
-        edgeMeshFormatsCore();
+        //- Default construct
+        edgeMeshFormatsCore() = default;
 
-
-    //- Destructor
-    virtual ~edgeMeshFormatsCore();
-
+        //- Destructor
+        virtual ~edgeMeshFormatsCore() = default;
 };
 
 

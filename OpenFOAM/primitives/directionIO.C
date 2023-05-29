@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2016 OpenFOAM Foundation
+    Copyright (C) 2018-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -25,62 +28,67 @@ License
 
 #include "direction.H"
 #include "IOstreams.H"
-
+#include "token.H"
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
-namespace Foam {
-    direction readDirection(Istream& is)
+
+
+ namespace Foam{
+direction readDirection(Istream& is)
+{
+    direction val(0);
+    is >> val;
+
+    return val;
+}
+
+
+Istream& operator>>(Istream& is, direction& val)
+{
+    token t(is);
+
+    if (!t.good())
     {
-        direction val;
-        is >> val;
-
-        return val;
-    }
-
-
-    Istream& operator>>(Istream& is, direction& d)
-    {
-        token t(is);
-
-        if (!t.good())
-        {
-            is.setBad();
-            return is;
-        }
-
-        if (t.isLabel())
-        {
-            d = direction(t.labelToken());
-        }
-        else
-        {
-            is.setBad();
-            FatalIOErrorInFunction(is)
-                << "wrong token type - expected direction, found " << t.info()
-                << exit(FatalIOError);
-
-            return is;
-        }
-
-        // Check state of Istream
-        is.check("Istream& operator>>(Istream&, direction&)");
-
+        FatalIOErrorInFunction(is)
+            << "Bad token - could not get direction"
+            << exit(FatalIOError);
+        is.setBad();
         return is;
     }
 
-
-    Ostream& operator<<(Ostream& os, const direction d)
+    if (t.isLabel())
     {
-        os.write(label(d));
-        os.check("Ostream& operator<<(Ostream&, const direction)");
-        return os;
+        val = direction(t.labelToken());
+    }
+    else
+    {
+        FatalIOErrorInFunction(is)
+            << "Wrong token type - expected label (direction), found "
+            << t.info()
+            << exit(FatalIOError);
+        is.setBad();
+        return is;
     }
 
-
-    std::ostream& operator<<(std::ostream& os, const direction d)
-    {
-        os << int(d);
-        return os;
-    }
-
+    is.check(FUNCTION_NAME);
+    return is;
 }
+
+
+Ostream& operator<<(Ostream& os, const direction val)
+{
+    os.write(label(val));
+    os.check(FUNCTION_NAME);
+    return os;
+}
+
+
+std::ostream& operator<<(std::ostream& os, const direction val)
+{
+    os << int(val);
+    return os;
+}
+
+
 // ************************************************************************* //
+
+ } // End namespace Foam

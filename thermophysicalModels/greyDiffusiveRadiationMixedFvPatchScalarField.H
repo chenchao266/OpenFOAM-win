@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -37,7 +39,6 @@ Usage
     \table
         Property     | Description             | Required    | Default value
         T            | temperature field name  | no          | T
-        emissivityMode | emissivity mode: solidRadiation or lookup | yes |
     \endtable
 
     Example of the boundary condition specification:
@@ -46,15 +47,14 @@ Usage
     {
         type            greyDiffusiveRadiation;
         T               T;
-        emissivityMode  solidRadiation;
         value           uniform 0;
     }
     \endverbatim
 
 See also
-    Foam::radiationCoupledBase
     Foam::radiation::radiationModel
     Foam::radiation::fvDOM
+    Foam::radiationCoupledBase
     Foam::mixedFvPatchField
 
 SourceFiles
@@ -66,7 +66,6 @@ SourceFiles
 #define greyDiffusiveRadiationMixedFvPatchScalarField_H
 
 #include "mixedFvPatchFields.H"
-#include "radiationCoupledBase.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -80,14 +79,12 @@ namespace radiation
 
 class greyDiffusiveRadiationMixedFvPatchScalarField
 :
-    public mixedFvPatchScalarField,
-    public radiationCoupledBase
+    public mixedFvPatchScalarField
 {
     // Private data
 
         //- Name of temperature field
         word TName_;
-
 
 public:
 
@@ -190,8 +187,8 @@ public:
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
-} // End namespace radiation
 } // End namespace Foam
+}
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 

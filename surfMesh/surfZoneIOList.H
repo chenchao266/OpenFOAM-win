@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2018-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -37,20 +40,12 @@ SourceFiles
 
 #include "surfZoneList.H"
 #include "regIOobject.H"
-#include "faceList.H"
-#include "className.H"
+#include "typeInfo.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 namespace Foam
 {
-
-// Forward declaration of friend functions and operators
-
-class surfZoneIOList;
-
-Ostream& operator<<(Ostream&, const surfZoneIOList&);
-
 
 /*---------------------------------------------------------------------------*\
                       Class surfZoneIOList Declaration
@@ -58,50 +53,51 @@ Ostream& operator<<(Ostream&, const surfZoneIOList&);
 
 class surfZoneIOList
 :
-    public surfZoneList,
-    public regIOobject
+    public regIOobject,
+    public surfZoneList
 {
-    // Private Member Functions
-
-        //- Disallow default bitwise copy construct
-        surfZoneIOList(const surfZoneIOList&);
-
-        //- Disallow default bitwise assignment
-        void operator=(const surfZoneIOList&);
-
-
 public:
 
     //- Runtime type information
-    TypeName("surfZoneList");
+    TypeNameNoDebug("surfZoneList");
 
 
     // Constructors
 
         //- Construct from IOobject
-        explicit surfZoneIOList(const IOobject&);
+        explicit surfZoneIOList(const IOobject& io);
 
-        //- Construct from IOobject and surfZoneList
-        surfZoneIOList(const IOobject&, const surfZoneList&);
+        //- Construct from IOobject and surfZoneList content
+        surfZoneIOList(const IOobject& io, const UList<surfZone>& content);
 
-        //- Construct from IOobject and surfZoneList
-        surfZoneIOList(const IOobject&, const Xfer<surfZoneList>&);
+        //- Construct from IOobject and transferring surfZoneList content
+        surfZoneIOList(const IOobject& io, surfZoneList&& content);
 
 
     //- Destructor
-    ~surfZoneIOList();
+    virtual ~surfZoneIOList() = default;
 
 
     // Member Functions
 
-        //- writeData member function required by regIOobject
-        bool writeData(Ostream&) const;
+        //- The writeData function - required by regIOobject
+        bool writeData(Ostream& os) const;
 
 
-    // IOstream Operators
+    // Member Operators
 
-        friend Ostream& operator<<(Ostream&, const surfZoneIOList&);
+        //- Copy assignment of entries
+        void operator=(const surfZoneIOList& rhs);
+
+        //- Copy or move assignment of entries
+        using surfZoneList::operator=;
 };
+
+
+// Global Operators
+
+//- Write surfZone list using its writeData() method
+Ostream& operator<<(Ostream& os, const surfZoneIOList& zones);
 
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //

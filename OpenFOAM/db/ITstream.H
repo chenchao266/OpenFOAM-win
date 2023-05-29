@@ -1,9 +1,12 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2017-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -25,7 +28,7 @@ Class
     Foam::ITstream
 
 Description
-    Input token stream.
+    An input stream of tokens.
 
 SourceFiles
     ITstream.C
@@ -35,7 +38,7 @@ SourceFiles
 #ifndef ITstream_H
 #define ITstream_H
 
-#include "Istream.T.H"
+#include "_Istream.H"
 #include "tokenList.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
@@ -47,123 +50,247 @@ namespace Foam
                            Class ITstream Declaration
 \*---------------------------------------------------------------------------*/
 
-class ITstream :    public Istream,
+class ITstream
+:
+    public Istream,
     public tokenList
 {
-    // Private data
+    // Private Data
 
-        //- Name of ITstream
+        //- Name associated with the stream
         fileName name_;
 
         //- Index of token currently being read
         label tokenIndex_;
 
 
+    // Private Member Functions
+
+        //- An ad hoc combination of reserve and setCapacity somewhat
+        //- similar to DynamicList.
+        //
+        //  In lazy mode, increase list size if needed, but leave any
+        //  excess capacity - works like reserve.
+        //
+        //  In non-lazy mode, set exact capacity
+        void reserveCapacity(const label nElem, const bool lazy);
+
+
 public:
 
     // Constructors
 
-        //- Construct from components
+        //- Copy construct
+        ITstream(const ITstream& is);
+
+        //- Move construct
+        ITstream(ITstream&& is);
+
+        //- Default construct. Empty stream, optionally with given name
+        explicit ITstream
+        (
+            IOstreamOption streamOpt = IOstreamOption(),
+            const string& name = "input"
+        );
+
+        //- Construct empty, optionally with given name
+        explicit ITstream
+        (
+            const zero,
+            const string& name = "input",
+            IOstreamOption streamOpt = IOstreamOption()
+        );
+
+        //- Copy construct from tokens, with given name
         ITstream
         (
             const string& name,
             const UList<token>& tokens,
-            streamFormat format=ASCII,
-            versionNumber version=currentVersion
-        )
-        :
-            Istream(format, version),
-            tokenList(tokens),
-            name_(name),
-            tokenIndex_(0)
-        {
-            setOpened();
-            setGood();
-        }
+            IOstreamOption streamOpt = IOstreamOption()
+        );
 
-
-        //- Construct from components, transferring the tokens
+        //- Move construct from tokens, with given name
         ITstream
         (
             const string& name,
-            const Xfer<List<token>>& tokens,
-            streamFormat format=ASCII,
-            versionNumber version=currentVersion
-        )
-        :
-            Istream(format, version),
-            tokenList(tokens),
-            name_(name),
-            tokenIndex_(0)
+            List<token>&& tokens,
+            IOstreamOption streamOpt = IOstreamOption()
+        );
+
+        //- Construct token list by parsing the input character sequence
+        //  Uses static parse function internally.
+        explicit ITstream
+        (
+            const UList<char>& input,
+            IOstreamOption streamOpt = IOstreamOption(),
+            const string& name = "input"
+        );
+
+        //- Construct token list by parsing the input string
+        //  Uses static parse function internally.
+        explicit ITstream
+        (
+            const std::string& input,
+            IOstreamOption streamOpt = IOstreamOption(),
+            const string& name = "input"
+        );
+
+        //- Construct token list by parsing the input character sequence
+        //  Uses static parse function internally.
+        explicit ITstream
+        (
+            const char* input,
+            IOstreamOption streamOpt = IOstreamOption(),
+            const string& name = "input"
+        );
+
+
+    //- Destructor
+    virtual ~ITstream() = default;
+
+
+    // Static Functions
+
+        //- Create token list by parsing the input character sequence
+        //- until no good tokens remain.
+        static tokenList parse
+        (
+            const UList<char>& input,
+            IOstreamOption streamOpt = IOstreamOption()
+        );
+
+        //- Create token list by parsing the input string
+        //- until no good tokens remain.
+        static tokenList parse
+        (
+            const std::string& input,
+            IOstreamOption streamOpt = IOstreamOption()
+        );
+
+        //- Create token list by parsing the input character sequence
+        //- until no good tokens remain.
+        static tokenList parse
+        (
+            const char* input,
+            IOstreamOption streamOpt = IOstreamOption()
+        );
+
+
+    // Member Functions
+
+    // Token Access
+
+        //- True if putback token is in use
+        bool hasPutback() const noexcept
         {
-            setOpened();
-            setGood();
+            return Istream::hasPutback();
+        }
+
+        //- Failsafe peek at the \b first token in the list.
+        //  \return \c undefinedToken if the list is empty.
+        const token& peekFirst() const;
+
+        //- Failsafe peek at the \b last token in the list.
+        //  \return \c undefinedToken if the list is empty.
+        const token& peekLast() const;
+
+        //- Failsafe peek at what the next read would return,
+        //  including handling of any putback
+        //  \return \c undefinedToken if list is exhausted
+        const token& peek() const;
+
+        //- The current token index when reading, or the insertion point.
+        label tokenIndex() const noexcept
+        {
+            return tokenIndex_;
+        }
+
+        //- Non-const access to the current token index
+        label& tokenIndex() noexcept
+        {
+            return tokenIndex_;
+        }
+
+        //- Number of tokens remaining
+        label nRemainingTokens() const noexcept
+        {
+            return size() - tokenIndex_;
+        }
+
+        //- Move tokenIndex to the specified position
+        //  Using seek(0) is identical to rewind.
+        //  Using seek(-1) moves to the end.
+        void seek(label pos);
+
+        //- Move tokenIndex relative to the current position.
+        //  Will not overrun the beginning or end positions.
+        //
+        //  Use skip(2) to move forward two tokens.
+        //  Use skip(-2) to move backward two tokens.
+        void skip(label n = 1);
+
+
+    // Inquiry
+
+        //- Get the name of the stream
+        virtual const fileName& name() const
+        {
+            return name_;
+        }
+
+        //- Return stream name for modification
+        virtual fileName& name()
+        {
+            return name_;
         }
 
 
-        //- Construct as copy
-        ITstream(const ITstream& its)
-        :
-            Istream(ASCII, currentVersion),
-            tokenList(its),
-            name_(its.name_),
-            tokenIndex_(0)
+    // Token list modification
+
+        //- Copy append a token at the current tokenIndex,
+        //- incrementing the index.
+        void append(const token& t, const bool lazy);
+
+        //- Move append a token at the current tokenIndex,
+        //- incrementing the index.
+        void append(token&& t, const bool lazy);
+
+        //- Copy append a list of tokens at the current tokenIndex,
+        //- incrementing the index.
+        //
+        //  \param newTokens the list of tokens to copy append
+        //  \param lazy leaves any excess capacity for further appends.
+        //      The caller will be responsible for resizing later.
+        void append(const UList<token>& newTokens, const bool lazy);
+
+        //- Move append a list of tokens at the current tokenIndex,
+        //- incrementing the index.
+        //
+        //  \param newTokens the list of tokens to move append
+        //  \param lazy leaves any excess capacity for further appends.
+        //      The caller will be responsible for resizing later.
+        void append(List<token>&& newTokens, const bool lazy);
+
+
+    // Stream State Functions
+
+        //- Get stream flags - always 0
+        virtual ios_base::fmtflags flags() const
         {
-            setOpened();
-            setGood();
+            return ios_base::fmtflags(0);
+        }
+
+        //- Set flags of stream - ignored
+        ios_base::fmtflags flags(const ios_base::fmtflags)
+        {
+            return ios_base::fmtflags(0);
         }
 
 
-        //- Destructor
-        virtual ~ITstream()
-        {}
-
-
-    // Member functions
-
-        // Inquiry
-
-            //- Return the name of the stream
-            const fileName& name() const
-            {
-                return name_;
-            }
-
-            //- Return non-const access to the name of the stream
-            fileName& name()
-            {
-                return name_;
-            }
-
-            //- Return the current token index
-            label tokenIndex() const
-            {
-                return tokenIndex_;
-            }
-
-            //- Return non-const access to the current token index
-            label& tokenIndex()
-            {
-                return tokenIndex_;
-            }
-
-            //- Return the number of remaining tokens
-            label nRemainingTokens() const
-            {
-                return size() - tokenIndex_;
-            }
-
-            //- Return flags of output stream
-            ios_base::fmtflags flags() const
-            {
-                return ios_base::fmtflags(0);
-            }
-
-
-        // Read functions
+        // Read Functions
 
             //- Return next token from stream
-            virtual Istream& read(token&);
+            virtual Istream& read(token& tok);
 
             //- Read a character
             virtual Istream& read(char&);
@@ -184,25 +311,79 @@ public:
             virtual Istream& read(doubleScalar&);
 
             //- Read binary block
-            virtual Istream& read(char*, std::streamsize);
+            //  \note Not implemented
+            virtual Istream& read(char* data, std::streamsize);
 
-            //- Rewind and return the stream so that it may be read again
-            virtual Istream& rewind();
+            //- Low-level raw binary read
+            //  \note Not implemented
+            virtual Istream& readRaw(char* data, std::streamsize count);
 
-
-        // Edit
-
-            //- Set flags of stream
-            ios_base::fmtflags flags(const ios_base::fmtflags)
+            //- Start of low-level raw binary read
+            virtual bool beginRawRead()
             {
-                return ios_base::fmtflags(0);
+                return false;
             }
 
+            //- End of low-level raw binary read
+            virtual bool endRawRead()
+            {
+                return false;
+            }
 
-        // Print
+            //- Rewind the stream so that it may be read again
+            virtual void rewind();
 
-            //- Print description of IOstream to Ostream
-            void print(Ostream&) const;
+
+    // Output
+
+        //- Print stream description to Ostream
+        void print(Ostream& os) const;
+
+        //- Concatenate tokens into a space-separated std::string.
+        //- The resulting string may contain quote characters.
+        std::string toString() const;
+
+
+    // Member Operators
+
+        //- Copy assignment, with rewind()
+        void operator=(const ITstream& is);
+
+        //- Copy assignment of tokens, with rewind()
+        void operator=(const UList<token>& toks);
+
+        //- Move assignment of tokens, with rewind()
+        void operator=(List<token>&& toks);
+
+
+    // Additional constructors and methods (as per v2012 and earlier)
+    #ifdef Foam_IOstream_extras
+
+        //- Construct from components, copying the tokens
+        ITstream
+        (
+            const string& name,
+            const UList<token>& tokens,
+            IOstreamOption::streamFormat fmt,
+            IOstreamOption::versionNumber ver = IOstreamOption::currentVersion
+        )
+        :
+            ITstream(name, tokens, IOstreamOption(fmt, ver))
+        {}
+
+        //- Construct from components, transferring the tokens
+        ITstream
+        (
+            const string& name,
+            List<token>&& tokens,
+            IOstreamOption::streamFormat fmt,
+            IOstreamOption::versionNumber ver = IOstreamOption::currentVersion
+        )
+        :
+            ITstream(name, std::move(tokens), IOstreamOption(fmt, ver))
+        {}
+
+    #endif /* Foam_IOstream_extras */
 };
 
 

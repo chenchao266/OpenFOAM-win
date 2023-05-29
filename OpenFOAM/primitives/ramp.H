@@ -1,9 +1,12 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2017 OpenFOAM Foundation
+    Copyright (C) 2020-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -63,10 +66,10 @@ SourceFiles
 
 \*---------------------------------------------------------------------------*/
 
-#ifndef ramp_H
-#define ramp_H
+#ifndef Function1Types_ramp_H
+#define Function1Types_ramp_H
 
-#include "Function1.T.H"
+#include "Function1.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -79,11 +82,13 @@ namespace Function1Types
                            Class ramp Declaration
 \*---------------------------------------------------------------------------*/
 
-class ramp :    public Function1<scalar>
+class ramp
+:
+    public Function1<scalar>
 {
 protected:
 
-    // Protected data
+    // Protected Data
 
         //- Start-time of the ramp function
         scalar start_;
@@ -92,7 +97,7 @@ protected:
         scalar duration_;
 
         //- Simple linear ramp function
-        //  which form the basis of many more complex ramp functions
+        //- that forms the basis of many more complex ramp functions
         inline scalar linearRamp(const scalar t) const
         {
             return max(min((t - start_)/duration_, 1), 0);
@@ -106,33 +111,40 @@ private:
         //- Read the coefficients from the given dictionary
         void read(const dictionary& coeffs);
 
-        //- Disallow default bitwise assignment
-        void operator=(const ramp&);
+        //- No copy assignment
+        void operator=(const ramp&) = delete;
 
 
 public:
 
     // Constructors
 
-        //- Construct from entry name and dictionary
+        //- Construct from entry name, dictionary and optional registry
         ramp
         (
             const word& entryName,
-            const dictionary& dict
+            const dictionary& dict,
+            const objectRegistry* obrPtr = nullptr
         );
 
 
     //- Destructor
-    virtual ~ramp();
+    virtual ~ramp() = default;
 
 
     // Member Functions
 
+        //- Convert time
+        virtual void userTimeToTime(const Time& t);
+
         //- Return value for time t
-        scalar value(const scalar t) const = 0;
+        virtual scalar value(const scalar t) const = 0;
 
         //- Write in dictionary format
         virtual void writeData(Ostream& os) const;
+
+        //- Write coefficient entries in dictionary format
+        void writeEntries(Ostream& os) const;
 };
 
 

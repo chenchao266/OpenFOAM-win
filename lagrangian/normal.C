@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -24,8 +27,9 @@ License
 \*---------------------------------------------------------------------------*/
 
 #include "normal.H"
-#include "addToRunTimeSelectionTable.H"
 #include "mathematicalConstants.H"
+#include "MathFunctions.H"
+#include "addToRunTimeSelectionTable.H"
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
 
@@ -43,48 +47,44 @@ namespace distributionModels
 Foam::distributionModels::normal::normal
 (
     const dictionary& dict,
-    cachedRandom& rndGen
+    Random& rndGen
 )
 :
     distributionModel(typeName, dict, rndGen),
-    minValue_(readScalar(distributionModelDict_.lookup("minValue"))),
-    maxValue_(readScalar(distributionModelDict_.lookup("maxValue"))),
-    expectation_(readScalar(distributionModelDict_.lookup("expectation"))),
-    variance_(readScalar(distributionModelDict_.lookup("variance"))),
-    a_(0.147)
+    mu_
+    (
+        distributionModelDict_.getCompat<scalar>
+        (
+            "mu",
+            {{"expectation", 2112}}
+        )
+    ),
+    sigma_
+    (
+        distributionModelDict_.getCompat<scalar>
+        (
+            "sigma",
+            {{"variance", 2112}}
+        )
+    )
 {
-    if (minValue_ < 0)
+    if (mag(sigma_) == 0)
     {
         FatalErrorInFunction
-            << "Minimum value must be greater than zero. "
-            << "Supplied minValue = " << minValue_
-            << abort(FatalError);
+            << "Standard deviation cannot be zero." << nl
+            << "    sigma = " << sigma_ << nl
+            << exit(FatalError);
     }
 
-    if (maxValue_ < minValue_)
-    {
-        FatalErrorInFunction
-            << "Maximum value is smaller than the minimum value:"
-            << "    maxValue = " << maxValue_ << ", minValue = " << minValue_
-            << abort(FatalError);
-    }
+    check();
 }
 
 
 Foam::distributionModels::normal::normal(const normal& p)
 :
     distributionModel(p),
-    minValue_(p.minValue_),
-    maxValue_(p.maxValue_),
-    expectation_(p.expectation_),
-    variance_(p.variance_),
-    a_(p.a_)
-{}
-
-
-// * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
-
-Foam::distributionModels::normal::~normal()
+    mu_(p.mu_),
+    sigma_(p.sigma_)
 {}
 
 
@@ -92,50 +92,45 @@ Foam::distributionModels::normal::~normal()
 
 Foam::scalar Foam::distributionModels::normal::sample() const
 {
+    const scalar a = (minValue_ - mu_)/sigma_;
+    const scalar b = (maxValue_ - mu_)/sigma_;
 
-    scalar a = erf((minValue_ - expectation_)/variance_);
-    scalar b = erf((maxValue_ - expectation_)/variance_);
+    const scalar aPhi = 0.5*(scalar(1) + erf(a/Foam::sqrt(scalar(2))));
+    const scalar bPhi = 0.5*(scalar(1) + erf(b/Foam::sqrt(scalar(2))));
 
-    scalar y = rndGen_.sample01<scalar>();
-    scalar x = erfInv(y*(b - a) + a)*variance_ + expectation_;
+    const scalar u = rndGen_.sample01<scalar>();
+    const scalar p = u*(bPhi - aPhi) + aPhi;
+
+    // (B:p. 20-24)
+    const scalar x =
+        mu_ + sigma_*Foam::sqrt(scalar(2))*Math::erfInv(scalar(2)*p - scalar(1));
 
     // Note: numerical approximation of the inverse function yields slight
     //       inaccuracies
 
-    x = min(max(x, minValue_), maxValue_);
-
-    return x;
-}
-
-
-Foam::scalar Foam::distributionModels::normal::minValue() const
-{
-    return minValue_;
-}
-
-
-Foam::scalar Foam::distributionModels::normal::maxValue() const
-{
-    return maxValue_;
+    return min(max(x, minValue_), maxValue_);
 }
 
 
 Foam::scalar Foam::distributionModels::normal::meanValue() const
 {
-    return expectation_;
-}
+    const scalar a = (minValue_ - mu_)/sigma_;
+    const scalar b = (maxValue_ - mu_)/sigma_;
 
+    // (B:p. 2)
+    const scalar aphi =
+        scalar(1)/Foam::sqrt(scalar(2)*constant::mathematical::pi)
+       *exp(-0.5*sqr(a));
+    const scalar bphi =
+        scalar(1)/Foam::sqrt(scalar(2)*constant::mathematical::pi)
+       *exp(-0.5*sqr(b));
 
-Foam::scalar Foam::distributionModels::normal::erfInv(const scalar y) const
-{
-    scalar k = 2.0/(constant::mathematical::pi*a_) +  0.5*log(1.0 - y*y);
-    scalar h = log(1.0 - y*y)/a_;
-    scalar x = sqrt(-k + sqrt(k*k - h));
-    if (y < 0.0)
-    {
-        x *= -1.0;
-    }
-    return x;
+    // (B:p. 4)
+    const scalar aPhi = 0.5*(scalar(1) + erf(a/Foam::sqrt(scalar(2))));
+    const scalar bPhi = 0.5*(scalar(1) + erf(b/Foam::sqrt(scalar(2))));
+
+    // (B:p. 25)
+    return mu_ - sigma_*(bphi - aphi)/(bPhi - aPhi + VSMALL);
 }
 
 

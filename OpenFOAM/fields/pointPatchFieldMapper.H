@@ -1,9 +1,11 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -33,7 +35,7 @@ Description
 #define pointPatchFieldMapper_H
 
 #include "primitiveFields.H"
-#include "FieldMapper.T.H"
+#include "FieldMapper.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -44,7 +46,9 @@ namespace Foam
                     Class pointPatchFieldMapper Declaration
 \*---------------------------------------------------------------------------*/
 
-class pointPatchFieldMapper :    public FieldMapper
+class pointPatchFieldMapper
+:
+    public FieldMapper
 {
 
 public:

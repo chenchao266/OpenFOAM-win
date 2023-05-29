@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2015 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2015 OpenFOAM Foundation
+    Copyright (C) 2019 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -35,9 +38,9 @@ SourceFiles
 #ifndef kinematicParcelInjectionData_H
 #define kinematicParcelInjectionData_H
 
-#include "dictionary.H"
-#include "vector.H"
-#include "point.T.H"
+#include "dictionary2.H"
+#include "vector2.H"
+#include "point.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -104,7 +107,7 @@ public:
         kinematicParcelInjectionData(Istream& is);
 
 
-    //-Destructor
+    //- Destructor
     virtual ~kinematicParcelInjectionData();
 
 

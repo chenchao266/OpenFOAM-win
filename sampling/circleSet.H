@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2013 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2013 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -27,6 +29,17 @@ Class
 Description
     Samples along a circular path
 
+    For a dictionary specification:
+    \table
+        Property | Description                             | Required | Default
+        type     | circle                                  | yes      |
+        axis     | x, y, z, xyz, distance                  | yes      |
+        origin   | The origin of the circle                | yes      |
+        circleAxis | The axis of the circle                | yes      |
+        startPoint | Starting point of the circle          | yes      |
+        dTheta     | Sampling increment in degrees         | yes      |
+    \endtable
+
 SourceFiles
     circleSet.C
 
@@ -36,14 +49,14 @@ SourceFiles
 #define circleSet_H
 
 #include "sampledSet.H"
-#include "DynamicList.T.H"
+#include "DynamicList.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 namespace Foam
 {
 
-// Forward declaration of classes
+// Forward declarations
 class meshSearch;
 
 /*---------------------------------------------------------------------------*\
@@ -58,13 +71,13 @@ class circleSet
 
         // Circle definition
 
-            //- Origin (x, y, z) in global cartesian co-ordinates
+            //- Origin (x, y, z) in global cartesian coordinates
             point origin_;
 
             //- Axis of the circle
             vector circleAxis_;
 
-            //- Point on circle (x, y, z) in global cartesian co-ordinates
+            //- Point on circle (x, y, z) in global cartesian coordinates
             //  Defines start point
             point startPoint_;
 
@@ -121,15 +134,14 @@ public:
         );
 
 
-    // Destructor
-
-        virtual ~circleSet();
+    //- Destructor
+    virtual ~circleSet() = default;
 
 
     // Member Functions
 
         //- Get reference point
-        virtual point getRefPoint(const List<point>&) const;
+        virtual point getRefPoint(const List<point>& pts) const;
 };
 
 

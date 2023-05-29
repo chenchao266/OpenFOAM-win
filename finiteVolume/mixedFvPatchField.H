@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2019 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -42,18 +45,17 @@ Description
     \vartable
         x_p   | patch values
         x_c   | patch internal cell values
-        w     | weight field
         \Delta| inverse distance from face centre to internal cell centre
-        w     | weighting (0-1)
+        w     | weighting values (0-1)
     \endvartable
 
 
 Usage
     \table
-        Property     | Description             | Required    | Default value
-        valueFraction | weight field           | yes         |
-        refValue     | fixed value             | yes         |
-        refGrad      | patch normal gradient   | yes         |
+        Property     | Description                          | Required | Default
+        refValue     | fixed value                          | yes |
+        refGradient  | patch normal gradient                | yes |
+        valueFraction | value weighting (0-1)               | yes |
     \endtable
 
 Note
@@ -97,6 +99,9 @@ class mixedFvPatchField
 
         //- Fraction (0-1) of value used for boundary condition
         scalarField valueFraction_;
+
+        //- Source field
+        Field<Type> source_;
 
 
 public:
@@ -215,6 +220,16 @@ public:
             virtual const scalarField& valueFraction() const
             {
                 return valueFraction_;
+            }
+
+            virtual Field<Type>& source()
+            {
+                return source_;
+            }
+
+            virtual const Field<Type>& source() const
+            {
+                return source_;
             }
 
 

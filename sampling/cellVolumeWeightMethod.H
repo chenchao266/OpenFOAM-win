@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2013-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2013-2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -98,11 +100,11 @@ private:
 
     // Private member functions
 
-        //- Disallow default bitwise copy construct
-        cellVolumeWeightMethod(const cellVolumeWeightMethod&);
+        //- No copy construct
+        cellVolumeWeightMethod(const cellVolumeWeightMethod&) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const cellVolumeWeightMethod&);
+        //- No copy assignment
+        void operator=(const cellVolumeWeightMethod&) = delete;
 
 
 public:
@@ -121,13 +123,15 @@ public:
 
         // Evaluate
 
-            //- Calculate addressing and weights
+            //- Calculate addressing and weights and optionally offset vectors
             virtual void calculate
             (
                 labelListList& srcToTgtAddr,
                 scalarListList& srcToTgtWght,
-                labelListList& tgtToTgtAddr,
-                scalarListList& tgtToTgtWght
+                pointListList& srcToTgtVec,
+                labelListList& tgtToSrcAddr,
+                scalarListList& tgtToSrcWght,
+                pointListList& tgtToSrcVec
             );
 };
 

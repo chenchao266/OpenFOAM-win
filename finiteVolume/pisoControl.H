@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2015-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2015-2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -53,11 +55,11 @@ class pisoControl
 {
     // Private member functions
 
-        //- Disallow default bitwise copy construct
-        pisoControl(const pisoControl&);
+        //- No copy construct
+        pisoControl(const pisoControl&) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const pisoControl&);
+        //- No copy assignment
+        void operator=(const pisoControl&) = delete;
 
 
 public:

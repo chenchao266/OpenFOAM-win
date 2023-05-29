@@ -1,9 +1,11 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -23,64 +25,38 @@ License
 
 \*---------------------------------------------------------------------------*/
 
-#include "basicChemistryModel.H"
-#include "fvMesh.H"
-#include "Time.T.H"
-
-/* * * * * * * * * * * * * * * private static data * * * * * * * * * * * * * */
-
-namespace Foam
-{
-    defineTypeNameAndDebug(basicChemistryModel, 0);
-}
-
-// * * * * * * * * * * * * * Protected Member Functions  * * * * * * * * * * //
-
-void Foam::basicChemistryModel::correct()
-{}
-
+//#include "BasicChemistryModel.H"
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
-Foam::basicChemistryModel::basicChemistryModel
+template<class ReactionThermo>
+Foam::BasicChemistryModel<ReactionThermo>::BasicChemistryModel
 (
-    const fvMesh& mesh,
-    const word& phaseName
+    ReactionThermo& thermo
 )
 :
-    IOdictionary
-    (
-        IOobject
-        (
-            IOobject::groupName("chemistryProperties", phaseName),
-            mesh.time().constant(),
-            mesh,
-            IOobject::MUST_READ_IF_MODIFIED,
-            IOobject::NO_WRITE
-        )
-    ),
-    mesh_(mesh),
-    chemistry_(lookup("chemistry")),
-    deltaTChemIni_(readScalar(lookup("initialChemicalTimeStep"))),
-    deltaTChem_
-    (
-        IOobject
-        (
-            IOobject::groupName("deltaTChem", phaseName),
-            mesh.time().constant(),
-            mesh,
-            IOobject::NO_READ,
-            IOobject::NO_WRITE
-        ),
-        mesh,
-        dimensionedScalar("deltaTChem0", dimTime, deltaTChemIni_)
-    )
+    basicChemistryModel(thermo),
+    thermo_(thermo)
 {}
+
+
+// * * * * * * * * * * * * * * * * Selectors * * * * * * * * * * * * * * * * //
+
+template<class ReactionThermo>
+Foam::autoPtr<Foam::BasicChemistryModel<ReactionThermo>>
+Foam::BasicChemistryModel<ReactionThermo>::New(ReactionThermo& thermo)
+{
+    return basicChemistryModel::New<BasicChemistryModel<ReactionThermo>>
+    (
+        thermo
+    );
+}
 
 
 // * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
 
-Foam::basicChemistryModel::~basicChemistryModel()
+template<class ReactionThermo>
+Foam::BasicChemistryModel<ReactionThermo>::~BasicChemistryModel()
 {}
 
 

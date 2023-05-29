@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -28,12 +30,12 @@ License
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
-#include "NoSurfaceReaction.T.H"
-#include "COxidationDiffusionLimitedRate.T.H"
-#include "COxidationIntrinsicRate.T.H"
-#include "COxidationKineticDiffusionLimitedRate.T.H"
-#include "COxidationHurtMitchell.T.H"
-#include "COxidationMurphyShaddix.T.H"
+#include "NoSurfaceReaction.H"
+#include "COxidationDiffusionLimitedRate.H"
+#include "COxidationIntrinsicRate.H"
+#include "COxidationKineticDiffusionLimitedRate.H"
+#include "COxidationHurtMitchell.H"
+#include "COxidationMurphyShaddix.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 

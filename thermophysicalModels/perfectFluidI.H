@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2012-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2012-2017 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -61,7 +63,7 @@ template<class Specie>
 inline Foam::autoPtr<Foam::perfectFluid<Specie>>
 Foam::perfectFluid<Specie>::clone() const
 {
-    return autoPtr<perfectFluid<Specie>>(new perfectFluid<Specie>(*this));
+    return autoPtr<perfectFluid<Specie>>::New(*this);
 }
 
 
@@ -72,7 +74,7 @@ Foam::perfectFluid<Specie>::New
     const dictionary& dict
 )
 {
-    return autoPtr<perfectFluid<Specie>>(new perfectFluid<Specie>(dict));
+    return autoPtr<perfectFluid<Specie>>::New(dict);
 }
 
 
@@ -95,12 +97,26 @@ inline Foam::scalar Foam::perfectFluid<Specie>::rho(scalar p, scalar T) const
 template<class Specie>
 inline Foam::scalar Foam::perfectFluid<Specie>::H(scalar p, scalar T) const
 {
-    return 0;
+     return 0;
 }
 
 
 template<class Specie>
 inline Foam::scalar Foam::perfectFluid<Specie>::Cp(scalar p, scalar T) const
+{
+    return 0;
+}
+
+
+template<class Specie>
+inline Foam::scalar Foam::perfectFluid<Specie>::E(scalar p, scalar T) const
+{
+    return 0;
+}
+
+
+template<class Specie>
+inline Foam::scalar Foam::perfectFluid<Specie>::Cv(scalar p, scalar T) const
 {
     return 0;
 }
@@ -130,7 +146,10 @@ inline Foam::scalar Foam::perfectFluid<Specie>::Z(scalar p, scalar T) const
 template<class Specie>
 inline Foam::scalar Foam::perfectFluid<Specie>::CpMCv(scalar p, scalar T) const
 {
-    return 0;
+    const scalar R = this->R();
+    const scalar rho = this->rho(p, T);
+
+    return R*sqr(p/(rho*R*T));
 }
 
 

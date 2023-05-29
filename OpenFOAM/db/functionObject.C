@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2017-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -24,132 +27,236 @@ License
 \*---------------------------------------------------------------------------*/
 
 #include "functionObject.H"
-#include "dictionary.H"
+#include "dictionary2.H"
 #include "dlLibraryTable.H"
-#include "Time.T.H"
+#include "Time1.h"
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
-using namespace Foam;
+
 namespace Foam
 {
     defineDebugSwitchWithName(functionObject, "functionObject", 0);
     defineRunTimeSelectionTable(functionObject, dictionary);
-}
-
-bool functionObject::postProcess(false);
 
 
-// * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
+    bool functionObject::postProcess(false);
 
-functionObject::functionObject(const word& name) :    name_(name),
-    log(postProcess)
-{}
+    bool functionObject::defaultUseNamePrefix(false);
+
+    word functionObject::outputPrefix("postProcessing");
 
 
-// * * * * * * * * * * * * * * * * Selectors * * * * * * * * * * * * * * * * //
+    // * * * * * * * * * * * * Protected Member Functions  * * * * * * * * * * * //
 
-autoPtr<functionObject> functionObject::New
-(
-    const word& name,
-    const Time& runTime,
-    const dictionary& dict
-)
-{
-    const word functionType(dict.lookup("type"));
-
-    if (debug)
+    word functionObject::scopedName(const word& name) const
     {
-        Info<< "Selecting function " << functionType << endl;
+        if (useNamePrefix_)
+        {
+            return IOobject::scopedName(name_, name);
+        }
+
+        return name;
     }
 
-    if (dict.found("functionObjectLibs"))
+
+    // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
+
+    functionObject::functionObject
+    (
+        const word& name,
+        const bool withNamePrefix
+    )
+        :
+        name_(name),
+        useNamePrefix_(withNamePrefix),
+        log(postProcess)
+    {}
+
+
+    // * * * * * * * * * * * * * * * * Selectors * * * * * * * * * * * * * * * * //
+
+    autoPtr<functionObject> functionObject::New
+    (
+        const word& name,
+        const Time& runTime,
+        const dictionary& dict
+    )
     {
-        const_cast<Time&>(runTime).libs().open
-        (
-            dict,
-            "functionObjectLibs",
-            dictionaryConstructorTablePtr_
-        );
-    }
-    else
-    {
-        const_cast<Time&>(runTime).libs().open
-        (
-            dict,
-            "libs",
-            dictionaryConstructorTablePtr_
-        );
+        const word functionType(dict.get<word>("type"));
+
+        DebugInfo
+            << "Selecting function " << functionType << endl;
+
+
+        // Load any additional libraries
+        {
+            const auto finder =
+                dict.csearchCompat("libs", { {"functionObjectLibs", 1612} });
+
+            if (finder.found())
+            {
+                runTime.libs().open
+                (
+                    dict,
+                    finder.ref().keyword(),
+                    dictionaryConstructorTablePtr_
+                );
+            }
+        }
+
+        // This is the simplified version without compatibility messages
+        // runTime.libs().open
+        // (
+        //     dict,
+        //     "libs",
+        //     dictionaryConstructorTablePtr_
+        // );
+
+        if (!dictionaryConstructorTablePtr_)
+        {
+            FatalErrorInFunction
+                << "Cannot load function type " << functionType << nl << nl
+                << "Table of functionObjects is empty" << endl
+                << exit(FatalError);
+        }
+
+        auto* ctorPtr = dictionaryConstructorTable(functionType);
+
+        if (!ctorPtr)
+        {
+            // FatalError (not FatalIOError) to ensure it can be caught
+            // as an exception and ignored
+            FatalErrorInLookup
+            (
+                "function",
+                functionType,
+                *dictionaryConstructorTablePtr_
+            ) << exit(FatalError);
+        }
+
+        return autoPtr<functionObject>(ctorPtr(name, runTime, dict));
     }
 
-    if (!dictionaryConstructorTablePtr_)
+
+    // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
+
+    const word& functionObject::name() const noexcept
     {
-        FatalErrorInFunction
-            << "Unknown function type "
-            << functionType << nl << nl
-            << "Table of functionObjects is empty" << endl
+        return name_;
+    }
+
+
+    bool functionObject::useNamePrefix() const noexcept
+    {
+        return useNamePrefix_;
+    }
+
+
+    bool functionObject::useNamePrefix(bool on) noexcept
+    {
+        bool old(useNamePrefix_);
+        useNamePrefix_ = on;
+        return old;
+    }
+
+
+    bool functionObject::read(const dictionary& dict)
+    {
+        // OR
+        // useNamePrefix_ = Switch("useNamePrefix", dict, defaultUseNamePrefix);
+
+        useNamePrefix_ =
+            dict.getOrDefault
+            (
+                "useNamePrefix",
+                defaultUseNamePrefix,
+                keyType::LITERAL
+            );
+
+
+        if (!postProcess)
+        {
+            log = dict.getOrDefault("log", true);
+        }
+
+        return true;
+    }
+
+
+    bool functionObject::execute(const label)
+    {
+        return true;
+    }
+
+
+    bool functionObject::end()
+    {
+        return true;
+    }
+
+
+    bool functionObject::adjustTimeStep()
+    {
+        return false;
+    }
+
+
+    bool functionObject::filesModified() const
+    {
+        return false;
+    }
+
+
+    void functionObject::updateMesh(const mapPolyMesh&)
+    {}
+
+
+    void functionObject::movePoints(const polyMesh&)
+    {}
+
+
+    // * * * * * * * * * * * * unavailableFunctionObject * * * * * * * * * * * * //
+
+    functionObject::unavailableFunctionObject::unavailableFunctionObject
+    (
+        const word& name
+    )
+        :
+        functionObject(name)
+    {}
+
+
+    void functionObject::unavailableFunctionObject::carp
+    (
+        std::string message
+    ) const
+    {
+        FatalError
+            << "####" << nl
+            << "    " << type() << " not available" << nl
+            << "####" << nl;
+
+        if (message.size())
+        {
+            FatalError
+                << message.c_str() << nl;
+        }
+
+        FatalError
             << exit(FatalError);
     }
 
-    dictionaryConstructorTable::iterator cstrIter =
-        dictionaryConstructorTablePtr_->find(functionType);
 
-    if (cstrIter == dictionaryConstructorTablePtr_->end())
+    bool functionObject::unavailableFunctionObject::execute()
     {
-        FatalErrorInFunction
-            << "Unknown function type "
-            << functionType << nl << nl
-            << "Valid functions are : " << nl
-            << dictionaryConstructorTablePtr_->sortedToc() << endl
-            << exit(FatalError);
+        return true;
     }
 
-    return autoPtr<functionObject>(cstrIter()(name, runTime, dict));
-}
 
-
-// * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
-
-functionObject::~functionObject()
-{}
-
-
-// * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
-
-const word& functionObject::name() const
-{
-    return name_;
-}
-
-
-bool functionObject::read(const dictionary& dict)
-{
-    if (!postProcess)
+    bool functionObject::unavailableFunctionObject::write()
     {
-        log = dict.lookupOrDefault<Switch>("log", true);
+        return true;
     }
 
-    return true;
 }
-
-
-bool functionObject::end()
-{
-    return true;
-}
-
-
-bool functionObject::adjustTimeStep()
-{
-    return false;
-}
-
-
-void functionObject::updateMesh(const mapPolyMesh&)
-{}
-
-
-void functionObject::movePoints(const polyMesh&)
-{}
-
-
 // ************************************************************************* //

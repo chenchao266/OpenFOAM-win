@@ -1,9 +1,12 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2014 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2014 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -39,22 +42,20 @@ SourceFiles
 #ifndef sixDoFRigidBodyMotionState_H
 #define sixDoFRigidBodyMotionState_H
 
-#include "vector.H"
-#include "point.T.H"
-#include "diagTensor.H"
-#include "tensor.H"
-#include "dictionary.H"
+#include "vector2.H"
+#include "point.H"
+#include "diagTensor2.H"
+#include "tensor2.H"
+#include "dictionary2.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 namespace Foam
 {
 
-// Forward declaration of classes
+// Forward Declarations
 class Istream;
 class Ostream;
-
-// Forward declaration of friend functions and operators
 class sixDoFRigidBodyMotionState;
 Istream& operator>>(Istream&, sixDoFRigidBodyMotionState&);
 Ostream& operator<<(Ostream&, const sixDoFRigidBodyMotionState&);
@@ -66,21 +67,22 @@ Ostream& operator<<(Ostream&, const sixDoFRigidBodyMotionState&);
 
 class sixDoFRigidBodyMotionState
 {
-    // Private data
+    // Private Data
 
         //- Current position of the centre of mass of the body
         point centreOfRotation_;
 
         //- Orientation, stored as the rotation tensor to transform
-        //  from the body to the global reference frame, i.e.:
+        //- from the body to the global reference frame
+        //  i.e.:
         //  globalVector = Q_ & bodyLocalVector
         //  bodyLocalVector = Q_.T() & globalVector
         tensor Q_;
 
-        // Linear velocity of body
+        //- Linear velocity of body
         vector v_;
 
-        // Total linear acceleration of body
+        //- Total linear acceleration of body
         vector a_;
 
         //- Angular momentum of body, in body local reference frame
@@ -94,18 +96,11 @@ public:
 
     // Constructors
 
-        //- Construct null
+        //- Default construct, zero-initialized with identity transformation
         sixDoFRigidBodyMotionState();
 
         //- Construct from dictionary
         sixDoFRigidBodyMotionState(const dictionary& dict);
-
-        //- Construct as copy
-        sixDoFRigidBodyMotionState(const sixDoFRigidBodyMotionState&);
-
-
-    //- Destructor
-    ~sixDoFRigidBodyMotionState();
 
 
     // Member Functions
@@ -156,7 +151,7 @@ public:
         void write(dictionary& dict) const;
 
         //- Write to stream
-        void write(Ostream&) const;
+        void write(Ostream& os) const;
 
 
     // IOstream Operators

@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -28,7 +30,7 @@ Description
     A simple single-phase transport model based on viscosityModel.
 
     Used by the incompressible single-phase solvers like simpleFoam,
-    turbFoam etc.
+    pimpleFoam etc.
 
 SourceFiles
     singlePhaseTransportModel.C
@@ -65,11 +67,11 @@ class singlePhaseTransportModel
 
     // Private Member Functions
 
-        //- Disallow copy construct
-        singlePhaseTransportModel(const singlePhaseTransportModel&);
+        //- No copy construct
+        singlePhaseTransportModel(const singlePhaseTransportModel&) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const singlePhaseTransportModel&);
+        //- No copy assignment
+        void operator=(const singlePhaseTransportModel&) = delete;
 
 
 public:

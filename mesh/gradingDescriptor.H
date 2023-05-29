@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2015 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2015 OpenFOAM Foundation
+    Copyright (C) 2019-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -27,14 +30,17 @@ Class
 Description
     Handles the specification for grading within a section of a block
 
-    blockFraction: the fraction of the block the section occupies
+    The grading specification is handled is controlled by three parameters:
 
-    nDivFraction: the fraction of the divisions of the block allocated to
+    - blockFraction: the fraction of the block the section occupies
+
+    - nDivFraction: the fraction of the divisions of the block allocated to
         the section
 
-    expansionRatio: the expansions ratio for the grading with the section of
-        block defined as the ratio of the size of the division at either and
-        of the section.
+    - expansionRatio:
+       the expansion ratio for the grading with the section of
+       block defined as the ratio of end-size / start-size for the section.
+       A negative value is trapped and treated as its inverse.
 
 SourceFiles
     gradingDescriptor.C
@@ -51,12 +57,12 @@ SourceFiles
 namespace Foam
 {
 
+// Forward Declarations
 class Istream;
 class Ostream;
-
-// Forward declaration of friend functions and operators
 class gradingDescriptor;
 class gradingDescriptors;
+
 Istream& operator>>(Istream&, gradingDescriptor&);
 Ostream& operator<<(Ostream&, const gradingDescriptor&);
 
@@ -66,7 +72,7 @@ Ostream& operator<<(Ostream&, const gradingDescriptor&);
 
 class gradingDescriptor
 {
-    // Private data
+    // Private Data
 
         scalar blockFraction_;
         scalar nDivFraction_;
@@ -75,12 +81,13 @@ class gradingDescriptor
 
 public:
 
+    // Friendship with gradingDescriptors
     friend class gradingDescriptors;
 
 
     // Constructors
 
-        //- Default constructor
+        //- Default construct (1, 1, 1)
         gradingDescriptor();
 
         //- Construct from components
@@ -92,46 +99,42 @@ public:
         );
 
         //- Construct from expansionRatio
-        gradingDescriptor
-        (
-            const scalar expansionRatio
-        );
+        explicit gradingDescriptor(const scalar expansionRatio);
 
         //- Construct from Istream
-        gradingDescriptor(Istream&);
+        explicit gradingDescriptor(Istream& is);
 
 
     //- Destructor
-    ~gradingDescriptor();
+    ~gradingDescriptor() = default;
 
 
     // Member Functions
 
-        // Access
+        scalar blockFraction() const
+        {
+            return blockFraction_;
+        }
 
-            scalar blockFraction() const
-            {
-                return blockFraction_;
-            }
+        scalar nDivFraction() const
+        {
+            return nDivFraction_;
+        }
 
-            scalar nDivFraction() const
-            {
-                return nDivFraction_;
-            }
+        scalar expansionRatio() const
+        {
+            return expansionRatio_;
+        }
 
-            scalar expansionRatio() const
-            {
-                return expansionRatio_;
-            }
-
-
-    // Member functions
+        //- Adjust expansion ratio.
+        //  Trap negative value and treat as its inverse.
+        void correct();
 
         //- Return the inverse gradingDescriptor with 1/expansionRatio
         gradingDescriptor inv() const;
 
 
-    // Member operators
+    // Member Operators
 
         bool operator==(const gradingDescriptor&) const;
         bool operator!=(const gradingDescriptor&) const;
@@ -141,8 +144,6 @@ public:
 
         friend Istream& operator>>(Istream&, gradingDescriptor&);
         friend Ostream& operator<<(Ostream&, const gradingDescriptor&);
-
-        friend Istream& operator>>(Istream&, gradingDescriptors&);
 };
 
 

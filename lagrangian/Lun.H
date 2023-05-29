@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2013-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2013-2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -23,6 +25,9 @@ License
 
 Class
     Foam::ParticleStressModels::Lun
+
+Group
+    grpLagrangianIntermediateMPPICParticleStressSubModels
 
 Description
     Inter-particle stress model of Lun et al
@@ -118,7 +123,7 @@ public:
             const Field<scalar>& uRms
         ) const;
 
-        //- Collision stress derivaive w.r.t. the volume fraction
+        //- Collision stress derivative w.r.t. the volume fraction
         tmp<Field<scalar>> dTaudTheta
         (
             const Field<scalar>& alpha,

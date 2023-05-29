@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2013 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2013 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -23,54 +25,58 @@ License
 
 \*---------------------------------------------------------------------------*/
 
-//#include "lduPrimitiveMesh.H"
+#include "lduPrimitiveMesh.H"
 
 // * * * * * * * * * * * * * Private Member Functions  * * * * * * * * * * * //
-namespace Foam {
-    template<class ProcPatch>
-    lduSchedule lduPrimitiveMesh::nonBlockingSchedule
-    (
-        const lduInterfacePtrsList& interfaces
-    )
+
+
+ namespace Foam{
+template<class ProcPatch>
+lduSchedule lduPrimitiveMesh::nonBlockingSchedule
+(
+    const lduInterfacePtrsList& interfaces
+)
+{
+    lduSchedule schedule(2*interfaces.size());
+    label slotI = 0;
+
+    forAll(interfaces, i)
     {
-        lduSchedule schedule(2 * interfaces.size());
-        label slotI = 0;
-
-        forAll(interfaces, i)
+        if (interfaces.set(i) && !isA<ProcPatch>(interfaces[i]))
         {
-            if (interfaces.set(i) && !isA<ProcPatch>(interfaces[i]))
-            {
-                schedule[slotI].patch = i;
-                schedule[slotI].init = true;
-                slotI++;
-                schedule[slotI].patch = i;
-                schedule[slotI].init = false;
-                slotI++;
-            }
+            schedule[slotI].patch = i;
+            schedule[slotI].init = true;
+            slotI++;
+            schedule[slotI].patch = i;
+            schedule[slotI].init = false;
+            slotI++;
         }
-
-        forAll(interfaces, i)
-        {
-            if (interfaces.set(i) && isA<ProcPatch>(interfaces[i]))
-            {
-                schedule[slotI].patch = i;
-                schedule[slotI].init = true;
-                slotI++;
-            }
-        }
-
-        forAll(interfaces, i)
-        {
-            if (interfaces.set(i) && isA<ProcPatch>(interfaces[i]))
-            {
-                schedule[slotI].patch = i;
-                schedule[slotI].init = false;
-                slotI++;
-            }
-        }
-
-        return schedule;
     }
+
+    forAll(interfaces, i)
+    {
+        if (interfaces.set(i) && isA<ProcPatch>(interfaces[i]))
+        {
+            schedule[slotI].patch = i;
+            schedule[slotI].init = true;
+            slotI++;
+        }
+    }
+
+    forAll(interfaces, i)
+    {
+        if (interfaces.set(i) && isA<ProcPatch>(interfaces[i]))
+        {
+            schedule[slotI].patch = i;
+            schedule[slotI].init = false;
+            slotI++;
+        }
+    }
+
+    return schedule;
 }
 
+
 // ************************************************************************* //
+
+ } // End namespace Foam

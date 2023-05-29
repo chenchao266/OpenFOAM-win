@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2013-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2013-2016 OpenFOAM Foundation
+    Copyright (C) 2019-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -26,7 +29,7 @@ Class
 
 Description
     For use with PointEdgeWave. Determines topological distance to
-    starting points
+    starting points. Templated on passive transported data.
 
 SourceFiles
     pointTopoDistanceDataI.H
@@ -37,53 +40,56 @@ SourceFiles
 #ifndef pointTopoDistanceData_H
 #define pointTopoDistanceData_H
 
-#include "point.T.H"
-#include "tensor.H"
+#include "point.H"
+#include "tensor2.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 namespace Foam
 {
 
+// Forward Declarations
 class polyPatch;
 class polyMesh;
-
-
-// Forward declaration of friend functions and operators
-
-class pointTopoDistanceData;
-
-Istream& operator>>(Istream&, pointTopoDistanceData&);
-Ostream& operator<<(Ostream&, const pointTopoDistanceData&);
-
+template<class Type> class pointTopoDistanceData;
+template<class Type>
+Istream& operator>>(Istream&, pointTopoDistanceData<Type>&);
+template<class Type>
+Ostream& operator<<(Ostream&, const pointTopoDistanceData<Type>&);
 
 /*---------------------------------------------------------------------------*\
-                       Class pointTopoDistanceData Declaration
+                    Class pointTopoDistanceData Declaration
 \*---------------------------------------------------------------------------*/
 
+template<class Type>
 class pointTopoDistanceData
 {
-    // Private data
 
-        //- Starting data
-        label data_;
+    // Protected data
 
         //- Distance
         label distance_;
 
+        //- Starting data
+        Type data_;
+
 
 public:
 
+    typedef Type dataType;
+
+
     // Constructors
 
-        //- Construct null
+        //- Construct null with invalid (-1) for distance, null constructor
+        //  for data
         inline pointTopoDistanceData();
 
-        //- Construct from count
+        //- Construct from components
         inline pointTopoDistanceData
         (
-            const label data,
-            const label distance
+            const label distance,
+            const Type& data
         );
 
 
@@ -91,30 +97,28 @@ public:
 
         // Access
 
-
-            inline label data() const
-            {
-                return data_;
-            }
             inline label distance() const
             {
                 return distance_;
             }
 
+            inline const Type& data() const
+            {
+                return data_;
+            }
+
 
         // Needed by PointEdgeWave
 
-
-            //- Check whether origin has been changed at all or
-            //  still contains original (invalid) value.
+            //- Changed or contains original (invalid) value
             template<class TrackingData>
             inline bool valid(TrackingData& td) const;
 
-            //- Check for identical geometrical data. Used for cyclics checking.
+            //- Check for identical geometrical data (eg, cyclics checking)
             template<class TrackingData>
             inline bool sameGeometry
             (
-                const pointTopoDistanceData&,
+                const pointTopoDistanceData<Type>&,
                 const scalar tol,
                 TrackingData& td
             ) const;
@@ -155,7 +159,7 @@ public:
                 const polyMesh& mesh,
                 const label pointi,
                 const label edgeI,
-                const pointTopoDistanceData& edgeInfo,
+                const pointTopoDistanceData<Type>& edgeInfo,
                 const scalar tol,
                 TrackingData& td
             );
@@ -167,7 +171,7 @@ public:
             (
                 const polyMesh& mesh,
                 const label pointi,
-                const pointTopoDistanceData& newPointInfo,
+                const pointTopoDistanceData<Type>& newPointInfo,
                 const scalar tol,
                 TrackingData& td
             );
@@ -177,7 +181,7 @@ public:
             template<class TrackingData>
             inline bool updatePoint
             (
-                const pointTopoDistanceData& newPointInfo,
+                const pointTopoDistanceData<Type>& newPointInfo,
                 const scalar tol,
                 TrackingData& td
             );
@@ -189,41 +193,64 @@ public:
                 const polyMesh& mesh,
                 const label edgeI,
                 const label pointi,
-                const pointTopoDistanceData& pointInfo,
+                const pointTopoDistanceData<Type>& pointInfo,
                 const scalar tol,
                 TrackingData& td
             );
 
-            //- Same (like operator==)
+            //- Test for equality, with TrackingData
             template<class TrackingData>
-            inline bool equal(const pointTopoDistanceData&, TrackingData&)
+            inline bool equal(const pointTopoDistanceData<Type>&, TrackingData&)
             const;
 
 
     // Member Operators
 
         // Needed for List IO
-        inline bool operator==(const pointTopoDistanceData&) const;
-        inline bool operator!=(const pointTopoDistanceData&) const;
+        inline bool operator==(const pointTopoDistanceData<Type>&) const;
+        inline bool operator!=(const pointTopoDistanceData<Type>&) const;
+
 
     // IOstream Operators
 
-        friend Ostream& operator<<(Ostream&, const pointTopoDistanceData&);
-        friend Istream& operator>>(Istream&, pointTopoDistanceData&);
+        friend Ostream& operator<< <Type>
+        (
+            Ostream&,
+            const pointTopoDistanceData<Type>&
+        );
+        friend Istream& operator>> <Type>
+        (
+            Istream&,
+            pointTopoDistanceData<Type>&
+        );
 };
 
 
-//- Data associated with pointTopoDistanceData type are contiguous
-template<>
-inline bool contiguous<pointTopoDistanceData>()
-{
-    return true;
-}
+// * * * * * * * * * * * * * * * * * Traits  * * * * * * * * * * * * * * * * //
 
+//- Data are contiguous if data type is contiguous
+template<class Type>
+struct is_contiguous<pointTopoDistanceData<Type>> : is_contiguous<Type> {};
+
+//- Data are contiguous label if data type is label
+template<class Type>
+struct is_contiguous_label<pointTopoDistanceData<Type>> :
+    is_contiguous_label<Type> {};
+
+//- Data are contiguous scalar if data type is scalar
+template<class Type>
+struct is_contiguous_scalar<pointTopoDistanceData<Type>> :
+    is_contiguous_scalar<Type>{};
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 } // End namespace Foam
+
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+#ifdef NoRepository
+    #include "pointTopoDistanceData.C"
+#endif
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 

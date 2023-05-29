@@ -1,9 +1,12 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2017-2019 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -29,7 +32,7 @@ License
 #include "IOmanip.H"
 #include "meshSearch.H"
 #include "midPointAndFaceSet.H"
-#include "Time.T.H"
+#include "Time1.H"
 #include "uniformDimensionedFields.H"
 #include "volFields.H"
 #include "addToRunTimeSelectionTable.H"
@@ -51,8 +54,17 @@ namespace functionObjects
 void Foam::functionObjects::interfaceHeight::writePositions()
 {
     const uniformDimensionedVectorField& g =
-        mesh_.lookupObject<uniformDimensionedVectorField>("g");
-    const vector gHat = g.value()/mag(g.value());
+        mesh_.time().lookupObject<uniformDimensionedVectorField>("g");
+    vector gHat = vector::zero_;
+
+    if (mag(direction_) > 0.0)
+    {
+        gHat = direction_/mag(direction_);
+    }
+    else
+    {
+        gHat = g.value()/mag(g.value());
+    }
 
     const volScalarField& alpha =
         mesh_.lookupObject<volScalarField>(alphaName_);
@@ -65,8 +77,8 @@ void Foam::functionObjects::interfaceHeight::writePositions()
 
     if (Pstream::master())
     {
-        writeTime(file(HEIGHT_FILE));
-        writeTime(file(POSITION_FILE));
+        files(fileID::heightFile) << mesh_.time().timeName() << tab;
+        files(fileID::positionFile) << mesh_.time().timeName() << tab;
     }
 
     forAll(locations_, li)
@@ -83,7 +95,7 @@ void Foam::functionObjects::interfaceHeight::writePositions()
         );
 
         // Find the height of the location above the boundary
-        scalar hLB = set.size() ? - gHat & (locations_[li] - set[0]) : - VGREAT;
+        scalar hLB = set.size() ? - gHat & (locations_[li] - set[0]) : - GREAT;
         reduce(hLB, maxOp<scalar>());
 
         // Calculate the integrals of length and length*alpha along the sampling
@@ -124,86 +136,90 @@ void Foam::functionObjects::interfaceHeight::writePositions()
 
             const Foam::Omanip<int> w = valueWidth(1);
 
-            file(HEIGHT_FILE) << w << hIB << w << hIL;
-            file(POSITION_FILE) << '(' << w << p.x() << w << p.y()
+            files(fileID::heightFile) << w << hIB << w << hIL;
+            files(fileID::positionFile) << '(' << w << p.x() << w << p.y()
                 << valueWidth() << p.z() << ") ";
         }
     }
 
     if (Pstream::master())
     {
-        file(HEIGHT_FILE).endl();
-        file(POSITION_FILE).endl();
+        files(fileID::heightFile).endl();
+        files(fileID::positionFile).endl();
     }
 }
 
 
 // * * * * * * * * * * * * Protected Member Functions  * * * * * * * * * * * //
 
-void Foam::functionObjects::interfaceHeight::writeFileHeader(const label i)
+void Foam::functionObjects::interfaceHeight::writeFileHeader(const fileID fid)
 {
     forAll(locations_, li)
     {
         writeHeaderValue
         (
-            file(i),
+            files(fid),
             "Location " + Foam::name(li),
             locations_[li]
         );
     }
 
-    switch (fileID(i))
+    switch (fileID(fid))
     {
-        case HEIGHT_FILE:
+        case fileID::heightFile:
+        {
             writeHeaderValue
             (
-                file(i),
+                files(fid),
                 "hB",
                 "Interface height above the boundary"
             );
             writeHeaderValue
             (
-                file(i),
+                files(fid),
                 "hL",
                 "Interface height above the location"
             );
             break;
-        case POSITION_FILE:
-            writeHeaderValue(file(i), "p", "Interface position");
+        }
+        case fileID::positionFile:
+        {
+            writeHeaderValue(files(fid), "p", "Interface position");
             break;
+        }
     }
 
     const Foam::Omanip<int> w = valueWidth(1);
 
-    writeCommented(file(i), "Location");
+    writeCommented(files(fid), "Location");
     forAll(locations_, li)
     {
-        switch (fileID(i))
+        switch (fid)
         {
-            case HEIGHT_FILE:
-                file(i) << w << li << w << ' ';
+            case fileID::heightFile:
+                files(fid) << w << li << w << ' ';
                 break;
-            case POSITION_FILE:
-                file(i) << w << li << w << ' ' << w << ' ' << "  ";
+            case fileID::positionFile:
+                files(fid) << w << li << w << ' ' << w << ' ' << "  ";
                 break;
         }
     }
-    file(i).endl();
+    files(fid).endl();
 
-    writeCommented(file(i), "Time");
+    writeCommented(files(fid), "Time");
     forAll(locations_, li)
     {
-        switch (fileID(i))
+        switch (fid)
         {
-            case HEIGHT_FILE:
-                file(i) << w << "hB" << w << "hL";
+            case fileID::heightFile:
+                files(fid) << w << "hB" << w << "hL";
                 break;
-            case POSITION_FILE:
-                file(i) << w << "p" << w << ' ' << w << ' ' << "  ";
+            case fileID::positionFile:
+                files(fid) << w << "p" << w << ' ' << w << ' ' << "  ";
                 break;
         }
     }
-    file(i).endl();
+    files(fid).endl();
 }
 
 
@@ -217,26 +233,16 @@ Foam::functionObjects::interfaceHeight::interfaceHeight
 )
 :
     fvMeshFunctionObject(name, runTime, dict),
-    logFiles(mesh_, name),
-    alphaName_("alpha"),
+    logFiles(obr_, name),
     liquid_(true),
-    locations_(),
-    interpolationScheme_("cellPoint")
+    alphaName_("alpha"),
+    interpolationScheme_("cellPoint"),
+    direction_(vector::zero_),
+    locations_()
 {
     read(dict);
-
-    wordList names(2);
-    names[HEIGHT_FILE] = "height";
-    names[POSITION_FILE] = "position";
-
-    resetNames(wordList(names));
+    resetNames({"height", "position"});
 }
-
-
-// * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
-
-Foam::functionObjects::interfaceHeight::~interfaceHeight()
-{}
 
 
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
@@ -245,8 +251,9 @@ bool Foam::functionObjects::interfaceHeight::read(const dictionary& dict)
 {
     dict.readIfPresent("alpha", alphaName_);
     dict.readIfPresent("liquid", liquid_);
-    dict.lookup("locations") >> locations_;
+    dict.readEntry("locations", locations_);
     dict.readIfPresent("interpolationScheme", interpolationScheme_);
+    dict.readIfPresent("direction", direction_);
 
     return true;
 }

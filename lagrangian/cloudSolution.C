@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2020-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -24,15 +27,12 @@ License
 \*---------------------------------------------------------------------------*/
 
 #include "cloudSolution.H"
-#include "Time.T.H"
+#include "Time1.H"
+#include "localEulerDdtScheme.H"
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
-Foam::cloudSolution::cloudSolution
-(
-    const fvMesh& mesh,
-    const dictionary& dict
-)
+Foam::cloudSolution::cloudSolution(const fvMesh& mesh, const dictionary& dict)
 :
     mesh_(mesh),
     dict_(dict),
@@ -42,6 +42,7 @@ Foam::cloudSolution::cloudSolution
     maxCo_(0.3),
     iter_(1),
     trackTime_(0.0),
+    deltaTMax_(GREAT),
     coupled_(false),
     cellValueSourceCorrection_(false),
     maxTrackTime_(0.0),
@@ -52,13 +53,29 @@ Foam::cloudSolution::cloudSolution
     {
         read();
     }
+    else
+    {
+        // see if existing source terms should be reset
+        const dictionary sourceTerms(dict_.subOrEmptyDict("sourceTerms"));
+        sourceTerms.readIfPresent("resetOnStartup", resetSourcesOnStartup_);
+
+        if (resetSourcesOnStartup_)
+        {
+            Info<< "Cloud source terms will be reset" << endl;
+        }
+        else
+        {
+            Info<< "Cloud source terms will be held constant" << endl;
+        }
+
+        // transient default to false asks for extra massFlowRate
+        // in transient lagrangian
+        transient_ = true;
+    }
 }
 
 
-Foam::cloudSolution::cloudSolution
-(
-    const cloudSolution& cs
-)
+Foam::cloudSolution::cloudSolution(const cloudSolution& cs)
 :
     mesh_(cs.mesh_),
     dict_(cs.dict_),
@@ -68,6 +85,7 @@ Foam::cloudSolution::cloudSolution
     maxCo_(cs.maxCo_),
     iter_(cs.iter_),
     trackTime_(cs.trackTime_),
+    deltaTMax_(cs.deltaTMax_),
     coupled_(cs.coupled_),
     cellValueSourceCorrection_(cs.cellValueSourceCorrection_),
     maxTrackTime_(cs.maxTrackTime_),
@@ -76,19 +94,17 @@ Foam::cloudSolution::cloudSolution
 {}
 
 
-Foam::cloudSolution::cloudSolution
-(
-    const fvMesh& mesh
-)
+Foam::cloudSolution::cloudSolution(const fvMesh& mesh)
 :
     mesh_(mesh),
-    dict_(dictionary::null),
+    dict_(),
     active_(false),
     transient_(false),
     calcFrequency_(0),
     maxCo_(GREAT),
     iter_(0),
     trackTime_(0.0),
+    deltaTMax_(GREAT),
     coupled_(false),
     cellValueSourceCorrection_(false),
     maxTrackTime_(0.0),
@@ -107,15 +123,40 @@ Foam::cloudSolution::~cloudSolution()
 
 void Foam::cloudSolution::read()
 {
-    dict_.lookup("transient") >> transient_;
-    dict_.lookup("coupled") >> coupled_;
-    dict_.lookup("cellValueSourceCorrection") >> cellValueSourceCorrection_;
+    // For transient runs the Lagrangian tracking may be transient or steady
+    transient_ = dict_.getOrDefault("transient", false);
+
+    // For LTS and steady-state runs the Lagrangian tracking cannot be transient
+    if (transient_)
+    {
+        if (fv::localEulerDdt::enabled(mesh_))
+        {
+            IOWarningInFunction(dict_)
+                << "Transient tracking is not supported for LTS"
+                   " simulations, switching to steady state tracking."
+                << endl;
+            transient_ = false;
+        }
+
+        if (mesh_.steady())
+        {
+            IOWarningInFunction(dict_)
+                << "Transient tracking is not supported for steady-state"
+                   " simulations, switching to steady state tracking."
+                << endl;
+            transient_ = false;
+        }
+    }
+
+    dict_.readEntry("coupled", coupled_);
+    dict_.readEntry("cellValueSourceCorrection", cellValueSourceCorrection_);
     dict_.readIfPresent("maxCo", maxCo_);
+    dict_.readIfPresent("deltaTMax", deltaTMax_);
 
     if (steadyState())
     {
-        dict_.lookup("calcFrequency") >> calcFrequency_;
-        dict_.lookup("maxTrackTime") >> maxTrackTime_;
+        dict_.readEntry("calcFrequency", calcFrequency_);
+        dict_.readEntry("maxTrackTime", maxTrackTime_);
 
         if (coupled_)
         {
@@ -137,7 +178,7 @@ void Foam::cloudSolution::read()
             schemes_[i].first() = vars[i];
 
             // set semi-implicit (1) explicit (0) flag
-            Istream& is = schemesDict.lookup(vars[i]);
+            ITstream& is = schemesDict.lookup(vars[i]);
             const word scheme(is);
             if (scheme == "semiImplicit")
             {
@@ -226,6 +267,25 @@ bool Foam::cloudSolution::canEvolve()
 bool Foam::cloudSolution::output() const
 {
     return active_ && mesh_.time().writeTime();
+}
+
+
+Foam::scalar Foam::cloudSolution::deltaTMax(const scalar trackTime) const
+{
+    if (transient_)
+    {
+        return min(deltaTMax_, maxCo_*trackTime);
+    }
+    else
+    {
+        return min(deltaTMax_, trackTime);
+    }
+}
+
+
+Foam::scalar Foam::cloudSolution::deltaLMax(const scalar lRef) const
+{
+    return maxCo_*lRef;
 }
 
 

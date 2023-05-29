@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2019-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -21,13 +24,10 @@ License
     You should have received a copy of the GNU General Public License
     along with OpenFOAM.  If not, see <http://www.gnu.org/licenses/>.
 
-Description
-    Abstract base class for finite volume calculus d2dt2 schemes.
-
 \*---------------------------------------------------------------------------*/
 
 #include "fv.H"
-#include "HashTable.T.H"
+#include "HashTable.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -55,10 +55,8 @@ tmp<d2dt2Scheme<Type>> d2dt2Scheme<Type>::New
 
     if (schemeData.eof())
     {
-        FatalIOErrorInFunction
-        (
-            schemeData
-        )   << "D2dt2 scheme not specified" << endl << endl
+        FatalIOErrorInFunction(schemeData)
+            << "D2dt2 scheme not specified" << endl << endl
             << "Valid d2dt2 schemes are :" << endl
             << IstreamConstructorTablePtr_->sortedToc()
             << exit(FatalIOError);
@@ -66,29 +64,21 @@ tmp<d2dt2Scheme<Type>> d2dt2Scheme<Type>::New
 
     const word schemeName(schemeData);
 
-    typename IstreamConstructorTable::iterator cstrIter =
-        IstreamConstructorTablePtr_->find(schemeName);
+    auto* ctorPtr = IstreamConstructorTable(schemeName);
 
-    if (cstrIter == IstreamConstructorTablePtr_->end())
+    if (!ctorPtr)
     {
-        FatalIOErrorInFunction
+        FatalIOErrorInLookup
         (
-            schemeData
-        )   << "Unknown d2dt2 scheme " << schemeName << nl << nl
-            << "Valid d2dt2 schemes are :" << endl
-            << IstreamConstructorTablePtr_->sortedToc()
-            << exit(FatalIOError);
+            schemeData,
+            "d2dt2",
+            schemeName,
+            *IstreamConstructorTablePtr_
+        ) << exit(FatalIOError);
     }
 
-    return cstrIter()(mesh, schemeData);
+    return ctorPtr(mesh, schemeData);
 }
-
-
-// * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
-
-template<class Type>
-d2dt2Scheme<Type>::~d2dt2Scheme()
-{}
 
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //

@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2014-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2014-2016 OpenFOAM Foundation
+    Copyright (C) 2015-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -111,10 +114,8 @@ inline bool Foam::minData::updateCell
         operator=(neighbourInfo);
         return true;
     }
-    else
-    {
-        return false;
-    }
+
+    return false;
 }
 
 
@@ -130,16 +131,13 @@ inline bool Foam::minData::updateFace
 )
 {
     // From cell to its faces.
-
     if (neighbourInfo.data_ < data_)
     {
         operator=(neighbourInfo);
         return true;
     }
-    else
-    {
-        return false;
-    }
+
+    return false;
 }
 
 
@@ -159,10 +157,8 @@ inline bool Foam::minData::updateFace
         operator=(neighbourInfo);
         return true;
     }
-    else
-    {
-        return false;
-    }
+
+    return false;
 }
 
 
@@ -181,16 +177,16 @@ inline bool Foam::minData::equal
 
 inline bool Foam::minData::operator==
 (
-    const Foam::minData& rhs
+    const minData& rhs
 ) const
 {
-    return data() == rhs.data();
+    return data_ == rhs.data_;
 }
 
 
 inline bool Foam::minData::operator!=
 (
-    const Foam::minData& rhs
+    const minData& rhs
 ) const
 {
     return !(*this == rhs);
@@ -199,23 +195,23 @@ inline bool Foam::minData::operator!=
 
 // * * * * * * * * * * * * * * * Friend Operators  * * * * * * * * * * * * * //
 
-Foam::Ostream& Foam::operator<<
+inline Foam::Ostream& Foam::operator<<
 (
-    Foam::Ostream& os,
-    const Foam::minData& wDist
+    Ostream& os,
+    const minData& rhs
 )
 {
-    return os << wDist.data_;
+    return os << rhs.data_;
 }
 
 
-Foam::Istream& Foam::operator>>
+inline Foam::Istream& Foam::operator>>
 (
-    Foam::Istream& is,
-    Foam::minData& wDist
+    Istream& is,
+    minData& rhs
 )
 {
-    return is >> wDist.data_;
+    return is >> rhs.data_;
 }
 
 

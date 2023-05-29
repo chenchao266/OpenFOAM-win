@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2015 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2017-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -24,175 +26,226 @@ License
 \*---------------------------------------------------------------------------*/
 
 #include "Random.H"
-#include "OSspecific.H"
+#include "PstreamReduceOps.H"
 
-// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
-using namespace Foam;
-#if INT_MAX    != 2147483647
-#    error "INT_MAX    != 2147483647"
-#    error "The random number generator may not work!"
-#endif
+// * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
+
+
+ namespace Foam{
+Random::Random(const label seedValue)
+:
+    seed_(seedValue),
+    generator_(seed_),
+    uniform01_(),
+    hasGaussSample_(false),
+    gaussSample_(0)
+{}
+
+
+Random::Random(const Random& rnd, const bool reset)
+:
+    Random(rnd)
+{
+    if (reset)
+    {
+        hasGaussSample_ = false;
+        gaussSample_ = 0;
+        generator_.seed(seed_);
+    }
+}
 
 
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
 
-Random::Random(const label seed)
+template<>
+scalar Random::sample01()
 {
-    if (seed > 1)
-    {
-        Seed = seed;
-    }
-    else
-    {
-        Seed = 1;
-    }
-
-    osRandomSeed(Seed);
+    return scalar01();
 }
 
 
-int Random::bit()
+template<>
+label Random::sample01()
 {
-    if (osRandomInteger() > INT_MAX/2)
-    {
-        return 1;
-    }
-    else
-    {
-        return 0;
-    }
+    return round(scalar01());
 }
 
 
-scalar Random::scalar01()
-{
-    return osRandomDouble();
-}
-
-
-vector Random::vector01()
-{
-    vector rndVec;
-    for (direction cmpt=0; cmpt<vector::nComponents; cmpt++)
-    {
-        rndVec.component(cmpt) = scalar01();
-    }
-
-    return rndVec;
-}
-
-
-sphericalTensor Random::sphericalTensor01()
-{
-    sphericalTensor rndTen;
-    rndTen.ii() = scalar01();
-
-    return rndTen;
-}
-
-
-symmTensor Random::symmTensor01()
-{
-    symmTensor rndTen;
-    for (direction cmpt=0; cmpt<symmTensor::nComponents; cmpt++)
-    {
-        rndTen.component(cmpt) = scalar01();
-    }
-
-    return rndTen;
-}
-
-
-tensor Random::tensor01()
-{
-    tensor rndTen;
-    for (direction cmpt=0; cmpt<tensor::nComponents; cmpt++)
-    {
-        rndTen.component(cmpt) = scalar01();
-    }
-
-    return rndTen;
-}
-
-
-label Random::integer(const label lower, const label upper)
-{
-    return lower + (osRandomInteger() % (upper+1-lower));
-}
-
-
-vector Random::position(const vector& start, const vector& end)
-{
-    vector rndVec(start);
-
-    for (direction cmpt=0; cmpt<vector::nComponents; cmpt++)
-    {
-        rndVec.component(cmpt) +=
-            scalar01()*(end.component(cmpt) - start.component(cmpt));
-    }
-
-    return rndVec;
-}
-
-
-void Random::randomise(scalar& s)
-{
-     s = scalar01();
-}
-
-
-void Random::randomise(vector& v)
-{
-    v = vector01();
-}
-
-
-void Random::randomise(sphericalTensor& st)
-{
-    st = sphericalTensor01();
-}
-
-
-void Random::randomise(symmTensor& st)
-{
-    st = symmTensor01();
-}
-
-
-void Random::randomise(tensor& t)
-{
-    t = tensor01();
-}
-
-
+template<>
 scalar Random::GaussNormal()
 {
-    static int iset = 0;
-    static scalar gset;
-    scalar fac, rsq, v1, v2;
-
-    if (iset == 0)
+    if (hasGaussSample_)
     {
-        do
-        {
-            v1 = 2.0*scalar01() - 1.0;
-            v2 = 2.0*scalar01() - 1.0;
-            rsq = sqr(v1) + sqr(v2);
-        } while (rsq >= 1.0 || rsq == 0.0);
-
-        fac = sqrt(-2.0*log(rsq)/rsq);
-        gset = v1*fac;
-        iset = 1;
-
-        return v2*fac;
+        hasGaussSample_ = false;
+        return gaussSample_;
     }
-    else
+
+    // Gaussian random number as per Knuth/Marsaglia.
+    // Input: two uniform random numbers, output: two Gaussian random numbers.
+    // cache one of the values for the next call.
+    scalar rsq, v1, v2;
+    do
     {
-        iset = 0;
+        v1 = 2*scalar01() - 1;
+        v2 = 2*scalar01() - 1;
+        rsq = sqr(v1) + sqr(v2);
+    } while (rsq >= 1 || rsq == 0);
 
-        return gset;
+    const scalar fac = sqrt(-2*log(rsq)/rsq);
+
+    gaussSample_ = v1*fac;
+    hasGaussSample_ = true;
+
+    return v2*fac;
+}
+
+
+template<>
+label Random::GaussNormal()
+{
+    return round(GaussNormal<scalar>());
+}
+
+
+template<>
+scalar Random::position
+(
+    const scalar& start,
+    const scalar& end
+)
+{
+    return start + scalar01()*(end - start);
+}
+
+
+template<>
+label Random::position(const label& start, const label& end)
+{
+    #ifdef FULLDEBUG
+    if (start > end)
+    {
+        FatalErrorInFunction
+            << "start index " << start << " > end index " << end << nl
+            << abort(FatalError);
     }
+    #endif
+
+    // Extend the upper sampling range by 1 and floor the result.
+    // Since the range is non-negative, can use integer truncation
+    // instead using floor().
+
+    const label val = start + label(scalar01()*(end - start + 1));
+
+    // Rare case when scalar01() returns exactly 1.000 and the truncated
+    // value would be out of range.
+    return min(val, end);
+}
+
+
+template<>
+scalar Random::globalSample01()
+{
+    scalar value(-GREAT);
+
+    if (Pstream::master())
+    {
+        value = scalar01();
+    }
+
+    Pstream::scatter(value);
+
+    return value;
+}
+
+
+template<>
+label Random::globalSample01()
+{
+    label value(labelMin);
+
+    if (Pstream::master())
+    {
+        value = round(scalar01());
+    }
+
+    Pstream::scatter(value);
+
+    return value;
+}
+
+
+template<>
+scalar Random::globalGaussNormal()
+{
+    scalar value(-GREAT);
+
+    if (Pstream::master())
+    {
+        value = GaussNormal<scalar>();
+    }
+
+    Pstream::scatter(value);
+
+    return value;
+}
+
+
+template<>
+label Random::globalGaussNormal()
+{
+    label value(labelMin);
+
+    if (Pstream::master())
+    {
+        value = GaussNormal<label>();
+    }
+
+    Pstream::scatter(value);
+
+    return value;
+}
+
+
+template<>
+scalar Random::globalPosition
+(
+    const scalar& start,
+    const scalar& end
+)
+{
+    scalar value(-GREAT);
+
+    if (Pstream::master())
+    {
+        value = position<scalar>(start, end);
+    }
+
+    Pstream::scatter(value);
+
+    return value;
+}
+
+
+template<>
+label Random::globalPosition
+(
+    const label& start,
+    const label& end
+)
+{
+    label value(labelMin);
+
+    if (Pstream::master())
+    {
+        value = position<label>(start, end);
+    }
+
+    Pstream::scatter(value);
+
+    return value;
 }
 
 
 // ************************************************************************* //
+
+ } // End namespace Foam

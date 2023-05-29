@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2018-2019 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -39,20 +42,30 @@ namespace Foam
 template<>
 void Foam::jumpCyclicFvPatchField<Foam::scalar>::updateInterfaceMatrix
 (
-    scalarField& result,
-    const scalarField& psiInternal,
+    solveScalarField& result,
+    const bool add,
+    const lduAddressing& lduAddr,
+    const label patchId,
+    const solveScalarField& psiInternal,
     const scalarField& coeffs,
     const direction cmpt,
     const Pstream::commsTypes
 ) const
 {
-    scalarField pnf(this->size());
+    solveScalarField pnf(this->size());
 
     const labelUList& nbrFaceCells =
-        this->cyclicPatch().neighbFvPatch().faceCells();
+        lduAddr.patchAddr
+        (
+            this->cyclicPatch().neighbPatchID()
+        );
 
     // only apply jump to original field
-    if (&psiInternal == &this->primitiveField())
+    if
+    (
+        reinterpret_cast<const void*>(&psiInternal)
+     == reinterpret_cast<const void*>(&this->primitiveField())
+    )
     {
         Field<scalar> jf(this->jump());
 
@@ -77,13 +90,72 @@ void Foam::jumpCyclicFvPatchField<Foam::scalar>::updateInterfaceMatrix
     // Transform according to the transformation tensors
     this->transformCoupleField(pnf, cmpt);
 
+    const labelUList& faceCells = lduAddr.patchAddr(patchId);
+
     // Multiply the field by coefficients and add into the result
-    const labelUList& faceCells = this->cyclicPatch().faceCells();
-    forAll(faceCells, elemI)
-    {
-        result[faceCells[elemI]] -= coeffs[elemI]*pnf[elemI];
-    }
+    this->addToInternalField(result, !add, faceCells, coeffs, pnf);
 }
 
+
+template<>
+void Foam::jumpCyclicFvPatchField<Foam::vector>::updateInterfaceMatrix
+(
+    solveScalarField& result,
+    const bool add,
+    const lduAddressing& lduAddr,
+    const label patchId,
+    const solveScalarField& psiInternal,
+    const scalarField& coeffs,
+    const direction cmpt,
+    const Pstream::commsTypes
+) const
+{
+    solveScalarField pnf(this->size());
+
+    const labelUList& nbrFaceCells =
+        lduAddr.patchAddr
+        (
+            this->cyclicPatch().neighbPatchID()
+        );
+
+    const Field<vector>& iField = this->primitiveField();
+
+    // only apply jump to original field
+    if
+    (
+        reinterpret_cast<const void*>(&psiInternal)
+     == reinterpret_cast<const void*>(&(iField.component(cmpt).ref()))
+    )
+    {
+        Field<vector> jf(this->jump());
+
+        if (!this->cyclicPatch().owner())
+        {
+            jf *= -1.0;
+        }
+
+        forAll(*this, facei)
+        {
+            pnf[facei] =
+                psiInternal[nbrFaceCells[facei]]
+              - jf[facei].component(cmpt);
+        }
+    }
+    else
+    {
+        forAll(*this, facei)
+        {
+            pnf[facei] = psiInternal[nbrFaceCells[facei]];
+        }
+    }
+
+    // Transform according to the transformation tensors
+    this->transformCoupleField(pnf, cmpt);
+
+    const labelUList& faceCells = lduAddr.patchAddr(patchId);
+
+    // Multiply the field by coefficients and add into the result
+    this->addToInternalField(result, !add, faceCells, coeffs, pnf);
+}
 
 // ************************************************************************* //

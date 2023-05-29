@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2013 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2013 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -27,7 +29,7 @@ License
 #include "addToRunTimeSelectionTable.H"
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
-using namespace Foam;
+
 namespace Foam
 {
     defineTypeNameAndDebug(dummyAgglomeration, 0);
@@ -38,40 +40,42 @@ namespace Foam
         dummyAgglomeration,
         lduMesh
     );
-}
 
 
-// * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
-dummyAgglomeration::dummyAgglomeration
-(
-    const lduMesh& mesh,
-    const dictionary& controlDict
-) :    GAMGAgglomeration(mesh, controlDict),
-    nLevels_(readLabel(controlDict.lookup("nLevels")))
-{
-    const label nCoarseCells = mesh.lduAddr().size();
+    // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
-    for
+    dummyAgglomeration::dummyAgglomeration
     (
-        label nCreatedLevels = 0;
-        nCreatedLevels < nLevels_;
-        nCreatedLevels++
+        const lduMesh& mesh,
+        const dictionary& controlDict
     )
+        :
+        GAMGAgglomeration(mesh, controlDict),
+        nLevels_(controlDict.get<label>("nLevels"))
     {
-        nCells_[nCreatedLevels] = nCoarseCells;
-        restrictAddressing_.set
-        (
-            nCreatedLevels,
-            new labelField(identity(nCoarseCells))
-        );
+        const label nCoarseCells = mesh.lduAddr().size();
 
-        agglomerateLduAddressing(nCreatedLevels);
+        for
+            (
+                label nCreatedLevels = 0;
+                nCreatedLevels < nLevels_;
+                nCreatedLevels++
+                )
+        {
+            nCells_[nCreatedLevels] = nCoarseCells;
+            restrictAddressing_.set
+            (
+                nCreatedLevels,
+                new labelField(identity(nCoarseCells))
+            );
+
+            agglomerateLduAddressing(nCreatedLevels);
+        }
+
+        // Shrink the storage of the levels to those created
+        compactLevels(nLevels_);
     }
 
-    // Shrink the storage of the levels to those created
-    compactLevels(nLevels_);
 }
-
-
 // ************************************************************************* //

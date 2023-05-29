@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -69,10 +71,10 @@ void Foam::midPointSet::genSamples()
                 midCells[mSamplei] = cellm;
                 midSegments[mSamplei] = segments_[samplei];
                 midCurveDist[mSamplei] = mag(midPoints[mSamplei] - start());
-                mSamplei++;
+                ++mSamplei;
             }
 
-            samplei++;
+            ++samplei;
         }
 
         if (samplei == size() - 1)
@@ -80,7 +82,7 @@ void Foam::midPointSet::genSamples()
             break;
         }
 
-        samplei++;
+        ++samplei;
     }
 
     midPoints.setSize(mSamplei);
@@ -88,14 +90,22 @@ void Foam::midPointSet::genSamples()
     midSegments.setSize(mSamplei);
     midCurveDist.setSize(mSamplei);
 
+    labelList midFaces(midCells.size(), -1);
+
+    // Move into *this
     setSamples
     (
-        midPoints,
-        midCells,
-        labelList(midCells.size(), -1),
-        midSegments,
-        midCurveDist
+        std::move(midPoints),
+        std::move(midCells),
+        std::move(midFaces),
+        std::move(midSegments),
+        std::move(midCurveDist)
     );
+
+    if (debug)
+    {
+        write(Info);
+    }
 }
 
 
@@ -114,11 +124,6 @@ Foam::midPointSet::midPointSet
     faceOnlySet(name, mesh, searchEngine, axis, start, end)
 {
     genSamples();
-
-    if (debug)
-    {
-        write(Info);
-    }
 }
 
 
@@ -133,18 +138,7 @@ Foam::midPointSet::midPointSet
     faceOnlySet(name, mesh, searchEngine, dict)
 {
     genSamples();
-
-    if (debug)
-    {
-        write(Info);
-    }
 }
-
-
-// * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
-
-Foam::midPointSet::~midPointSet()
-{}
 
 
 // ************************************************************************* //

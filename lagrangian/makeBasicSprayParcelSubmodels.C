@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2015 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2015 OpenFOAM Foundation
+    Copyright (C) 2020-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -25,7 +28,7 @@ License
 
 #include "basicSprayCloud.H"
 
-#include "makeParcelCloudFunctionObjects.H"
+#include "makeReactingParcelCloudFunctionObjects.H"
 
 // Kinematic
 #include "makeThermoParcelForces.H" // thermo variant
@@ -45,13 +48,18 @@ License
 #include "makeReactingParcelSurfaceFilmModels.H"
 
 // Spray
-#include "DistortedSphereDragForce.T.H"
+#include "DistortedSphereDragForce.H"
 #include "makeSprayParcelAtomizationModels.H"
 #include "makeSprayParcelBreakupModels.H"
 
+// MPPIC sub-models
+#include "makeMPPICParcelDampingModels.H"
+#include "makeMPPICParcelIsotropyModels.H"
+#include "makeMPPICParcelPackingModels.H"
+
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
-makeParcelCloudFunctionObjects(basicSprayCloud);
+makeReactingParcelCloudFunctionObjects(basicSprayCloud);
 
 // Kinematic sub-models
 makeThermoParcelForces(basicSprayCloud);
@@ -75,5 +83,9 @@ makeParticleForceModelType(DistortedSphereDragForce, basicSprayCloud);
 makeSprayParcelAtomizationModels(basicSprayCloud);
 makeSprayParcelBreakupModels(basicSprayCloud);
 
+// MPPIC sub-models
+makeMPPICParcelDampingModels(basicSprayCloud);
+makeMPPICParcelIsotropyModels(basicSprayCloud);
+makeMPPICParcelPackingModels(basicSprayCloud);
 
 // ************************************************************************* //

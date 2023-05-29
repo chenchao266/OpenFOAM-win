@@ -2,13 +2,14 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
 -------------------------------------------------------------------------------
-2018-02-26 blueCAPE Lda: Modifications for blueCFD-Core 2017-2
-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2016-2020 OpenCFD Ltd.
+-------------------------------------------------------------------------------
 License
-    This file is derivative work of OpenFOAM.
+    This file is part of OpenFOAM.
 
     OpenFOAM is free software: you can redistribute it and/or modify it
     under the terms of the GNU General Public License as published by
@@ -27,15 +28,20 @@ License
 
 #include "dynamicCode.H"
 #include "dynamicCodeContext.H"
+#include "dlLibraryTable.H"
+#include "argList.H"
 #include "stringOps.H"
-#include "IFstream.H"
-#include "OFstream.H"
+#include "Fstream.H"
+#include "IOstreams.H"
 #include "OSspecific.H"
 #include "etcFiles.H"
-#include "dictionary.H"
+#include "dictionary2.H"
+#include "foamVersion.H"
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
-using namespace Foam;
+
+
+ namespace Foam{
 int dynamicCode::allowSystemOperations
 (
     debug::infoSwitch("allowSystemOperations", 0)
@@ -48,10 +54,11 @@ const word dynamicCode::codeTemplateEnvName
 const fileName dynamicCode::codeTemplateDirName
     = "codeTemplates/dynamicCode";
 
-const char* const dynamicCode::libTargetRoot =
-    "LIB = $(abspath $(PWD)/../platforms/$(WM_OPTIONS)/lib/lib";
+const char* const dynamicCode::targetLibDir
+    = "LIB = $(PWD)/../platforms/$(WM_OPTIONS)/lib";
 
-const char* const dynamicCode::topDirName = "dynamicCode";
+const char* const dynamicCode::topDirName
+    = "dynamicCode";
 
 
 // * * * * * * * * * * * * * Static Member Functions * * * * * * * * * * * * //
@@ -65,40 +72,30 @@ void dynamicCode::checkSecurity
     if (isAdministrator())
     {
         FatalIOErrorInFunction(dict)
-            << "This code should not be executed by someone with administrator"
-            << " rights due to security reasons." << nl
-            << "(it writes a shared library which then gets loaded "
-            << "using dlopen)"
+            << "This code should not be executed by someone"
+            << " with administrator rights for security reasons." << nl
+            << "It generates a shared library which is loaded using dlopen"
+            << nl << endl
             << exit(FatalIOError);
     }
 
     if (!allowSystemOperations)
     {
         FatalIOErrorInFunction(dict)
-            << "Loading a shared library using case-supplied code is not"
-            << " enabled by default" << nl
-            << "because of security issues. If you trust the code you can"
-            << " enable this" << nl
-            << "facility be adding to the InfoSwitches setting in the system"
-            << " controlDict:" << nl << nl
+            << "Loading shared libraries using case-supplied code may have"
+            << " been disabled" << nl
+            << "by default for security reasons." << nl
+            << "If you trust the code, you may enable this by adding"
+            << nl << nl
             << "    allowSystemOperations 1" << nl << nl
-            << "The system controlDict is either" << nl << nl
-            << "    ~/.OpenFOAM/$WM_PROJECT_VERSION/controlDict" << nl << nl
-            << "or" << nl << nl
-            << "    $WM_PROJECT_DIR/etc/controlDict" << nl
-            << endl
+            << "to the InfoSwitches setting in the system controlDict." << nl
+            << "The system controlDict is any of" << nl << nl
+            << "    ~/.OpenFOAM/" << foamVersion::api << "/controlDict" << nl
+            << "    ~/.OpenFOAM/controlDict" << nl
+            << "    $WM_PROJECT_DIR/etc/controlDict" << nl << endl
             << exit(FatalIOError);
     }
 }
-
-
-word dynamicCode::libraryBaseName(const fileName& libPath)
-{
-    word libName(libPath.name(true));
-    libName.erase(0, 3);    // Remove leading 'lib' from name
-    return libName;
-}
-
 
 
 // * * * * * * * * * * * * Protected Member Functions  * * * * * * * * * * * //
@@ -130,7 +127,7 @@ void dynamicCode::copyAndFilter
     {
         is.getLine(line);
 
-        // Expand according to mapping.
+        // Expand according to HashTable mapping, not the environment.
         // Expanding according to env variables might cause too many
         // surprises
         stringOps::inplaceExpand(line, mapping);
@@ -147,14 +144,12 @@ bool dynamicCode::resolveTemplates
     DynamicList<fileName>& badFiles
 )
 {
-    // Try to get template from FOAM_CODESTREAM_TEMPLATES
+    // Try to get template from FOAM_CODE_TEMPLATES
     const fileName templateDir(getEnv(codeTemplateEnvName));
 
     bool allOkay = true;
-    forAll(templateNames, fileI)
+    for (const fileName& templateName : templateNames)
     {
-        const fileName& templateName = templateNames[fileI];
-
         fileName file;
         if (!templateDir.empty() && isDir(templateDir))
         {
@@ -165,7 +160,7 @@ bool dynamicCode::resolveTemplates
             }
         }
 
-        // Not found - fallback to ~OpenFOAM expansion
+        // Not found - fallback to <etc> expansion
         if (file.empty())
         {
             file = findEtcFile(codeTemplateDirName/templateName);
@@ -188,15 +183,16 @@ bool dynamicCode::resolveTemplates
 
 bool dynamicCode::writeCommentSHA1(Ostream& os) const
 {
-    const bool hasSHA1 = filterVars_.found("SHA1sum");
+    const auto fnd = filterVars_.cfind("SHA1sum");
 
-    if (hasSHA1)
+    if (!fnd.found())
     {
-        os  << "/* dynamicCode:\n * SHA1 = ";
-        os.writeQuoted(filterVars_["SHA1sum"], false) << "\n */\n";
+        return false;
     }
 
-    return hasSHA1;
+    os  << "/* dynamicCode:\n * SHA1 = ";
+    os.writeQuoted(*fnd, false) << "\n */\n";
+    return true;
 }
 
 
@@ -214,24 +210,25 @@ bool dynamicCode::createMakeFiles() const
     mkDir(dstFile.path());
 
     OFstream os(dstFile);
-    //Info<< "Writing to " << dstFile << endl;
+    //Debug: Info<< "Writing to " << dstFile << endl;
     if (!os.good())
     {
         FatalErrorInFunction
-                << "Failed writing " << dstFile
-                << exit(FatalError);
+            << "Failed writing " << dstFile
+            << exit(FatalError);
     }
 
     writeCommentSHA1(os);
 
     // Write compile files
-    forAll(compileFiles_, fileI)
+    for (const fileName& file : compileFiles_)
     {
-        os.writeQuoted(compileFiles_[fileI], false) << nl;
+        os.writeQuoted(file, false) << nl;
     }
 
     os  << nl
-        << libTargetRoot << codeName_.c_str() << ")" << nl;
+        << targetLibDir
+        << "/lib" << codeName_.c_str() << nl;
 
     return true;
 }
@@ -251,12 +248,12 @@ bool dynamicCode::createMakeOptions() const
     mkDir(dstFile.path());
 
     OFstream os(dstFile);
-    //Info<< "Writing to " << dstFile << endl;
+    //Debug: Info<< "Writing to " << dstFile << endl;
     if (!os.good())
     {
         FatalErrorInFunction
-                << "Failed writing " << dstFile
-                << exit(FatalError);
+            << "Failed writing " << dstFile
+            << exit(FatalError);
     }
 
     writeCommentSHA1(os);
@@ -293,8 +290,10 @@ bool dynamicCode::writeDigest(const std::string& sha1) const
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
-dynamicCode::dynamicCode(const word& codeName, const word& codeDirName) :    codeRoot_(stringOps::expand("$FOAM_CASE")/topDirName),
-    libSubDir_(stringOps::expand("platforms/$WM_OPTIONS/lib")),
+dynamicCode::dynamicCode(const word& codeName, const word& codeDirName)
+:
+    codeRoot_(argList::envGlobalPath()/topDirName),
+    libSubDir_(stringOps::expand("platforms/${WM_OPTIONS}/lib")),
     codeName_(codeName),
     codeDirName_(codeDirName)
 {
@@ -315,9 +314,15 @@ fileName dynamicCode::codeRelPath() const
 }
 
 
+fileName dynamicCode::libPath() const
+{
+    return codeRoot_/libSubDir_/dlLibraryTable::fullname(codeName_);
+}
+
+
 fileName dynamicCode::libRelPath() const
 {
-    return codeRelPath()/libSubDir_/"lib" + codeName_ + ".so";
+    return codeRelPath()/libSubDir_/dlLibraryTable::fullname(codeName_);
 }
 
 
@@ -330,7 +335,7 @@ void dynamicCode::clear()
     filterVars_.set("typeName", codeName_);
     filterVars_.set("SHA1sum", SHA1Digest().str());
 
-    // Provide default Make/options
+    // Default Make/options
     makeOptions_ =
         "EXE_INC = -g\n"
         "\n\nLIB_LIBS = ";
@@ -401,7 +406,8 @@ bool dynamicCode::copyOrCreateFiles(const bool verbose) const
 {
     if (verbose)
     {
-        Info<< "Creating new library in " << this->libRelPath() << endl;
+        DetailInfo
+            << "Creating new library in " << this->libRelPath() << endl;
     }
 
     const label nFiles = compileFiles_.size() + copyFiles_.size();
@@ -416,10 +422,10 @@ bool dynamicCode::copyOrCreateFiles(const bool verbose) const
     if (!badFiles.empty())
     {
         FatalErrorInFunction
-            << "Could not find the code template(s): "
+            << "Could not find code template(s): "
             << badFiles << nl
             << "Under the $" << codeTemplateEnvName
-            << " directory or via via the ~OpenFOAM/"
+            << " directory or via the <etc>/"
             << codeTemplateDirName << " expansion"
             << exit(FatalError);
     }
@@ -433,13 +439,12 @@ bool dynamicCode::copyOrCreateFiles(const bool verbose) const
     mkDir(outputDir);
 
     // Copy/filter files
-    forAll(resolvedFiles, fileI)
+    for (const fileName& srcFile : resolvedFiles)
     {
-        const fileName& srcFile = resolvedFiles[fileI];
-        const fileName  dstFile(outputDir/srcFile.name());
+        const fileName dstFile(outputDir/srcFile.name());
 
         IFstream is(srcFile);
-        //Info<< "Reading from " << is.name() << endl;
+        //Debug: Info<< "Reading from " << is.name() << endl;
         if (!is.good())
         {
             FatalErrorInFunction
@@ -448,7 +453,7 @@ bool dynamicCode::copyOrCreateFiles(const bool verbose) const
         }
 
         OFstream os(dstFile);
-        //Info<< "Writing to " << dstFile.name() << endl;
+        //Debug: Info<< "Writing to " << dstFile.name() << endl;
         if (!os.good())
         {
             FatalErrorInFunction
@@ -462,23 +467,20 @@ bool dynamicCode::copyOrCreateFiles(const bool verbose) const
 
 
     // Create files:
-    forAll(createFiles_, fileI)
+    for (const fileAndContent& content : createFiles_)
     {
-        const fileName dstFile
-        (
-            outputDir/stringOps::expand(createFiles_[fileI].first())
-        );
+        const fileName dstFile(outputDir/stringOps::expand(content.first()));
 
         mkDir(dstFile.path());
         OFstream os(dstFile);
-        //Info<< "Writing to " << createFiles_[fileI].first() << endl;
+        //Debug: Info<< "Writing to " << content.first() << endl;
         if (!os.good())
         {
             FatalErrorInFunction
                 << "Failed writing " << dstFile
                 << exit(FatalError);
         }
-        os.writeQuoted(createFiles_[fileI].second(), false) << nl;
+        os.writeQuoted(content.second(), false) << nl;
     }
 
 
@@ -494,17 +496,23 @@ bool dynamicCode::copyOrCreateFiles(const bool verbose) const
 
 bool dynamicCode::wmakeLibso() const
 {
-    const string wmakeCmd("wmake -s libso " + this->codePath());
-    Info<< "Invoking " << wmakeCmd << endl;
+    stringList cmd({"wmake", "-s", "libso", this->codePath()});
 
-    if (system(wmakeCmd))
-    {
-        return false;
-    }
-    else
+    // NOTE: could also resolve wmake command explicitly
+    //   cmd[0] = stringOps::expand("$WM_PROJECT_DIR/wmake/wmake");
+
+    // This can take a bit longer, so report that we are starting wmake
+    // Even with details turned off, we want some feedback
+
+    OSstream& os = (infoDetailLevel > 0 ? Info : Serr);
+    os  << "Invoking wmake libso " << this->codePath().c_str() << endl;
+
+    if (system(cmd) == 0)
     {
         return true;
     }
+
+    return false;
 }
 
 
@@ -528,3 +536,5 @@ bool dynamicCode::upToDate(const dynamicCodeContext& context) const
 
 
 // ************************************************************************* //
+
+ } // End namespace Foam

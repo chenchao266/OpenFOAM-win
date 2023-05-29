@@ -1,9 +1,12 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2016-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2016-2017 OpenFOAM Foundation
+    Copyright (C) 2019-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -25,7 +28,7 @@ License
 
 #include "searchableExtrudedCircle.H"
 #include "addToRunTimeSelectionTable.H"
-#include "Time.T.H"
+#include "Time1.H"
 #include "edgeMesh.H"
 #include "indexedOctree.H"
 #include "treeDataEdge.H"
@@ -42,6 +45,13 @@ namespace Foam
         searchableSurface,
         searchableExtrudedCircle,
         dict
+    );
+    addNamedToRunTimeSelectionTable
+    (
+        searchableSurface,
+        searchableExtrudedCircle,
+        dict,
+        extrudedCircle
     );
 }
 
@@ -61,7 +71,7 @@ Foam::searchableExtrudedCircle::searchableExtrudedCircle
         (
             IOobject
             (
-                dict.lookup("file"),                // name
+                dict.get<word>("file"),             // name
                 io.time().constant(),               // instance
                 "geometry",                         // local
                 io.time(),                          // registry
@@ -71,7 +81,7 @@ Foam::searchableExtrudedCircle::searchableExtrudedCircle
             ).objectPath()
         )
     ),
-    radius_(readScalar(dict.lookup("radius")))
+    radius_(dict.get<scalar>("radius"))
 {
     const edgeMesh& eMesh = eMeshPtr_();
 
@@ -80,18 +90,18 @@ Foam::searchableExtrudedCircle::searchableExtrudedCircle
     bounds() = boundBox(points, false);
 
     vector halfSpan(0.5*bounds().span());
-    point ctr(bounds().midpoint());
+    point ctr(bounds().centre());
 
-    bounds().min() = ctr - mag(halfSpan)*vector(1, 1, 1);
-    bounds().max() = ctr + mag(halfSpan)*vector(1, 1, 1);
+    bounds().min() = ctr - mag(halfSpan) * vector::one_;
+    bounds().max() = ctr + mag(halfSpan) * vector::one_;
 
     // Calculate bb of all points
     treeBoundBox bb(bounds());
 
     // Slightly extended bb. Slightly off-centred just so on symmetric
     // geometry there are less face/edge aligned items.
-    bb.min() -= point(ROOTVSMALL, ROOTVSMALL, ROOTVSMALL);
-    bb.max() += point(ROOTVSMALL, ROOTVSMALL, ROOTVSMALL);
+    bb.min() -= point::uniform(ROOTVSMALL);
+    bb.max() += point::uniform(ROOTVSMALL);
 
     edgeTree_.reset
     (
@@ -171,12 +181,35 @@ void Foam::searchableExtrudedCircle::findNearest
 
     forAll(samples, i)
     {
-        info[i] = tree.findNearest(samples[i], nearestDistSqr[i]);
+        const scalar nearestDist = Foam::sqrt(nearestDistSqr[i]);
+        const scalar searchDistSqr = Foam::sqr(nearestDist+radius_);
+
+        // Find nearest on central edge
+        info[i] = tree.findNearest(samples[i], searchDistSqr);
 
         if (info[i].hit())
         {
-            vector d(samples[i]-info[i].hitPoint());
-            info[i].setPoint(info[i].hitPoint() + d/mag(d)*radius_);
+            // Derive distance to nearest surface from distance to nearest edge
+            const vector d(samples[i] - info[i].hitPoint());
+            const scalar s(mag(d));
+
+            if (s < ROOTVSMALL)
+            {
+                // Point is on edge. TBD.
+                info[i].setMiss();
+            }
+            else
+            {
+                const scalar distToSurface = radius_-s;
+                if (mag(distToSurface) > nearestDist)
+                {
+                    info[i].setMiss();
+                }
+                else
+                {
+                    info[i].setPoint(info[i].hitPoint() + d/s*radius_);
+                }
+            }
         }
     }
 }
@@ -353,7 +386,8 @@ void Foam::searchableExtrudedCircle::findParametricNearest
     {
         radialStart = start-curvePoints[0];
         radialStart -= (radialStart&axialVecs[0])*axialVecs[0];
-        radialStart /= mag(radialStart);
+        radialStart.normalise();
+
         qStart = quaternion(radialStart, 0.0);
 
         info[0] = pointIndexHit(true, start, 0);
@@ -363,11 +397,12 @@ void Foam::searchableExtrudedCircle::findParametricNearest
     {
         vector radialEnd(end-curvePoints.last());
         radialEnd -= (radialEnd&axialVecs.last())*axialVecs.last();
-        radialEnd /= mag(radialEnd);
+        radialEnd.normalise();
 
         vector projectedEnd = radialEnd;
         projectedEnd -= (projectedEnd&axialVecs[0])*axialVecs[0];
-        projectedEnd /= mag(projectedEnd);
+        projectedEnd.normalise();
+
         qProjectedEnd = quaternion(projectedEnd, 0.0);
 
         info.last() = pointIndexHit(true, end, 0);
@@ -378,8 +413,8 @@ void Foam::searchableExtrudedCircle::findParametricNearest
         quaternion q(slerp(qStart, qProjectedEnd, lambdas[i]));
         vector radialDir(q.transform(radialStart));
 
-        radialDir -= (radialDir&axialVecs[i])*axialVecs.last();
-        radialDir /= mag(radialDir);
+        radialDir -= (radialDir & axialVecs[i]) * axialVecs.last();
+        radialDir.normalise();
 
         info[i] = pointIndexHit(true, curvePoints[i]+radius_*radialDir, 0);
     }
@@ -425,10 +460,10 @@ void Foam::searchableExtrudedCircle::getNormal
             normal[i] = info[i].hitPoint()-curvePt.hitPoint();
 
             // Subtract axial direction
-            vector axialVec = edges[curvePt.index()].vec(points);
-            axialVec /= mag(axialVec);
-            normal[i] -= (normal[i]&axialVec)*axialVec;
-            normal[i] /= mag(normal[i]);
+            const vector axialVec = edges[curvePt.index()].unitVec(points);
+
+            normal[i] -= (normal[i] & axialVec) * axialVec;
+            normal[i].normalise();
         }
     }
 }

@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2019-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -39,530 +42,52 @@ Description
 #include "contiguous.H"
 
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
-namespace Foam {
-    template<class T, class CombineOp>
-    void Pstream::combineGather
-    (
-        const List<UPstream::commsStruct>& comms,
-        T& Value,
-        const CombineOp& cop,
-        const int tag,
-        const label comm
-    )
+
+
+ namespace Foam{
+template<class T, class CombineOp>
+void Pstream::combineGather
+(
+    const List<UPstream::commsStruct>& comms,
+    T& Value,
+    const CombineOp& cop,
+    const int tag,
+    const label comm
+)
+{
+    if (UPstream::parRun() && UPstream::nProcs(comm) > 1)
     {
-        if (UPstream::parRun() && UPstream::nProcs(comm) > 1)
-        {
-            // Get my communication order
-            const commsStruct& myComm = comms[UPstream::myProcNo(comm)];
+        // Get my communication order
+        const commsStruct& myComm = comms[UPstream::myProcNo(comm)];
 
-            // Receive from my downstairs neighbours
-            forAll(myComm.below(), belowI)
+        // Receive from my downstairs neighbours
+        forAll(myComm.below(), belowI)
+        {
+            label belowID = myComm.below()[belowI];
+
+            if (is_contiguous<T>::value)
             {
-                label belowID = myComm.below()[belowI];
-
-                if (contiguous<T>())
-                {
-                    T value;
-                    UIPstream::read
-                    (
-                        UPstream::commsTypes::scheduled,
-                        belowID,
-                        reinterpret_cast<char*>(&value),
-                        sizeof(T),
-                        tag,
-                        comm
-                    );
-
-                    if (debug & 2)
-                    {
-                        Pout << " received from "
-                            << belowID << " data:" << value << endl;
-                    }
-
-                    cop(Value, value);
-                }
-                else
-                {
-                    IPstream fromBelow
-                    (
-                        UPstream::commsTypes::scheduled,
-                        belowID,
-                        0,
-                        tag,
-                        comm
-                    );
-                    T value(fromBelow);
-
-                    if (debug & 2)
-                    {
-                        Pout << " received from "
-                            << belowID << " data:" << value << endl;
-                    }
-
-                    cop(Value, value);
-                }
-            }
-
-            // Send up Value
-            if (myComm.above() != -1)
-            {
-                if (debug & 2)
-                {
-                    Pout << " sending to " << myComm.above()
-                        << " data:" << Value << endl;
-                }
-
-                if (contiguous<T>())
-                {
-                    UOPstream::write
-                    (
-                        UPstream::commsTypes::scheduled,
-                        myComm.above(),
-                        reinterpret_cast<const char*>(&Value),
-                        sizeof(T),
-                        tag,
-                        comm
-                    );
-                }
-                else
-                {
-                    OPstream toAbove
-                    (
-                        UPstream::commsTypes::scheduled,
-                        myComm.above(),
-                        0,
-                        tag,
-                        comm
-                    );
-                    toAbove << Value;
-                }
-            }
-        }
-    }
-
-
-    template<class T, class CombineOp>
-    void Pstream::combineGather
-    (
-        T& Value,
-        const CombineOp& cop,
-        const int tag,
-        const label comm
-    )
-    {
-        if (UPstream::nProcs(comm) < UPstream::nProcsSimpleSum)
-        {
-            combineGather
-            (
-                UPstream::linearCommunication(comm),
-                Value,
-                cop,
-                tag,
-                comm
-            );
-        }
-        else
-        {
-            combineGather
-            (
-                UPstream::treeCommunication(comm),
-                Value,
-                cop,
-                tag,
-                comm
-            );
-        }
-    }
-
-
-    template<class T>
-    void Pstream::combineScatter
-    (
-        const List<UPstream::commsStruct>& comms,
-        T& Value,
-        const int tag,
-        const label comm
-    )
-    {
-        if (UPstream::parRun() && UPstream::nProcs(comm) > 1)
-        {
-            // Get my communication order
-            const UPstream::commsStruct& myComm = comms[UPstream::myProcNo(comm)];
-
-            // Reveive from up
-            if (myComm.above() != -1)
-            {
-                if (contiguous<T>())
-                {
-                    UIPstream::read
-                    (
-                        UPstream::commsTypes::scheduled,
-                        myComm.above(),
-                        reinterpret_cast<char*>(&Value),
-                        sizeof(T),
-                        tag,
-                        comm
-                    );
-                }
-                else
-                {
-                    IPstream fromAbove
-                    (
-                        UPstream::commsTypes::scheduled,
-                        myComm.above(),
-                        0,
-                        tag,
-                        comm
-                    );
-                    Value = T(fromAbove);
-                }
+                T value;
+                UIPstream::read
+                (
+                    UPstream::commsTypes::scheduled,
+                    belowID,
+                    reinterpret_cast<char*>(&value),
+                    sizeof(T),
+                    tag,
+                    comm
+                );
 
                 if (debug & 2)
                 {
-                    Pout << " received from "
-                        << myComm.above() << " data:" << Value << endl;
+                    Pout<< " received from "
+                        << belowID << " data:" << value << endl;
                 }
+
+                cop(Value, value);
             }
-
-            // Send to my downstairs neighbours
-            forAllReverse(myComm.below(), belowI)
+            else
             {
-                label belowID = myComm.below()[belowI];
-
-                if (debug & 2)
-                {
-                    Pout << " sending to " << belowID << " data:" << Value << endl;
-                }
-
-                if (contiguous<T>())
-                {
-                    UOPstream::write
-                    (
-                        UPstream::commsTypes::scheduled,
-                        belowID,
-                        reinterpret_cast<const char*>(&Value),
-                        sizeof(T),
-                        tag,
-                        comm
-                    );
-                }
-                else
-                {
-                    OPstream toBelow
-                    (
-                        UPstream::commsTypes::scheduled,
-                        belowID,
-                        0,
-                        tag,
-                        comm
-                    );
-                    toBelow << Value;
-                }
-            }
-        }
-    }
-
-
-    template<class T>
-    void Pstream::combineScatter
-    (
-        T& Value,
-        const int tag,
-        const label comm
-    )
-    {
-        if (UPstream::nProcs(comm) < UPstream::nProcsSimpleSum)
-        {
-            combineScatter(UPstream::linearCommunication(comm), Value, tag, comm);
-        }
-        else
-        {
-            combineScatter(UPstream::treeCommunication(comm), Value, tag, comm);
-        }
-    }
-
-
-    template<class T, class CombineOp>
-    void Pstream::listCombineGather
-    (
-        const List<UPstream::commsStruct>& comms,
-        List<T>& Values,
-        const CombineOp& cop,
-        const int tag,
-        const label comm
-    )
-    {
-        if (UPstream::parRun() && UPstream::nProcs(comm) > 1)
-        {
-            // Get my communication order
-            const commsStruct& myComm = comms[UPstream::myProcNo(comm)];
-
-            // Receive from my downstairs neighbours
-            forAll(myComm.below(), belowI)
-            {
-                label belowID = myComm.below()[belowI];
-
-                if (contiguous<T>())
-                {
-                    List<T> receivedValues(Values.size());
-
-                    UIPstream::read
-                    (
-                        UPstream::commsTypes::scheduled,
-                        belowID,
-                        reinterpret_cast<char*>(receivedValues.begin()),
-                        receivedValues.byteSize(),
-                        tag,
-                        comm
-                    );
-
-                    if (debug & 2)
-                    {
-                        Pout << " received from "
-                            << belowID << " data:" << receivedValues << endl;
-                    }
-
-                    forAll(Values, i)
-                    {
-                        cop(Values[i], receivedValues[i]);
-                    }
-                }
-                else
-                {
-                    IPstream fromBelow
-                    (
-                        UPstream::commsTypes::scheduled,
-                        belowID,
-                        0,
-                        tag,
-                        comm
-                    );
-                    List<T> receivedValues(fromBelow);
-
-                    if (debug & 2)
-                    {
-                        Pout << " received from "
-                            << belowID << " data:" << receivedValues << endl;
-                    }
-
-                    forAll(Values, i)
-                    {
-                        cop(Values[i], receivedValues[i]);
-                    }
-                }
-            }
-
-            // Send up Value
-            if (myComm.above() != -1)
-            {
-                if (debug & 2)
-                {
-                    Pout << " sending to " << myComm.above()
-                        << " data:" << Values << endl;
-                }
-
-                if (contiguous<T>())
-                {
-                    UOPstream::write
-                    (
-                        UPstream::commsTypes::scheduled,
-                        myComm.above(),
-                        reinterpret_cast<const char*>(Values.begin()),
-                        Values.byteSize(),
-                        tag,
-                        comm
-                    );
-                }
-                else
-                {
-                    OPstream toAbove
-                    (
-                        UPstream::commsTypes::scheduled,
-                        myComm.above(),
-                        0,
-                        tag,
-                        comm
-                    );
-                    toAbove << Values;
-                }
-            }
-        }
-    }
-
-
-    template<class T, class CombineOp>
-    void Pstream::listCombineGather
-    (
-        List<T>& Values,
-        const CombineOp& cop,
-        const int tag,
-        const label comm
-    )
-    {
-        if (UPstream::nProcs(comm) < UPstream::nProcsSimpleSum)
-        {
-            listCombineGather
-            (
-                UPstream::linearCommunication(comm),
-                Values,
-                cop,
-                tag,
-                comm
-            );
-        }
-        else
-        {
-            listCombineGather
-            (
-                UPstream::treeCommunication(comm),
-                Values,
-                cop,
-                tag,
-                comm
-            );
-        }
-    }
-
-
-    template<class T>
-    void Pstream::listCombineScatter
-    (
-        const List<UPstream::commsStruct>& comms,
-        List<T>& Values,
-        const int tag,
-        const label comm
-    )
-    {
-        if (UPstream::parRun() && UPstream::nProcs(comm) > 1)
-        {
-            // Get my communication order
-            const UPstream::commsStruct& myComm = comms[UPstream::myProcNo(comm)];
-
-            // Reveive from up
-            if (myComm.above() != -1)
-            {
-                if (contiguous<T>())
-                {
-                    UIPstream::read
-                    (
-                        UPstream::commsTypes::scheduled,
-                        myComm.above(),
-                        reinterpret_cast<char*>(Values.begin()),
-                        Values.byteSize(),
-                        tag,
-                        comm
-                    );
-                }
-                else
-                {
-                    IPstream fromAbove
-                    (
-                        UPstream::commsTypes::scheduled,
-                        myComm.above(),
-                        0,
-                        tag,
-                        comm
-                    );
-                    fromAbove >> Values;
-                }
-
-                if (debug & 2)
-                {
-                    Pout << " received from "
-                        << myComm.above() << " data:" << Values << endl;
-                }
-            }
-
-            // Send to my downstairs neighbours
-            forAllReverse(myComm.below(), belowI)
-            {
-                label belowID = myComm.below()[belowI];
-
-                if (debug & 2)
-                {
-                    Pout << " sending to " << belowID << " data:" << Values << endl;
-                }
-
-                if (contiguous<T>())
-                {
-                    UOPstream::write
-                    (
-                        UPstream::commsTypes::scheduled,
-                        belowID,
-                        reinterpret_cast<const char*>(Values.begin()),
-                        Values.byteSize(),
-                        tag,
-                        comm
-                    );
-                }
-                else
-                {
-                    OPstream toBelow
-                    (
-                        UPstream::commsTypes::scheduled,
-                        belowID,
-                        0,
-                        tag,
-                        comm
-                    );
-                    toBelow << Values;
-                }
-            }
-        }
-    }
-
-
-    template<class T>
-    void Pstream::listCombineScatter
-    (
-        List<T>& Values,
-        const int tag,
-        const label comm
-    )
-    {
-        if (UPstream::nProcs(comm) < UPstream::nProcsSimpleSum)
-        {
-            listCombineScatter
-            (
-                UPstream::linearCommunication(comm),
-                Values,
-                tag,
-                comm
-            );
-        }
-        else
-        {
-            listCombineScatter
-            (
-                UPstream::treeCommunication(comm),
-                Values,
-                tag,
-                comm
-            );
-        }
-    }
-
-
-    template<class Container, class CombineOp>
-    void Pstream::mapCombineGather
-    (
-        const List<UPstream::commsStruct>& comms,
-        Container& Values,
-        const CombineOp& cop,
-        const int tag,
-        const label comm
-    )
-    {
-        if (UPstream::parRun() && UPstream::nProcs(comm) > 1)
-        {
-            // Get my communication order
-            const commsStruct& myComm = comms[UPstream::myProcNo(comm)];
-
-            // Receive from my downstairs neighbours
-            forAll(myComm.below(), belowI)
-            {
-                label belowID = myComm.below()[belowI];
-
                 IPstream fromBelow
                 (
                     UPstream::commsTypes::scheduled,
@@ -571,45 +96,290 @@ namespace Foam {
                     tag,
                     comm
                 );
-                Container receivedValues(fromBelow);
+                T value(fromBelow);
 
                 if (debug & 2)
                 {
-                    Pout << " received from "
+                    Pout<< " received from "
+                        << belowID << " data:" << value << endl;
+                }
+
+                cop(Value, value);
+            }
+        }
+
+        // Send up Value
+        if (myComm.above() != -1)
+        {
+            if (debug & 2)
+            {
+                Pout<< " sending to " << myComm.above()
+                    << " data:" << Value << endl;
+            }
+
+            if (is_contiguous<T>::value)
+            {
+                UOPstream::write
+                (
+                    UPstream::commsTypes::scheduled,
+                    myComm.above(),
+                    reinterpret_cast<const char*>(&Value),
+                    sizeof(T),
+                    tag,
+                    comm
+                );
+            }
+            else
+            {
+                OPstream toAbove
+                (
+                    UPstream::commsTypes::scheduled,
+                    myComm.above(),
+                    0,
+                    tag,
+                    comm
+                );
+                toAbove << Value;
+            }
+        }
+    }
+}
+
+
+template<class T, class CombineOp>
+void Pstream::combineGather
+(
+    T& Value,
+    const CombineOp& cop,
+    const int tag,
+    const label comm
+)
+{
+    if (UPstream::nProcs(comm) < UPstream::nProcsSimpleSum)
+    {
+        combineGather
+        (
+            UPstream::linearCommunication(comm),
+            Value,
+            cop,
+            tag,
+            comm
+        );
+    }
+    else
+    {
+        combineGather
+        (
+            UPstream::treeCommunication(comm),
+            Value,
+            cop,
+            tag,
+            comm
+        );
+    }
+}
+
+
+template<class T>
+void Pstream::combineScatter
+(
+    const List<UPstream::commsStruct>& comms,
+    T& Value,
+    const int tag,
+    const label comm
+)
+{
+    if (UPstream::parRun() && UPstream::nProcs(comm) > 1)
+    {
+        // Get my communication order
+        const UPstream::commsStruct& myComm = comms[UPstream::myProcNo(comm)];
+
+        // Receive from up
+        if (myComm.above() != -1)
+        {
+            if (is_contiguous<T>::value)
+            {
+                UIPstream::read
+                (
+                    UPstream::commsTypes::scheduled,
+                    myComm.above(),
+                    reinterpret_cast<char*>(&Value),
+                    sizeof(T),
+                    tag,
+                    comm
+                );
+            }
+            else
+            {
+                IPstream fromAbove
+                (
+                    UPstream::commsTypes::scheduled,
+                    myComm.above(),
+                    0,
+                    tag,
+                    comm
+                );
+                Value = T(fromAbove);
+            }
+
+            if (debug & 2)
+            {
+                Pout<< " received from "
+                    << myComm.above() << " data:" << Value << endl;
+            }
+        }
+
+        // Send to my downstairs neighbours
+        forAllReverse(myComm.below(), belowI)
+        {
+            label belowID = myComm.below()[belowI];
+
+            if (debug & 2)
+            {
+                Pout<< " sending to " << belowID << " data:" << Value << endl;
+            }
+
+            if (is_contiguous<T>::value)
+            {
+                UOPstream::write
+                (
+                    UPstream::commsTypes::scheduled,
+                    belowID,
+                    reinterpret_cast<const char*>(&Value),
+                    sizeof(T),
+                    tag,
+                    comm
+                );
+            }
+            else
+            {
+                OPstream toBelow
+                (
+                    UPstream::commsTypes::scheduled,
+                    belowID,
+                    0,
+                    tag,
+                    comm
+                );
+                toBelow << Value;
+            }
+        }
+    }
+}
+
+
+template<class T>
+void Pstream::combineScatter
+(
+    T& Value,
+    const int tag,
+    const label comm
+)
+{
+    if (UPstream::nProcs(comm) < UPstream::nProcsSimpleSum)
+    {
+        combineScatter(UPstream::linearCommunication(comm), Value, tag, comm);
+    }
+    else
+    {
+        combineScatter(UPstream::treeCommunication(comm), Value, tag, comm);
+    }
+}
+
+
+template<class T, class CombineOp>
+void Pstream::listCombineGather
+(
+    const List<UPstream::commsStruct>& comms,
+    List<T>& Values,
+    const CombineOp& cop,
+    const int tag,
+    const label comm
+)
+{
+    if (UPstream::parRun() && UPstream::nProcs(comm) > 1)
+    {
+        // Get my communication order
+        const commsStruct& myComm = comms[UPstream::myProcNo(comm)];
+
+        // Receive from my downstairs neighbours
+        forAll(myComm.below(), belowI)
+        {
+            label belowID = myComm.below()[belowI];
+
+            if (is_contiguous<T>::value)
+            {
+                List<T> receivedValues(Values.size());
+
+                UIPstream::read
+                (
+                    UPstream::commsTypes::scheduled,
+                    belowID,
+                    receivedValues.data_bytes(),
+                    receivedValues.size_bytes(),
+                    tag,
+                    comm
+                );
+
+                if (debug & 2)
+                {
+                    Pout<< " received from "
                         << belowID << " data:" << receivedValues << endl;
                 }
 
-                for
-                    (
-                        typename Container::const_iterator slaveIter =
-                        receivedValues.begin();
-                        slaveIter != receivedValues.end();
-                        ++slaveIter
-                        )
+                forAll(Values, i)
                 {
-                    typename Container::iterator
-                        masterIter = Values.find(slaveIter.key());
-
-                    if (masterIter != Values.end())
-                    {
-                        cop(masterIter(), slaveIter());
-                    }
-                    else
-                    {
-                        Values.insert(slaveIter.key(), slaveIter());
-                    }
+                    cop(Values[i], receivedValues[i]);
                 }
             }
-
-            // Send up Value
-            if (myComm.above() != -1)
+            else
             {
+                IPstream fromBelow
+                (
+                    UPstream::commsTypes::scheduled,
+                    belowID,
+                    0,
+                    tag,
+                    comm
+                );
+                List<T> receivedValues(fromBelow);
+
                 if (debug & 2)
                 {
-                    Pout << " sending to " << myComm.above()
-                        << " data:" << Values << endl;
+                    Pout<< " received from "
+                        << belowID << " data:" << receivedValues << endl;
                 }
 
+                forAll(Values, i)
+                {
+                    cop(Values[i], receivedValues[i]);
+                }
+            }
+        }
+
+        // Send up Value
+        if (myComm.above() != -1)
+        {
+            if (debug & 2)
+            {
+                Pout<< " sending to " << myComm.above()
+                    << " data:" << Values << endl;
+            }
+
+            if (is_contiguous<T>::value)
+            {
+                UOPstream::write
+                (
+                    UPstream::commsTypes::scheduled,
+                    myComm.above(),
+                    Values.cdata_bytes(),
+                    Values.size_bytes(),
+                    tag,
+                    comm
+                );
+            }
+            else
+            {
                 OPstream toAbove
                 (
                     UPstream::commsTypes::scheduled,
@@ -622,58 +392,73 @@ namespace Foam {
             }
         }
     }
+}
 
 
-    template<class Container, class CombineOp>
-    void Pstream::mapCombineGather
-    (
-        Container& Values,
-        const CombineOp& cop,
-        const int tag,
-        const label comm
-    )
+template<class T, class CombineOp>
+void Pstream::listCombineGather
+(
+    List<T>& Values,
+    const CombineOp& cop,
+    const int tag,
+    const label comm
+)
+{
+    if (UPstream::nProcs(comm) < UPstream::nProcsSimpleSum)
     {
-        if (UPstream::nProcs(comm) < UPstream::nProcsSimpleSum)
-        {
-            mapCombineGather
-            (
-                UPstream::linearCommunication(comm),
-                Values,
-                cop,
-                tag,
-                comm
-            );
-        }
-        else
-        {
-            mapCombineGather
-            (
-                UPstream::treeCommunication(comm),
-                Values,
-                cop,
-                tag,
-                comm
-            );
-        }
+        listCombineGather
+        (
+            UPstream::linearCommunication(comm),
+            Values,
+            cop,
+            tag,
+            comm
+        );
     }
-
-
-    template<class Container>
-    void Pstream::mapCombineScatter
-    (
-        const List<UPstream::commsStruct>& comms,
-        Container& Values,
-        const int tag,
-        const label comm
-    )
+    else
     {
-        if (UPstream::parRun() && UPstream::nProcs(comm) > 1)
-        {
-            // Get my communication order
-            const UPstream::commsStruct& myComm = comms[UPstream::myProcNo(comm)];
+        listCombineGather
+        (
+            UPstream::treeCommunication(comm),
+            Values,
+            cop,
+            tag,
+            comm
+        );
+    }
+}
 
-            // Reveive from up
-            if (myComm.above() != -1)
+
+template<class T>
+void Pstream::listCombineScatter
+(
+    const List<UPstream::commsStruct>& comms,
+    List<T>& Values,
+    const int tag,
+    const label comm
+)
+{
+    if (UPstream::parRun() && UPstream::nProcs(comm) > 1)
+    {
+        // Get my communication order
+        const UPstream::commsStruct& myComm = comms[UPstream::myProcNo(comm)];
+
+        // Receive from up
+        if (myComm.above() != -1)
+        {
+            if (is_contiguous<T>::value)
+            {
+                UIPstream::read
+                (
+                    UPstream::commsTypes::scheduled,
+                    myComm.above(),
+                    Values.data_bytes(),
+                    Values.size_bytes(),
+                    tag,
+                    comm
+                );
+            }
+            else
             {
                 IPstream fromAbove
                 (
@@ -684,24 +469,39 @@ namespace Foam {
                     comm
                 );
                 fromAbove >> Values;
-
-                if (debug & 2)
-                {
-                    Pout << " received from "
-                        << myComm.above() << " data:" << Values << endl;
-                }
             }
 
-            // Send to my downstairs neighbours
-            forAllReverse(myComm.below(), belowI)
+            if (debug & 2)
             {
-                label belowID = myComm.below()[belowI];
+                Pout<< " received from "
+                    << myComm.above() << " data:" << Values << endl;
+            }
+        }
 
-                if (debug & 2)
-                {
-                    Pout << " sending to " << belowID << " data:" << Values << endl;
-                }
+        // Send to my downstairs neighbours
+        forAllReverse(myComm.below(), belowI)
+        {
+            label belowID = myComm.below()[belowI];
 
+            if (debug & 2)
+            {
+                Pout<< " sending to " << belowID << " data:" << Values << endl;
+            }
+
+            if (is_contiguous<T>::value)
+            {
+                UOPstream::write
+                (
+                    UPstream::commsTypes::scheduled,
+                    belowID,
+                    Values.cdata_bytes(),
+                    Values.size_bytes(),
+                    tag,
+                    comm
+                );
+            }
+            else
+            {
                 OPstream toBelow
                 (
                     UPstream::commsTypes::scheduled,
@@ -714,37 +514,244 @@ namespace Foam {
             }
         }
     }
+}
 
 
-    template<class Container>
-    void Pstream::mapCombineScatter
-    (
-        Container& Values,
-        const int tag,
-        const label comm
-    )
+template<class T>
+void Pstream::listCombineScatter
+(
+    List<T>& Values,
+    const int tag,
+    const label comm
+)
+{
+    if (UPstream::nProcs(comm) < UPstream::nProcsSimpleSum)
     {
-        if (UPstream::nProcs(comm) < UPstream::nProcsSimpleSum)
+        listCombineScatter
+        (
+            UPstream::linearCommunication(comm),
+            Values,
+            tag,
+            comm
+        );
+    }
+    else
+    {
+        listCombineScatter
+        (
+            UPstream::treeCommunication(comm),
+            Values,
+            tag,
+            comm
+        );
+    }
+}
+
+
+template<class Container, class CombineOp>
+void Pstream::mapCombineGather
+(
+    const List<UPstream::commsStruct>& comms,
+    Container& Values,
+    const CombineOp& cop,
+    const int tag,
+    const label comm
+)
+{
+    if (UPstream::parRun() && UPstream::nProcs(comm) > 1)
+    {
+        // Get my communication order
+        const commsStruct& myComm = comms[UPstream::myProcNo(comm)];
+
+        // Receive from my downstairs neighbours
+        forAll(myComm.below(), belowI)
         {
-            mapCombineScatter
+            label belowID = myComm.below()[belowI];
+
+            IPstream fromBelow
             (
-                UPstream::linearCommunication(comm),
-                Values,
+                UPstream::commsTypes::scheduled,
+                belowID,
+                0,
                 tag,
                 comm
             );
+            Container receivedValues(fromBelow);
+
+            if (debug & 2)
+            {
+                Pout<< " received from "
+                    << belowID << " data:" << receivedValues << endl;
+            }
+
+            for
+            (
+                typename Container::const_iterator slaveIter =
+                    receivedValues.begin();
+                slaveIter != receivedValues.end();
+                ++slaveIter
+            )
+            {
+                typename Container::iterator
+                    masterIter = Values.find(slaveIter.key());
+
+                if (masterIter != Values.end())
+                {
+                    cop(masterIter(), slaveIter());
+                }
+                else
+                {
+                    Values.insert(slaveIter.key(), slaveIter());
+                }
+            }
         }
-        else
+
+        // Send up Value
+        if (myComm.above() != -1)
         {
-            mapCombineScatter
+            if (debug & 2)
+            {
+                Pout<< " sending to " << myComm.above()
+                    << " data:" << Values << endl;
+            }
+
+            OPstream toAbove
             (
-                UPstream::treeCommunication(comm),
-                Values,
+                UPstream::commsTypes::scheduled,
+                myComm.above(),
+                0,
                 tag,
                 comm
             );
+            toAbove << Values;
         }
     }
-
 }
+
+
+template<class Container, class CombineOp>
+void Pstream::mapCombineGather
+(
+    Container& Values,
+    const CombineOp& cop,
+    const int tag,
+    const label comm
+)
+{
+    if (UPstream::nProcs(comm) < UPstream::nProcsSimpleSum)
+    {
+        mapCombineGather
+        (
+            UPstream::linearCommunication(comm),
+            Values,
+            cop,
+            tag,
+            comm
+        );
+    }
+    else
+    {
+        mapCombineGather
+        (
+            UPstream::treeCommunication(comm),
+            Values,
+            cop,
+            tag,
+            comm
+        );
+    }
+}
+
+
+template<class Container>
+void Pstream::mapCombineScatter
+(
+    const List<UPstream::commsStruct>& comms,
+    Container& Values,
+    const int tag,
+    const label comm
+)
+{
+    if (UPstream::parRun() && UPstream::nProcs(comm) > 1)
+    {
+        // Get my communication order
+        const UPstream::commsStruct& myComm = comms[UPstream::myProcNo(comm)];
+
+        // Receive from up
+        if (myComm.above() != -1)
+        {
+            IPstream fromAbove
+            (
+                UPstream::commsTypes::scheduled,
+                myComm.above(),
+                0,
+                tag,
+                comm
+            );
+            fromAbove >> Values;
+
+            if (debug & 2)
+            {
+                Pout<< " received from "
+                    << myComm.above() << " data:" << Values << endl;
+            }
+        }
+
+        // Send to my downstairs neighbours
+        forAllReverse(myComm.below(), belowI)
+        {
+            label belowID = myComm.below()[belowI];
+
+            if (debug & 2)
+            {
+                Pout<< " sending to " << belowID << " data:" << Values << endl;
+            }
+
+            OPstream toBelow
+            (
+                UPstream::commsTypes::scheduled,
+                belowID,
+                0,
+                tag,
+                comm
+            );
+            toBelow << Values;
+        }
+    }
+}
+
+
+template<class Container>
+void Pstream::mapCombineScatter
+(
+    Container& Values,
+    const int tag,
+    const label comm
+)
+{
+    if (UPstream::nProcs(comm) < UPstream::nProcsSimpleSum)
+    {
+        mapCombineScatter
+        (
+            UPstream::linearCommunication(comm),
+            Values,
+            tag,
+            comm
+        );
+    }
+    else
+    {
+        mapCombineScatter
+        (
+            UPstream::treeCommunication(comm),
+            Values,
+            tag,
+            comm
+        );
+    }
+}
+
+
 // ************************************************************************* //
+
+ } // End namespace Foam

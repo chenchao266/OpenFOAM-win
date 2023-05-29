@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -38,10 +41,52 @@ Description
     The primary region creates the baffle region and evolves its energy
     equation either:
       - 1-D, normal to each patch face
-      - 2-D, normal and tangential components
+      - 3-D, normal and tangential components
 
     The thermodynamic properties of the baffle material are specified via
     dictionary entries on the master patch.
+
+    The underlying polyPatch on the primary region needs to be defined
+    as a complete mappedWall. i.e:
+
+    \verbatim
+        type            mappedWall;
+        sampleMode      nearestPatchFace;
+        samplePatch     <patchName>;
+        sampleRegion    <regionName>;
+
+        coupleGroup     <coupleGroupName>;
+
+    \endverbatim
+
+    The /keyword{internal} is true when the thermal baffle is used on internal
+    faces and the baffle is coupled on both sides (bottom and top).
+
+    If this baffle is used on a patch set internal = false. By default is
+    true.
+
+    \table
+   Property         | Description             | Required    | Default value
+    Tnbr            | name of the field       | no | T
+    qrNbr           | name of the radiative flux in the nbr region | no | none
+    qr              | name of the radiative flux in this region | no | none
+    thicknessLayers | inherited from temperatureCoupledBase | inherited
+    kappaLayers     | inherited from temperatureCoupledBase | inherited
+    kappaMethod     | inherited from temperatureCoupledBase | inherited
+    kappa           | inherited from temperatureCoupledBase | inherited
+    thermalInertia  | Add thermal inertia to wall node      | no | false
+    region          | Name of the solid region              | yes
+    active          | Active                                | yes
+    internal        | Is the baffle an internal regiion     | no  | true
+    thermoType      | Solid thermo type                     | yes
+    mixture         | Mixture solid                         | yes
+    radiation       | Radiation model in the solid          | yes
+    extrudeModel    | Extrude model                         | yes
+    nLayers         | Number of cell across the ragion      | yes
+    expansionRatio  | Expansion ratio for the solid region  | yes
+    columnCells     | true for 1D or false for 3D region    | yes
+
+    \endtable
 
 Usage
     Example of the boundary condition specification:
@@ -50,17 +95,18 @@ Usage
     {
         type                compressible::thermalBaffle;
 
-        // Underlaying coupled boundary condition
+        // Underlying coupled boundary condition
         Tnbr               T;
-        kappa              fluidThermo; // or solidThermo
-        KappaName          none;
+        kappaMethod        fluidThermo; // or solidThermo
+        kappa              none;
         qrNbr              qr;//or none.Name of qr field on neighbourregion
         qr                 none;// or none.Name of qr field on localregion
         value              uniform 300;
 
         // Baffle region name
-        regionName          baffleRegion;
+        region              baffleRegion;
         active              yes;
+        internal            yes;
 
         // Solid thermo in solid region
         thermoType
@@ -116,13 +162,16 @@ Usage
     }
     \endverbatim
 
+    If the thermal baffle is used on internal faces of the primary region,
+    then the slave in this region is defined as :
+
     Slave patch on primary region:
     \verbatim
     <slavePatchName>
     {
         type                compressible::thermalBaffle;
-        kappa               fluidThermo;
-        kappaName           none;
+        kappaMethod         fluidThermo;
+        kappa               none;
         value               uniform 300;
     \endverbatim
 
@@ -131,16 +180,16 @@ Usage
     bottom
     {
         type                compressible::thermalBaffle;
-        kappa               solidThermo;
-        kappaName           none;
+        kappaMethod         solidThermo;
+        kappa               none;
         value               uniform 300;
     }
 
     top
     {
         type                compressible::thermalBaffle;
-        kappa               solidThermo;
-        kappaName           none;
+        kappaMethod         solidThermo;
+        kappa               none;
         value               uniform 300;
     }
     \endverbatim
@@ -192,6 +241,9 @@ class thermalBaffleFvPatchScalarField
 
         //- Is the baffle owner
         bool owner_;
+
+        //- Is the baffle internal
+        bool internal_;
 
         //- Thermal baffle
         autoPtr<regionModels::thermalBaffleModels::thermalBaffleModel> baffle_;
@@ -272,23 +324,6 @@ public:
 
 
     // Member functions
-
-
-        // Mapping functions
-
-            //- Map (and resize as needed) from self given a mapping object
-            virtual void autoMap
-            (
-                const fvPatchFieldMapper&
-            );
-
-            //- Reverse map the given fvPatchField onto this fvPatchField
-            virtual void rmap
-            (
-                const fvPatchScalarField&,
-                const labelList&
-            );
-
 
         //- Update the coefficients associated with the patch field
         virtual void updateCoeffs();

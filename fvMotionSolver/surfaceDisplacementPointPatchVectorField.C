@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -25,36 +28,28 @@ License
 
 #include "surfaceDisplacementPointPatchVectorField.H"
 #include "addToRunTimeSelectionTable.H"
-#include "Time.T.H"
+#include "Time1.H"
 #include "transformField.H"
 #include "fvMesh.H"
 #include "displacementMotionSolver.H"
 
-// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
-
-namespace Foam
-{
-
-
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
 
-template<>
-const char*
-NamedEnum<surfaceDisplacementPointPatchVectorField::projectMode, 3>::
-names[] =
-{
-    "nearest",
-    "pointNormal",
-    "fixedNormal"
-};
-
-const NamedEnum<surfaceDisplacementPointPatchVectorField::projectMode, 3>
-    surfaceDisplacementPointPatchVectorField::projectModeNames_;
+const Foam::Enum
+<
+    Foam::surfaceDisplacementPointPatchVectorField::projectMode
+>
+Foam::surfaceDisplacementPointPatchVectorField::projectModeNames_
+({
+    { projectMode::NEAREST, "nearest" },
+    { projectMode::POINTNORMAL, "pointNormal" },
+    { projectMode::FIXEDNORMAL, "fixedNormal" },
+});
 
 
 // * * * * * * * * * * * * * Private Member Functions  * * * * * * * * * * * //
 
-void surfaceDisplacementPointPatchVectorField::calcProjection
+void Foam::surfaceDisplacementPointPatchVectorField::calcProjection
 (
     vectorField& displacement
 ) const
@@ -175,7 +170,7 @@ void surfaceDisplacementPointPatchVectorField::calcProjection
         }
 
         // Knock out any wedge component
-        scalarField offset(start.size(), 0.0);
+        scalarField offset(start.size(), Zero);
         if (wedgePlane_ >= 0 && wedgePlane_ <= vector::nComponents)
         {
             forAll(offset, i)
@@ -300,7 +295,7 @@ void surfaceDisplacementPointPatchVectorField::calcProjection
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
-surfaceDisplacementPointPatchVectorField::
+Foam::surfaceDisplacementPointPatchVectorField::
 surfaceDisplacementPointPatchVectorField
 (
     const pointPatch& p,
@@ -315,7 +310,7 @@ surfaceDisplacementPointPatchVectorField
 {}
 
 
-surfaceDisplacementPointPatchVectorField::
+Foam::surfaceDisplacementPointPatchVectorField::
 surfaceDisplacementPointPatchVectorField
 (
     const pointPatch& p,
@@ -324,12 +319,12 @@ surfaceDisplacementPointPatchVectorField
 )
 :
     fixedValuePointPatchVectorField(p, iF, dict),
-    velocity_(dict.lookup("velocity")),
+    velocity_(dict.get<vector>("velocity")),
     surfacesDict_(dict.subDict("geometry")),
-    projectMode_(projectModeNames_.read(dict.lookup("projectMode"))),
-    projectDir_(dict.lookup("projectDirection")),
-    wedgePlane_(dict.lookupOrDefault("wedgePlane", -1)),
-    frozenPointsZone_(dict.lookupOrDefault("frozenPointsZone", word::null))
+    projectMode_(projectModeNames_.get("projectMode", dict)),
+    projectDir_(dict.get<vector>("projectDirection")),
+    wedgePlane_(dict.getOrDefault("wedgePlane", -1)),
+    frozenPointsZone_(dict.getOrDefault("frozenPointsZone", word::null))
 {
     if (velocity_.x() < 0 || velocity_.y() < 0 || velocity_.z() < 0)
     {
@@ -342,7 +337,7 @@ surfaceDisplacementPointPatchVectorField
 }
 
 
-surfaceDisplacementPointPatchVectorField::
+Foam::surfaceDisplacementPointPatchVectorField::
 surfaceDisplacementPointPatchVectorField
 (
     const surfaceDisplacementPointPatchVectorField& ppf,
@@ -361,7 +356,7 @@ surfaceDisplacementPointPatchVectorField
 {}
 
 
-surfaceDisplacementPointPatchVectorField::
+Foam::surfaceDisplacementPointPatchVectorField::
 surfaceDisplacementPointPatchVectorField
 (
     const surfaceDisplacementPointPatchVectorField& ppf
@@ -377,7 +372,7 @@ surfaceDisplacementPointPatchVectorField
 {}
 
 
-surfaceDisplacementPointPatchVectorField::
+Foam::surfaceDisplacementPointPatchVectorField::
 surfaceDisplacementPointPatchVectorField
 (
     const surfaceDisplacementPointPatchVectorField& ppf,
@@ -396,10 +391,10 @@ surfaceDisplacementPointPatchVectorField
 
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
 
-const searchableSurfaces&
-surfaceDisplacementPointPatchVectorField::surfaces() const
+const Foam::searchableSurfaces&
+Foam::surfaceDisplacementPointPatchVectorField::surfaces() const
 {
-    if (surfacesPtr_.empty())
+    if (!surfacesPtr_)
     {
         surfacesPtr_.reset
         (
@@ -419,11 +414,12 @@ surfaceDisplacementPointPatchVectorField::surfaces() const
             )
         );
     }
-    return surfacesPtr_();
+
+    return *surfacesPtr_;
 }
 
 
-void surfaceDisplacementPointPatchVectorField::updateCoeffs()
+void Foam::surfaceDisplacementPointPatchVectorField::updateCoeffs()
 {
     if (this->updated())
     {
@@ -469,37 +465,34 @@ void surfaceDisplacementPointPatchVectorField::updateCoeffs()
 }
 
 
-void surfaceDisplacementPointPatchVectorField::write(Ostream& os) const
+void Foam::surfaceDisplacementPointPatchVectorField::write(Ostream& os) const
 {
     fixedValuePointPatchVectorField::write(os);
-    os.writeKeyword("velocity") << velocity_
-        << token::END_STATEMENT << nl;
-    os.writeKeyword("geometry") << surfacesDict_
-        << token::END_STATEMENT << nl;
-    os.writeKeyword("projectMode") << projectModeNames_[projectMode_]
-        << token::END_STATEMENT << nl;
-    os.writeKeyword("projectDirection") << projectDir_
-        << token::END_STATEMENT << nl;
-    os.writeKeyword("wedgePlane") << wedgePlane_
-        << token::END_STATEMENT << nl;
-    if (frozenPointsZone_ != word::null)
-    {
-        os.writeKeyword("frozenPointsZone") << frozenPointsZone_
-            << token::END_STATEMENT << nl;
-    }
+    os.writeEntry("velocity", velocity_);
+    os.writeEntry("geometry", surfacesDict_);
+    os.writeEntry("projectMode", projectModeNames_[projectMode_]);
+    os.writeEntry("projectDirection", projectDir_);
+    os.writeEntry("wedgePlane", wedgePlane_);
+
+    os.writeEntryIfDifferent<word>
+    (
+        "frozenPointsZone",
+        word::null,
+        frozenPointsZone_
+    );
 }
 
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+namespace Foam
+{
 
 makePointPatchTypeField
 (
     fixedValuePointPatchVectorField,
     surfaceDisplacementPointPatchVectorField
 );
-
-
-// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 } // End namespace Foam
 

@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2015-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2015-2017 OpenFOAM Foundation
+    Copyright (C) 2018-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -24,15 +27,72 @@ License
 Class
     Foam::fv::buoyancyEnergy
 
+Group
+    grpFvOptionsSources
+
 Description
-    Calculates and applies the buoyancy energy source rho*(U&g) to the energy
-    equation.
+    Applies buoyancy energy sources (i.e. \c Sb)
+    to the energy equation for compressible flows.
+
+    \f[
+        S_b = \rho (\vec{U} \cdot \vec{g})
+    \f]
+
+    where
+    \vartable
+      S_b     | Buoyancy energy source term
+      \rho    | Fluid density
+      \vec{U} | Velocity field
+      \vec{g} | Gravitational acceleration field
+    \endvartable
+
+    Sources applied to either of the below, if exist:
+    \verbatim
+      e         | Internal energy                            [m2/s2]
+      h         | Enthalphy                                  [m2/s2]
+    \endverbatim
+
+    Required fields:
+    \verbatim
+      U         | Velocity                                   [m/s]
+      rho       | Fluid density                              [kg/m3]
+    \endverbatim
 
 Usage
-    Example usage:
+    Minimal example by using \c constant/fvOptions:
     \verbatim
-    fields          (h);                    // Name of energy field
+    buoyancyEnergy1
+    {
+        // Mandatory entries (unmodifiable)
+        type             buoyancyEnergy;
+        fields           (h);
+
+        // Optional entries (runtime modifiable)
+        U                U;
+
+        // Mandatory/Optional (inherited) entries
+        ...
+    }
     \endverbatim
+
+    where the entries mean:
+    \table
+      Property  | Description                       | Type   | Reqd  | Dflt
+      type      | Type name: buoyancyEnergy         | word   | yes   | -
+      fields    | Name of operand energy field      | word   | yes   | -
+      U         | Name of operand velocity field    | word   | no    | U
+    \endtable
+
+    The inherited entries are elaborated in:
+     - \link fvOption.H \endlink
+
+Note
+  - The entry \c fields accepts only a single field name.
+  - The sources are applied onto the entire computational domain.
+
+See also
+  - Foam::fv::buoyancyForce
+  - Foam::fv::buoyancyTurbSource
 
 SourceFiles
     buoyancyEnergy.C
@@ -53,26 +113,17 @@ namespace fv
 {
 
 /*---------------------------------------------------------------------------*\
-               Class buoyancyEnergy Declaration
+                       Class buoyancyEnergy Declaration
 \*---------------------------------------------------------------------------*/
 
 class buoyancyEnergy
 :
-    public option
+    public fv::option
 {
-    // Private data
+    // Private Data
 
-        //- Name of velocity field; default = U
+        //- Name of operand velocity field
         word UName_;
-
-
-    // Private Member Functions
-
-        //- Disallow default bitwise copy construct
-        buoyancyEnergy(const buoyancyEnergy&);
-
-        //- Disallow default bitwise assignment
-        void operator=(const buoyancyEnergy&);
 
 
 public:
@@ -92,24 +143,30 @@ public:
             const fvMesh& mesh
         );
 
+        //- No copy construct
+        buoyancyEnergy(const buoyancyEnergy&) = delete;
+
+        //- No copy assignment
+        void operator=(const buoyancyEnergy&) = delete;
+
+
+    //- Destructor
+    virtual ~buoyancyEnergy() = default;
+
 
     // Member Functions
 
-        // Evaluate
-
-            //- Add explicit contribution to compressible momentum equation
-            virtual void addSup
-            (
-                const volScalarField& rho,
-                fvMatrix<scalar>& eqn,
-                const label fieldi
-            );
+        //- Add explicit contribution to compressible momentum equation
+        virtual void addSup
+        (
+            const volScalarField& rho,
+            fvMatrix<scalar>& eqn,
+            const label fieldi
+        );
 
 
-        // IO
-
-            //- Read source dictionary
-            virtual bool read(const dictionary& dict);
+        //- Read source dictionary
+        virtual bool read(const dictionary& dict);
 };
 
 

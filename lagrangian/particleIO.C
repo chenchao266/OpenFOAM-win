@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2016-2019 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -28,14 +31,14 @@ License
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
 
-Foam::string Foam::particle::propertyList_ = Foam::particle::propertyList();
+Foam::string Foam::particle::propertyList_  = Foam::particle::propertyList();
 
-const std::size_t Foam::particle::sizeofPosition_
+const std::size_t Foam::particle::sizeofPosition
 (
     offsetof(particle, facei_) - offsetof(particle, coordinates_)
 );
 
-const std::size_t Foam::particle::sizeofFields_
+const std::size_t Foam::particle::sizeofFields
 (
     sizeof(particle) - offsetof(particle, coordinates_)
 );
@@ -43,7 +46,13 @@ const std::size_t Foam::particle::sizeofFields_
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
-Foam::particle::particle(const polyMesh& mesh, Istream& is, bool readFields)
+Foam::particle::particle
+(
+    const polyMesh& mesh,
+    Istream& is,
+    bool readFields,
+    bool newFormat
+)
 :
     mesh_(mesh),
     coordinates_(),
@@ -55,33 +64,162 @@ Foam::particle::particle(const polyMesh& mesh, Istream& is, bool readFields)
     origProc_(Pstream::myProcNo()),
     origId_(-1)
 {
-    if (is.format() == IOstream::ASCII)
+    if (newFormat)
     {
-        is  >> coordinates_ >> celli_ >> tetFacei_ >> tetPti_;
-
-        if (readFields)
+        if (is.format() == IOstream::ASCII)
         {
-            is  >> facei_ >> stepFraction_ >> origProc_ >> origId_;
+            is  >> coordinates_ >> celli_ >> tetFacei_ >> tetPti_;
+            if (readFields)
+            {
+                is  >> facei_ >> stepFraction_ >> origProc_ >> origId_;
+            }
+        }
+        else if (!is.checkLabelSize<>() || !is.checkScalarSize<>())
+        {
+            // Non-native label or scalar size
+
+            is.beginRawRead();
+
+            readRawScalar(is, coordinates_.data(), barycentric::nComponents);
+            readRawLabel(is, &celli_);
+            readRawLabel(is, &tetFacei_);
+            readRawLabel(is, &tetPti_);
+
+            if (readFields)
+            {
+                readRawLabel(is, &facei_);
+                readRawScalar(is, &stepFraction_);
+                readRawLabel(is, &origProc_);
+                readRawLabel(is, &origId_);
+            }
+
+            is.endRawRead();
+        }
+        else
+        {
+            if (readFields)
+            {
+                is.read(reinterpret_cast<char*>(&coordinates_), sizeofFields);
+            }
+            else
+            {
+                is.read(reinterpret_cast<char*>(&coordinates_), sizeofPosition);
+            }
         }
     }
     else
     {
-        if (readFields)
+        positionsCompat1706 p;
+
+        if (is.format() == IOstream::ASCII)
         {
-            is.read(reinterpret_cast<char*>(&coordinates_), sizeofFields_);
+            is >> p.position >> p.celli;
+
+            if (readFields)
+            {
+                is  >> p.facei
+                    >> p.stepFraction
+                    >> p.tetFacei
+                    >> p.tetPti
+                    >> p.origProc
+                    >> p.origId;
+            }
+        }
+        else if (!is.checkLabelSize<>() || !is.checkScalarSize<>())
+        {
+            // Non-native label or scalar size
+
+            is.beginRawRead();
+
+            readRawScalar(is, p.position.data(), vector::nComponents);
+            readRawLabel(is, &p.celli);
+
+            if (readFields)
+            {
+                readRawLabel(is, &p.facei);
+                readRawScalar(is, &p.stepFraction);
+                readRawLabel(is, &p.tetFacei);
+                readRawLabel(is, &p.tetPti);
+                readRawLabel(is, &p.origProc);
+                readRawLabel(is, &p.origId);
+            }
+
+            is.endRawRead();
         }
         else
         {
-            is.read(reinterpret_cast<char*>(&coordinates_), sizeofPosition_);
+            if (readFields)
+            {
+                // Read whole struct
+                const size_t s =
+                (
+                    sizeof(positionsCompat1706)
+                  - offsetof(positionsCompat1706, position)
+                );
+                is.read(reinterpret_cast<char*>(&p.position), s);
+            }
+            else
+            {
+                // Read only position and cell
+                const size_t s =
+                (
+                    offsetof(positionsCompat1706, facei)
+                  - offsetof(positionsCompat1706, position)
+                );
+                is.read(reinterpret_cast<char*>(&p.position), s);
+            }
         }
+
+        if (readFields)
+        {
+            // Note: other position-based properties are set using locate(...)
+            stepFraction_ = p.stepFraction;
+            origProc_ = p.origProc;
+            origId_ = p.origId;
+        }
+
+        locate
+        (
+            p.position,
+            nullptr,
+            p.celli,
+            false,
+            "Particle initialised with a location outside of the mesh."
+        );
     }
 
     // Check state of Istream
-    is.check("particle::particle(Istream&, bool)");
+    is.check(FUNCTION_NAME);
 }
 
 
-void Foam::particle::writePosition(Ostream& os) const
+void Foam::particle::writeProperties
+(
+    Ostream& os,
+    const wordRes& filters,
+    const word& delim,
+    const bool namesOnly
+) const
+{
+    #undef  writeProp
+    #define writeProp(Name, Value)                                            \
+        particle::writeProperty(os, Name, Value, namesOnly, delim, filters)
+
+    writeProp("coordinates", coordinates_);
+    writeProp("position", position());
+    writeProp("celli", celli_);
+    writeProp("tetFacei", tetFacei_);
+    writeProp("tetPti", tetPti_);
+    writeProp("facei", facei_);
+    writeProp("stepFraction", stepFraction_);
+    writeProp("origProc", origProc_);
+    writeProp("origId", origId_);
+
+    #undef writeProp
+}
+
+
+void Foam::particle::writeCoordinates(Ostream& os) const
 {
     if (os.format() == IOstream::ASCII)
     {
@@ -92,11 +230,38 @@ void Foam::particle::writePosition(Ostream& os) const
     }
     else
     {
-        os.write(reinterpret_cast<const char*>(&coordinates_), sizeofPosition_);
+        os.write(reinterpret_cast<const char*>(&coordinates_), sizeofPosition);
     }
 
     // Check state of Ostream
-    os.check("particle::writePosition(Ostream& os, bool) const");
+    os.check(FUNCTION_NAME);
+}
+
+
+void Foam::particle::writePosition(Ostream& os) const
+{
+    if (os.format() == IOstream::ASCII)
+    {
+        os  << position() << token::SPACE << celli_;
+    }
+    else
+    {
+        positionsCompat1706 p;
+
+        const size_t s =
+        (
+            offsetof(positionsCompat1706, facei)
+          - offsetof(positionsCompat1706, position)
+        );
+
+        p.position = position();
+        p.celli = celli_;
+
+        os.write(reinterpret_cast<const char*>(&p.position), s);
+    }
+
+    // Check state of Ostream
+    os.check(FUNCTION_NAME);
 }
 
 
@@ -118,7 +283,7 @@ Foam::Ostream& Foam::operator<<(Ostream& os, const particle& p)
         os.write
         (
             reinterpret_cast<const char*>(&p.coordinates_),
-            particle::sizeofFields_
+            particle::sizeofFields
         );
     }
 

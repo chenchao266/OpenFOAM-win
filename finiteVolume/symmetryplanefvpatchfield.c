@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2013-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2013-2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -27,160 +29,158 @@ License
 
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
-namespace Foam {
-    template<class Type>
-    symmetryPlaneFvPatchField<Type>::symmetryPlaneFvPatchField
-    (
-        const fvPatch& p,
-        const DimensionedField<Type, volMesh>& iF
-    )
-        :
-        basicSymmetryFvPatchField<Type>(p, iF),
-        symmetryPlanePatch_(refCast<const symmetryPlaneFvPatch>(p))
-    {}
+
+template<class Type>
+Foam::symmetryPlaneFvPatchField<Type>::symmetryPlaneFvPatchField
+(
+    const fvPatch& p,
+    const DimensionedField<Type, volMesh>& iF
+)
+:
+    basicSymmetryFvPatchField<Type>(p, iF),
+    symmetryPlanePatch_(refCast<const symmetryPlaneFvPatch>(p))
+{}
 
 
-    template<class Type>
-    symmetryPlaneFvPatchField<Type>::symmetryPlaneFvPatchField
-    (
-        const symmetryPlaneFvPatchField<Type>& ptf,
-        const fvPatch& p,
-        const DimensionedField<Type, volMesh>& iF,
-        const fvPatchFieldMapper& mapper
-    )
-        :
-        basicSymmetryFvPatchField<Type>(ptf, p, iF, mapper),
-        symmetryPlanePatch_(refCast<const symmetryPlaneFvPatch>(p))
+template<class Type>
+Foam::symmetryPlaneFvPatchField<Type>::symmetryPlaneFvPatchField
+(
+    const symmetryPlaneFvPatchField<Type>& ptf,
+    const fvPatch& p,
+    const DimensionedField<Type, volMesh>& iF,
+    const fvPatchFieldMapper& mapper
+)
+:
+    basicSymmetryFvPatchField<Type>(ptf, p, iF, mapper),
+    symmetryPlanePatch_(refCast<const symmetryPlaneFvPatch>(p))
+{
+    if (!isType<symmetryPlaneFvPatch>(this->patch()))
     {
-        if (!isType<symmetryPlaneFvPatch>(this->patch()))
-        {
-            FatalErrorInFunction
-                << "' not constraint type '" << typeName << "'"
-                << "\n    for patch " << p.name()
-                << " of field " << this->internalField().name()
-                << " in file " << this->internalField().objectPath()
-                << exit(FatalIOError);
-        }
+        FatalErrorInFunction
+            << "' not constraint type '" << typeName << "'"
+            << "\n    for patch " << p.name()
+            << " of field " << this->internalField().name()
+            << " in file " << this->internalField().objectPath()
+            << exit(FatalError);
     }
-
-
-    template<class Type>
-    symmetryPlaneFvPatchField<Type>::symmetryPlaneFvPatchField
-    (
-        const fvPatch& p,
-        const DimensionedField<Type, volMesh>& iF,
-        const dictionary& dict
-    )
-        :
-        basicSymmetryFvPatchField<Type>(p, iF, dict),
-        symmetryPlanePatch_(refCast<const symmetryPlaneFvPatch>(p))
-    {
-        if (!isType<symmetryPlaneFvPatch>(p))
-        {
-            FatalIOErrorInFunction
-            (
-                dict
-            ) << "\n    patch type '" << p.type()
-                << "' not constraint type '" << typeName << "'"
-                << "\n    for patch " << p.name()
-                << " of field " << this->internalField().name()
-                << " in file " << this->internalField().objectPath()
-                << exit(FatalIOError);
-        }
-    }
-
-
-    template<class Type>
-    symmetryPlaneFvPatchField<Type>::symmetryPlaneFvPatchField
-    (
-        const symmetryPlaneFvPatchField<Type>& ptf
-    )
-        :
-        basicSymmetryFvPatchField<Type>(ptf),
-        symmetryPlanePatch_(ptf.symmetryPlanePatch_)
-    {}
-
-
-    template<class Type>
-    symmetryPlaneFvPatchField<Type>::symmetryPlaneFvPatchField
-    (
-        const symmetryPlaneFvPatchField<Type>& ptf,
-        const DimensionedField<Type, volMesh>& iF
-    )
-        :
-        basicSymmetryFvPatchField<Type>(ptf, iF),
-        symmetryPlanePatch_(ptf.symmetryPlanePatch_)
-    {}
-
-
-    // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
-
-    template<class Type>
-    tmp<Field<Type>>
-        symmetryPlaneFvPatchField<Type>::snGrad() const
-    {
-        vector nHat(symmetryPlanePatch_.n());
-
-        const Field<Type> iF(this->patchInternalField());
-
-        return
-            (transform(I - 2.0*sqr(nHat), iF) - iF)
-            *(this->patch().deltaCoeffs() / 2.0);
-    }
-
-
-    template<class Type>
-    void symmetryPlaneFvPatchField<Type>::evaluate(const Pstream::commsTypes)
-    {
-        if (!this->updated())
-        {
-            this->updateCoeffs();
-        }
-
-        vector nHat(symmetryPlanePatch_.n());
-
-        const Field<Type> iF(this->patchInternalField());
-
-        Field<Type>::operator=
-            (
-            (iF + transform(I - 2.0*sqr(nHat), iF)) / 2.0
-                );
-
-        transformFvPatchField<Type>::evaluate();
-    }
-
-
-    template<class Type>
-    tmp<Field<Type>>
-        symmetryPlaneFvPatchField<Type>::snGradTransformDiag() const
-    {
-        vector nHat(symmetryPlanePatch_.n());
-
-        const vector diag
-        (
-            mag(nHat.component(vector::X)),
-            mag(nHat.component(vector::Y)),
-            mag(nHat.component(vector::Z))
-        );
-
-        return tmp<Field<Type>>
-            (
-                new Field<Type>
-                (
-                    this->size(),
-                    transformMask<Type>
-                    (
-                        //pow<vector, pTraits<Type>::rank>(diag)
-                        pow
-                        (
-                            diag,
-                            pTraits<typename powProduct<vector, pTraits<Type>::rank>
-                            ::type>::_zero
-                        )
-                        )
-                    )
-                );
-    }
-
 }
+
+
+template<class Type>
+Foam::symmetryPlaneFvPatchField<Type>::symmetryPlaneFvPatchField
+(
+    const fvPatch& p,
+    const DimensionedField<Type, volMesh>& iF,
+    const dictionary& dict
+)
+:
+    basicSymmetryFvPatchField<Type>(p, iF, dict),
+    symmetryPlanePatch_(refCast<const symmetryPlaneFvPatch>(p, dict))
+{
+    if (!isType<symmetryPlaneFvPatch>(p))
+    {
+        FatalIOErrorInFunction(dict)
+            << "\n    patch type '" << p.type()
+            << "' not constraint type '" << typeName << "'"
+            << "\n    for patch " << p.name()
+            << " of field " << this->internalField().name()
+            << " in file " << this->internalField().objectPath()
+            << exit(FatalIOError);
+    }
+}
+
+
+template<class Type>
+Foam::symmetryPlaneFvPatchField<Type>::symmetryPlaneFvPatchField
+(
+    const symmetryPlaneFvPatchField<Type>& ptf
+)
+:
+    basicSymmetryFvPatchField<Type>(ptf),
+    symmetryPlanePatch_(ptf.symmetryPlanePatch_)
+{}
+
+
+template<class Type>
+Foam::symmetryPlaneFvPatchField<Type>::symmetryPlaneFvPatchField
+(
+    const symmetryPlaneFvPatchField<Type>& ptf,
+    const DimensionedField<Type, volMesh>& iF
+)
+:
+    basicSymmetryFvPatchField<Type>(ptf, iF),
+    symmetryPlanePatch_(ptf.symmetryPlanePatch_)
+{}
+
+
+// * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
+
+template<class Type>
+Foam::tmp<Foam::Field<Type>>
+Foam::symmetryPlaneFvPatchField<Type>::snGrad() const
+{
+    vector nHat(symmetryPlanePatch_.n());
+
+    const Field<Type> iF(this->patchInternalField());
+
+    return
+        (transform(I - 2.0*sqr(nHat), iF) - iF)
+       *(this->patch().deltaCoeffs()/2.0);
+}
+
+
+template<class Type>
+void Foam::symmetryPlaneFvPatchField<Type>::evaluate(const Pstream::commsTypes)
+{
+    if (!this->updated())
+    {
+        this->updateCoeffs();
+    }
+
+    vector nHat(symmetryPlanePatch_.n());
+
+    const Field<Type> iF(this->patchInternalField());
+
+    Field<Type>::operator=
+    (
+        (iF + transform(I - 2.0*sqr(nHat), iF))/2.0
+    );
+
+    transformFvPatchField<Type>::evaluate();
+}
+
+
+template<class Type>
+Foam::tmp<Foam::Field<Type>>
+Foam::symmetryPlaneFvPatchField<Type>::snGradTransformDiag() const
+{
+    vector nHat(symmetryPlanePatch_.n());
+
+    const vector diag
+    (
+        mag(nHat.component(vector::X)),
+        mag(nHat.component(vector::Y)),
+        mag(nHat.component(vector::Z))
+    );
+
+    return tmp<Field<Type>>
+    (
+        new Field<Type>
+        (
+            this->size(),
+            transformMask<Type>
+            (
+                //pow<vector, pTraits<Type>::rank>(diag)
+                pow
+                (
+                    diag,
+                    pTraits<typename powProduct<vector, pTraits<Type>::rank>
+                    ::type>::zero_
+                )
+            )
+        )
+    );
+}
+
+
 // ************************************************************************* //

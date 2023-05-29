@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2019 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -32,10 +35,10 @@ SourceFiles
 
 \*---------------------------------------------------------------------------*/
 
-#ifndef streamLineCloud_H
-#define streamLineCloud_H
+#ifndef streamLineParticleCloud_H
+#define streamLineParticleCloud_H
 
-#include "Cloud.T.H"
+#include "Cloud.H"
 #include "streamLineParticle.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
@@ -53,11 +56,11 @@ class streamLineParticleCloud
 {
     // Private Member Functions
 
-        //- Disallow default bitwise copy construct
-        streamLineParticleCloud(const streamLineParticleCloud&);
+        //- No copy construct
+        streamLineParticleCloud(const streamLineParticleCloud&) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const streamLineParticleCloud&);
+        //- No copy assignment
+        void operator=(const streamLineParticleCloud&) = delete;
 
 
 public:
@@ -65,13 +68,14 @@ public:
     //- Type of parcel the cloud was instantiated for
     typedef streamLineParticle parcelType;
 
+
     // Constructors
 
         //- Construct given mesh
-        streamLineParticleCloud
+        explicit streamLineParticleCloud
         (
-            const polyMesh&,
-            const word& cloudName = "defaultCloud",
+            const polyMesh& mesh,
+            const word& cloudName = cloud::defaultName,
             bool readFields = true
         );
 

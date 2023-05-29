@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2013-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2013-2016 OpenFOAM Foundation
+    Copyright (C) 2019 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -25,6 +28,13 @@ Class
     Foam::extrudeModels::radial
 
 Description
+    Extrudes radially according to the Function1 description.
+
+    The radialCoeffs dictionary entries
+    \table
+        Property  | Description                             | Required | Default
+        R         | The radii as a Function1                | yes |
+    \endtable
 
 \*---------------------------------------------------------------------------*/
 
@@ -32,7 +42,7 @@ Description
 #define radial_H
 
 #include "extrudeModel.H"
-#include "Function1.T.H"
+#include "Function1.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -42,7 +52,7 @@ namespace extrudeModels
 {
 
 /*---------------------------------------------------------------------------*\
-                           Class radial Declaration
+                    Class extrudeModels::radial Declaration
 \*---------------------------------------------------------------------------*/
 
 class radial
@@ -62,11 +72,11 @@ public:
     // Constructors
 
         //- Construct from dictionary
-        radial(const dictionary& dict);
+        explicit radial(const dictionary& dict);
 
 
-    //-Destructor
-    virtual ~radial();
+    //- Destructor
+    virtual ~radial() = default;
 
 
     // Member Operators

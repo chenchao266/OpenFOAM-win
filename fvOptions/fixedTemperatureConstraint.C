@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2012-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2012-2016 OpenFOAM Foundation
+    Copyright (C) 2020-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -43,18 +46,17 @@ namespace Foam
             dictionary
         );
     }
-
-    template<>
-    const char* NamedEnum<fv::fixedTemperatureConstraint::temperatureMode, 2>::
-    names[] =
-    {
-        "uniform",
-        "lookup"
-    };
 }
 
-const Foam::NamedEnum<Foam::fv::fixedTemperatureConstraint::temperatureMode, 2>
-    Foam::fv::fixedTemperatureConstraint::temperatureModeNames_;
+const Foam::Enum
+<
+    Foam::fv::fixedTemperatureConstraint::temperatureMode
+>
+Foam::fv::fixedTemperatureConstraint::temperatureModeNames_
+({
+    { temperatureMode::tmUniform, "uniform" },
+    { temperatureMode::tmLookup, "lookup" },
+});
 
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
@@ -67,8 +69,8 @@ Foam::fv::fixedTemperatureConstraint::fixedTemperatureConstraint
     const fvMesh& mesh
 )
 :
-    cellSetOption(name, modelType, dict, mesh),
-    mode_(temperatureModeNames_.read(coeffs_.lookup("mode"))),
+    fv::cellSetOption(name, modelType, dict, mesh),
+    mode_(temperatureModeNames_.get("mode", coeffs_)),
     Tuniform_(nullptr),
     TName_("T")
 {
@@ -78,31 +80,30 @@ Foam::fv::fixedTemperatureConstraint::fixedTemperatureConstraint
         {
             Tuniform_.reset
             (
-                Function1<scalar>::New("temperature", coeffs_).ptr()
+                Function1<scalar>::New("temperature", coeffs_, &mesh_)
             );
             break;
         }
         case tmLookup:
         {
-            TName_ = coeffs_.lookupOrDefault<word>("T", "T");
+            TName_ = coeffs_.getOrDefault<word>("T", "T");
             break;
         }
         default:
         {
-            // error handling done by NamedEnum
+            // Error handling already done by Enum
         }
     }
 
 
-    // Set the field name to that of the energy field from which the temperature
-    // is obtained
+    // Set the field name to that of the energy
+    // field from which the temperature is obtained
 
-    const basicThermo& thermo =
-        mesh_.lookupObject<basicThermo>(basicThermo::dictName);
+    const auto& thermo = mesh_.lookupObject<basicThermo>(basicThermo::dictName);
 
-    fieldNames_.setSize(1, thermo.he().name());
+    fieldNames_.resize(1, thermo.he().name());
 
-    applied_.setSize(1, false);
+    fv::option::resetApplied();
 }
 
 
@@ -114,8 +115,7 @@ void Foam::fv::fixedTemperatureConstraint::constrain
     const label
 )
 {
-    const basicThermo& thermo =
-        mesh_.lookupObject<basicThermo>(basicThermo::dictName);
+    const auto& thermo = mesh_.lookupObject<basicThermo>(basicThermo::dictName);
 
     switch (mode_)
     {
@@ -129,8 +129,7 @@ void Foam::fv::fixedTemperatureConstraint::constrain
         }
         case tmLookup:
         {
-            const volScalarField& T =
-                mesh().lookupObject<volScalarField>(TName_);
+            const auto& T = mesh().lookupObject<volScalarField>(TName_);
 
             scalarField Tlkp(T, cells_);
             eqn.setValues(cells_, thermo.he(thermo.p(), Tlkp, cells_));
@@ -139,7 +138,7 @@ void Foam::fv::fixedTemperatureConstraint::constrain
         }
         default:
         {
-            // error handling done by NamedEnum
+            // Error handling already done by Enum
         }
     }
 }
@@ -147,13 +146,13 @@ void Foam::fv::fixedTemperatureConstraint::constrain
 
 bool Foam::fv::fixedTemperatureConstraint::read(const dictionary& dict)
 {
-    if (cellSetOption::read(dict))
+    if (fv::cellSetOption::read(dict))
     {
         if (coeffs_.found(Tuniform_->name()))
         {
             Tuniform_.reset
             (
-                Function1<scalar>::New(Tuniform_->name(), dict).ptr()
+                Function1<scalar>::New(Tuniform_->name(), dict, &mesh_)
             );
         }
 
@@ -161,10 +160,8 @@ bool Foam::fv::fixedTemperatureConstraint::read(const dictionary& dict)
 
         return true;
     }
-    else
-    {
-        return false;
-    }
+
+    return false;
 }
 
 

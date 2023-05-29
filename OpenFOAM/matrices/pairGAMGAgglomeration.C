@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2015 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2015 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -26,23 +29,24 @@ License
 #include "pairGAMGAgglomeration.H"
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
- 
+
 namespace Foam
 {
     defineTypeNameAndDebug(pairGAMGAgglomeration, 0);
     bool pairGAMGAgglomeration::forward_(true);
-}
 
 
-// * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
-namespace Foam
-{
+
+    // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
+
     pairGAMGAgglomeration::pairGAMGAgglomeration
     (
         const lduMesh& mesh,
         const dictionary& controlDict
-    ) : GAMGAgglomeration(mesh, controlDict),
-        mergeLevels_(controlDict.lookupOrDefault<label>("mergeLevels", 1))
+    )
+        :
+        GAMGAgglomeration(mesh, controlDict),
+        mergeLevels_(controlDict.getOrDefault<label>("mergeLevels", 1))
     {}
 
 }

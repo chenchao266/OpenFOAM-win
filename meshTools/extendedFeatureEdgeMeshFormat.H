@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2013-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2013-2017 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -54,11 +56,14 @@ class extendedFeatureEdgeMeshFormat
 {
     // Private Member Functions
 
-        //- Disallow default bitwise copy construct
-        extendedFeatureEdgeMeshFormat(const extendedFeatureEdgeMeshFormat&);
+        //- No copy construct
+        extendedFeatureEdgeMeshFormat
+        (
+            const extendedFeatureEdgeMeshFormat&
+        ) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const extendedFeatureEdgeMeshFormat&);
+        //- No copy assignment
+        void operator=(const extendedFeatureEdgeMeshFormat&) = delete;
 
 
 public:
@@ -74,16 +79,14 @@ public:
         //- Read file and return surface
         static autoPtr<edgeMesh> New(const fileName& name)
         {
-            return autoPtr<edgeMesh>
-            (
-                new extendedFeatureEdgeMeshFormat(name)
-            );
+            return
+                autoPtr<edgeMesh>::NewFrom
+                <extendedFeatureEdgeMeshFormat>(name);
         }
 
 
     //- Destructor
-    virtual ~extendedFeatureEdgeMeshFormat()
-    {}
+    virtual ~extendedFeatureEdgeMeshFormat() = default;
 
 
     // Member Functions

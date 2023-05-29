@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -57,13 +59,6 @@ Foam::solidBodyMotionFunctions::oscillatingLinearMotion::oscillatingLinearMotion
 }
 
 
-// * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
-
-Foam::solidBodyMotionFunctions::oscillatingLinearMotion::
-~oscillatingLinearMotion()
-{}
-
-
 // * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * * //
 
 Foam::septernion
@@ -89,8 +84,8 @@ bool Foam::solidBodyMotionFunctions::oscillatingLinearMotion::read
 {
     solidBodyMotionFunction::read(SBMFCoeffs);
 
-    SBMFCoeffs_.lookup("amplitude") >> amplitude_;
-    SBMFCoeffs_.lookup("omega") >> omega_;
+    SBMFCoeffs_.readEntry("amplitude", amplitude_);
+    SBMFCoeffs_.readEntry("omega", omega_);
 
     return true;
 }

@@ -1,9 +1,11 @@
-﻿/*---------------------------------------------------------------------------*\
+/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2015 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2015 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -26,62 +28,62 @@ License
 //#include "slipFvPatchField.H"
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
-namespace Foam {
-    template<class Type>
-    slipFvPatchField<Type>::slipFvPatchField
-    (
-        const fvPatch& p,
-        const DimensionedField<Type, volMesh>& iF
-    )
-        :
-        basicSymmetryFvPatchField<Type>(p, iF)
-    {}
+
+template<class Type>
+Foam::slipFvPatchField<Type>::slipFvPatchField
+(
+    const fvPatch& p,
+    const DimensionedField<Type, volMesh>& iF
+)
+:
+    basicSymmetryFvPatchField<Type>(p, iF)
+{}
 
 
-    template<class Type>
-    slipFvPatchField<Type>::slipFvPatchField
-    (
-        const fvPatch& p,
-        const DimensionedField<Type, volMesh>& iF,
-        const dictionary& dict
-    )
-        :
-        basicSymmetryFvPatchField<Type>(p, iF, dict)
-    {}
+template<class Type>
+Foam::slipFvPatchField<Type>::slipFvPatchField
+(
+    const fvPatch& p,
+    const DimensionedField<Type, volMesh>& iF,
+    const dictionary& dict
+)
+:
+    basicSymmetryFvPatchField<Type>(p, iF, dict)
+{}
 
 
-    template<class Type>
-    slipFvPatchField<Type>::slipFvPatchField
-    (
-        const slipFvPatchField<Type>& ptf,
-        const fvPatch& p,
-        const DimensionedField<Type, volMesh>& iF,
-        const fvPatchFieldMapper& mapper
-    )
-        :
-        basicSymmetryFvPatchField<Type>(ptf, p, iF, mapper)
-    {}
+template<class Type>
+Foam::slipFvPatchField<Type>::slipFvPatchField
+(
+    const slipFvPatchField<Type>& ptf,
+    const fvPatch& p,
+    const DimensionedField<Type, volMesh>& iF,
+    const fvPatchFieldMapper& mapper
+)
+:
+    basicSymmetryFvPatchField<Type>(ptf, p, iF, mapper)
+{}
 
 
-    template<class Type>
-    slipFvPatchField<Type>::slipFvPatchField
-    (
-        const slipFvPatchField<Type>& ptf,
-        const DimensionedField<Type, volMesh>& iF
-    )
-        :
-        basicSymmetryFvPatchField<Type>(ptf, iF)
-    {}
+template<class Type>
+Foam::slipFvPatchField<Type>::slipFvPatchField
+(
+    const slipFvPatchField<Type>& ptf,
+    const DimensionedField<Type, volMesh>& iF
+)
+:
+    basicSymmetryFvPatchField<Type>(ptf, iF)
+{}
 
 
-    template<class Type>
-    slipFvPatchField<Type>::slipFvPatchField
-    (
-        const slipFvPatchField<Type>& ptf
-    )
-        :
-        basicSymmetryFvPatchField<Type>(ptf)
-    {}
+template<class Type>
+Foam::slipFvPatchField<Type>::slipFvPatchField
+(
+    const slipFvPatchField<Type>& ptf
+)
+:
+    basicSymmetryFvPatchField<Type>(ptf)
+{}
 
-}
+
 // ************************************************************************* //

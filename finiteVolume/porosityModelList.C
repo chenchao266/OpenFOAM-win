@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2012-2014 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2012-2014 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -38,59 +40,53 @@ Foam::porosityModelList::porosityModelList
     mesh_(mesh)
 {
     reset(dict);
-
     active(true);
 }
-
-
-// * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
-
-Foam::porosityModelList::~porosityModelList()
-{}
 
 
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
 
 bool Foam::porosityModelList::active(const bool warn) const
 {
-    bool a = false;
+    bool anyOk = false;
     forAll(*this, i)
     {
-        a = a || this->operator[](i).active();
+        anyOk = anyOk || this->operator[](i).active();
     }
 
-    if (warn && this->size() && !a)
+    if (warn && this->size() && !anyOk)
     {
         Info<< "No porosity models active" << endl;
     }
 
-    return a;
+    return anyOk;
 }
 
 
 void Foam::porosityModelList::reset(const dictionary& dict)
 {
     label count = 0;
-    forAllConstIter(dictionary, dict, iter)
+    for (const entry& dEntry : dict)
     {
-        if (iter().isDict())
+        if (dEntry.isDict())
         {
-            count++;
+            ++count;
         }
     }
 
-    this->setSize(count);
-    label i = 0;
-    forAllConstIter(dictionary, dict, iter)
+    this->resize(count);
+
+    count = 0;
+    for (const entry& dEntry : dict)
     {
-        if (iter().isDict())
+        if (dEntry.isDict())
         {
-            const word& name = iter().keyword();
-            const dictionary& modelDict = iter().dict();
+            const word& name = dEntry.keyword();
+            const dictionary& modelDict = dEntry.dict();
 
             this->set
             (
-                i++,
+                count++,
                 porosityModel::New(name, mesh_, modelDict)
             );
         }
@@ -153,7 +149,7 @@ void Foam::porosityModelList::addResistance
 (
     const fvVectorMatrix& UEqn,
     volTensorField& AU,
-    bool correctAUprocBC         
+    bool correctAUprocBC
 )
 {
     forAll(*this, i)

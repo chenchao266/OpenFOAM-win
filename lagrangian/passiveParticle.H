@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2019 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -36,7 +39,7 @@ SourceFiles
 #define passiveParticle_H
 
 #include "particle.H"
-#include "IOstream.H"
+#include "_IOstream.H"
 #include "autoPtr.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
@@ -71,28 +74,31 @@ public:
         {}
 
 
-        //- Construct from a position and a cell, searching for the rest of the
-        //  required topology
+        //- Construct from a position and a cell.
+        //  Searches for the rest of the required topology.
         passiveParticle
         (
             const polyMesh& mesh,
             const vector& position,
-            const label celli
+            const label celli = -1
         )
         :
             particle(mesh, position, celli)
         {}
+
 
         //- Construct from Istream
         passiveParticle
         (
             const polyMesh& mesh,
             Istream& is,
-            bool readFields = true
+            bool readFields = true,
+            bool newFormat = true
         )
         :
-            particle(mesh, is, readFields)
+            particle(mesh, is, readFields, newFormat)
         {}
+
 
         //- Construct as copy
         passiveParticle(const passiveParticle& p)
@@ -100,11 +106,31 @@ public:
             particle(p)
         {}
 
+
         //- Construct and return a clone
         virtual autoPtr<particle> clone() const
         {
             return autoPtr<particle>(new passiveParticle(*this));
         }
+
+
+        //- Factory class to read-construct particles (for parallel transfer)
+        class iNew
+        {
+            const polyMesh& mesh_;
+
+        public:
+
+            iNew(const polyMesh& mesh)
+            :
+                mesh_(mesh)
+            {}
+
+            autoPtr<passiveParticle> operator()(Istream& is) const
+            {
+                return autoPtr<passiveParticle>::New(mesh_, is, true);
+            }
+        };
 };
 
 

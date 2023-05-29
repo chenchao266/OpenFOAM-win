@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -38,9 +41,8 @@ SourceFiles
 #define OBJedgeFormat_H
 
 #include "edgeMesh.H"
-#include "IFstream.H"
-#include "Ostream.H"
-#include "OFstream.H"
+#include "Fstream.H"
+#include "_Ostream.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -59,18 +61,11 @@ class OBJedgeFormat
 {
     // Private Member Functions
 
-        void readVertices
-        (
-            const string& line,
-            string::size_type& endNum,
-            DynamicList<label>& dynVertices
-        );
+        //- No copy construct
+        OBJedgeFormat(const OBJedgeFormat&) = delete;
 
-        //- Disallow default bitwise copy construct
-        OBJedgeFormat(const OBJedgeFormat&);
-
-        //- Disallow default bitwise assignment
-        void operator=(const OBJedgeFormat&);
+        //- No copy assignment
+        void operator=(const OBJedgeFormat&) = delete;
 
 
 public:
@@ -86,30 +81,40 @@ public:
         //- Read file and return surface
         static autoPtr<edgeMesh> New(const fileName& name)
         {
-            return autoPtr<edgeMesh>
-            (
-                new OBJedgeFormat(name)
-            );
+            return autoPtr<edgeMesh>::NewFrom<OBJedgeFormat>(name);
         }
 
 
     //- Destructor
-    virtual ~OBJedgeFormat()
-    {}
+    virtual ~OBJedgeFormat() = default;
 
 
     // Member Functions
 
-        //- Write surface mesh components by proxy
-        static void write(const fileName&, const edgeMesh&);
+        //- Write edge mesh to file
+        static void write
+        (
+            const fileName& filename,
+            const edgeMesh& mesh,
+            IOstreamOption /*ignored*/ = IOstreamOption(),
+            const dictionary& options = dictionary::null
+        );
+
+
+    // Member Functions
 
         //- Read from file
-        virtual bool read(const fileName&);
+        virtual bool read(const fileName& name);
 
-        //- Write object file
-        virtual void write(const fileName& name) const
+        //- Write to file
+        virtual void write
+        (
+            const fileName& name,
+            IOstreamOption streamOpt = IOstreamOption(),
+            const dictionary& options = dictionary::null
+        ) const
         {
-            write(name, *this);
+            write(name, *this, streamOpt, options);
         }
 };
 

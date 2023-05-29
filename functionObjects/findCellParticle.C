@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2013-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2013-2017 OpenFOAM Foundation
+    Copyright (C) 2018 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -33,12 +36,12 @@ Foam::findCellParticle::findCellParticle
     const barycentric& coordinates,
     const label celli,
     const label tetFacei,
-    const label tetPtI,
+    const label tetPti,
     const point& end,
     const label data
 )
 :
-    particle(mesh, coordinates, celli, tetFacei, tetPtI),
+    particle(mesh, coordinates, celli, tetFacei, tetPti),
     start_(position()),
     end_(end),
     data_(data)
@@ -65,17 +68,28 @@ Foam::findCellParticle::findCellParticle
 (
     const polyMesh& mesh,
     Istream& is,
-    bool readFields
+    bool readFields,
+    bool newFormat
 )
 :
-    particle(mesh, is, readFields)
+    particle(mesh, is, readFields, newFormat)
 {
     if (readFields)
     {
         if (is.format() == IOstream::ASCII)
         {
-            is >> start_ >> end_;
-            data_ = readLabel(is);
+            is >> start_ >> end_ >> data_;
+        }
+        else if (!is.checkLabelSize<>() || !is.checkScalarSize<>())
+        {
+            // Non-native label or scalar size
+            is.beginRawRead();
+
+            readRawScalar(is, start_.data(), vector::nComponents);
+            readRawScalar(is, end_.data(), vector::nComponents);
+            readRawLabel(is, &data_);
+
+            is.endRawRead();
         }
         else
         {
@@ -87,12 +101,7 @@ Foam::findCellParticle::findCellParticle
         }
     }
 
-    // Check state of Istream
-    is.check
-    (
-        "findCellParticle::findCellParticle"
-        "(const Cloud<findCellParticle>&, Istream&, bool)"
-    );
+    is.check(FUNCTION_NAME);
 }
 
 
@@ -100,6 +109,7 @@ Foam::findCellParticle::findCellParticle
 
 bool Foam::findCellParticle::move
 (
+    Cloud<findCellParticle>& cloud,
     trackingData& td,
     const scalar maxTrackLen
 )
@@ -110,10 +120,13 @@ bool Foam::findCellParticle::move
     while (td.keepParticle && !td.switchProcessor && stepFraction() < 1)
     {
         const scalar f = 1 - stepFraction();
-        trackToFace(f*(end_ - start_), f, td);
+        trackToAndHitFace(f*(end_ - start_), f, cloud, td);
     }
 
-    if (stepFraction() == 1 || !td.keepParticle)
+    // Note: stepFraction is might not be exactly 1 so check for 1 or
+    // slightly larger
+
+    if (stepFraction() >= 1 || !td.keepParticle)
     {
         // Hit endpoint or patch. If patch hit could do fancy stuff but just
         // to use the patch point is good enough for now.
@@ -125,14 +138,7 @@ bool Foam::findCellParticle::move
 }
 
 
-bool Foam::findCellParticle::hitPatch
-(
-    const polyPatch&,
-    trackingData& td,
-    const label patchi,
-    const scalar trackFraction,
-    const tetIndices& tetIs
-)
+bool Foam::findCellParticle::hitPatch(Cloud<findCellParticle>&, trackingData&)
 {
     return false;
 }
@@ -140,7 +146,7 @@ bool Foam::findCellParticle::hitPatch
 
 void Foam::findCellParticle::hitWedgePatch
 (
-    const wedgePolyPatch&,
+    Cloud<findCellParticle>&,
     trackingData& td
 )
 {
@@ -151,7 +157,7 @@ void Foam::findCellParticle::hitWedgePatch
 
 void Foam::findCellParticle::hitSymmetryPlanePatch
 (
-    const symmetryPlanePolyPatch&,
+    Cloud<findCellParticle>&,
     trackingData& td
 )
 {
@@ -162,7 +168,7 @@ void Foam::findCellParticle::hitSymmetryPlanePatch
 
 void Foam::findCellParticle::hitSymmetryPatch
 (
-    const symmetryPolyPatch&,
+    Cloud<findCellParticle>&,
     trackingData& td
 )
 {
@@ -173,8 +179,32 @@ void Foam::findCellParticle::hitSymmetryPatch
 
 void Foam::findCellParticle::hitCyclicPatch
 (
-    const cyclicPolyPatch&,
+    Cloud<findCellParticle>&,
     trackingData& td
+)
+{
+    // Remove particle
+    td.keepParticle = false;
+}
+
+
+void Foam::findCellParticle::hitCyclicAMIPatch
+(
+    Cloud<findCellParticle>&,
+    trackingData& td,
+    const vector&
+)
+{
+    // Remove particle
+    td.keepParticle = false;
+}
+
+
+void Foam::findCellParticle::hitCyclicACMIPatch
+(
+    Cloud<findCellParticle>&,
+    trackingData& td,
+    const vector&
 )
 {
     // Remove particle
@@ -184,7 +214,7 @@ void Foam::findCellParticle::hitCyclicPatch
 
 void Foam::findCellParticle::hitProcessorPatch
 (
-    const processorPolyPatch&,
+    Cloud<findCellParticle>&,
     trackingData& td
 )
 {
@@ -195,19 +225,7 @@ void Foam::findCellParticle::hitProcessorPatch
 
 void Foam::findCellParticle::hitWallPatch
 (
-    const wallPolyPatch& wpp,
-    trackingData& td,
-    const tetIndices&
-)
-{
-    // Remove particle
-    td.keepParticle = false;
-}
-
-
-void Foam::findCellParticle::hitPatch
-(
-    const polyPatch& wpp,
+    Cloud<findCellParticle>&,
     trackingData& td
 )
 {
@@ -237,9 +255,7 @@ Foam::Ostream& Foam::operator<<(Ostream& os, const findCellParticle& p)
         );
     }
 
-    // Check state of Ostream
-    os.check("Ostream& operator<<(Ostream&, const findCellParticle&)");
-
+    os.check(FUNCTION_NAME);
     return os;
 }
 

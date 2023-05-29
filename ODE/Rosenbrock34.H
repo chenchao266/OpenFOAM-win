@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2013-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2013-2016 OpenFOAM Foundation
+    Copyright (C) 2019 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -23,6 +26,9 @@ License
 
 Class
     Foam::Rosenbrock34
+
+Group
+    grpODESolvers
 
 Description
     L-stable embedded Rosenbrock ODE solver of order (3)4.
@@ -107,8 +113,7 @@ public:
 
 
     //- Destructor
-    virtual ~Rosenbrock34()
-    {}
+    virtual ~Rosenbrock34() = default;
 
 
     // Member Functions

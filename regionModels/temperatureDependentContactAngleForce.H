@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2017 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -28,7 +30,7 @@ Description
     Temperature dependent contact angle force
 
     The contact angle in degrees is specified as a Foam::Function1 type, to
-    enable the use of, e.g.  contant, polynomial, table values.
+    enable the use of, e.g.  constant, polynomial, table values.
 
 See also
     Foam::regionModels::surfaceFilmModels::contactAngleForce
@@ -43,7 +45,7 @@ SourceFiles
 #define temperatureDependentContactAngleForce_H
 
 #include "contactAngleForce.H"
-#include "Function1.T.H"
+#include "Function1.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -70,14 +72,14 @@ class temperatureDependentContactAngleForce
 
     // Private member functions
 
-        //- Disallow default bitwise copy construct
+        //- No copy construct
         temperatureDependentContactAngleForce
         (
             const temperatureDependentContactAngleForce&
-        );
+        ) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const temperatureDependentContactAngleForce&);
+        //- No copy assignment
+        void operator=(const temperatureDependentContactAngleForce&) = delete;
 
 
 protected:
@@ -97,7 +99,7 @@ public:
         //- Construct from surface film model
         temperatureDependentContactAngleForce
         (
-            surfaceFilmModel& film,
+            surfaceFilmRegionModel& film,
             const dictionary& dict
         );
 

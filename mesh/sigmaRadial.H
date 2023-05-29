@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011 OpenFOAM Foundation
+    Copyright (C) 2019 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -25,6 +28,15 @@ Class
     Foam::extrudeModels::sigmaRadial
 
 Description
+    Extrudes into sphere with grading according to pressure (atmospherics)
+
+    The sigmaRadialCoeffs dictionary entries
+    \table
+        Property  | Description                             | Required | Default
+        RTbyg     |                                         | yes |
+        pRef      |                                         | yes |
+        pStrat    |                                         | yes |
+    \endtable
 
 \*---------------------------------------------------------------------------*/
 
@@ -66,8 +78,8 @@ public:
         sigmaRadial(const dictionary& dict);
 
 
-    //-Destructor
-    virtual ~sigmaRadial();
+    //- Destructor
+    virtual ~sigmaRadial() = default;
 
 
     // Member Operators

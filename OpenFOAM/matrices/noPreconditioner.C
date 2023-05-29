@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2015 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2012 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -23,53 +25,41 @@ License
 
 \*---------------------------------------------------------------------------*/
 
-#include "noPreconditioner.H"
-
-// * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
-using namespace Foam;
-namespace Foam
-{
-    defineTypeNameAndDebug(noPreconditioner, 0);
-
-    lduMatrix::preconditioner::
-        addsymMatrixConstructorToTable<noPreconditioner>
-        addnoPreconditionerSymMatrixConstructorToTable_;
-
-    lduMatrix::preconditioner::
-        addasymMatrixConstructorToTable<noPreconditioner>
-        addnoPreconditionerAsymMatrixConstructorToTable_;
-}
-
+#include "NoPreconditioner.H"
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
-noPreconditioner::noPreconditioner
+
+ namespace Foam{
+template<class Type, class DType, class LUType>
+NoPreconditioner<Type, DType, LUType>::NoPreconditioner
 (
-    const lduMatrix::solver& sol,
+    const typename LduMatrix<Type, DType, LUType>::solver& sol,
     const dictionary&
-) :    lduMatrix::preconditioner(sol)
+)
+:
+    LduMatrix<Type, DType, LUType>::preconditioner(sol)
 {}
 
 
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
 
-void noPreconditioner::precondition
+template<class Type, class DType, class LUType>
+void NoPreconditioner<Type, DType, LUType>::read(const dictionary&)
+{}
+
+
+template<class Type, class DType, class LUType>
+void NoPreconditioner<Type, DType, LUType>::precondition
 (
-    scalarField& wA,
-    const scalarField& rA,
-    const direction
+    Field<Type>& wA,
+    const Field<Type>& rA
 ) const
 {
-    scalar* __restrict__ wAPtr = wA.begin();
-    const scalar* __restrict__ rAPtr = rA.begin();
-
-    label nCells = wA.size();
-
-    for (label cell=0; cell<nCells; cell++)
-    {
-        wAPtr[cell] = rAPtr[cell];
-    }
+    wA = rA;
 }
 
 
 // ************************************************************************* //
+
+ } // End namespace Foam

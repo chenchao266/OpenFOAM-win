@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -28,154 +31,161 @@ License
 #include "surfaceFields.H"
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
-namespace Foam {
-    template<class Type>
-    outletMappedUniformInletFvPatchField<Type>::
-        outletMappedUniformInletFvPatchField
-        (
-            const fvPatch& p,
-            const DimensionedField<Type, volMesh>& iF
-        )
-        :
-        fixedValueFvPatchField<Type>(p, iF),
-        outletPatchName_(),
-        phiName_("phi")
-    {}
+
+template<class Type>
+Foam::outletMappedUniformInletFvPatchField<Type>::
+outletMappedUniformInletFvPatchField
+(
+    const fvPatch& p,
+    const DimensionedField<Type, volMesh>& iF
+)
+:
+    fixedValueFvPatchField<Type>(p, iF),
+    outletPatchName_(),
+    phiName_("phi"),
+    fraction_(1),
+    offset_(Zero)
+{}
 
 
-    template<class Type>
-    outletMappedUniformInletFvPatchField<Type>::
-        outletMappedUniformInletFvPatchField
-        (
-            const outletMappedUniformInletFvPatchField<Type>& ptf,
-            const fvPatch& p,
-            const DimensionedField<Type, volMesh>& iF,
-            const fvPatchFieldMapper& mapper
-        )
-        :
-        fixedValueFvPatchField<Type>(ptf, p, iF, mapper),
-        outletPatchName_(ptf.outletPatchName_),
-        phiName_(ptf.phiName_)
-    {}
+template<class Type>
+Foam::outletMappedUniformInletFvPatchField<Type>::
+outletMappedUniformInletFvPatchField
+(
+    const fvPatch& p,
+    const DimensionedField<Type, volMesh>& iF,
+    const dictionary& dict
+)
+:
+    fixedValueFvPatchField<Type>(p, iF, dict),
+    outletPatchName_(dict.get<word>("outletPatch")),
+    phiName_(dict.getOrDefault<word>("phi", "phi")),
+    fraction_(dict.getOrDefault<scalar>("fraction", 1)),
+    offset_(dict.getOrDefault<Type>("offset", Zero))
+{}
 
 
-    template<class Type>
-    outletMappedUniformInletFvPatchField<Type>::
-        outletMappedUniformInletFvPatchField
-        (
-            const fvPatch& p,
-            const DimensionedField<Type, volMesh>& iF,
-            const dictionary& dict
-        )
-        :
-        fixedValueFvPatchField<Type>(p, iF, dict),
-        outletPatchName_(dict.lookup("outletPatch")),
-        phiName_(dict.lookupOrDefault<word>("phi", "phi"))
-    {}
+template<class Type>
+Foam::outletMappedUniformInletFvPatchField<Type>::
+outletMappedUniformInletFvPatchField
+(
+    const outletMappedUniformInletFvPatchField<Type>& ptf,
+    const fvPatch& p,
+    const DimensionedField<Type, volMesh>& iF,
+    const fvPatchFieldMapper& mapper
+)
+:
+    fixedValueFvPatchField<Type>(ptf, p, iF, mapper),
+    outletPatchName_(ptf.outletPatchName_),
+    phiName_(ptf.phiName_),
+    fraction_(ptf.fraction_),
+    offset_(ptf.offset_)
+{}
 
 
-    template<class Type>
-    outletMappedUniformInletFvPatchField<Type>::
-        outletMappedUniformInletFvPatchField
-        (
-            const outletMappedUniformInletFvPatchField<Type>& ptf
-        )
-        :
-        fixedValueFvPatchField<Type>(ptf),
-        outletPatchName_(ptf.outletPatchName_),
-        phiName_(ptf.phiName_)
-    {}
+template<class Type>
+Foam::outletMappedUniformInletFvPatchField<Type>::
+outletMappedUniformInletFvPatchField
+(
+    const outletMappedUniformInletFvPatchField<Type>& ptf
+)
+:
+    fixedValueFvPatchField<Type>(ptf),
+    outletPatchName_(ptf.outletPatchName_),
+    phiName_(ptf.phiName_),
+    fraction_(ptf.fraction_),
+    offset_(ptf.offset_)
+{}
 
 
+template<class Type>
+Foam::outletMappedUniformInletFvPatchField<Type>::
+outletMappedUniformInletFvPatchField
+(
+    const outletMappedUniformInletFvPatchField<Type>& ptf,
+    const DimensionedField<Type, volMesh>& iF
+)
+:
+    fixedValueFvPatchField<Type>(ptf, iF),
+    outletPatchName_(ptf.outletPatchName_),
+    phiName_(ptf.phiName_),
+    fraction_(ptf.fraction_),
+    offset_(ptf.offset_)
+{}
 
-    template<class Type>
-    outletMappedUniformInletFvPatchField<Type>::
-        outletMappedUniformInletFvPatchField
-        (
-            const outletMappedUniformInletFvPatchField<Type>& ptf,
-            const DimensionedField<Type, volMesh>& iF
-        )
-        :
-        fixedValueFvPatchField<Type>(ptf, iF),
-        outletPatchName_(ptf.outletPatchName_),
-        phiName_(ptf.phiName_)
-    {}
 
+// * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
 
-    // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
-
-    template<class Type>
-    void outletMappedUniformInletFvPatchField<Type>::updateCoeffs()
+template<class Type>
+void Foam::outletMappedUniformInletFvPatchField<Type>::updateCoeffs()
+{
+    if (this->updated())
     {
-        if (this->updated())
-        {
-            return;
-        }
-
-        const volFieldType<Type>& f
-        (
-            dynamic_cast<const volFieldType<Type>&>
-            (
-                this->internalField()
-                )
-        );
-
-        const fvPatch& p = this->patch();
-        label outletPatchID =
-            p.patch().boundaryMesh().findPatchID(outletPatchName_);
-
-        if (outletPatchID < 0)
-        {
-            FatalErrorInFunction
-                << "Unable to find outlet patch " << outletPatchName_
-                << abort(FatalError);
-        }
-
-        const fvPatch& outletPatch = p.boundaryMesh()[outletPatchID];
-
-        const fvPatchField<Type>& outletPatchField =
-            f.boundaryField()[outletPatchID];
-
-        const surfaceScalarField& phi =
-            this->db().objectRegistry::template lookupObject<surfaceScalarField>
-            (phiName_);
-
-        const scalarField& outletPatchPhi = phi.boundaryField()[outletPatchID];
-        scalar sumOutletPatchPhi = gSum(outletPatchPhi);
-
-        if (sumOutletPatchPhi > SMALL)
-        {
-            Type averageOutletField =
-                gSum(outletPatchPhi*outletPatchField)
-                / sumOutletPatchPhi;
-
-            this->operator==(averageOutletField);
-        }
-        else
-        {
-            Type averageOutletField =
-                gSum(outletPatch.magSf()*outletPatchField)
-                / gSum(outletPatch.magSf());
-
-            this->operator==(averageOutletField);
-        }
-
-        fixedValueFvPatchField<Type>::updateCoeffs();
+        return;
     }
 
+    const GeometricField<Type, Foam::fvPatchField, volMesh>& f
+    (
+        dynamic_cast<const GeometricField<Type, Foam::fvPatchField, volMesh>&>
+        (
+            this->internalField()
+        )
+    );
 
-    template<class Type>
-    void outletMappedUniformInletFvPatchField<Type>::write(Ostream& os) const
+    const fvPatch& p = this->patch();
+    const label outletPatchID =
+        p.patch().boundaryMesh().findPatchID(outletPatchName_);
+
+    if (outletPatchID < 0)
     {
-        fvPatchField<Type>::write(os);
-        os.writeKeyword("outletPatch")
-            << outletPatchName_ << token::END_STATEMENT << nl;
-        if (phiName_ != "phi")
-        {
-            os.writeKeyword("phi") << phiName_ << token::END_STATEMENT << nl;
-        }
-        this->writeEntry("value", os);
+        FatalErrorInFunction
+            << "Unable to find outlet patch " << outletPatchName_
+            << abort(FatalError);
     }
 
+    const fvPatch& outletPatch = p.boundaryMesh()[outletPatchID];
+
+    const fvPatchField<Type>& outletPatchField =
+        f.boundaryField()[outletPatchID];
+
+    const auto& phi =
+        this->db().objectRegistry::template lookupObject<surfaceScalarField>
+        (phiName_);
+
+    const scalarField& outletPatchPhi = phi.boundaryField()[outletPatchID];
+    const scalar sumOutletPatchPhi = gSum(outletPatchPhi);
+
+    if (sumOutletPatchPhi > SMALL)
+    {
+        Type averageOutletField =
+            gSum(outletPatchPhi*outletPatchField)
+           /sumOutletPatchPhi;
+
+        this->operator==(averageOutletField*fraction_ + offset_);
+    }
+    else
+    {
+        Type averageOutletField =
+            gSum(outletPatch.magSf()*outletPatchField)
+           /gSum(outletPatch.magSf());
+
+        this->operator==(averageOutletField);
+    }
+
+    fixedValueFvPatchField<Type>::updateCoeffs();
 }
+
+
+template<class Type>
+void Foam::outletMappedUniformInletFvPatchField<Type>::write(Ostream& os) const
+{
+    fvPatchField<Type>::write(os);
+    os.writeEntry("outletPatch", outletPatchName_);
+    os.writeEntryIfDifferent<word>("phi", "phi", phiName_);
+    os.writeEntry("fraction", fraction_);
+    os.writeEntry("offset", offset_);
+    this->writeEntry("value", os);
+}
+
+
 // ************************************************************************* //

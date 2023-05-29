@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2015 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2015 OpenFOAM Foundation
+    Copyright (C) 2017 OpenCFD Ltd
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -76,7 +79,7 @@ bool Foam::viscosityModels::Newtonian::read
 {
     viscosityModel::read(viscosityProperties);
 
-    viscosityProperties_.lookup("nu") >> nu0_;
+    viscosityProperties_.readEntry("nu", nu0_);
     nu_ = nu0_;
 
     return true;

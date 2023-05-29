@@ -1,9 +1,12 @@
-﻿/*---------------------------------------------------------------------------*\
+/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2020-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -23,7 +26,7 @@ License
 
 \*---------------------------------------------------------------------------*/
 
-//#include "kEqn.H"
+#include "kEqn.H"
 #include "fvOptions.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
@@ -92,7 +95,7 @@ kEqn<BasicTurbulenceModel>::kEqn
     (
         IOobject
         (
-            IOobject::groupName("k", this->U_.group()),
+            IOobject::groupName("k", this->alphaRhoPhi_.group()),
             this->runTime_.timeName(),
             this->mesh_,
             IOobject::MUST_READ,
@@ -103,7 +106,7 @@ kEqn<BasicTurbulenceModel>::kEqn
 
     Ck_
     (
-        dimensioned<scalar>::lookupOrAddToDict
+        dimensioned<scalar>::getOrAddToDict
         (
             "Ck",
             this->coeffDict_,
@@ -131,31 +134,8 @@ bool kEqn<BasicTurbulenceModel>::read()
 
         return true;
     }
-    else
-    {
-        return false;
-    }
-}
 
-
-template<class BasicTurbulenceModel>
-tmp<volScalarField> kEqn<BasicTurbulenceModel>::epsilon() const
-{
-    return tmp<volScalarField>
-    (
-        new volScalarField
-        (
-            IOobject
-            (
-                IOobject::groupName("epsilon", this->U_.group()),
-                this->runTime_.timeName(),
-                this->mesh_,
-                IOobject::NO_READ,
-                IOobject::NO_WRITE
-            ),
-            this->Ce_*k()*sqrt(k())/this->delta()
-        )
-    );
+    return false;
 }
 
 

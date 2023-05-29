@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2018-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -26,7 +29,6 @@ License
 #include "faceToPoint.H"
 #include "polyMesh.H"
 #include "faceSet.H"
-
 #include "addToRunTimeSelectionTable.H"
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
@@ -36,18 +38,9 @@ namespace Foam
     defineTypeNameAndDebug(faceToPoint, 0);
     addToRunTimeSelectionTable(topoSetSource, faceToPoint, word);
     addToRunTimeSelectionTable(topoSetSource, faceToPoint, istream);
-
-    template<>
-    const char* Foam::NamedEnum
-    <
-        Foam::faceToPoint::faceAction,
-        1
-    >::names[] =
-    {
-        "all"
-    };
+    addToRunTimeSelectionTable(topoSetPointSource, faceToPoint, word);
+    addToRunTimeSelectionTable(topoSetPointSource, faceToPoint, istream);
 }
-
 
 Foam::topoSetSource::addToUsageTable Foam::faceToPoint::usage_
 (
@@ -56,33 +49,41 @@ Foam::topoSetSource::addToUsageTable Foam::faceToPoint::usage_
     "    Select all points of faces in the faceSet\n\n"
 );
 
-const Foam::NamedEnum<Foam::faceToPoint::faceAction, 1>
-    Foam::faceToPoint::faceActionNames_;
+const Foam::Enum
+<
+    Foam::faceToPoint::faceAction
+>
+Foam::faceToPoint::faceActionNames_
+({
+    { faceAction::ALL, "all" },
+});
 
 
 // * * * * * * * * * * * * * Private Member Functions  * * * * * * * * * * * //
 
-void Foam::faceToPoint::combine(topoSet& set, const bool add) const
+void Foam::faceToPoint::combine
+(
+    topoSet& set,
+    const bool add,
+    const word& setName
+) const
 {
     // Load the set
-    faceSet loadedSet(mesh_, setName_);
+    faceSet loadedSet(mesh_, setName);
+    const labelHashSet& faceLabels = loadedSet;
 
     // Add all points from faces in loadedSet
-    forAllConstIter(faceSet, loadedSet, iter)
+    for (const label facei : faceLabels)
     {
-        const face& f = mesh_.faces()[iter.key()];
+        const face& f = mesh_.faces()[facei];
 
-        forAll(f, fp)
-        {
-            addOrDelete(set, f[fp], add);
-        }
+        addOrDelete(set, f, add);
     }
 }
 
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
-// Construct from components
 Foam::faceToPoint::faceToPoint
 (
     const polyMesh& mesh,
@@ -90,41 +91,40 @@ Foam::faceToPoint::faceToPoint
     const faceAction option
 )
 :
-    topoSetSource(mesh),
-    setName_(setName),
+    topoSetPointSource(mesh),
+    names_(one{}, setName),
     option_(option)
 {}
 
 
-// Construct from dictionary
 Foam::faceToPoint::faceToPoint
 (
     const polyMesh& mesh,
     const dictionary& dict
 )
 :
-    topoSetSource(mesh),
-    setName_(dict.lookup("set")),
-    option_(faceActionNames_.read(dict.lookup("option")))
-{}
+    topoSetPointSource(mesh),
+    names_(),
+    option_(faceActionNames_.get("option", dict))
+{
+    // Look for 'sets' or 'set'
+    if (!dict.readIfPresent("sets", names_))
+    {
+        names_.resize(1);
+        dict.readEntry("set", names_.first());
+    }
+}
 
 
-// Construct from Istream
 Foam::faceToPoint::faceToPoint
 (
     const polyMesh& mesh,
     Istream& is
 )
 :
-    topoSetSource(mesh),
-    setName_(checkIs(is)),
+    topoSetPointSource(mesh),
+    names_(one{}, word(checkIs(is))),
     option_(faceActionNames_.read(checkIs(is)))
-{}
-
-
-// * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
-
-Foam::faceToPoint::~faceToPoint()
 {}
 
 
@@ -136,19 +136,31 @@ void Foam::faceToPoint::applyToSet
     topoSet& set
 ) const
 {
-    if ((action == topoSetSource::NEW) || (action == topoSetSource::ADD))
+    if (action == topoSetSource::ADD || action == topoSetSource::NEW)
     {
-        Info<< "    Adding points from face in faceSet " << setName_
-            << " ..." << endl;
+        if (verbose_)
+        {
+            Info<< "    Adding points from face in faceSet "
+                << flatOutput(names_) << nl;
+        }
 
-        combine(set, true);
+        for (const word& setName : names_)
+        {
+            combine(set, true, setName);
+        }
     }
-    else if (action == topoSetSource::DELETE)
+    else if (action == topoSetSource::SUBTRACT)
     {
-        Info<< "    Removing points from face in faceSet " << setName_
-            << " ..." << endl;
+        if (verbose_)
+        {
+            Info<< "    Removing points from face in faceSet "
+                << flatOutput(names_) << nl;
+        }
 
-        combine(set, false);
+        for (const word& setName : names_)
+        {
+            combine(set, false, setName);
+        }
     }
 }
 

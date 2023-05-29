@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -29,7 +32,7 @@ Description
 
 SourceFiles
     fvFieldDecomposer.C
-    fvFieldDecomposerDecomposeFields.C
+    fvFieldDecomposerFields.C
 
 \*---------------------------------------------------------------------------*/
 
@@ -45,8 +48,6 @@ SourceFiles
 namespace Foam
 {
 
-class IOobjectList;
-
 /*---------------------------------------------------------------------------*\
                     Class fvFieldDecomposer Declaration
 \*---------------------------------------------------------------------------*/
@@ -60,7 +61,7 @@ public:
         :
             public fvPatchFieldMapper
         {
-            // Private data
+            // Private Data
 
                 labelList directAddressing_;
 
@@ -76,7 +77,7 @@ public:
                 );
 
 
-            // Member functions
+            // Member Functions
 
                 label size() const
                 {
@@ -108,13 +109,21 @@ public:
         :
             public fvPatchFieldMapper
         {
-            // Private data
+            // Private Data
 
                 labelList directAddressing_;
 
         public:
 
-            //- Construct given addressing
+            //- Construct addressing from details
+            processorVolPatchFieldDecomposer
+            (
+                const labelUList& faceOwner,
+                const labelUList& faceNeigbour,
+                const labelUList& addressingSlice
+            );
+
+            //- Construct given addressing from complete mesh
             processorVolPatchFieldDecomposer
             (
                 const fvMesh& mesh,
@@ -122,7 +131,7 @@ public:
             );
 
 
-            // Member functions
+            // Member Functions
 
                 label size() const
                 {
@@ -197,10 +206,7 @@ public:
 
 private:
 
-    // Private data
-
-        //- Reference to complete mesh
-        const fvMesh& completeMesh_;
+    // Private Data
 
         //- Reference to processor mesh
         const fvMesh& procMesh_;
@@ -215,29 +221,39 @@ private:
         const labelList& boundaryAddressing_;
 
         //- List of patch field decomposers
-        List<patchFieldDecomposer*> patchFieldDecomposerPtrs_;
+        PtrList<patchFieldDecomposer> patchFieldDecomposerPtrs_;
 
-        List<processorVolPatchFieldDecomposer*>
+        PtrList<processorVolPatchFieldDecomposer>
             processorVolPatchFieldDecomposerPtrs_;
 
-        List<processorSurfacePatchFieldDecomposer*>
+        PtrList<processorSurfacePatchFieldDecomposer>
             processorSurfacePatchFieldDecomposerPtrs_;
 
-
-    // Private Member Functions
-
-        //- Disallow default bitwise copy construct
-        fvFieldDecomposer(const fvFieldDecomposer&);
-
-        //- Disallow default bitwise assignment
-        void operator=(const fvFieldDecomposer&);
+        PtrList<scalarField> faceSign_;
 
 
 public:
 
+    //- No copy construct
+    fvFieldDecomposer(const fvFieldDecomposer&) = delete;
+
+    //- No copy assignment
+    void operator=(const fvFieldDecomposer&) = delete;
+
+
     // Constructors
 
-        //- Construct from components
+        //- Construct without mappers, added later with reset()
+        fvFieldDecomposer
+        (
+            const Foam::zero,
+            const fvMesh& procMesh,
+            const labelList& faceAddressing,
+            const labelList& cellAddressing,
+            const labelList& boundaryAddressing
+        );
+
+        //- Construct from components using information from the complete mesh
         fvFieldDecomposer
         (
             const fvMesh& completeMesh,
@@ -247,12 +263,55 @@ public:
             const labelList& boundaryAddressing
         );
 
+        //- Construct from components without the complete mesh
+        fvFieldDecomposer
+        (
+            // Information about the complete mesh
+            const List<labelRange>& boundaryRanges,
+            const labelUList& faceOwner,
+            const labelUList& faceNeigbour,
+
+            // Addressing for processor mesh
+            const fvMesh& procMesh,
+            const labelList& faceAddressing,
+            const labelList& cellAddressing,
+            const labelList& boundaryAddressing
+        );
+
 
     //- Destructor
-    ~fvFieldDecomposer();
+    ~fvFieldDecomposer() = default;
 
 
     // Member Functions
+
+        //- True if no mappers have been allocated
+        bool empty() const;
+
+        //- Remove all mappers
+        void clear();
+
+        //- Reset mappers using information from the complete mesh
+        void reset(const fvMesh& completeMesh);
+
+        //- Reset mapper using information about the complete mesh
+        void reset
+        (
+            const List<labelRange>& boundaryRanges,
+            const labelUList& faceOwner,
+            const labelUList& faceNeigbour
+        );
+
+
+    // Mapping
+
+        //- Decompose internal field
+        template<class Type>
+        tmp<DimensionedField<Type, volMesh>>
+        decomposeField
+        (
+            const DimensionedField<Type, volMesh>& field
+        ) const;
 
         //- Decompose volume field
         template<class Type>
@@ -271,6 +330,7 @@ public:
             const GeometricField<Type, fvsPatchField, surfaceMesh>& field
         ) const;
 
+        //- Decompose list of fields
         template<class GeoField>
         void decomposeFields(const PtrList<GeoField>& fields) const;
 };
@@ -283,7 +343,7 @@ public:
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 #ifdef NoRepository
-    #include "fvFieldDecomposerDecomposeFields.C"
+    #include "fvFieldDecomposerFields.C"
 #endif
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //

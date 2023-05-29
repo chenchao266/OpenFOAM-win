@@ -1,9 +1,12 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2018 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -25,7 +28,7 @@ InClass
     Foam
 
 Description
-    Spatial transformation functions for primitive fields.
+    Spatial transformation functions for list of values and primitive fields.
 
 SourceFiles
     transformList.C
@@ -36,11 +39,10 @@ SourceFiles
 #define transformList_H
 
 #include "transform.H"
-#include "List.T.H"
-#include "Map.T.H"
-#include "EdgeMap.T.H"
+#include "List.H"
+#include "Map.H"
+#include "edgeHashes.H"
 #include "tensorField.H"
-
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -49,93 +51,63 @@ namespace Foam
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
-//- Extend transform to work on list.
+//- Apply transform to a list of elements, returning a copy.
 template<class T>
-List<T> transform
-(
-    const tensor& rotTensor,
-    const UList<T>& field
-);
+List<T> transform(const tensor& rotTensor, const UList<T>& field);
 
-//- Apply transformation to list. Either single transformation tensor
-//  or one tensor per element.
+//- Inplace transform a list of elements.
 template<class T>
-void transformList(const tensor&, UList<T>&);
+void transformList(const tensor& rotTensor, UList<T>& field);
+
+//- Inplace transform a list of elements using one tensor per element.
 template<class T>
-void transformList(const tensorField&, UList<T>&);
+void transformList(const tensorField& rotTensor, UList<T>& field);
 
+//- Inplace transform a Map of elements.
 template<class T>
-void transformList(const tensor&, Map<T>&);
+void transformList(const tensor& rotTensor, Map<T>& field);
+
+//- Inplace transform a Map of elements using one tensor per element.
+//  Using multiple tensors is ill-defined (Fatal).
 template<class T>
-void transformList(const tensorField&, Map<T>&);
+void transformList(const tensorField& rotTensor, Map<T>& field);
 
+//- Inplace transform a Map of elements.
+//  Using multiple tensors is ill-defined (Fatal).
 template<class T>
-void transformList(const tensor&, EdgeMap<T>&);
+void transformList(const tensor& rotTensor, EdgeMap<T>& field);
+
+//- Inplace transform a Map of elements using one tensor per element.
+//  Using multiple tensors is ill-defined (Fatal).
 template<class T>
-void transformList(const tensorField&, EdgeMap<T>&);
+void transformList(const tensorField& rotTensor, EdgeMap<T>& field);
 
 
-// Specialisations for bool
-template<>
-inline void transformList(const tensor&, UList<bool>&)
-{}
-template<>
-inline void transformList(const tensorField&, UList<bool>&)
-{}
-template<>
-inline void transformList(const tensor&, Map<bool>&)
-{}
-template<>
-inline void transformList(const tensorField&, Map<bool>&)
-{}
-template<>
-inline void transformList(const tensor&, EdgeMap<bool>&)
-{}
-template<>
-inline void transformList(const tensorField&, EdgeMap<bool>&)
-{}
+// Specialisations for bool (no-op)
+template<> inline void transformList(const tensor&, UList<bool>&) {}
+template<> inline void transformList(const tensorField&, UList<bool>&) {}
+template<> inline void transformList(const tensor&, Map<bool>&) {}
+template<> inline void transformList(const tensorField&, Map<bool>&) {}
+template<> inline void transformList(const tensor&, EdgeMap<bool>&) {}
+template<> inline void transformList(const tensorField&, EdgeMap<bool>&) {}
 
 
-// Specialisations for label
-template<>
-inline void transformList(const tensor&, labelUList&)
-{}
-template<>
-inline void transformList(const tensorField&, labelUList&)
-{}
-template<>
-inline void transformList(const tensor&, Map<label>&)
-{}
-template<>
-inline void transformList(const tensorField&, Map<label>&)
-{}
-template<>
-inline void transformList(const tensor&, EdgeMap<label>&)
-{}
-template<>
-inline void transformList(const tensorField&, EdgeMap<label>&)
-{}
+// Specialisations for label (no-op)
+template<> inline void transformList(const tensor&, labelUList&) {}
+template<> inline void transformList(const tensorField&, labelUList&) {}
+template<> inline void transformList(const tensor&, Map<label>&) {}
+template<> inline void transformList(const tensorField&, Map<label>&) {}
+template<> inline void transformList(const tensor&, EdgeMap<label>&) {}
+template<> inline void transformList(const tensorField&, EdgeMap<label>&) {}
 
 
-// Specialisations for scalar
-template<>
-inline void transformList(const tensor&, UList<scalar>&)
-{}
-template<>
-inline void transformList(const tensorField&, UList<scalar>&)
-{}
-template<>
-inline void transformList(const tensor&, Map<scalar>&)
-{}
-template<>
-inline void transformList(const tensorField&, Map<scalar>&)
-{}
-template<>
-inline void transformList(const tensor&, EdgeMap<scalar>&)
-{}
-template<>
-inline void transformList(const tensorField&, EdgeMap<scalar>&)
-{}
+// Specialisations for scalar (no-op)
+template<> inline void transformList(const tensor&, UList<scalar>&) {}
+template<> inline void transformList(const tensorField&, UList<scalar>&) {}
+template<> inline void transformList(const tensor&, Map<scalar>&) {}
+template<> inline void transformList(const tensorField&, Map<scalar>&) {}
+template<> inline void transformList(const tensor&, EdgeMap<scalar>&) {}
+template<> inline void transformList(const tensorField&, EdgeMap<scalar>&) {}
 
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //

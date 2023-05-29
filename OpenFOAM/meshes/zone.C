@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2017-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -24,217 +27,199 @@ License
 \*---------------------------------------------------------------------------*/
 
 #include "zone.H"
-#include "IOstream.H"
+#include "dictionary2.H"
+#include "HashSet.H"
+#include "_IOstream.H"
 #include "demandDrivenData.H"
-#include "HashSet.T.H"
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
-using namespace Foam;
+
 namespace Foam
 {
     defineTypeNameAndDebug(zone, 0);
-}
 
 
-// * * * * * * * * * * * * * Protected Member Functions  * * * * * * * * * * //
 
-const Map<label>& zone::lookupMap() const
-{
-    if (!lookupMapPtr_)
+    // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
+
+    zone::zone()
+        :
+        zoneIdentifier(),
+        labelList(),
+        lookupMapPtr_(nullptr)
+    {}
+
+
+    zone::zone(const word& name, const label index)
+        :
+        zoneIdentifier(name, index),
+        labelList(),
+        lookupMapPtr_(nullptr)
+    {}
+
+
+    zone::zone
+    (
+        const word& name,
+        const labelUList& addr,
+        const label index
+    )
+        :
+        zoneIdentifier(name, index),
+        labelList(addr),
+        lookupMapPtr_(nullptr)
+    {}
+
+
+    zone::zone
+    (
+        const word& name,
+        labelList&& addr,
+        const label index
+    )
+        :
+        zoneIdentifier(name, index),
+        labelList(std::move(addr)),
+        lookupMapPtr_(nullptr)
+    {}
+
+
+    zone::zone
+    (
+        const word& name,
+        const dictionary& dict,
+        const word& labelsName,
+        const label index
+    )
+        :
+        zone(name, dict.get<labelList>(labelsName), index)
+    {}
+
+
+    zone::zone
+    (
+        const zone& origZone,
+        const labelUList& addr,
+        const label index
+    )
+        :
+        zone(origZone.name(), addr, index)
+    {}
+
+
+    zone::zone
+    (
+        const zone& origZone,
+        labelList&& addr,
+        const label index
+    )
+        :
+        zone(origZone.name(), std::move(addr), index)
+    {}
+
+
+    // * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
+
+    zone::~zone()
     {
-        calcLookupMap();
+        clearAddressing();
     }
 
-    return *lookupMapPtr_;
-}
 
+    // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
 
-void zone::calcLookupMap() const
-{
-    if (debug)
+    const Map<label>& zone::lookupMap() const
     {
-        InfoInFunction << "Calculating lookup map" << endl;
-    }
-
-    if (lookupMapPtr_)
-    {
-        FatalErrorInFunction
-            << "Lookup map already calculated" << nl
-            << abort(FatalError);
-    }
-
-    const labelList& addr = *this;
-
-    lookupMapPtr_ = new Map<label>(2*addr.size());
-    Map<label>& lm = *lookupMapPtr_;
-
-    forAll(addr, i)
-    {
-        lm.insert(addr[i], i);
-    }
-
-    if (debug)
-    {
-        InfoInFunction << "Finished calculating lookup map" << endl;
-    }
-}
-
-
-// * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
-
-zone::zone
-(
-    const word& name,
-    const labelUList& addr,
-    const label index
-) :    labelList(addr),
-    name_(name),
-    index_(index),
-    lookupMapPtr_(nullptr)
-{}
-
-
-zone::zone
-(
-    const word& name,
-    const Xfer<labelList>& addr,
-    const label index
-) :    labelList(addr),
-    name_(name),
-    index_(index),
-    lookupMapPtr_(nullptr)
-{}
-
-
-zone::zone
-(
-    const word& name,
-    const dictionary& dict,
-    const word& labelsName,
-    const label index
-) :    labelList(dict.lookup(labelsName)),
-    name_(name),
-    index_(index),
-    lookupMapPtr_(nullptr)
-{}
-
-
-zone::zone
-(
-    const zone& z,
-    const labelUList& addr,
-    const label index
-) :    labelList(addr),
-    name_(z.name()),
-    index_(index),
-    lookupMapPtr_(nullptr)
-{}
-
-
-zone::zone
-(
-    const zone& z,
-    const Xfer<labelList>& addr,
-    const label index
-) :    labelList(addr),
-    name_(z.name()),
-    index_(index),
-    lookupMapPtr_(nullptr)
-{}
-
-
-// * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
-
-zone::~zone()
-{
-    clearAddressing();
-}
-
-
-// * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
-
-label zone::localID(const label globalCellID) const
-{
-    const Map<label>& lm = lookupMap();
-
-    Map<label>::const_iterator lmIter = lm.find(globalCellID);
-
-    if (lmIter == lm.end())
-    {
-        return -1;
-    }
-    else
-    {
-        return lmIter();
-    }
-}
-
-
-void zone::clearAddressing()
-{
-    deleteDemandDrivenData(lookupMapPtr_);
-}
-
-
-bool zone::checkDefinition(const label maxSize, const bool report) const
-{
-    const labelList& addr = *this;
-
-    bool hasError = false;
-
-    // To check for duplicate entries
-    labelHashSet elems(size());
-
-    forAll(addr, i)
-    {
-        if (addr[i] < 0 || addr[i] >= maxSize)
+        if (!lookupMapPtr_)
         {
-            hasError = true;
+            DebugInFunction << "Calculating lookup map" << endl;
 
-            if (report)
+            const labelList& addr = *this;
+
+            lookupMapPtr_ = new Map<label>(2 * addr.size());
+            auto& lm = *lookupMapPtr_;
+
+            forAll(addr, i)
             {
-                SeriousErrorInFunction
-                    << "Zone " << name_
-                    << " contains invalid index label " << addr[i] << nl
-                    << "Valid index labels are 0.."
-                    << maxSize-1 << endl;
-            }
-            else
-            {
-                // w/o report - can stop checking now
-                break;
+                lm.insert(addr[i], i);
             }
         }
-        else if (!elems.insert(addr[i]))
-        {
-            if (report)
-            {
-                WarningInFunction
-                    << "Zone " << name_
-                    << " contains duplicate index label " << addr[i] << endl;
-            }
-        }
+
+        return *lookupMapPtr_;
     }
 
-    return hasError;
+
+    label zone::localID(const label globalID) const
+    {
+        return lookupMap().lookup(globalID, -1);
+    }
+
+
+    void zone::clearAddressing()
+    {
+        deleteDemandDrivenData(lookupMapPtr_);
+    }
+
+
+    bool zone::checkDefinition(const label maxSize, const bool report) const
+    {
+        const labelList& addr = *this;
+
+        bool hasError = false;
+
+        // To check for duplicate entries
+        labelHashSet elems(size());
+
+        for (const label idx : addr)
+        {
+            if (idx < 0 || idx >= maxSize)
+            {
+                hasError = true;
+
+                if (report)
+                {
+                    SeriousErrorInFunction
+                        << "Zone " << this->name()
+                        << " contains invalid index label " << idx << nl
+                        << "Valid index labels are 0.."
+                        << maxSize - 1 << endl;
+                }
+                else
+                {
+                    // w/o report - can stop checking now
+                    break;
+                }
+            }
+            else if (!elems.insert(idx))
+            {
+                if (report)
+                {
+                    WarningInFunction
+                        << "Zone " << this->name()
+                        << " contains duplicate index label " << idx << endl;
+                }
+            }
+        }
+
+        return hasError;
+    }
+
+
+    void zone::write(Ostream& os) const
+    {
+        os << nl << this->name()
+            << nl << static_cast<const labelList&>(*this);
+    }
+
+
+    // * * * * * * * * * * * * * * * Ostream Operator  * * * * * * * * * * * * * //
+
+    Ostream& operator<<(Ostream& os, const zone& zn)
+    {
+        zn.write(os);
+        os.check(FUNCTION_NAME);
+        return os;
+    }
+
 }
-
-
-void zone::write(Ostream& os) const
-{
-    os  << nl << name_
-        << nl << static_cast<const labelList&>(*this);
-}
-
-
-// * * * * * * * * * * * * * * * Ostream Operator  * * * * * * * * * * * * * //
-
-Ostream& operator<<(Ostream& os, const zone& z)
-{
-    z.write(os);
-    os.check("Ostream& operator<<(Ostream& f, const zone& z");
-    return os;
-}
-
-
 // ************************************************************************* //

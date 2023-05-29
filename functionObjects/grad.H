@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2012-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2012-2016 OpenFOAM Foundation
+    Copyright (C) 2019-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -28,16 +31,64 @@ Group
     grpFieldFunctionObjects
 
 Description
-    Calculates the gradient of a field.
+    Computes the gradient of an input field.
 
     The operation is limited to scalar and vector volume or surface fields, and
     the output is a volume vector or tensor field.
 
+    Operands:
+    \table
+      Operand       | Type                              | Location
+      input         | {vol,surface}{Scalar,Vector}Field <!--
+                --> | $FOAM_CASE/\<time\>/\<inpField\>
+      output file   | -                                 | -
+      output field  | vol{Vector,Tensor}Field           <!--
+                --> | $FOAM_CASE/\<time\>/\<outField\>
+    \endtable
+
+Usage
+    Minimal example by using \c system/controlDict.functions:
+    \verbatim
+    grad1
+    {
+        // Mandatory entries (unmodifiable)
+        type            grad;
+        libs            (fieldFunctionObjects);
+
+        // Mandatory (inherited) entries (runtime modifiable)
+        field           <field>;
+
+        // Optional (inherited) entries
+        ...
+    }
+    \endverbatim
+
+    where the entries mean:
+    \table
+      Property     | Description                        | Type | Req'd | Dflt
+      type         | Type name: grad                    | word |  yes  | -
+      libs         | Library name: fieldFunctionObjects | word |  yes  | -
+      field        | Name of the operand field          | word |  yes  | -
+    \endtable
+
+    The inherited entries are elaborated in:
+     - \link functionObject.H \endlink
+     - \link fieldExpression.H \endlink
+
+    Minimal example by using the \c postProcess utility:
+    \verbatim
+        postProcess -func "grad(<field>)"
+    \endverbatim
+
 See also
-    Foam::functionObjects::fvMeshFunctionObject
+    - Foam::functionObject
+    - Foam::functionObjects::fvMeshFunctionObject
+    - Foam::functionObjects::fieldExpression
+    - ExtendedCodeGuide::functionObjects::field::grad
 
 SourceFiles
     grad.C
+    gradTemplates.C
 
 \*---------------------------------------------------------------------------*/
 
@@ -87,9 +138,15 @@ public:
             const dictionary& dict
         );
 
+        //- No copy construct
+        grad(const grad&) = delete;
+
+        //- No copy assignment
+        void operator=(const grad&) = delete;
+
 
     //- Destructor
-    virtual ~grad();
+    virtual ~grad() = default;
 };
 
 

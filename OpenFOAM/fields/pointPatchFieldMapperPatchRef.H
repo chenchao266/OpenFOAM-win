@@ -1,9 +1,11 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -43,7 +45,9 @@ namespace Foam
                  Class pointPatchFieldMapperPatchRef Declaration
 \*---------------------------------------------------------------------------*/
 
-class pointPatchFieldMapperPatchRef :    public pointPatchFieldMapper
+class pointPatchFieldMapperPatchRef
+:
+    public pointPatchFieldMapper
 {
     // Private data
 
@@ -53,11 +57,14 @@ class pointPatchFieldMapperPatchRef :    public pointPatchFieldMapper
 
     // Private Member Functions
 
-        //- Disallow default bitwise copy construct
-        pointPatchFieldMapperPatchRef(const pointPatchFieldMapperPatchRef&);
+        //- No copy construct
+        pointPatchFieldMapperPatchRef
+        (
+            const pointPatchFieldMapperPatchRef&
+        ) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const pointPatchFieldMapperPatchRef&);
+        //- No copy assignment
+        void operator=(const pointPatchFieldMapperPatchRef&) = delete;
 
 
 public:

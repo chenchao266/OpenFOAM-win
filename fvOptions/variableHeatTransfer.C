@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -34,12 +37,7 @@ namespace Foam
 namespace fv
 {
     defineTypeNameAndDebug(variableHeatTransfer, 0);
-    addToRunTimeSelectionTable
-    (
-        option,
-        variableHeatTransfer,
-        dictionary
-    );
+    addToRunTimeSelectionTable(option, variableHeatTransfer, dictionary);
 }
 }
 
@@ -55,7 +53,7 @@ Foam::fv::variableHeatTransfer::variableHeatTransfer
 )
 :
     interRegionHeatTransferModel(name, modelType, dict, mesh),
-    UNbrName_(coeffs_.lookupOrDefault<word>("UNbr", "U")),
+    UNbrName_(coeffs_.getOrDefault<word>("UNbr", "U")),
     a_(0),
     b_(0),
     c_(0),
@@ -65,11 +63,12 @@ Foam::fv::variableHeatTransfer::variableHeatTransfer
 {
     if (master_)
     {
-        a_ = readScalar(coeffs_.lookup("a"));
-        b_ = readScalar(coeffs_.lookup("b"));
-        c_ = readScalar(coeffs_.lookup("c"));
-        ds_ = readScalar(coeffs_.lookup("ds"));
-        Pr_ = readScalar(coeffs_.lookup("Pr"));
+        coeffs_.readEntry("a", a_);
+        coeffs_.readEntry("b", b_);
+        coeffs_.readEntry("c", c_);
+        coeffs_.readEntry("ds", ds_);
+        coeffs_.readEntry("Pr", Pr_);
+
         AoV_.reset
         (
             new volScalarField
@@ -89,40 +88,32 @@ Foam::fv::variableHeatTransfer::variableHeatTransfer
 }
 
 
-// * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
-
-Foam::fv::variableHeatTransfer::~variableHeatTransfer()
-{}
-
-
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
 
 void Foam::fv::variableHeatTransfer::calculateHtc()
 {
-    const fvMesh& nbrMesh =
-        mesh_.time().lookupObject<fvMesh>(nbrRegionName());
+    const auto& nbrMesh = mesh_.time().lookupObject<fvMesh>(nbrRegionName());
 
-    const compressible::turbulenceModel& nbrTurb =
+    const auto& nbrTurb =
         nbrMesh.lookupObject<compressible::turbulenceModel>
         (
             turbulenceModel::propertiesName
         );
 
-    const fluidThermo& nbrThermo =
+    const auto& nbrThermo =
         nbrMesh.lookupObject<fluidThermo>(basicThermo::dictName);
 
-    const volVectorField& UNbr =
-        nbrMesh.lookupObject<volVectorField>(UNbrName_);
+    const auto& UNbr = nbrMesh.lookupObject<volVectorField>(UNbrName_);
 
-    const volScalarField ReNbr(mag(UNbr)*ds_*nbrThermo.rho()/nbrTurb.mut());
+    tmp<volScalarField> ReNbr(mag(UNbr)*ds_*nbrThermo.rho()/nbrTurb.mut());
 
-    const volScalarField NuNbr(a_*pow(ReNbr, b_)*pow(Pr_, c_));
+    tmp<volScalarField> NuNbr(a_*pow(ReNbr, b_)*pow(Pr_, c_));
 
-    const scalarField htcNbr(NuNbr*nbrTurb.kappaEff()/ds_);
+    scalarField htcNbr(NuNbr*nbrTurb.kappaEff()/ds_);
 
-    const scalarField htcNbrMapped(interpolate(htcNbr));
+    tmp<scalarField> htcNbrMapped(interpolate(htcNbr));
 
-    htc_.primitiveFieldRef() = htcNbrMapped*AoV_;
+    htc_.primitiveFieldRef() = htcNbrMapped*AoV_();
 }
 
 
@@ -140,10 +131,8 @@ bool Foam::fv::variableHeatTransfer::read(const dictionary& dict)
 
         return true;
     }
-    else
-    {
-        return false;
-    }
+
+    return false;
 }
 
 

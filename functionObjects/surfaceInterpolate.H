@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2016-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -22,46 +25,62 @@ License
     along with OpenFOAM.  If not, see <http://www.gnu.org/licenses/>.
 
 Class
-    Foam::surfaceInterpolate
+    Foam::functionObjects::surfaceInterpolate
 
-Group grpFieldFunctionObjects
+Group
+    grpFieldFunctionObjects
 
 Description
     Linearly interpolates volume fields to generate surface fields.
 
-    Fields are stored
-    - every time step the field is updated with new values
-    - at output it writes the fields
+    Operands:
+    \table
+      Operand        | Type                  | Location
+      input          | vol\<Type\>Field      | $FOAM_CASE/\<time\>/\<inpField\>
+      output file    | -                     | -
+      output field   | surface\<Type\>Field  | $FOAM_CASE/\<time\>/\<outField\>
+    \endtable
 
-    This functionObject can either be used
-    - to calculate a new field as a  post-processing step or
-    - since the fields are registered, used in another functionObject
+    where \c \<Type\>=Scalar/Vector/SphericalTensor/SymmTensor/Tensor.
 
-    Example of function object specification:
+Usage
+    Minimal example by using \c system/controlDict.functions:
     \verbatim
     surfaceInterpolate1
     {
+        // Mandatory entries (unmodifiable)
         type        surfaceInterpolate;
-        libs        ("libfieldFunctionObjects.so");
+        libs        (fieldFunctionObjects);
+
+        // Mandatory entries (runtime modifiable)
+        fields      ((<inpField1> <outField1>) ... (<inpFieldN> <outFieldN>));
+
+        // Optional (inherited) entries
         ...
-        fields      ((p pNear)(U UNear));
     }
     \endverbatim
 
-Usage
+    where the entries mean:
     \table
-        Property | Description               | Required    | Default value
-        type     | type name: nearWallFields | yes         |
-        fields   | list of fields with correspoding output field names | yes |
+      Property     | Description                           | Type | Req'd | Dflt
+      type         | Type name: surfaceInterpolate         | word |  yes  | -
+      libs         | Library name: fieldFunctionObjects    | word |  yes  | -
+      fields       | Names of operand and output fields    | wordList | yes | -
     \endtable
 
+    The inherited entries are elaborated in:
+     - \link functionObject.H \endlink
+
+    Usage by the \c postProcess utility is not available.
 
 See also
-    Foam::functionObjects::fvMeshFunctionObject
-    Foam::functionObjects::timeControl
+    - Foam::functionObject
+    - Foam::functionObjects::fvMeshFunctionObject
+    - ExtendedCodeGuide::functionObjects::field::surfaceInterpolate
 
 SourceFiles
     surfaceInterpolate.C
+    surfaceInterpolateTemplates.C
 
 \*---------------------------------------------------------------------------*/
 
@@ -70,7 +89,7 @@ SourceFiles
 
 #include "fvMeshFunctionObject.H"
 #include "surfaceFieldsFwd.H"
-#include "Tuple2.T.H"
+#include "Tuple2.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -86,7 +105,7 @@ namespace functionObjects
 {
 
 /*---------------------------------------------------------------------------*\
-                  Class surfaceInterpolate Declaration
+                    Class surfaceInterpolate Declaration
 \*---------------------------------------------------------------------------*/
 
 class surfaceInterpolate
@@ -95,37 +114,17 @@ class surfaceInterpolate
 {
 protected:
 
-    // Protected data
+    // Protected Data
 
         //- Fields to process
         List<Tuple2<word, word>> fieldSet_;
 
-        //- Locally constructed fields
-        PtrList<surfaceScalarField> ssf_;
-        PtrList<surfaceVectorField> svf_;
-        PtrList<surfaceSphericalTensorField> sSpheretf_;
-        PtrList<surfaceSymmTensorField> sSymmtf_;
-        PtrList<surfaceTensorField> stf_;
-
 
     // Protected Member Functions
 
+        //- Linearly interpolate volume fields to generate surface fields
         template<class Type>
-        void interpolateFields
-        (
-            PtrList<GeometricField<Type, fvsPatchField, surfaceMesh>>&
-        ) const;
-
-
-private:
-
-    // Private member functions
-
-        //- Disallow default bitwise copy construct
-        surfaceInterpolate(const surfaceInterpolate&);
-
-        //- Disallow default bitwise assignment
-        void operator=(const surfaceInterpolate&);
+        void interpolateFields();
 
 
 public:
@@ -145,9 +144,15 @@ public:
             const dictionary& dict
         );
 
+        //- No copy construct
+        surfaceInterpolate(const surfaceInterpolate&) = delete;
+
+        //- No copy assignment
+        void operator=(const surfaceInterpolate&) = delete;
+
 
     //- Destructor
-    virtual ~surfaceInterpolate();
+    virtual ~surfaceInterpolate() = default;
 
 
     // Member Functions

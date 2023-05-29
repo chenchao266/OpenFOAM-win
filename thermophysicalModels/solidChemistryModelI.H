@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2013-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2013-2016 OpenFOAM Foundation
+    Copyright (C) 2016 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -33,6 +36,7 @@ Foam::solidChemistryModel<CompType, SolidThermo>::RRs()
 {
     return RRs_;
 }
+
 
 template<class CompType, class SolidThermo>
 inline const Foam::PtrList<Foam::Reaction<SolidThermo>>&
@@ -79,7 +83,7 @@ Foam::solidChemistryModel<CompType, SolidThermo>::RRs() const
                 IOobject::NO_WRITE
             ),
             this->mesh(),
-            dimensionedScalar("zero", dimMass/dimVolume/dimTime, 0.0)
+            dimensionedScalar(dimMass/dimVolume/dimTime, Zero)
         )
     );
 
@@ -92,6 +96,47 @@ Foam::solidChemistryModel<CompType, SolidThermo>::RRs() const
         }
     }
     return tRRs;
+}
+
+
+template<class CompType, class SolidThermo>
+inline Foam::tmp<Foam::DimensionedField<Foam::scalar, Foam::volMesh>>
+Foam::solidChemistryModel<CompType, SolidThermo>::RRsHs() const
+{
+    tmp<DimensionedField<scalar, volMesh>> tRRsHs
+    (
+        new DimensionedField<scalar, volMesh>
+        (
+            IOobject
+            (
+                "RRsHs",
+                this->time().timeName(),
+                this->mesh(),
+                IOobject::NO_READ,
+                IOobject::NO_WRITE
+            ),
+            this->mesh(),
+            dimensionedScalar(dimEnergy/dimVolume/dimTime, Zero)
+        )
+    );
+
+    if (this->chemistry_)
+    {
+        DimensionedField<scalar, volMesh>& RRs = tRRsHs.ref();
+
+        const volScalarField& T =  this->solidThermo().T();
+        const volScalarField& p =  this->solidThermo().p();
+
+        for (label i=0; i < nSolids_; i++)
+        {
+            forAll(RRs, cellI)
+            {
+                RRs[cellI] +=
+                    RRs_[i][cellI]*solidThermo_[i].Hs(p[cellI], T[cellI]);
+            }
+        }
+    }
+    return tRRsHs;
 }
 
 

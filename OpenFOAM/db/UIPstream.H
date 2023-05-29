@@ -1,9 +1,12 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2013 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2013 OpenFOAM Foundation
+    Copyright (C) 2017-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -33,14 +36,14 @@ SourceFiles
 
 \*---------------------------------------------------------------------------*/
 
-#include "Pstream.T.H"
+//#include "Pstream.H"
 
 #ifndef UIPstream_H
 #define UIPstream_H
 
 #include "UPstream.H"
-#include "Istream.T.H"
-#include "PstreamBuffers.T.H"
+#include "_Istream.H"
+#include "PstreamBuffers.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -51,16 +54,18 @@ namespace Foam
                            Class UIPstream Declaration
 \*---------------------------------------------------------------------------*/
 
-class UIPstream :    public UPstream,
+class UIPstream
+:
+    public UPstream,
     public Istream
 {
-    // Private data
+    // Private Data
 
         int fromProcNo_;
 
-        DynamicList<char>& externalBuf_;
+        DynamicList<char>& recvBuf_;
 
-        label& externalBufPosition_;
+        label& recvBufPos_;
 
         const int tag_;
 
@@ -73,45 +78,52 @@ class UIPstream :    public UPstream,
 
     // Private Member Functions
 
-        //- Check the bufferPosition against messageSize_ for EOF
+        //- Check buffer position against messageSize_ for EOF
         inline void checkEof();
 
-        //- Read a T from the transfer buffer
-        template<class T>
-        inline void readFromBuffer(T&);
+        //- Prepare receive buffer by adjusting alignment
+        inline void prepareBuffer(const size_t align);
 
-        //- Read data from the transfer buffer
-        inline void readFromBuffer(void* data, size_t count, size_t align);
+        //- Read a T from the receive buffer
+        template<class T>
+        inline void readFromBuffer(T& val);
+
+        //- Read count bytes of data from the receive buffer.
+        //  Prior data alignment is done by prepareBuffer
+        inline void readFromBuffer(void* data, const size_t count);
+
+        //- Read string length and string content
+        inline Istream& readString(std::string& str);
 
 
 public:
 
     // Constructors
 
-        //- Construct given process index to read from and optional buffer size,
-        //  read format and IO version
+        //- Construct given process index to read from using the given
+        //- attached receive buffer, optional communication characteristics
+        //- and IO format
         UIPstream
         (
             const commsTypes commsType,
             const int fromProcNo,
-            DynamicList<char>& externalBuf,
-            label& externalBufPosition,
+            DynamicList<char>& receiveBuf,
+            label& receiveBufPosition,
             const int tag = UPstream::msgType(),
             const label comm = UPstream::worldComm,
-            const bool clearAtEnd = false,   // destroy externalBuf if at end
-            streamFormat format=BINARY,
-            versionNumber version=currentVersion
+            const bool clearAtEnd = false,   // destroy receiveBuf if at end
+            IOstreamOption::streamFormat fmt = IOstreamOption::BINARY
         );
 
         //- Construct given buffers
-        UIPstream(const int fromProcNo, PstreamBuffers&);
+        UIPstream(const int fromProcNo, PstreamBuffers& buffers);
 
 
     //- Destructor
     ~UIPstream();
 
 
-    // Member functions
+    // Member Functions
 
         // Inquiry
 
@@ -122,10 +134,10 @@ public:
             }
 
 
-        // Read functions
+        // Read Functions
 
-            //- Read into given buffer from given processor and return the
-            //  message size
+            //- Read into given buffer from given processor
+            //  \return the message size
             static label read
             (
                 const commsTypes commsType,
@@ -133,35 +145,47 @@ public:
                 char* buf,
                 const std::streamsize bufSize,
                 const int tag = UPstream::msgType(),
-                const label communicator = 0
+                const label communicator = UPstream::worldComm
             );
 
             //- Return next token from stream
-            Istream& read(token&);
+            Istream& read(token& t);
 
             //- Read a character
-            Istream& read(char&);
+            Istream& read(char& c);
 
             //- Read a word
-            Istream& read(word&);
+            Istream& read(word& str);
 
-            // Read a string (including enclosing double-quotes)
-            Istream& read(string&);
+            // Read a string
+            Istream& read(string& str);
 
             //- Read a label
-            Istream& read(label&);
+            Istream& read(label& val);
 
             //- Read a floatScalar
-            Istream& read(floatScalar&);
+            Istream& read(floatScalar& val);
 
             //- Read a doubleScalar
-            Istream& read(doubleScalar&);
+            Istream& read(doubleScalar& val);
 
-            //- Read binary block
-            Istream& read(char*, std::streamsize);
+            //- Read binary block with 8-byte alignment.
+            Istream& read(char* data, std::streamsize count);
 
-            //- Rewind and return the stream so that it may be read again
-            Istream& rewind();
+            //- Low-level raw binary read
+            Istream& readRaw(char* data, std::streamsize count);
+
+            //- Start of low-level raw binary read
+            bool beginRawRead();
+
+            //- End of low-level raw binary read
+            bool endRawRead()
+            {
+                return true;
+            }
+
+            //- Rewind the stream so that it may be read again
+            void rewind();
 
 
         // Edit
@@ -173,10 +197,10 @@ public:
             }
 
 
-        // Print
+    // Print
 
-            //- Print description of IOstream to Ostream
-            void print(Ostream&) const;
+        //- Print stream description to Ostream
+        void print(Ostream& os) const;
 };
 
 

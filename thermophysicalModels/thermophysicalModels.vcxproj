@@ -21,18 +21,18 @@
   <PropertyGroup Label="Globals">
     <VCProjectVersion>15.0</VCProjectVersion>
     <ProjectGuid>{4418871B-3161-4A88-916F-968811D9A1A1}</ProjectGuid>
-    <WindowsTargetPlatformVersion>8.1</WindowsTargetPlatformVersion>
+    <WindowsTargetPlatformVersion>10.0.17763.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
-    <PlatformToolset>v141</PlatformToolset>
+    <PlatformToolset>v143</PlatformToolset>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
-    <PlatformToolset>v141</PlatformToolset>
+    <PlatformToolset>v143</PlatformToolset>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
     <ConfigurationType>StaticLibrary</ConfigurationType>
@@ -65,11 +65,11 @@
   <PropertyGroup />
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
-      <AdditionalIncludeDirectories>..\OpenFOAM\algorithms;..\OpenFOAM\containers;..\OpenFOAM\db;..\OpenFOAM\dimensionedTypes;..\OpenFOAM\dimensionSet;..\OpenFOAM\fields;..\OpenFOAM\global;..\OpenFOAM\graph;..\OpenFOAM\include;..\OpenFOAM\interpolations;..\OpenFOAM\matrices;..\OpenFOAM\memory;..\OpenFOAM\meshes;..\OpenFOAM\primitives;..\OSspecific;..\lagrangian;..\fileFormats;..\dynamicMesh;..\finiteVolume;..\meshTools;..\TurbulenceModels;..\functionObjects;..\ODE;..\dummyThirdParty;..\transportModels;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..\OpenFOAM\algorithms;..\OpenFOAM\containers;..\OpenFOAM\db;..\OpenFOAM\dimensionedTypes;..\OpenFOAM\dimensionSet;..\OpenFOAM\fields;..\OpenFOAM\global;..\OpenFOAM\graph;..\OpenFOAM\include;..\OpenFOAM\interpolations;..\OpenFOAM\matrices;..\OpenFOAM\memory;..\OpenFOAM\meshes;..\OpenFOAM\primitives;..\OSspecific;..\lagrangian;..\fileFormats;..\dynamicMesh;..\finiteVolume;..\meshTools;..\TurbulenceModels;..\functionObjects;..\ODE;..\dummyThirdParty;..\transportModels;..\parallel;..\surfMesh;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>WM_LABEL_SIZE=64;WM_DP;NoRepository;WIN32;WIN64;_WINDOWS;NOMINMAX;_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <CompileAs>CompileAsCpp</CompileAs>
       <LanguageStandard>stdcpp17</LanguageStandard>
-      <WarningLevel>Level4</WarningLevel>
+      <AdditionalOptions> /bigobj %(AdditionalOptions)</AdditionalOptions>
     </ClCompile>
   </ItemDefinitionGroup>
   <ItemGroup>
@@ -83,7 +83,6 @@
     <ClCompile Include="atomicWeights.C" />
     <ClCompile Include="barotropicCompressibilityModel.C" />
     <ClCompile Include="barotropicCompressibilityModelNew.C" />
-    <ClCompile Include="basicChemistryModel.C" />
     <ClCompile Include="basicCombustionMixture.C" />
     <ClCompile Include="basicMultiComponentMixture.C" />
     <ClCompile Include="basicSolidChemistryModel.C" />
@@ -141,7 +140,6 @@
     <ClCompile Include="IDEA.C" />
     <ClCompile Include="laminarFlameSpeed.C" />
     <ClCompile Include="laminarFlameSpeedNew.C" />
-    <ClCompile Include="linear_cm.C" />
     <ClCompile Include="liquidMixtureProperties.C" />
     <ClCompile Include="liquidProperties.C" />
     <ClCompile Include="liquidThermo.C" />
@@ -177,8 +175,6 @@
     <ClCompile Include="NSRDSfunc7.C" />
     <ClCompile Include="opaqueSolid.C" />
     <ClCompile Include="P1.C" />
-    <ClCompile Include="psiChemistryModel.C" />
-    <ClCompile Include="psiChemistryModels.C" />
     <ClCompile Include="psiReactionThermo.C" />
     <ClCompile Include="psiReactionThermos.C" />
     <ClCompile Include="psiThermo.C" />
@@ -186,13 +182,10 @@
     <ClCompile Include="psiuReactionThermo.C" />
     <ClCompile Include="psiuReactionThermos.C" />
     <ClCompile Include="radiation.C" />
-    <ClCompile Include="radiationCoupledBase.C" />
     <ClCompile Include="radiationModel.C" />
     <ClCompile Include="radiationModelNew.C" />
     <ClCompile Include="radiativeIntensityRay.C" />
     <ClCompile Include="RaviPetersen.C" />
-    <ClCompile Include="rhoChemistryModel.C" />
-    <ClCompile Include="rhoChemistryModels.C" />
     <ClCompile Include="rhoReactionThermo.C" />
     <ClCompile Include="rhoReactionThermos.C" />
     <ClCompile Include="rhoThermo.C" />

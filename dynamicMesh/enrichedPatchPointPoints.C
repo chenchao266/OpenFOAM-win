@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2019-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -25,10 +28,7 @@ License
 
 #include "enrichedPatch.H"
 #include "primitiveMesh.H"
-#include "DynamicList.T.H"
-
-// * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
-
+#include "DynamicList.H"
 
 // * * * * * * * * * * * * * Private Member Functions  * * * * * * * * * * * //
 
@@ -46,64 +46,29 @@ void Foam::enrichedPatch::calcPointPoints() const
     // Go through all faces and add the previous and next point as the
     // neighbour for each point. While inserting points, reject the
     // duplicates (as every internal edge will be visited twice).
-    List<DynamicList<label, primitiveMesh::edgesPerPoint_>>
-        pp(meshPoints().size());
+    List<DynamicList<label>> pp(meshPoints().size());
 
     const faceList& lf = localFaces();
 
-    bool found = false;
-
-    forAll(lf, facei)
+    for (const face& curFace : lf)
     {
-        const face& curFace = lf[facei];
-
         forAll(curFace, pointi)
         {
-            DynamicList<label, primitiveMesh::edgesPerPoint_>&
-                curPp = pp[curFace[pointi]];
+            DynamicList<label>& curPp = pp[curFace[pointi]];
 
             // Do next label
-            label next = curFace.nextLabel(pointi);
-
-            found = false;
-
-            forAll(curPp, i)
-            {
-                if (curPp[i] == next)
-                {
-                    found = true;
-                    break;
-                }
-            }
-
-            if (!found)
-            {
-                curPp.append(next);
-            }
+            const label next = curFace.nextLabel(pointi);
+            curPp.appendUniq(next);
 
             // Do previous label
-            label prev = curFace.prevLabel(pointi);
-            found = false;
-
-            forAll(curPp, i)
-            {
-                if (curPp[i] == prev)
-                {
-                    found = true;
-                    break;
-                }
-            }
-
-            if (!found)
-            {
-                curPp.append(prev);
-            }
+            const label prev = curFace.prevLabel(pointi);
+            curPp.appendUniq(prev);
         }
     }
 
     // Re-pack the list
-    pointPointsPtr_ = new labelListList(pp.size());
-    labelListList& ppAddr = *pointPointsPtr_;
+    pointPointsPtr_.reset(new labelListList(pp.size()));
+    auto& ppAddr = *pointPointsPtr_;
 
     forAll(pp, pointi)
     {

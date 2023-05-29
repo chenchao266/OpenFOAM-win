@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2018 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -45,7 +48,7 @@ SourceFiles
 #include "boundBox.H"
 #include "typeInfo.H"
 #include "runTimeSelectionTables.H"
-#include "pointIndexHit.H"
+#include "pointIndexHit2.H"
 #include "linePointRef.H"
 #include "objectRegistry.H"
 #include "volumeType.H"
@@ -55,13 +58,13 @@ SourceFiles
 namespace Foam
 {
 
-// Forward declaration of classes
+// Forward declarations
 class objectRegistry;
 class mapDistribute;
 class treeBoundBox;
 
 /*---------------------------------------------------------------------------*\
-                           Class searchableSurface Declaration
+                      Class searchableSurface Declaration
 \*---------------------------------------------------------------------------*/
 
 class searchableSurface
@@ -74,13 +77,14 @@ class searchableSurface
 
         boundBox bounds_;
 
+
     // Private Member Functions
 
-        //- Disallow default bitwise copy construct
-        searchableSurface(const searchableSurface&);
+        //- No copy construct
+        searchableSurface(const searchableSurface&) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const searchableSurface&);
+        //- No copy assignment
+        void operator=(const searchableSurface&) = delete;
 
 
 public:
@@ -138,7 +142,7 @@ public:
         virtual autoPtr<searchableSurface> clone() const
         {
             NotImplemented;
-            return autoPtr<searchableSurface>(nullptr);
+            return nullptr;
         }
 
 
@@ -154,19 +158,32 @@ public:
 
 
     //- Destructor
-    virtual ~searchableSurface();
+    virtual ~searchableSurface() = default;
 
 
     // Member Functions
 
+        //- Is object global
+        virtual bool global() const
+        {
+            return true;
+        }
+
+        //- Return complete path + object name if the file exists
+        //  either in the case/processor or case otherwise null
+        virtual fileName filePath() const
+        {
+            return globalFilePath(type());
+        }
+
         //- Return const reference to boundBox
-        const boundBox& bounds() const
+        virtual const boundBox& bounds() const
         {
             return bounds_;
         }
 
         //- Return non-const access to the boundBox to allow it to be set.
-        boundBox& bounds()
+        virtual boundBox& bounds()
         {
             return bounds_;
         }
@@ -174,8 +191,13 @@ public:
         //- Names of regions
         virtual const wordList& regions() const = 0;
 
-        //- Whether supports volume type below
-        virtual bool hasVolumeType() const = 0;
+        //- Whether supports volume type (below).
+        //  This is false for the base class.
+        virtual bool hasVolumeType() const;
+
+        //- If surface supports volume queries, what is type of points outside
+        //  bounds
+        virtual volumeType outsideVolumeType() const = 0;
 
         //- Range of local indices that can be returned
         virtual label size() const = 0;
@@ -321,8 +343,8 @@ public:
                 vectorField& normal
             ) const = 0;
 
-            //- Determine type (inside/outside) for point. unknown if
-            //  cannot be determined (e.g. non-manifold surface)
+            //- Determine type (inside/outside) for point.
+            //  Unknown if cannot be determined (e.g. non-manifold surface)
             virtual void getVolumeType
             (
                 const pointField&,
@@ -369,6 +391,14 @@ public:
                 values.clear();
             }
 };
+
+
+//- Template function for obtaining global status
+template<>
+inline bool typeGlobal<searchableSurface>()
+{
+    return true;
+}
 
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //

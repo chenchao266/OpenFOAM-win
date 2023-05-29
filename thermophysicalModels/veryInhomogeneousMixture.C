@@ -1,9 +1,11 @@
-﻿/*---------------------------------------------------------------------------*\
+/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -23,19 +25,8 @@ License
 
 \*---------------------------------------------------------------------------*/
 
-//#include "veryInhomogeneousMixture.H"
+#include "veryInhomogeneousMixture.H"
 #include "fvMesh.H"
-
-// * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
-
-template<class ThermoType>
-const char* Foam::veryInhomogeneousMixture<ThermoType>::specieNames_[3] =
-{
-    "ft",
-    "fu",
-    "b"
-};
-
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
@@ -50,12 +41,12 @@ Foam::veryInhomogeneousMixture<ThermoType>::veryInhomogeneousMixture
     basicCombustionMixture
     (
         thermoDict,
-        speciesTable(nSpecies_, specieNames_),
+        speciesTable({"ft", "fu", "b"}),
         mesh,
         phaseName
     ),
 
-    stoicRatio_(thermoDict.lookup("stoichiometricAirFuelMassRatio")),
+    stoicRatio_("stoichiometricAirFuelMassRatio", dimless, thermoDict),
 
     fuel_(thermoDict.subDict("fuel")),
     oxidant_(thermoDict.subDict("oxidant")),

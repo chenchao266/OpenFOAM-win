@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2013 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2013 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -46,7 +48,7 @@ namespace CorrectionLimitingMethods
 Foam::CorrectionLimitingMethods::absolute::absolute(const dictionary& dict)
 :
     CorrectionLimitingMethod(dict),
-    e_(readScalar(dict.lookup("e")))
+    e_(dict.get<scalar>("e"))
 {}
 
 

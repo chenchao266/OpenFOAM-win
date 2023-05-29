@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2019-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -24,354 +27,355 @@ License
 \*---------------------------------------------------------------------------*/
 
 #include "solution.H"
-#include "Time.T.H"
+#include "HashPtrTable.H"
+#include "Function1.H"
+#include "Time1.h"
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
-using namespace Foam;
+
 namespace Foam
 {
     defineDebugSwitchWithName(solution, "solution", 0);
-}
-
-// List of sub-dictionaries to rewrite
-static const List<word> subDictNames
-(
-    IStringStream("(preconditioner smoother)")()
-);
 
 
-// * * * * * * * * * * * * Private Member Functions  * * * * * * * * * * * * //
+    // List of sub-dictionaries to rewrite
+    static const List<word> subDictNames
+    ({
+        "preconditioner", "smoother"
+        });
 
-void solution::read(const dictionary& dict)
-{
-    if (dict.found("cache"))
+
+    // * * * * * * * * * * * * Private Member Functions  * * * * * * * * * * * * //
+
+    void solution::read(const dictionary& dict)
     {
-        cache_ = dict.subDict("cache");
-        caching_ = cache_.lookupOrDefault("active", true);
-    }
-
-    if (dict.found("relaxationFactors"))
-    {
-        const dictionary& relaxDict(dict.subDict("relaxationFactors"));
-        if (relaxDict.found("fields") || relaxDict.found("equations"))
+        if (dict.found("cache"))
         {
-            if (relaxDict.found("fields"))
-            {
-                fieldRelaxDict_ = relaxDict.subDict("fields");
-            }
-
-            if (relaxDict.found("equations"))
-            {
-                eqnRelaxDict_ = relaxDict.subDict("equations");
-            }
+            cache_ = dict.subDict("cache");
+            caching_ = cache_.getOrDefault("active", true);
         }
-        else
+
+        if (dict.found("relaxationFactors"))
         {
-            // backwards compatibility
-            fieldRelaxDict_.clear();
+            const dictionary& relaxDict = dict.subDict("relaxationFactors");
 
-            const wordList entryNames(relaxDict.toc());
-            forAll(entryNames, i)
+            if (relaxDict.found("fields") || relaxDict.found("equations"))
             {
-                const word& e = entryNames[i];
-                scalar value = readScalar(relaxDict.lookup(e));
-
-                if (e(0, 1) == "p")
+                if (relaxDict.found("fields"))
                 {
-                    fieldRelaxDict_.add(e, value);
+                    fieldRelaxDict_ = relaxDict.subDict("fields");
+                    fieldRelaxCache_.clear();
                 }
-                else if (e.length() >= 3)
+
+                if (relaxDict.found("equations"))
                 {
-                    if (e(0, 3) == "rho")
+                    eqnRelaxDict_ = relaxDict.subDict("equations");
+                    eqnRelaxCache_.clear();
+                }
+            }
+            else
+            {
+                // backwards compatibility
+                fieldRelaxDict_.clear();
+                fieldRelaxCache_.clear();
+
+                for (const word& e : relaxDict.toc())
+                {
+                    scalar value = relaxDict.get<scalar>(e);
+
+                    if (e.starts_with('p'))
+                    {
+                        fieldRelaxDict_.add(e, value);
+                    }
+                    else if (e.starts_with("rho"))
                     {
                         fieldRelaxDict_.add(e, value);
                     }
                 }
 
+                eqnRelaxDict_ = relaxDict;
+                eqnRelaxCache_.clear();
             }
 
-            eqnRelaxDict_ = relaxDict;
-        }
 
-        fieldRelaxDefault_ =
-            fieldRelaxDict_.lookupOrDefault<scalar>("default", 0.0);
+            fieldRelaxDefault_ = Function1<scalar>::NewIfPresent
+            (
+                "default",
+                fieldRelaxDict_
+            );
+            if (!fieldRelaxDefault_)
+            {
+                fieldRelaxDefault_.reset
+                (
+                    new Function1Types::Constant<scalar>("default", 0)
+                );
+            }
 
-        eqnRelaxDefault_ =
-            eqnRelaxDict_.lookupOrDefault<scalar>("default", 0.0);
+            eqnRelaxDefault_ = Function1<scalar>::NewIfPresent
+            (
+                "default",
+                eqnRelaxDict_
+            );
+            if (!eqnRelaxDefault_)
+            {
+                eqnRelaxDefault_.reset
+                (
+                    new Function1Types::Constant<scalar>("default", 0)
+                );
+            }
 
-        if (debug)
-        {
-            Info<< "Relaxation factors:" << nl
+            DebugInfo
+                << "Relaxation factors:" << nl
                 << "fields: " << fieldRelaxDict_ << nl
                 << "equations: " << eqnRelaxDict_ << endl;
         }
+
+        if (dict.found("solvers"))
+        {
+            solvers_ = dict.subDict("solvers");
+            upgradeSolverDict(solvers_);
+        }
     }
 
 
-    if (dict.found("solvers"))
-    {
-        solvers_ = dict.subDict("solvers");
-        upgradeSolverDict(solvers_);
-    }
-}
+    // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
-
-// * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
-
-solution::solution
-(
-    const objectRegistry& obr,
-    const fileName& dictName
-) :    IOdictionary
+    solution::solution
     (
-        IOobject
+        const objectRegistry& obr,
+        const fileName& dictName,
+        const dictionary* fallback
+    )
+        :
+        IOdictionary
         (
-            dictName,
-            obr.time().system(),
-            obr,
+            IOobject
             (
-                obr.readOpt() == IOobject::MUST_READ
-             || obr.readOpt() == IOobject::READ_IF_PRESENT
-              ? IOobject::MUST_READ_IF_MODIFIED
-              : obr.readOpt()
+                dictName,
+                obr.time().system(),
+                obr,
+                (
+                    obr.readOpt() == IOobject::MUST_READ
+                    || obr.readOpt() == IOobject::READ_IF_PRESENT
+                    ? IOobject::MUST_READ_IF_MODIFIED
+                    : obr.readOpt()
+                    ),
+                IOobject::NO_WRITE
             ),
-            IOobject::NO_WRITE
-        )
-    ),
-    cache_(dictionary::null),
-    caching_(false),
-    fieldRelaxDict_(dictionary::null),
-    eqnRelaxDict_(dictionary::null),
-    fieldRelaxDefault_(0),
-    eqnRelaxDefault_(0),
-    solvers_(dictionary::null)
-{
-    if
+            fallback
+        ),
+        cache_(),
+        caching_(false),
+        fieldRelaxDict_(),
+        eqnRelaxDict_(),
+        solvers_()
+    {
+        if
+            (
+                readOpt() == IOobject::MUST_READ
+                || readOpt() == IOobject::MUST_READ_IF_MODIFIED
+                || (readOpt() == IOobject::READ_IF_PRESENT && headerOk())
+                )
+        {
+            read(solutionDict());
+        }
+    }
+
+
+    // * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
+
+    // A non-default destructor since we had incomplete types in the header
+    solution::~solution()
+    {}
+
+
+    // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
+
+    label solution::upgradeSolverDict
     (
-        readOpt() == IOobject::MUST_READ
-     || readOpt() == IOobject::MUST_READ_IF_MODIFIED
-     || (readOpt() == IOobject::READ_IF_PRESENT && headerOk())
+        dictionary& dict,
+        const bool verbose
     )
     {
-        read(solutionDict());
-    }
-}
+        label nChanged = 0;
 
-
-// * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
-
-label solution::upgradeSolverDict
-(
-    dictionary& dict,
-    const bool verbose
-)
-{
-    label nChanged = 0;
-
-    // backward compatibility:
-    // recast primitive entries into dictionary entries
-    forAllIter(dictionary, dict, iter)
-    {
-        if (!iter().isDict())
+        // backward compatibility:
+        // recast primitive entries into dictionary entries
+        for (const entry& dEntry : dict)
         {
-            Istream& is = iter().stream();
-            word name(is);
-            dictionary subdict;
-
-            subdict.add("solver", name);
-            subdict <<= dictionary(is);
-
-            // preconditioner and smoother entries can be
-            // 1) primitiveEntry w/o settings,
-            // 2) or a dictionaryEntry.
-            // transform primitiveEntry with settings -> dictionaryEntry
-            forAll(subDictNames, dictI)
+            if (!dEntry.isDict())
             {
-                const word& dictName = subDictNames[dictI];
-                entry* ePtr = subdict.lookupEntryPtr(dictName,false,false);
+                ITstream& is = dEntry.stream();
+                word name(is);
+                dictionary subdict;
 
-                if (ePtr && !ePtr->isDict())
+                subdict.add("solver", name);
+                subdict <<= dictionary(is);
+
+                // preconditioner and smoother entries can be
+                // 1) primitiveEntry w/o settings,
+                // 2) or a dictionaryEntry.
+                // transform primitiveEntry with settings -> dictionaryEntry
+                for (const word& dictName : subDictNames)
                 {
-                    Istream& is = ePtr->stream();
-                    is >> name;
+                    entry* eptr = subdict.findEntry(dictName, keyType::LITERAL);
 
-                    if (!is.eof())
+                    if (eptr && !eptr->isDict())
                     {
-                        dictionary newDict;
-                        newDict.add(dictName, name);
-                        newDict <<= dictionary(is);
+                        ITstream& is = eptr->stream();
+                        is >> name;
 
-                        subdict.set(dictName, newDict);
+                        if (!is.eof())
+                        {
+                            dictionary newDict;
+                            newDict.add(dictName, name);
+                            newDict <<= dictionary(is);
+
+                            subdict.set(dictName, newDict);
+                        }
                     }
                 }
+
+                // write out information to help people adjust to the new syntax
+                if (verbose && Pstream::master())
+                {
+                    Info << "// using new solver syntax:\n"
+                        << dEntry.keyword() << subdict << endl;
+                }
+
+                // overwrite with dictionary entry
+                dict.set(dEntry.keyword(), subdict);
+
+                ++nChanged;
             }
-
-            // write out information to help people adjust to the new syntax
-            if (verbose && Pstream::master())
-            {
-                Info<< "// using new solver syntax:\n"
-                    << iter().keyword() << subdict << endl;
-            }
-
-            // overwrite with dictionary entry
-            dict.set(iter().keyword(), subdict);
-
-            nChanged++;
         }
+
+        return nChanged;
     }
 
-    return nChanged;
-}
 
-
-bool solution::cache(const word& name) const
-{
-    if (caching_)
+    bool solution::cache(const word& name) const
     {
-        if (debug)
+        if (caching_)
         {
-            Info<< "Cache: find entry for " << name << endl;
+            DebugInfo << "Cache: find entry for " << name << endl;
+            return cache_.found(name);
         }
 
-        return cache_.found(name);
-    }
-    else
-    {
         return false;
     }
-}
 
 
-bool solution::relaxField(const word& name) const
-{
-    if (debug)
+    bool solution::relaxField(const word& name) const
     {
-        Info<< "Field relaxation factor for " << name
-            << " is " << (fieldRelaxDict_.found(name) ? "set" : "unset")
-            << endl;
+        DebugInfo
+            << "Field relaxation factor for " << name
+            << " is " << (fieldRelaxDict_.found(name) ? "set" : "unset") << endl;
+
+        return fieldRelaxDict_.found(name) || fieldRelaxDict_.found("default");
     }
 
-    return fieldRelaxDict_.found(name) || fieldRelaxDict_.found("default");
-}
 
-
-bool solution::relaxEquation(const word& name) const
-{
-    if (debug)
+    bool solution::relaxEquation(const word& name) const
     {
-        Info<< "Find equation relaxation factor for " << name << endl;
+        DebugInfo << "Find equation relaxation factor for " << name << endl;
+        return eqnRelaxDict_.found(name) || eqnRelaxDict_.found("default");
     }
 
-    return eqnRelaxDict_.found(name) || eqnRelaxDict_.found("default");
-}
 
-
-scalar solution::fieldRelaxationFactor(const word& name) const
-{
-    if (debug)
+    scalar solution::fieldRelaxationFactor(const word& name) const
     {
-        Info<< "Lookup variable relaxation factor for " << name << endl;
+        DebugInfo << "Lookup variable relaxation factor for " << name << endl;
+
+        if (fieldRelaxDict_.found(name))
+        {
+            return Function1<scalar>::New
+            (
+                fieldRelaxCache_,  // cache
+                name,
+                fieldRelaxDict_,
+                keyType::REGEX
+            )().value(time().timeOutputValue());
+        }
+        else if (fieldRelaxDefault_)
+        {
+            return fieldRelaxDefault_().value(time().timeOutputValue());
+        }
+
+        FatalIOErrorInFunction(fieldRelaxDict_)
+            << "Cannot find variable relaxation factor for '" << name
+            << "' or a suitable default value." << nl
+            << exit(FatalIOError);
+
+        return 0;
     }
 
-    if (fieldRelaxDict_.found(name))
+
+    scalar solution::equationRelaxationFactor(const word& name) const
     {
-        return readScalar(fieldRelaxDict_.lookup(name));
-    }
-    else if (fieldRelaxDefault_ > SMALL)
-    {
-        return fieldRelaxDefault_;
-    }
-    else
-    {
-        FatalIOErrorInFunction
-        (
-            fieldRelaxDict_
-        )   << "Cannot find variable relaxation factor for '" << name
+        DebugInfo << "Lookup equation relaxation factor for " << name << endl;
+
+        if (eqnRelaxDict_.found(name))
+        {
+            return Function1<scalar>::New
+            (
+                eqnRelaxCache_,  // cache
+                name,
+                eqnRelaxDict_,
+                keyType::REGEX
+            )().value(time().timeOutputValue());
+        }
+        else if (eqnRelaxDefault_)
+        {
+            return eqnRelaxDefault_().value(time().timeOutputValue());
+        }
+
+        FatalIOErrorInFunction(eqnRelaxDict_)
+            << "Cannot find equation relaxation factor for '" << name
             << "' or a suitable default value."
             << exit(FatalIOError);
 
         return 0;
     }
-}
 
 
-scalar solution::equationRelaxationFactor(const word& name) const
-{
-    if (debug)
+    const dictionary& solution::solutionDict() const
     {
-        Info<< "Lookup equation relaxation factor for " << name << endl;
-    }
+        if (found("select"))
+        {
+            return subDict(get<word>("select"));
+        }
 
-    if (eqnRelaxDict_.found(name))
-    {
-        return readScalar(eqnRelaxDict_.lookup(name));
-    }
-    else if (eqnRelaxDefault_ > SMALL)
-    {
-        return eqnRelaxDefault_;
-    }
-    else
-    {
-        FatalIOErrorInFunction
-        (
-            eqnRelaxDict_
-        )   << "Cannot find equation relaxation factor for '" << name
-            << "' or a suitable default value."
-            << exit(FatalIOError);
-
-        return 0;
-    }
-}
-
-
-const dictionary& solution::solutionDict() const
-{
-    if (found("select"))
-    {
-        return subDict(word(lookup("select")));
-    }
-    else
-    {
         return *this;
     }
-}
 
 
-const dictionary& solution::solverDict(const word& name) const
-{
-    if (debug)
+    const dictionary& solution::solverDict(const word& name) const
     {
-        Info<< "Lookup solver for " << name << endl;
+        DebugInfo << "Lookup solver for " << name << endl;
+        return solvers_.subDict(name);
     }
 
-    return solvers_.subDict(name);
-}
 
-
-const dictionary& solution::solver(const word& name) const
-{
-    if (debug)
+    const dictionary& solution::solver(const word& name) const
     {
-        Info<< "Lookup solver for " << name << endl;
+        DebugInfo << "Lookup solver for " << name << endl;
+        return solvers_.subDict(name);
     }
 
-    return solvers_.subDict(name);
-}
 
-
-bool solution::read()
-{
-    if (regIOobject::read())
+    bool solution::read()
     {
-        read(solutionDict());
+        if (regIOobject::read())
+        {
+            read(solutionDict());
 
-        return true;
-    }
-    else
-    {
+            return true;
+        }
+
         return false;
     }
-}
 
+}
 
 // ************************************************************************* //

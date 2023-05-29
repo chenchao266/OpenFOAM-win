@@ -1,9 +1,12 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -46,41 +49,58 @@ SourceFiles
 #ifndef functionEntry_H
 #define functionEntry_H
 
-#include "word.H"
-#include "memberFunctionSelectionTables.H"
 #include "primitiveEntry.H"
+#include "memberFunctionSelectionTables.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 namespace Foam
 {
 
+// Forward Declarations
 class dictionary;
 
 /*---------------------------------------------------------------------------*\
-                           Class functionEntry Declaration
+                        Class functionEntry Declaration
 \*---------------------------------------------------------------------------*/
 
-class functionEntry :    public primitiveEntry
+class functionEntry
+:
+    public primitiveEntry
 {
-    // Private Member Functions
+protected:
 
-        //- Read line as string token
+    // Protected Member Functions
+
+        //- Read line and return as a string token
         static token readLine(const word& key, Istream& is);
 
-        //- Disallow default bitwise copy construct
-        functionEntry(const functionEntry&);
+        //- Read a List of strings values, treating a single entry like a
+        //- list of size 1.
+        template<class StringType>
+        static List<StringType> readStringList(Istream& is);
 
-        //- Disallow default bitwise assignment
-        void operator=(const functionEntry&);
+        //- Slurp a string until a closing '}' is found.
+        //  Track balanced bracket/brace pairs, with max stack depth of 60.
+        static bool continueReadUntilRightBrace
+        (
+            Istream& is,
+            std::string& str,
+            const bool stripComments = true
+        );
 
+        //- No copy construct
+        functionEntry(const functionEntry&) = delete;
+
+        //- No copy assignment
+        void operator=(const functionEntry&) = delete;
 
 public:
 
     // Constructors
 
         //- Construct from keyword, parent dictionary and Istream
-        functionEntry(const word&, const dictionary&, Istream&);
+        functionEntry(const word& key, const dictionary& dict, Istream& is);
 
 
     // Member Function Selectors
@@ -103,7 +123,7 @@ public:
         (
             const word& functionName,
             dictionary& parentDict,
-            Istream&
+            Istream& is
         );
 
         declareMemberFunctionSelectionTable
@@ -125,18 +145,24 @@ public:
         (
             const word& functionName,
             const dictionary& parentDict,
-            primitiveEntry&,
-            Istream&
+            primitiveEntry& entry,
+            Istream& is
         );
 
         //- Write
-        virtual void write(Ostream&) const;
+        virtual void write(Ostream& os) const;
 };
 
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 } // End namespace Foam
+
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+#ifdef NoRepository
+    #include "functionEntryTemplates.C"
+#endif
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 

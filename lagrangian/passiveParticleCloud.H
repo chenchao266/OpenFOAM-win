@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011 OpenFOAM Foundation
+    Copyright (C) 2019 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -35,7 +38,7 @@ SourceFiles
 #ifndef passiveParticleCloud_H
 #define passiveParticleCloud_H
 
-#include "Cloud.T.H"
+#include "Cloud.H"
 #include "passiveParticle.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
@@ -53,11 +56,11 @@ class passiveParticleCloud
 {
     // Private Member Functions
 
-        //- Disallow default bitwise copy construct
-        passiveParticleCloud(const passiveParticleCloud&);
+        //- No copy construct
+        passiveParticleCloud(const passiveParticleCloud&) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const passiveParticleCloud&);
+        //- No copy assignment
+        void operator=(const passiveParticleCloud&) = delete;
 
 
 public:
@@ -65,10 +68,10 @@ public:
     // Constructors
 
         //- Construct given mesh
-        passiveParticleCloud
+        explicit passiveParticleCloud
         (
-            const polyMesh&,
-            const word& cloudName = "defaultCloud",
+            const polyMesh& mesh,
+            const word& cloudName = cloud::defaultName,
             bool readFields = true
         );
 

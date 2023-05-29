@@ -1,9 +1,11 @@
-﻿/*---------------------------------------------------------------------------*\
+/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -22,17 +24,17 @@ License
     along with OpenFOAM.  If not, see <http://www.gnu.org/licenses/>.
 
 \*---------------------------------------------------------------------------*/
-namespace Foam {
-    template<class Type, template<class Type> class PatchField, class GeoMesh>
-    inline
-        const typename
-        GeometricField<Type, PatchField, GeoMesh>::Internal&
-        GeometricField<Type, PatchField, GeoMesh>::
-        v() const
-    {
-        static_assert(isVolMesh<GeoMesh>::value, "Only valid for volFields");
-        return *this;
-    }
+
+template<class Type, template<class> class PatchField, class GeoMesh>
+inline
+const typename
+Foam::GeometricField<Type, PatchField, GeoMesh>::Internal&
+Foam::GeometricField<Type, PatchField, GeoMesh>::
+v() const
+{
+    static_assert(isVolMesh<GeoMesh>::value, "Only valid for volFields");
+    return *this;
 }
+
 
 // ************************************************************************* //

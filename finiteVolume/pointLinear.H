@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -23,6 +25,9 @@ License
 
 Class
     Foam::pointLinear
+
+Group
+    grpFvSurfaceInterpolationSchemes
 
 Description
     Face-point interpolation scheme class derived from linear and
@@ -56,11 +61,11 @@ class pointLinear
 {
     // Private Member Functions
 
-        //- Disallow default bitwise copy construct
-        pointLinear(const pointLinear&);
+        //- No copy construct
+        pointLinear(const pointLinear&) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const pointLinear&);
+        //- No copy assignment
+        void operator=(const pointLinear&) = delete;
 
 
 public:
@@ -110,10 +115,10 @@ public:
         }
 
         //- Return the explicit correction to the face-interpolate
-        virtual tmp<surfaceFieldType<Type>>
+        virtual tmp<GeometricField<Type, fvsPatchField, surfaceMesh>>
         correction
         (
-            const volFieldType<Type>& vf
+            const GeometricField<Type, fvPatchField, volMesh>& vf
         ) const;
 };
 

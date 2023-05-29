@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2012-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2012-2017 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -119,11 +121,11 @@ void Foam::energyJumpFvPatchScalarField::updateCoeffs()
             const_cast<fixedJumpFvPatchScalarField&>(TbPatch);
 
         // force update of jump
-        Tbp.updateCoeffs();
+        Tbp.evaluate(Pstream::commsTypes::blocking);
 
         const labelUList& faceCells = this->patch().faceCells();
 
-        jump_ = thermo.he(pp, Tbp.jump(), faceCells);
+        setJump(thermo.he(pp, Tbp.jump(), faceCells));
     }
 
     fixedJumpFvPatchField<scalar>::updateCoeffs();

@@ -1,9 +1,11 @@
-﻿/*---------------------------------------------------------------------------*\
+/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2013-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2013-2017 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -23,7 +25,7 @@ License
 
 \*---------------------------------------------------------------------------*/
 
-//#include "linearViscousStress.H"
+#include "linearViscousStress.H"
 #include "fvc.H"
 #include "fvm.H"
 
@@ -69,20 +71,31 @@ template<class BasicTurbulenceModel>
 Foam::tmp<Foam::volSymmTensorField>
 Foam::linearViscousStress<BasicTurbulenceModel>::devRhoReff() const
 {
+    return devRhoReff(this->U_);
+}
+
+
+template<class BasicTurbulenceModel>
+Foam::tmp<Foam::volSymmTensorField>
+Foam::linearViscousStress<BasicTurbulenceModel>::devRhoReff
+(
+    const volVectorField& U
+) const
+{
     return tmp<volSymmTensorField>
     (
         new volSymmTensorField
         (
             IOobject
             (
-                IOobject::groupName("devRhoReff", this->U_.group()),
+                IOobject::groupName("devRhoReff", this->alphaRhoPhi_.group()),
                 this->runTime_.timeName(),
                 this->mesh_,
                 IOobject::NO_READ,
                 IOobject::NO_WRITE
             ),
             (-(this->alpha_*this->rho_*this->nuEff()))
-           *dev(twoSymm(fvc::grad(this->U_)))
+           *dev(twoSymm(fvc::grad(U)))
         )
     );
 }

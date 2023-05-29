@@ -1,16 +1,15 @@
-﻿/*---------------------------------------------------------------------------*\
+/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
 -------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2016-2019 OpenCFD Ltd.
+-------------------------------------------------------------------------------
 License
-    This file is part of blueCAPE's unofficial mingw patches for OpenFOAM.
-    For more information about these patches, visit:
-         http://bluecfd.com/Core
-
-    This file is a derivative work of OpenFOAM.
+    This file is part of OpenFOAM.
 
     OpenFOAM is free software: you can redistribute it and/or modify it
     under the terms of the GNU General Public License as published by
@@ -25,30 +24,12 @@ License
     You should have received a copy of the GNU General Public License
     along with OpenFOAM.  If not, see <http://www.gnu.org/licenses/>.
 
-Modifications
-    This file is based on the original version for POSIX:
-        OpenFOAM/src/OSspecific/POSIX/
-
-    This file was developed for Windows by:
-        Copyright            : (C) 2012 Symscape
-        Website              : www.symscape.com
-
-    This copy of this file has been created by blueCAPE's unofficial mingw
-    patches for OpenFOAM.
-    For more information about these patches, visit:
-        http://bluecfd.com/Core
-
-    Modifications made:
-      - Derived from the patches for blueCFD 2.1 and 2.2.
-
 Class
     Foam::sigStopAtWriteNow
 
 Description
-    Signal handler for interrupt defined by
-        OptimisationSwitches::stopAtWriteNowSignal
-
-    Write and stop the job.
+    Signal handler to write and stop the job.
+    The interrupt is defined by OptimisationSwitches::stopAtWriteNowSignal
 
 SourceFiles
     sigStopAtWriteNow.C
@@ -58,41 +39,35 @@ SourceFiles
 #ifndef sigStopAtWriteNow_H
 #define sigStopAtWriteNow_H
 
-#include "OSspecific.H"
-#include <signal.h>
-
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 namespace Foam
 {
 
+// Forward Declarations
 class Time;
 
 /*---------------------------------------------------------------------------*\
-                           Class sigStopAtWriteNow Declaration
+                      Class sigStopAtWriteNow Declaration
 \*---------------------------------------------------------------------------*/
 
 class sigStopAtWriteNow
 {
-    // Private data
+    // Private Data
 
-        //- Number of signal to use
+        //- Signal number to use
         static int signal_;
 
-        //- Pointer to Time
-        static Time const* runTimePtr_;
-
-        //- Saved old signal trapping setting
-        static __p_sig_fn_t oldAction_;
 
     // Private Member Functions
 
+        //- Handler for caught signals
         static void sigHandler(int);
 
 
 public:
 
-    //- wip. Have setter have access to signal_
+    //- Allow setter access to signal_
     friend class addstopAtWriteNowSignalToOpt;
 
 
@@ -102,20 +77,23 @@ public:
         sigStopAtWriteNow();
 
         //- Construct from components
-        sigStopAtWriteNow(const bool verbose, const Time& runTime);
+        sigStopAtWriteNow(const Time& runTime, bool verbose=false);
 
 
     //- Destructor
     ~sigStopAtWriteNow();
 
 
-    // Member functions
-
-        //- (re)set signal catcher
-        static void set(const bool verbose);
+    // Member Functions
 
         //- Is active?
-        bool active() const;
+        static bool active();
+
+        //- Signal number being used
+        static int signalNumber();
+
+        //- Set/reset signal handler
+        static void set(bool verbose=false);
 };
 
 

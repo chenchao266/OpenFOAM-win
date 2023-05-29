@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -26,21 +28,21 @@ Description
 
 \*---------------------------------------------------------------------------*/
 
-#include "face.T.H"
+#include "face.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
-using namespace Foam;
+
+
+ namespace Foam{
 scalar face::contactSphereDiameter
 (
     const point& p,
     const vector& n,
-    const pointField& meshPoints
+    const UList<point>& meshPoints
 ) const
 {
-    scalar magN = ::Foam::mag(n);
-
-    vector n1 = n/(magN + SMALL);
-    vector n2 = normal(meshPoints);
+    vector n1 = n/(::Foam::mag(n) + SMALL);
+    vector n2 = areaNormal(meshPoints);
 
     n2 /= ::Foam::mag(n2) + SMALL;
 
@@ -49,3 +51,5 @@ scalar face::contactSphereDiameter
 
 
 // ************************************************************************* //
+
+ } // End namespace Foam

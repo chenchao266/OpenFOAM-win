@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -24,40 +26,36 @@ License
 \*---------------------------------------------------------------------------*/
 
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
-namespace Foam {
-    namespace functionObjects {
-        inline const Time& timeControl::time() const
-        {
-            return time_;
-        }
 
 
-        inline const dictionary& timeControl::dict() const
-        {
-            return dict_;
-        }
-
-
-        inline const ::Foam::timeControl&
-            timeControl::executeControl() const
-        {
-            return executeControl_;
-        }
-
-
-        inline const ::Foam::timeControl&
-            timeControl::writeControl() const
-        {
-            return writeControl_;
-        }
-
-
-        inline const functionObject&
-            timeControl::filter() const
-        {
-            return foPtr_();
-        }
-
-    }
+ namespace Foam{
+inline const dictionary& functionObjects::timeControl::dict() const
+{
+    return dict_;
 }
+
+
+inline const ::Foam::timeControl&
+functionObjects::timeControl::executeControl() const
+{
+    return executeControl_;
+}
+
+
+inline const ::Foam::timeControl&
+functionObjects::timeControl::writeControl() const
+{
+    return writeControl_;
+}
+
+
+inline const functionObject&
+functionObjects::timeControl::filter() const
+{
+    return *foPtr_;
+}
+
+
 // ************************************************************************* //
+
+ } // End namespace Foam

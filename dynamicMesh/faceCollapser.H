@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -53,9 +56,9 @@ SourceFiles
 #define faceCollapser_H
 
 #include "labelList.H"
-#include "point.T.H"
-#include "Map.T.H"
-#include "HashSet.T.H"
+#include "point.H"
+#include "Map.H"
+#include "HashSet.H"
 #include "typeInfo.H"
 #include "edgeList.H"
 
@@ -64,7 +67,7 @@ SourceFiles
 namespace Foam
 {
 
-// Forward declaration of classes
+// Forward Declarations
 class polyMesh;
 class polyTopoChange;
 class mapPolyMesh;
@@ -75,7 +78,7 @@ class mapPolyMesh;
 
 class faceCollapser
 {
-    // Private data
+    // Private Data
 
         //- Reference to mesh
         const polyMesh& mesh_;
@@ -112,11 +115,11 @@ class faceCollapser
         ) const;
 
 
-        //- Disallow default bitwise copy construct
-        faceCollapser(const faceCollapser&);
+        //- No copy construct
+        faceCollapser(const faceCollapser&) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const faceCollapser&);
+        //- No copy assignment
+        void operator=(const faceCollapser&) = delete;
 
 
 public:
@@ -128,7 +131,7 @@ public:
     // Constructors
 
         //- Construct from mesh.
-        faceCollapser(const polyMesh& mesh);
+        explicit faceCollapser(const polyMesh& mesh);
 
 
     // Member Functions

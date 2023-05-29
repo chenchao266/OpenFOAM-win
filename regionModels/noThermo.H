@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2013 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2013 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -22,7 +24,7 @@ License
     along with OpenFOAM.  If not, see <http://www.gnu.org/licenses/>.
 
 Class
-    Foam::noThermo
+    Foam::regionModels::thermalBaffleModels::noThermo
 
 Description
     Dummy surface pyrolysis model for 'none'
@@ -59,11 +61,11 @@ private:
 
     // Private member functions
 
-        //- Disallow default bitwise copy construct
-        noThermo(const noThermo&);
+        //- No copy construct
+        noThermo(const noThermo&) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const noThermo&);
+        //- No copy assignment
+        void operator=(const noThermo&) = delete;
 
 
 protected:
@@ -113,7 +115,7 @@ public:
             //- Return the film specific heat capacity [J/kg/K]
             virtual const tmp<volScalarField> Cp() const;
 
-            //- Return solid absortivity [1/m]
+            //- Return solid absorptivity [1/m]
             virtual const volScalarField& kappaRad() const;
 
             //- Return the film mean temperature [K]

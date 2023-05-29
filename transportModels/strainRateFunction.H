@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2016 OpenFOAM Foundation
+    Copyright (C) 2017-2019 OpenCFD Ltd
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -51,7 +54,7 @@ SourceFiles
 
 #include "viscosityModel.H"
 #include "volFields.H"
-#include "Function1.T.H"
+#include "Function1.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -76,7 +79,11 @@ class strainRateFunction
         //- Strain-rate function
         autoPtr<Function1<scalar>> strainRateFunction_;
 
-        //- Current viscosity field
+
+protected:
+
+    // Protected data
+
         volScalarField nu_;
 
 
@@ -99,8 +106,7 @@ public:
 
 
     //- Destructor
-    virtual ~strainRateFunction()
-    {}
+    virtual ~strainRateFunction() = default;
 
 
     // Member Functions

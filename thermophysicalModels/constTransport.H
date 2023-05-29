@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -24,6 +27,9 @@ License
 Class
     Foam::constTransport
 
+Group
+    grpSpecieTransport
+
 Description
     Constant properties Transport package.
     Templated into a given thermodynamics package (needed for thermal
@@ -43,7 +49,7 @@ SourceFiles
 namespace Foam
 {
 
-// Forward declaration of friend functions and operators
+// Forward Declarations
 
 template<class Thermo> class constTransport;
 
@@ -78,12 +84,12 @@ class constTransport
 :
     public Thermo
 {
-    // Private data
+    // Private Data
 
         //- Constant dynamic viscosity [Pa.s]
         scalar mu_;
 
-        //- Reciprocal Prandtl Number []
+        //- Reciprocal Prandtl Number [-]
         scalar rPr_;
 
 
@@ -100,13 +106,16 @@ class constTransport
 
 public:
 
+    // Generated Methods: copy construct, copy assignment
+
+
     // Constructors
 
         //- Construct as named copy
         inline constTransport(const word&, const constTransport&);
 
         //- Construct from dictionary
-        constTransport(const dictionary& dict);
+        explicit constTransport(const dictionary& dict);
 
         //- Construct and return a clone
         inline autoPtr<constTransport> clone() const;
@@ -115,7 +124,7 @@ public:
         inline static autoPtr<constTransport> New(const dictionary& dict);
 
 
-    // Member functions
+    // Member Functions
 
         //- Return the instantiated type name
         static word typeName()
@@ -139,16 +148,14 @@ public:
         void write(Ostream& os) const;
 
 
-    // Member operators
-
-        inline void operator=(const constTransport&);
+    // Member Operators
 
         inline void operator+=(const constTransport&);
 
         inline void operator*=(const scalar);
 
 
-    // Friend operators
+    // Friend Operators
 
         friend constTransport operator+ <Thermo>
         (
@@ -163,7 +170,7 @@ public:
         );
 
 
-    // Ostream Operator
+    // IOstream Operators
 
         friend Ostream& operator<< <Thermo>
         (

@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2019-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -37,20 +40,18 @@ SourceFiles
 #ifndef cellInfo_H
 #define cellInfo_H
 
-#include "point.T.H"
+#include "point.H"
 #include "label.H"
-#include "tensor.H"
+#include "tensor2.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 namespace Foam
 {
+
+// Forward Declarations
 class polyPatch;
 class polyMesh;
-
-
-// Forward declaration of friend functions and operators
-
 class cellInfo;
 
 Istream& operator>>(Istream&, cellInfo&);
@@ -63,15 +64,15 @@ Ostream& operator<<(Ostream&, const cellInfo&);
 
 class cellInfo
 {
-    // Private data
+    // Private Data
 
         label type_;
 
+
     // Private Member Functions
 
-        //- Update current cell/face type with neighbouring
-        //  type. Return true if information needs to propagate,
-        //  false otherwise.
+        //- Update current cell/face type with neighbouring type.
+        //  \return true if information needs to propagate, false otherwise.
         template<class TrackingData>
         inline bool update
         (
@@ -83,38 +84,39 @@ class cellInfo
             TrackingData& td
         );
 
+
 public:
 
     // Constructors
 
-        //- Construct null
+        //- Default construct - as cellClassification::NOTSET
         inline cellInfo();
 
-        //- Construct from cType
-        inline cellInfo(const label);
-
-        //- Construct as copy
-        inline cellInfo(const cellInfo&);
+        //- Construct from cellClassification type
+        inline explicit cellInfo(const label ctype);
 
 
     // Member Functions
 
         // Access
 
-            inline label type() const
+            label type() const
+            {
+                return type_;
+            }
+            label& type()
             {
                 return type_;
             }
 
 
-        // Needed by meshWave
+        // Needed by MeshWave
 
-            //- Check whether origin has been changed at all or
-            //  still contains original (invalid) value.
+            //- Changed or contains original (invalid) value
             template<class TrackingData>
             inline bool valid(TrackingData& td) const;
 
-            //- Check for identical geometrical data. Used for cyclics checking.
+            //- Check for identical geometrical data (eg, cyclics checking)
             template<class TrackingData>
             inline bool sameGeometry
             (
@@ -191,15 +193,17 @@ public:
                 TrackingData& td
             );
 
-            //- Same (like operator==)
+            //- Test for equality, with TrackingData
             template<class TrackingData>
             inline bool equal(const cellInfo&, TrackingData& td) const;
 
+
     // Member Operators
 
-        //Note: Used to determine whether to call update.
+        //- Test for equality
         inline bool operator==(const cellInfo&) const;
 
+        //- Test for inequality
         inline bool operator!=(const cellInfo&) const;
 
 
@@ -210,12 +214,13 @@ public:
 };
 
 
-//- Data associated with cellInfo type are contiguous
-template<>
-inline bool contiguous<cellInfo>()
-{
-    return true;
-}
+// * * * * * * * * * * * * * * * * * Traits  * * * * * * * * * * * * * * * * //
+
+//- Contiguous data for cellInfo
+template<> struct is_contiguous<cellInfo> : std::true_type {};
+
+//- Contiguous label data for cellInfo
+template<> struct is_contiguous_label<cellInfo> : std::true_type {};
 
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //

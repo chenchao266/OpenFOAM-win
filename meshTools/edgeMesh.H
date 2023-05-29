@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2014 OpenFOAM Foundation
+    Copyright (C) 2017-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -43,25 +46,22 @@ SourceFiles
 
 #include "pointField.H"
 #include "edgeList.H"
+#include "dictionary2.H"
 #include "edgeMeshFormatsCore.H"
 #include "runTimeSelectionTables.H"
 #include "memberFunctionSelectionTables.H"
-#include "HashSet.T.H"
+#include "HashSet.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 namespace Foam
 {
 
-// Forward declaration of classes
-class Istream;
-class Ostream;
-
-// Forward declaration of friend functions and operators
+// Forward Declarations
 class edgeMesh;
-Istream& operator>>(Istream&, edgeMesh&);
-Ostream& operator<<(Ostream&, const edgeMesh&);
 
+Istream& operator>>(Istream& is, edgeMesh& em);
+Ostream& operator<<(Ostream& os, const edgeMesh& em);
 
 /*---------------------------------------------------------------------------*\
                            Class edgeMesh Declaration
@@ -71,7 +71,7 @@ class edgeMesh
 :
     public fileFormats::edgeMeshFormatsCore
 {
-    // Private data
+    // Private Data
 
         //- Vertices of the edges
         pointField points_;
@@ -80,7 +80,7 @@ class edgeMesh
         edgeList edges_;
 
         //- From point to edges
-        mutable autoPtr<labelListList> pointEdgesPtr_;
+        mutable unique_ptr<labelListList> pointEdgesPtr_;
 
 
     // Private Member Functions
@@ -94,59 +94,58 @@ protected:
     // Protected Member Functions
 
         //- Non-const access to global points
-        inline pointField& storedPoints();
+        inline pointField& storedPoints() noexcept;
 
         //- Non-const access to the edges
-        inline edgeList& storedEdges();
+        inline edgeList& storedEdges() noexcept;
 
 
 public:
 
-        //- Runtime type information
-        TypeName("edgeMesh");
+    //- Runtime type information
+    TypeName("edgeMesh");
 
 
-    // Static
+    // Static Member Functions
+
+        //- Summary of supported read file types.
+        static wordHashSet readTypes();
+
+        //- Summary of supported write file types.
+        static wordHashSet writeTypes();
 
         //- Can we read this file format?
-        static bool canRead(const fileName&, const bool verbose=false);
-
-        //- Can we read this file format?
-        static bool canReadType(const word& ext, const bool verbose=false);
+        static bool canReadType(const word& fileType, bool verbose=false);
 
         //- Can we write this file format type?
-        static bool canWriteType(const word& ext, const bool verbose=false);
+        static bool canWriteType(const word& fileType, bool verbose=false);
 
-        static wordHashSet readTypes();
-        static wordHashSet writeTypes();
+        //- Can we read this file format?
+        static bool canRead(const fileName& name, bool verbose=false);
 
 
     // Constructors
 
-        //- Construct null
-        edgeMesh();
+        //- Default construct
+        inline edgeMesh();
 
-        //- Construct from components
-        edgeMesh(const pointField&, const edgeList&);
+        //- Copy construct
+        inline edgeMesh(const edgeMesh& em);
 
-        //- Construct by transferring components (points, edges).
-        edgeMesh
-        (
-            const Xfer<pointField>&,
-            const Xfer<edgeList>&
-        );
+        //- Move construct
+        inline edgeMesh(edgeMesh&& em);
 
-        //- Construct as copy
-        edgeMesh(const edgeMesh&);
+        //- Copy construct from components
+        inline edgeMesh(const pointField& points, const edgeList& edges);
 
-        //- Construct from file name (uses extension to determine type)
-        edgeMesh(const fileName&);
+        //- Move construct from components
+        inline edgeMesh(pointField&& pointLst, edgeList&& edgeLst);
 
         //- Construct from file name (uses extension to determine type)
-        edgeMesh(const fileName&, const word& ext);
+        explicit edgeMesh(const fileName& name);
 
-        //- Construct from Istream
-        edgeMesh(Istream&);
+        //- Construct from file name with specified type
+        edgeMesh(const fileName& name, const word& fileType);
 
 
     // Declare run-time constructor selection table
@@ -165,19 +164,19 @@ public:
 
     // Selectors
 
-        //- Select constructed from filename (explicit extension)
+        //- Read construct from filename with given format
         static autoPtr<edgeMesh> New
         (
-            const fileName&,
-            const word& ext
+            const fileName& name,
+            const word& fileType
         );
 
         //- Select constructed from filename (implicit extension)
-        static autoPtr<edgeMesh> New(const fileName&);
+        static autoPtr<edgeMesh> New(const fileName& name);
 
 
     //- Destructor
-    virtual ~edgeMesh();
+    virtual ~edgeMesh() = default;
 
 
     // Member Function Selectors
@@ -190,39 +189,55 @@ public:
             fileExtension,
             (
                 const fileName& name,
-                const edgeMesh& mesh
+                const edgeMesh& mesh,
+                IOstreamOption streamOpt,
+                const dictionary& options
             ),
-            (name, mesh)
+            (name, mesh, streamOpt, options)
         );
 
-        //- Write to file
-        static void write(const fileName&, const edgeMesh&);
+        //- Write to file (format implicit in the extension)
+        static void write
+        (
+            const fileName& name,
+            const edgeMesh& mesh,
+            IOstreamOption streamOpt = IOstreamOption(),
+            const dictionary& options = dictionary::null
+        );
+
+        //- Write to file, with given format
+        static void write
+        (
+            const fileName& name,
+            const word& fileType,
+            const edgeMesh& mesh,
+            IOstreamOption streamOpt = IOstreamOption(),
+            const dictionary& options = dictionary::null
+        );
 
 
     // Member Functions
 
         //- Transfer the contents of the argument and annul the argument
-        void transfer(edgeMesh&);
+        void transfer(edgeMesh& mesh);
 
-        //- Transfer contents to the Xfer container
-        Xfer<edgeMesh > xfer();
 
     // Read
 
         //- Read from file. Chooses reader based on explicit extension
-        bool read(const fileName&, const word& ext);
+        bool read(const fileName& name, const word& fileType);
 
         //- Read from file. Chooses reader based on detected extension
-        virtual bool read(const fileName&);
+        virtual bool read(const fileName& name);
 
 
     // Access
 
         //- Return points
-        inline const pointField& points() const;
+        inline const pointField& points() const noexcept;
 
         //- Return edges
-        inline const edgeList& edges() const;
+        inline const edgeList& edges() const noexcept;
 
         //- Return edges
         inline const labelListList& pointEdges() const;
@@ -237,22 +252,14 @@ public:
         //- Clear all storage
         virtual void clear();
 
-        //- Reset primitive data (points, edges)
-        //  Note, optimized to avoid overwriting data (with Xfer::null)
-        virtual void reset
-        (
-            const Xfer<pointField>& points,
-            const Xfer<edgeList>& edges
-        );
-
         //- Scale points. A non-positive factor is ignored
-        virtual void scalePoints(const scalar);
+        virtual void scalePoints(const scalar scaleFactor);
 
-        //- Merge common points (points within mergeDist). Return map from
-        //  old to new points.
-        virtual void mergePoints(const scalar mergeDist, labelList&);
+        //- Geometric merge points (points within mergeDist) prior to
+        //  automatically calling mergeEdges().
+        virtual void mergePoints(const scalar mergeDist);
 
-        //- Merge duplicate edges
+        //- Merge duplicate edges and eliminate unused points.
         virtual void mergeEdges();
 
 
@@ -260,22 +267,44 @@ public:
 
         virtual void writeStats(Ostream&) const;
 
-        //- Generic write routine. Chooses writer based on extension.
-        virtual void write(const fileName& name) const
+        //- Write to file, choosing writer based on the file extension.
+        virtual void write
+        (
+            const fileName& name,
+            IOstreamOption streamOpt = IOstreamOption(),
+            const dictionary& options = dictionary::null
+        ) const
         {
-            write(name, *this);
+            write(name, *this, streamOpt, options);
+        }
+
+        //- Write to file with given format type.
+        //  If the format type is "", uses the file extension.
+        virtual void write
+        (
+            const fileName& name,
+            const word& fileType,
+            IOstreamOption streamOpt = IOstreamOption(),
+            const dictionary& options = dictionary::null
+        ) const
+        {
+            write(name, fileType, *this, streamOpt, options);
         }
 
 
     // Member Operators
 
-        inline void operator=(const edgeMesh&);
+        //- Copy assignment
+        inline void operator=(const edgeMesh& rhs);
 
-        // Ostream Operator
+        //- Move assignment
+        inline void operator=(edgeMesh&& rhs);
 
-            friend Ostream& operator<<(Ostream&, const edgeMesh&);
-            friend Istream& operator>>(Istream&, edgeMesh&);
 
+    // Ostream Operator
+
+        friend Ostream& operator<<(Ostream& os, const edgeMesh& em);
+        friend Istream& operator>>(Istream& is, edgeMesh& em);
 };
 
 

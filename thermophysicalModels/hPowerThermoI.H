@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2012-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2012-2017 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -83,10 +86,7 @@ template<class EquationOfState>
 inline Foam::autoPtr<Foam::hPowerThermo<EquationOfState>>
 Foam::hPowerThermo<EquationOfState>::clone() const
 {
-    return autoPtr<hPowerThermo<EquationOfState>>
-    (
-        new hPowerThermo<EquationOfState>(*this)
-    );
+    return autoPtr<hPowerThermo<EquationOfState>>::New(*this);
 }
 
 
@@ -94,10 +94,7 @@ template<class EquationOfState>
 inline Foam::autoPtr<Foam::hPowerThermo<EquationOfState>>
 Foam::hPowerThermo<EquationOfState>::New(const dictionary& dict)
 {
-    return autoPtr<hPowerThermo<EquationOfState>>
-    (
-        new hPowerThermo<EquationOfState>(dict)
-    );
+    return autoPtr<hPowerThermo<EquationOfState>>::New(dict);
 }
 
 
@@ -161,6 +158,31 @@ inline Foam::scalar Foam::hPowerThermo<EquationOfState>::S
     return
         c0_*(pow(T, n0_) - pow(Tstd, n0_))/(pow(Tref_, n0_)*n0_)
       + EquationOfState::S(p, T);
+}
+
+
+template<class EquationOfState>
+inline Foam::scalar Foam::hPowerThermo<EquationOfState>::Gstd
+(
+    const scalar T
+) const
+{
+    return
+        c0_*(pow(T, n0_ + 1) - pow(Tstd, n0_ + 1))/(pow(Tref_, n0_)*(n0_ + 1))
+      + Hc()
+      - c0_*(pow(T, n0_) - pow(Tstd, n0_))*T/(pow(Tref_, n0_)*n0_);
+}
+
+
+template<class EquationOfState>
+inline Foam::scalar Foam::hPowerThermo<EquationOfState>::dCpdT
+(
+    const scalar p, const scalar T
+) const
+{
+    // To be implemented
+    NotImplemented;
+    return 0;
 }
 
 

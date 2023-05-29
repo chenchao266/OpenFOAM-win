@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -52,11 +55,11 @@ class staticFvMesh
 {
     // Private Member Functions
 
-        //- Disallow default bitwise copy construct
-        staticFvMesh(const staticFvMesh&);
+        //- No copy construct
+        staticFvMesh(const staticFvMesh&) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const staticFvMesh&);
+        //- No copy assignment
+        void operator=(const staticFvMesh&) = delete;
 
 
 public:
@@ -68,14 +71,32 @@ public:
     // Constructors
 
         //- Construct from IOobject
-        staticFvMesh(const IOobject& io);
+        staticFvMesh(const IOobject& io, const bool doInit=true);
+
+        //- Construct from components without boundary.
+        //  Boundary is added using addFvPatches() member function
+        staticFvMesh
+        (
+            const IOobject& io,
+            pointField&& points,
+            faceList&& faces,
+            labelList&& allOwner,
+            labelList&& allNeighbour,
+            const bool syncPar = true
+        );
 
 
     //- Destructor
-    ~staticFvMesh();
+    ~staticFvMesh() = default;
 
 
     // Member Functions
+
+        //- Is mesh dynamic
+        virtual bool dynamic() const
+        {
+            return false;
+        }
 
         //- Dummy update function which does not change the mesh
         virtual bool update();

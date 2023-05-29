@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2012 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2012 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -49,15 +52,13 @@ Foam::coalCloudList::coalCloudList
         )
     );
 
-    const wordHashSet cloudNames(wordList(props.lookup("clouds")));
+    const wordHashSet cloudNames(props.get<wordList>("clouds"));
 
     setSize(cloudNames.size());
 
     label i = 0;
-    forAllConstIter(wordHashSet, cloudNames, iter)
+    for (const word& name : cloudNames)
     {
-        const word& name = iter.key();
-
         Info<< "creating cloud: " << name << endl;
 
         set

@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2018-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -29,7 +32,7 @@ License
 
 namespace Foam
 {
-defineTypeNameAndDebug(surfZoneIOList, 0);
+    defineTypeName(surfZoneIOList);
 }
 
 
@@ -40,14 +43,9 @@ Foam::surfZoneIOList::surfZoneIOList
     const IOobject& io
 )
 :
-    surfZoneList(),
-    regIOobject(io)
+    regIOobject(io),
+    surfZoneList()
 {
-    Foam::string functionName =
-        "surfZoneIOList::surfZoneIOList"
-        "(const IOobject& io)";
-
-
     if
     (
         readOpt() == IOobject::MUST_READ
@@ -59,45 +57,31 @@ Foam::surfZoneIOList::surfZoneIOList
         Istream& is = readStream(typeName);
 
         PtrList<entry> dictEntries(is);
-        zones.setSize(dictEntries.size());
+        zones.resize(dictEntries.size());
 
         label facei = 0;
-        forAll(zones, zoneI)
+        forAll(zones, zonei)
         {
-            const dictionary& dict = dictEntries[zoneI].dict();
-
-            label zoneSize = readLabel(dict.lookup("nFaces"));
-            label startFacei = readLabel(dict.lookup("startFace"));
-
-            zones[zoneI] = surfZone
+            zones[zonei] = surfZone
             (
-                dictEntries[zoneI].keyword(),
-                zoneSize,
-                startFacei,
-                zoneI
+                dictEntries[zonei].keyword(),
+                dictEntries[zonei].dict(),
+                zonei
             );
 
-            word geoType;
-            if (dict.readIfPresent("geometricType", geoType))
-            {
-                zones[zoneI].geometricType() = geoType;
-            }
-
-            if (startFacei != facei)
+            if (zones[zonei].start() != facei)
             {
                 FatalErrorInFunction
-                    << "surfZones are not ordered. Start of zone " << zoneI
+                    << "surfZones are not ordered. Start of zone " << zonei
                     << " does not correspond to sum of preceding zones." << nl
                     << "while reading " << io.objectPath() << endl
                     << exit(FatalError);
             }
 
-            facei += zoneSize;
+            facei += zones[zonei].size();
         }
 
-        // Check state of IOstream
-        is.check(functionName.c_str());
-
+        is.check(FUNCTION_NAME);
         close();
     }
 }
@@ -106,54 +90,65 @@ Foam::surfZoneIOList::surfZoneIOList
 Foam::surfZoneIOList::surfZoneIOList
 (
     const IOobject& io,
-    const surfZoneList& zones
+    const UList<surfZone>& content
 )
 :
-    surfZoneList(zones),
-    regIOobject(io)
+    regIOobject(io),
+    surfZoneList(content)
 {}
 
 
 Foam::surfZoneIOList::surfZoneIOList
 (
     const IOobject& io,
-    const Xfer<surfZoneList>& zones
+    surfZoneList&& content
 )
 :
-    surfZoneList(zones),
-    regIOobject(io)
-{}
-
-
-// * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
-
-Foam::surfZoneIOList::~surfZoneIOList()
+    regIOobject(io),
+    surfZoneList(std::move(content))
 {}
 
 
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
 
-
-// writeData member function required by regIOobject
 bool Foam::surfZoneIOList::writeData(Ostream& os) const
 {
-    os  << *this;
+    const surfZoneList& zones = *this;
+    const label sz = zones.size();
+
+    if (sz)
+    {
+        os  << sz << nl << token::BEGIN_LIST << incrIndent << nl;
+
+        for (const surfZone& zn : zones)
+        {
+            zn.write(os);
+        }
+
+        os  << decrIndent << token::END_LIST;
+    }
+    else
+    {
+        os  << sz << token::BEGIN_LIST << token::END_LIST;
+    }
+
     return os.good();
 }
 
 
-// * * * * * * * * * * * * * * * Friend Operators  * * * * * * * * * * * * * //
+// * * * * * * * * * * * * * * * Member Operators  * * * * * * * * * * * * * //
 
-Foam::Ostream& Foam::operator<<(Ostream& os, const surfZoneIOList& L)
+void Foam::surfZoneIOList::operator=(const surfZoneIOList& rhs)
 {
-    os  << L.size() << nl << token::BEGIN_LIST << incrIndent << nl;
+    surfZoneList::operator=(rhs);
+}
 
-    forAll(L, i)
-    {
-        L[i].writeDict(os);
-    }
 
-    os  << decrIndent << token::END_LIST;
+// * * * * * * * * * * * * * * * IOstream Operators  * * * * * * * * * * * * //
+
+Foam::Ostream& Foam::operator<<(Ostream& os, const surfZoneIOList& zones)
+{
+    zones.writeData(os);
 
     return os;
 }

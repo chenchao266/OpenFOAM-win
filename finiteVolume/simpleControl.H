@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2017 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -63,7 +66,7 @@ protected:
     // Protected Member Functions
 
         //- Read controls from fvSolution dictionary
-        void read();
+        bool read();
 
         //- Return true if all convergence checks are satisfied
         bool criteriaSatisfied();
@@ -73,11 +76,11 @@ private:
 
     // Private member functions
 
-        //- Disallow default bitwise copy construct
-        simpleControl(const simpleControl&);
+        //- No copy construct
+        simpleControl(const simpleControl&) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const simpleControl&);
+        //- No copy assignment
+        void operator=(const simpleControl&) = delete;
 
 
 public:
@@ -90,19 +93,24 @@ public:
 
     // Constructors
 
-        //- Construct from mesh
-        simpleControl(fvMesh& mesh);
+        //- Construct from mesh and the name of control sub-dictionary
+        simpleControl
+        (
+            fvMesh& mesh,
+            const word& dictName = "SIMPLE",
+            const bool verbose = true
+        );
 
 
     //- Destructor
-    virtual ~simpleControl();
+    virtual ~simpleControl() = default;
 
 
     // Member Functions
 
         // Solution control
 
-            //- Loop loop
+            //- SIMPLE loop
             virtual bool loop();
 };
 

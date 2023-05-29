@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -26,37 +29,92 @@ License
 #include "tetMatcher.H"
 #include "cellMatcher.H"
 #include "primitiveMesh.H"
-#include "primitiveMesh.H"
-#include "cellModeller.H"
-#include "ListOps.T.H"
+#include "cellModel.H"
+#include "ListOps.H"
 
-// * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
-using namespace Foam;
-const label tetMatcher::vertPerCell = 4;
-const label tetMatcher::facePerCell = 4;
-const label tetMatcher::maxVertPerFace = 3;
+// * * * * * * * * * * * * * * * Local Functions * * * * * * * * * * * * * * //
+
+namespace Foam
+{
+
+// Check (4 tri)
+static inline bool checkFaceSizeMatch(const UList<face>& faces)
+{
+    if (faces.size() != 4)  // facePerCell
+    {
+        return false;
+    }
+
+    for (const face& f : faces)
+    {
+        if (f.size() != 3)  // tri
+        {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+
+// Check (4 tri)
+static inline bool checkFaceSizeMatch
+(
+    const UList<face>& meshFaces,
+    const labelUList& cellFaces
+)
+{
+    if (cellFaces.size() != 4)  // facePerCell
+    {
+        return false;
+    }
+
+    for (const label facei : cellFaces)
+    {
+        if (meshFaces[facei].size() != 3)  // tri
+        {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+
+} // End namespace Foam
+
+
+// * * * * * * * * * * * * * Static Member Functions * * * * * * * * * * * * //
+
+
+ namespace Foam{
+bool tetMatcher::test(const UList<face>& faces)
+{
+    return checkFaceSizeMatch(faces);
+}
+
+
+bool tetMatcher::test(const primitiveMesh& mesh, const label celli)
+{
+    return checkFaceSizeMatch(mesh.faces(), mesh.cells()[celli]);
+}
 
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
-tetMatcher::tetMatcher() :    cellMatcher
+tetMatcher::tetMatcher()
+:
+    cellMatcher
     (
         vertPerCell,
         facePerCell,
         maxVertPerFace,
-        "tet"
+        "tet" // == cellModel::modelNames[cellModel::TET]
     )
 {}
 
 
-// * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
-
-tetMatcher::~tetMatcher()
-{}
-
-
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
-
 
 bool tetMatcher::matchShape
 (
@@ -191,52 +249,11 @@ label tetMatcher::faceHashValue() const
 
 bool tetMatcher::faceSizeMatch
 (
-    const faceList& faces,
-    const labelList& myFaces
+    const faceList& meshFaces,
+    const labelList& cellFaces
 ) const
 {
-    if (myFaces.size() != 4)
-    {
-        return false;
-    }
-
-    forAll(myFaces, myFacei)
-    {
-        label size = faces[myFaces[myFacei]].size();
-
-        if (size != 3)
-        {
-            return false;
-        }
-    }
-    return true;
-}
-
-
-bool tetMatcher::isA(const primitiveMesh& mesh, const label celli)
-{
-    return matchShape
-    (
-        true,
-        mesh.faces(),
-        mesh.faceOwner(),
-        celli,
-        mesh.cells()[celli]
-    );
-}
-
-
-bool tetMatcher::isA(const faceList& faces)
-{
-    // Do as if mesh with one cell only
-    return matchShape
-    (
-        true,
-        faces,                      // all faces in mesh
-        labelList(faces.size(), 0), // cell 0 is owner of all faces
-        0,                          // cell label
-        identity(faces.size())      // faces of cell 0
-    );
+    return checkFaceSizeMatch(meshFaces, cellFaces);
 }
 
 
@@ -259,15 +276,14 @@ bool tetMatcher::matches
         )
     )
     {
-        shape = cellShape(model(), vertLabels());
-
+        shape.reset(model(), vertLabels());
         return true;
     }
-    else
-    {
-        return false;
-    }
+
+    return false;
 }
 
 
 // ************************************************************************* //
+
+ } // End namespace Foam

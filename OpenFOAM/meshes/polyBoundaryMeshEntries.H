@@ -1,9 +1,12 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2015 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2015 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -25,7 +28,7 @@ Class
     Foam::polyBoundaryMeshEntries
 
 Description
-    Foam::polyBoundaryMeshEntries
+    Read and store dictionary entries for boundary patches
 
 SourceFiles
     polyBoundaryMeshEntries.C
@@ -36,7 +39,7 @@ SourceFiles
 #define polyBoundaryMeshEntries_H
 
 #include "regIOobject.H"
-#include "PtrList.T.H"
+#include "PtrList.H"
 #include "entry.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
@@ -44,16 +47,19 @@ SourceFiles
 namespace Foam
 {
 
-// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+/*---------------------------------------------------------------------------*\
+                   Class polyBoundaryMeshEntries Declaration
+\*---------------------------------------------------------------------------*/
 
-class polyBoundaryMeshEntries :    public regIOobject,
+class polyBoundaryMeshEntries
+:
+    public regIOobject,
     public PtrList<entry>
 {
-
 public:
 
     //- Runtime type information
-    TypeName("polyBoundaryMesh");
+    TypeNameNoDebug("polyBoundaryMesh");
 
 
     // Constructors
@@ -61,13 +67,23 @@ public:
         explicit polyBoundaryMeshEntries(const IOobject& io)
         :
             regIOobject(io),
-            PtrList<entry>(readStream(typeName))
+            PtrList<entry>()
         {
-            close();
+            if
+            (
+                (
+                    io.readOpt() == IOobject::MUST_READ
+                 || io.readOpt() == IOobject::MUST_READ_IF_MODIFIED
+                )
+             || (io.readOpt() == IOobject::READ_IF_PRESENT && headerOk())
+            )
+            {
+                readStream(typeName) >> *this;
+            }
         }
 
 
-   // Member functions
+   // Member Functions
 
         bool writeData(Ostream&) const
         {

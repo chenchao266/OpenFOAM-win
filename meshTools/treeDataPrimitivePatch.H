@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -80,9 +82,6 @@ class treeDataPrimitivePatch
 
     // Private Member Functions
 
-        //- Calculate face bounding box
-        static treeBoundBox calcBb(const pointField&, const face&);
-
         //- Initialise all member data
         void update();
 
@@ -131,8 +130,8 @@ public:
 
         findIntersectOp(const indexedOctree<treeDataPrimitivePatch>& tree);
 
-        //- Calculate intersection of any face with ray. Sets result
-        //  accordingly. Used to find first intersection.
+        //- Calculate intersection of any face with ray.
+        //  Sets result accordingly. Used to find first intersection.
         bool operator()
         (
             const label index,
@@ -157,8 +156,8 @@ public:
             DynamicList<label>& shapeMask
         );
 
-        //- Calculate intersection of unique face with ray. Sets result
-        //  accordingly. Used to find all faces.
+        //- Calculate intersection of unique face with ray.
+        //  Sets result accordingly. Used to find all faces.
         bool operator()
         (
             const label index,
@@ -183,8 +182,8 @@ public:
             const label edgeID
         );
 
-        //- Calculate intersection of face with edge of patch. Excludes
-        //  faces that use edgeID. Used to find self intersection.
+        //- Calculate intersection of face with edge of patch.
+        //  Excludes faces that use edgeID. Used to find self intersection.
         bool operator()
         (
             const label index,
@@ -215,8 +214,8 @@ public:
                 return patch_.size();
             }
 
-            //- Get representative point cloud for all shapes inside
-            //  (one point per shape)
+            //- Representative point cloud for all shapes inside
+            //- (one point per shape)
             pointField shapePoints() const;
 
             //- Return access to the underlying patch

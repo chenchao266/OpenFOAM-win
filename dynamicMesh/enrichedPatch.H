@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -36,8 +39,7 @@ Description
 
     Note:
     If new points are created during master-slave edge cutting, they
-    should be registred with the pointMap.
-
+    should be registered with the pointMap.
 
 SourceFiles
     enrichedPatch.C
@@ -53,8 +55,8 @@ SourceFiles
 #define enrichedPatch_H
 
 #include "primitiveFacePatch.H"
-#include "Map.T.H"
-#include "point.T.H"
+#include "Map.H"
+#include "point.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -67,7 +69,7 @@ namespace Foam
 
 class enrichedPatch
 {
-    // Private data
+    // Private Data
 
         //- Reference to master patch
         const primitiveFacePatch& masterPatch_;
@@ -97,47 +99,47 @@ class enrichedPatch
     // Demand-driven private data
 
         //- Enriched patch
-        mutable faceList* enrichedFacesPtr_;
+        mutable unique_ptr<faceList> enrichedFacesPtr_;
 
         //- Mesh points
-        mutable labelList* meshPointsPtr_;
+        mutable unique_ptr<labelList> meshPointsPtr_;
 
         //- Local faces
-        mutable faceList* localFacesPtr_;
+        mutable unique_ptr<faceList> localFacesPtr_;
 
         //- Local points
-        mutable pointField* localPointsPtr_;
+        mutable unique_ptr<pointField> localPointsPtr_;
 
         //- Point-point addressing
-        mutable labelListList* pointPointsPtr_;
+        mutable unique_ptr<labelListList> pointPointsPtr_;
 
         // Master point addressing
-        mutable Map<labelList>* masterPointFacesPtr_;
+        mutable unique_ptr<Map<labelList>> masterPointFacesPtr_;
 
 
         // Cut faces and addressing
 
             //- Cut faces
-            mutable faceList* cutFacesPtr_;
+            mutable unique_ptr<faceList> cutFacesPtr_;
 
             //- Cut face master
             //  - the face on the master patch for internal faces
             //  - the creator face for boundary face
-            mutable labelList* cutFaceMasterPtr_;
+            mutable unique_ptr<labelList> cutFaceMasterPtr_;
 
             //- Cut face slave
             //  - the face on the slave patch for internal faces
             //  - -1 for boundary face
-            mutable labelList* cutFaceSlavePtr_;
+            mutable unique_ptr<labelList> cutFaceSlavePtr_;
 
 
     // Private Member Functions
 
-        //- Disallow default bitwise copy construct
-        enrichedPatch(const enrichedPatch&);
+        //- No copy construct
+        enrichedPatch(const enrichedPatch&) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const enrichedPatch&);
+        //- No copy assignment
+        void operator=(const enrichedPatch&) = delete;
 
         // Creation of demand-driven private data
 
@@ -172,13 +174,10 @@ class enrichedPatch
             void clearOut();
 
 
-    // Static data members
+    // Static Data Members
 
         //- Estimated ratio of original-to-enriched face size
         static const label enrichedFaceRatio_;
-
-        //- Estimated number of master face hits by slave points
-        static const label nFaceHits_;
 
         //- Size of face on which the check is forced
         static const label maxFaceSizeDebug_;
@@ -189,6 +188,7 @@ public:
     // Static data members
     ClassName("enrichedPatch");
 
+
     // Constructors
 
         //- Construct from components
@@ -196,40 +196,34 @@ public:
         (
             const primitiveFacePatch& masterPatch,
             const primitiveFacePatch& slavePatch,
-            const labelList& slavePointPointHits,
+            const labelUList& slavePointPointHits,
                                             // -1 or common point snapped to
-            const labelList& slavePointEdgeHits,
+            const labelUList& slavePointEdgeHits,
                                             // -1 or common edge snapped to
-            const List<objectHit>& slavePointFaceHits
+            const UList<objectHit>& slavePointFaceHits
                                             // master face snapped to
         );
 
 
     //- Destructor
-    ~enrichedPatch();
+    ~enrichedPatch() = default;
 
 
     // Member Functions
 
         // Access
 
-            //- Return non-const access to point map to add points
-            Map<point>& pointMap();
-
             //- Return map of points
-            const Map<point>& pointMap() const;
+            inline const Map<point>& pointMap() const;
+
+            //- Return non-const access to point map to add points
+            inline Map<point>& pointMap();
 
             //- Return map of point merges
-            Map<label>& pointMergeMap()
-            {
-                return pointMergeMap_;
-            }
+            inline const Map<label>& pointMergeMap() const;
 
             //- Return map of point merges
-            const Map<label>& pointMergeMap() const
-            {
-                return pointMergeMap_;
-            }
+            inline Map<label>& pointMergeMap();
 
 
         // Topological data
@@ -278,13 +272,17 @@ public:
 
 
         //- Debugging: dump graphical representation to obj format file
-        void writeOBJ(const fileName&) const;
+        void writeOBJ(const fileName& fName) const;
 };
 
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 } // End namespace Foam
+
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+#include "enrichedPatchI.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 

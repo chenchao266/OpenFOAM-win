@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2018-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -36,7 +39,6 @@ SourceFiles
 #define cellZoneSet_H
 
 #include "cellSet.H"
-#include "boolList.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -51,7 +53,7 @@ class cellZoneSet
 :
     public cellSet
 {
-    // Private data
+    // Private Data
 
         const polyMesh& mesh_;
 
@@ -74,28 +76,28 @@ public:
             writeOption w=NO_WRITE
         );
 
-        //- Construct from additional size of labelHashSet
+        //- Construct from initial size for labelHashSet
         cellZoneSet
         (
             const polyMesh& mesh,
             const word& name,
-            const label,
+            const label size,
             writeOption w=NO_WRITE
         );
 
-        //- Construct from existing set
+        //- Copy construct from existing set
         cellZoneSet
         (
             const polyMesh& mesh,
             const word& name,
-            const topoSet&,
+            const topoSet& set,
             writeOption w=NO_WRITE
         );
 
 
 
     //- Destructor
-    virtual ~cellZoneSet();
+    virtual ~cellZoneSet() = default;
 
 
     // Member functions
@@ -113,8 +115,8 @@ public:
         //- Sort addressing and make cellSet part consistent with addressing
         void updateSet();
 
-        //- Invert contents. (insert all members 0..maxLen-1 which were not in
-        //  set)
+        //- Invert contents.
+        //  Insert all members [0,maxLen) which were not in set
         virtual void invert(const label maxLen);
 
         //- Subset contents. Only elements present in both sets remain.
@@ -123,8 +125,8 @@ public:
         //- Add elements present in set.
         virtual void addSet(const topoSet& set);
 
-        //- Delete elements present in set.
-        virtual void deleteSet(const topoSet& set);
+        //- Subtract elements present in set.
+        virtual void subtractSet(const topoSet& set);
 
         //- Sync cellSet across coupled patches; update cellZone from cellSet
         virtual void sync(const polyMesh& mesh);
@@ -137,12 +139,10 @@ public:
             const label maxLen
         ) const;
 
-        //- Write cellZone
+        //- Write cellZone using stream options
         virtual bool writeObject
         (
-            IOstream::streamFormat,
-            IOstream::versionNumber,
-            IOstream::compressionType,
+            IOstreamOption streamOpt,
             const bool valid
         ) const;
 

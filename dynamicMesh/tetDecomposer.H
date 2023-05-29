@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2012-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2012-2016 OpenFOAM Foundation
+    Copyright (C) 2018-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -25,7 +28,10 @@ Class
     Foam::tetDecomposer
 
 Description
-    Decomposes polyMesh into tets.
+    Decomposes polyMesh into tets or pyramids.
+
+    Cells neighbouring decomposed cells are not decomposed themselves
+    so will be polyhedral.
 
 SourceFiles
     tetDecomposer.C
@@ -35,11 +41,11 @@ SourceFiles
 #ifndef tetDecomposer_H
 #define tetDecomposer_H
 
-#include "DynamicList.T.H"
-#include "PackedBoolList.H"
+#include "DynamicList.H"
+#include "bitSet.H"
 #include "boolList.H"
 #include "typeInfo.H"
-#include "NamedEnum.T.H"
+#include "Enum.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -65,10 +71,10 @@ public:
         {
             FACE_CENTRE_TRIS, //- Faces decomposed into triangles
                               //  using face-centre
-
-            FACE_DIAG_TRIS    //- Faces decomposed into triangles diagonally
+            FACE_DIAG_TRIS,   //- Faces decomposed into triangles diagonally
+            PYRAMID           //- Faces not decomposed (generates pyramids)
         };
-        static const NamedEnum<decompositionType, 2> decompositionTypeNames;
+        static const Enum<decompositionType> decompositionTypeNames;
 
 
 private:
@@ -126,11 +132,11 @@ private:
         //- Work out triangle index given the starting vertex in the face
         label triIndex(const label facei, const label fp) const;
 
-        //- Disallow default bitwise copy construct
-        tetDecomposer(const tetDecomposer&);
+        //- No copy construct
+        tetDecomposer(const tetDecomposer&) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const tetDecomposer&);
+        //- No copy assignment
+        void operator=(const tetDecomposer&) = delete;
 
 
 public:
@@ -155,7 +161,7 @@ public:
                 return cellToPoint_;
             }
 
-            //- From face to tet point
+            //- From face to tet point (only for faceCentre)
             const labelList& faceToPoint() const
             {
                 return faceToPoint_;
@@ -163,14 +169,16 @@ public:
 
 
             //- Per face, per point (faceCentre) or triangle (faceDiag)
-            //  the added tet on the owner side
+            //  the added tet on the owner side. For non-face (pyramid)
+            //  size 1.
             const labelListList& faceOwnerCells() const
             {
                 return faceOwnerCells_;
             }
 
             //- Per face, per point (faceCentre) or triangle (faceDiag)
-            //  the added tet on the neighbour side
+            //  the added tet on the neighbour side. For non-face (pyramid)
+            //  size 1.
             const labelListList& faceNeighbourCells() const
             {
                 return faceNeighbourCells_;
@@ -184,6 +192,7 @@ public:
             void setRefinement
             (
                 const decompositionType decomposeType,
+                const bitSet& decomposeCell,
                 polyTopoChange& meshMod
             );
 

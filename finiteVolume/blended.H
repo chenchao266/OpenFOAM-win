@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2019 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -23,6 +26,9 @@ License
 
 Class
     Foam::blended
+
+Group
+    grpFvLimitedSurfaceInterpolationSchemes
 
 Description
     linear/upwind blended differencing scheme.
@@ -60,11 +66,11 @@ class blended
 
     // Private Member Functions
 
-        //- Disallow default bitwise copy construct
-        blended(const blended&);
+        //- No copy construct
+        blended(const blended&) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const blended&);
+        //- No copy assignment
+        void operator=(const blended&) = delete;
 
 
 public:
@@ -114,8 +120,7 @@ public:
 
 
     //- Destructor
-    virtual ~blended()
-    {}
+    virtual ~blended() = default;
 
 
     // Member Functions

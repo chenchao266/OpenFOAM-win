@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2015 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2019-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -38,34 +41,35 @@ namespace surfaceFilmModels
 
 autoPtr<phaseChangeModel> phaseChangeModel::New
 (
-    surfaceFilmModel& model,
+    surfaceFilmRegionModel& model,
     const dictionary& dict
 )
 {
-    word modelType(dict.lookup("phaseChangeModel"));
+    const word modelType(dict.get<word>("phaseChangeModel"));
 
     Info<< "    Selecting phaseChangeModel " << modelType << endl;
 
-    dictionaryConstructorTable::iterator cstrIter =
-        dictionaryConstructorTablePtr_->find(modelType);
+    auto* ctorPtr = dictionaryConstructorTable(modelType);
 
-    if (cstrIter == dictionaryConstructorTablePtr_->end())
+    if (!ctorPtr)
     {
-        FatalErrorInFunction
-            << "Unknown phaseChangeModel type " << modelType
-            << nl << nl << "Valid phaseChangeModel types are:" << nl
-            << dictionaryConstructorTablePtr_->toc()
-            << exit(FatalError);
+        FatalIOErrorInLookup
+        (
+            dict,
+            "phaseChangeModel",
+            modelType,
+            *dictionaryConstructorTablePtr_
+        ) << exit(FatalIOError);
     }
 
-    return autoPtr<phaseChangeModel>(cstrIter()(model, dict));
+    return autoPtr<phaseChangeModel>(ctorPtr(model, dict));
 }
 
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
-} // end namespace surfaceFilmModels
-} // end namespace regionModels
-} // end namespace Foam
+} // End namespace surfaceFilmModels
+} // End namespace regionModels
+} // End namespace Foam
 
 // ************************************************************************* //

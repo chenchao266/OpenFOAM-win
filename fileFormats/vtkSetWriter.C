@@ -1,9 +1,12 @@
-﻿/*---------------------------------------------------------------------------*\
+/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2016-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -23,7 +26,7 @@ License
 
 \*---------------------------------------------------------------------------*/
 
-//#include "vtkSetWriter.H"
+#include "vtkSetWriter.H"
 #include "coordSet.H"
 #include "fileName.H"
 #include "OFstream.H"
@@ -38,10 +41,11 @@ Foam::vtkSetWriter<Type>::vtkSetWriter()
     writer<Type>()
 {}
 
-// * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
 
 template<class Type>
-Foam::vtkSetWriter<Type>::~vtkSetWriter()
+Foam::vtkSetWriter<Type>::vtkSetWriter(const dictionary& dict)
+:
+    writer<Type>(dict)
 {}
 
 
@@ -71,28 +75,29 @@ void Foam::vtkSetWriter<Type>::write
         << points.name() << nl
         << "ASCII" << nl
         << "DATASET POLYDATA" << nl
-        << "POINTS " << points.size() << " float" << nl;
+        << "POINTS " << points.size() << " double" << nl;
 
-    forAll(points, i)
+    for (const point& pt : points)
     {
-        const vector& pt = points[i];
-        os  << pt.x() << ' ' << pt.y() << ' ' << pt.z() << nl;
+        os  << float(pt.x()) << ' '
+            << float(pt.y()) << ' '
+            << float(pt.z()) << nl;
     }
-
 
     os  << "POINT_DATA " << points.size() << nl
         << " FIELD attributes " << valueSetNames.size() << nl;
 
     forAll(valueSetNames, setI)
     {
-        os  << valueSetNames[setI] << ' ' << pTraits<Type>::nComponents << ' '
+        os  << valueSetNames[setI] << ' '
+            << int(pTraits<Type>::nComponents) << ' '
             << points.size() << " float" << nl;
 
         const Field<Type>& fld = *valueSets[setI];
 
         forAll(fld, pointi)
         {
-            if (pointi != 0)
+            if (pointi)
             {
                 os  << ' ';
             }
@@ -107,6 +112,7 @@ template<class Type>
 void Foam::vtkSetWriter<Type>::write
 (
     const bool writeTracks,
+    const List<scalarField>& times,
     const PtrList<coordSet>& tracks,
     const wordList& valueSetNames,
     const List<List<Field<Type>>>& valueSets,
@@ -132,15 +138,15 @@ void Foam::vtkSetWriter<Type>::write
         << tracks[0].name() << nl
         << "ASCII" << nl
         << "DATASET POLYDATA" << nl
-        << "POINTS " << nPoints << " float" << nl;
+        << "POINTS " << nPoints << " double" << nl;
 
-    forAll(tracks, trackI)
+    for (const coordSet& points : tracks)
     {
-        const coordSet& points = tracks[trackI];
-        forAll(points, i)
+        for (const point& pt : points)
         {
-            const vector& pt = points[i];
-            os  << pt.x() << ' ' << pt.y() << ' ' << pt.z() << nl;
+            os  << float(pt.x()) << ' '
+                << float(pt.y()) << ' '
+                << float(pt.z()) << nl;
         }
     }
 
@@ -154,11 +160,13 @@ void Foam::vtkSetWriter<Type>::write
         {
             const coordSet& points = tracks[trackI];
 
-            os  << points.size();
-            forAll(points, i)
+            const label len = points.size();
+
+            os  << len;
+            for (label i = 0; i < len; ++i)
             {
                 os  << ' ' << globalPtI;
-                globalPtI++;
+                ++globalPtI;
             }
             os << nl;
         }
@@ -169,18 +177,17 @@ void Foam::vtkSetWriter<Type>::write
 
     forAll(valueSetNames, setI)
     {
-        os  << valueSetNames[setI] << ' ' << pTraits<Type>::nComponents << ' '
+        os  << valueSetNames[setI] << ' '
+            << int(pTraits<Type>::nComponents) << ' '
             << nPoints << " float" << nl;
 
         const List<Field<Type>>& fieldVals = valueSets[setI];
 
-        forAll(fieldVals, i)
+        for (const Field<Type>& vals : fieldVals)
         {
-            const Field<Type>& vals = fieldVals[i];
-
             forAll(vals, j)
             {
-                if (j != 0)
+                if (j)
                 {
                     os  << ' ';
                 }

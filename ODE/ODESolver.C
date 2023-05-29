@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2019-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -62,9 +65,9 @@ Foam::ODESolver::ODESolver(const ODESystem& ode, const dictionary& dict)
     odes_(ode),
     maxN_(ode.nEqns()),
     n_(ode.nEqns()),
-    absTol_(n_, dict.lookupOrDefault<scalar>("absTol", SMALL)),
-    relTol_(n_, dict.lookupOrDefault<scalar>("relTol", 1e-4)),
-    maxSteps_(10000)
+    absTol_(n_, dict.getOrDefault<scalar>("absTol", SMALL)),
+    relTol_(n_, dict.getOrDefault<scalar>("relTol", 1e-4)),
+    maxSteps_(dict.getOrDefault<label>("maxSteps", 10000))
 {}
 
 
@@ -105,10 +108,8 @@ bool Foam::ODESolver::resize()
 
         return true;
     }
-    else
-    {
-        return false;
-    }
+
+    return false;
 }
 
 
@@ -149,7 +150,7 @@ void Foam::ODESolver::solve
     stepState step(dxTry);
     scalar x = xStart;
 
-    for (label nStep=0; nStep<maxSteps_; nStep++)
+    for (label nStep=0; nStep<maxSteps_; ++nStep)
     {
         // Store previous iteration dxTry
         scalar dxTry0 = step.dxTry;
@@ -189,9 +190,10 @@ void Foam::ODESolver::solve
     }
 
     FatalErrorInFunction
-        << "Integration steps greater than maximum " << maxSteps_
-        << "xStart = " << xStart << ", xEnd = " << xEnd
-        << ", x = " << x << ", dxDid = " << step.dxDid
+        << "Integration steps greater than maximum " << maxSteps_ << nl
+        << "    xStart = " << xStart << ", xEnd = " << xEnd
+        << ", x = " << x << ", dxDid = " << step.dxDid << nl
+        << "    y = " << y
         << exit(FatalError);
 }
 

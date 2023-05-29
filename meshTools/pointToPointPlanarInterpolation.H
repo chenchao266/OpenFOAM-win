@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2012-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2012-2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -36,9 +38,9 @@ SourceFiles
 #ifndef pointToPointPlanarInterpolation_H
 #define pointToPointPlanarInterpolation_H
 
-#include "FixedList.T.H"
-#include "coordinateSystem.H"
+#include "FixedList.H"
 #include "instantList.H"
+#include "cartesianCS.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -59,8 +61,8 @@ class pointToPointPlanarInterpolation
         //- Whether to use nearest point only (avoids triangulation, projection)
         const bool nearestOnly_;
 
-        //- Coordinate system
-        coordinateSystem referenceCS_;
+        //- Cartesian reference coordinate system
+        coordSystem::cartesian referenceCS_;
 
         //- Number of source points (for checking)
         label nPoints_;
@@ -73,10 +75,11 @@ class pointToPointPlanarInterpolation
         //  patch
         List<FixedList<scalar, 3>> nearestVertexWeight_;
 
+
     // Private Member Functions
 
         //- Calculate a local coordinate system from set of points
-        coordinateSystem calcCoordinateSystem(const pointField&) const;
+        coordSystem::cartesian calcCoordinateSystem(const pointField&) const;
 
         //- Calculate addressing and weights
         void calcWeights
@@ -84,6 +87,7 @@ class pointToPointPlanarInterpolation
             const pointField& sourcePoints,
             const pointField& destPoints
         );
+
 
 public:
 
@@ -114,11 +118,37 @@ public:
             const scalar perturb
         );
 
+        //- Construct from components
+        pointToPointPlanarInterpolation
+        (
+            const scalar perturb,
+            const bool nearestOnly,
+            const coordinateSystem& referenceCS,
+            const label sourceSize,
+            const List<FixedList<label, 3>>& nearestVertex,
+            const List<FixedList<scalar, 3>>& nearestVertexWeight
+        );
+
+        //- Construct and return a clone
+        autoPtr<pointToPointPlanarInterpolation> clone() const;
+
 
     // Member Functions
 
-        //- Return the coordinateSystem
-        const coordinateSystem& referenceCS() const
+        //- Perturbation factor (for triangulation)
+        scalar perturb() const
+        {
+            return perturb_;
+        }
+
+        //- Whether to use nearest point only (avoids triangulation, projection)
+        bool nearestOnly() const
+        {
+            return nearestOnly_;
+        }
+
+        //- Return the Cartesian reference coordinate system
+        const coordSystem::cartesian& referenceCS() const
         {
             return referenceCS_;
         }
@@ -145,7 +175,7 @@ public:
         //- Helper: extract words of times
         static wordList timeNames(const instantList&);
 
-        //- Helper: find time. Return true if succesful.
+        //- Helper: find time. Return true if successful.
         static bool findTime
         (
             const instantList& times,
@@ -158,7 +188,6 @@ public:
         //- Interpolate from field on source points to dest points
         template<class Type>
         tmp<Field<Type>> interpolate(const Field<Type>& sourceFld) const;
-
 };
 
 

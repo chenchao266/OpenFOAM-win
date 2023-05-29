@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2015 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2015 OpenFOAM Foundation
+    Copyright (C) 2016-2018 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -24,23 +27,101 @@ License
 \*---------------------------------------------------------------------------*/
 
 #include "STARCDCore.H"
-#include "ListOps.T.H"
-#include "clock.H"
-#include "PackedBoolList.H"
-#include "IStringStream.H"
+#include "DynamicList.H"
+#include "OSspecific.H"
 
-// * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
+// * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
 
-Foam::fileFormats::STARCDCore::STARCDCore()
-{}
+const Foam::Enum
+<
+    Foam::fileFormats::STARCDCore::fileHeader
+>
+Foam::fileFormats::STARCDCore::fileHeaders_
+({
+    { fileHeader::HEADER_CEL, "PROSTAR_CELL" },
+    { fileHeader::HEADER_VRT, "PROSTAR_VERTEX" },
+    { fileHeader::HEADER_BND, "PROSTAR_BOUNDARY" },
+});
+
+
+const Foam::Enum
+<
+    Foam::fileFormats::STARCDCore::fileExt
+>
+Foam::fileFormats::STARCDCore::fileExtensions_
+({
+    { fileExt::CEL_FILE, "cel" },
+    { fileExt::VRT_FILE, "vrt" },
+    { fileExt::BND_FILE, "bnd" },
+    { fileExt::INP_FILE, "inp" },
+});
+
+
+const char* const Foam::fileFormats::STARCDCore::defaultBoundaryName =
+    "Default_Boundary_Region";
+
+const char* const Foam::fileFormats::STARCDCore::defaultSolidBoundaryName =
+    "Default_Boundary_Solid";
+
+
+const Foam::Map<Foam::FixedList<int, 6>>
+Foam::fileFormats::STARCDCore::foamToStarFaceAddr =
+{
+    { starcdHex,   { 4, 5, 2, 3, 0, 1 } },
+    { starcdPrism, { 0, 1, 4, 5, 2, -1 } },
+    { starcdTet,   { 5, 4, 2, 0, -1, -1 } },
+    { starcdPyr,   { 0, 4, 3, 5, 2, -1 } }
+};
+
+
+const Foam::Map<Foam::FixedList<int, 6>>
+Foam::fileFormats::STARCDCore::starToFoamFaceAddr =
+{
+    { starcdHex,   { 4, 5, 2, 3, 0, 1 } },
+    { starcdPrism, { 0, 1, 4, -1, 2, 3 } },
+    { starcdTet,   { 3, -1, 2, -1, 1, 0 } },
+    { starcdPyr,   { 0, -1, 4, 2, 1, 3 } }
+};
+
+// * * * * * * * * * * * * * * * Local Functions * * * * * * * * * * * * * * //
+
+namespace Foam
+{
+
+    // Read and discard to newline
+    static inline void readToNewline(ISstream& is)
+    {
+        char ch = '\n';
+        do
+        {
+            is.get(ch);
+        }
+        while ((is) && ch != '\n');
+    }
+
+} // End namespace Foam
 
 
 // * * * * * * * * * * *  Protected Member Functions * * * * * * * * * * * * //
 
+// Read two-line header
+//
+/*---------------------------------------------------------------------------*\
+Line 1:
+  PROSTAR_(BOUNDARY|CELL|VERTEX) [newline]
+
+Line 2:
+  <version> 0 0 0 0 0 0 0 [newline]
+
+Body:
+  ...
+
+\*---------------------------------------------------------------------------*/
+
 bool Foam::fileFormats::STARCDCore::readHeader
 (
     IFstream& is,
-    const word& signature
+    const enum fileHeader header
 )
 {
     if (!is.good())
@@ -49,22 +130,22 @@ bool Foam::fileFormats::STARCDCore::readHeader
             << abort(FatalError);
     }
 
-    word header;
+    word magic;
+    is >> magic;
+    readToNewline(is);
+
     label majorVersion;
+    is >> majorVersion;
+    readToNewline(is);
 
-    string line;
-
-    is.getLine(line);
-    IStringStream(line)() >> header;
-
-    is.getLine(line);
-    IStringStream(line)() >> majorVersion;
-
-    // add other checks ...
-    if (header != signature)
+    // Add other checks ...
+    if (magic != fileHeaders_[header])
     {
-        Info<< "header mismatch " << signature << "  " << is.name()
-            << endl;
+        Info<< "Header mismatch " << fileHeaders_[header]
+            << "  " << is.name()
+            << nl;
+
+        return false;
     }
 
     return true;
@@ -74,31 +155,53 @@ bool Foam::fileFormats::STARCDCore::readHeader
 void Foam::fileFormats::STARCDCore::writeHeader
 (
     Ostream& os,
-    const word& filetype
+    const enum fileHeader header
 )
 {
-    os  << "PROSTAR_" << filetype << nl
+    os  << fileHeaders_[header] << nl
         << 4000
-        << " " << 0
-        << " " << 0
-        << " " << 0
-        << " " << 0
-        << " " << 0
-        << " " << 0
-        << " " << 0
-        << endl;
+        << ' ' << 0
+        << ' ' << 0
+        << ' ' << 0
+        << ' ' << 0
+        << ' ' << 0
+        << ' ' << 0
+        << ' ' << 0
+        << nl;
 }
 
 
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
 
-bool Foam::fileFormats::STARCDCore::readPoints
+Foam::fileName Foam::fileFormats::STARCDCore::starFileName
 (
-    IFstream& is,
-    pointField& points,
-    labelList& ids
+    const fileName& base,
+    const enum fileExt ext
 )
 {
+    return base + '.' + fileExtensions_[ext];
+}
+
+
+void Foam::fileFormats::STARCDCore::removeFiles(const fileName& base)
+{
+    Foam::rm(starFileName(base, VRT_FILE));
+    Foam::rm(starFileName(base, CEL_FILE));
+    Foam::rm(starFileName(base, BND_FILE));
+    Foam::rm(starFileName(base, INP_FILE));
+}
+
+
+Foam::label Foam::fileFormats::STARCDCore::readPoints
+(
+    IFstream& is,
+    List<point>& points,
+    List<label>& ids
+)
+{
+    label maxId = 0;
+    token tok;
+
     if (!is.good())
     {
         FatalErrorInFunction
@@ -106,60 +209,69 @@ bool Foam::fileFormats::STARCDCore::readPoints
             << exit(FatalError);
     }
 
-    readHeader(is, "PROSTAR_VERTEX");
+    readHeader(is, HEADER_VRT);
 
-
-    // reuse memory if possible
-    DynamicList<point> dynPoints(points.xfer());
-    DynamicList<label> dynPointId(ids.xfer());    // STAR-CD index of points
+    // Reuse memory if possible
+    DynamicList<point> dynPoints(std::move(points));
+    DynamicList<label> dynPointId(std::move(ids));  // STARCD index of points
 
     dynPoints.clear();
     dynPointId.clear();
 
-    label lineLabel;
-    while ((is >> lineLabel).good())
     {
         scalar x, y, z;
 
-        is >> x >> y >> z;
+        while (is.read(tok).good() && tok.isLabel())
+        {
+            const label starVertexId = tok.labelToken();
 
-        dynPoints.append(point(x, y, z));
-        dynPointId.append(lineLabel);
+            is >> x >> y >> z;
+
+            maxId = max(maxId, starVertexId);
+
+            dynPoints.append(point(x, y, z));
+            dynPointId.append(starVertexId);
+        }
     }
 
     points.transfer(dynPoints);
     ids.transfer(dynPointId);
 
-    return true;
+    return maxId;
 }
 
 
 void Foam::fileFormats::STARCDCore::writePoints
 (
     Ostream& os,
-    const pointField& pointLst
+    const UList<point>& points,
+    const scalar scaleFactor
 )
 {
-    writeHeader(os, "VERTEX");
+    writeHeader(os, HEADER_VRT);
 
     // Set the precision of the points data to 10
     os.precision(10);
 
-    // force decimal point for Fortran input
+    // Force decimal point for Fortran input
     os.setf(std::ios::showpoint);
 
-    forAll(pointLst, ptI)
+    label starVertId = 1;  // 1-based vertex labels
+
+    for (const point& p : points)
     {
+        // Convert [m] -> [mm] etc
         os
-            << ptI + 1 << " "
-            << pointLst[ptI].x() << " "
-            << pointLst[ptI].y() << " "
-            << pointLst[ptI].z() << nl;
+            << starVertId << ' '
+            << scaleFactor * p.x() << ' '
+            << scaleFactor * p.y() << ' '
+            << scaleFactor * p.z() << nl;
+
+        ++starVertId;
     }
+
     os.flush();
 }
-
-
 
 
 // ************************************************************************* //

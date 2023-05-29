@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -45,7 +47,7 @@ SourceFiles
 namespace Foam
 {
 
-// Forward declaration of classes
+// Forward declarations
 class polyMesh;
 class engineTime;
 
@@ -67,7 +69,7 @@ class engineValve
         const engineTime& engineDB_;
 
         //- Coordinate system
-        autoPtr<coordinateSystem> csPtr_;
+        autoPtr<coordinateSystem> csysPtr_;
 
 
         // Patch and zone names
@@ -133,20 +135,17 @@ class engineValve
 
     // Private Member Functions
 
-        //- Disallow default bitwise copy construct
-        engineValve(const engineValve&);
+        //- No copy construct
+        engineValve(const engineValve&) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const engineValve&);
+        //- No copy assignment
+        void operator=(const engineValve&) = delete;
 
 
         //- Adjust crank angle to drop within the limits of the lift profile
         scalar adjustCrankAngle(const scalar theta) const;
 
 public:
-
-    // Static data members
-
 
     // Constructors
 
@@ -171,7 +170,6 @@ public:
             const scalar minBottomLayer,
             const scalar maxBottomLayer,
             const scalar diameter
-
         );
 
         //- Construct from dictionary
@@ -183,7 +181,8 @@ public:
         );
 
 
-    // Destructor - default
+    //- Destructor
+    ~engineValve() = default;
 
 
     // Member Functions
@@ -197,7 +196,7 @@ public:
         //- Return coordinate system
         const coordinateSystem& cs() const
         {
-            return csPtr_();
+            return *csysPtr_;
         }
 
         //- Return lift profile
@@ -308,7 +307,7 @@ public:
 
 
         //- Write dictionary
-        void writeDict(Ostream&) const;
+        void writeDict(Ostream& os) const;
 };
 
 

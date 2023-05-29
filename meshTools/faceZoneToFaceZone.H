@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011 OpenFOAM Foundation
+    Copyright (C) 2018-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -25,7 +28,50 @@ Class
     Foam::faceZoneToFaceZone
 
 Description
-    A topoSetSource to select faces based on usage in another faceSet.
+    A \c topoSetSource to select faces of a given \c faceZone.
+
+    Operands:
+    \table
+      Operand   | Type     | Location
+      input     | faceSet  | $FOAM_CASE/constant/polyMesh/sets/\<set\>
+      output 1  | faceSet  | $FOAM_CASE/constant/polyMesh/sets/\<set\>
+      output 2  | faceZone | $FOAM_CASE/constant/polyMesh/faceZones
+    \endtable
+
+Usage
+    Minimal example by using \c system/topoSetDict.actions:
+    \verbatim
+    {
+        // Mandatory (inherited) entries
+        name        <name>;
+        type        faceZoneSet;
+        action      <action>;
+
+        // Mandatory entries
+        source      faceZoneToFaceZone;
+        zone        <faceZoneName>;
+    }
+    \endverbatim
+
+    where the entries mean:
+    \table
+      Property   | Description                         | Type | Req'd | Dflt
+      name       | Name of faceZone                    | word |  yes  | -
+      type       | Type name: faceZoneSet              | word |  yes  | -
+      action     | Action applied on faces - see below | word |  yes  | -
+      source     | Source name: faceZoneToFaceZone     | word |  yes  | -
+      zone       | Name of input faceZone              | word |  yes  | -
+    \endtable
+
+    Options for the \c action entry:
+    \verbatim
+      new      | Create a new faceZone from selected faces of a faceZone
+      add      | Add selected faces of a faceZone into this faceZone
+      subtract | Remove selected faces of a faceZone from this faceZone
+    \endverbatim
+
+See also
+    - Foam::topoSetSource
 
 SourceFiles
     faceZoneToFaceZone.C
@@ -35,7 +81,7 @@ SourceFiles
 #ifndef faceZoneToFaceZone_H
 #define faceZoneToFaceZone_H
 
-#include "topoSetSource.H"
+#include "topoSetFaceZoneSource.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -48,9 +94,9 @@ namespace Foam
 
 class faceZoneToFaceZone
 :
-    public topoSetSource
+    public topoSetFaceZoneSource
 {
-    // Private data
+    // Private Data
 
         //- Add usage string
         static addToUsageTable usage_;
@@ -58,52 +104,36 @@ class faceZoneToFaceZone
         //- Name of set to use
         word setName_;
 
+
 public:
 
     //- Runtime type information
     TypeName("faceZoneToFaceZone");
 
+
     // Constructors
 
         //- Construct from components
-        faceZoneToFaceZone
-        (
-            const polyMesh& mesh,
-            const word& setName
-        );
+        faceZoneToFaceZone(const polyMesh& mesh, const word& setName);
 
         //- Construct from dictionary
-        faceZoneToFaceZone
-        (
-            const polyMesh& mesh,
-            const dictionary& dict
-        );
+        faceZoneToFaceZone(const polyMesh& mesh, const dictionary& dict);
 
         //- Construct from Istream
-        faceZoneToFaceZone
-        (
-            const polyMesh& mesh,
-            Istream&
-        );
+        faceZoneToFaceZone(const polyMesh& mesh, Istream& is);
 
 
     //- Destructor
-    virtual ~faceZoneToFaceZone();
+    virtual ~faceZoneToFaceZone() = default;
 
 
     // Member Functions
 
-        virtual sourceType setType() const
-        {
-            return FACEZONESOURCE;
-        }
-
         virtual void applyToSet
         (
             const topoSetSource::setAction action,
-            topoSet&
+            topoSet& set
         ) const;
-
 };
 
 

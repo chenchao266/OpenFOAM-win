@@ -1,9 +1,11 @@
-﻿/*---------------------------------------------------------------------------*\
+/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2015 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2015 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -48,14 +50,12 @@ Foam::cyclicFvsPatchField<Type>::cyclicFvsPatchField
 )
 :
     coupledFvsPatchField<Type>(p, iF, dict),
-    cyclicPatch_(refCast<const cyclicFvPatch>(p))
+    cyclicPatch_(refCast<const cyclicFvPatch>(p, dict))
 {
     if (!isA<cyclicFvPatch>(p))
     {
-        FatalIOErrorInFunction
-        (
-            dict
-        )   << "patch " << this->patch().index() << " not cyclic type. "
+        FatalIOErrorInFunction(dict)
+            << "patch " << this->patch().index() << " not cyclic type. "
             << "Patch type = " << p.type()
             << exit(FatalIOError);
     }

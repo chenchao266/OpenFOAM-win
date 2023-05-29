@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2015-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2015-2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -42,7 +44,7 @@ Usage
     \verbatim
     <patchName>
     {
-        type            fixedProfile;
+        type       fixedProfile;
         profile    csvFile;
 
         profileCoeffs
@@ -52,7 +54,7 @@ Usage
             componentColumns    (1 2 3);    // Component column indices
             separator           ",";        // Optional (defaults to ",")
             mergeSeparators     no;         // Merge multiple separators
-            fileName            "Uprofile.csv";  // name of csv data file
+            file                "Uprofile.csv";  // name of csv data file
             outOfBounds         clamp;      // Optional out-of-bounds handling
             interpolationScheme linear;     // Optional interpolation scheme
         }
@@ -95,7 +97,7 @@ SourceFiles
 #define fixedProfileFvPatchField_H
 
 #include "fixedValueFvPatchFields.H"
-#include "Function1.T.H"
+#include "Function1.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 

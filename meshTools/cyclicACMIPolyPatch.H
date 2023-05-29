@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2013-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2013-2016 OpenFOAM Foundation
+    Copyright (C) 2018-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -25,7 +28,29 @@ Class
     Foam::cyclicACMIPolyPatch
 
 Description
-    Cyclic patch for Arbitrarily Coupled Mesh Interface (ACMI)
+    Cyclic patch for Arbitrarily Coupled Mesh Interface (ACMI).
+
+    Mixes cyclicAMI behaviour with non-coupled patch behaviour using
+    the overlap area fraction. The non-coupled patch is specified through
+    the nonOverlapPatch keyword.
+
+Usage
+    Example of the patch specification:
+
+        type            cyclicACMI;
+        neighbourPatch  ACMI2_couple;       // cyclicAMI neighbour patch
+        nonOverlapPatch ACMI1_blockage;     // patch for uncoupled faces
+
+        // Optional time-dependent scaling (PatchFunction1)
+        scale           table
+        (
+            (0.00   1.0)
+            (0.02   1.0)
+            (0.0201 0.0)
+        );
+
+See also
+    cyclicAMIPolyPatch.C
 
 SourceFiles
     cyclicACMIPolyPatch.C
@@ -38,6 +63,9 @@ SourceFiles
 #include "cyclicAMIPolyPatch.H"
 #include "AMIPatchToPatchInterpolation.H"
 #include "polyBoundaryMesh.H"
+#include "PatchFunction1.H"
+#include "uniformDimensionedFields.H"
+#include "vectorList.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -57,9 +85,6 @@ private:
 
     // Private data
 
-        //- Fraction of face area below which face is considered disconnected
-        static const scalar tolerance_;
-
         //- Name of non-overlapping patch
         const word nonOverlapPatchName_;
 
@@ -72,20 +97,64 @@ private:
         //- Mask/weighting for target patch
         mutable scalarField tgtMask_;
 
-        //- Flag to indicate that AMI has been updated
-        mutable bool updated_;
+
+        // Scaling of overlap (optional)
+
+            //- Weighting for source mask
+            mutable autoPtr<PatchFunction1<scalar>> srcScalePtr_;
+
+            //- Weighting for target mask
+            mutable autoPtr<PatchFunction1<scalar>> tgtScalePtr_;
+
+            //- Stored face areas
+            mutable vectorField thisSf_;
+            mutable vectorField thisNoSf_;
+            mutable vectorField nbrSf_;
+            mutable vectorField nbrNoSf_;
+
+            //- Scaled version of source mask
+            mutable scalarField srcScaledMask_;
+
+            //- Scaled version of target mask
+            mutable scalarField tgtScaledMask_;
+
+            //- Flag to detect whether AMI is up to date with mesh points
+            mutable uniformDimensionedScalarField AMITime_;
+
+            //- Flag to detect whether scaled masks are up to date with
+            //  current time
+            mutable label prevTimeIndex_;
 
 
 protected:
 
     // Protected Member Functions
 
-        //- Reset the AMI interpolator
-        virtual void resetAMI
+        //- Report coverage statics, e.g. number of uncovered/blended/covered
+        //- faces
+        void reportCoverage
         (
-            const AMIPatchToPatchInterpolation::interpolationMethod& AMIMethod =
-                AMIPatchToPatchInterpolation::imFaceAreaWeight
+            const word& name,
+            const scalarField& weightSum
         ) const;
+
+        //- Reset the AMI interpolator, supply patch points
+        virtual void resetAMI(const UList<point>& points) const;
+
+        //-  Reset the AMI interpolator, use current patch points
+        virtual void resetAMI() const;
+
+        //- Scale patch face areas to maintain physical area
+        virtual void scalePatchFaceAreas();
+
+        //- Scale patch face areas to maintain physical area
+        virtual void scalePatchFaceAreas
+        (
+            const cyclicACMIPolyPatch& acmipp,
+            const scalarField& mask,
+            const vectorList& faceArea,
+            const vectorList& noFaceArea
+        );
 
         //- Initialise the calculation of the patch geometry
         virtual void initGeometry(PstreamBuffers&);
@@ -108,12 +177,6 @@ protected:
         //- Clear geometry
         virtual void clearGeom();
 
-        //- Return the mask/weighting for the source patch
-        virtual const scalarField& srcMask() const;
-
-        //- Return the mask/weighting for the target patch
-        virtual const scalarField& tgtMask() const;
-
 
 public:
 
@@ -123,7 +186,7 @@ public:
 
     // Constructors
 
-        //- Construct from (base couped patch) components
+        //- Construct from (base coupled patch) components
         cyclicACMIPolyPatch
         (
             const word& name,
@@ -132,7 +195,8 @@ public:
             const label index,
             const polyBoundaryMesh& bm,
             const word& patchType,
-            const transformType transform = UNKNOWN
+            const transformType transform = UNKNOWN,
+            const word& defaultAMIMethod = faceAreaWeightAMI::typeName
         );
 
         //- Construct from dictionary
@@ -142,7 +206,8 @@ public:
             const dictionary& dict,
             const label index,
             const polyBoundaryMesh& bm,
-            const word& patchType
+            const word& patchType,
+            const word& defaultAMIMethod = faceAreaWeightAMI::typeName
         );
 
         //- Construct as copy, resetting the boundary mesh
@@ -179,7 +244,7 @@ public:
         //- Construct and return a clone, resetting the boundary mesh
         virtual autoPtr<polyPatch> clone(const polyBoundaryMesh& bm) const
         {
-            return autoPtr<polyPatch>(new cyclicACMIPolyPatch(*this, bm));
+            return autoPtr<polyPatch>::NewFrom<cyclicACMIPolyPatch>(*this, bm);
         }
 
         //- Construct and return a clone, resetting the face list
@@ -232,18 +297,21 @@ public:
 
 
     //- Destructor
-    virtual ~cyclicACMIPolyPatch();
+    virtual ~cyclicACMIPolyPatch() = default;
 
 
     // Member Functions
 
+        // Implicit treatment functions
+
+            //- Return number of new internal sub-faces and new proc faces
+            virtual void newInternalProcFaces(label&, label&) const;
+
+            //- Return collocated faces
+            virtual refPtr<labelListList> mapCollocatedFaces() const;
+
+
         // Access
-
-            //- Reset the updated flag
-            inline void setUpdated(bool flag) const;
-
-            //- Return access to the updated flag
-            inline bool updated() const;
 
             //- Return a reference to the neighbour patch
             virtual const cyclicACMIPolyPatch& neighbPatch() const;
@@ -260,24 +328,18 @@ public:
             //- Return a reference to the non-overlapping patch
             inline polyPatch& nonOverlapPatch();
 
-            //- Mask field where 1 = overlap, 0 = no-overlap
+            //- Mask field where 1 = overlap(coupled), 0 = no-overlap
             inline const scalarField& mask() const;
+
+            //- Return the mask/weighting for the source patch
+            virtual const scalarField& srcMask() const;
+
+            //- Return the mask/weighting for the target patch
+            virtual const scalarField& tgtMask() const;
 
             //- Overlap tolerance
             inline static scalar tolerance();
 
-
-        //- Calculate the patch geometry
-        virtual void calcGeometry
-        (
-            const primitivePatch& referPatch,
-            const pointField& thisCtrs,
-            const vectorField& thisAreas,
-            const pointField& thisCc,
-            const pointField& nbrCtrs,
-            const vectorField& nbrAreas,
-            const pointField& nbrCc
-        );
 
         //- Initialize ordering for primitivePatch. Does not
         //  refer to *this (except for name() and type() etc.)
@@ -302,6 +364,20 @@ public:
 
         //- Write the polyPatch data as a dictionary
         virtual void write(Ostream&) const;
+
+        // Handling optional scaling (time dependency)
+
+            //- Update the AMI and patch areas. Return true if anything
+            //  updated
+            virtual bool updateAreas() const;
+
+            //- Return true if given object is up to date with *this
+            //  (note : like regIOobject::upToDate but operates on object)
+            bool upToDate(const regIOobject&) const;
+
+            //- Set object up to date with *this
+            //  (note : like regIOobject::setUpToDate but operates on object)
+            void setUpToDate(regIOobject&) const;
 };
 
 

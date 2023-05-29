@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2015 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2015 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -55,7 +57,7 @@ SourceFiles
 
 #include "refinementIterator.H"
 #include "vectorField.H"
-#include "Map.T.H"
+#include "Map.H"
 #include "className.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
@@ -63,7 +65,7 @@ SourceFiles
 namespace Foam
 {
 
-// Forward declaration of classes
+// Forward Declarations
 class undoableMeshCutter;
 class cellLooper;
 class topoSet;
@@ -138,11 +140,11 @@ class multiDirRefinement
         );
 
 
-        //- Disallow default bitwise copy construct
-        multiDirRefinement(const multiDirRefinement&);
+        //- No copy construct
+        multiDirRefinement(const multiDirRefinement&) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const multiDirRefinement&);
+        //- No copy assignment
+        void operator=(const multiDirRefinement&) = delete;
 
 
 public:

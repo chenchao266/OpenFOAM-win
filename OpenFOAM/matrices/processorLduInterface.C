@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2012 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2012 OpenFOAM Foundation
+    Copyright (C) 2019 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -26,39 +29,22 @@ License
 #include "processorLduInterface.H"
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
-using namespace Foam;
+
 namespace Foam
 {
-defineTypeNameAndDebug(processorLduInterface, 0);
-}
+    defineTypeNameAndDebug(processorLduInterface, 0);
 
 
-// * * * * * * * * * * * * * Private Member Functions *  * * * * * * * * * * //
 
-void processorLduInterface::resizeBuf
-(
-    List<char>& buf,
-    const label size
-) const
-{
-    if (buf.size() < size)
+    // * * * * * * * * * * * * * Private Member Functions *  * * * * * * * * * * //
+
+    void processorLduInterface::resizeBuf(List<char>& buf, const label size)
     {
-        buf.setSize(size);
+        if (buf.size() < size)
+        {
+            buf.resize(size);
+        }
     }
+
 }
-
-
-// * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
-
-processorLduInterface::processorLduInterface() :    sendBuf_(0),
-    receiveBuf_(0)
-{}
-
-
-// * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
-
-processorLduInterface::~processorLduInterface()
-{}
-
-
 // ************************************************************************* //

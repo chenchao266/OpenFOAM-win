@@ -1,9 +1,12 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2019 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -35,7 +38,7 @@ Description
 
 SourceFiles
     pointPatchField.C
-    newPointPatchField.C
+    pointPatchFieldNew.C
 
 \*---------------------------------------------------------------------------*/
 
@@ -43,7 +46,7 @@ SourceFiles
 #define pointPatchField_H
 
 #include "pointPatch.H"
-#include "DimensionedField.T.H"
+#include "DimensionedField.H"
 #include "autoPtr.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
@@ -51,27 +54,18 @@ SourceFiles
 namespace Foam
 {
 
-// Forward declaration of classes
+// Forward declarations
 
 class objectRegistry;
 class dictionary;
 class pointPatchFieldMapper;
 class pointMesh;
 
-// Forward declaration of friend functions and operators
+template<class Type> class pointPatchField;
+template<class Type> class calculatedPointPatchField;
 
 template<class Type>
-class pointPatchField;
-
-template<class Type>
-class calculatedPointPatchField;
-
-template<class Type>
-Ostream& operator<<
-(
-    Ostream&,
-    const pointPatchField<Type>&
-);
+Ostream& operator<<(Ostream&, const pointPatchField<Type>&);
 
 
 /*---------------------------------------------------------------------------*\
@@ -101,6 +95,7 @@ class pointPatchField
 
 public:
 
+    typedef Type value_type;
     typedef pointPatch Patch;
     typedef calculatedPointPatchField<Type> Calculated;
 
@@ -254,8 +249,7 @@ public:
 
 
     //- Destructor
-    virtual ~pointPatchField<Type>()
-    {}
+    virtual ~pointPatchField<Type>() = default;
 
 
     // Member functions
@@ -436,19 +430,8 @@ public:
             //- Write
             virtual void write(Ostream&) const;
 
-            //- Helper function to write the keyword and entry only if the
-            //  values are not equal. The value is then output as value2
-            template<class EntryType>
-            void writeEntryIfDifferent
-            (
-                Ostream& os,
-                const word& entryName,
-                const EntryType& value1,
-                const EntryType& value2
-            ) const;
 
-
-    // Member operators
+    // Member Operators
 
         virtual void operator=(const pointPatchField<Type>&){}
         virtual void operator+=(const pointPatchField<Type>&){}
@@ -486,11 +469,21 @@ public:
             Ostream&,
             const pointPatchField<Type>&
         );
+
+
+    // Housekeeping
+
+    // Includes some dummy methods to ensure that various
+    // FieldFieldFunctions will be definable.
+
+        //- Negate the field inplace
+        //  [dummy placeholder for FieldField] (2019-11)
+        void negate() {}
 };
 
 
-// This function is added as a hack to enable simple backward compatability
-// with verions using referenceLevel in GeometicField
+// This function is added as a hack to enable simple backward compatibility
+// with versions using referenceLevel in GeometricField
 template<class Type>
 const pointPatchField<Type>& operator+
 (

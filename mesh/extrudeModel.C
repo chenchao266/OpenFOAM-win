@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -41,17 +44,14 @@ Foam::extrudeModel::extrudeModel
     const dictionary& dict
 )
 :
-    nLayers_(dict.lookupOrDefault<label>("nLayers", 1)),
-    expansionRatio_(dict.lookupOrDefault<scalar>("expansionRatio", 1)),
-    dict_(dict),
+    nLayers_(dict.getOrDefault<label>("nLayers", 1)),
+    expansionRatio_(dict.getOrDefault<scalar>("expansionRatio", 1)),
     coeffDict_(dict.optionalSubDict(modelType + "Coeffs"))
-{}
-
-
-// * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
-
-Foam::extrudeModel::~extrudeModel()
-{}
+{
+    DebugInfo
+        << "Selected extrudeModel for " << modelType
+        << " using coeffs " << coeffDict_ << nl;
+}
 
 
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
@@ -79,8 +79,8 @@ Foam::scalar Foam::extrudeModel::sumThickness(const label layer) const
     else
     {
         return
-            (1.0-pow(expansionRatio_, (int)layer))
-          / (1.0-pow(expansionRatio_, (int)nLayers_));//??
+            (1.0-pow(expansionRatio_, (const int)layer))
+          / (1.0-pow(expansionRatio_, (const int)nLayers_));
     }
 }
 

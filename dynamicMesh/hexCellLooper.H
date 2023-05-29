@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -51,7 +53,7 @@ SourceFiles
 namespace Foam
 {
 
-// Forward declaration of classes
+// Forward Declarations
 class cellModel;
 
 /*---------------------------------------------------------------------------*\
@@ -62,10 +64,9 @@ class hexCellLooper
 :
     public geomCellLooper
 {
-
 protected:
 
-    // Protected data
+    // Protected Data
 
         //- Reference to hex cell shape.
         const cellModel& hex_;
@@ -97,11 +98,11 @@ private:
         ) const;
 
 
-        //- Disallow default bitwise copy construct
-        hexCellLooper(const hexCellLooper&);
+        //- No copy construct
+        hexCellLooper(const hexCellLooper&) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const hexCellLooper&);
+        //- No copy assignment
+        void operator=(const hexCellLooper&) = delete;
 
 
 public:
@@ -112,12 +113,12 @@ public:
 
     // Constructors
 
-        //- Construct from components
-        hexCellLooper(const polyMesh& mesh);
+        //- Construct from mesh
+        explicit hexCellLooper(const polyMesh& mesh);
 
 
     //- Destructor
-    virtual ~hexCellLooper();
+    virtual ~hexCellLooper() = default;
 
 
     // Member Functions

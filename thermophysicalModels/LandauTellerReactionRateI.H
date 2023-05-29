@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -48,11 +50,11 @@ inline Foam::LandauTellerReactionRate::LandauTellerReactionRate
     const dictionary& dict
 )
 :
-    A_(readScalar(dict.lookup("A"))),
-    beta_(readScalar(dict.lookup("beta"))),
-    Ta_(readScalar(dict.lookup("Ta"))),
-    B_(readScalar(dict.lookup("B"))),
-    C_(readScalar(dict.lookup("C")))
+    A_(dict.get<scalar>("A")),
+    beta_(dict.get<scalar>("beta")),
+    Ta_(dict.get<scalar>("Ta")),
+    B_(dict.get<scalar>("B")),
+    C_(dict.get<scalar>("C"))
 {}
 
 
@@ -100,11 +102,11 @@ inline Foam::scalar Foam::LandauTellerReactionRate::operator()
 
 inline void Foam::LandauTellerReactionRate::write(Ostream& os) const
 {
-    os.writeKeyword("A") << A_ << token::END_STATEMENT << nl;
-    os.writeKeyword("beta") << beta_ << token::END_STATEMENT << nl;
-    os.writeKeyword("Ta") << Ta_ << token::END_STATEMENT << nl;
-    os.writeKeyword("B") << B_ << token::END_STATEMENT << nl;
-    os.writeKeyword("C") << C_ << token::END_STATEMENT << nl;
+    os.writeEntry("A", A_);
+    os.writeEntry("beta", beta_);
+    os.writeEntry("Ta", Ta_);
+    os.writeEntry("B", B_);
+    os.writeEntry("C", C_);
 }
 
 

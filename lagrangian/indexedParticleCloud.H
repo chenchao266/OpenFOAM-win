@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -35,7 +37,7 @@ SourceFiles
 #ifndef indexedParticleCloud_H
 #define indexedParticleCloud_H
 
-#include "Cloud.T.H"
+#include "Cloud.H"
 #include "indexedParticle.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
@@ -53,11 +55,11 @@ class indexedParticleCloud
 {
     // Private Member Functions
 
-        //- Disallow default bitwise copy construct
-        indexedParticleCloud(const indexedParticleCloud&);
+        //- No copy construct
+        indexedParticleCloud(const indexedParticleCloud&) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const indexedParticleCloud&);
+        //- No copy assignment
+        void operator=(const indexedParticleCloud&) = delete;
 
 
 public:
@@ -65,10 +67,10 @@ public:
     // Constructors
 
         //- Construct given mesh
-        indexedParticleCloud
+        explicit indexedParticleCloud
         (
-            const polyMesh&,
-            const word& cloudName = "defaultCloud",
+            const polyMesh& mesh,
+            const word& cloudName = cloud::defaultName,
             bool readFields = true
         );
 };

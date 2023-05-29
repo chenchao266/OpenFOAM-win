@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2018 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -36,7 +39,7 @@ namespace surfaceFilmModels
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
-injectionModelList::injectionModelList(surfaceFilmModel& film)
+injectionModelList::injectionModelList(surfaceFilmRegionModel& film)
 :
     PtrList<injectionModel>(),
     filmSubModelBase(film)
@@ -45,7 +48,7 @@ injectionModelList::injectionModelList(surfaceFilmModel& film)
 
 injectionModelList::injectionModelList
 (
-    surfaceFilmModel& film,
+    surfaceFilmRegionModel& film,
     const dictionary& dict
 )
 :
@@ -58,25 +61,20 @@ injectionModelList::injectionModelList
         "injectionModelList",
         "injectionModelList"
     ),
-    massInjected_(film.intCoupledPatchIDs().size(), 0.0)
+    massInjected_(film.intCoupledPatchIDs().size(), Zero)
 {
     const wordList activeModels(dict.lookup("injectionModels"));
 
-    wordHashSet models;
-    forAll(activeModels, i)
-    {
-        models.insert(activeModels[i]);
-    }
+    wordHashSet models(activeModels);
 
     Info<< "    Selecting film injection models" << endl;
-    if (models.size() > 0)
+    if (models.size())
     {
         this->setSize(models.size());
 
         label i = 0;
-        forAllConstIter(wordHashSet, models, iter)
+        for (const word& model : models)
         {
-            const word& model = iter.key();
             set(i, injectionModel::New(film, dict, model));
             i++;
         }
@@ -154,7 +152,7 @@ void injectionModelList::info(Ostream& os)
         }
     }
 
-    scalarField mass0(massInjected_.size(), 0);
+    scalarField mass0(massInjected_.size(), Zero);
     this->getBaseProperty("massInjected", mass0);
 
     scalarField mass(massInjected_);

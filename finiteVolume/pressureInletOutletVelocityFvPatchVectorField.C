@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2017-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -75,8 +78,9 @@ pressureInletOutletVelocityFvPatchVectorField
 )
 :
     directionMixedFvPatchVectorField(p, iF),
-    phiName_(dict.lookupOrDefault<word>("phi", "phi"))
+    phiName_(dict.getOrDefault<word>("phi", "phi"))
 {
+    patchType() = dict.getOrDefault<word>("patchType", word::null);
     fvPatchVectorField::operator=(vectorField("value", dict, p.size()));
 
     if (dict.found("tangentialVelocity"))
@@ -187,7 +191,7 @@ void Foam::pressureInletOutletVelocityFvPatchVectorField::write
 const
 {
     fvPatchVectorField::write(os);
-    writeEntryIfDifferent<word>(os, "phi", "phi", phiName_);
+    os.writeEntryIfDifferent<word>("phi", "phi", phiName_);
     if (tangentialVelocity_.size())
     {
         tangentialVelocity_.writeEntry("tangentialVelocity", os);

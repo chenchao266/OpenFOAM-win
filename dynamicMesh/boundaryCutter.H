@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -42,9 +45,9 @@ SourceFiles
 #ifndef boundaryCutter_H
 #define boundaryCutter_H
 
-#include "Map.T.H"
+#include "Map.H"
 #include "labelList.H"
-#include "edge.H"
+#include "edgeHashes.H"
 #include "typeInfo.H"
 #include "labelPair.H"
 
@@ -53,7 +56,7 @@ SourceFiles
 namespace Foam
 {
 
-// Forward declaration of classes
+// Forward Declarations
 class polyTopoChange;
 class mapPolyMesh;
 class polyMesh;
@@ -71,7 +74,7 @@ class boundaryCutter
         const polyMesh& mesh_;
 
         //- Per edge sorted (start to end) list of points added.
-        HashTable<labelList, edge, Hash<edge>> edgeAddedPoints_;
+        EdgeMap<labelList> edgeAddedPoints_;
 
         //- Per face the mid point added.
         Map<label> faceAddedPoint_;
@@ -111,11 +114,11 @@ class boundaryCutter
         ) const;
 
 
-        //- Disallow default bitwise copy construct
-        boundaryCutter(const boundaryCutter&);
+        //- No copy construct
+        boundaryCutter(const boundaryCutter&) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const boundaryCutter&);
+        //- No copy assignment
+        void operator=(const boundaryCutter&) = delete;
 
 public:
 
@@ -125,11 +128,11 @@ public:
     // Constructors
 
         //- Construct from mesh
-        boundaryCutter(const polyMesh& mesh);
+        explicit boundaryCutter(const polyMesh& mesh);
 
 
     //- Destructor
-    ~boundaryCutter();
+    ~boundaryCutter() = default;
 
 
     // Member Functions
@@ -159,8 +162,7 @@ public:
         // Access
 
             //- Per edge a sorted list (start to end) of added points.
-            const HashTable<labelList, edge, Hash<edge>>& edgeAddedPoints()
-             const
+            const EdgeMap<labelList>& edgeAddedPoints() const
             {
                 return edgeAddedPoints_;
             }

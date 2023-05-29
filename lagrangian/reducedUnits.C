@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2015 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2015 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -27,7 +29,7 @@ License
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
 
-const  Foam::scalar Foam::reducedUnits::kb = 1.3806504e-23;
+const Foam::scalar Foam::reducedUnits::kb = 1.3806504e-23;
 
 
 // * * * * * * * * * * * * * Private Member Functions  * * * * * * * * * * * //
@@ -105,12 +107,6 @@ Foam::reducedUnits::reducedUnits(const IOdictionary& reducedUnitsDict)
 }
 
 
-// * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
-
-Foam::reducedUnits::~reducedUnits()
-{}
-
-
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
 
 void Foam::reducedUnits::setRefValues
@@ -121,9 +117,7 @@ void Foam::reducedUnits::setRefValues
 )
 {
     refLength_ = refLength;
-
     refTime_ = refTime;
-
     refMass_ = refMass;
 
     calcRefValues();
@@ -135,27 +129,11 @@ void Foam::reducedUnits::setRefValues
     const IOdictionary& reducedUnitsDict
 )
 {
-    refLength_ = readScalar(reducedUnitsDict.lookup("refLength"));
-
-    refTime_ = readScalar(reducedUnitsDict.lookup("refTime"));
-
-    refMass_  = readScalar(reducedUnitsDict.lookup("refMass"));
+    reducedUnitsDict.readEntry("refLength", refLength_);
+    reducedUnitsDict.readEntry("refTime", refTime_);
+    reducedUnitsDict.readEntry("refMass", refMass_);
 
     calcRefValues();
-}
-
-
-// * * * * * * * * * * * * * * * Member Operators  * * * * * * * * * * * * * //
-
-void Foam::reducedUnits::operator=(const reducedUnits& rhs)
-{
-    // Check for assignment to self
-    if (this == &rhs)
-    {
-        FatalErrorInFunction
-            << "Attempted assignment to self"
-            << abort(FatalError);
-    }
 }
 
 

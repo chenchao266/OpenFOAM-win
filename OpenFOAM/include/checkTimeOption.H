@@ -1,13 +1,17 @@
-// Check -time and -latestTime options
+﻿// Check -time and -latestTime options
 
-if (args.optionFound("time"))
+if (args.found("time"))
 {
-    Foam::scalar timeValue = args.optionRead<scalar>("time");
 
-    startTime = Foam::Time::findClosestTimeIndex(Times, timeValue);
+ namespace Foam{
+    scalar timeValue = args.get<scalar>("time");
+
+    startTime = Time::findClosestTimeIndex(Times, timeValue);
 }
 
-if (args.optionFound("latestTime"))
+if (args.found("latestTime"))
 {
     startTime = Times.size() - 1;
 }
+
+ } // End namespace Foam

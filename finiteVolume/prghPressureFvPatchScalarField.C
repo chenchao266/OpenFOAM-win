@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2013-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2013-2016 OpenFOAM Foundation
+    Copyright (C) 2018-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -27,7 +30,7 @@ License
 #include "addToRunTimeSelectionTable.H"
 #include "fvPatchFieldMapper.H"
 #include "volFields.H"
-#include "uniformDimensionedFields.H"
+#include "gravityMeshObject.H"
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
@@ -40,7 +43,7 @@ prghPressureFvPatchScalarField
 :
     fixedValueFvPatchScalarField(p, iF),
     rhoName_("rho"),
-    p_(p.size(), 0.0)
+    p_(p.size(), Zero)
 {}
 
 
@@ -53,7 +56,7 @@ prghPressureFvPatchScalarField
 )
 :
     fixedValueFvPatchScalarField(p, iF, dict, false),
-    rhoName_(dict.lookupOrDefault<word>("rho", "rho")),
+    rhoName_(dict.getOrDefault<word>("rho", "rho")),
     p_("p", dict, p.size())
 {
     if (dict.found("value"))
@@ -150,7 +153,7 @@ void Foam::prghPressureFvPatchScalarField::updateCoeffs()
     );
 
     const uniformDimensionedVectorField& g =
-        db().lookupObject<uniformDimensionedVectorField>("g");
+        meshObjects::gravity::New(db().time());
 
     const uniformDimensionedScalarField& hRef =
         db().lookupObject<uniformDimensionedScalarField>("hRef");
@@ -171,7 +174,7 @@ void Foam::prghPressureFvPatchScalarField::updateCoeffs()
 void Foam::prghPressureFvPatchScalarField::write(Ostream& os) const
 {
     fvPatchScalarField::write(os);
-    writeEntryIfDifferent<word>(os, "rho", "rho", rhoName_);
+    os.writeEntryIfDifferent<word>("rho", "rho", rhoName_);
     p_.writeEntry("p", os);
     writeEntry("value", os);
 }

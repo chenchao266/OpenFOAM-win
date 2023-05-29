@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2016-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -55,13 +58,16 @@ SourceFiles
 #include "fvSchemes.H"
 #include "fvSolution.H"
 #include "data.H"
-#include "DimensionedField.T.H"
+#include "DimensionedField.H"
 #include "volFieldsFwd.H"
 #include "surfaceFieldsFwd.H"
 #include "pointFieldsFwd.H"
 #include "slicedVolFieldsFwd.H"
 #include "slicedSurfaceFieldsFwd.H"
 #include "className.H"
+#include "SolverPerformance.H"
+
+
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -70,7 +76,8 @@ namespace Foam
 
 class fvMeshLduAddressing;
 class volMesh;
-
+template<class Type>
+class fvMatrix;
 
 /*---------------------------------------------------------------------------*\
                            Class fvMesh Declaration
@@ -80,16 +87,17 @@ class fvMesh
 :
     public polyMesh,
     public lduMesh,
-    public surfaceInterpolation,
     public fvSchemes,
+    public surfaceInterpolation,    // needs input from fvSchemes
     public fvSolution,
     public data
 {
+protected:
+
     // Private data
 
         //- Boundary mesh
         fvBoundaryMesh boundary_;
-
 
     // Demand-driven data
 
@@ -137,11 +145,14 @@ class fvMesh
             //  geometric demand-driven data that was set
             void updateGeomNotOldVol();
 
-            //- Clear geometry
+            //- Clear local geometry
             void clearGeom();
 
-            //- Clear addressing
+            //- Clear local addressing
             void clearAddressing(const bool isMeshUpdate = false);
+
+            //- Clear local-only storage (geometry, addressing etc)
+            void clearOutLocal();
 
             //- Preserve old volume(s)
             void storeOldVol(const scalarField&);
@@ -156,11 +167,11 @@ class fvMesh
             void makeCf() const;
 
 
-        //- Disallow construct as copy
-        fvMesh(const fvMesh&);
+        //- No copy construct
+        fvMesh(const fvMesh&) = delete;
 
-        //- Disallow assignment
-        void operator=(const fvMesh&);
+        //- No copy assignment
+        void operator=(const fvMesh&) = delete;
 
 
 public:
@@ -178,42 +189,58 @@ public:
     // Constructors
 
         //- Construct from IOobject
-        explicit fvMesh(const IOobject& io);
+        explicit fvMesh(const IOobject& io, const bool doInit=true);
 
-        //- Construct from cellShapes with boundary.
-        fvMesh
-        (
-            const IOobject& io,
-            const Xfer<pointField>& points,
-            const cellShapeList& shapes,
-            const faceListList& boundaryFaces,
-            const wordList& boundaryPatchNames,
-            const PtrList<dictionary>& boundaryDicts,
-            const word& defaultBoundaryPatchName,
-            const word& defaultBoundaryPatchType,
-            const bool syncPar = true
-        );
+        //- Construct from IOobject or as zero-sized mesh
+        //  Boundary is added using addFvPatches() member function
+        fvMesh(const IOobject& io, const zero, bool syncPar=true);
 
         //- Construct from components without boundary.
         //  Boundary is added using addFvPatches() member function
         fvMesh
         (
             const IOobject& io,
-            const Xfer<pointField>& points,
-            const Xfer<faceList>& faces,
-            const Xfer<labelList>& allOwner,
-            const Xfer<labelList>& allNeighbour,
+            pointField&& points,
+            faceList&& faces,
+            labelList&& allOwner,
+            labelList&& allNeighbour,
             const bool syncPar = true
         );
 
         //- Construct without boundary from cells rather than owner/neighbour.
-        //  Boundary is added using addPatches() member function
+        //  Boundary is added using addFvPatches() member function
         fvMesh
         (
             const IOobject& io,
-            const Xfer<pointField>& points,
-            const Xfer<faceList>& faces,
-            const Xfer<cellList>& cells,
+            pointField&& points,
+            faceList&& faces,
+            cellList&& cells,
+            const bool syncPar = true
+        );
+
+        //- Construct as copy (for dictionaries) and components without
+        //  boundary. Boundary is added using addFvPatches() member function
+        fvMesh
+        (
+            const IOobject& io,
+            const fvMesh& baseMesh,
+            pointField&& points,
+            faceList&& faces,
+            labelList&& allOwner,
+            labelList&& allNeighbour,
+            const bool syncPar = true
+        );
+
+        //- Construct as copy (for dictionaries) without boundary from cells
+        //  rather than owner/neighbour. Boundary is added using addFvPatches()
+        //  member function
+        fvMesh
+        (
+            const IOobject& io,
+            const fvMesh& baseMesh,
+            pointField&& points,
+            faceList&& faces,
+            cellList&& cells,
             const bool syncPar = true
         );
 
@@ -226,10 +253,20 @@ public:
 
         // Helpers
 
+            //- Initialise all non-demand-driven data
+            virtual bool init(const bool doInit);
+
             //- Add boundary patches. Constructor helper
             void addFvPatches
             (
-                const List<polyPatch*>&,
+                PtrList<polyPatch>& plist,
+                const bool validBoundary = true
+            );
+
+            //- Add boundary patches. Constructor helper
+            void addFvPatches
+            (
+                const List<polyPatch*>& p,
                 const bool validBoundary = true
             );
 
@@ -244,6 +281,12 @@ public:
             const Time& time() const
             {
                 return polyMesh::time();
+            }
+
+            //- Return true if thisDb() is a valid DB
+            virtual bool hasDb() const
+            {
+                return true;
             }
 
             //- Return the object registry - resolve conflict polyMesh/lduMesh
@@ -268,10 +311,7 @@ public:
 
             //- Return a list of pointers for each patch
             //  with only those pointing to interfaces being set
-            virtual lduInterfacePtrsList interfaces() const
-            {
-                return boundary().interfaces();
-            }
+            virtual lduInterfacePtrsList interfaces() const;
 
             //- Return communicator used for parallel communication
             virtual label comm() const
@@ -279,16 +319,101 @@ public:
                 return polyMesh::comm();
             }
 
-            //- Internal face owner
+
+            // Overlap
+
+                //- Interpolate interpolationCells only
+                virtual void interpolate(volScalarField&) const
+                {}
+
+                //- Interpolate interpolationCells only
+                virtual void interpolate(volVectorField&) const
+                {}
+
+                //- Interpolate interpolationCells only
+                virtual void interpolate(volSphericalTensorField&) const
+                {}
+
+                //- Interpolate interpolationCells only
+                virtual void interpolate(volSymmTensorField&) const
+                {}
+
+                //- Interpolate interpolationCells only
+                virtual void interpolate(volTensorField&) const
+                {}
+
+                //- Interpolate interpolationCells only. No bcs.
+                virtual void interpolate(scalarField&) const
+                {}
+
+                //- Interpolate interpolationCells only. No bcs.
+                virtual void interpolate(vectorField&) const
+                {}
+
+                //- Interpolate interpolationCells only. No bcs.
+                virtual void interpolate(sphericalTensorField&) const
+                {}
+
+                //- Interpolate interpolationCells only. No bcs.
+                virtual void interpolate(symmTensorField&) const
+                {}
+
+                //- Interpolate interpolationCells only. No bcs.
+                virtual void interpolate(tensorField&) const
+                {}
+
+                //- Solve returning the solution statistics given convergence
+                //- tolerance. Use the given solver controls
+                virtual SolverPerformance<scalar> solve
+                (
+                    fvMatrix<scalar>&,
+                    const dictionary&
+                ) const;
+
+                //- Solve returning the solution statistics given convergence
+                //- tolerance. Use the given solver controls
+                virtual SolverPerformance<vector> solve
+                (
+                    fvMatrix<vector>&,
+                    const dictionary&
+                ) const;
+
+                //- Solve returning the solution statistics given convergence
+                //- tolerance. Use the given solver controls
+                virtual SolverPerformance<sphericalTensor> solve
+                (
+                    fvMatrix<sphericalTensor>&,
+                    const dictionary&
+                ) const;
+
+                //- Solve returning the solution statistics given convergence
+                //- tolerance. Use the given solver controls
+                virtual SolverPerformance<symmTensor> solve
+                (
+                    fvMatrix<symmTensor>&,
+                    const dictionary&
+                ) const;
+
+                //- Solve returning the solution statistics given convergence
+                //- tolerance. Use the given solver controls
+                virtual SolverPerformance<tensor> solve
+                (
+                    fvMatrix<tensor>&,
+                    const dictionary&
+                ) const;
+
+
+            //- Internal face owner. Note bypassing virtual mechanism so
+            //  e.g. relaxation always gets done using original addressing
             const labelUList& owner() const
             {
-                return lduAddr().lowerAddr();
+                return fvMesh::lduAddr().lowerAddr();
             }
 
             //- Internal face neighbour
             const labelUList& neighbour() const
             {
-                return lduAddr().upperAddr();
+                return fvMesh::lduAddr().upperAddr();
             }
 
             //- Return cell volumes
@@ -303,7 +428,7 @@ public:
             //- Return sub-cycle cell volumes
             tmp<DimensionedField<scalar, volMesh>> Vsc() const;
 
-            //- Return sub-cycl old-time cell volumes
+            //- Return sub-cycle old-time cell volumes
             tmp<DimensionedField<scalar, volMesh>> Vsc0() const;
 
             //- Return cell face area vectors
@@ -339,14 +464,21 @@ public:
             //- Update mesh corresponding to the given map
             virtual void updateMesh(const mapPolyMesh& mpm);
 
+            //- Avoid masking surfaceInterpolation method
+            using surfaceInterpolation::movePoints;
+
             //- Move points, returns volumes swept by faces in motion
             virtual tmp<scalarField> movePoints(const pointField&);
+
+            //- Update all geometric data. This gets redirected up from
+            //- primitiveMesh level
+            virtual void updateGeom();
 
             //- Map all fields in time using given map.
             virtual void mapFields(const mapPolyMesh& mpm);
 
             //- Remove boundary patches. Warning: fvPatchFields hold ref to
-            //  these fvPatches.
+            //- these fvPatches.
             void removeFvBoundary();
 
             //- Return cell face motion fluxes
@@ -361,9 +493,7 @@ public:
             //- Write the underlying polyMesh and other data
             virtual bool writeObject
             (
-                IOstream::streamFormat fmt,
-                IOstream::versionNumber ver,
-                IOstream::compressionType cmp,
+                IOstreamOption streamOpt,
                 const bool valid
             ) const;
 
@@ -373,8 +503,11 @@ public:
 
     // Member Operators
 
-        bool operator!=(const fvMesh&) const;
-        bool operator==(const fvMesh&) const;
+        //- Compares addresses
+        bool operator!=(const fvMesh& rhs) const;
+
+        //- Compares addresses
+        bool operator==(const fvMesh& rhs) const;
 };
 
 

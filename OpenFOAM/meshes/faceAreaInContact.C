@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -23,15 +25,17 @@ License
 
 \*---------------------------------------------------------------------------*/
 
-#include "face.T.H"
+#include "face.H"
 #include "scalarField.H"
 
 
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
-using namespace Foam;
+
+
+ namespace Foam{
 scalar face::areaInContact
 (
-    const pointField& meshPoints,
+    const UList<point>& meshPoints,
     const scalarField& v
 ) const
 {
@@ -90,7 +94,7 @@ scalar face::areaInContact
     // Dimension new point list to max possible size
     const labelList& faceLabels = *this;
 
-    pointField newFacePoints(2*size());
+    List<point> newFacePoints(2*size());
     label nNewFacePoints = 0;
 
     for (label vI = 0; vI < size() - 1; vI++)
@@ -159,3 +163,5 @@ scalar face::areaInContact
 
 
 // ************************************************************************* //
+
+ } // End namespace Foam

@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -25,10 +27,10 @@ Class
     Foam::pressureInletOutletVelocityFvPatchVectorField
 
 Group
-    grpInletletBoundaryConditions grpOutletBoundaryConditions
+    grpInletBoundaryConditions grpOutletBoundaryConditions
 
 Description
-    This velocity inlet/outlet boundary condition is applied to pressure
+    This velocity inlet/outlet boundary condition is applied to velocity
     boundaries where the pressure is specified.  A zero-gradient condition is
     applied for outflow (as defined by the flux); for inflow, the velocity is
     obtained from the patch-face normal component of the internal-cell value.
@@ -49,7 +51,7 @@ Usage
         type            pressureInletOutletVelocity;
         phi             phi;
         tangentialVelocity uniform (0 0 0);
-        value           uniform 0;
+        value           uniform (0 0 0);
     }
     \endverbatim
 

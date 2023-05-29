@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2016-2018 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -27,32 +30,28 @@ License
 #include "mapPolyMesh.H"
 #include "polyMesh.H"
 #include "syncTools.H"
-
+#include "mapDistributePolyMesh.H"
 #include "addToRunTimeSelectionTable.H"
-
-// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
-
-namespace Foam
-{
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
 
-defineTypeNameAndDebug(pointSet, 0);
-
-addToRunTimeSelectionTable(topoSet, pointSet, word);
-addToRunTimeSelectionTable(topoSet, pointSet, size);
-addToRunTimeSelectionTable(topoSet, pointSet, set);
-
+namespace Foam
+{
+    defineTypeNameAndDebug(pointSet, 0);
+    addToRunTimeSelectionTable(topoSet, pointSet, word);
+    addToRunTimeSelectionTable(topoSet, pointSet, size);
+    addToRunTimeSelectionTable(topoSet, pointSet, set);
+}
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
-pointSet::pointSet(const IOobject& obj)
+Foam::pointSet::pointSet(const IOobject& obj)
 :
     topoSet(obj, typeName)
 {}
 
 
-pointSet::pointSet
+Foam::pointSet::pointSet
 (
     const polyMesh& mesh,
     const word& name,
@@ -66,7 +65,7 @@ pointSet::pointSet
 }
 
 
-pointSet::pointSet
+Foam::pointSet::pointSet
 (
     const polyMesh& mesh,
     const word& name,
@@ -78,7 +77,7 @@ pointSet::pointSet
 {}
 
 
-pointSet::pointSet
+Foam::pointSet::pointSet
 (
     const polyMesh& mesh,
     const word& name,
@@ -90,73 +89,131 @@ pointSet::pointSet
 {}
 
 
-pointSet::pointSet
+Foam::pointSet::pointSet
 (
     const polyMesh& mesh,
     const word& name,
-    const labelHashSet& set,
+    const labelHashSet& labels,
     writeOption w
 )
 :
-    topoSet(mesh, name, set, w)
+    topoSet(mesh, name, labels, w)
 {}
 
 
-// * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
+Foam::pointSet::pointSet
+(
+    const polyMesh& mesh,
+    const word& name,
+    labelHashSet&& labels,
+    writeOption w
+)
+:
+    topoSet(mesh, name, std::move(labels), w)
+{}
 
-pointSet::~pointSet()
+
+Foam::pointSet::pointSet
+(
+    const polyMesh& mesh,
+    const word& name,
+    const labelUList& labels,
+    writeOption w
+)
+:
+    topoSet(mesh, name, labels, w)
 {}
 
 
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
 
-void pointSet::sync(const polyMesh& mesh)
+void Foam::pointSet::sync(const polyMesh& mesh)
 {
+    labelHashSet& labels = *this;
+
     // Convert to boolList
+    // TBD: could change to using bitSet for the synchronization
 
-    boolList contents(mesh.nPoints(), false);
+    const label len = mesh.nPoints();
 
-    forAllConstIter(pointSet, *this, iter)
+    boolList contents(len, false);
+
+    for (const label pointi : labels)
     {
-        contents[iter.key()] = true;
+        contents.set(pointi);
     }
-    syncTools::syncPointList
-    (
-        mesh,
-        contents,
-        orEqOp<bool>(),
-        false           // null value
-    );
 
-    // Convert back to labelHashSet
+    // The nullValue = 'false'
+    syncTools::syncPointList(mesh, contents, orEqOp<bool>(), false);
 
-    labelHashSet newContents(size());
 
-    forAll(contents, pointi)
+    // Update labelHashSet
+
+    for (label pointi=0; pointi < len; ++pointi)
     {
-        if (contents[pointi])
+        if (contents.test(pointi))
         {
-            newContents.insert(pointi);
+            labels.set(pointi);
         }
     }
-
-    transfer(newContents);
 }
 
 
-label pointSet::maxSize(const polyMesh& mesh) const
+Foam::label Foam::pointSet::maxSize(const polyMesh& mesh) const
 {
     return mesh.nPoints();
 }
 
 
-void pointSet::updateMesh(const mapPolyMesh& morphMap)
+void Foam::pointSet::updateMesh(const mapPolyMesh& morphMap)
 {
     updateLabels(morphMap.reversePointMap());
 }
 
 
-void pointSet::writeDebug
+void Foam::pointSet::distribute(const mapDistributePolyMesh& map)
+{
+    labelHashSet& labels = *this;
+
+    boolList contents(map.nOldPoints(), false);
+
+    for (const label pointi : labels)
+    {
+        contents.set(pointi);
+    }
+
+    map.distributePointData(contents);
+
+    // The new length
+    const label len = contents.size();
+
+    // Count - as per BitOps::count(contents)
+    label n = 0;
+    for (label i=0; i < len; ++i)
+    {
+        if (contents.test(i))
+        {
+            ++n;
+        }
+    }
+
+
+    // Update labelHashSet
+
+    labels.clear();
+    labels.resize(2*n);
+
+    for (label i=0; i < len; ++i)
+    {
+        if (contents.test(i))
+        {
+            labels.set(i);
+        }
+    }
+}
+
+
+void Foam::pointSet::writeDebug
 (
     Ostream& os,
     const primitiveMesh& mesh,
@@ -166,8 +223,5 @@ void pointSet::writeDebug
     topoSet::writeDebug(os, mesh.points(), maxLen);
 }
 
-// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
-
-} // End namespace Foam
 
 // ************************************************************************* //

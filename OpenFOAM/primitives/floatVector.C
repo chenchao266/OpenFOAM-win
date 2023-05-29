@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -21,59 +23,60 @@ License
     You should have received a copy of the GNU General Public License
     along with OpenFOAM.  If not, see <http://www.gnu.org/licenses/>.
 
-Description
-    Vector of floats.
-
 \*---------------------------------------------------------------------------*/
 
 #include "floatVector.H"
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
-namespace Foam {
-    template<>
-    const char* const floatVector::vsType::typeName = "floatVector";
 
-    template<>
-    const char* const floatVector::vsType::componentNames[] =
-    {
-        "x", "y", "z"
-    };
 
-    template<>
-    const floatVector floatVector::vsType::_zero
-    (
-        floatVector::uniform(0)
-    );
+ namespace Foam{
+template<>
+const char* const floatVector::vsType::typeName = "floatVector";
 
-    template<>
-    const floatVector floatVector::vsType::one
-    (
-        floatVector::uniform(1)
-    );
+template<>
+const char* const floatVector::vsType::componentNames[] =
+{
+    "x", "y", "z"
+};
 
-    template<>
-    const floatVector floatVector::vsType::max
-    (
-        floatVector::uniform(floatScalarVGREAT)
-    );
+template<>
+const floatVector floatVector::vsType::zero_
+(
+    floatVector::uniform(0)
+);
 
-    template<>
-    const floatVector floatVector::vsType::min
-    (
-        floatVector::uniform(-floatScalarVGREAT)
-    );
+template<>
+const floatVector floatVector::vsType::one_
+(
+    floatVector::uniform(1)
+);
 
-    template<>
-    const floatVector floatVector::vsType::rootMax
-    (
-        floatVector::uniform(floatScalarROOTVGREAT)
-    );
+template<>
+const floatVector floatVector::vsType::max_
+(
+    floatVector::uniform(floatScalarVGREAT)
+);
 
-    template<>
-    const floatVector floatVector::vsType::rootMin
-    (
-        floatVector::uniform(-floatScalarROOTVGREAT)
-    );
+template<>
+const floatVector floatVector::vsType::min_
+(
+    floatVector::uniform(-floatScalarVGREAT)
+);
 
-}
+template<>
+const floatVector floatVector::vsType::rootMax_
+(
+    floatVector::uniform(floatScalarROOTVGREAT)
+);
+
+template<>
+const floatVector floatVector::vsType::rootMin_
+(
+    floatVector::uniform(-floatScalarROOTVGREAT)
+);
+
+
 // ************************************************************************* //
+
+ } // End namespace Foam

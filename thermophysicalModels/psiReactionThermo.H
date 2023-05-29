@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2015 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2015 OpenFOAM Foundation
+    Copyright (C) 2017-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -24,6 +27,9 @@ License
 Class
     Foam::psiReactionThermo
 
+Group
+    grpPsiThermo
+
 Description
     Foam::psiReactionThermo
 
@@ -39,11 +45,14 @@ SourceFiles
 #include "basicSpecieMixture.H"
 #include "autoPtr.H"
 #include "runTimeSelectionTables.H"
+#include "specieElement.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 namespace Foam
 {
+
+typedef HashTable<List<specieElement>> speciesCompositionTable;
 
 /*---------------------------------------------------------------------------*\
                      Class psiReactionThermo Declaration
@@ -71,6 +80,17 @@ public:
     );
 
 
+    //- Declare run-time constructor selection table for dictionary based
+    declareRunTimeSelectionTable
+    (
+        autoPtr,
+        psiReactionThermo,
+        fvMeshDictPhase,
+        (const fvMesh& mesh, const word& phaseName, const word& dictName),
+        (mesh, phaseName, dictName)
+    );
+
+
     // Constructors
 
         //- Construct from mesh and phase name
@@ -81,6 +101,15 @@ public:
         );
 
 
+        //- Construct from mesh,dictionary,phase name with a single temperature
+        psiReactionThermo
+        (
+            const fvMesh&,
+            const word& phaseName,
+            const word& dictName
+        );
+
+
     // Selectors
 
         //- Standard selection based on fvMesh
@@ -88,6 +117,15 @@ public:
         (
             const fvMesh&,
             const word& phaseName=word::null
+        );
+
+
+        //- Selector based on mesh, phase name and dictionary
+        static autoPtr<psiReactionThermo> New
+        (
+            const fvMesh&,
+            const word& phaseName,
+            const word& dictName
         );
 
 
@@ -102,6 +140,16 @@ public:
 
         //- Return the composition of the multi-component mixture
         virtual const basicSpecieMixture& composition() const = 0;
+
+        //- Table of species composition
+        autoPtr<speciesCompositionTable> specieComposition() const
+        {
+            return
+                autoPtr<speciesCompositionTable>
+                (
+                    composition().specieComposition()
+                );
+        }
 };
 
 

@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2013 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2013 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -25,10 +27,10 @@ License
 
 #include "noneGAMGProcAgglomeration.H"
 #include "addToRunTimeSelectionTable.H"
-#include "GAMGAgglomeration.T.H"
+#include "GAMGAgglomeration.H"
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
-using namespace Foam;
+
 namespace Foam
 {
     defineTypeNameAndDebug(noneGAMGProcAgglomeration, 0);
@@ -40,29 +42,31 @@ namespace Foam
         GAMGAgglomeration,
         none
     );
+
+
+
+    // * * * * * * * * * * * * * Private Member Functions  * * * * * * * * * * * //
+
+
+    // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
+
+    noneGAMGProcAgglomeration::noneGAMGProcAgglomeration
+    (
+        GAMGAgglomeration& agglom,
+        const dictionary& controlDict
+    )
+        :
+        GAMGProcAgglomeration(agglom, controlDict)
+    {}
+
+
+    // * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
+
+    noneGAMGProcAgglomeration::~noneGAMGProcAgglomeration()
+    {}
+
+
+    // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
+
 }
-
-
-// * * * * * * * * * * * * * Private Member Functions  * * * * * * * * * * * //
-
-
-// * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
-
-noneGAMGProcAgglomeration::noneGAMGProcAgglomeration
-(
-    GAMGAgglomeration& agglom,
-    const dictionary& controlDict
-) :    GAMGProcAgglomeration(agglom, controlDict)
-{}
-
-
-// * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
-
-noneGAMGProcAgglomeration::~noneGAMGProcAgglomeration()
-{}
-
-
-// * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
-
-
 // ************************************************************************* //

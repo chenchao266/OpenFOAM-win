@@ -1,9 +1,12 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2017-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -25,7 +28,7 @@ Class
     Foam::OFstream
 
 Description
-    Output to file stream.
+    Output to file stream, using an OSstream
 
 SourceFiles
     OFstream.C
@@ -36,111 +39,84 @@ SourceFiles
 #define OFstream_H
 
 #include "OSstream.H"
-#include "fileName.H"
 #include "className.H"
-
-#include <fstream>
-using std::ofstream;
+#include "fstreamPointer.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 namespace Foam
 {
 
-class OFstream;
-
-/*---------------------------------------------------------------------------*\
-                      Class OFstreamAllocator Declaration
-\*---------------------------------------------------------------------------*/
-
-//- A std::ostream with ability to handle compressed files
-class OFstreamAllocator
-{
-    friend class OFstream;
-
-    ostream* ofPtr_;
-
-    // Constructors
-
-        //- Construct from pathname
-        OFstreamAllocator
-        (
-            const fileName& pathname,
-            IOstream::compressionType compression=IOstream::UNCOMPRESSED,
-            const bool append = false
-        );
-
-    //- Destructor
-    ~OFstreamAllocator();
-
-};
-
-
 /*---------------------------------------------------------------------------*\
                           Class OFstream Declaration
 \*---------------------------------------------------------------------------*/
 
-class OFstream :    private OFstreamAllocator,
+class OFstream
+:
+    private ofstreamPointer,
     public OSstream
 {
-    // Private data
-
-        fileName pathname_;
-
-
 public:
 
-    // Declare name of the class and its debug switch
+    //- Declare type-name (with debug switch)
     ClassName("OFstream");
 
 
     // Constructors
 
+        //- Construct a null output file stream.
+        //  Behaves like \c /dev/null and is named accordingly
+        explicit OFstream(std::nullptr_t);
+
         //- Construct from pathname
-        OFstream
+        explicit OFstream
         (
             const fileName& pathname,
-            streamFormat format=ASCII,
-            versionNumber version=currentVersion,
-            compressionType compression=UNCOMPRESSED,
+            IOstreamOption streamOpt = IOstreamOption(),
             const bool append = false
         );
 
+        //- Construct from pathname, format (version, compression)
+        OFstream
+        (
+            const fileName& pathname,
+            IOstreamOption::streamFormat fmt,
+            IOstreamOption::versionNumber ver = IOstreamOption::currentVersion,
+            IOstreamOption::compressionType cmp = IOstreamOption::UNCOMPRESSED,
+            const bool append = false
+        )
+        :
+            OFstream(pathname, IOstreamOption(fmt, ver, cmp), append)
+        {}
+
 
     //- Destructor
-    ~OFstream();
+    ~OFstream() = default;
 
 
-    // Member functions
+    // Member Functions
 
-        // Access
-
-            //- Return the name of the stream
-            const fileName& name() const
-            {
-                return pathname_;
-            }
-
-            //- Return non-const access to the name of the stream
-            fileName& name()
-            {
-                return pathname_;
-            }
+        //- Read/write access to the name of the stream
+        using OSstream::name;
 
 
-        // STL stream
+    // STL stream
 
-            //- Access to underlying std::ostream
-            virtual ostream& stdStream();
+        //- Access to underlying std::ostream
+        virtual std::ostream& stdStream();
 
-            //- Const access to underlying std::ostream
-            virtual const ostream& stdStream() const;
+        //- Const access to underlying std::ostream
+        virtual const std::ostream& stdStream() const;
+
+        //- Rewind the stream so that it may be written again.
+        //- Reopens the file (truncation)
+        virtual void rewind();
 
 
-        // Print
+    // Print
 
-            //- Print description of IOstream to Ostream
-            void print(Ostream&) const;
+        //- Print stream description
+        void print(Ostream& os) const;
 };
 
 

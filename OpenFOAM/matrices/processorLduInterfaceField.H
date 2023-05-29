@@ -1,9 +1,12 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2014 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2014 OpenFOAM Foundation
+    Copyright (C) 2019 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -58,13 +61,12 @@ public:
 
     // Constructors
 
-        //- Construct given coupled patch
-        processorLduInterfaceField()
-        {}
+        //- Construct null
+        processorLduInterfaceField() = default;
 
 
     //- Destructor
-    virtual ~processorLduInterfaceField();
+    virtual ~processorLduInterfaceField() = default;
 
 
     // Member Functions
@@ -77,7 +79,7 @@ public:
             //- Return processor number
             virtual int myProcNo() const = 0;
 
-            //- Return neigbour processor number
+            //- Return neighbour processor number
             virtual int neighbProcNo() const = 0;
 
             //- Is the transform required
@@ -97,7 +99,7 @@ public:
         //- Transform given patch component field
         void transformCoupleField
         (
-            scalarField& f,
+            solveScalarField& f,
             const direction cmpt
         ) const;
 };
@@ -111,8 +113,10 @@ public:
 
 #include "tensorField.H"
 
+
+ namespace Foam{
 template<class Type>
-void Foam::processorLduInterfaceField::transformCoupleField
+void processorLduInterfaceField::transformCoupleField
 (
     Field<Type>& f
 ) const
@@ -130,9 +134,11 @@ void Foam::processorLduInterfaceField::transformCoupleField
     }
 }
 
+ } // End namespace Foam
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 #endif
 
 // ************************************************************************* //
+

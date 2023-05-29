@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2016-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -24,11 +27,12 @@ License
 \*---------------------------------------------------------------------------*/
 
 #include "displacementComponentLaplacianFvMotionSolver.H"
+#include "motionInterpolation.H"
 #include "motionDiffusivity.H"
 #include "fvmLaplacian.H"
 #include "addToRunTimeSelectionTable.H"
 #include "mapPolyMesh.H"
-#include "volPointInterpolation.H"
+#include "fvOptions.H"
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
 
@@ -67,15 +71,16 @@ displacementComponentLaplacianFvMotionSolver
             IOobject::AUTO_WRITE
         ),
         fvMesh_,
-        dimensionedScalar
-        (
-            "cellDisplacement",
-            pointDisplacement_.dimensions(),
-            0
-        ),
+        dimensionedScalar(pointDisplacement_.dimensions(), Zero),
         cellMotionBoundaryTypes<scalar>(pointDisplacement_.boundaryField())
     ),
     pointLocation_(nullptr),
+    interpolationPtr_
+    (
+        coeffDict().found("interpolation")
+      ? motionInterpolation::New(fvMesh_, coeffDict().lookup("interpolation"))
+      : motionInterpolation::New(fvMesh_)
+    ),
     diffusivityPtr_
     (
         motionDiffusivity::New(fvMesh_, coeffDict().lookup("diffusivity"))
@@ -83,20 +88,14 @@ displacementComponentLaplacianFvMotionSolver
     frozenPointsZone_
     (
         coeffDict().found("frozenPointsZone")
-      ? fvMesh_.pointZones().findZoneID(coeffDict().lookup("frozenPointsZone"))
+      ? fvMesh_.pointZones().findZoneID
+        (
+            coeffDict().get<word>("frozenPointsZone")
+        )
       : -1
     )
 {
-    Switch applyPointLocation
-    (
-        coeffDict().lookupOrDefault
-        (
-            "applyPointLocation",
-            true
-        )
-    );
-
-    if (applyPointLocation)
+    if (coeffDict().getOrDefault("applyPointLocation", true))
     {
         pointLocation_.reset
         (
@@ -140,13 +139,13 @@ Foam::displacementComponentLaplacianFvMotionSolver::
 Foam::tmp<Foam::pointField>
 Foam::displacementComponentLaplacianFvMotionSolver::curPoints() const
 {
-    volPointInterpolation::New(fvMesh_).interpolate
+    interpolationPtr_->interpolate
     (
         cellDisplacement_,
         pointDisplacement_
     );
 
-    if (pointLocation_.valid())
+    if (pointLocation_)
     {
         if (debug)
         {
@@ -225,15 +224,26 @@ void Foam::displacementComponentLaplacianFvMotionSolver::solve()
     diffusivityPtr_->correct();
     pointDisplacement_.boundaryFieldRef().updateCoeffs();
 
-    Foam::solve
+    fv::options& fvOptions(fv::options::New(fvMesh_));
+
+    // We explicitly do NOT want to interpolate the motion inbetween
+    // different regions so bypass all the matrix manipulation.
+    fvScalarMatrix TEqn
     (
         fvm::laplacian
         (
-            diffusivityPtr_->operator()(),
+            dimensionedScalar("viscosity", dimViscosity, 1.0)
+           *diffusivityPtr_->operator()(),
             cellDisplacement_,
             "laplacian(diffusivity,cellDisplacement)"
         )
+     ==
+        fvOptions(cellDisplacement_)
     );
+
+    fvOptions.constrain(TEqn);
+    TEqn.solveSegregatedOrCoupled(TEqn.solverDict());
+    fvOptions.correct(cellDisplacement_);
 }
 
 

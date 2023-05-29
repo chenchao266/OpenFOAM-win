@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2018 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -33,18 +36,18 @@ Description
 
 Usage
     \table
-        Property     | Description             | Required    | Default value
-        fieldName    | name of field to be mapped | no       | this field name
-        setAverage   | flag to activate setting of average value | yes |
-        average      | average value to apply if \c setAverage = yes | yes |
+        Property     | Description                      | Required    | Default
+        field        | name of field to be mapped       | no  | this field name
+        setAverage   | Use average value                | no  | false
+        average      | Average value to use if \c setAverage = yes | partly |
     \endtable
 
     \verbatim
     <patchName>
     {
         type            mappedFixedInternalValue;
-        fieldName       T;
-        setAverage      no;
+        field           T;
+        setAverage      false;
         average         0;
         value           uniform 0;
     }
@@ -155,13 +158,11 @@ public:
 
     // Member functions
 
-        // Evaluation functions
-
-            //- Update the coefficients associated with the patch field
-            virtual void updateCoeffs();
+        //- Update the coefficients associated with the patch field
+        virtual void updateCoeffs();
 
         //- Write
-        virtual void write(Ostream&) const;
+        virtual void write(Ostream& os) const;
 };
 
 

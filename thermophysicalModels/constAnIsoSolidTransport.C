@@ -1,9 +1,11 @@
-﻿/*---------------------------------------------------------------------------*\
+/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -23,7 +25,7 @@ License
 
 \*---------------------------------------------------------------------------*/
 
-//#include "constAnIsoSolidTransport.H"
+#include "constAnIsoSolidTransport.H"
 #include "IOstreams.H"
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
@@ -35,7 +37,7 @@ Foam::constAnIsoSolidTransport<Thermo>::constAnIsoSolidTransport
 )
 :
     Thermo(dict),
-    kappa_(dict.subDict("transport").lookup("kappa"))
+    kappa_(dict.subDict("transport").get<vector>("kappa"))
 {}
 
 
@@ -49,9 +51,12 @@ void Foam::constAnIsoSolidTransport<Thermo>::constAnIsoSolidTransport::write
 {
     Thermo::write(os);
 
-    dictionary dict("transport");
-    dict.add("kappa", kappa_);
-    os  << indent << dict.dictName() << dict;
+    // Entries in dictionary format
+    {
+        os.beginBlock("transport");
+        os.writeEntry("kappa", kappa_);
+        os.endBlock();
+    }
 }
 
 

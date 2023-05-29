@@ -1,9 +1,12 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2019-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -28,7 +31,7 @@ Description
     System bool
 
 SourceFiles
-    boolIO.C
+    bool.C
 
 \*---------------------------------------------------------------------------*/
 
@@ -40,15 +43,20 @@ SourceFiles
 namespace Foam
 {
 
+// Forward Declarations
 class Istream;
 class Ostream;
 
-// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+// IOstream Operators
 
-Istream& operator>>(Istream&, bool&);
-Ostream& operator<<(Ostream&, const bool);
+//- Read bool from stream using Foam::Switch(Istream&)
+Istream& operator>>(Istream& is, bool& b);
 
-bool readBool(Istream&);
+//- Write bool to a stream as an label (integer) value
+Ostream& operator<<(Ostream& os, const bool b);
+
+//- Read bool from stream using Foam::Switch(Istream&)
+bool readBool(Istream& is);
 
 } // End namespace Foam
 
@@ -61,7 +69,7 @@ bool readBool(Istream&);
 namespace Foam
 {
 
-// template specialisation for pTraits<bool>
+// Template specialisation for pTraits<bool>
 template<>
 class pTraits<bool>
 {
@@ -69,48 +77,54 @@ class pTraits<bool>
 
 public:
 
-    //- Component type
-    typedef bool cmptType;
+    // Typedefs
 
-    // Member constants
+        //- Component type
+        typedef bool cmptType;
+
+        //- Magnitude type
+        typedef bool magType;
+
+
+    // Member Constants
 
         //- Dimensionality of space
-        static const direction dim = 3;
+        static constexpr direction dim = 3;
 
         //- Rank of bool is 0
-        static const direction rank = 0;
+        static constexpr direction rank = 0;
 
         //- Number of components in bool is 1
-        static const direction nComponents = 1;
+        static constexpr direction nComponents = 1;
 
 
-    // Static data members
+    // Static Data Members
 
         static const char* const typeName;
         static const char* const componentNames[];
-        static const bool _zero;
-        static const bool one;
+        static const bool zero_;
+        static const bool one_;
 
 
     // Constructors
 
-        //- Construct from primitive
-        explicit pTraits(const bool&);
+        //- Copy construct from primitive
+        explicit pTraits(const bool& p) noexcept;
 
-        //- Construct from Istream
-        pTraits(Istream&);
+        //- Read construct from Istream
+        explicit pTraits(Istream& is);
 
 
     // Member Functions
 
-        //- Access to the bool value
-        operator bool() const
+        //- Access to the value
+        operator bool() const noexcept
         {
             return p_;
         }
 
-        //- Access to the bool value
-        operator bool&()
+        //- Access to the value
+        operator bool&() noexcept
         {
             return p_;
         }

@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -23,7 +25,7 @@ License
 
 \*---------------------------------------------------------------------------*/
 
-//#include "patchProbes.H"
+#include "patchProbes.H"
 #include "volFields.H"
 #include "IOmanip.H"
 
@@ -45,7 +47,7 @@ void Foam::patchProbes::sampleAndWrite
 
         probeStream
             << setw(w)
-            << vField.time().timeToUserTime(vField.time().value());
+            << vField.time().timeOutputValue();
 
         forAll(values, probei)
         {
@@ -71,7 +73,7 @@ void Foam::patchProbes::sampleAndWrite
 
         probeStream
             << setw(w)
-            << sField.time().timeToUserTime(sField.time().value());
+            << sField.time().timeOutputValue();
 
         forAll(values, probei)
         {
@@ -115,7 +117,7 @@ void Foam::patchProbes::sampleAndWrite
 
             if
             (
-                iter != objectRegistry::end()
+                iter.found()
              && iter()->type()
              == GeometricField<Type, fvPatchField, volMesh>::typeName
             )
@@ -167,7 +169,7 @@ void Foam::patchProbes::sampleAndWriteSurfaceFields
 
             if
             (
-                iter != objectRegistry::end()
+                iter.found()
              && iter()->type()
              == GeometricField<Type, fvsPatchField, surfaceMesh>::typeName
             )
@@ -195,7 +197,7 @@ Foam::patchProbes::sample
     const GeometricField<Type, fvPatchField, volMesh>& vField
 ) const
 {
-    const Type unsetVal(-VGREAT*pTraits<Type>::one);
+    const Type unsetVal(-VGREAT*pTraits<Type>::one_);
 
     tmp<Field<Type>> tValues
     (
@@ -208,7 +210,7 @@ Foam::patchProbes::sample
 
     forAll(*this, probei)
     {
-        label facei = elementList_[probei];
+        label facei = faceList_[probei];
 
         if (facei >= 0)
         {
@@ -246,7 +248,7 @@ Foam::patchProbes::sample
     const GeometricField<Type, fvsPatchField, surfaceMesh>& sField
 ) const
 {
-    const Type unsetVal(-VGREAT*pTraits<Type>::one);
+    const Type unsetVal(-VGREAT*pTraits<Type>::one_);
 
     tmp<Field<Type>> tValues
     (
@@ -259,7 +261,7 @@ Foam::patchProbes::sample
 
     forAll(*this, probei)
     {
-        label facei = elementList_[probei];
+        label facei = faceList_[probei];
 
         if (facei >= 0)
         {
@@ -274,4 +276,6 @@ Foam::patchProbes::sample
 
     return tValues;
 }
+
+
 // ************************************************************************* //

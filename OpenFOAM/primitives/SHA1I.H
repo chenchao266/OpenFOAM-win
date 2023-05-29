@@ -1,9 +1,12 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011 OpenFOAM Foundation
+    Copyright (C) 2019-2022 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -24,20 +27,14 @@ License
 \*---------------------------------------------------------------------------*/
 
 //#include "SHA1.H"
-#include <cstring>
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
-namespace Foam {
+
+
+ namespace Foam{
 inline SHA1::SHA1()
 {
     clear();
-}
-
-
-inline SHA1::SHA1(const std::string& str)
-{
-    clear();
-    append(str);
 }
 
 
@@ -48,7 +45,20 @@ inline SHA1::SHA1(const char* str)
 }
 
 
+inline SHA1::SHA1(const std::string& str)
+{
+    clear();
+    append(str);
+}
+
+
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
+
+inline void SHA1::append(char c)
+{
+    processBytes(&c, 1);
+}
+
 
 inline SHA1& SHA1::append(const char* data, size_t len)
 {
@@ -57,24 +67,85 @@ inline SHA1& SHA1::append(const char* data, size_t len)
 }
 
 
-inline SHA1& SHA1::append(const std::string& str)
-{
-    processBytes(str.data(), str.size());
-    return *this;
-}
-
-
 inline SHA1& SHA1::append(const char* str)
 {
-    if (str)
+    if (str && *str)
     {
-        processBytes(str, strlen(str));
+        processBytes(str, std::char_traits<char>::length(str));
     }
     return *this;
 }
 
 
+inline SHA1& SHA1::append(const std::string& str)
+{
+    processBytes(str.data(), str.length());
+    return *this;
+}
+
+
+inline SHA1& SHA1::append
+(
+    const std::string& str,
+    size_t pos,
+    size_t len
+)
+{
+    if (std::string::npos != pos && pos < str.length())
+    {
+        if (std::string::npos == len || pos + len > str.length())
+        {
+            len = str.length() - pos;
+        }
+
+        processBytes(str.data() + pos, len);
+    }
+
+    return *this;
+}
+
+
+inline SHA1Digest SHA1::digest() const
+{
+    SHA1Digest dig;
+
+    if (finalized_)
+    {
+        calcDigest(dig);
+    }
+    else
+    {
+        // Avoid disturbing current data - use a copy
+        SHA1 sha(*this);
+        if (sha.finalize())
+        {
+            sha.calcDigest(dig);
+        }
+    }
+
+    return dig;
+}
+
+
+inline std::string SHA1::str(const bool prefixed) const
+{
+    return digest().str(prefixed);
+}
+
+
+inline Ostream& SHA1::write(Ostream& os, const bool prefixed) const
+{
+    return digest().write(os, prefixed);
+}
+
+
 // * * * * * * * * * * * * * * * Member Operators  * * * * * * * * * * * * * //
+
+inline SHA1::operator SHA1Digest() const
+{
+    return digest();
+}
+
 
 inline bool SHA1::operator==(const SHA1& rhs) const
 {
@@ -82,9 +153,9 @@ inline bool SHA1::operator==(const SHA1& rhs) const
 }
 
 
-inline bool SHA1::operator==(const SHA1Digest& rhs) const
+inline bool SHA1::operator==(const SHA1Digest& dig) const
 {
-    return this->digest() == rhs;
+    return this->digest() == dig;
 }
 
 
@@ -124,18 +195,14 @@ inline bool SHA1::operator!=(const char* rhs) const
 }
 
 
-inline SHA1::operator SHA1Digest() const
-{
-    return digest();
-}
-
-
 // * * * * * * * * * * * * * * * Ostream Operator  * * * * * * * * * * * * * //
 
 inline Ostream& operator<<(Ostream& os, const SHA1& sha)
 {
-    return os  << sha.digest();
+    return sha.write(os);
 }
 
-}
+
 // ************************************************************************* //
+
+ } // End namespace Foam

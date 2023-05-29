@@ -1,9 +1,11 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2015 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2015 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -81,7 +83,7 @@ Foam::radiation::absorptionEmissionModel::aCont(const label bandI) const
                 false
             ),
             mesh_,
-            dimensionedScalar("zero", dimless/dimLength, 0.0)
+            dimensionedScalar(dimless/dimLength, Zero)
         )
     );
 }
@@ -104,7 +106,7 @@ Foam::radiation::absorptionEmissionModel::aDisp(const label bandI) const
                 false
             ),
             mesh_,
-            dimensionedScalar("zero", dimless/dimLength, 0.0)
+            dimensionedScalar(dimless/dimLength, Zero)
         )
     );
 }
@@ -134,7 +136,7 @@ Foam::radiation::absorptionEmissionModel::eCont(const label bandI) const
                 false
             ),
             mesh_,
-            dimensionedScalar("zero", dimless/dimLength, 0.0)
+            dimensionedScalar(dimless/dimLength, Zero)
         )
     );
 }
@@ -157,7 +159,7 @@ Foam::radiation::absorptionEmissionModel::eDisp(const label bandI) const
                 false
             ),
             mesh_,
-            dimensionedScalar("zero", dimless/dimLength, 0.0)
+            dimensionedScalar(dimless/dimLength, Zero)
         )
     );
 }
@@ -187,7 +189,7 @@ Foam::radiation::absorptionEmissionModel::ECont(const label bandI) const
                 false
             ),
             mesh_,
-            dimensionedScalar("zero", dimMass/dimLength/pow3(dimTime), 0.0)
+            dimensionedScalar(dimMass/dimLength/pow3(dimTime), Zero)
         )
     );
 }
@@ -210,7 +212,7 @@ Foam::radiation::absorptionEmissionModel::EDisp(const label bandI) const
                 false
             ),
             mesh_,
-            dimensionedScalar("zero", dimMass/dimLength/pow3(dimTime), 0.0)
+            dimensionedScalar(dimMass/dimLength/pow3(dimTime), Zero)
         )
     );
 }
@@ -218,14 +220,14 @@ Foam::radiation::absorptionEmissionModel::EDisp(const label bandI) const
 
 Foam::label Foam::radiation::absorptionEmissionModel::nBands() const
 {
-    return pTraits<label>::one;
+    return pTraits<label>::one_;
 }
 
 
 const Foam::Vector2D<Foam::scalar>&
 Foam::radiation::absorptionEmissionModel::bands(const label n) const
 {
-    return Vector2D<scalar>::one;
+    return Vector2D<scalar>::one_;
 }
 
 

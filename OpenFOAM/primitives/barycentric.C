@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2017 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -23,13 +26,14 @@ License
 
 \*---------------------------------------------------------------------------*/
 
-#include "barycentric.H"
+#include "barycentric2.H"
 #include "Random.H"
-#include "cachedRandom.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
-using namespace Foam;
-barycentric barycentric01
+
+
+ namespace Foam{
+static inline barycentric barycentric01Impl
 (
     scalar s,
     scalar t,
@@ -70,26 +74,14 @@ barycentric barycentric01
 
 barycentric barycentric01(Random& rndGen)
 {
-    return
-        ::barycentric01
-        (
-            rndGen.scalar01(),
-            rndGen.scalar01(),
-            rndGen.scalar01()
-        );
-}
+    const scalar s(rndGen.sample01<scalar>());
+    const scalar t(rndGen.sample01<scalar>());
+    const scalar u(rndGen.sample01<scalar>());
 
-
-barycentric barycentric01(cachedRandom& rndGen)
-{
-    return
-        ::barycentric01
-        (
-            rndGen.sample01<scalar>(),
-            rndGen.sample01<scalar>(),
-            rndGen.sample01<scalar>()
-        );
+    return barycentric01Impl(s, t, u);
 }
 
 
 // ************************************************************************* //
+
+ } // End namespace Foam

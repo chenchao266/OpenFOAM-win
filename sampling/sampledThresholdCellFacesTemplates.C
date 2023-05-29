@@ -1,9 +1,12 @@
-﻿/*---------------------------------------------------------------------------*\
+/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2018-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -23,7 +26,7 @@ License
 
 \*---------------------------------------------------------------------------*/
 
-//#include "sampledThresholdCellFaces.H"
+#include "sampledThresholdCellFaces.H"
 
 #include "thresholdCellFaces.H"
 #include "volFieldsFwd.H"
@@ -34,55 +37,39 @@ License
 
 template<class Type>
 Foam::tmp<Foam::Field<Type>>
-Foam::sampledThresholdCellFaces::sampleField
+Foam::sampledThresholdCellFaces::sampleOnFaces
 (
-    const GeometricField<Type, fvPatchField, volMesh>& vField
+    const interpolation<Type>& sampler
 ) const
 {
-    // Recreate geometry if time has changed
-    updateGeometry();
+    updateGeometry();  // Recreate geometry if time has changed
 
-    return tmp<Field<Type>>(new Field<Type>(vField, meshCells_));
+    return sampledSurface::sampleOnFaces
+    (
+        sampler,
+        meshCells_,
+        faces(),
+        points()
+    );
 }
 
 
 template<class Type>
 Foam::tmp<Foam::Field<Type>>
-Foam::sampledThresholdCellFaces::interpolateField
+Foam::sampledThresholdCellFaces::sampleOnPoints
 (
     const interpolation<Type>& interpolator
 ) const
 {
-    // Recreate geometry if time has changed
-    updateGeometry();
+    updateGeometry();  // Recreate geometry if time has changed
 
-    // One value per point
-    tmp<Field<Type>> tvalues(new Field<Type>(points().size()));
-    Field<Type>& values = tvalues.ref();
-
-    boolList pointDone(points().size(), false);
-
-    forAll(faces(), cutFacei)
-    {
-        const face& f = faces()[cutFacei];
-
-        forAll(f, faceVertI)
-        {
-            label pointi = f[faceVertI];
-
-            if (!pointDone[pointi])
-            {
-                values[pointi] = interpolator.interpolate
-                (
-                    points()[pointi],
-                    meshCells_[cutFacei]
-                );
-                pointDone[pointi] = true;
-            }
-        }
-    }
-
-    return tvalues;
+    return sampledSurface::sampleOnPoints
+    (
+        interpolator,
+        meshCells_,
+        faces(),
+        points()
+    );
 }
 
 

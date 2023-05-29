@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2013-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2013-2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -111,11 +113,11 @@ protected:
             const List<DynamicList<label>>& tgtToSrc
         ) const;
 
-        //- Disallow default bitwise copy construct
-        mapNearestMethod(const mapNearestMethod&);
+        //- No copy construct
+        mapNearestMethod(const mapNearestMethod&) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const mapNearestMethod&);
+        //- No copy assignment
+        void operator=(const mapNearestMethod&) = delete;
 
 
 public:
@@ -134,13 +136,15 @@ public:
 
         // Evaluate
 
-            //- Calculate addressing and weights
+            //- Calculate addressing and weights and optionally offset vectors
             virtual void calculate
             (
                 labelListList& srcToTgtAddr,
                 scalarListList& srcToTgtWght,
-                labelListList& tgtToTgtAddr,
-                scalarListList& tgtToTgtWght
+                pointListList& srcToTgtVec,
+                labelListList& tgtToSrcAddr,
+                scalarListList& tgtToSrcWght,
+                pointListList& tgtToSrcVec
             );
 };
 

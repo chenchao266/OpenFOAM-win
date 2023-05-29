@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2012-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2012-2017 OpenFOAM Foundation
+    Copyright (C) 2019-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -31,169 +34,161 @@ License
 template<class ChemistryModel>
 Foam::autoPtr<ChemistryModel> Foam::basicChemistryModel::New
 (
-    const fvMesh& mesh,
-    const word& phaseName
+    typename ChemistryModel::reactionThermo& thermo
 )
 {
-    IOdictionary chemistryDict
+    const IOdictionary chemistryDict
     (
         IOobject
         (
-            IOobject::groupName("chemistryProperties", phaseName),
-            mesh.time().constant(),
-            mesh,
+            thermo.phasePropertyName("chemistryProperties"),
+            thermo.db().time().constant(),
+            thermo.db(),
             IOobject::MUST_READ,
             IOobject::NO_WRITE,
-            false
+            false // Do not register
         )
     );
 
-    word chemistryTypeName;
-
-    if (chemistryDict.isDict("chemistryType"))
+    if (!chemistryDict.isDict("chemistryType"))
     {
-        const dictionary& chemistryTypeDict
+        FatalErrorInFunction
+            << "Template parameter based chemistry solver selection is no "
+            << "longer supported. Please create a chemistryType dictionary"
+            << "instead." << endl << endl << "For example, the entry:" << endl
+            << "    chemistrySolver ode<StandardChemistryModel<"
+            << "rhoChemistryModel,sutherlandspecie<janaf<perfectGas>,"
+            << "sensibleInternalEnergy>>" << endl << endl << "becomes:" << endl
+            << "    chemistryType" << endl << "    {" << endl
+            << "        solver ode;" << endl << "        method standard;"
+            << endl << "    }" << exit(FatalError);
+    }
+
+    const dictionary& chemistryTypeDict =
+        chemistryDict.subDict("chemistryType");
+
+    const word solverName
+    (
+        chemistryTypeDict.getCompat<word>
         (
-            chemistryDict.subDict("chemistryType")
+            "solver",
+            {{"chemistrySolver", -1712}}
+        )
+    );
+
+    const word methodName
+    (
+        chemistryTypeDict.getOrDefault<word>
+        (
+            "method",
+            chemistryTypeDict.getOrDefault<bool>("TDAC", false)
+          ? "TDAC"
+          : "standard"
+        )
+    );
+
+    {
+        dictionary chemistryTypeDictNew;
+
+        chemistryTypeDictNew.add("solver", solverName);
+        chemistryTypeDictNew.add("method", methodName);
+
+        Info<< "Selecting chemistry solver " << chemistryTypeDictNew << endl;
+    }
+
+    const word chemSolverCompThermoName
+    (
+        solverName + '<' + methodName + '<'
+      + ChemistryModel::reactionThermo::typeName + ','
+      + thermo.thermoName() + ">>"
+    );
+
+
+    const auto& cnstrTable = *(ChemistryModel::thermoConstructorTablePtr_);
+
+    auto* ctorPtr = cnstrTable.lookup(chemSolverCompThermoName, nullptr);
+
+    if (!ctorPtr)
+    {
+        const wordList names(cnstrTable.sortedToc());
+
+        constexpr const int nCmpt = 8;
+
+        DynamicList<word> thisCmpts(6);
+        thisCmpts.append(ChemistryModel::reactionThermo::typeName);
+        thisCmpts.append
+        (
+            basicThermo::splitThermoName(thermo.thermoName(), 5)
         );
 
-        Info<< "Selecting chemistry type " << chemistryTypeDict << endl;
-
-        const int nCmpt = 7;
-        const char* cmptNames[nCmpt] =
-        {
-            "chemistrySolver",
-            "chemistryThermo",
-            "transport",
-            "thermo",
-            "equationOfState",
-            "specie",
-            "energy"
-        };
-
-        IOdictionary thermoDict
+        DynamicList<wordList> validNames;
+        validNames.append
         (
-            IOobject
-            (
-                IOobject::groupName(basicThermo::dictName, phaseName),
-                mesh.time().constant(),
-                mesh,
-                IOobject::MUST_READ_IF_MODIFIED,
-                IOobject::NO_WRITE,
-                false
-            )
+            // Header
+            wordList({"solver", "method"})
         );
 
-        word thermoTypeName;
+        DynamicList<wordList> validCmpts(names.size() + 1);
+        validCmpts.append
+        (
+            // Header
+            wordList
+            ({
+                "solver",
+                "method",
+                "reactionThermo",
+                "transport",
+                "thermo",
+                "equationOfState",
+                "specie",
+                "energy"
+            })
+        );
 
-        if (thermoDict.isDict("thermoType"))
+        for (const word& validName : names)
         {
-            const dictionary& thermoTypeDict(thermoDict.subDict("thermoType"));
-            thermoTypeName =
-                word(thermoTypeDict.lookup("transport")) + '<'
-              + word(thermoTypeDict.lookup("thermo")) + '<'
-              + word(thermoTypeDict.lookup("equationOfState")) + '<'
-              + word(thermoTypeDict.lookup("specie")) + ">>,"
-              + word(thermoTypeDict.lookup("energy")) + ">";
-        }
-        else
-        {
-            FatalIOErrorInFunction(thermoDict)
-                << "thermoType is in the old format and must be upgraded"
-                << exit(FatalIOError);
-        }
+            wordList cmpts(basicThermo::splitThermoName(validName, nCmpt));
 
-        Switch isTDAC(chemistryTypeDict.lookupOrDefault("TDAC", false));
-
-        // Construct the name of the chemistry type from the components
-        if (isTDAC)
-        {
-            chemistryTypeName =
-                word(chemistryTypeDict.lookup("chemistrySolver")) + '<'
-              + "TDACChemistryModel<"
-              + word(chemistryTypeDict.lookup("chemistryThermo")) + ','
-              + thermoTypeName + ">>";
-        }
-        else
-        {
-            chemistryTypeName =
-                word(chemistryTypeDict.lookup("chemistrySolver")) + '<'
-              + "chemistryModel<"
-              + word(chemistryTypeDict.lookup("chemistryThermo")) + ','
-              + thermoTypeName + ">>";
+            if (!cmpts.empty())
+            {
+                if (thisCmpts == SubList<word>(cmpts, 6, 2))
+                {
+                    validNames.append(SubList<word>(cmpts, 2));
+                }
+                validCmpts.append(std::move(cmpts));
+            }
         }
 
-        typename ChemistryModel::fvMeshConstructorTable::iterator cstrIter =
-            ChemistryModel::fvMeshConstructorTablePtr_->find(chemistryTypeName);
+        FatalErrorInFunction
+            << "Unknown " << typeName_() << " type " << solverName << nl << nl;
 
-        if (cstrIter == ChemistryModel::fvMeshConstructorTablePtr_->end())
+        if (validNames.size() > 1)
         {
-            FatalErrorInFunction
-                << "Unknown " << ChemistryModel::typeName << " type " << nl
-                << "chemistryType" << chemistryTypeDict << nl << nl
-                << "Valid " << ChemistryModel ::typeName << " types are:"
+            FatalError
+                << "All " << validNames[0][0] << '/' << validNames[0][1]
+                << " combinations for this thermodynamic model:"
                 << nl << nl;
 
-            // Get the list of all the suitable chemistry packages available
-            wordList validChemistryTypeNames
-            (
-                ChemistryModel::fvMeshConstructorTablePtr_->sortedToc()
-            );
-
-            // Build a table of the thermo packages constituent parts
-            // Note: row-0 contains the names of constituent parts
-            List<wordList> validChemistryTypeNameCmpts
-            (
-                validChemistryTypeNames.size() + 1
-            );
-
-            validChemistryTypeNameCmpts[0].setSize(nCmpt);
-            forAll(validChemistryTypeNameCmpts[0], j)
-            {
-                validChemistryTypeNameCmpts[0][j] = cmptNames[j];
-            }
-
-            // Split the thermo package names into their constituent parts
-            forAll(validChemistryTypeNames, i)
-            {
-                validChemistryTypeNameCmpts[i+1] = basicThermo::splitThermoName
-                (
-                    validChemistryTypeNames[i],
-                    nCmpt
-                );
-            }
-
-            // Print the table of available packages
-            // in terms of their constituent parts
-            printTable(validChemistryTypeNameCmpts, FatalError);
-
-            FatalError<< exit(FatalError);
+            // Table of available packages (as constituent parts)
+            printTable(validNames, FatalError) << nl;
         }
 
-        return autoPtr<ChemistryModel>(cstrIter()(mesh, phaseName));
-    }
-    else
-    {
-        chemistryTypeName =
-            word(chemistryDict.lookup("chemistryType"));
-
-        Info<< "Selecting chemistry type " << chemistryTypeName << endl;
-
-        typename ChemistryModel::fvMeshConstructorTable::iterator cstrIter =
-            ChemistryModel::fvMeshConstructorTablePtr_->find(chemistryTypeName);
-
-        if (cstrIter == ChemistryModel::fvMeshConstructorTablePtr_->end())
+        if (validCmpts.size() > 1)
         {
-            FatalErrorInFunction
-                << "Unknown " << ChemistryModel::typeName << " type "
-                << chemistryTypeName << nl << nl
-                << "Valid ChemistryModel types are:" << nl
-                << ChemistryModel::fvMeshConstructorTablePtr_->sortedToc() << nl
-                << exit(FatalError);
+            FatalError
+                << "All " << validCmpts[0][0] << '/' << validCmpts[0][1] << '/'
+                << validCmpts[0][2] << "/thermoPhysics combinations:"
+                << nl << nl;
+
+            // Table of available packages (as constituent parts)
+            printTable(validCmpts, FatalError) << nl;
         }
 
-        return autoPtr<ChemistryModel>(cstrIter()(mesh, phaseName));
+        FatalError
+            << exit(FatalError);
     }
+
+    return autoPtr<ChemistryModel>(ctorPtr(thermo));
 }
 
 // ************************************************************************* //

@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -55,8 +57,8 @@ lennardJones::lennardJones
 :
     pairPotential(name, pairPotentialProperties),
     lennardJonesCoeffs_(pairPotentialProperties.subDict(typeName + "Coeffs")),
-    sigma_(readScalar(lennardJonesCoeffs_.lookup("sigma"))),
-    epsilon_(readScalar(lennardJonesCoeffs_.lookup("epsilon")))
+    sigma_(lennardJonesCoeffs_.get<scalar>("sigma")),
+    epsilon_(lennardJonesCoeffs_.get<scalar>("epsilon"))
 {
     setLookupTables();
 }
@@ -82,8 +84,8 @@ bool lennardJones::read(const dictionary& pairPotentialProperties)
 
     lennardJonesCoeffs_ = pairPotentialProperties.subDict(typeName + "Coeffs");
 
-    lennardJonesCoeffs_.lookup("sigma") >> sigma_;
-    lennardJonesCoeffs_.lookup("epsilon") >> epsilon_;
+    lennardJonesCoeffs_.readEntry("sigma", sigma_);
+    lennardJonesCoeffs_.readEntry("epsilon", epsilon_);
 
     return true;
 }

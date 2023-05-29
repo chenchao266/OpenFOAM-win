@@ -1,9 +1,12 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2014 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2014 OpenFOAM Foundation
+    Copyright (C) 2018-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -37,6 +40,7 @@ Description
 #define label_H
 
 #include "int.H"
+#include "labelFwd.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -44,10 +48,7 @@ Description
 #define INT_ADD_DEF_SIZE(x,s,y) INT_ADD_SIZE(x,s,y)
 #define INT_SIZE(x,y) INT_ADD_DEF_SIZE(x,WM_LABEL_SIZE,y)
 
-#if WM_LABEL_SIZE != 32 && WM_LABEL_SIZE != 64
-    #error "label.H: WM_LABEL_SIZE must be set to either 32 or 64"
-#endif
-
+// Size checks and typedefs (label) in labelFwd.H
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -56,15 +57,58 @@ namespace Foam
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
-typedef INT_SIZE(int, _t) label;
+constexpr label labelMin = INT_SIZE(INT, _MIN);
+constexpr label labelMax = INT_SIZE(INT, _MAX);
 
-static const label labelMin = INT_SIZE(INT, _MIN);
-static const label labelMax = INT_SIZE(INT, _MAX);
+//- Parse entire buffer as a label, skipping leading/trailing whitespace.
+//  Uses readInt32 or readInt64 according to WM_LABEL_SIZE
+//  \return Parsed value or FatalIOError on any problem
+inline label readLabel(const char* buf)
+{
+    return INT_SIZE(readInt,) (buf);
+}
 
+//- Parse entire string as a label, skipping leading/trailing whitespace.
+//  Uses readInt32 or readInt64 according to WM_LABEL_SIZE
+//  \return Parsed value or FatalIOError on any problem
+inline label readLabel(const std::string& str)
+{
+    return INT_SIZE(readInt,) (str);
+}
+
+//- Parse entire buffer as a label, skipping leading/trailing whitespace.
+//  Uses readInt32 or readInt64 according to WM_LABEL_SIZE
+//  \return True if successful.
+inline bool readLabel(const char* buf, label& val)
+{
+    return INT_SIZE(readInt,) (buf, val);
+}
+
+//- Parse entire string as a label, skipping leading/trailing whitespace.
+//  Uses readInt32 or readInt64 according to WM_LABEL_SIZE
+//  \return True if successful.
+inline bool readLabel(const std::string& str, label& val)
+{
+    return INT_SIZE(readInt,) (str, val);
+}
+
+
+//- Read label from stream.
+//  Uses readInt32 or readInt64 according to WM_LABEL_SIZE
 inline label readLabel(Istream& is)
 {
     return INT_SIZE(readInt,) (is);
 }
+
+//- Read raw label from binary stream.
+//  \note No internal check for binary vs ascii,
+//        the caller knows what they are doing
+label readRawLabel(Istream& is);
+
+//- Read raw label(s) from binary stream.
+//  \note No internal check for binary vs ascii,
+//        the caller knows what they are doing
+void readRawLabel(Istream& is, label* data, size_t nElem = 1);
 
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
@@ -85,6 +129,59 @@ inline label component(const label l, const direction)
 {
     return l;
 }
+
+
+/*---------------------------------------------------------------------------*\
+                          Struct labelOp Declaration
+\*---------------------------------------------------------------------------*/
+
+//- Conversion/extraction to label operation
+//  Specialization of this shall provide a corresponding \c operator().
+template<class> struct labelOp;
+
+//- Convert (likely promote) from int32_t to label
+template<>
+struct labelOp<int32_t>
+{
+    constexpr label operator()(const int32_t& val) const noexcept
+    {
+        return val;
+    }
+};
+
+
+//- Convert (possibly truncate) from int64_t to label
+template<>
+struct labelOp<int64_t>
+{
+    constexpr label operator()(const int64_t& val) const noexcept
+    {
+        #if WM_LABEL_SIZE == 32
+        return label(val);
+        #elif WM_LABEL_SIZE == 64
+        return val;
+        #endif
+    }
+};
+
+
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+// Type conversions (narrowing)
+
+//- Type narrowing from int64_t to int32_t
+//  Overflow: silently fix, or raise error?
+inline int32_t narrowInt32(const int64_t val)
+{
+    // Single statement - future constexpr?
+    return
+    (
+        (val < INT32_MIN) ? INT32_MIN
+      : (val > INT32_MAX) ? INT32_MAX
+      : static_cast<int32_t>(val)
+    );
+}
+
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 

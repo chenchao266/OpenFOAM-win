@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2015 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -27,7 +30,6 @@ License
 #include "addToRunTimeSelectionTable.H"
 #include "unitConversion.H"
 #include "extrapolatedCalculatedFvPatchFields.H"
-
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
 
@@ -54,10 +56,10 @@ greyMeanSolidAbsorptionEmission::X(const word specie) const
     const volScalarField& T = thermo_.T();
     const volScalarField& p = thermo_.p();
 
-    tmp<scalarField> tXj(new scalarField(T.primitiveField().size(), 0.0));
+    tmp<scalarField> tXj(new scalarField(T.primitiveField().size(), Zero));
     scalarField& Xj = tXj.ref();
 
-    tmp<scalarField> tRhoInv(new scalarField(T.primitiveField().size(), 0.0));
+    tmp<scalarField> tRhoInv(new scalarField(T.primitiveField().size(), Zero));
     scalarField& rhoInv = tRhoInv.ref();
 
     forAll(mixture_.Y(), specieI)
@@ -106,14 +108,16 @@ greyMeanSolidAbsorptionEmission
     label nFunc = 0;
     const dictionary& functionDicts = dict.optionalSubDict(typeName + "Coeffs");
 
-    forAllConstIter(dictionary, functionDicts, iter)
+    for (const entry& dEntry : functionDicts)
     {
-        // safety:
-        if (!iter().isDict())
+        if (!dEntry.isDict())  // safety
         {
             continue;
         }
-        const word& key = iter().keyword();
+
+        const word& key = dEntry.keyword();
+        const dictionary& dict = dEntry.dict();
+
         if (!mixture_.contains(key))
         {
             WarningInFunction
@@ -123,19 +127,13 @@ greyMeanSolidAbsorptionEmission
                 << nl << endl;
         }
         speciesNames_.insert(key, nFunc);
-        const dictionary& dict = iter().dict();
-        dict.lookup("absorptivity") >> solidData_[nFunc][absorptivity];
-        dict.lookup("emissivity") >> solidData_[nFunc][emissivity];
+
+        dict.readEntry("absorptivity", solidData_[nFunc][absorptivity]);
+        dict.readEntry("emissivity", solidData_[nFunc][emissivity]);
 
         nFunc++;
     }
 }
-
-// * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
-
-Foam::radiation::greyMeanSolidAbsorptionEmission::
-~greyMeanSolidAbsorptionEmission()
-{}
 
 
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
@@ -157,14 +155,14 @@ calc(const label propertyId) const
                 IOobject::NO_WRITE
             ),
             mesh(),
-            dimensionedScalar("a", dimless/dimLength, 0.0),
+            dimensionedScalar(dimless/dimLength, Zero),
             extrapolatedCalculatedFvPatchVectorField::typeName
         )
     );
 
     scalarField& a = ta.ref().primitiveFieldRef();
 
-    forAllConstIter(HashTable<label>, speciesNames_, iter)
+    forAllConstIters(speciesNames_, iter)
     {
         if (mixture_.contains(iter.key()))
         {

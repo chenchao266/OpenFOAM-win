@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2013-2015 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2013-2017 OpenFOAM Foundation
+    Copyright (C) 2019-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -27,144 +30,113 @@ License
 
 // * * * * * * * * * * * * * * * * Selectors * * * * * * * * * * * * * * * * //
 
-Foam::autoPtr<Foam::basicSolidChemistryModel> Foam::basicSolidChemistryModel::
-New
-(
-    const fvMesh& mesh,
-    const word& phaseName
-)
+Foam::autoPtr<Foam::basicSolidChemistryModel>
+Foam::basicSolidChemistryModel::New(solidReactionThermo& thermo)
 {
-    IOdictionary chemistryDict
+    const IOdictionary chemistryDict
     (
         IOobject
         (
-            IOobject::groupName("chemistryProperties", phaseName),
-            mesh.time().constant(),
-            mesh,
+            thermo.phasePropertyName("chemistryProperties"),
+            thermo.db().time().constant(),
+            thermo.db(),
             IOobject::MUST_READ,
             IOobject::NO_WRITE,
             false
         )
     );
 
-    const dictionary& chemistryTypeDict
-    (
-        chemistryDict.subDict("chemistryType")
-    );
+    const dictionary& chemistryTypeDict =
+        chemistryDict.subDict("chemistryType");
 
     Info<< "Selecting chemistry type " << chemistryTypeDict << endl;
 
-    const int nCmpt = 13;
-    const char* cmptNames[nCmpt] =
-    {
-        "chemistrySolver",
-        "chemistryThermo",
-        "baseChemistry",
-        "transport",
-        "thermo",
-        "equationOfState",
-        "specie",
-        "energy",
-        "transport",
-        "thermo",
-        "equationOfState",
-        "specie",
-        "energy"
-    };
-
-    IOdictionary thermoDict
+    const IOdictionary thermoDict
     (
         IOobject
         (
             basicThermo::dictName,
-            mesh.time().constant(),
-            mesh,
+            thermo.db().time().constant(),
+            thermo.db(),
             IOobject::MUST_READ_IF_MODIFIED,
             IOobject::NO_WRITE,
             false
         )
     );
 
-    const dictionary& solidThermoTypeDict(thermoDict.subDict("thermoType"));
-    word solidThermoTypeName
+    const dictionary& solidThermoTypeDict = thermoDict.subDict("thermoType");
+    const word solidThermoTypeName
     (
-        word(solidThermoTypeDict.lookup("transport")) + '<'
-      + word(solidThermoTypeDict.lookup("thermo")) + '<'
-      + word(solidThermoTypeDict.lookup("equationOfState")) + '<'
-      + word(solidThermoTypeDict.lookup("specie")) + ">>,"
-      + word(solidThermoTypeDict.lookup("energy")) + ">"
+        solidThermoTypeDict.get<word>("transport") + '<'
+      + solidThermoTypeDict.get<word>("thermo") + '<'
+      + solidThermoTypeDict.get<word>("equationOfState") + '<'
+      + solidThermoTypeDict.get<word>("specie") + ">>,"
+      + solidThermoTypeDict.get<word>("energy") + ">"
     );
 
-    const dictionary& gasThermoTypeDict(thermoDict.subDict("gasThermoType"));
-    word gasThermoTypeName
+    const dictionary& gasThermoTypeDict = thermoDict.subDict("gasThermoType");
+    const word gasThermoTypeName
     (
-        word(gasThermoTypeDict.lookup("transport")) + '<'
-      + word(gasThermoTypeDict.lookup("thermo")) + '<'
-      + word(gasThermoTypeDict.lookup("equationOfState")) + '<'
-      + word(gasThermoTypeDict.lookup("specie")) + ">>,"
-      + word(gasThermoTypeDict.lookup("energy")) + ">"
+        gasThermoTypeDict.get<word>("transport") + '<'
+      + gasThermoTypeDict.get<word>("thermo") + '<'
+      + gasThermoTypeDict.get<word>("equationOfState") + '<'
+      + gasThermoTypeDict.get<word>("specie") + ">>,"
+      + gasThermoTypeDict.get<word>("energy") + ">"
     );
 
     // Construct the name of the chemistry type from the components
-    word chemistryTypeName
+    const word chemistryTypeName
     (
-        word(chemistryTypeDict.lookup("chemistrySolver")) + '<'
-      + word(chemistryTypeDict.lookup("chemistryThermo")) + '<'
+        chemistryTypeDict.get<word>("chemistrySolver") + '<'
+      + chemistryTypeDict.get<word>("chemistryThermo") + '<'
       + typeName + ','
       + solidThermoTypeName + ',' + gasThermoTypeName + ">>"
     );
 
     Info<< "chemistryTypeName " << chemistryTypeName << endl;
 
-    fvMeshConstructorTable::iterator cstrIter =
-        fvMeshConstructorTablePtr_->find(chemistryTypeName);
+    const auto& cnstrTable = *(thermoConstructorTablePtr_);
 
-    if (cstrIter == fvMeshConstructorTablePtr_->end())
+    auto* ctorPtr = cnstrTable.lookup(chemistryTypeName, nullptr);
+
+    if (!ctorPtr)
     {
-        FatalErrorInFunction
-            << "Unknown " << typeName << " type " << nl
-            << "chemistryType" << chemistryTypeDict << nl << nl
-            << "Valid " << typeName << " types are:"
-            << nl << nl;
-
-        // Get the list of all the suitable chemistry packages available
-        wordList validChemistryTypeNames
+        FatalIOErrorInLookup
         (
-            fvMeshConstructorTablePtr_->sortedToc()
-        );
-        Info<< validChemistryTypeNames << endl;
-
-        // Build a table of the thermo packages constituent parts
-        // Note: row-0 contains the names of constituent parts
-        List<wordList> validChemistryTypeNameCmpts
-        (
-            validChemistryTypeNames.size() + 1
+            chemistryTypeDict,
+            typeName,
+            word::null, // Suppress long name? Just output dictionary (above)
+            cnstrTable
         );
 
-        validChemistryTypeNameCmpts[0].setSize(nCmpt);
-        forAll(validChemistryTypeNameCmpts[0], j)
-        {
-            validChemistryTypeNameCmpts[0][j] = cmptNames[j];
-        }
+        // Table of available packages (as constituent parts)
+        basicThermo::printThermoNames
+        (
+            FatalIOError,
+            wordList
+            ({
+                "chemistrySolver",
+                "chemistryThermo",
+                "baseChemistry",
+                "transport",
+                "thermo",  // solid
+                "equationOfState",
+                "specie",
+                "energy",
+                "transport",
+                "thermo",  // gas
+                "equationOfState",
+                "specie",
+                "energy"
+            }),
+            cnstrTable.sortedToc()
+        );
 
-        // Split the thermo package names into their constituent parts
-        forAll(validChemistryTypeNames, i)
-        {
-            validChemistryTypeNameCmpts[i+1] = basicThermo::splitThermoName
-            (
-                validChemistryTypeNames[i],
-                nCmpt
-            );
-        }
-
-        // Print the table of available packages
-        // in terms of their constituent parts
-        printTable(validChemistryTypeNameCmpts, FatalError);
-
-        FatalError<< exit(FatalError);
+        FatalIOError
+            << exit(FatalIOError);
     }
 
-    return autoPtr<basicSolidChemistryModel>(cstrIter()(mesh, phaseName));
+    return autoPtr<basicSolidChemistryModel>(ctorPtr(thermo));
 }
 
 

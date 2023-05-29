@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -27,7 +29,9 @@ License
 #include "lduAddressing.H"
 
 // * * * * * * * * * * * * * Protected Member Functions  * * * * * * * * * * //
-using namespace Foam;
+
+
+ namespace Foam{
 void pairGAMGAgglomeration::agglomerate
 (
     const lduMesh& mesh,
@@ -135,7 +139,7 @@ tmp<labelField> pairGAMGAgglomeration::agglomerate
 
     // memory management
     {
-        labelList nNbrs(nFineCells, 0);
+        labelList nNbrs(nFineCells, Zero);
 
         forAll(upperAddr, facei)
         {
@@ -299,3 +303,5 @@ tmp<labelField> pairGAMGAgglomeration::agglomerate
 
 
 // ************************************************************************* //
+
+ } // End namespace Foam

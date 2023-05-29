@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2015 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2015 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -37,7 +39,6 @@ inline Foam::label Foam::pairPotentialList::pairPotentialIndex
     {
         index = a*(2*nIds_ - a - 1)/2 + b;
     }
-
     else
     {
         index = b*(2*nIds_ - b - 1)/2 + a;
@@ -72,7 +73,7 @@ inline Foam::scalar Foam::pairPotentialList::rCutMaxSqr() const
 
 inline const Foam::pairPotential& Foam::pairPotentialList::electrostatic() const
 {
-    return electrostaticPotential_;
+    return *electrostaticPotential_;
 }
 
 

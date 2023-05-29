@@ -1,9 +1,12 @@
-﻿/*---------------------------------------------------------------------------*\
+/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2019-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -23,7 +26,7 @@ License
 
 \*---------------------------------------------------------------------------*/
 
-//#include "realizableKE.H"
+#include "realizableKE.H"
 #include "fvOptions.H"
 #include "bound.H"
 
@@ -153,7 +156,7 @@ realizableKE<BasicTurbulenceModel>::realizableKE
     ),
     A0_
     (
-        dimensioned<scalar>::lookupOrAddToDict
+        dimensioned<scalar>::getOrAddToDict
         (
             "A0",
             this->coeffDict_,
@@ -162,7 +165,7 @@ realizableKE<BasicTurbulenceModel>::realizableKE
     ),
     C2_
     (
-        dimensioned<scalar>::lookupOrAddToDict
+        dimensioned<scalar>::getOrAddToDict
         (
             "C2",
             this->coeffDict_,
@@ -171,7 +174,7 @@ realizableKE<BasicTurbulenceModel>::realizableKE
     ),
     sigmak_
     (
-        dimensioned<scalar>::lookupOrAddToDict
+        dimensioned<scalar>::getOrAddToDict
         (
             "sigmak",
             this->coeffDict_,
@@ -180,7 +183,7 @@ realizableKE<BasicTurbulenceModel>::realizableKE
     ),
     sigmaEps_
     (
-        dimensioned<scalar>::lookupOrAddToDict
+        dimensioned<scalar>::getOrAddToDict
         (
             "sigmaEps",
             this->coeffDict_,
@@ -192,7 +195,7 @@ realizableKE<BasicTurbulenceModel>::realizableKE
     (
         IOobject
         (
-            "k",
+            IOobject::groupName("k", U.group()),
             this->runTime_.timeName(),
             this->mesh_,
             IOobject::MUST_READ,
@@ -204,7 +207,7 @@ realizableKE<BasicTurbulenceModel>::realizableKE
     (
         IOobject
         (
-            "epsilon",
+            IOobject::groupName("epsilon", U.group()),
             this->runTime_.timeName(),
             this->mesh_,
             IOobject::MUST_READ,
@@ -237,10 +240,8 @@ bool realizableKE<BasicTurbulenceModel>::read()
 
         return true;
     }
-    else
-    {
-        return false;
-    }
+
+    return false;
 }
 
 
@@ -276,6 +277,17 @@ void realizableKE<BasicTurbulenceModel>::correct()
     // Update epsilon and G at the wall
     epsilon_.boundaryFieldRef().updateCoeffs();
 
+    // SAF: limiting thermo->nu(). If psiThermo is used rho might be < 0
+    // temporarily when p < 0 then nu < 0 which needs limiting
+    volScalarField nuLimited
+    (
+        max
+        (
+            this->nu(),
+            dimensionedScalar(this->nu()().dimensions(), Zero)
+        )
+    );
+
     // Dissipation equation
     tmp<fvScalarMatrix> epsEqn
     (
@@ -286,7 +298,7 @@ void realizableKE<BasicTurbulenceModel>::correct()
         C1*alpha*rho*magS*epsilon_
       - fvm::Sp
         (
-            C2_*alpha*rho*epsilon_/(k_ + sqrt(this->nu()*epsilon_)),
+            C2_*alpha*rho*epsilon_/(k_ + sqrt(nuLimited*epsilon_)),
             epsilon_
         )
       + epsilonSource()

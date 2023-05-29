@@ -1,9 +1,11 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -21,41 +23,36 @@ License
     You should have received a copy of the GNU General Public License
     along with OpenFOAM.  If not, see <http://www.gnu.org/licenses/>.
 
-Description
-
 \*---------------------------------------------------------------------------*/
 
 #include "IOstreams.H"
 
-// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
-
-namespace Foam
-{
-
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
-inline objectMap::objectMap() :    index_(-1),
-    masterObjects_(0)
+
+ namespace Foam{
+inline objectMap::objectMap()
+:
+    index_(-1),
+    masterObjects_()
 {}
 
 
-inline objectMap::objectMap(const label index, const labelList& master) :    index_(index),
+inline objectMap::objectMap(const label index, const UList<label>& master)
+:
+    index_(index),
     masterObjects_(master)
 {}
 
 
 inline objectMap::objectMap(Istream& is)
 {
-    // Read beginning of objectMap
     is.readBegin("objectMap");
 
     is >> index_ >> static_cast<labelList&>(masterObjects_);
 
-    // Read master of objectMap
     is.readEnd("objectMap");
-
-    // Check state of Istream
-    is.check("objectMap::objectMap(Istream&)");
+    is.check(FUNCTION_NAME);
 }
 
 
@@ -98,7 +95,7 @@ inline bool operator==(const objectMap& a, const objectMap& b)
 
 inline bool operator!=(const objectMap& a, const objectMap& b)
 {
-    return (!(a == b));
+    return !(a == b);
 }
 
 
@@ -111,9 +108,7 @@ inline Ostream& operator<<(Ostream& os, const objectMap& a)
         << a.masterObjects_
         << token::END_LIST;
 
-    // Check state of Ostream
-    os.check("Ostream& operator<<(Ostream&, const objectMap&)");
-
+    os.check(FUNCTION_NAME);
     return os;
 }
 
@@ -121,18 +116,14 @@ inline Ostream& operator<<(Ostream& os, const objectMap& a)
 inline Istream& operator>>(Istream& is, objectMap& a)
 {
     is.readBegin("objectMap");
-    is  >> a.index_ >> a.masterObjects_;
+    is >> a.index_ >> a.masterObjects_;
     is.readEnd("objectMap");
 
-    // Check state of Istream
-    is.check("Istream& operator>>(Istream&, objectMap&)");
-
+    is.check(FUNCTION_NAME);
     return is;
 }
 
 
-// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
-
-} // Master namespace Foam
-
 // ************************************************************************* //
+
+ } // End namespace Foam

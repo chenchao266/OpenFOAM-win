@@ -1,0 +1,171 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|Win32">
+      <Configuration>Debug</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|Win32">
+      <Configuration>Release</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Debug|x64">
+      <Configuration>Debug</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64">
+      <Configuration>Release</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="twoPhaseEuler\Antal.C" />
+    <ClCompile Include="twoPhaseEuler\aspectRatioModel.C" />
+    <ClCompile Include="twoPhaseEuler\blendingMethod.C" />
+    <ClCompile Include="twoPhaseEuler\Burns.C" />
+    <ClCompile Include="twoPhaseEuler\CarnahanStarlingRadial.C" />
+    <ClCompile Include="twoPhaseEuler\conductivityModel.C" />
+    <ClCompile Include="twoPhaseEuler\constantAspectRatio.C" />
+    <ClCompile Include="twoPhaseEuler\constantDiameter.C" />
+    <ClCompile Include="twoPhaseEuler\constantLiftCoefficient.C" />
+    <ClCompile Include="twoPhaseEuler\constantTurbulentDispersionCoefficient.C" />
+    <ClCompile Include="twoPhaseEuler\constantVirtualMassCoefficient.C" />
+    <ClCompile Include="twoPhaseEuler\diameterModel.C" />
+    <ClCompile Include="twoPhaseEuler\dragModel.C" />
+    <ClCompile Include="twoPhaseEuler\dummy.C" />
+    <ClCompile Include="twoPhaseEuler\Ergun.C" />
+    <ClCompile Include="twoPhaseEuler\Frank.C" />
+    <ClCompile Include="twoPhaseEuler\frictionalStressModel.C" />
+    <ClCompile Include="twoPhaseEuler\Gibilaro.C" />
+    <ClCompile Include="twoPhaseEuler\GidaspowConductivity.C" />
+    <ClCompile Include="twoPhaseEuler\GidaspowErgunWenYu.C" />
+    <ClCompile Include="twoPhaseEuler\GidaspowSchillerNaumann.C" />
+    <ClCompile Include="twoPhaseEuler\GidaspowViscosity.C" />
+    <ClCompile Include="twoPhaseEuler\Gosman.C" />
+    <ClCompile Include="twoPhaseEuler\granularPressureModel.C" />
+    <ClCompile Include="twoPhaseEuler\heatTransferModel.C" />
+    <ClCompile Include="twoPhaseEuler\HrenyaSinclairConductivity.C" />
+    <ClCompile Include="twoPhaseEuler\HrenyaSinclairViscosity.C" />
+    <ClCompile Include="twoPhaseEuler\hyperbolic.C" />
+    <ClCompile Include="twoPhaseEuler\IATE.C" />
+    <ClCompile Include="twoPhaseEuler\IATEsource.C" />
+    <ClCompile Include="twoPhaseEuler\IshiiZuber.C" />
+    <ClCompile Include="twoPhaseEuler\isothermalDiameter.C" />
+    <ClCompile Include="twoPhaseEuler\JohnsonJacksonFrictionalStress.C" />
+    <ClCompile Include="twoPhaseEuler\JohnsonJacksonParticleSlipFvPatchVectorField.C" />
+    <ClCompile Include="twoPhaseEuler\JohnsonJacksonParticleThetaFvPatchScalarField.C" />
+    <ClCompile Include="twoPhaseEuler\JohnsonJacksonSchaefferFrictionalStress.C" />
+    <ClCompile Include="twoPhaseEuler\kineticTheoryModel.C" />
+    <ClCompile Include="twoPhaseEuler\Lain.C" />
+    <ClCompile Include="twoPhaseEuler\Lamb.C" />
+    <ClCompile Include="twoPhaseEuler\LegendreMagnaudet.C" />
+    <ClCompile Include="twoPhaseEuler\liftModel.C" />
+    <ClCompile Include="twoPhaseEuler\linear.C" />
+    <ClCompile Include="twoPhaseEuler\LopezDeBertodano.C" />
+    <ClCompile Include="twoPhaseEuler\LunPressure.C" />
+    <ClCompile Include="twoPhaseEuler\LunSavageRadial.C" />
+    <ClCompile Include="twoPhaseEuler\Moraga.C" />
+    <ClCompile Include="twoPhaseEuler\noBlending.C" />
+    <ClCompile Include="twoPhaseEuler\noLift.C" />
+    <ClCompile Include="twoPhaseEuler\noneViscosity.C" />
+    <ClCompile Include="twoPhaseEuler\noSwarm.C" />
+    <ClCompile Include="twoPhaseEuler\noTurbulentDispersion.C" />
+    <ClCompile Include="twoPhaseEuler\noVirtualMass.C" />
+    <ClCompile Include="twoPhaseEuler\noWallLubrication.C" />
+    <ClCompile Include="twoPhaseEuler\orderedPhasePair.C" />
+    <ClCompile Include="twoPhaseEuler\phaseCompressibleTurbulenceModels.C" />
+    <ClCompile Include="twoPhaseEuler\phaseCompressibleTurbulenceModels2.C" />
+    <ClCompile Include="twoPhaseEuler\phaseModel.C" />
+    <ClCompile Include="twoPhaseEuler\phasePair.C" />
+    <ClCompile Include="twoPhaseEuler\phasePairKey.C" />
+    <ClCompile Include="twoPhaseEuler\phasePressureModel.C" />
+    <ClCompile Include="twoPhaseEuler\radialModel.C" />
+    <ClCompile Include="twoPhaseEuler\randomCoalescence.C" />
+    <ClCompile Include="twoPhaseEuler\RanzMarshall.C" />
+    <ClCompile Include="twoPhaseEuler\SchaefferFrictionalStress.C" />
+    <ClCompile Include="twoPhaseEuler\SchillerNaumann.C" />
+    <ClCompile Include="twoPhaseEuler\segregated.C" />
+    <ClCompile Include="twoPhaseEuler\SinclairJacksonRadial.C" />
+    <ClCompile Include="twoPhaseEuler\sphericalHeatTransfer.C" />
+    <ClCompile Include="twoPhaseEuler\swarmCorrection.C" />
+    <ClCompile Include="twoPhaseEuler\SyamlalConductivity.C" />
+    <ClCompile Include="twoPhaseEuler\SyamlalOBrien.C" />
+    <ClCompile Include="twoPhaseEuler\SyamlalRogersOBrienPressure.C" />
+    <ClCompile Include="twoPhaseEuler\SyamlalViscosity.C" />
+    <ClCompile Include="twoPhaseEuler\TomiyamaAnalytic.C" />
+    <ClCompile Include="twoPhaseEuler\TomiyamaAspectRatio.C" />
+    <ClCompile Include="twoPhaseEuler\TomiyamaCorrelated.C" />
+    <ClCompile Include="twoPhaseEuler\TomiyamaLift.C" />
+    <ClCompile Include="twoPhaseEuler\TomiyamaSwarm.C" />
+    <ClCompile Include="twoPhaseEuler\TomiyamaWallLubrication.C" />
+    <ClCompile Include="twoPhaseEuler\turbulentBreakUp.C" />
+    <ClCompile Include="twoPhaseEuler\turbulentDispersionModel.C" />
+    <ClCompile Include="twoPhaseEuler\twoPhaseSystem.C" />
+    <ClCompile Include="twoPhaseEuler\VakhrushevEfremov.C" />
+    <ClCompile Include="twoPhaseEuler\virtualMassModel.C" />
+    <ClCompile Include="twoPhaseEuler\viscosityModel.C" />
+    <ClCompile Include="twoPhaseEuler\wakeEntrainmentCoalescence.C" />
+    <ClCompile Include="twoPhaseEuler\wallDependentModel.C" />
+    <ClCompile Include="twoPhaseEuler\wallLubricationModel.C" />
+    <ClCompile Include="twoPhaseEuler\Wellek.C" />
+    <ClCompile Include="twoPhaseEuler\WenYu.C" />
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <VCProjectVersion>15.0</VCProjectVersion>
+    <ProjectGuid>{9965262B-3060-4265-926F-9DD526253321}</ProjectGuid>
+    <WindowsTargetPlatformVersion>10.0.17763.0</WindowsTargetPlatformVersion>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <PlatformToolset>v143</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v143</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <PlatformToolset>v141</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v141</PlatformToolset>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings">
+  </ImportGroup>
+  <ImportGroup Label="Shared">
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <PropertyGroup Label="UserMacros" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <IntDir>$(Platform)\$(Configuration)\$(ProjectName)</IntDir>
+  </PropertyGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <ClCompile>
+      <AdditionalIncludeDirectories>..\OpenFOAM\algorithms;..\OpenFOAM\containers;..\OpenFOAM\db;..\OpenFOAM\dimensionedTypes;..\OpenFOAM\dimensionSet;..\OpenFOAM\fields;..\OpenFOAM\global;..\OpenFOAM\graph;..\OpenFOAM\include;..\OpenFOAM\interpolations;..\OpenFOAM\matrices;..\OpenFOAM\memory;..\OpenFOAM\meshes;..\OpenFOAM\primitives;..\OSspecific;..\meshTools;..\finiteVolume;..\TurbulenceModels;..\thermophysicalModels;..\transportModels;..\dynamicMesh;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>WM_LABEL_SIZE=64;WM_DP;NoRepository;WIN32;WIN64;_WINDOWS;NOMINMAX;_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <CompileAs>CompileAsCpp</CompileAs>
+      <LanguageStandard>stdcpp17</LanguageStandard>
+    </ClCompile>
+  </ItemDefinitionGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets">
+  </ImportGroup>
+</Project>

@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2016-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2016-2017 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -23,6 +26,9 @@ License
 
 Class
     Foam::logPolynomialTransport
+
+Group
+    grpSpecieTransport
 
 Description
     Transport package using polynomial functions of \c ln(T) for \c mu and
@@ -81,14 +87,14 @@ See also
 #ifndef logPolynomialTransport_H
 #define logPolynomialTransport_H
 
-#include "Polynomial.T.H"
+#include "Polynomial.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 namespace Foam
 {
 
-// Forward declaration of friend functions and operators
+// Forward Declarations
 
 template<class Thermo, int PolySize> class logPolynomialTransport;
 
@@ -123,7 +129,7 @@ class logPolynomialTransport
 :
     public Thermo
 {
-    // Private data
+    // Private Data
 
         //- Dynamic viscosity polynomial coefficients
         //  Note: input in [Pa.s], but internally uses [Pa.s/kmol]
@@ -136,6 +142,12 @@ class logPolynomialTransport
 
     // Private Member Functions
 
+        //- Coeffs name. Eg, "muLogCoeffs<10>"
+        inline static word coeffsName(const char* name)
+        {
+            return word(name + ("LogCoeffs<" + std::to_string(PolySize) + '>'));
+        }
+
         //- Construct from components
         inline logPolynomialTransport
         (
@@ -147,6 +159,9 @@ class logPolynomialTransport
 
 public:
 
+    // Generated Methods: copy construct, copy assignment
+
+
     // Constructors
 
         //- Construct as named copy
@@ -157,7 +172,7 @@ public:
         );
 
         //- Construct from dictionary
-        logPolynomialTransport(const dictionary& dict);
+        explicit logPolynomialTransport(const dictionary& dict);
 
         //- Construct and return a clone
         inline autoPtr<logPolynomialTransport> clone() const;
@@ -169,7 +184,7 @@ public:
         );
 
 
-    // Member functions
+    // Member Functions
 
         //- Return the instantiated type name
         static word typeName()
@@ -193,16 +208,14 @@ public:
         void write(Ostream& os) const;
 
 
-    // Member operators
-
-        inline void operator=(const logPolynomialTransport&);
+    // Member Operators
 
         inline void operator+=(const logPolynomialTransport&);
 
         inline void operator*=(const scalar);
 
 
-    // Friend operators
+    // Friend Operators
 
         friend logPolynomialTransport operator+ <Thermo, PolySize>
         (
@@ -217,7 +230,7 @@ public:
         );
 
 
-    // Ostream Operator
+    // IOstream Operators
 
         friend Ostream& operator<< <Thermo, PolySize>
         (

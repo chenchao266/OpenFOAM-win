@@ -1,9 +1,12 @@
-﻿/*---------------------------------------------------------------------------*\
+/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2016-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -24,15 +27,15 @@ License
 \*---------------------------------------------------------------------------*/
 
 #include "sampledSurfaces.H"
-#include "volFields.H"
-#include "dictionary.H"
-#include "Time.T.H"
-#include "IOmanip.H"
-#include "volPointInterpolation.H"
-#include "PatchTools.T.H"
+#include "polySurface.H"
+
 #include "mapPolyMesh.H"
+#include "volFields.H"
+#include "HashOps.H"
+#include "ListOps.H"
+#include "Time1.H"
+#include "UIndirectList.H"
 #include "addToRunTimeSelectionTable.H"
-#include "GeometricField.T.H"
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
 
@@ -48,47 +51,159 @@ namespace Foam
     );
 }
 
-bool Foam::sampledSurfaces::verbose_ = false;
 Foam::scalar Foam::sampledSurfaces::mergeTol_ = 1e-10;
 
 
 // * * * * * * * * * * * * * Private Member Functions  * * * * * * * * * * * //
 
-void Foam::sampledSurfaces::writeGeometry() const
+Foam::polySurface* Foam::sampledSurfaces::getRegistrySurface
+(
+    const sampledSurface& s
+) const
 {
-    // Write to time directory under outputPath_
-    // Skip surface without faces (eg, a failed cut-plane)
+    return s.getRegistrySurface
+    (
+        storedObjects(),
+        IOobject::groupName(name(), s.name())
+    );
+}
 
-    const fileName outputDir = outputPath_/mesh_.time().timeName();
 
-    forAll(*this, surfI)
+Foam::polySurface* Foam::sampledSurfaces::storeRegistrySurface
+(
+    const sampledSurface& s
+)
+{
+    return s.storeRegistrySurface
+    (
+        storedObjects(),
+        IOobject::groupName(name(), s.name())
+    );
+}
+
+
+bool Foam::sampledSurfaces::removeRegistrySurface
+(
+    const sampledSurface& s
+)
+{
+    return s.removeRegistrySurface
+    (
+        storedObjects(),
+        IOobject::groupName(name(), s.name())
+    );
+}
+
+
+void Foam::sampledSurfaces::countFields()
+{
+    wordList allFields;    // Just needed for warnings
+    HashTable<wordHashSet> selected;
+
+    if (loadFromFiles_)
     {
-        const sampledSurface& s = operator[](surfI);
+        // Check files for a particular time
+        IOobjectList objects(obr_, obr_.time().timeName());
 
-        if (Pstream::parRun())
+        allFields = objects.names();
+        selected = objects.classes(fieldSelection_);
+    }
+    else
+    {
+        // Check currently available fields
+        allFields = obr_.names();
+        selected = obr_.classes(fieldSelection_);
+    }
+
+    if (Pstream::parRun())
+    {
+        Pstream::mapCombineGather(selected, HashSetOps::plusEqOp<word>());
+        Pstream::mapCombineScatter(selected);
+    }
+
+
+    DynamicList<label> missed(fieldSelection_.size());
+
+    // Detect missing fields
+    forAll(fieldSelection_, i)
+    {
+        if (findStrings(fieldSelection_[i], allFields).empty())
         {
-            if (Pstream::master() && mergeList_[surfI].faces.size())
-            {
-                formatter_->write
-                (
-                    outputDir,
-                    s.name(),
-                    mergeList_[surfI].points,
-                    mergeList_[surfI].faces
-                );
-            }
-        }
-        else if (s.faces().size())
-        {
-            formatter_->write
-            (
-                outputDir,
-                s.name(),
-                s.points(),
-                s.faces()
-            );
+            missed.append(i);
         }
     }
+
+    if (missed.size())
+    {
+        WarningInFunction
+            << nl
+            << "Cannot find "
+            << (loadFromFiles_ ? "field file" : "registered field")
+            << " matching "
+            << UIndirectList<wordRe>(fieldSelection_, missed) << endl;
+    }
+
+
+    // Currently only support volume and surface field types
+    label nVolumeFields = 0;
+    label nSurfaceFields = 0;
+
+    forAllConstIters(selected, iter)
+    {
+        const word& clsName = iter.key();
+        const label n = iter.val().size();
+
+        if (fieldTypes::volume.found(clsName))
+        {
+            nVolumeFields += n;
+        }
+        else if (sampledSurface::surfaceFieldTypes.found(clsName))
+        {
+            nSurfaceFields += n;
+        }
+    }
+
+    // Now propagate field counts (per surface)
+    // - can update writer even when not writing without problem
+
+    forAll(*this, surfi)
+    {
+        const sampledSurface& s = (*this)[surfi];
+        surfaceWriter& outWriter = writers_[surfi];
+
+        outWriter.nFields
+        (
+            nVolumeFields
+          + (s.withSurfaceFields() ? nSurfaceFields : 0)
+          +
+            (
+                // Face-id field, but not if the writer manages that itself
+                !s.isPointData() && s.hasFaceIds() && !outWriter.usesFaceIds()
+              ? 1 : 0
+            )
+        );
+    }
+}
+
+
+Foam::autoPtr<Foam::surfaceWriter> Foam::sampledSurfaces::newWriter
+(
+    word writeType,
+    const dictionary& formatOptions,
+    const dictionary& surfDict
+)
+{
+    // Per-surface adjustment
+    surfDict.readIfPresent<word>("surfaceFormat", writeType);
+
+    dictionary options = formatOptions.subOrEmptyDict(writeType);
+
+    options.merge
+    (
+        surfDict.subOrEmptyDict("formatOptions").subOrEmptyDict(writeType)
+    );
+
+    return surfaceWriter::New(writeType, options);
 }
 
 
@@ -97,39 +212,27 @@ void Foam::sampledSurfaces::writeGeometry() const
 Foam::sampledSurfaces::sampledSurfaces
 (
     const word& name,
-    const Time& t,
+    const Time& runTime,
     const dictionary& dict
 )
 :
-    functionObject(name),
+    functionObjects::fvMeshFunctionObject(name, runTime, dict),
     PtrList<sampledSurface>(),
-    mesh_
-    (
-        refCast<const fvMesh>
-        (
-            t.lookupObject<objectRegistry>
-            (
-                dict.lookupOrDefault("region", polyMesh::defaultRegion)
-            )
-        )
-    ),
     loadFromFiles_(false),
-    outputPath_(fileName::null),
+    verbose_(false),
+    onExecute_(false),
+    outputPath_
+    (
+        time_.globalPath()/functionObject::outputPrefix/name
+    ),
     fieldSelection_(),
-    interpolationScheme_(word::null),
-    mergeList_(),
-    formatter_(nullptr)
+    sampleFaceScheme_(),
+    sampleNodeScheme_(),
+    writers_(),
+    actions_(),
+    nFaces_()
 {
-    if (Pstream::parRun())
-    {
-        outputPath_ = mesh_.time().path()/".."/"postProcessing"/name;
-    }
-    else
-    {
-        outputPath_ = mesh_.time().path()/"postProcessing"/name;
-    }
-    // Remove ".."
-    outputPath_.clean();
+    outputPath_.clean();  // Remove unneeded ".."
 
     read(dict);
 }
@@ -143,156 +246,417 @@ Foam::sampledSurfaces::sampledSurfaces
     const bool loadFromFiles
 )
 :
-    functionObject(name),
+    functionObjects::fvMeshFunctionObject(name, obr, dict),
     PtrList<sampledSurface>(),
-    mesh_(refCast<const fvMesh>(obr)),
     loadFromFiles_(loadFromFiles),
-    outputPath_(fileName::null),
+    verbose_(false),
+    onExecute_(false),
+    outputPath_
+    (
+        time_.globalPath()/functionObject::outputPrefix/name
+    ),
     fieldSelection_(),
-    interpolationScheme_(word::null),
-    mergeList_(),
-    formatter_(nullptr)
+    sampleFaceScheme_(),
+    sampleNodeScheme_(),
+    writers_(),
+    actions_(),
+    nFaces_()
 {
-    if (Pstream::parRun())
-    {
-        outputPath_ = mesh_.time().path()/".."/"postProcessing"/name;
-    }
-    else
-    {
-        outputPath_ = mesh_.time().path()/"postProcessing"/name;
-    }
-    // Remove ".."
-    outputPath_.clean();
+    outputPath_.clean();  // Remove unneeded ".."
 
     read(dict);
 }
 
 
-// * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
-
-Foam::sampledSurfaces::~sampledSurfaces()
-{}
-
-
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
 
-void Foam::sampledSurfaces::verbose(const bool verbosity)
+bool Foam::sampledSurfaces::verbose(const bool on)
 {
-    verbose_ = verbosity;
+    bool old(verbose_);
+    verbose_ = on;
+    return old;
+}
+
+
+bool Foam::sampledSurfaces::read(const dictionary& dict)
+{
+    fvMeshFunctionObject::read(dict);
+
+    PtrList<sampledSurface>::clear();
+    writers_.clear();
+    actions_.clear();
+    nFaces_.clear();
+    fieldSelection_.clear();
+
+    verbose_ = dict.getOrDefault("verbose", false);
+    onExecute_ = dict.getOrDefault("sampleOnExecute", false);
+
+    sampleFaceScheme_ =
+        dict.getOrDefault<word>("sampleScheme", "cell");
+
+    sampleNodeScheme_ =
+        dict.getOrDefault<word>("interpolationScheme", "cellPoint");
+
+    const entry* eptr = dict.findEntry("surfaces");
+
+    // Surface writer type and format options
+    const word writerType =
+        (eptr ? dict.get<word>("surfaceFormat") : word::null);
+
+    const dictionary formatOptions(dict.subOrEmptyDict("formatOptions"));
+
+    // Store on registry?
+    const bool dfltStore = dict.getOrDefault("store", false);
+
+    if (eptr && eptr->isDict())
+    {
+        PtrList<sampledSurface> surfs(eptr->dict().size());
+
+        actions_.resize(surfs.size(), ACTION_WRITE); // Default action
+        writers_.resize(surfs.size());
+        nFaces_.resize(surfs.size(), Zero);
+
+        label surfi = 0;
+
+        for (const entry& dEntry : eptr->dict())
+        {
+            if (!dEntry.isDict())
+            {
+                continue;
+            }
+
+            const dictionary& surfDict = dEntry.dict();
+
+            autoPtr<sampledSurface> surf =
+                sampledSurface::New
+                (
+                    dEntry.keyword(),
+                    mesh_,
+                    surfDict
+                );
+
+            if (!surf || !surf->enabled())
+            {
+                continue;
+            }
+
+            // Define the surface
+            surfs.set(surfi, surf);
+
+            // Define additional action(s)
+            if (surfDict.getOrDefault("store", dfltStore))
+            {
+                actions_[surfi] |= ACTION_STORE;
+            }
+            if (surfDict.getOrDefault("surfMeshStore", false))
+            {
+                actions_[surfi] |= ACTION_SURF_MESH;
+            }
+
+            // Define surface writer, but do NOT yet attach a surface
+            writers_.set
+            (
+                surfi,
+                newWriter(writerType, formatOptions, surfDict)
+            );
+
+            writers_[surfi].isPointData(surfs[surfi].isPointData());
+
+            // Use outputDir/TIME/surface-name
+            writers_[surfi].useTimeDir(true);
+            writers_[surfi].verbose(verbose_);
+
+            ++surfi;
+        }
+
+        surfs.resize(surfi);
+        actions_.resize(surfi);
+        writers_.resize(surfi);
+        surfaces().transfer(surfs);
+    }
+    else if (eptr)
+    {
+        // This is slightly trickier.
+        // We want access to the individual dictionaries used for construction
+
+        DynamicList<dictionary> capture;
+
+        PtrList<sampledSurface> input
+        (
+            eptr->stream(),
+            sampledSurface::iNewCapture(mesh_, capture)
+        );
+
+        PtrList<sampledSurface> surfs(input.size());
+
+        actions_.resize(surfs.size(), ACTION_WRITE); // Default action
+        writers_.resize(surfs.size());
+        nFaces_.resize(surfs.size(), Zero);
+
+        label surfi = 0;
+
+        forAll(input, inputi)
+        {
+            const dictionary& surfDict = capture[inputi];
+
+            autoPtr<sampledSurface> surf = input.release(inputi);
+
+            if (!surf || !surf->enabled())
+            {
+                continue;
+            }
+
+            // Define the surface
+            surfs.set(surfi, surf);
+
+            // Define additional action(s)
+            if (surfDict.getOrDefault("store", dfltStore))
+            {
+                actions_[surfi] |= ACTION_STORE;
+            }
+            if (surfDict.getOrDefault("surfMeshStore", false))
+            {
+                actions_[surfi] |= ACTION_SURF_MESH;
+            }
+
+            // Define surface writer, but do NOT yet attach a surface
+            writers_.set
+            (
+                surfi,
+                newWriter(writerType, formatOptions, surfDict)
+            );
+
+            writers_[surfi].isPointData(surfs[surfi].isPointData());
+
+            // Use outputDir/TIME/surface-name
+            writers_[surfi].useTimeDir(true);
+            writers_[surfi].verbose(verbose_);
+
+            ++surfi;
+        }
+
+        surfs.resize(surfi);
+        actions_.resize(surfi);
+        writers_.resize(surfi);
+        surfaces().transfer(surfs);
+    }
+
+
+    const auto& surfs = surfaces();
+
+    // Have some surfaces, so sort out which fields are needed and report
+
+    if (surfs.size())
+    {
+        nFaces_.resize(surfs.size(), Zero);
+
+        dict.readEntry("fields", fieldSelection_);
+        fieldSelection_.uniq();
+
+        forAll(*this, surfi)
+        {
+            const sampledSurface& s = (*this)[surfi];
+
+            if (!surfi)
+            {
+                Info<< "Sampled surface:" << nl;
+            }
+
+            Info<< "    " << s.name() << " -> " << writers_[surfi].type();
+            if (actions_[surfi] & ACTION_STORE)
+            {
+                Info<< ", store on registry ("
+                    << IOobject::groupName(name(), s.name()) << ')';
+            }
+            if (actions_[surfi] & ACTION_SURF_MESH)
+            {
+                Info<< ", store as surfMesh (DEPRECATED)";
+            }
+            Info<< nl;
+            Info<< "        ";
+            s.print(Info, 0);
+            Info<< nl;
+        }
+        Info<< nl;
+    }
+
+    if (debug && Pstream::master())
+    {
+        Pout<< "sample fields:" << fieldSelection_ << nl
+            << "sample surfaces:" << nl << '(' << nl;
+
+        for (const sampledSurface& s : surfaces())
+        {
+            Pout<< "  " << s << nl;
+        }
+        Pout<< ')' << endl;
+    }
+
+    // Ensure all surfaces and merge information are expired
+    expire(true);
+
+    return true;
+}
+
+
+bool Foam::sampledSurfaces::performAction(unsigned request)
+{
+    // Update surfaces and store
+    bool ok = false;
+
+    forAll(*this, surfi)
+    {
+        sampledSurface& s = (*this)[surfi];
+
+        if (request & actions_[surfi])
+        {
+            if (s.update())
+            {
+                writers_[surfi].expire();
+            }
+
+            nFaces_[surfi] = returnReduce(s.faces().size(), sumOp<label>());
+
+            ok = ok || nFaces_[surfi];
+
+
+            // Store surfaces (even empty ones) otherwise we miss geometry
+            // updates.
+            // Any associated fields will be removed if the size changes
+
+            if ((request & actions_[surfi]) & ACTION_STORE)
+            {
+                storeRegistrySurface(s);
+            }
+
+            if ((request & actions_[surfi]) & ACTION_SURF_MESH)
+            {
+                s.storeSurfMesh();
+            }
+        }
+    }
+
+    if (!ok)
+    {
+        // No surface with an applicable action or with faces to sample
+        return true;
+    }
+
+
+    // Determine the per-surface number of fields, including Ids etc.
+    // Only seems to be needed for VTK legacy
+    countFields();
+
+
+    // Update writers
+
+    forAll(*this, surfi)
+    {
+        const sampledSurface& s = (*this)[surfi];
+
+        if (((request & actions_[surfi]) & ACTION_WRITE) && nFaces_[surfi])
+        {
+            surfaceWriter& outWriter = writers_[surfi];
+
+            if (outWriter.needsUpdate())
+            {
+                outWriter.setSurface(s);
+            }
+
+            outWriter.open(outputPath_/s.name());
+
+            outWriter.beginTime(obr_.time());
+
+            // Face-id field, but not if the writer manages that itself
+            if (!s.isPointData() && s.hasFaceIds() && !outWriter.usesFaceIds())
+            {
+                // This is still quite horrible.
+
+                Field<label> ids(s.faceIds());
+
+                if
+                (
+                    returnReduce
+                    (
+                        !ListOps::found(ids, lessOp1<label>(0)),
+                        andOp<bool>()
+                    )
+                )
+                {
+                    // From 0-based to 1-based, provided there are no
+                    // negative ids (eg, encoded solid/side)
+
+                    ids += label(1);
+                }
+
+                writeSurface(outWriter, ids, "Ids");
+            }
+        }
+    }
+
+    // Sample fields
+
+    const IOobjectList objects(obr_, obr_.time().timeName());
+
+    performAction<volScalarField>(objects, request);
+    performAction<volVectorField>(objects, request);
+    performAction<volSphericalTensorField>(objects, request);
+    performAction<volSymmTensorField>(objects, request);
+    performAction<volTensorField>(objects, request);
+
+    // Only bother with surface fields if a sampler supports them
+    if
+    (
+        testAny
+        (
+            surfaces(),
+            [] (const sampledSurface& s) { return s.withSurfaceFields(); }
+        )
+    )
+    {
+        performAction<surfaceScalarField>(objects, request);
+        performAction<surfaceVectorField>(objects, request);
+        performAction<surfaceSphericalTensorField>(objects, request);
+        performAction<surfaceSymmTensorField>(objects, request);
+        performAction<surfaceTensorField>(objects, request);
+    }
+
+
+    // Finish this time step
+    forAll(writers_, surfi)
+    {
+        if (((request & actions_[surfi]) & ACTION_WRITE) && nFaces_[surfi])
+        {
+            // Write geometry if no fields were written so that we still
+            // can have something to look at
+
+            if (!writers_[surfi].wroteData())
+            {
+                writers_[surfi].write();
+            }
+
+            writers_[surfi].endTime();
+        }
+    }
+
+    return true;
 }
 
 
 bool Foam::sampledSurfaces::execute()
 {
+    if (onExecute_)
+    {
+        return performAction(ACTION_ALL & ~ACTION_WRITE);
+    }
+
     return true;
 }
 
 
 bool Foam::sampledSurfaces::write()
 {
-    if (size())
-    {
-        // Finalize surfaces, merge points etc.
-        update();
-
-        const label nFields = classifyFields();
-
-        if (Pstream::master())
-        {
-            if (debug)
-            {
-                Pout<< "Creating directory "
-                    << outputPath_/mesh_.time().timeName() << nl << endl;
-
-            }
-
-            mkDir(outputPath_/mesh_.time().timeName());
-        }
-
-        // Write geometry first if required,
-        // or when no fields would otherwise be written
-        if (nFields == 0 || formatter_->separateGeometry())
-        {
-            writeGeometry();
-        }
-
-        const IOobjectList objects(mesh_, mesh_.time().timeName());
-
-        sampleAndWriteO<volScalarField>(objects);
-        sampleAndWriteO<volVectorField>(objects);
-        sampleAndWriteO<volSphericalTensorField>(objects);
-        sampleAndWriteO<volSymmTensorField>(objects);
-        sampleAndWriteO<volTensorField>(objects);
-
-        sampleAndWriteO<surfaceScalarField>(objects);
-        sampleAndWriteO<surfaceVectorField>(objects);
-        sampleAndWriteO<surfaceSphericalTensorField>(objects);
-        sampleAndWriteO<surfaceSymmTensorField>(objects);
-        sampleAndWriteO<surfaceTensorField>(objects);
-    }
-
-    return true;
-}
-
-
-bool Foam::sampledSurfaces::read(const dictionary& dict)
-{
-    bool surfacesFound = dict.found("surfaces");
-
-    if (surfacesFound)
-    {
-        dict.lookup("fields") >> fieldSelection_;
-
-        dict.lookup("interpolationScheme") >> interpolationScheme_;
-        const word writeType(dict.lookup("surfaceFormat"));
-
-        // Define the surface formatter
-        // Optionally defined extra controls for the output formats
-        formatter_ = surfaceWriter::New
-        (
-            writeType,
-            dict.subOrEmptyDict("formatOptions").subOrEmptyDict(writeType)
-        );
-
-        PtrList<sampledSurface> newList
-        (
-            dict.lookup("surfaces"),
-            sampledSurface::iNew(mesh_)
-        );
-        transfer(newList);
-
-        if (Pstream::parRun())
-        {
-            mergeList_.setSize(size());
-        }
-
-        // Ensure all surfaces and merge information are expired
-        expire();
-
-        if (this->size())
-        {
-            Info<< "Reading surface description:" << nl;
-            forAll(*this, surfI)
-            {
-                Info<< "    " << operator[](surfI).name() << nl;
-            }
-            Info<< endl;
-        }
-    }
-
-    if (Pstream::master() && debug)
-    {
-        Pout<< "sample fields:" << fieldSelection_ << nl
-            << "sample surfaces:" << nl << "(" << nl;
-
-        forAll(*this, surfI)
-        {
-            Pout<< "  " << operator[](surfI) << endl;
-        }
-        Pout<< ")" << endl;
-    }
-
-    return true;
+    return performAction(ACTION_ALL);
 }
 
 
@@ -320,6 +684,7 @@ void Foam::sampledSurfaces::readUpdate(const polyMesh::readUpdateState state)
 {
     if (state != polyMesh::UNCHANGED)
     {
+        // May want to use force expiration here
         expire();
     }
 }
@@ -327,9 +692,9 @@ void Foam::sampledSurfaces::readUpdate(const polyMesh::readUpdateState state)
 
 bool Foam::sampledSurfaces::needsUpdate() const
 {
-    forAll(*this, surfI)
+    for (const sampledSurface& s : surfaces())
     {
-        if (operator[](surfI).needsUpdate())
+        if (s.needsUpdate())
         {
             return true;
         }
@@ -339,89 +704,74 @@ bool Foam::sampledSurfaces::needsUpdate() const
 }
 
 
-bool Foam::sampledSurfaces::expire()
+bool Foam::sampledSurfaces::expire(const bool force)
 {
-    bool justExpired = false;
+    // Dimension as fraction of mesh bounding box
+    const scalar mergeDim = mergeTol_ * mesh_.bounds().mag();
 
-    forAll(*this, surfI)
+    label nChanged = 0;
+
+    forAll(*this, surfi)
     {
-        if (operator[](surfI).expire())
+        sampledSurface& s = (*this)[surfi];
+
+        if (s.invariant() && !force)
         {
-            justExpired = true;
+            // 'Invariant' - does not change when geometry does
+            continue;
+        }
+        if (s.expire())
+        {
+            ++nChanged;
         }
 
-        // Clear merge information
-        if (Pstream::parRun())
-        {
-            mergeList_[surfI].clear();
-        }
+        writers_[surfi].expire();
+        writers_[surfi].mergeDim(mergeDim);
+        nFaces_[surfi] = 0;
     }
 
-    // true if any surfaces just expired
-    return justExpired;
+    // True if any surfaces just expired
+    return nChanged;
 }
 
 
 bool Foam::sampledSurfaces::update()
 {
-    bool updated = false;
-
     if (!needsUpdate())
     {
-        return updated;
+        return false;
     }
 
-    // Serial: quick and easy, no merging required
-    if (!Pstream::parRun())
+    label nUpdated = 0;
+
+    forAll(*this, surfi)
     {
-        forAll(*this, surfI)
-        {
-            if (operator[](surfI).update())
-            {
-                updated = true;
-            }
-        }
-
-        return updated;
-    }
-
-    // Dimension as fraction of mesh bounding box
-    scalar mergeDim = mergeTol_ * mesh_.bounds().mag();
-
-    if (Pstream::master() && debug)
-    {
-        Pout<< nl << "Merging all points within "
-            << mergeDim << " metre" << endl;
-    }
-
-    forAll(*this, surfI)
-    {
-        sampledSurface& s = operator[](surfI);
+        sampledSurface& s = (*this)[surfi];
 
         if (s.update())
         {
-            updated = true;
-        }
-        else
-        {
-            continue;
+            ++nUpdated;
+            writers_[surfi].expire();
         }
 
-        PatchTools::gatherAndMerge
-        (
-            mergeDim,
-            primitivePatch
-            (
-                SubList<face>(s.faces(), s.faces().size()),
-                s.points()
-            ),
-            mergeList_[surfI].points,
-            mergeList_[surfI].faces,
-            mergeList_[surfI].pointsMap
-        );
+        nFaces_[surfi] = returnReduce(s.faces().size(), sumOp<label>());
     }
 
-    return updated;
+    return nUpdated;
+}
+
+
+Foam::scalar Foam::sampledSurfaces::mergeTol()
+{
+    return mergeTol_;
+}
+
+
+Foam::scalar Foam::sampledSurfaces::mergeTol(const scalar tol)
+{
+    const scalar prev(mergeTol_);
+    mergeTol_ = tol;
+    return prev;
 }
 
 

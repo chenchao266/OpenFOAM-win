@@ -1,9 +1,11 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2013 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2013 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -53,7 +55,9 @@ class polyMesh;
                            Class pointMapper Declaration
 \*---------------------------------------------------------------------------*/
 
-class pointMapper :    public morphFieldMapper
+class pointMapper
+:
+    public morphFieldMapper
 {
     // Private data
 
@@ -87,11 +91,11 @@ class pointMapper :    public morphFieldMapper
 
     // Private Member Functions
 
-        //- Disallow default bitwise copy construct
-        pointMapper(const pointMapper&);
+        //- No copy construct
+        pointMapper(const pointMapper&) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const pointMapper&);
+        //- No copy assignment
+        void operator=(const pointMapper&) = delete;
 
 
         //- Calculate addressing for mapping with inserted points
@@ -140,7 +144,7 @@ public:
         //- Return interpolated addressing
         virtual const labelListList& addressing() const;
 
-        //- Return interpolaion weights
+        //- Return interpolation weights
         virtual const scalarListList& weights() const;
 
         //- Are there any inserted points

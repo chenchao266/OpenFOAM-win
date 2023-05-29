@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2013-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2013-2016 OpenFOAM Foundation
+    Copyright (C) 2016-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -53,35 +56,30 @@ Foam::functionObjects::setTimeStepFunctionObject::setTimeStepFunctionObject
     const dictionary& dict
 )
 :
-    functionObject(name),
-    time_(runTime)
+    timeFunctionObject(name, runTime)
 {
     read(dict);
 }
 
 
-// * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
-
-Foam::functionObjects::setTimeStepFunctionObject::~setTimeStepFunctionObject()
-{}
-
-
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
-
-const Foam::Time&
-Foam::functionObjects::setTimeStepFunctionObject::time() const
-{
-    return time_;
-}
-
 
 bool Foam::functionObjects::setTimeStepFunctionObject::adjustTimeStep()
 {
-    const_cast<Time&>(time()).setDeltaT
-    (
-        timeStepPtr_().value(time_.timeOutputValue()),
-        false
-    );
+    // Wanted timestep
+    scalar newDeltaT = timeStepPtr_().value(time_.timeOutputValue());
+
+    static label index = -1;
+
+    if (time_.timeIndex() != index)
+    {
+        // Store current time so we don't get infinite recursion (since
+        // setDeltaT calls adjustTimeStep() again)
+        index = time_.timeIndex();
+
+        // Set time, allow deltaT to be adjusted for writeInterval purposes
+        const_cast<Time&>(time_).setDeltaT(newDeltaT, false);
+    }
 
     return true;
 }
@@ -92,20 +90,16 @@ bool Foam::functionObjects::setTimeStepFunctionObject::read
     const dictionary& dict
 )
 {
-    timeStepPtr_ = Function1<scalar>::New("deltaT", dict);
+    timeFunctionObject::read(dict);
 
-    // Check that adjustTimeStep is active
-    const dictionary& controlDict = time_.controlDict();
+    timeStepPtr_ = Function1<scalar>::New("deltaT", dict, &time_);
 
-    Switch adjust;
-    if
-    (
-       !controlDict.readIfPresent<Switch>("adjustTimeStep", adjust)
-    || !adjust
-    )
+    // Ensure that adjustTimeStep is active
+    if (!time_.controlDict().getOrDefault("adjustTimeStep", false))
     {
         FatalIOErrorInFunction(dict)
             << "Need to set 'adjustTimeStep' true to allow timestep control"
+            << nl
             << exit(FatalIOError);
     }
 

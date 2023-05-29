@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2019 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -38,7 +41,7 @@ SourceFiles
 #ifndef coupledFvPatchField_H
 #define coupledFvPatchField_H
 
-#include "LduInterfaceField.T.H"
+#include "LduInterfaceField.H"
 #include "fvPatchField.H"
 #include "coupledFvPatch.H"
 
@@ -206,8 +209,11 @@ public:
             //- Update result field based on interface functionality
             virtual void updateInterfaceMatrix
             (
-                scalarField& result,
-                const scalarField& psiInternal,
+                solveScalarField& result,
+                const bool add,
+                const lduAddressing& lduAddr,
+                const label patchId,
+                const solveScalarField& psiInternal,
                 const scalarField& coeffs,
                 const direction,
                 const Pstream::commsTypes commsType
@@ -217,6 +223,9 @@ public:
             virtual void updateInterfaceMatrix
             (
                 Field<Type>&,
+                const bool add,
+                const lduAddressing& lduAddr,
+                const label patchId,
                 const Field<Type>&,
                 const scalarField&,
                 const Pstream::commsTypes commsType

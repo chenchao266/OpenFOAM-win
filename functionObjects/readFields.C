@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2017-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -24,8 +27,6 @@ License
 \*---------------------------------------------------------------------------*/
 
 #include "readFields.H"
-#include "volFields.H"
-#include "surfaceFields.H"
 #include "addToRunTimeSelectionTable.H"
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
@@ -50,16 +51,16 @@ Foam::functionObjects::readFields::readFields
 )
 :
     fvMeshFunctionObject(name, runTime, dict),
+    readOnStart_(dict.getOrDefault("readOnStart", true)),
     fieldSet_()
 {
     read(dict);
+
+    if (readOnStart_)
+    {
+        execute();
+    }
 }
-
-
-// * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
-
-Foam::functionObjects::readFields::~readFields()
-{}
 
 
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
@@ -68,7 +69,7 @@ bool Foam::functionObjects::readFields::read(const dictionary& dict)
 {
     fvMeshFunctionObject::read(dict);
 
-    dict.lookup("fields") >> fieldSet_;
+    dict.readEntry("fields", fieldSet_);
 
     return true;
 }
@@ -76,29 +77,49 @@ bool Foam::functionObjects::readFields::read(const dictionary& dict)
 
 bool Foam::functionObjects::readFields::execute()
 {
-    // Clear out any previously loaded fields
-    vsf_.clear();
-    vvf_.clear();
-    vSpheretf_.clear();
-    vSymmtf_.clear();
-    vtf_.clear();
-
-    ssf_.clear();
-    svf_.clear();
-    sSpheretf_.clear();
-    sSymmtf_.clear();
-    stf_.clear();
-
-    forAll(fieldSet_, fieldi)
+    for (const word& fieldName : fieldSet_)
     {
-        const word& fieldName = fieldSet_[fieldi];
+        // Already loaded?
+        const auto* ptr = mesh_.cfindObject<regIOobject>(fieldName);
 
-        // If necessary load field
-        loadField<scalar>(fieldName, vsf_, ssf_);
-        loadField<vector>(fieldName, vvf_, svf_);
-        loadField<sphericalTensor>(fieldName, vSpheretf_, sSpheretf_);
-        loadField<symmTensor>(fieldName, vSymmtf_, sSymmtf_);
-        loadField<tensor>(fieldName, vtf_, stf_);
+        if (ptr)
+        {
+            DebugInfo
+                << "readFields : "
+                << ptr->name() << " (" << ptr->type()
+                << ") already in database" << endl;
+            continue;
+        }
+
+        // Load field as necessary
+        IOobject io
+        (
+            fieldName,
+            mesh_.time().timeName(),
+            mesh_,
+            IOobject::MUST_READ,
+            IOobject::NO_WRITE
+        );
+
+        const bool ok =
+        (
+            io.typeHeaderOk<regIOobject>(false) // Preload header info
+         && !io.headerClassName().empty()       // Extra safety
+         &&
+            (
+                loadField<scalar>(io)
+             || loadField<vector>(io)
+             || loadField<sphericalTensor>(io)
+             || loadField<symmTensor>(io)
+             || loadField<tensor>(io)
+            )
+        );
+
+        if (!ok)
+        {
+            DebugInfo
+                << "readFields : failed to load " << fieldName << endl;
+        }
     }
 
     return true;

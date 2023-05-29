@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -24,20 +26,25 @@ License
 \*---------------------------------------------------------------------------*/
 
 //#include "primitiveEntry.H"
-#include "dictionary.H"
+#include "dictionary2.H"
+#include "StringStream.H"
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
-namespace Foam {
-    template<class T>
-    primitiveEntry::primitiveEntry(const keyType& key, const T& t)
-        :
-        entry(key),
-        ITstream(key, tokenList(10))
-    {
-        OStringStream os;
-        os << t << token::END_STATEMENT;
-        readEntry(dictionary::null, IStringStream(os.str())());
-    }
 
+
+ namespace Foam{
+template<class T>
+primitiveEntry::primitiveEntry(const keyType& key, const T& val)
+:
+    entry(key),
+    ITstream(key, tokenList(10))
+{
+    OStringStream os;
+    os  << val << token::END_STATEMENT;
+    readEntry(dictionary::null, IStringStream(os.str())());
 }
+
+
 // ************************************************************************* //
+
+ } // End namespace Foam

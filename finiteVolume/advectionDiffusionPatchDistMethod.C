@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2015-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2015-2017 OpenFOAM Foundation
+    Copyright (C) 2016-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -56,7 +59,10 @@ Foam::patchDistMethods::advectionDiffusion::advectionDiffusion
 )
 :
     patchDistMethod(mesh, patchIDs),
-    coeffs_(dict.optionalSubDict(type() + "Coeffs")),
+    //- We do not want to recurse into 'advectionDiffusion' again so
+    //  make sure we pick up 'method' always from the subdictionary.
+    //coeffs_(dict.optionalSubDict(type() + "Coeffs")),
+    coeffs_(dict.subDict(type() + "Coeffs")),
     pdmPredictor_
     (
         patchDistMethod::New
@@ -66,9 +72,9 @@ Foam::patchDistMethods::advectionDiffusion::advectionDiffusion
             patchIDs
         )
     ),
-    epsilon_(coeffs_.lookupOrDefault<scalar>("epsilon", 0.1)),
-    tolerance_(coeffs_.lookupOrDefault<scalar>("tolerance", 1e-3)),
-    maxIter_(coeffs_.lookupOrDefault<int>("maxIter", 10)),
+    epsilon_(coeffs_.getOrDefault<scalar>("epsilon", 0.1)),
+    tolerance_(coeffs_.getOrDefault<scalar>("tolerance", 1e-3)),
+    maxIter_(coeffs_.getOrDefault<int>("maxIter", 10)),
     predicted_(false)
 {}
 
@@ -105,16 +111,15 @@ bool Foam::patchDistMethods::advectionDiffusion::correct
             false
         ),
         mesh_,
-        dimensionedVector("ny", dimless, Zero),
+        dimensionedVector(dimless, Zero),
         patchTypes<vector>(mesh_, patchIDs_)
     );
 
     const fvPatchList& patches = mesh_.boundary();
     volVectorField::Boundary& nybf = ny.boundaryFieldRef();
 
-    forAllConstIter(labelHashSet, patchIDs_, iter)
+    for (const label patchi : patchIDs_)
     {
-        label patchi = iter.key();
         nybf[patchi] == -patches[patchi].nf();
     }
 
@@ -144,6 +149,11 @@ bool Foam::patchDistMethods::advectionDiffusion::correct
         initialResidual = yEqn.solve().initialResidual();
 
     } while (initialResidual > tolerance_ && ++iter < maxIter_);
+
+    // Need to stabilise the y for overset meshes since the holed cells
+    // keep the initial value (0.0) so the gradient of that will be
+    // zero as well. Turbulence models do not like zero wall distance.
+    y.max(SMALL);
 
     // Only calculate n if the field is defined
     if (notNull(n))

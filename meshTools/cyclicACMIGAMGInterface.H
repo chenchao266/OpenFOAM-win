@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2013-2015 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2013-2015 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -35,7 +37,7 @@ SourceFiles
 #ifndef cyclicACMIGAMGInterface_H
 #define cyclicACMIGAMGInterface_H
 
-#include "GAMGInterface.T.H"
+#include "GAMGInterface.H"
 #include "cyclicACMILduInterface.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
@@ -64,11 +66,11 @@ class cyclicACMIGAMGInterface
 
     // Private Member Functions
 
-        //- Disallow default bitwise copy construct
-        cyclicACMIGAMGInterface(const cyclicACMIGAMGInterface&);
+        //- No copy construct
+        cyclicACMIGAMGInterface(const cyclicACMIGAMGInterface&) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const cyclicACMIGAMGInterface&);
+        //- No copy assignment
+        void operator=(const cyclicACMIGAMGInterface&) = delete;
 
 
 public:
@@ -80,7 +82,7 @@ public:
     // Constructors
 
         //- Construct from fine level interface,
-        //  local and neighbour restrict addressing
+        //- local and neighbour restrict addressing
         cyclicACMIGAMGInterface
         (
             const label index,
@@ -111,7 +113,7 @@ public:
 
         //- Cyclic interface functions
 
-            //- Return neigbour processor number
+            //- Return neighbour processor number
             virtual label neighbPatchID() const
             {
                 return fineCyclicACMIInterface_.neighbPatchID();
@@ -132,7 +134,7 @@ public:
 
             virtual const AMIPatchToPatchInterpolation& AMI() const
             {
-                return amiPtr_();
+                return *amiPtr_;
             }
 
             //- Return face transformation tensor

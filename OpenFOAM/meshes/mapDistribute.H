@@ -1,9 +1,12 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2015-2019 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -158,7 +161,9 @@ Ostream& operator<<(Ostream&, const mapDistribute&);
                            Class mapDistribute Declaration
 \*---------------------------------------------------------------------------*/
 
-class mapDistribute :    public mapDistributeBase
+class mapDistribute
+:
+    public mapDistributeBase
 {
     // Private data
 
@@ -168,6 +173,7 @@ class mapDistribute :    public mapDistributeBase
 
         //- Destination in constructMap for transformed elements
         labelList transformStart_;
+
 
     // Private Member Functions
 
@@ -194,6 +200,7 @@ class mapDistribute :    public mapDistributeBase
             List<T>& field,
             const TransformOp& top
         ) const;
+
 
 public:
 
@@ -224,9 +231,9 @@ public:
                 List<List<Type>>& flds
             ) const
             {
-                forAll(flds, i)
+                for (List<Type>& fld : flds)
                 {
-                    operator()(vt, forward, flds[i]);
+                    operator()(vt, forward, fld);
                 }
             }
 
@@ -264,7 +271,7 @@ public:
                 List<point>& fld
             ) const
             {
-                pointField pfld(fld.xfer());
+                pointField pfld(std::move(fld));
                 if (forward)
                 {
                     fld = vt.transformPosition(pfld);
@@ -274,6 +281,7 @@ public:
                     fld = vt.invTransformPosition(pfld);
                 }
             }
+
             void operator()
             (
                 const vectorTensorTransform& vt,
@@ -281,31 +289,33 @@ public:
                 List<List<point>>& flds
             ) const
             {
-                forAll(flds, i)
+                for (List<point>& fld : flds)
                 {
-                    operator()(vt, forward, flds[i]);
+                    operator()(vt, forward, fld);
                 }
             }
+
             //- Transform patch-based field
             void operator()(const coupledPolyPatch& cpp, pointField& fld) const
             {
                 cpp.transformPosition(fld);
             }
+
             template<template<class> class Container>
             void operator()(const coupledPolyPatch& cpp, Container<point>& map)
             const
             {
                 Field<point> fld(map.size());
                 label i = 0;
-                forAllConstIter(typename Container<point>, map, iter)
+                forAllConstIters(map, iter)
                 {
-                    fld[i++] = iter();
+                    fld[i++] = *iter;
                 }
                 cpp.transformPosition(fld);
                 i = 0;
-                forAllIter(typename Container<point>, map, iter)
+                forAllIters(map, iter)
                 {
-                    iter() = fld[i++];
+                    *iter = fld[i++];
                 }
             }
         };
@@ -318,65 +328,79 @@ public:
     // Constructors
 
         //- Construct null
-        mapDistribute();
+        mapDistribute(const label comm = UPstream::worldComm);
 
-        //- Construct from components
+        //- Copy construct
+        explicit mapDistribute(const mapDistribute& map);
+
+        //- Move construct
+        explicit mapDistribute(mapDistribute&& map);
+
+        //- Move construct from components
         mapDistribute
         (
             const label constructSize,
-            const Xfer<labelListList>& subMap,
-            const Xfer<labelListList>& constructMap,
+            labelListList&& subMap,
+            labelListList&& constructMap,
             const bool subHasFlip = false,
-            const bool constructHasFlip = false
+            const bool constructHasFlip = false,
+            const label comm = UPstream::worldComm
         );
 
-        //- Construct from components
+        //- Move construct from components
         mapDistribute
         (
             const label constructSize,
-            const Xfer<labelListList>& subMap,
-            const Xfer<labelListList>& constructMap,
-            const Xfer<labelListList>& transformElements,
-            const Xfer<labelList>& transformStart,
+            labelListList&& subMap,
+            labelListList&& constructMap,
+            labelListList&& transformElements,
+            labelList&& transformStart,
             const bool subHasFlip = false,
-            const bool constructHasFlip = false
+            const bool constructHasFlip = false,
+            const label comm = UPstream::worldComm
         );
 
         //- Construct from reverse addressing: per data item the send
-        //  processor and the receive processor. (note: data is not stored
-        //  sorted per processor so cannot use printLayout).
+        //- processor and the receive processor.
+        //
+        //  \note data are not stored per processor so cannot use printLayout.
         mapDistribute
         (
-            const labelList& sendProcs,
-            const labelList& recvProcs
+            const labelUList& sendProcs,
+            const labelUList& recvProcs,
+            const label comm = UPstream::worldComm
         );
 
         //- Construct from list of (possibly) remote elements in globalIndex
-        //  numbering (or -1). Determines compact numbering (see above) and
-        //  distribute map to get data into this ordering and renumbers the
-        //  elements to be in compact numbering.
+        //- numbering (or -1).
+        //  Determines compact numbering (see above) and distribute map to
+        //  get data into this ordering and renumbers the elements to be in
+        //  compact numbering.
         mapDistribute
         (
             const globalIndex&,
             labelList& elements,
             List<Map<label>>& compactMap,
-            const int tag = Pstream::msgType()
+            const int tag = Pstream::msgType(),
+            const label comm = UPstream::worldComm
         );
 
         //- Special variant that works with the info sorted into bins
-        //  according to local indices. E.g. think cellCells where
-        //  cellCells[localCelli] is a list of global cells
+        //- according to local indices.
+        //  For example, cellCells where cellCells[localCelli] is a list of
+        //  global cells.
         mapDistribute
         (
             const globalIndex&,
             labelListList& cellCells,
             List<Map<label>>& compactMap,
-            const int tag = Pstream::msgType()
+            const int tag = Pstream::msgType(),
+            const label comm = UPstream::worldComm
         );
 
         //- Construct from list of (possibly remote) untransformed elements
-        //  in globalIndex numbering (or -1) and (possibly remote)
-        //  transformded elements in globalIndexAndTransform numbering.
+        //- in globalIndex numbering (or -1) and (possibly remote)
+        //- transformed elements in globalIndexAndTransform numbering.
         //  Determines compact numbering (see above) and
         //  distribute map to get data into this ordering and renumbers the
         //  elements to be in compact numbering.
@@ -388,7 +412,8 @@ public:
             const labelPairList& transformedElements,
             labelList& transformedIndices,
             List<Map<label>>& compactMap,
-            const int tag = Pstream::msgType()
+            const int tag = Pstream::msgType(),
+            const label comm = UPstream::worldComm
         );
 
         //- As above but with ListLists.
@@ -400,25 +425,30 @@ public:
             const List<labelPairList>& transformedElements,
             labelListList& transformedIndices,
             List<Map<label>>& compactMap,
-            const int tag = Pstream::msgType()
+            const int tag = Pstream::msgType(),
+            const label comm = UPstream::worldComm
         );
 
-        //- Construct by transferring parameter content
-        mapDistribute(const Xfer<mapDistribute>&);
-
-        //- Construct copy
-        mapDistribute(const mapDistribute&);
+        //- Construct from my elements to send. Assumes layout is my elements
+        //  first followed by elements from all other processors in consecutive
+        //  order
+        explicit mapDistribute
+        (
+            labelListList&& subMap,
+            const bool subHasFlip = false,
+            const bool constructHasFlip = false,
+            const label comm = UPstream::worldComm
+        );
 
         //- Construct from Istream
-        mapDistribute(Istream&);
+        explicit mapDistribute(Istream& is);
 
         //- Clone
         autoPtr<mapDistribute> clone() const;
 
 
     //- Destructor
-    virtual ~mapDistribute()
-    {}
+    virtual ~mapDistribute() = default;
 
 
     // Member Functions
@@ -445,11 +475,7 @@ public:
         // Other
 
             //- Transfer the contents of the argument and annul the argument.
-            void transfer(mapDistribute&);
-
-            //- Transfer contents to the Xfer container
-            Xfer<mapDistribute> xfer();
-
+            void transfer(mapDistribute& map);
 
             //- Distribute data using default commsType.
             template<class T>
@@ -542,15 +568,17 @@ public:
             //- Correct for topo change.
             void updateMesh(const mapPolyMesh&)
             {
-                notImplemented
-                (
-                    "mapDistribute::updateMesh(const mapPolyMesh&)"
-                );
+                NotImplemented;
             }
 
     // Member Operators
 
-        void operator=(const mapDistribute&);
+        //- Copy assignment
+        void operator=(const mapDistribute& rhs);
+
+        //- Move assignment
+        void operator=(mapDistribute&& rhs);
+
 
     // IOstream operators
 

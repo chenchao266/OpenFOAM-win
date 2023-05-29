@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2015 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2015 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -23,6 +25,9 @@ License
 
 Class
     Foam::sixDoFSolvers::Newmark
+
+Group
+    grpSixDoFRigidBodySolvers
 
 Description
     Newmark 2nd-order time-integrator for 6DoF solid-body motion.
@@ -92,6 +97,12 @@ public:
             const dictionary& dict,
             sixDoFRigidBodyMotion& body
         );
+
+        //- Construct and return a clone
+        virtual autoPtr<sixDoFSolver> clone() const
+        {
+            return autoPtr<sixDoFSolver>::NewFrom<Newmark>(dict_, body_);
+        }
 
 
     //- Destructor

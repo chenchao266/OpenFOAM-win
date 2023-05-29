@@ -1,9 +1,12 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2018-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -38,16 +41,22 @@ SourceFiles
 #ifndef regIOobject_H
 #define regIOobject_H
 
-#include "IOobject.T.H"
+#include "IOobject.H"
+#include "refPtr.H"
+#include "tmp.H"
 #include "typeInfo.H"
+#include "stdFoam.H"
 #include "OSspecific.H"
-#include "NamedEnum.T.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 
 namespace Foam
 {
+
+// Forward Declarations
+
+class dictionary;
 
 namespace functionEntries
 {
@@ -56,20 +65,22 @@ namespace functionEntries
 namespace fileOperations
 {
     class uncollatedFileOperation;
-    class masterUncollatedFileOperation;
 }
 
 /*---------------------------------------------------------------------------*\
                          Class regIOobject Declaration
 \*---------------------------------------------------------------------------*/
 
-class regIOobject :    public IOobject
+class regIOobject
+:
+    public IOobject
 {
 protected:
+
         //- Helper: check readOpt flags and read if necessary
         bool readHeaderOk
         (
-            const IOstream::streamFormat PstreamFormat,
+            const IOstreamOption::streamFormat fmt,
             const word& typeName
         );
 
@@ -79,7 +90,7 @@ protected:
 
 private:
 
-    // Private data
+    // Private Data
 
         //- Is this object registered with the registry
         bool registered_;
@@ -93,69 +104,71 @@ private:
         //- eventNo of last update
         label eventNo_;
 
+        //- Dictionary for any meta-data
+        autoPtr<dictionary> metaDataPtr_;
+
         //- Istream for reading
         autoPtr<ISstream> isPtr_;
 
 
     // Private Member Functions
 
-        //- Return Istream
-        Istream& readStream(const bool valid = true);
+        //- Construct object stream, read header if not already constructed
+        void readStream(const bool valid);
 
-        //- Dissallow assignment
-        void operator=(const regIOobject&);
+        //- No copy assignment
+        void operator=(const regIOobject&) = delete;
 
 
 public:
 
-        //- Declare friendship with any classes that need access to
-        //  masterOnlyReading
+        //- Friendship with classes needing access to masterOnlyReading
         friend class functionEntries::codeStream;
         friend class fileOperations::uncollatedFileOperation;
-        friend class fileOperations::masterUncollatedFileOperation;
 
 
-    // Static data
+    // Static Data
 
         //- Runtime type information
         TypeName("regIOobject");
 
-        static float fileModificationSkew;
-
 
     // Constructors
 
-        //- Construct from IOobject. Optional flag for if IOobject is the
-        //  top level regIOobject.
-        regIOobject(const IOobject&, const bool isTime = false);
+        //- Construct from IOobject. The optional flag adds special handling
+        //- if the object is the top-level regIOobject (eg, Time).
+        regIOobject(const IOobject& io, const bool isTimeObject = false);
 
-        //- Construct as copy
-        regIOobject(const regIOobject&);
+        //- Copy construct
+        regIOobject(const regIOobject& rio);
 
-        //- Construct as copy, transferring registry registration to copy
-        //  if registerCopy is true
-        regIOobject(const regIOobject&, bool registerCopy);
+        //- Copy construct, transferring registry registration to the copy
+        //- if registerCopy is true
+        regIOobject(const regIOobject& rio, bool registerCopy);
 
-        //- Construct as copy with new name, transfering registry registration
-        //  to copy as specified
+        //- Copy construct with new name, transferring registry registration
+        //- to the copy f registerCopy is true
         regIOobject(const word& newName, const regIOobject&, bool registerCopy);
 
-        //- Construct as copy with new IO parameters
-        regIOobject(const IOobject&, const regIOobject&);
+        //- Copy construct with new IO parameters
+        regIOobject(const IOobject& io, const regIOobject& rio);
 
 
     //- Destructor
     virtual ~regIOobject();
 
 
-    // Member functions
+    // Member Functions
 
         // Registration
 
-            //- Add object to registry
+            //- Add object to registry, if not already registered
+            //  \return true if object was already registered,
+            //      or was newly registered
             bool checkIn();
 
-            //- Remove object from registry
+            //- Remove all file watches and remove object from registry
+            //  \return true if object was registered and was removed
             bool checkOut();
 
             //- Add file watch on object (if registered and READ_IF_MODIFIED)
@@ -164,24 +177,58 @@ public:
             //- Is this object owned by the registry?
             inline bool ownedByRegistry() const;
 
-            //- Transfer ownership of this object to its registry
-            inline void store();
+            //- Register object with its registry
+            //- and transfer ownership to the registry.
+            //  \return true if now ownedByRegistry
+            inline bool store();
 
-            //- Transfer ownership of the given object pointer to its registry
-            //  and return reference to object.
+            //- Transfer pointer ownership to its registry.
+            //  \return reference to the stored object
             template<class Type>
-            inline static Type& store(Type*);
+            inline static Type& store(Type* p);
 
-            //- Transfer ownership of the given object pointer to its registry
-            //  and return reference to object.
+            //- Transfer pointer ownership to its registry.
+            //  Resets (clears) the parameter.
+            //  \return reference to the stored object
             template<class Type>
-            inline static Type& store(autoPtr<Type>&);
+            inline static Type& store(autoPtr<Type>& ptr);
+
+            //- Transfer pointer ownership to its registry.
+            //  Resets (clears) the parameter.
+            //  \return reference to the stored object
+            template<class Type>
+            inline static Type& store(autoPtr<Type>&& ptr);
+
+            //- Transfer pointer ownership to its registry.
+            //  Changes parameter from PTR to CREF (do not rely on this).
+            //  \return reference to the stored object
+            template<class Type>
+            inline static Type& store(refPtr<Type>& ptr);
+
+            //- Transfer pointer ownership to its registry.
+            //  Changes parameter from PTR to CREF (do not rely on this).
+            //  \return reference to the stored object
+            template<class Type>
+            inline static Type& store(refPtr<Type>&& ptr);
+
+            //- Transfer pointer ownership to its registry.
+            //  Changes parameter from PTR to CREF (do not rely on this).
+            //  \return reference to the stored object
+            template<class Type>
+            inline static Type& store(tmp<Type>& ptr);
+
+            //- Transfer pointer ownership to its registry.
+            //  Changes parameter from PTR to CREF (do not rely on this).
+            //  \return reference to the stored object
+            template<class Type>
+            inline static Type& store(tmp<Type>&& ptr);
 
             //- Release ownership of this object from its registry
-            inline void release();
+            //  \param unregister optionally set as non-registered
+            inline void release(const bool unregister = false);
 
 
-        // Dependency checking
+        // Dependency Checking
 
             //- Event number at last update.
             inline label eventNo() const;
@@ -190,11 +237,9 @@ public:
             inline label& eventNo();
 
             //- Return true if up-to-date with respect to given object
-            //  otherwise false
             bool upToDate(const regIOobject&) const;
 
             //- Return true if up-to-date with respect to given objects
-            //  otherwise false
             bool upToDate
             (
                 const regIOobject&,
@@ -202,7 +247,6 @@ public:
             ) const;
 
             //- Return true if up-to-date with respect to given objects
-            //  otherwise false
             bool upToDate
             (
                 const regIOobject&,
@@ -211,7 +255,6 @@ public:
             ) const;
 
             //- Return true if up-to-date with respect to given objects
-            //  otherwise false
             bool upToDate
             (
                 const regIOobject&,
@@ -220,7 +263,8 @@ public:
                 const regIOobject&
             ) const;
 
-            //- Set up to date (obviously)
+
+            //- Set as up-to-date
             void setUpToDate();
 
 
@@ -228,6 +272,21 @@ public:
 
             //- Rename
             virtual void rename(const word& newName);
+
+
+        // Meta-data
+
+            //- Return pointer to meta-data or nullptr
+            const dictionary* findMetaData() const noexcept;
+
+            //- Get or create meta-data
+            dictionary& getMetaData() noexcept;
+
+            //- Remove meta-data
+            void removeMetaData();
+
+            //- Update internal meta-data (eg, prior to writing)
+            virtual void updateMetaData();
 
 
         // Reading
@@ -255,8 +314,8 @@ public:
             //- Read object
             virtual bool read();
 
-            //- Add file watch for fileName on object if not yet watched. Return
-            //  index of watch
+            //- Add file watch for fileName on object if not yet watched.
+            //  \return index of watch
             virtual label addWatch(const fileName&);
 
             //- Return file-monitoring handles
@@ -266,7 +325,7 @@ public:
             inline labelList& watchIndices();
 
             //- Return true if the object's file (or files for objectRegistry)
-            //  have been modified. (modified state is cached by Time)
+            //- have been modified. (modified state is cached by Time)
             virtual bool modified() const;
 
             //- Read object if modified (as set by call to modified)
@@ -275,16 +334,14 @@ public:
 
         // Writing
 
-            //- Pure virtual writaData function.
+            //- Pure virtual writeData function.
             //  Must be defined in derived types
             virtual bool writeData(Ostream&) const = 0;
 
-            //- Write using given format, version and compression
+            //- Write using stream options
             virtual bool writeObject
             (
-                IOstream::streamFormat,
-                IOstream::versionNumber,
-                IOstream::compressionType,
+                IOstreamOption streamOpt,
                 const bool valid
             ) const;
 
@@ -301,9 +358,23 @@ public:
             }
 
 
-    // Member operators
+    // Member Operators
 
-        void operator=(const IOobject&);
+        //- Copy assignment
+        void operator=(const IOobject& io);
+
+
+    // Housekeeping
+
+        //- Write using given format, version and compression
+        FOAM_DEPRECATED_FOR(2020-02, "writeObject(IOstreamOption, bool)")
+        virtual bool writeObject
+        (
+            IOstreamOption::streamFormat fmt,
+            IOstreamOption::versionNumber ver,
+            IOstreamOption::compressionType comp,
+            const bool valid
+        ) const;
 };
 
 

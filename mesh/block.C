@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2019-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -37,6 +40,28 @@ namespace Foam
 
 Foam::block::block
 (
+    const cellShape& bshape,
+    const pointField& vertices,
+    const blockEdgeList& edges,
+    const blockFaceList& faces,
+    const labelVector& density,
+    const UList<gradingDescriptors>& expand,
+    const word& zoneName
+)
+:
+    blockDescriptor(bshape, vertices, edges, faces, density, expand, zoneName),
+    points_(),
+    blockCells_(),
+    blockPatches_()
+{
+    // Always need points, and demand-driven data leaves dangling addressing?
+    createPoints();
+    createBoundary();
+}
+
+
+Foam::block::block
+(
     const dictionary& dict,
     const label index,
     const pointField& vertices,
@@ -45,8 +70,12 @@ Foam::block::block
     Istream& is
 )
 :
-    blockDescriptor(dict, index, vertices, edges, faces, is)
+    blockDescriptor(dict, index, vertices, edges, faces, is),
+    points_(),
+    blockCells_(),
+    blockPatches_()
 {
+    // Always need points, and demand-driven data leaves dangling addressing?
     createPoints();
     createBoundary();
 }
@@ -54,12 +83,18 @@ Foam::block::block
 
 Foam::block::block(const blockDescriptor& blockDesc)
 :
-    blockDescriptor(blockDesc)
+    blockDescriptor(blockDesc),
+    points_(),
+    blockCells_(),
+    blockPatches_()
 {
+    // Always need points, and demand-driven data leaves dangling addressing?
     createPoints();
     createBoundary();
 }
 
+
+// * * * * * * * * * * * * * * * * Selectors * * * * * * * * * * * * * * * * //
 
 Foam::autoPtr<Foam::block> Foam::block::New
 (
@@ -71,36 +106,19 @@ Foam::autoPtr<Foam::block> Foam::block::New
     Istream& is
 )
 {
-    if (debug)
-    {
-        InfoInFunction << "Constructing block" << endl;
-    }
+    DebugInFunction << "Constructing block" << endl;
 
     const word blockOrCellShapeType(is);
 
-    IstreamConstructorTable::iterator cstrIter =
-        IstreamConstructorTablePtr_->find(blockOrCellShapeType);
+    auto* ctorPtr = IstreamConstructorTable(blockOrCellShapeType);
 
-    if (cstrIter == IstreamConstructorTablePtr_->end())
+    if (!ctorPtr)
     {
-        is.putBack(blockOrCellShapeType);
-        return autoPtr<block>(new block(dict, index, points, edges, faces, is));
+        is.putBack(token(blockOrCellShapeType));
+        return autoPtr<block>::New(dict, index, points, edges, faces, is);
     }
-    else
-    {
-        return autoPtr<block>
-        (
-            cstrIter()
-            (
-                dict,
-                index,
-                points,
-                edges,
-                faces,
-                is
-            )
-        );
-    }
+
+    return autoPtr<block>(ctorPtr(dict, index, points, edges, faces, is));
 }
 
 

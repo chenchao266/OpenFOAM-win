@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2019 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -39,8 +42,8 @@ SourceFiles
 #include "typeInfo.H"
 #include "runTimeSelectionTables.H"
 #include "autoPtr.H"
-#include "List.T.H"
-#include "Pair.T.H"
+#include "List.H"
+#include "Pair.H"
 #include "Switch.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
@@ -83,11 +86,11 @@ protected:
 
         void scaleEnergy(scalar& e, const scalar r) const;
 
-        //- Disallow copy construct
-        pairPotential(const pairPotential&);
+        //- No copy construct
+        pairPotential(const pairPotential&) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const pairPotential&);
+        //- No copy assignment
+        void operator=(const pairPotential&) = delete;
 
 
 public:
@@ -132,8 +135,7 @@ public:
 
 
     //- Destructor
-    virtual ~pairPotential()
-    {}
+    virtual ~pairPotential() = default;
 
 
     // Member Functions

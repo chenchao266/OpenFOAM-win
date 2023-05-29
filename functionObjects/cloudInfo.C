@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2012-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2012-2016 OpenFOAM Foundation
+    Copyright (C) 2015 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -25,8 +28,8 @@ License
 
 #include "cloudInfo.H"
 #include "kinematicCloud.H"
-#include "dictionary.H"
-#include "PstreamReduceOps.T.H"
+#include "dictionary2.H"
+#include "PstreamReduceOps.H"
 #include "addToRunTimeSelectionTable.H"
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
@@ -49,13 +52,16 @@ namespace functionObjects
 
 // * * * * * * * * * * * * Protected Member Functions  * * * * * * * * * * * //
 
-void Foam::functionObjects::cloudInfo::writeFileHeader(const label i)
+void Foam::functionObjects::cloudInfo::writeFileHeader(Ostream& os) const
 {
-    writeHeader(file(), "Cloud information");
-    writeCommented(file(), "Time");
-    writeTabbed(file(), "nParcels");
-    writeTabbed(file(), "mass");
-    file() << endl;
+    writeHeader(os, "Cloud information");
+    writeCommented(os, "Time");
+    writeTabbed(os, "nParcels");
+    writeTabbed(os, "mass");
+    writeTabbed(os, "Dmax");
+    writeTabbed(os, "D10");
+    writeTabbed(os, "D32");
+    os  << endl;
 }
 
 
@@ -69,39 +75,35 @@ Foam::functionObjects::cloudInfo::cloudInfo
 )
 :
     regionFunctionObject(name, runTime, dict),
-    logFiles(obr_, name)
+    logFiles(obr_, name, dict)
 {
     read(dict);
 }
-
-
-// * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
-
-Foam::functionObjects::cloudInfo::~cloudInfo()
-{}
 
 
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
 
 bool Foam::functionObjects::cloudInfo::read(const dictionary& dict)
 {
-    regionFunctionObject::read(dict);
-
-    logFiles::resetNames(dict.lookup("clouds"));
-
-    Info<< type() << " " << name() << ": ";
-    if (names().size())
+    if (regionFunctionObject::read(dict) && logFiles::read(dict))
     {
-        Info<< "applying to clouds:" << nl;
-        forAll(names(), i)
+        logFiles::resetNames(dict.get<wordList>("clouds"));
+
+        Info<< type() << " " << name() << ": ";
+        if (writeToFile() && names().size())
         {
-            Info<< "    " << names()[i] << nl;
+            Info<< "applying to clouds:" << nl;
+            forAll(names(), cloudi)
+            {
+                Info<< "    " << names()[cloudi] << nl;
+                writeFileHeader(files(cloudi));
+            }
+            Info<< endl;
         }
-        Info<< endl;
-    }
-    else
-    {
-        Info<< "no clouds to be processed" << nl << endl;
+        else
+        {
+            Info<< "no clouds to be processed" << nl << endl;
+        }
     }
 
     return true;
@@ -116,26 +118,43 @@ bool Foam::functionObjects::cloudInfo::execute()
 
 bool Foam::functionObjects::cloudInfo::write()
 {
-    logFiles::write();
-
-    forAll(names(), i)
+    forAll(names(), cloudi)
     {
-        const word& cloudName = names()[i];
+        const word& cloudName = names()[cloudi];
 
         const kinematicCloud& cloud =
             obr_.lookupObject<kinematicCloud>(cloudName);
 
-        label nParcels = returnReduce(cloud.nParcels(), sumOp<label>());
-        scalar massInSystem =
+        const label nTotParcels =
+            returnReduce(cloud.nParcels(), sumOp<label>());
+
+        const scalar totMass =
             returnReduce(cloud.massInSystem(), sumOp<scalar>());
 
-        if (Pstream::master())
+        const scalar Dmax = cloud.Dmax();
+        const scalar D10 = cloud.Dij(1, 0);
+        const scalar D32 = cloud.Dij(3, 2);
+
+        Log << type() << " " << name() <<  " write:" << nl
+            << "    number of parcels : " << nTotParcels << nl
+            << "    mass in system    : " << totMass << nl
+            << "    maximum diameter  : " << Dmax << nl
+            << "    D10 diameter      : " << D10 << nl
+            << "    D32 diameter      : " << D32 << nl
+            << endl;
+
+        if (writeToFile())
         {
-            writeTime(file(i));
-            file(i)
-                << token::TAB
-                << nParcels << token::TAB
-                << massInSystem << endl;
+            auto& os = files(cloudi);
+
+            writeCurrentTime(os);
+            os
+                << token::TAB << nTotParcels
+                << token::TAB << totMass
+                << token::TAB << Dmax
+                << token::TAB << D10
+                << token::TAB << D32
+                << endl;
         }
     }
 

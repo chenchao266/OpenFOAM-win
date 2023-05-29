@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011 OpenFOAM Foundation
+    Copyright (C) 2018-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -24,9 +27,63 @@ License
 Class
     Foam::cylinderAnnulusToCell
 
+Group
+    grpCellSources
+
 Description
-    A topoSetSource to select cells based on cell centres inside a
-    cylinder annulus.
+    A \c topoSetCellSource to select all cells whose cell
+    centre inside a given bounding cylinder annulus.
+
+    Operands:
+    \table
+      Operand   | Type    | Location
+      output    | cellSet | $FOAM_CASE/constant/polyMesh/sets/\<set\>
+    \endtable
+
+Usage
+    Minimal example by using \c system/topoSetDict.actions:
+    \verbatim
+    {
+        // Mandatory (inherited) entries
+        name           <name>;
+        type           cellSet;
+        action         <action>;
+
+        // Mandatory entries
+        source         cylinderAnnulusToCell;
+        p1             (<p1X> <p1Y> <p1Z>);
+        p2             (<p2X> <p2Y> <p2Z>);
+        outerRadius    <radius1>;
+
+        // Optional entries
+        innerRadius    <radius2>;
+    }
+    \endverbatim
+
+    where the entries mean:
+    \table
+      Property   | Description                         | Type   | Req'd | Dflt
+      name       | Name of cellSet                     | word   |  yes  | -
+      type       | Type name: cellSet                  | word   |  yes  | -
+      action     | Action applied on cells - see below | word   |  yes  | -
+      source     | Source name: cylinderAnnulusToCell  | word   |  yes  | -
+      p1          | Coordinate of one of the endpoints | vector |  yes  | -
+      p2          | Coordinate of the other endpoint   | vector |  yes  | -
+      outerRadius | Cylinder outer radius              | scalar |  yes  | -
+      innerRadius | Cylinder inner radius              | scalar |  no   | 0
+    \endtable
+
+    Options for the \c action entry:
+    \verbatim
+      new      | Create a new cellSet from selected cells
+      add      | Add selected cells into this cellSet
+      subtract | Remove selected cells from this cellSet
+    \endverbatim
+
+See also
+    - Foam::topoSetSource
+    - Foam::topoSetCellSource
+    - Foam::cylinderToCell
 
 SourceFiles
     cylinderAnnulusToCell.C
@@ -36,7 +93,7 @@ SourceFiles
 #ifndef cylinderAnnulusToCell_H
 #define cylinderAnnulusToCell_H
 
-#include "topoSetSource.H"
+#include "topoSetCellSource.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -49,24 +106,23 @@ namespace Foam
 
 class cylinderAnnulusToCell
 :
-    public topoSetSource
+    public topoSetCellSource
 {
-
-    // Private data
+    // Private Data
 
         //- Add usage string
         static addToUsageTable usage_;
 
         //- First point on cylinder axis
-        vector p1_;
+        point point1_;
 
         //- Second point on cylinder axis
-        vector p2_;
+        point point2_;
 
-        //- Outer Radius
-        scalar outerRadius_;
+        //- Outer radius
+        scalar radius_;
 
-        //- Inner Radius
+        //- Inner radius
         scalar innerRadius_;
 
 
@@ -87,43 +143,30 @@ public:
         cylinderAnnulusToCell
         (
             const polyMesh& mesh,
-            const vector& p1,
-            const vector& p2,
-            const scalar outerRadius,
-            const scalar innerRadius
+            const point& point1,
+            const point& point2,
+            const scalar radius,
+            const scalar innerRadius = 0
         );
 
         //- Construct from dictionary
-        cylinderAnnulusToCell
-        (
-            const polyMesh& mesh,
-            const dictionary& dict
-        );
+        cylinderAnnulusToCell(const polyMesh& mesh, const dictionary& dict);
 
         //- Construct from Istream
-        cylinderAnnulusToCell
-        (
-            const polyMesh& mesh,
-            Istream&
-        );
+        cylinderAnnulusToCell(const polyMesh& mesh, Istream& is);
 
 
-    // Destructor
-    virtual ~cylinderAnnulusToCell();
+    //- Destructor
+    virtual ~cylinderAnnulusToCell() = default;
+
 
     // Member Functions
-
-        virtual sourceType setType() const
-        {
-            return CELLSETSOURCE;
-        }
 
         virtual void applyToSet
         (
             const topoSetSource::setAction action,
-            topoSet&
+            topoSet& set
         ) const;
-
 };
 
 

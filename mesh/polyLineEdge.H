@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2019-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -56,11 +59,11 @@ class polyLineEdge
 {
     // Private Member Functions
 
-        //- Disallow default bitwise copy construct
-        polyLineEdge(const polyLineEdge&);
+        //- No copy construct
+        polyLineEdge(const polyLineEdge&) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const polyLineEdge&);
+        //- No copy assignment
+        void operator=(const polyLineEdge&) = delete;
 
 
 public:
@@ -74,41 +77,49 @@ public:
         //- Construct from components
         polyLineEdge
         (
-            const pointField&,
-            const label start,
-            const label end,
-            const pointField& otherPoints
+            const pointField& points,       //!< Referenced point field
+            const edge& fromTo,             //!< Start/end in point field
+            const pointField& intermediate  //!< The intermediate points
         );
 
-        //- Construct from Istream
+        //- Construct from components
+        polyLineEdge
+        (
+            const pointField& points,       //!< Referenced point field
+            const label from,               //!< Start point in point field
+            const label to,                 //!< End point in point field
+            const pointField& intermediate  //!< The intermediate points
+        );
+
+        //- Construct from Istream and point field.
         polyLineEdge
         (
             const dictionary& dict,
             const label index,
-            const searchableSurfaces& geometry,
-            const pointField&,
-            Istream&
+            const searchableSurfaces&  /*unused*/,
+            const pointField& points,  //!< Referenced point field
+            Istream& is
         );
 
 
-        //- Destructor
-        virtual ~polyLineEdge();
+    //- Destructor
+    virtual ~polyLineEdge() = default;
 
 
     // Member Functions
 
-        //- Return the point position corresponding to the curve parameter
+        //- The point position corresponding to the curve parameter
         //  0 <= lambda <= 1
         point position(const scalar lambda) const;
 
-        //- Return the length of the curve
+        //- The length of the curve
         scalar length() const;
 };
 
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
-} // End of namespace blockEdges
+} // End namespace blockEdges
 } // End namespace Foam
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //

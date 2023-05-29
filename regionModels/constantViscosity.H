@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2013-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2013-2017 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -22,7 +24,7 @@ License
     along with OpenFOAM.  If not, see <http://www.gnu.org/licenses/>.
 
 Class
-    Foam::constantViscosity
+    Foam::regionModels::surfaceFilmModels::constantViscosity
 
 Description
     Constant viscosity model
@@ -56,11 +58,11 @@ class constantViscosity
 {
     // Private member functions
 
-        //- Disallow default bitwise copy construct
-        constantViscosity(const constantViscosity&);
+        //- No copy construct
+        constantViscosity(const constantViscosity&) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const constantViscosity&);
+        //- No copy assignment
+        void operator=(const constantViscosity&) = delete;
 
 
 protected:
@@ -83,7 +85,7 @@ public:
         //- Construct from surface film model
         constantViscosity
         (
-            surfaceFilmModel& film,
+            surfaceFilmRegionModel& film,
             const dictionary& dict,
             volScalarField& mu
         );

@@ -1,19 +1,16 @@
-﻿/*---------------------------------------------------------------------------*\
+/*---------------------------------------------------------------------------*\
+  =========                 |
+  \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
+   \\    /   O peration     |
+    \\  /    A nd           | www.openfoam.com
+     \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2011 Symscape
+    Copyright (C) 2016-2021 OpenCFD Ltd.
+-------------------------------------------------------------------------------
 License
-    Copyright            : (C) 2011 Symscape
-    Website              : www.symscape.com
-
-    Copyright            : (C) 2011-2017 FSD blueCAPE Lda
-    Website              : www.bluecape.com.pt
-
-    Copyright            : (C) 2011-2017 OpenFOAM Foundation
-    Website              : www.openfoam.org
-
-    This file is part of blueCAPE's unofficial mingw patches for OpenFOAM.
-    For more information about these patches, visit:
-         http://bluecfd.com/Core
-
-    This file is a derivative work of OpenFOAM.
+    This file is part of OpenFOAM.
 
     OpenFOAM is free software: you can redistribute it and/or modify it
     under the terms of the GNU General Public License as published by
@@ -29,771 +26,684 @@ License
     along with OpenFOAM.  If not, see <http://www.gnu.org/licenses/>.
 
 Description
-    MS Windows versions of the functions declared in OSspecific.H
-
-Details
-    This file has been created by blueCAPE's unofficial mingw patches for
-    OpenFOAM.
-    For more information about these patches, visit:
-        http://bluecfd.com/Core
-
-    Details on how this file was created:
-      - This file was originally based on Symscape's own work on patching 
-        OpenFOAM for working on Windows, circa 2009.
-      - Further changes were made by blueCAPE over the years.
-      - Includes code from POSIX.C where applicable.
-
+    MS-Windows versions of the functions declared in OSspecific.H
 
 \*---------------------------------------------------------------------------*/
 
 #include "OSspecific.H"
 #include "MSwindows.H"
-#include "foamVersion.H"
 #include "fileName.H"
 #include "fileStat.H"
-#include "timer.H"
-#include "IFstream.H"
-#include "DynamicList.T.H"
+#include "DynamicList.H"
+#include "CStringList.H"
 #include "IOstreams.H"
-#include "Pstream.T.H"
-
-// Undefine Foam_DebugInfo, because we don't need it and it collides with a macro
-// in windows.h
-#undef Foam_DebugInfo
+#include "Pstream.H"
+#undef DebugInfo    // Windows name clash with OpenFOAM messageStream
 
 #include <cassert>
 #include <cstdlib>
 #include <fstream>
-#include <map>
+#include <unordered_map>
 
-// Windows system header files
-#include <io.h> // _close
+// Windows headers
+#define WIN32_LEAN_AND_MEAN
+#include <csignal>
+#include <io.h>     // For _close
 #include <windows.h>
-#include <signal.h>
 
-// For C++11 std::thread and std::mutex
-#include <thread>
-#include <mutex>
+#define EXT_SO  "dll"
 
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
 
 namespace Foam
 {
-  defineTypeNameAndDebug(MSwindows, 0);
-}
-
-namespace Foam 
-{
-
-// Don't abort under windows, causes abort dialog to
-// popup. Instead just exit with exitCode.
-static
-void sigAbortHandler(int exitCode)
-{
-  ::exit(exitCode);
+    defineTypeNameAndDebug(MSwindows, 0);
 }
 
 
-static
-bool installAbortHandler()
+namespace Foam
 {
-  // If it didn't succeed there's not much we can do,
-  // so don't check result.
-  ::signal(SIGABRT, &sigAbortHandler);
-  return true;
-}
+    // Don't abort under windows, causes abort dialog to popup.
+    // Instead just exit with exitCode.
+    static void sigAbortHandler(int exitCode)
+    {
+        ::exit(exitCode);
+    }
+
+    static bool installAbortHandler()
+    {
+        // If it didn't succeed there's not much we can do,
+        // so don't check result.
+        ::signal(SIGABRT, &sigAbortHandler);
+        return true;
+    }
+
+    static bool const abortHandlerInstalled = installAbortHandler();
 
 
-static bool const abortHandlerInstalled = installAbortHandler();
+    // Move file, overwriting existing
+    static bool renameFile(const fileName& src, const fileName& dst)
+    {
+        constexpr const int flags
+        (
+            MOVEFILE_COPY_ALLOWED
+          | MOVEFILE_REPLACE_EXISTING
+          | MOVEFILE_WRITE_THROUGH
+        );
+
+        // TODO: handle extra-long paths with ::MoveFileExW
+
+        return ::MoveFileExA(src.c_str(), dst.c_str(), flags);
+    }
+
+} // End namespace Foam
+
+
+// * * * * * * * * * * * * * * * * Local Classes * * * * * * * * * * * * * * //
+
+namespace Foam
+{
+namespace MSwindows
+{
+
+//- A simple directory contents iterator
+class directoryIterator
+{
+    HANDLE handle_;
+
+    bool exists_;
+
+    bool hidden_;
+
+    std::string item_;
+
+    //- Accept file/dir name
+    inline bool accept() const
+    {
+        return
+        (
+            item_.size() && item_ != "." && item_ != ".."
+         && (hidden_ || item_[0] != '.')
+        );
+    }
+
+
+public:
+
+    //- Construct for dirName, optionally allowing hidden files/dirs
+    directoryIterator(const fileName& dirName, bool allowHidden = false)
+    :
+        handle_(INVALID_HANDLE_VALUE),
+        exists_(false),
+        hidden_(allowHidden),
+        item_()
+    {
+        if (!dirName.empty())
+        {
+            WIN32_FIND_DATA findData;
+
+            handle_ = ::FindFirstFile((dirName/"*").c_str(), &findData);
+
+            if (good())
+            {
+                exists_ = true;
+                item_ = findData.cFileName;
+
+                // If first element is not acceptable, get another one
+                if (!accept())
+                {
+                    next();
+                }
+            }
+        }
+    }
+
+
+    //- Destructor
+    ~directoryIterator()
+    {
+        close();
+    }
+
+
+    // Member Functions
+
+        //- Directory existed for opening
+        bool exists() const
+        {
+            return exists_;
+        }
+
+        //- Directory pointer is valid
+        bool good() const
+        {
+            return (INVALID_HANDLE_VALUE != handle_);
+        }
+
+        //- Close directory
+        void close()
+        {
+            if (good())
+            {
+                ::FindClose(handle_);
+                handle_ = INVALID_HANDLE_VALUE;
+            }
+        }
+
+        //- The current item
+        const std::string& val() const
+        {
+            return item_;
+        }
+
+        //- Read next item, always ignoring "." and ".." entries.
+        //  Normally also ignore hidden files/dirs (beginning with '.')
+        //  Automatically close when it runs out of items
+        bool next()
+        {
+            if (good())
+            {
+                WIN32_FIND_DATA findData;
+
+                while (::FindNextFile(handle_, &findData))
+                {
+                    item_ = findData.cFileName;
+
+                    if (accept())
+                    {
+                        return true;
+                    }
+                }
+                close();  // No more items
+            }
+
+            return false;
+        }
+
+
+    // Member Operators
+
+        //- Same as good()
+        operator bool() const
+        {
+            return good();
+        }
+
+        //- Same as val()
+        const std::string& operator*() const
+        {
+            return val();
+        }
+
+        //- Same as next()
+        directoryIterator& operator++()
+        {
+            next();
+            return *this;
+        }
+};
+
+} // End namespace MSwindows
+} // End namespace Foam
 
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
-
-//- Get last windows api error from GetLastError
-string MSwindows::getLastError()
+std::string Foam::MSwindows::lastError()
 {
+    // Retrieve the system error message for the last-error code
+
     // Based on an example at:
     // http://msdn2.microsoft.com/en-us/library/ms680582(VS.85).aspx
 
     LPVOID lpMsgBuf;
-    LPVOID lpDisplayBuf;
-    DWORD dw = GetLastError(); 
+    DWORD dw = GetLastError();
 
-    FormatMessage(
-        FORMAT_MESSAGE_ALLOCATE_BUFFER | 
+    FormatMessage
+    (
+        FORMAT_MESSAGE_ALLOCATE_BUFFER |
         FORMAT_MESSAGE_FROM_SYSTEM |
         FORMAT_MESSAGE_IGNORE_INSERTS,
-        NULL,
-        dw,
-        MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),
-        LPTSTR(&lpMsgBuf),
-        0, NULL );
+        NULL,  // source
+        dw,    // message-id
+        MAKELANGID(LANG_NEUTRAL, SUBLANG_DEFAULT),  // language-id
+        reinterpret_cast<LPTSTR>(&lpMsgBuf),
+        0, NULL
+    );
 
-    lpDisplayBuf = LocalAlloc(LMEM_ZEROINIT, 
-        (lstrlen(static_cast<LPCTSTR>(lpMsgBuf))+40)*sizeof(TCHAR)); 
-    sprintf(static_cast<LPTSTR>(lpDisplayBuf),
-            "Error %d: %s", int(dw), static_cast<LPCTSTR>(lpMsgBuf));
+    const char* fmt = "Error %d: %s";
 
-    const string errorMessage = static_cast<LPTSTR>(lpDisplayBuf);
+    // Use snprintf with zero to establish the size (without '\0') required
+    std::string output;
+
+    int n = ::snprintf(nullptr, 0, fmt, static_cast<LPCTSTR>(lpMsgBuf));
+
+    if (n > 0)
+    {
+        output.resize(n+1);
+
+        // Print directly into buffer
+        n = ::snprintf(&(output[0]), n+1, fmt, static_cast<LPCTSTR>(lpMsgBuf));
+        output.resize(n);
+    }
 
     LocalFree(lpMsgBuf);
-    LocalFree(lpDisplayBuf);
 
-    return errorMessage;
+    return output;
 }
 
 
-//-Declared here to avoid polluting MSwindows.H with windows.h
-namespace MSwindows
+std::string Foam::MSwindows::userName()
 {
-    //- Get windows user name
-    Foam::string getUserName();
+    const DWORD bufLen = 256;
+    TCHAR buf[bufLen];
+    DWORD len = bufLen;
 
-    //- Remove quotes, if any, from string
-    void removeQuotes(Foam::string & arg);
-
-    //- Convert windows directory slash (back-slash) to unix (forward-slash). 
-    //- Windows is fine with unix like directory slashes.
-    //- Foam's file io (see src/OpenFOAM/db/IOstreams/Sstreams/OSwrite.C) 
-    //- uses back-slash as escape character and continuation, 
-    //- so not an option to have windows file paths with back-slashes
-    void toUnixSlash(Foam::string & arg);
-
-    //- Auto create and then delete array when this goes out of scope
-    template<class T>
-    class AutoArray
+    if (::GetUserName(buf, &len))
     {
-      T* const array_;
-
-    public:
-      AutoArray(const unsigned long arrayLength);
-      ~AutoArray();
-
-      //- Access array
-      T* get();
-    }; // class AutoArray
-
-
-    //- Directory contents iterator
-    class DirectoryIterator
-    {
-      WIN32_FIND_DATA findData_;
-      HANDLE findHandle_;
-      fileName nextName_;
-      bool hasMore_;
-      
-    public:
-      DirectoryIterator(const fileName & directory);
-      ~DirectoryIterator();
-      
-      //- Initialization succeeded
-      bool isValid() const;
-
-      //- Has more?
-      bool hasNext() const;
-      
-      //- Next item
-      const fileName & next();
-    }; // class DirectoryIterator
-} // namespace MSwindows
-
-
-inline
-void MSwindows::removeQuotes(Foam::string & arg)
-{
-    std::size_t pos;
-
-    while (Foam::string::npos != (pos = arg.find('"')))
-    {
-        arg.erase(pos, 1);
-    }
-}
-
-
-inline
-void MSwindows::toUnixSlash(Foam::string & arg)
-{
-    arg.replaceAll("\\", "/");
-
-    const string UNC("//");
-
-    // Preserve UNC i.e., \\machine-name\...
-    if (0 == arg.find(UNC)) 
-    {
-        arg.replace(UNC, "\\\\");
-    }
-}
-
-
-string MSwindows::getUserName()
-{
-    const DWORD bufferSize = 256;
-    TCHAR buffer[bufferSize];
-    DWORD actualBufferSize = bufferSize;
-    string nameAsString;
-
-    bool success = ::GetUserName(buffer, &actualBufferSize);
-
-    if (success)
-    {
-        nameAsString = buffer;
-    }
-    else 
-    {
-        if (ERROR_INSUFFICIENT_BUFFER == ::GetLastError() &&
-            32768 > actualBufferSize) 
-        {
-            AutoArray<TCHAR> actualBuffer(actualBufferSize);
-            ::GetUserName(actualBuffer.get(), &actualBufferSize);
-            nameAsString = actualBuffer.get();
-        }
+        return buf;
     }
 
-    return nameAsString;
-}
+    std::string str;
 
-
-template<class T>
-inline
-MSwindows::AutoArray<T>::AutoArray(const unsigned long arrayLength)
-    : array_(new T[arrayLength])
-{}
-
-
-template<class T>
-inline
-MSwindows::AutoArray<T>::~AutoArray()
-{
-    delete [] array_;
-}
-
-
-template<class T>
-inline
-T* MSwindows::AutoArray<T>::get()
-{
-    return array_;
-}
-
-
-inline
-bool MSwindows::DirectoryIterator::isValid() const
-{
-    const bool valid = (INVALID_HANDLE_VALUE != findHandle_);
-    return valid;
-}
-
-    
-MSwindows::DirectoryIterator::DirectoryIterator(const fileName & directory)
-{
-    const fileName directoryContents = directory/"*";
-    findHandle_ = ::FindFirstFile(directoryContents.c_str(), &findData_);
-    hasMore_    = isValid();
-}
-        
-
-MSwindows::DirectoryIterator::~DirectoryIterator()
-{
-    if (isValid()) 
+    if
+    (
+        ERROR_INSUFFICIENT_BUFFER == ::GetLastError()
+     && len < 2048
+    )
     {
-        ::FindClose(findHandle_);
+        // The len is with trailing '\0'
+        str.resize(len);
+
+        // Retrieve directly into buffer
+        ::GetUserName(&(str[0]), &len);
+
+        // Without trailing '\0'
+        str.resize(len-1);
     }
+
+    return str;
 }
 
 
-inline
-bool MSwindows::DirectoryIterator::hasNext() const
+pid_t Foam::pid()
 {
-    assert(isValid());
-
-    return hasMore_;
-}
-
-
-inline
-const fileName & MSwindows::DirectoryIterator::next()
-{
-    assert(hasNext());
-
-    nextName_ = findData_.cFileName;
-    hasMore_  = ::FindNextFile(findHandle_, &findData_);
-
-    return nextName_;
-}
-
-
-pid_t pid()
-{
-#ifdef WIN32
     const DWORD processId = ::GetCurrentProcessId();
-#elif WIN64
-    const pid_t processId = (pid_t) ::GetCurrentProcessId();
-#endif
     return processId;
 }
 
 
-pid_t ppid()
+pid_t Foam::ppid()
 {
     // No equivalent under windows.
 
     if (MSwindows::debug)
     {
-        InfoInFunction
-            << "ppid not supported under MSwindows" << endl;
+        Info<< "ppid not supported under MSwindows" << endl;
     }
 
     return 0;
 }
 
 
-pid_t pgid()
+pid_t Foam::pgid()
 {
     // No equivalent under windows.
 
     if (MSwindows::debug)
     {
-        InfoInFunction
-            << "pgid not supported under MSwindows" << endl;
+        Info<< "pgid not supported under MSwindows" << endl;
     }
 
     return 0;
 }
 
 
-bool env(const word& envName)
+bool Foam::hasEnv(const std::string& envName)
 {
-    const DWORD actualBufferSize = 
-      ::GetEnvironmentVariable(envName.c_str(), NULL, 0);
-
-    const bool envExists = (0 < actualBufferSize);
-    return envExists;
+    // An empty envName => always false
+    return !envName.empty() &&
+        ::GetEnvironmentVariable(envName.c_str(), nullptr, 0);
 }
 
 
-string getEnv(const word& envName)
+Foam::string Foam::getEnv(const std::string& envName)
 {
-    string envAsString;
+    std::string env;
 
-    const DWORD actualBufferSize = 
-      ::GetEnvironmentVariable(envName.c_str(), NULL, 0);
+    auto len = ::GetEnvironmentVariable(envName.c_str(), nullptr, 0);
 
-    if (0 < actualBufferSize) 
+    // len [return] = size with trailing nul char, or zero on failure
+    if (len)
     {
-        MSwindows::AutoArray<TCHAR> actualBuffer(actualBufferSize);
-        ::GetEnvironmentVariable(envName.c_str(),
-                                 actualBuffer.get(),
-                                 actualBufferSize);
-        envAsString = actualBuffer.get();
-        toUnixPath(envAsString);
+        env.resize(len);
+
+        // len [in] = size with trailing nul char
+        // len [return] = size without trailing nul char
+        len = ::GetEnvironmentVariable(envName.c_str(), &(env[0]), len);
+
+        env.resize(len);
+        return fileName::validate(env);
     }
 
-    return envAsString;
+    return env;
 }
 
 
-bool setEnv
+bool Foam::setEnv
 (
     const word& envName,
     const std::string& value,
-    const bool /*overwrite*/
+    const bool overwrite
 )
 {
-    const bool success = 
-      ::SetEnvironmentVariable(envName.c_str(), value.c_str());
-    return success;
+    // Ignore an empty envName => always false
+    return
+    (
+        !envName.empty()
+     && ::SetEnvironmentVariable(envName.c_str(), value.c_str())
+    );
 }
 
 
-string hostName(bool full)
+Foam::string Foam::hostName(bool)
 {
-    const DWORD bufferSize = MAX_COMPUTERNAME_LENGTH + 1;
-    TCHAR buffer[bufferSize];
-    DWORD actualBufferSize = bufferSize;
+    const DWORD bufLen = MAX_COMPUTERNAME_LENGTH + 1;
+    TCHAR buf[bufLen];
+    DWORD len = bufLen;
 
-    const bool success = 
-      ::GetComputerName(buffer, &actualBufferSize);
-    const string computerName = success ? buffer : string::null;
-    return computerName;
+    return ::GetComputerName(buf, &len) ? buf : string();
 }
 
 
-string domainName()
+Foam::string Foam::domainName()
 {
-    // FIXME: this should be implemented for completion.
     // Could use ::gethostname and ::gethostbyname like POSIX.C, but would
     // then need to link against ws_32. Prefer to minimize dependencies.
-    // See task https://github.com/blueCFD/Core/issues/61
 
     return string::null;
 }
 
 
-string userName()
+Foam::string Foam::userName()
 {
-    string nameAsString = getEnv("USERNAME");
+    string name = Foam::getEnv("USERNAME");
 
-    if (nameAsString.empty()) 
+    if (name.empty())
     {
-        nameAsString = MSwindows::getUserName();
+        name = MSwindows::userName();
     }
 
-    return nameAsString;
+    return name;
 }
 
 
-bool isAdministrator()
+bool Foam::isAdministrator()
 {
-    // FIXME: This is going to be needed as well... for building dynamic code.
-    // Going to assume to be false, so this way it's possible to build dynamic
-    // code!
-    // Besides, in Windows XP the usual default is to be the administrator...
-    // See task https://github.com/blueCFD/Core/issues/62
-
-    return false;
+    // Assume worst case
+    return true;
 }
 
 
-fileName home()
+Foam::fileName Foam::home()
 {
-    string homeDir = getEnv("HOME");
+    fileName env = Foam::getEnv("HOME");
 
-    if (homeDir.empty()) 
+    if (env.empty())
     {
-        homeDir = getEnv("USERPROFILE");
+        env  = Foam::getEnv("USERPROFILE");
     }
 
-    return homeDir;
+    return env;
 }
 
 
-fileName home(const string& userName)
+Foam::fileName Foam::home(const std::string& userName)
 {
-    return home();
+    return Foam::home();
 }
 
 
-fileName cwd()
+Foam::fileName Foam::cwd()
 {
-    string currentDirectory;
+    string path;
+    auto len = ::GetCurrentDirectory(0, nullptr);
 
-    const DWORD actualBufferSize = 
-      ::GetCurrentDirectory(0, NULL);
+    // len [return] = size with trailing nul char, or zero on failure
+    if (len)
+    {
+        path.resize(len);
 
-    if (0 < actualBufferSize) 
-    {
-        MSwindows::AutoArray<TCHAR> actualBuffer(actualBufferSize);
-        ::GetCurrentDirectory(actualBufferSize,
-                              actualBuffer.get());   
-        currentDirectory = actualBuffer.get();
-        MSwindows::toUnixSlash(currentDirectory);
-    }
-    else 
-    {
-        FatalErrorInFunction
-            << "Couldn't get the current working directory"
-            << exit(FatalError);
+        // len [in] = size with trailing nul char
+        // len [return] = size without trailing nul char
+        len = ::GetCurrentDirectory(len, &(path[0]));
+
+        path.resize(len);
+        return fileName::validate(path);
     }
 
-    return currentDirectory;
+    FatalErrorInFunction
+        << "Couldn't get the current working directory"
+        << exit(FatalError);
+
+    return fileName();
 }
 
 
-bool chDir(const fileName& dir)
+Foam::fileName Foam::cwd(bool logical)
 {
-    const bool success = ::SetCurrentDirectory(dir.c_str());
-    return success; 
+    return Foam::cwd();
 }
 
 
-bool mkDir(const fileName& pathName, const mode_t mode)
+bool Foam::chDir(const fileName& dir)
 {
-    if (MSwindows::debug)
-    {
-        Pout<< FUNCTION_NAME << " : pathName:" << pathName << " mode:" << mode
-            << endl;
-        if ((MSwindows::debug & 2) && !Pstream::master())
-        {
-            error::printStack(Pout);
-        }
-    }
+    // Ignore an empty dir name => always false
+    return !dir.empty() && ::SetCurrentDirectory(dir.c_str());;
+}
 
+
+bool Foam::mkDir(const fileName& pathName, const mode_t mode)
+{
+    // empty names are meaningless
     if (pathName.empty())
     {
         return false;
     }
 
-    bool success = ::CreateDirectory(pathName.c_str(), NULL);
-    if (success)
-    {
-        chMod(pathName, mode);
-    }
-    else 
-    {
-        const DWORD error = ::GetLastError();
+    bool ok = ::CreateDirectory(pathName.c_str(), NULL);
 
-        switch (error)
+    if (ok)
+    {
+        Foam::chMod(pathName, mode);
+        return true;
+    }
+
+    const DWORD error = ::GetLastError();
+    switch (error)
+    {
+        case ERROR_ALREADY_EXISTS:
         {
-            case ERROR_ALREADY_EXISTS:
+            ok = true;
+            break;
+        }
+
+        case ERROR_PATH_NOT_FOUND:
+        {
+            // Part of the path does not exist so try to create it
+            const fileName& parentName = pathName.path();
+
+            if (parentName.size() && mkDir(parentName, mode))
             {
-                success = true;
-                break;
+                ok = mkDir(pathName, mode);
             }
-            case ERROR_PATH_NOT_FOUND:
-            {
-                // Part of the path does not exist so try to create it
-                const fileName& parentName = pathName.path();
-
-                if (parentName.size() && mkDir(parentName, mode))
-                {
-                    success = mkDir(pathName, mode);
-                }
-                
-                break;
-            }  
+            break;
         }
+    }
 
-        if (!success) 
+    if (!ok)
+    {
+        FatalErrorInFunction
+            << "Couldn't create directory: " << pathName
+            << " " << MSwindows::lastError()
+            << exit(FatalError);
+    }
+
+    return ok;
+}
+
+
+bool Foam::chMod(const fileName& name, const mode_t m)
+{
+    // Ignore an empty name => always false
+    return !name.empty() && _chmod(name.c_str(), m) == 0;
+}
+
+
+mode_t Foam::mode(const fileName& name, const bool followLink)
+{
+    // Ignore an empty name => always 0
+    if (!name.empty())
+    {
+        fileStat fileStatus(name, followLink);
+        if (fileStatus.valid())
         {
-            FatalErrorInFunction
-              << "Couldn't create directory: " << pathName
-              << " " << MSwindows::getLastError()
-              << exit(FatalError);
+            return fileStatus.status().st_mode;
         }
     }
 
-    return success;
+    return 0;
 }
 
 
-bool chMod(const fileName& name, const mode_t m)
+// Windows equivalent to S_ISDIR
+#define ms_isdir(a) \
+    ((m != INVALID_FILE_ATTRIBUTES) && (m & FILE_ATTRIBUTE_DIRECTORY))
+
+// Windows equivalent to S_ISREG
+#define ms_isreg(s) \
+    ((m != INVALID_FILE_ATTRIBUTES) && !(m & FILE_ATTRIBUTE_DIRECTORY))
+
+
+Foam::fileName::Type Foam::type
+(
+    const fileName& name,
+    const bool /* followLink */
+)
 {
-    if (MSwindows::debug)
+    // Ignore an empty name => always UNDEFINED
+    if (name.empty())
     {
-        Pout<< FUNCTION_NAME << " : name:" << name << endl;
-        if ((MSwindows::debug & 2) && !Pstream::master())
-        {
-            error::printStack(Pout);
-        }
+        return fileName::UNDEFINED;
     }
 
-    const int success = _chmod(name.c_str(), m);
-    return success;
+    const DWORD m = ::GetFileAttributes(name.c_str());
+
+    if (ms_isreg(m))
+    {
+        return fileName::FILE;
+    }
+    else if (ms_isdir(m))
+    {
+        return fileName::DIRECTORY;
+    }
+
+    return fileName::UNDEFINED;
 }
 
 
-mode_t mode(const fileName& name, const bool followLink)
+// Local check for gz file
+static bool isGzFile(const std::string& name)
 {
-    if (MSwindows::debug)
-    {
-        Pout<< FUNCTION_NAME << " : name:" << name << endl;
-    }
-
-    fileStat fileStatus(name, followLink);
-    if (fileStatus.isValid())
-    {
-        return fileStatus.status().st_mode;
-    }
-    else
-    {
-        return 0;
-    }
+    const DWORD m = ::GetFileAttributes((name + ".gz").c_str());
+    return ms_isreg(m);
 }
 
 
-fileName::Type type(const fileName& name, const bool followLink)
-{
-    //FIXME: 'followLink' can't be used with 'GetFileAttributes'.
-    //Task for fixing this detail: https://github.com/blueCFD/Core/issues/60
-
-    fileName::Type fileType = fileName::UNDEFINED;
-    const DWORD attrs = ::GetFileAttributes(name.c_str());
-
-    if (attrs != INVALID_FILE_ATTRIBUTES) 
-    {
-        fileType = (attrs & FILE_ATTRIBUTE_DIRECTORY) ?
-            fileName::DIRECTORY :
-            fileName::FILE;
-    }
-
-    return fileType;
-}
-
-
-static
-bool 
-isGzFile(const fileName& name)
-{
-    string gzName(name);
-    gzName += ".gz";
-    const DWORD attrs = ::GetFileAttributes(gzName.c_str());
-    const bool success = (attrs != INVALID_FILE_ATTRIBUTES);
-
-    return success;
-}
-
-
-bool exists
+bool Foam::exists
 (
     const fileName& name,
     const bool checkGzip,
     const bool followLink
 )
 {
-    //FIXME: 'followLink' can't be used with 'GetFileAttributes'.
-    //Task for fixing this detail: https://github.com/blueCFD/Core/issues/60
-
-    if (MSwindows::debug)
+    // Ignore an empty name => always false
+    if (name.empty())
     {
-        Pout<< FUNCTION_NAME << " : name:" << name
-            << " checkGzip:" << checkGzip
-            << endl;
-        if ((MSwindows::debug & 2) && !Pstream::master())
-        {
-            error::printStack(Pout);
-        }
+        return false;
     }
 
-    const DWORD attrs = ::GetFileAttributes(name.c_str());
-    const bool success = (attrs != INVALID_FILE_ATTRIBUTES) || 
-                         (checkGzip && isGzFile(name));
+    const DWORD m = ::GetFileAttributes(name.c_str());
 
-    return success;
+    return (ms_isdir(m) || ms_isreg(m) || (checkGzip && isGzFile(name)));
 }
 
 
-bool isDir(const fileName& name, const bool followLink)
+bool Foam::isDir(const fileName& name, const bool followLink)
 {
-    //FIXME: 'followLink' can't be used with 'GetFileAttributes'.
-    //Task for fixing this detail: https://github.com/blueCFD/Core/issues/60
-
-    if (MSwindows::debug)
+    // Ignore an empty name => always false
+    if (name.empty())
     {
-        Pout<< FUNCTION_NAME << " : name:" << name << endl;
-        if ((MSwindows::debug & 2) && !Pstream::master())
-        {
-            error::printStack(Pout);
-        }
+        return false;
     }
 
-    const DWORD attrs = ::GetFileAttributes(name.c_str());
-    bool success = (attrs != INVALID_FILE_ATTRIBUTES) &&
-                   (attrs & FILE_ATTRIBUTE_DIRECTORY);
+    const DWORD m = ::GetFileAttributes(name.c_str());
 
-    return success;
+    return ms_isdir(m);
 }
 
 
-bool isFile
+bool Foam::isFile
 (
     const fileName& name,
     const bool checkGzip,
     const bool followLink
 )
 {
-    //FIXME: 'followLink' can't be used with 'GetFileAttributes'.
-    //Task for fixing this detail: https://github.com/blueCFD/Core/issues/60
-
-   if (MSwindows::debug)
+    // Ignore an empty name => always false
+    if (name.empty())
     {
-        Pout<< FUNCTION_NAME << " : name:" << name
-            << " checkGzip:" << checkGzip
-            << endl;
-        if ((MSwindows::debug & 2) && !Pstream::master())
-        {
-            error::printStack(Pout);
-        }
+        return false;
     }
 
-    const DWORD attrs = ::GetFileAttributes(name.c_str());
-    const bool success =
-    (
-        (attrs != INVALID_FILE_ATTRIBUTES) && 
-        !(attrs & FILE_ATTRIBUTE_DIRECTORY)
-    )
-     ||
-    (
-        checkGzip && isGzFile(name)
-    );
+    const DWORD m = ::GetFileAttributes(name.c_str());
 
-    return success;
+    return (ms_isreg(m) || (!ms_isdir(m) && checkGzip && isGzFile(name)));
 }
 
 
-offset_t fileSize(const fileName& name, const bool followLink)
+off_t Foam::fileSize(const fileName& name, const bool followLink)
 {
-    if (MSwindows::debug)
+    // Ignore an empty name
+    if (!name.empty())
     {
-        Pout<< FUNCTION_NAME << " : name:" << name << endl;
-        if ((MSwindows::debug & 2) && !Pstream::master())
+        fileStat fileStatus(name, followLink);
+        if (fileStatus.valid())
         {
-            error::printStack(Pout);
+            return fileStatus.status().st_size;
         }
     }
 
-    fileStat fileStatus(name, followLink);
-
-    if (fileStatus.isValid())
-    {
-        return fileStatus.status().st_size;
-    }
-    else
-    {
-        return offset_t(-1);
-    }
+    return -1;
 }
 
 
-time_t lastModified(const fileName& name, const bool followLink)
+time_t Foam::lastModified(const fileName& name, const bool followLink)
 {
-    if (MSwindows::debug)
-    {
-        Pout<< FUNCTION_NAME << " : name:" << name << endl;
-        if ((MSwindows::debug & 2) && !Pstream::master())
-        {
-            error::printStack(Pout);
-        }
-    }
-
-    fileStat fileStatus(name, followLink);
-    if (fileStatus.isValid())
-    {
-        return fileStatus.status().st_mtime;
-    }
-    else
-    {
-        return 0;
-    }
+    // Ignore an empty name
+    return name.empty() ? 0 : fileStat(name, followLink).modTime();
 }
 
 
-double highResLastModified(const fileName& name, const bool followLink)
+double Foam::highResLastModified(const fileName& name, const bool followLink)
 {
-    if (MSwindows::debug)
-    {
-        Pout<< FUNCTION_NAME << " : name:" << name << endl;
-        if ((MSwindows::debug & 2) && !Pstream::master())
-        {
-            error::printStack(Pout);
-        }
-    }
-    fileStat fileStatus(name, followLink);
-    if (fileStatus.isValid())
-    {
-        return
-            fileStatus.status().st_mtime
-          + 1e-9*fileStatus.status().st_atim.tv_nsec;
-    }
-    else
-    {
-        return 0;
-    }
+    // Ignore an empty name
+    return name.empty() ? 0 : fileStat(name, followLink).dmodTime();
 }
 
 
-fileNameList readDir
+Foam::fileNameList Foam::readDir
 (
     const fileName& directory,
     const fileName::Type type,
@@ -803,104 +713,103 @@ fileNameList readDir
 {
     // Initial filename list size
     // also used as increment if initial size found to be insufficient
-    const int maxNnames = 100;
+    static constexpr int maxNnames = 100;
+
+    // Basic sanity: cannot strip '.gz' from directory names
+    const bool stripgz = filtergz && (type != fileName::DIRECTORY);
+    const word extgz("gz");
+
+    fileNameList dirEntries;
+
+    // Iterate contents (ignores an empty directory name)
+
+    MSwindows::directoryIterator dirIter(directory);
+
+    if (!dirIter.exists())
+    {
+        if (MSwindows::debug)
+        {
+            InfoInFunction
+                << "cannot open directory " << directory << endl;
+        }
+
+        return dirEntries;
+    }
 
     if (MSwindows::debug)
     {
-        //InfoInFunction
-        Pout<< FUNCTION_NAME << " : reading directory " << directory << endl;
-        if ((MSwindows::debug & 2) && !Pstream::master())
-        {
-            error::printStack(Pout);
-        }
+        InfoInFunction
+            << " : reading directory " << directory << endl;
     }
 
-    // Setup empty string list MAXTVALUES long
-    fileNameList dirEntries(maxNnames);
+    label nFailed = 0;     // Entries with invalid characters
+    label nEntries = 0;    // Number of selected entries
+    dirEntries.resize(maxNnames);
 
-    // Temporary variables and counters
-    label nEntries = 0;
-
-    MSwindows::DirectoryIterator dirIt(directory);
-
-    if (dirIt.isValid())
+    // Process all the directory entries
+    for (/*nil*/; dirIter; ++dirIter)
     {
-        while (dirIt.hasNext())
+        const std::string& item = *dirIter;
+
+        // Validate filename without quotes, etc in the name.
+        // No duplicate slashes to strip - dirent will not have them anyhow.
+
+        const fileName name(fileName::validate(item));
+        if (name != item)
         {
-            const fileName & fName = dirIt.next();
-
-            // ignore files begining with ., i.e. '.', '..' and '.*'
-            if (fName.size() > 0 && fName[size_t(0)] != '.')
+            ++nFailed;
+        }
+        else if
+        (
+            (type == fileName::DIRECTORY)
+         || (type == fileName::FILE && !fileName::isBackup(name))
+        )
+        {
+            if ((directory/name).type() == type)
             {
-                word fileNameExt = fName.ext();
-
-                if
-                (
-                    (type == fileName::DIRECTORY)
-                 ||
-                    (
-                        type == fileName::FILE
-                        && fName[fName.size()-1] != '~'
-                        && fileNameExt != "bak"
-                        && fileNameExt != "BAK"
-                        && fileNameExt != "old"
-                        && fileNameExt != "save"
-                    )
-                )
+                if (nEntries >= dirEntries.size())
                 {
-                    if ((directory/fName).type(followLink) == type)
-                    {
-                        if (nEntries >= dirEntries.size())
-                        {
-                            dirEntries.setSize(dirEntries.size() + maxNnames);
-                        }
+                    dirEntries.resize(dirEntries.size() + maxNnames);
+                }
 
-                        if (filtergz && fileNameExt == "gz")
-                        {
-                            dirEntries[nEntries++] = fName.lessExt();
-                        }
-                        else
-                        {
-                            dirEntries[nEntries++] = fName;
-                        }
-                    }
+                if (stripgz && name.hasExt(extgz))
+                {
+                    dirEntries[nEntries++] = name.lessExt();
+                }
+                else
+                {
+                    dirEntries[nEntries++] = name;
                 }
             }
         }
     }
-    else if (MSwindows::debug)
+
+    // Finalize the length of the entries list
+    dirEntries.resize(nEntries);
+
+    if (nFailed && MSwindows::debug)
     {
-        InfoInFunction
-            << "cannot open directory " << directory << endl;
+        std::cerr
+            << "Foam::readDir() : reading directory " << directory << nl
+            << nFailed << " entries with invalid characters in their name"
+            << std::endl;
     }
 
-    // Reset the length of the entries list
-    dirEntries.setSize(nEntries);
-    
     return dirEntries;
 }
 
 
-bool cp(const fileName& src, const fileName& dest, const bool followLink)
+bool Foam::cp(const fileName& src, const fileName& dest, const bool followLink)
 {
-    if (MSwindows::debug)
-    {
-        Pout<< FUNCTION_NAME << " : src:" << src << " dest:" << dest << endl;
-        if ((MSwindows::debug & 2) && !Pstream::master())
-        {
-            error::printStack(Pout);
-        }
-    }
-
-    // Make sure source exists.
+    // Make sure source exists - this also handles an empty source name
     if (!exists(src))
     {
         return false;
     }
 
-    const fileName::Type srcType = src.type(followLink);
-
     fileName destFile(dest);
+
+    const fileName::Type srcType = src.type(followLink);
 
     // Check type of source file.
     if (srcType == fileName::FILE)
@@ -918,19 +827,15 @@ bool cp(const fileName& src, const fileName& dest, const bool followLink)
         }
 
         // Open and check streams.
-        // Use binary mode in case we read binary.
-        // Causes windows reading to fail if we don't.
-        std::ifstream srcStream(src.c_str(), 
-                                ios_base::in|ios_base::binary);
-        if (!srcStream) 
+        // - use binary mode to avoid any issues
+        std::ifstream srcStream(src, ios_base::in | ios_base::binary);
+        if (!srcStream)
         {
             return false;
         }
 
-        // Use binary mode in case we write binary.
-        // Causes windows reading to fail if we don't.
-        std::ofstream destStream(destFile.c_str(), 
-                                 ios_base::out|ios_base::binary);
+        // - use binary mode to avoid any issues
+        std::ofstream destStream(destFile, ios_base::out | ios_base::binary);
         if (!destStream)
         {
             return false;
@@ -949,28 +854,22 @@ bool cp(const fileName& src, const fileName& dest, const bool followLink)
             return false;
         }
     }
-    else if (srcType == fileName::LINK)
-    {
-        // If dest is a directory, create the destination file name.
-        if (destFile.type() == fileName::DIRECTORY)
-        {
-            destFile = destFile/src.name();
-        }
-
-        // Make sure the destination directory exists.
-        if (!isDir(destFile.path()) && !mkDir(destFile.path()))
-        {
-            return false;
-        }
-
-        ln(src, destFile);
-    }
     else if (srcType == fileName::DIRECTORY)
     {
-        // If dest is a directory, create the destination file name.
         if (destFile.type() == fileName::DIRECTORY)
         {
-            destFile = destFile/src.component(src.components().size() -1);
+            // Both are directories. Could mean copy contents or copy
+            // recursively.  Don't actually know what the user wants,
+            // but assume that if names are identical == copy contents.
+            //
+            // So: "path1/foo" "path2/foo"  copy contents
+            // So: "path1/foo" "path2/bar"  copy directory
+
+            const word srcDirName = src.name();
+            if (destFile.name() != srcDirName)
+            {
+                destFile /= srcDirName;
+            }
         }
 
         // Make sure the destination directory extists.
@@ -980,78 +879,76 @@ bool cp(const fileName& src, const fileName& dest, const bool followLink)
         }
 
         // Copy files
-        fileNameList contents = readDir(src, fileName::FILE, false);
-        forAll(contents, i)
+        fileNameList files = readDir(src, fileName::FILE, false, followLink);
+        for (const fileName& item : files)
         {
             if (MSwindows::debug)
             {
-                InfoInFunction
-                    << "Copying : " << src/contents[i] 
-                    << " to " << destFile/contents[i] << endl;
+                Info<< "Copying : " << src/item
+                    << " to " << destFile/item << endl;
             }
 
             // File to file.
-            cp(src/contents[i], destFile/contents[i]);
+            Foam::cp(src/item, destFile/item);
         }
 
         // Copy sub directories.
-        fileNameList subdirs = readDir(src, fileName::DIRECTORY);
-        forAll(subdirs, i)
+        fileNameList dirs = readDir
+        (
+            src,
+            fileName::DIRECTORY,
+            false,
+            followLink
+        );
+
+        for (const fileName& item : dirs)
         {
             if (MSwindows::debug)
             {
-                InfoInFunction
-                    << "Copying : " << src/subdirs[i]
+                Info<< "Copying : " << src/item
                     << " to " << destFile << endl;
             }
 
             // Dir to Dir.
-            cp(src/subdirs[i], destFile);
+            Foam::cp(src/item, destFile);
         }
+    }
+    else
+    {
+        return false;
     }
 
     return true;
 }
 
 
-bool ln(const fileName& src, const fileName& dest)
+bool Foam::ln(const fileName& src, const fileName& dst)
 {
-    // FIXME: Seems that prior to Vista softlinking was poorly supported.
-    // Vista does a better job, but requires administrator privileges.
-    // Task for this feature: https://github.com/blueCFD/Core/issues/63
+    // links are poorly supported, or need administrator privileges.
+    // Skip for now.
 
     if (MSwindows::debug)
     {
-        //InfoInFunction
-        Pout<< FUNCTION_NAME
-            << " : Create softlink from : " << src << " to " << dest << endl;
-        if ((MSwindows::debug & 2) && !Pstream::master())
-        {
-            error::printStack(Pout);
-        }
-    }
-
-    if (MSwindows::debug)
-    {
-        InfoInFunction
-            << "MSwindows does not support ln - softlinking" << endl;
+        Info<< "MSwindows does not support ln - softlinking" << endl;
     }
 
     return false;
 }
 
 
-bool mv(const fileName& src, const fileName& dst, const bool followLink)
+bool Foam::mv(const fileName& src, const fileName& dst, const bool followLink)
 {
     if (MSwindows::debug)
     {
-        //InfoInFunction
-        Pout<< FUNCTION_NAME << " : Move : " << src << " to " << dst << endl;
-        if ((MSwindows::debug & 2) && !Pstream::master())
-        {
-            error::printStack(Pout);
-        }
+        Info<< "Move : " << src << " to " << dst << endl;
     }
+
+    // Ignore an empty names => always false
+    if (src.empty() || dst.empty())
+    {
+        return false;
+    }
+
 
     if
     (
@@ -1061,34 +958,27 @@ bool mv(const fileName& src, const fileName& dst, const bool followLink)
     {
         const fileName dstName(dst/src.name());
 
-        return std::rename(src.c_str(), dstName.c_str()) == 0;
+        return renameFile(src, dstName);
     }
-    else
-    {
-        return std::rename(src.c_str(), dst.c_str()) == 0;
-    }
+
+    return renameFile(src, dst);
 }
 
 
-bool mvBak(const fileName& src, const std::string& ext)
+bool Foam::mvBak(const fileName& src, const std::string& ext)
 {
-    if (MSwindows::debug)
+    // Ignore an empty name or extension => always false
+    if (src.empty() || ext.empty())
     {
-        //InfoInFunction
-        Pout<< FUNCTION_NAME
-            << " : moving : " << src << " to extension " << ext << endl;
-        if ((MSwindows::debug & 2) && !Pstream::master())
-        {
-            error::printStack(Pout);
-        }
+        return false;
     }
 
     if (exists(src, false))
     {
-        const int maxIndex = 99;
+        constexpr const int maxIndex = 99;
         char index[3];
 
-        for (int n = 0; n <= maxIndex; n++)
+        for (int n = 0; n <= maxIndex; ++n)
         {
             fileName dstName(src + "." + ext);
             if (n)
@@ -1101,9 +991,8 @@ bool mvBak(const fileName& src, const std::string& ext)
             // possible index where we have no choice
             if (!exists(dstName, false) || n == maxIndex)
             {
-                return (0 == std::rename(src.c_str(), dstName.c_str()));
+                return renameFile(src, dstName);
             }
-
         }
     }
 
@@ -1112,118 +1001,119 @@ bool mvBak(const fileName& src, const std::string& ext)
 }
 
 
-// Remove a file returning true if successful otherwise false
-bool rm(const fileName& file)
+bool Foam::rm(const fileName& file)
 {
     if (MSwindows::debug)
     {
-        //InfoInFunction
-        Pout<< FUNCTION_NAME << " : Removing : " << file << endl;
-        if ((MSwindows::debug & 2) && !Pstream::master())
-        {
-            error::printStack(Pout);
-        }
+        Info<< "Removing : " << file << endl;
     }
 
-    bool success = (0 == std::remove(file.c_str()));
-
-    // If deleting plain file name failed try with .gz
-    if (!success) 
+    // Ignore an empty name => always false
+    if (file.empty())
     {
-        const string fileGz = file + ".gz";
-        success = (0 == std::remove(fileGz.c_str()));
+        return false;
     }
 
-    return success;
+
+    // If removal of plain file name failed, try with .gz
+
+    return
+    (
+        0 == std::remove(file.c_str())
+     || 0 == std::remove((file + ".gz").c_str())
+    );
 }
 
 
-// Remove a dirctory and it's contents
-bool rmDir(const fileName& directory)
+bool Foam::rmDir(const fileName& directory, const bool silent)
 {
-    if (MSwindows::debug)
+    // Iterate contents (ignores an empty directory name)
+    // Also retain hidden files/dirs for removal
+
+    MSwindows::directoryIterator dirIter(directory, true);
+
+    if (!dirIter.exists())
     {
-        //InfoInFunction
-        Pout<< FUNCTION_NAME << " : removing directory " << directory << endl;
-        if ((MSwindows::debug & 2) && !Pstream::master())
-        {
-            error::printStack(Pout);
-        }
-    }
-
-    bool success = true;
-
-    // Need to destroy DirectorIterator prior to
-    // removing directory otherwise fails on Windows XP
-    {
-      MSwindows::DirectoryIterator dirIt(directory);
-
-      while (success && dirIt.hasNext())
-      {
-          const fileName & fName = dirIt.next(); 
-
-          if (fName != "." && fName != "..")
-          {
-              fileName path = directory/fName;
-
-              if (path.type() == fileName::DIRECTORY)
-              {
-                  success = rmDir(path);
-
-                  if (!success)
-                  {
-                      WarningInFunction
-                        << "failed to remove directory " << fName
-                        << " while removing directory " << directory
-                        << endl;
-                  }
-              }
-              else
-              {
-                  success = rm(path);
-
-                  if (!success)
-                  {
-                      WarningInFunction
-                        << "failed to remove file " << fName
-                        << " while removing directory " << directory
-                        << endl;
-                  }
-              }
-          }
-      }
-    }
-        
-    if (success) 
-    {
-        success = ::RemoveDirectory(directory.c_str());
-
-        if (!success) 
+        if (!silent)
         {
             WarningInFunction
-                << "failed to remove directory " << directory << endl;
+                << "cannot open directory " << directory << endl;
         }
     }
 
-    return success;
+    if (MSwindows::debug)
+    {
+        InfoInFunction
+            << " : removing directory " << directory << endl;
+    }
+
+
+    // Process each directory entry, counting any errors encountered
+    label nErrors = 0;
+
+    for (/*nil*/; dirIter; ++dirIter)
+    {
+        const std::string& item = *dirIter;
+
+        // Allow invalid characters (spaces, quotes, etc),
+        // otherwise we cannot remove subdirs with these types of names.
+        // -> const fileName path = directory/name; <-
+
+        const fileName path(fileName::concat(directory, item));
+
+        if (path.type(false) == fileName::DIRECTORY)
+        {
+            if (!rmDir(path, true))  // Only report errors at the top-level
+            {
+                ++nErrors;
+            }
+        }
+        else
+        {
+            if (!rm(path))
+            {
+                ++nErrors;
+            }
+        }
+    }
+
+    if (nErrors)
+    {
+        if (!silent)
+        {
+            WarningInFunction
+                << "failed to remove directory " << directory << nl
+                << "could not remove " << nErrors << " sub-entries" << endl;
+        }
+    }
+    else
+    {
+        if (!::RemoveDirectory(directory.c_str()))
+        {
+            ++nErrors;
+            if (!silent)
+            {
+                WarningInFunction
+                    << "failed to remove directory " << directory << endl;
+            }
+        }
+    }
+
+    return !nErrors;
 }
 
 
-unsigned int sleep(const unsigned int s)
+unsigned int Foam::sleep(const unsigned int sec)
 {
-    const DWORD milliseconds = s * 1000;
-
-    ::Sleep(milliseconds);
+    ::Sleep(1000*sec);  // in milliseconds
 
     return 0;
 }
 
 
-void fdClose(const int fd)
+void Foam::fdClose(const int fd)
 {
-    const int result = ::_close(fd);
-
-    if (0 != result)
+    if (::_close(fd) != 0)
     {
         FatalErrorInFunction
             << "close error on " << fd << endl
@@ -1232,421 +1122,263 @@ void fdClose(const int fd)
 }
 
 
-bool ping
+bool Foam::ping
 (
-    const word& destName,
+    const std::string& destName,
     const label destPort,
     const label timeOut
 )
 {
-    // FIXME: Task for this: https://github.com/blueCFD/Core/issues/64
+    // Appears that socket calls require administrator privileges.
+    // Skip for now.
 
     if (MSwindows::debug)
     {
-        InfoInFunction
-            << "MSwindows does not support ping" << endl;
+        Info<< "MSwindows does not support ping" << endl;
     }
 
     return false;
 }
 
 
-bool ping(const word& hostname, const label timeOut)
+bool Foam::ping(const std::string& host, const label timeOut)
 {
-    return ping(hostname, 222, timeOut) || ping(hostname, 22, timeOut);
+    return ping(host, 222, timeOut) || ping(host, 22, timeOut);
 }
 
 
-int system(const std::string& command)
+int Foam::system(const std::string& command, const bool bg)
 {
+    if (MSwindows::debug && bg)
+    {
+        InfoInFunction
+            << "MSwindows does not support background (fork) tasks" << endl;
+    }
+
     return std::system(command.c_str());
 }
 
 
+int Foam::system(const CStringList& command, const bool bg)
+{
+    if (command.empty())
+    {
+        // Treat an empty command as a successful no-op.
+        // For consistency with POSIX (man sh) behaviour for (sh -c command),
+        // which is what is mostly being replicated here.
+        return 0;
+    }
+
+    const int count = command.size();
+
+    std::string cmd;
+
+    for (int i = 0; i < count; ++i)
+    {
+        if (i) cmd += ' ';
+        cmd += command[i];
+    }
+
+    return system(cmd, bg);
+}
+
+
+int Foam::system(const UList<Foam::string>& command, const bool bg)
+{
+    if (command.empty())
+    {
+        // Treat an empty command as a successful no-op.
+        return 0;
+    }
+
+    const int count = command.size();
+
+    std::string cmd;
+
+    for (int i = 0; i < count; ++i)
+    {
+        if (i) cmd += ' ';
+        cmd += command[i];
+    }
+
+    return system(cmd, bg);
+}
+
+
 // Explicitly track loaded libraries, rather than use
-// EnumerateLoadedModules64 and have to link against Dbghelp.dll
+// EnumerateLoadedModules64 and have to link against
+// Dbghelp.dll
 // Details at http://msdn.microsoft.com/en-us/library/ms679316(v=vs.85).aspx
-typedef std::map<void*, std::string> OfLoadedLibs;
 
-static
-OfLoadedLibs &
-getLoadedLibs()
-{
-  static OfLoadedLibs loadedLibs;
-  return loadedLibs;
-}
+static std::unordered_map<void*, std::string> libsLoaded;
 
 
-void* dlOpen(const fileName& libName, const bool check)
-{
-    //Lets check if this is a list of libraries to be loaded
-    //NOTE: should only be used for "force loading libraries"
-    if (libName.find_first_of(',')!=Foam::string::npos)
-    {
-        void *moduleh=NULL;
-        string libsToLoad=libName;
-        libsToLoad.removeTrailing(' '); //removes spaces from both ends
-        libsToLoad.removeRepeated(',');
-        libsToLoad += ',';
-
-        if (MSwindows::debug)
-        {
-            InfoInFunction
-                << "Libraries to be loaded: " <<  libsToLoad << endl;
-        }
-
-        //generate the word list
-        size_t stposstr=0, found=libsToLoad.find_first_of(',');
-        while (found!=string::npos)
-        {
-            string libToLoad = libsToLoad.substr(stposstr,found-stposstr);
-            moduleh = dlOpen(libToLoad);
-            stposstr=found+1; found=libsToLoad.find_first_of(',',stposstr);
-        }
-
-        return moduleh;
-    }
-    else
-    {
-        if (MSwindows::debug)
-        {
-            InfoInFunction
-                << " : LoadLibrary of " << libName << endl;
-        }
-
-        const char* dllExt = ".dll";
-
-        // Assume libName is of the form, lib<name>.so
-        Foam::string winLibName(libName);
-        winLibName.replace(".so", dllExt);
-        void* libHandle = ::LoadLibrary(winLibName.c_str());
-
-        if (NULL == libHandle)
-        {
-            // Assumes libName = name
-            winLibName = "lib";
-            winLibName += libName;
-            winLibName += dllExt;
-
-            libHandle = ::LoadLibrary(winLibName.c_str());
-        }
-
-        if (NULL == libHandle && check)
-        {
-            WarningInFunction
-                << "LoadLibrary failed. "
-                << MSwindows::getLastError()
-                << endl;
-        }
-        else
-        {
-            getLoadedLibs()[libHandle] = libName;
-        }
-
-        if (MSwindows::debug)
-        {
-            InfoInFunction
-                << "Library " <<  libName << " loaded "
-                << (libHandle != NULL ? "with success!" : "without success.")
-                << endl;
-        }
-
-        return libHandle;
-    }
-}
-
-
-bool dlClose(void* libHandle)
+void* Foam::dlOpen(const fileName& libName, const bool check)
 {
     if (MSwindows::debug)
     {
-        InfoInFunction
-            << "FreeLibrary of handle " << libHandle << endl;
+        std::cout
+            << "dlOpen(const fileName&)"
+            << " : dlopen of " << libName << std::endl;
     }
 
-    const bool success = 
-      ::FreeLibrary(static_cast<HMODULE>(libHandle));
-  
-    if (!success) 
+    // Always remap "libXX.so" and "libXX" to "libXX.dll"
+    fileName libso(libName.lessExt().ext(EXT_SO));
+
+    void* handle = ::LoadLibrary(libso.c_str());
+
+    if
+    (
+        !handle
+     && libName.find('/') == std::string::npos
+     && !libso.starts_with("lib")
+    )
+    {
+        // Try with 'lib' prefix
+        libso = "lib" + libso;
+        handle = ::LoadLibrary(libso.c_str());
+
+        if (MSwindows::debug)
+        {
+            std::cout
+                << "dlOpen(const fileName&)"
+                << " : dlopen of " << libso << std::endl;
+        }
+    }
+
+    if (handle)
+    {
+        libsLoaded[handle] = libso.lessExt();
+    }
+    else if (check)
     {
         WarningInFunction
-            << "FreeLibrary failed. " 
-            << MSwindows::getLastError()
-            << endl;
+            << "dlopen error : " << MSwindows::lastError() << endl;
     }
-    else
+
+    if (MSwindows::debug)
     {
-        getLoadedLibs().erase(libHandle);
+        std::cout
+            << "dlOpen(const fileName&)"
+            << " : dlopen of " << libName
+            << " handle " << handle << std::endl;
     }
-    
-    return success;
+
+    return handle;
 }
 
 
-void* dlSym(void* handle, const std::string& symbol)
+void* Foam::dlOpen(const fileName& libName, std::string& errorMsg)
+{
+    // Call without emitting error message - we capture that ourselves
+    void* handle = Foam::dlOpen(libName, false);
+
+    if (!handle)
+    {
+        // Capture error message
+        errorMsg = MSwindows::lastError();
+    }
+    else
+    {
+        // No errors
+        errorMsg.clear();
+    }
+
+    return handle;
+}
+
+
+Foam::label Foam::dlOpen
+(
+    std::initializer_list<fileName> libNames,
+    const bool check
+)
+{
+    label nLoaded = 0;
+
+    for (const fileName& libName : libNames)
+    {
+        if (Foam::dlOpen(libName, check))
+        {
+            ++nLoaded;
+        }
+    }
+
+    return nLoaded;
+}
+
+
+bool Foam::dlClose(void* const handle)
 {
     if (MSwindows::debug)
     {
-        InfoInFunction
-            << "dlsym of " << symbol << endl;
+        std::cout
+            << "dlClose(void*)"
+            << " : dlclose of handle " << handle << std::endl;
     }
 
-    // get address of symbol
-    void* fun = (void *)
-    (
-        ::GetProcAddress(static_cast<HMODULE>(handle), symbol.c_str())
-    );
+    const bool ok = ::FreeLibrary(static_cast<HMODULE>(handle));
 
-    if(fun == NULL)
+    if (ok)
+    {
+        libsLoaded.erase(handle);
+    }
+
+    return ok;
+}
+
+
+void* Foam::dlSymFind(void* handle, const std::string& symbol, bool required)
+{
+    if (!required && (!handle || symbol.empty()))
+    {
+        return nullptr;
+    }
+
+    if (MSwindows::debug)
+    {
+        std::cout
+            << "dlSymFind(void*, const std::string&, bool)"
+            << " : dlsym of " << symbol << std::endl;
+    }
+
+    // Get address of symbol, or nullptr on failure
+    void* fun =
+        reinterpret_cast<void *>
+        (
+            ::GetProcAddress(static_cast<HMODULE>(handle), symbol.c_str())
+        );
+
+    // Any error?
+    if (!fun && required)
     {
         WarningInFunction
             << "Cannot lookup symbol " << symbol << " : "
-            << MSwindows::getLastError()
-            << endl;
+            << MSwindows::lastError() << endl;
     }
 
     return fun;
 }
 
 
-bool dlSymFound(void* handle, const std::string& symbol)
+Foam::fileNameList Foam::dlLoaded()
 {
-    if (handle && !symbol.empty())
+    DynamicList<fileName> libs(libsLoaded.size());
+
+    for (const auto& item : libsLoaded)
     {
-        if (MSwindows::debug)
-        {
-            InfoInFunction
-                << "dlSym of " << symbol << endl;
-        }
-
-        // symbol can be found if there was no error
-        return dlSym(handle, symbol.c_str()) != NULL;
-    }
-    else
-    {
-        return false;
-    }
-}
-
-
-fileNameList dlLoaded()
-{
-    fileNameList libs;
-    OfLoadedLibs & loadedLibs = getLoadedLibs();
-
-    for (OfLoadedLibs::const_iterator it = loadedLibs.begin();
-         it != loadedLibs.end();
-         ++it)
-    {
-        libs.append(it->second);
+        libs.append(item.second);
     }
 
     if (MSwindows::debug)
     {
-        InfoInFunction
-            << "determined loaded libraries :" << libs.size() << endl;
+        std::cout
+            << "dlLoaded()"
+            << " : determined loaded libraries :" << libs.size() << std::endl;
     }
+
     return libs;
 }
 
-//- Random functions
 
-//It's easier to include it here...
-#include "random.c"
-
-void osRandomSeed(const label seed)
-{
-    srandom((unsigned int)(seed));
-}
-
-label osRandomInteger()
-{
-    return random();
-}
-
-scalar osRandomDouble()
-{
-    return scalar(random()) / scalar(INT_MAX);
-}
-
-string toUnixPath(const string & path)
-{
-    string unixPath(path);
-    MSwindows::toUnixSlash(unixPath);
-    MSwindows::removeQuotes(unixPath);
-
-    return unixPath;
-}
-
-
-//- Thread handling: Using std::thread and std::mutex
-
-static DynamicList<autoPtr<std::thread>> threads_;
-static DynamicList<autoPtr<std::mutex>> mutexes_;
-
-
-label allocateThread()
-{
-    forAll(threads_, i)
-    {
-        if (!threads_[i].valid())
-        {
-            if (MSwindows::debug)
-            {
-                Pout<< "allocateThread : reusing index:" << i << endl;
-            }
-            // Reuse entry
-            threads_[i].reset(new std::thread());
-            return i;
-        }
-    }
-
-    label index = threads_.size();
-    if (MSwindows::debug)
-    {
-        Pout<< "allocateThread : new index:" << index << endl;
-    }
-    threads_.append(autoPtr<std::thread>(new std::thread()));
-
-    return index;
-}
-
-
-void createThread
-(
-    const label index,
-    void *(*start_routine) (void *),
-    void *arg
-)
-{
-    if (MSwindows::debug)
-    {
-        Pout<< "createThread : index:" << index << endl;
-    }
-
-    try
-    {
-        threads_[index].reset(new std::thread(start_routine, arg));
-    }
-    catch(...)
-    {
-        FatalErrorInFunction
-            << "Failed starting thread " << index << exit(FatalError);
-    }
-}
-
-
-void joinThread(const label index)
-{
-    if (MSwindows::debug)
-    {
-        Pout<< "joinThread : join:" << index << endl;
-    }
-
-    if (!threads_[index]().joinable())
-    {
-        FatalErrorInFunction << "Failed freeing thread " << index
-            << exit(FatalError);
-    }
-    else
-    {
-        try
-        {
-            threads_[index]().join();
-        }
-        catch(...)
-        {
-            FatalErrorInFunction << "Failed freeing thread " << index
-                << exit(FatalError);
-        }
-    }
-}
-
-
-void freeThread(const label index)
-{
-    if (MSwindows::debug)
-    {
-        Pout<< "freeThread : index:" << index << endl;
-    }
-    threads_[index].clear();
-}
-
-
-label allocateMutex()
-{
-    forAll(mutexes_, i)
-    {
-        if (!mutexes_[i].valid())
-        {
-            if (MSwindows::debug)
-            {
-                Pout<< "allocateMutex : reusing index:" << i << endl;
-            }
-            // Reuse entry
-            mutexes_[i].reset(new std::mutex());
-            return i;
-        }
-    }
-
-    label index = mutexes_.size();
-
-    if (MSwindows::debug)
-    {
-        Pout<< "allocateMutex : new index:" << index << endl;
-    }
-    mutexes_.append(autoPtr<std::mutex>(new std::mutex()));
-    return index;
-}
-
-
-void lockMutex(const label index)
-{
-    if (MSwindows::debug)
-    {
-        Pout<< "lockMutex : index:" << index << endl;
-    }
-
-    try
-    {
-        mutexes_[index]().lock();
-    }
-    catch(...)
-    {
-        FatalErrorInFunction << "Failed locking mutex " << index
-            << exit(FatalError);
-    }
-}
-
-
-void unlockMutex(const label index)
-{
-    if (MSwindows::debug)
-    {
-        Pout<< "unlockMutex : index:" << index << endl;
-    }
-
-    try
-    {
-        mutexes_[index]().unlock();
-    }
-    catch(...)
-    {
-        FatalErrorInFunction << "Failed unlocking mutex " << index
-            << exit(FatalError);
-    }
-}
-
-
-void freeMutex(const label index)
-{
-    if (MSwindows::debug)
-    {
-        Pout<< "freeMutex : index:" << index << endl;
-    }
-    mutexes_[index].clear();
-}
-
-
-} // namespace Foam
 // ************************************************************************* //

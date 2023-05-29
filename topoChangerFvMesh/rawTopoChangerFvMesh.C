@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -40,15 +43,25 @@ namespace Foam
         rawTopoChangerFvMesh,
         IOobject
     );
+    addToRunTimeSelectionTable
+    (
+        topoChangerFvMesh,
+        rawTopoChangerFvMesh,
+        doInit
+    );
 }
 
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
 // Construct from components
-Foam::rawTopoChangerFvMesh::rawTopoChangerFvMesh(const IOobject& io)
+Foam::rawTopoChangerFvMesh::rawTopoChangerFvMesh
+(
+    const IOobject& io,
+    const bool doInit
+)
 :
-    topoChangerFvMesh(io)
+    topoChangerFvMesh(io, doInit)
 {}
 
 
@@ -73,7 +86,7 @@ bool Foam::rawTopoChangerFvMesh::update()
     // Do any topology changes. Sets topoChanging (through polyTopoChange)
     autoPtr<mapPolyMesh> topoChangeMap = topoChanger_.changeMesh(true);
 
-    bool hasChanged = topoChangeMap.valid();
+    const bool hasChanged = bool(topoChangeMap);
 
     if (hasChanged)
     {
@@ -88,7 +101,7 @@ bool Foam::rawTopoChangerFvMesh::update()
         // - patch faces created out of previously internal faces
 
         // Is face mapped in any way?
-        PackedBoolList mappedFace(nFaces());
+        bitSet mappedFace(nFaces());
 
         const label nOldInternal = topoChangeMap().oldPatchStarts()[0];
 
@@ -97,14 +110,14 @@ bool Foam::rawTopoChangerFvMesh::update()
         {
             if (faceMap[facei] >= 0)
             {
-                mappedFace[facei] = 1;
+                mappedFace.set(facei);
             }
         }
         for (label facei = nInternalFaces(); facei < nFaces(); facei++)
         {
             if (faceMap[facei] >= 0 && faceMap[facei] >= nOldInternal)
             {
-                mappedFace[facei] = 1;
+                mappedFace.set(facei);
             }
         }
 
@@ -112,21 +125,21 @@ bool Foam::rawTopoChangerFvMesh::update()
 
         forAll(fromFaces, i)
         {
-            mappedFace[fromFaces[i].index()] = 1;
+            mappedFace.set(fromFaces[i].index());
         }
 
         const List<objectMap>& fromEdges = topoChangeMap().facesFromEdgesMap();
 
         forAll(fromEdges, i)
         {
-            mappedFace[fromEdges[i].index()] = 1;
+            mappedFace.set(fromEdges[i].index());
         }
 
         const List<objectMap>& fromPts = topoChangeMap().facesFromPointsMap();
 
         forAll(fromPts, i)
         {
-            mappedFace[fromPts[i].index()] = 1;
+            mappedFace.set(fromPts[i].index());
         }
 
         // Set unmapped faces to zero
@@ -141,8 +154,10 @@ bool Foam::rawTopoChangerFvMesh::update()
         // Special handling for phi: set unmapped faces to recreated phi
         Info<< "rawTopoChangerFvMesh :"
             << " recreating phi for unmapped boundary values." << endl;
+
         const volVectorField& U = lookupObject<volVectorField>("U");
         surfaceScalarField& phi = lookupObjectRef<surfaceScalarField>("phi");
+
         setUnmappedValues
         (
             phi,

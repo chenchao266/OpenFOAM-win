@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -36,21 +38,22 @@ SourceFiles
 #define meshTools_H
 
 #include "label.H"
-#include "vector.H"
+#include "vector2.H"
 #include "triad.H"
 #include "labelList.H"
 #include "pointField.H"
 #include "faceList.H"
 #include "cellList.H"
-#include "primitivePatch.H"
+#include "primitivePatch2.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 namespace Foam
 {
 
-class primitiveMesh;
 class polyMesh;
+class primitiveMesh;
+class treeBoundBox;
 
 /*---------------------------------------------------------------------------*\
                         Namespace meshTools Declaration
@@ -101,23 +104,30 @@ namespace meshTools
 
     // OBJ writing
 
-        //- Write obj representation of point
+        //- Write obj representation of a point
         void writeOBJ
         (
             Ostream& os,
             const point& pt
         );
 
-        //- Write obj representation of a triad. Requires the location of the
+        //- Write obj representation of points
+        void writeOBJ
+        (
+            Ostream& os,
+            const UList<point>& pts
+        );
+
+        //- Write obj representation of a triad. Requires the origin of the
         //  triad to be supplied
         void writeOBJ
         (
             Ostream& os,
             const triad& t,
-            const point& pt
+            const point& origin
         );
 
-        //- Write obj representation of a line connecting two points
+        //- Write obj representation of a line connecting two points.
         //  Need to keep track of points that have been added. count starts at 0
         void writeOBJ
         (
@@ -135,13 +145,20 @@ namespace meshTools
             const point& p2
         );
 
+        //- Write obj representation of tree-bounding box as a series of lines
+        void writeOBJ
+        (
+            Ostream& os,
+            const treeBoundBox& bb
+        );
+
         //- Write obj representation of faces subset
         template<class FaceType>
         void writeOBJ
         (
             Ostream& os,
-            const UList<FaceType>&,
-            const pointField&,
+            const UList<FaceType>& faces,
+            const UList<point>& points,
             const labelList& faceLabels
         );
 
@@ -150,17 +167,17 @@ namespace meshTools
         void writeOBJ
         (
             Ostream& os,
-            const UList<FaceType>&,
-            const pointField&
+            const UList<FaceType>& faces,
+            const UList<point>& points
         );
 
         //- Write obj representation of cell subset
         void writeOBJ
         (
             Ostream& os,
-            const cellList&,
-            const faceList&,
-            const pointField&,
+            const cellList& cells,
+            const faceList& faces,
+            const UList<point>& points,
             const labelList& cellLabels
         );
 
@@ -170,7 +187,7 @@ namespace meshTools
         //- Is edge used by cell
         bool edgeOnCell
         (
-            const primitiveMesh&,
+            const primitiveMesh& mesh,
             const label celli,
             const label edgeI
         );
@@ -178,7 +195,7 @@ namespace meshTools
         //- Is edge used by face
         bool edgeOnFace
         (
-            const primitiveMesh&,
+            const primitiveMesh& mesh,
             const label facei,
             const label edgeI
         );
@@ -186,7 +203,7 @@ namespace meshTools
         //- Is face used by cell
         bool faceOnCell
         (
-            const primitiveMesh&,
+            const primitiveMesh& mesh,
             const label celli,
             const label facei
         );
@@ -200,10 +217,10 @@ namespace meshTools
             const label v1
         );
 
-        //- Return edge between two vertices. Returns -1 if no edge.
+        //- Return edge between two mesh vertices. Returns -1 if no edge.
         label findEdge
         (
-            const primitiveMesh&,
+            const primitiveMesh& mesh,
             const label v0,
             const label v1
         );
@@ -211,7 +228,7 @@ namespace meshTools
         //- Return edge shared by two faces. Throws error if no edge found.
         label getSharedEdge
         (
-            const primitiveMesh&,
+            const primitiveMesh& mesh,
             const label f0,
             const label f1
         );
@@ -219,7 +236,7 @@ namespace meshTools
         //- Return face shared by two cells. Throws error if none found.
         label getSharedFace
         (
-            const primitiveMesh&,
+            const primitiveMesh& mesh,
             const label cell0,
             const label cell1
         );
@@ -227,7 +244,7 @@ namespace meshTools
         //- Get faces on cell using edgeI. Throws error if no two found.
         void getEdgeFaces
         (
-            const primitiveMesh&,
+            const primitiveMesh& mesh,
             const label celli,
             const label edgeI,
             label& face0,
@@ -238,17 +255,17 @@ namespace meshTools
         //  connected to vertex but not edgeI. Throws error if none found.
         label otherEdge
         (
-            const primitiveMesh&,
+            const primitiveMesh& mesh,
             const labelList& edgeLabels,
-            const label edgeI,
-            const label vertI
+            const label thisEdgeI,
+            const label thisVertI
         );
 
         //- Return face on cell using edgeI but not facei. Throws error
         //  if none found.
         label otherFace
         (
-            const primitiveMesh&,
+            const primitiveMesh& mesh,
             const label celli,
             const label facei,
             const label edgeI
@@ -258,7 +275,7 @@ namespace meshTools
         //  if face not internal.
         label otherCell
         (
-            const primitiveMesh&,
+            const primitiveMesh& mesh,
             const label celli,
             const label facei
         );
@@ -267,7 +284,7 @@ namespace meshTools
         // of startVertI)
         label walkFace
         (
-            const primitiveMesh&,
+            const primitiveMesh& mesh,
             const label facei,
             const label startEdgeI,
             const label startVertI,
@@ -309,19 +326,19 @@ namespace meshTools
         //- Given edge on hex find other 'parallel', non-connected edges.
         void getParallelEdges
         (
-            const primitiveMesh&,
+            const primitiveMesh& mesh,
             const label celli,
             const label e0,
-            label&,
-            label&,
-            label&
+            label& e1,
+            label& e2,
+            label& e3
         );
 
         //- Given edge on hex find all 'parallel' (i.e. non-connected)
         //  edges and average direction of them
         vector edgeToCutDir
         (
-            const primitiveMesh&,
+            const primitiveMesh& mesh,
             const label celli,
             const label edgeI
         );
@@ -330,7 +347,7 @@ namespace meshTools
         //  return one of them.
         label cutDirToEdge
         (
-            const primitiveMesh&,
+            const primitiveMesh& mesh,
             const label celli,
             const vector& cutDir
         );

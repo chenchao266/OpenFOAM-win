@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -41,7 +44,7 @@ SourceFiles
 #define dynamicInkJetFvMesh_H
 
 #include "dynamicFvMesh.H"
-#include "dictionary.H"
+#include "dictionary2.H"
 #include "pointIOField.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
@@ -70,11 +73,11 @@ class dynamicInkJetFvMesh
 
     // Private Member Functions
 
-        //- Disallow default bitwise copy construct
-        dynamicInkJetFvMesh(const dynamicInkJetFvMesh&);
+        //- No copy construct
+        dynamicInkJetFvMesh(const dynamicInkJetFvMesh&) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const dynamicInkJetFvMesh&);
+        //- No copy assignment
+        void operator=(const dynamicInkJetFvMesh&) = delete;
 
 
 public:
@@ -86,7 +89,7 @@ public:
     // Constructors
 
         //- Construct from IOobject
-        dynamicInkJetFvMesh(const IOobject& io);
+        dynamicInkJetFvMesh(const IOobject& io, const bool doInit=true);
 
 
     //- Destructor

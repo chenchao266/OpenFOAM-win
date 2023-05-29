@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -28,13 +30,13 @@ License
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
-#include "NoBreakup.T.H"
-#include "PilchErdman.T.H"
-#include "ReitzDiwakar.T.H"
-#include "ReitzKHRT.T.H"
-#include "TAB.T.H"
-#include "ETAB.T.H"
-#include "SHF.T.H"
+#include "NoBreakup.H"
+#include "PilchErdman.H"
+#include "ReitzDiwakar.H"
+#include "ReitzKHRT.H"
+#include "TAB.H"
+#include "ETAB.H"
+#include "SHF.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 

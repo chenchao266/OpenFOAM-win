@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2015 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2015 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -27,54 +29,57 @@ License
 #include "boolList.H"
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
-namespace Foam
-{
-    template<class Type>
-    fixedValuePointPatchField<Type>::fixedValuePointPatchField
-    (
-        const pointPatch& p,
-        const DimensionedField<Type, pointMesh>& iF
-    )
-        :
-        valuePointPatchField<Type>(p, iF)
-    {}
 
 
-    template<class Type>
-    fixedValuePointPatchField<Type>::fixedValuePointPatchField
-    (
-        const pointPatch& p,
-        const DimensionedField<Type, pointMesh>& iF,
-        const dictionary& dict,
-        const bool valueRequired
-    )
-        :
-        valuePointPatchField<Type>(p, iF, dict, valueRequired)
-    {}
+ namespace Foam{
+template<class Type>
+fixedValuePointPatchField<Type>::fixedValuePointPatchField
+(
+    const pointPatch& p,
+    const DimensionedField<Type, pointMesh>& iF
+)
+:
+    valuePointPatchField<Type>(p, iF)
+{}
 
 
-    template<class Type>
-    fixedValuePointPatchField<Type>::fixedValuePointPatchField
-    (
-        const fixedValuePointPatchField<Type>& ptf,
-        const pointPatch& p,
-        const DimensionedField<Type, pointMesh>& iF,
-        const pointPatchFieldMapper& mapper
-    )
-        :
-        valuePointPatchField<Type>(ptf, p, iF, mapper)
-    {}
+template<class Type>
+fixedValuePointPatchField<Type>::fixedValuePointPatchField
+(
+    const pointPatch& p,
+    const DimensionedField<Type, pointMesh>& iF,
+    const dictionary& dict,
+    const bool valueRequired
+)
+:
+    valuePointPatchField<Type>(p, iF, dict, valueRequired)
+{}
 
 
-    template<class Type>
-    fixedValuePointPatchField<Type>::fixedValuePointPatchField
-    (
-        const fixedValuePointPatchField<Type>& ptf,
-        const DimensionedField<Type, pointMesh>& iF
-    )
-        :
-        valuePointPatchField<Type>(ptf, iF)
-    {}
+template<class Type>
+fixedValuePointPatchField<Type>::fixedValuePointPatchField
+(
+    const fixedValuePointPatchField<Type>& ptf,
+    const pointPatch& p,
+    const DimensionedField<Type, pointMesh>& iF,
+    const pointPatchFieldMapper& mapper
+)
+:
+    valuePointPatchField<Type>(ptf, p, iF, mapper)
+{}
 
-}
+
+template<class Type>
+fixedValuePointPatchField<Type>::fixedValuePointPatchField
+(
+    const fixedValuePointPatchField<Type>& ptf,
+    const DimensionedField<Type, pointMesh>& iF
+)
+:
+    valuePointPatchField<Type>(ptf, iF)
+{}
+
+
 // ************************************************************************* //
+
+ } // End namespace Foam

@@ -1,9 +1,12 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -37,8 +40,8 @@ Description
 
 #include "ISstream.H"
 #include "prefixOSstream.H"
-#include "token.T.H"
-#include "char.T.H"
+//#include "token.H"
+#include "_char.H"
 #include "int.H"
 #include "uint.H"
 
@@ -47,10 +50,19 @@ Description
 
 namespace Foam
 {
+    //- ISstream wrapped stdin (std::cin)
     extern ISstream Sin;
+
+    //- OSstream wrapped stdout (std::cout)
     extern OSstream Sout;
+
+    //- OSstream wrapped stderr (std::cerr)
     extern OSstream Serr;
+
+    //- OSstream wrapped stdout (std::cout) with parallel prefix
     extern prefixOSstream Pout;
+
+    //- OSstream wrapped stderr (std::cerr) with parallel prefix
     extern prefixOSstream Perr;
 }
 

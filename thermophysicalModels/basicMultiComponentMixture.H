@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -24,6 +26,9 @@ License
 Class
     Foam::basicMultiComponentMixture
 
+Group
+    grpReactionThermophysicalMixtures
+
 Description
     Multi-component mixture.
 
@@ -39,7 +44,8 @@ SourceFiles
 #define basicMultiComponentMixture_H
 
 #include "volFields.H"
-#include "PtrList.T.H"
+#include "PtrList.H"
+#include "basicMixture.H"
 #include "speciesTable.H"
 #include "typeInfo.H"
 
@@ -53,6 +59,8 @@ namespace Foam
 \*---------------------------------------------------------------------------*/
 
 class basicMultiComponentMixture
+:
+    public basicMixture
 {
 
 protected:
@@ -84,16 +92,15 @@ public:
         //- Construct from dictionary, species names, mesh and phase name
         basicMultiComponentMixture
         (
-            const dictionary&,
+            const dictionary& thermoDict,
             const wordList& specieNames,
-            const fvMesh&,
-            const word&
+            const fvMesh& mesh,
+            const word& phaseName
         );
 
 
     //- Destructor
-    virtual ~basicMultiComponentMixture()
-    {}
+    virtual ~basicMultiComponentMixture() = default;
 
 
     // Member functions

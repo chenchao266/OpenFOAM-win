@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2015 OpenFOAM Foundation
+    Copyright (C) 2015-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -24,14 +27,129 @@ License
 \*---------------------------------------------------------------------------*/
 
 #include "refinementSurfaces.H"
-#include "Time.T.H"
+#include "Time1.H"
 #include "searchableSurfaces.H"
 #include "shellSurfaces.H"
 #include "triSurfaceMesh.H"
 #include "labelPair.H"
 #include "searchableSurfacesQueries.H"
-#include "UPtrList.T.H"
+#include "UPtrList.H"
 #include "volumeType.H"
+// For dictionary::get wrapper
+#include "meshRefinement.H"
+
+// * * * * * * * * * * * * * Private Member Functions  * * * * * * * * * * * //
+
+Foam::labelList Foam::refinementSurfaces::findHigherLevel
+(
+    const searchableSurface& geom,
+    const shellSurfaces& shells,
+    const List<pointIndexHit>& intersectionInfo,
+    const labelList& surfaceLevel       // current level
+) const
+{
+    // See if a cached level field available
+    labelList minLevelField;
+    geom.getField(intersectionInfo, minLevelField);
+
+
+    // Detect any uncached values and do proper search
+    labelList localLevel(surfaceLevel);
+    {
+        // Check hits:
+        // 1. cached value == -1 : store for re-testing
+        // 2. cached value != -1 : use
+        // 3. uncached : use region 0 value
+
+        DynamicList<label> retestSet;
+        label nHits = 0;
+
+        forAll(intersectionInfo, i)
+        {
+            if (intersectionInfo[i].hit())
+            {
+                nHits++;
+
+                // Check if minLevelField for this surface.
+                if (minLevelField.size())
+                {
+                    if (minLevelField[i] == -1)
+                    {
+                        retestSet.append(i);
+                    }
+                    else
+                    {
+                        localLevel[i] = max(localLevel[i], minLevelField[i]);
+                    }
+                }
+                else
+                {
+                    retestSet.append(i);
+                }
+            }
+        }
+
+        label nRetest = returnReduce(retestSet.size(), sumOp<label>());
+        if (nRetest > 0)
+        {
+            reduce(nHits, sumOp<label>());
+
+            //Info<< "Retesting " << nRetest
+            //    << " out of " << nHits
+            //    << " intersections on uncached elements on geometry "
+            //    << geom.name() << endl;
+
+            pointField samples(retestSet.size());
+            forAll(retestSet, i)
+            {
+                samples[i] = intersectionInfo[retestSet[i]].hitPoint();
+            }
+            labelList shellLevel;
+            shells.findHigherLevel
+            (
+                samples,
+                labelUIndList(surfaceLevel, retestSet)(),
+                shellLevel
+            );
+            forAll(retestSet, i)
+            {
+                label sampleI = retestSet[i];
+                localLevel[sampleI] = max(localLevel[sampleI], shellLevel[i]);
+            }
+        }
+    }
+
+    return localLevel;
+}
+
+
+Foam::labelList Foam::refinementSurfaces::calcSurfaceIndex
+(
+    const searchableSurfaces& allGeometry,
+    const labelList& surfaces
+)
+{
+    // Determine overall number of global regions
+    label globalI = 0;
+    forAll(surfaces, surfI)
+    {
+        globalI += allGeometry[surfaces[surfI]].regions().size();
+    }
+
+    labelList regionToSurface(globalI);
+    globalI = 0;
+    forAll(surfaces, surfI)
+    {
+        const label nLocal = allGeometry[surfaces[surfI]].regions().size();
+        for (label i = 0; i < nLocal; i++)
+        {
+            regionToSurface[globalI++] = surfI;
+        }
+    }
+
+    return regionToSurface;
+}
+
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
@@ -39,14 +157,16 @@ Foam::refinementSurfaces::refinementSurfaces
 (
     const searchableSurfaces& allGeometry,
     const dictionary& surfacesDict,
-    const label gapLevelIncrement
+    const label gapLevelIncrement,
+    const bool dryRun
 )
 :
     allGeometry_(allGeometry),
     surfaces_(surfacesDict.size()),
     names_(surfacesDict.size()),
     surfZones_(surfacesDict.size()),
-    regionOffset_(surfacesDict.size())
+    regionOffset_(surfacesDict.size()),
+    dryRun_(dryRun)
 {
     // Wildcard specification : loop over all surface, all regions
     // and try to find a match.
@@ -69,26 +189,45 @@ Foam::refinementSurfaces::refinementSurfaces
     surfZones_.setSize(surfI);
     regionOffset_.setSize(surfI);
 
-    labelList globalMinLevel(surfI, 0);
-    labelList globalMaxLevel(surfI, 0);
-    labelList globalLevelIncr(surfI, 0);
+    // Per surface data
+    labelList globalMinLevel(surfI, Zero);
+    labelList globalMaxLevel(surfI, Zero);
+    labelList globalLevelIncr(surfI, Zero);
+
+    FixedList<label, 3> nullGapLevel;
+    nullGapLevel[0] = 0;
+    nullGapLevel[1] = 0;
+    nullGapLevel[2] = 0;
+
+    List<FixedList<label, 3>> globalGapLevel(surfI);
+    List<volumeType> globalGapMode(surfI);
+    boolList globalGapSelf(surfI);
+
     scalarField globalAngle(surfI, -GREAT);
     PtrList<dictionary> globalPatchInfo(surfI);
+
+    labelList globalBlockLevel(surfI, labelMax);
+
+    // Per surface, per region data
     List<Map<label>> regionMinLevel(surfI);
     List<Map<label>> regionMaxLevel(surfI);
     List<Map<label>> regionLevelIncr(surfI);
+    List<Map<FixedList<label, 3>>> regionGapLevel(surfI);
+    List<Map<volumeType>> regionGapMode(surfI);
+    List<Map<bool>> regionGapSelf(surfI);
     List<Map<scalar>> regionAngle(surfI);
     List<Map<autoPtr<dictionary>>> regionPatchInfo(surfI);
+    List<Map<label>> regionBlockLevel(surfI);
 
-
-    HashSet<word> unmatchedKeys(surfacesDict.toc());
+    wordHashSet unmatchedKeys(surfacesDict.toc());
 
     surfI = 0;
     forAll(allGeometry_.names(), geomI)
     {
         const word& geomName = allGeometry_.names()[geomI];
 
-        const entry* ePtr = surfacesDict.lookupEntryPtr(geomName, false, true);
+        const entry* ePtr =
+            surfacesDict.findEntry(geomName, keyType::REGEX);
 
         if (ePtr)
         {
@@ -98,10 +237,21 @@ Foam::refinementSurfaces::refinementSurfaces
             names_[surfI] = geomName;
             surfaces_[surfI] = geomI;
 
-            const labelPair refLevel(dict.lookup("level"));
+            const labelPair refLevel
+            (
+                meshRefinement::get<labelPair>
+                (
+                    dict,
+                    "level",
+                    dryRun_,
+                    keyType::REGEX,
+                    labelPair(0, 0)
+                )
+            );
+
             globalMinLevel[surfI] = refLevel[0];
             globalMaxLevel[surfI] = refLevel[1];
-            globalLevelIncr[surfI] = dict.lookupOrDefault
+            globalLevelIncr[surfI] = dict.getOrDefault
             (
                 "gapLevelIncrement",
                 gapLevelIncrement
@@ -111,13 +261,12 @@ Foam::refinementSurfaces::refinementSurfaces
             (
                 globalMinLevel[surfI] < 0
              || globalMaxLevel[surfI] < globalMinLevel[surfI]
+             || globalMaxLevel[surfI] < 0
              || globalLevelIncr[surfI] < 0
             )
             {
-                FatalIOErrorInFunction
-                (
-                    dict
-                )   << "Illegal level specification for surface "
+                FatalIOErrorInFunction(dict)
+                    << "Illegal level specification for surface "
                     << names_[surfI]
                     << " : minLevel:" << globalMinLevel[surfI]
                     << " maxLevel:" << globalMaxLevel[surfI]
@@ -125,10 +274,50 @@ Foam::refinementSurfaces::refinementSurfaces
                     << exit(FatalIOError);
             }
 
+
+            // Optional gapLevel specification
+
+            globalGapLevel[surfI] = dict.getOrDefault
+            (
+                "gapLevel",
+                nullGapLevel
+            );
+            globalGapMode[surfI] =
+                volumeType("gapMode", dict, volumeType::MIXED);
+
+            if
+            (
+                globalGapMode[surfI] == volumeType::UNKNOWN
+             || globalGapLevel[surfI][0] < 0
+             || globalGapLevel[surfI][1] < 0
+             || globalGapLevel[surfI][2] < 0
+             || globalGapLevel[surfI][1] > globalGapLevel[surfI][2]
+            )
+            {
+                FatalIOErrorInFunction(dict)
+                    << "Illegal gapLevel specification for surface "
+                    << names_[surfI]
+                    << " : gapLevel:" << globalGapLevel[surfI]
+                    << " gapMode:" << globalGapMode[surfI].str()
+                    << exit(FatalIOError);
+            }
+
+            globalGapSelf[surfI] =
+                dict.getOrDefault<bool>("gapSelf", true);
+
             const searchableSurface& surface = allGeometry_[surfaces_[surfI]];
 
             // Surface zones
-            surfZones_.set(surfI, new surfaceZonesInfo(surface, dict));
+            surfZones_.set
+            (
+                surfI,
+                new surfaceZonesInfo
+                (
+                    surface,
+                    dict,
+                    allGeometry_.regionNames()[surfaces_[surfI]]
+                )
+            );
 
             // Global perpendicular angle
             if (dict.found("patchInfo"))
@@ -140,6 +329,8 @@ Foam::refinementSurfaces::refinementSurfaces
                 );
             }
             dict.readIfPresent("perpendicularAngle", globalAngle[surfI]);
+            dict.readIfPresent("blockLevel", globalBlockLevel[surfI]);
+
 
             if (dict.found("regions"))
             {
@@ -156,11 +347,22 @@ Foam::refinementSurfaces::refinementSurfaces
                             regionNames[regionI]
                         );
 
-                        const labelPair refLevel(regionDict.lookup("level"));
+                        const labelPair refLevel
+                        (
+                            meshRefinement::get<labelPair>
+                            (
+                                regionDict,
+                                "level",
+                                dryRun_,
+                                keyType::REGEX,
+                                labelPair(0, 0)
+                            )
+                        );
+
 
                         regionMinLevel[surfI].insert(regionI, refLevel[0]);
                         regionMaxLevel[surfI].insert(regionI, refLevel[1]);
-                        label levelIncr = regionDict.lookupOrDefault
+                        label levelIncr = regionDict.getOrDefault
                         (
                             "gapLevelIncrement",
                             gapLevelIncrement
@@ -174,10 +376,8 @@ Foam::refinementSurfaces::refinementSurfaces
                          || levelIncr < 0
                         )
                         {
-                            FatalIOErrorInFunction
-                            (
-                                dict
-                            )   << "Illegal level specification for surface "
+                            FatalIOErrorInFunction(dict)
+                                << "Illegal level specification for surface "
                                 << names_[surfI] << " region "
                                 << regionNames[regionI]
                                 << " : minLevel:" << refLevel[0]
@@ -186,15 +386,58 @@ Foam::refinementSurfaces::refinementSurfaces
                                 << exit(FatalIOError);
                         }
 
+
+
+                        // Optional gapLevel specification
+
+                        FixedList<label, 3> gapSpec
+                        (
+                            regionDict.getOrDefault
+                            (
+                                "gapLevel",
+                                nullGapLevel
+                            )
+                        );
+                        regionGapLevel[surfI].insert(regionI, gapSpec);
+                        volumeType gapModeSpec
+                        (
+                            "gapMode",
+                            regionDict,
+                            volumeType::MIXED
+                        );
+                        regionGapMode[surfI].insert(regionI, gapModeSpec);
+                        if
+                        (
+                            gapModeSpec == volumeType::UNKNOWN
+                         || gapSpec[0] < 0
+                         || gapSpec[1] < 0
+                         || gapSpec[2] < 0
+                         || gapSpec[1] > gapSpec[2]
+                        )
+                        {
+                            FatalIOErrorInFunction(dict)
+                                << "Illegal gapLevel specification for surface "
+                                << names_[surfI]
+                                << " : gapLevel:" << gapSpec
+                                << " gapMode:" << gapModeSpec.str()
+                                << exit(FatalIOError);
+                        }
+                        regionGapSelf[surfI].insert
+                        (
+                            regionI,
+                            regionDict.getOrDefault<bool>
+                            (
+                                "gapSelf",
+                                true
+                            )
+                        );
+
                         if (regionDict.found("perpendicularAngle"))
                         {
                             regionAngle[surfI].insert
                             (
                                 regionI,
-                                readScalar
-                                (
-                                    regionDict.lookup("perpendicularAngle")
-                                )
+                                regionDict.get<scalar>("perpendicularAngle")
                             );
                         }
 
@@ -206,6 +449,12 @@ Foam::refinementSurfaces::refinementSurfaces
                                 regionDict.subDict("patchInfo").clone()
                             );
                         }
+
+                        label l;
+                        if (regionDict.readIfPresent<label>("blockLevel", l))
+                        {
+                            regionBlockLevel[surfI].insert(regionI, l);
+                        }
                     }
                 }
             }
@@ -215,10 +464,8 @@ Foam::refinementSurfaces::refinementSurfaces
 
     if (unmatchedKeys.size() > 0)
     {
-        IOWarningInFunction
-        (
-            surfacesDict
-        )   << "Not all entries in refinementSurfaces dictionary were used."
+        IOWarningInFunction(surfacesDict)
+            << "Not all entries in refinementSurfaces dictionary were used."
             << " The following entries were not used : "
             << unmatchedKeys.sortedToc()
             << endl;
@@ -235,15 +482,27 @@ Foam::refinementSurfaces::refinementSurfaces
     }
 
     // Rework surface specific information into information per global region
+
+    regionToSurface_ = calcSurfaceIndex(allGeometry_, surfaces_);
+
+
     minLevel_.setSize(nRegions);
     minLevel_ = 0;
     maxLevel_.setSize(nRegions);
     maxLevel_ = 0;
     gapLevel_.setSize(nRegions);
     gapLevel_ = -1;
+    extendedGapLevel_.setSize(nRegions);
+    extendedGapLevel_ = nullGapLevel;
+    extendedGapMode_.setSize(nRegions);
+    extendedGapMode_ = volumeType::UNKNOWN;
+    selfProximity_.setSize(nRegions);
+    selfProximity_ = true;
     perpendicularAngle_.setSize(nRegions);
     perpendicularAngle_ = -GREAT;
     patchInfo_.setSize(nRegions);
+    blockLevel_.setSize(nRegions);
+    blockLevel_ = labelMax;
 
 
     forAll(globalMinLevel, surfI)
@@ -253,13 +512,16 @@ Foam::refinementSurfaces::refinementSurfaces
         // Initialise to global (i.e. per surface)
         for (label i = 0; i < nRegions; i++)
         {
-            label globalRegionI = regionOffset_[surfI] + i;
+            const label globalRegionI = regionOffset_[surfI] + i;
+
             minLevel_[globalRegionI] = globalMinLevel[surfI];
             maxLevel_[globalRegionI] = globalMaxLevel[surfI];
             gapLevel_[globalRegionI] =
                 maxLevel_[globalRegionI]
               + globalLevelIncr[surfI];
-
+            extendedGapLevel_[globalRegionI] = globalGapLevel[surfI];
+            extendedGapMode_[globalRegionI] = globalGapMode[surfI];
+            selfProximity_[globalRegionI] = globalGapSelf[surfI];
             perpendicularAngle_[globalRegionI] = globalAngle[surfI];
             if (globalPatchInfo.set(surfI))
             {
@@ -269,32 +531,47 @@ Foam::refinementSurfaces::refinementSurfaces
                     globalPatchInfo[surfI].clone()
                 );
             }
+            blockLevel_[globalRegionI] = globalBlockLevel[surfI];
         }
 
         // Overwrite with region specific information
-        forAllConstIter(Map<label>, regionMinLevel[surfI], iter)
+        forAllConstIters(regionMinLevel[surfI], iter)
         {
-            label globalRegionI = regionOffset_[surfI] + iter.key();
+            const label globalRegionI = regionOffset_[surfI] + iter.key();
 
-            minLevel_[globalRegionI] = iter();
+            minLevel_[globalRegionI] = iter.val();
             maxLevel_[globalRegionI] = regionMaxLevel[surfI][iter.key()];
             gapLevel_[globalRegionI] =
                 maxLevel_[globalRegionI]
               + regionLevelIncr[surfI][iter.key()];
+            extendedGapLevel_[globalRegionI] =
+                regionGapLevel[surfI][iter.key()];
+            extendedGapMode_[globalRegionI] =
+                regionGapMode[surfI][iter.key()];
+            selfProximity_[globalRegionI] =
+                regionGapSelf[surfI][iter.key()];
         }
-        forAllConstIter(Map<scalar>, regionAngle[surfI], iter)
+        forAllConstIters(regionAngle[surfI], iter)
         {
-            label globalRegionI = regionOffset_[surfI] + iter.key();
+            const label globalRegionI = regionOffset_[surfI] + iter.key();
 
-            perpendicularAngle_[globalRegionI] = regionAngle[surfI][iter.key()];
+            perpendicularAngle_[globalRegionI] = iter.val();
         }
 
         const Map<autoPtr<dictionary>>& localInfo = regionPatchInfo[surfI];
-        forAllConstIter(Map<autoPtr<dictionary>>, localInfo, iter)
+        forAllConstIters(localInfo, iter)
         {
-            label globalRegionI = regionOffset_[surfI] + iter.key();
+            const label globalRegionI = regionOffset_[surfI] + iter.key();
+            const dictionary& dict = *(iter.val());
 
-            patchInfo_.set(globalRegionI, iter()().clone());
+            patchInfo_.set(globalRegionI, dict.clone());
+        }
+
+        forAllConstIters(regionBlockLevel[surfI], iter)
+        {
+            const label globalRegionI = regionOffset_[surfI] + iter.key();
+
+            blockLevel_[globalRegionI] = iter.val();
         }
     }
 }
@@ -311,7 +588,8 @@ Foam::refinementSurfaces::refinementSurfaces
     const labelList& maxLevel,
     const labelList& gapLevel,
     const scalarField& perpendicularAngle,
-    PtrList<dictionary>& patchInfo
+    PtrList<dictionary>& patchInfo,
+    const bool dryRun
 )
 :
     allGeometry_(allGeometry),
@@ -319,11 +597,13 @@ Foam::refinementSurfaces::refinementSurfaces
     names_(names),
     surfZones_(surfZones),
     regionOffset_(regionOffset),
+    regionToSurface_(calcSurfaceIndex(allGeometry, surfaces)),
     minLevel_(minLevel),
     maxLevel_(maxLevel),
     gapLevel_(gapLevel),
     perpendicularAngle_(perpendicularAngle),
-    patchInfo_(patchInfo.size())
+    patchInfo_(patchInfo.size()),
+    dryRun_(dryRun)
 {
     forAll(patchInfo_, pI)
     {
@@ -337,12 +617,23 @@ Foam::refinementSurfaces::refinementSurfaces
 
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
 
+Foam::labelPair Foam::refinementSurfaces::whichSurface
+(
+    const label globalRegionI
+) const
+{
+    const label surfI = regionToSurface_[globalRegionI];
+    const label localI = globalRegionI-regionOffset_[surfI];
+    return labelPair(surfI, localI);
+}
+
+
 // // Count number of triangles per surface region
 // Foam::labelList Foam::refinementSurfaces::countRegions(const triSurface& s)
 // {
 //     const geometricSurfacePatchList& regions = s.patches();
 //
-//     labelList nTris(regions.size(), 0);
+//     labelList nTris(regions.size(), Zero);
 //
 //     forAll(s, triI)
 //     {
@@ -392,30 +683,46 @@ Foam::refinementSurfaces::refinementSurfaces
 // }
 
 
+Foam::labelList Foam::refinementSurfaces::maxGapLevel() const
+{
+    labelList surfaceMax(surfaces_.size(), Zero);
+
+    forAll(surfaces_, surfI)
+    {
+        const wordList& regionNames = allGeometry_[surfaces_[surfI]].regions();
+
+        forAll(regionNames, regionI)
+        {
+            label globalI = globalRegion(surfI, regionI);
+            const FixedList<label, 3>& gapInfo = extendedGapLevel_[globalI];
+            surfaceMax[surfI] = max(surfaceMax[surfI], gapInfo[2]);
+        }
+    }
+    return surfaceMax;
+}
+
+
 // Precalculate the refinement level for every element of the searchable
 // surface.
-void Foam::refinementSurfaces::setMinLevelFields
-(
-    const shellSurfaces& shells
-)
+void Foam::refinementSurfaces::setMinLevelFields(const shellSurfaces& shells)
 {
     forAll(surfaces_, surfI)
     {
         const searchableSurface& geom = allGeometry_[surfaces_[surfI]];
 
-        // Precalculation only makes sense if there are different regions
-        // (so different refinement levels possible) and there are some
+        // Cache the refinement level (max of surface level and shell level)
+        // on a per-element basis. Only makes sense if there are lots of
         // elements. Possibly should have 'enough' elements to have fine
         // enough resolution but for now just make sure we don't catch e.g.
         // searchableBox (size=6)
-        if (geom.regions().size() > 1 && geom.globalSize() > 10)
+        if (geom.globalSize() > 10)
         {
             // Representative local coordinates and bounding sphere
             pointField ctrs;
             scalarField radiusSqr;
             geom.boundingSpheres(ctrs, radiusSqr);
 
-            labelList minLevelField(ctrs.size(), -1);
+            labelList minLevelField(ctrs.size(), Zero);
             {
                 // Get the element index in a roundabout way. Problem is e.g.
                 // distributed surface where local indices differ from global
@@ -442,9 +749,82 @@ void Foam::refinementSurfaces::setMinLevelFields
             labelList shellLevel;
             shells.findHigherLevel(ctrs, minLevelField, shellLevel);
 
+
+            // In case of triangulated surfaces only cache value if triangle
+            // centre and vertices are in same shell
+            if (isA<triSurface>(geom))
+            {
+                label nUncached = 0;
+
+                // Check if points differing from ctr level
+
+                const triSurface& ts = refCast<const triSurface>(geom);
+                const pointField& points = ts.points();
+
+                // Determine minimum expected level to avoid having to
+                // test lots of points
+                labelList minPointLevel(points.size(), labelMax);
+                forAll(shellLevel, triI)
+                {
+                    const labelledTri& t = ts[triI];
+                    label level = shellLevel[triI];
+                    forAll(t, tI)
+                    {
+                        minPointLevel[t[tI]] = min(minPointLevel[t[tI]], level);
+                    }
+                }
+
+
+                // See if inside any shells with higher refinement level
+                labelList pointLevel;
+                shells.findHigherLevel(points, minPointLevel, pointLevel);
+
+
+                // See if triangle centre values differ from triangle points
+                forAll(shellLevel, triI)
+                {
+                    const labelledTri& t = ts[triI];
+                    label fLevel = shellLevel[triI];
+                    if
+                    (
+                        (pointLevel[t[0]] != fLevel)
+                     || (pointLevel[t[1]] != fLevel)
+                     || (pointLevel[t[2]] != fLevel)
+                    )
+                    {
+                        //Pout<< "Detected triangle " << t.tri(ts.points())
+                        //    << " partially inside/partially outside" << endl;
+
+                        // Mark as uncached
+                        shellLevel[triI] = -1;
+                        nUncached++;
+                    }
+                }
+
+                if (!dryRun_)
+                {
+                    Info<< "For geometry " << geom.name()
+                        << " detected "
+                        << returnReduce(nUncached, sumOp<label>())
+                        << " uncached triangles out of " << geom.globalSize()
+                        << endl;
+                }
+            }
+
+
+            // Combine overall level field with current shell level. Make sure
+            // to preserve -1 (from triSurfaceMeshes with triangles partly
+            // inside/outside
             forAll(minLevelField, i)
             {
-                minLevelField[i] = max(minLevelField[i], shellLevel[i]);
+                if (min(minLevelField[i], shellLevel[i]) < 0)
+                {
+                    minLevelField[i] = -1;
+                }
+                else
+                {
+                    minLevelField[i] = max(minLevelField[i], shellLevel[i]);
+                }
             }
 
             // Store minLevelField on surface
@@ -458,6 +838,8 @@ void Foam::refinementSurfaces::setMinLevelFields
 // number.
 void Foam::refinementSurfaces::findHigherIntersection
 (
+    const shellSurfaces& shells,
+
     const pointField& start,
     const pointField& end,
     const labelList& currentLevel,   // current cell refinement level
@@ -489,41 +871,48 @@ void Foam::refinementSurfaces::findHigherIntersection
         List<pointIndexHit> intersectionInfo(start.size());
         geom.findLineAny(start, end, intersectionInfo);
 
-        // See if a cached level field available
-        labelList minLevelField;
-        geom.getField(intersectionInfo, minLevelField);
-        bool haveLevelField =
-        (
-            returnReduce(minLevelField.size(), sumOp<label>())
-          > 0
-        );
 
-        if (!haveLevelField && geom.regions().size() == 1)
+        // Surface-based refinement level
+        labelList surfaceOnlyLevel(start.size(), -1);
         {
-            minLevelField = labelList
-            (
-                intersectionInfo.size(),
-                minLevel(surfI, 0)
-            );
-            haveLevelField = true;
-        }
+            // Get per intersection the region
+            labelList region;
+            geom.getRegion(intersectionInfo, region);
 
-        if (haveLevelField)
-        {
             forAll(intersectionInfo, i)
             {
-                if
-                (
-                    intersectionInfo[i].hit()
-                 && minLevelField[i] > currentLevel[i]
-                )
+                if (intersectionInfo[i].hit())
                 {
-                    surfaces[i] = surfI;    // index of surface
-                    surfaceLevel[i] = minLevelField[i];
+                    surfaceOnlyLevel[i] = minLevel(surfI, region[i]);
                 }
             }
-            return;
         }
+
+
+        // Get shell refinement level if higher
+        const labelList localLevel
+        (
+            findHigherLevel
+            (
+                geom,
+                shells,
+                intersectionInfo,
+                surfaceOnlyLevel // starting level
+            )
+        );
+
+
+        // Combine localLevel with current level
+        forAll(localLevel, i)
+        {
+            if (localLevel[i] > currentLevel[i])
+            {
+                surfaces[i] = surfI;    // index of surface
+                surfaceLevel[i] = localLevel[i];
+            }
+        }
+
+        return;
     }
 
 
@@ -541,49 +930,58 @@ void Foam::refinementSurfaces::findHigherIntersection
         // Do intersection test
         geom.findLineAny(p0, p1, intersectionInfo);
 
-        // See if a cached level field available
-        labelList minLevelField;
-        geom.getField(intersectionInfo, minLevelField);
 
-        // Copy all hits into arguments, In-place compact misses.
-        label missI = 0;
-        forAll(intersectionInfo, i)
+        // Surface-based refinement level
+        labelList surfaceOnlyLevel(intersectionInfo.size(), -1);
         {
-            // Get the minLevel for the point
-            label minLocalLevel = -1;
+            // Get per intersection the region
+            labelList region;
+            geom.getRegion(intersectionInfo, region);
 
-            if (intersectionInfo[i].hit())
+            forAll(intersectionInfo, i)
             {
-                // Check if minLevelField for this surface.
-                if (minLevelField.size())
+                if (intersectionInfo[i].hit())
                 {
-                    minLocalLevel = minLevelField[i];
-                }
-                else
-                {
-                    // Use the min level for the surface instead. Assume
-                    // single region 0.
-                    minLocalLevel = minLevel(surfI, 0);
+                    surfaceOnlyLevel[i] = minLevel(surfI, region[i]);
                 }
             }
+        }
 
 
-            label pointi = intersectionToPoint[i];
+        // Get shell refinement level if higher
+        const labelList localLevel
+        (
+            findHigherLevel
+            (
+                geom,
+                shells,
+                intersectionInfo,
+                surfaceOnlyLevel
+            )
+        );
 
-            if (minLocalLevel > currentLevel[pointi])
+
+        // Combine localLevel with current level
+        label missI = 0;
+        forAll(localLevel, i)
+        {
+            label pointI = intersectionToPoint[i];
+
+            if (localLevel[i] > currentLevel[pointI])
             {
                 // Mark point for refinement
-                surfaces[pointi] = surfI;
-                surfaceLevel[pointi] = minLocalLevel;
+                surfaces[pointI] = surfI;
+                surfaceLevel[pointI] = localLevel[i];
             }
             else
             {
-                p0[missI] = start[pointi];
-                p1[missI] = end[pointi];
-                intersectionToPoint[missI] = pointi;
+                p0[missI] = start[pointI];
+                p1[missI] = end[pointI];
+                intersectionToPoint[missI] = pointI;
                 missI++;
             }
         }
+
 
         // All done? Note that this decision should be synchronised
         if (returnReduce(missI, sumOp<label>()) == 0)
@@ -600,13 +998,14 @@ void Foam::refinementSurfaces::findHigherIntersection
 }
 
 
-void Foam::refinementSurfaces::findAllHigherIntersections
+void Foam::refinementSurfaces::findAllIntersections
 (
     const pointField& start,
     const pointField& end,
     const labelList& currentLevel,   // current cell refinement level
 
-    const labelList& globalRegionLevel,
+    const labelList& globalMinLevel,
+    const labelList& globalMaxLevel,
 
     List<vectorList>& surfaceNormal,
     labelListList& surfaceLevel
@@ -636,23 +1035,23 @@ void Foam::refinementSurfaces::findAllHigherIntersections
         // To avoid overhead of calling getRegion for every point
 
         label n = 0;
-        forAll(hitInfo, pointi)
+        forAll(hitInfo, pointI)
         {
-            n += hitInfo[pointi].size();
+            n += hitInfo[pointI].size();
         }
 
         List<pointIndexHit> surfInfo(n);
         labelList pointMap(n);
         n = 0;
 
-        forAll(hitInfo, pointi)
+        forAll(hitInfo, pointI)
         {
-            const List<pointIndexHit>& pHits = hitInfo[pointi];
+            const List<pointIndexHit>& pHits = hitInfo[pointI];
 
             forAll(pHits, i)
             {
                 surfInfo[n] = pHits[i];
-                pointMap[n] = pointi;
+                pointMap[n] = pointI;
                 n++;
             }
         }
@@ -671,30 +1070,35 @@ void Foam::refinementSurfaces::findAllHigherIntersections
         forAll(surfRegion, i)
         {
             label region = globalRegion(surfI, surfRegion[i]);
-            label pointi = pointMap[i];
+            label pointI = pointMap[i];
 
-            if (globalRegionLevel[region] > currentLevel[pointi])
+            if
+            (
+                currentLevel[pointI] >= globalMinLevel[region]
+             && currentLevel[pointI] < globalMaxLevel[region]
+            )
             {
-                // Append to pointi info
-                label sz = surfaceNormal[pointi].size();
-                surfaceNormal[pointi].setSize(sz+1);
-                surfaceNormal[pointi][sz] = surfNormal[i];
+                // Append to pointI info
+                label sz = surfaceNormal[pointI].size();
+                surfaceNormal[pointI].setSize(sz+1);
+                surfaceNormal[pointI][sz] = surfNormal[i];
 
-                surfaceLevel[pointi].setSize(sz+1);
-                surfaceLevel[pointi][sz] = globalRegionLevel[region];
+                surfaceLevel[pointI].setSize(sz+1);
+                surfaceLevel[pointI][sz] = globalMaxLevel[region];
             }
         }
     }
 }
 
 
-void Foam::refinementSurfaces::findAllHigherIntersections
+void Foam::refinementSurfaces::findAllIntersections
 (
     const pointField& start,
     const pointField& end,
     const labelList& currentLevel,   // current cell refinement level
 
-    const labelList& globalRegionLevel,
+    const labelList& globalMinLevel,
+    const labelList& globalMaxLevel,
 
     List<pointList>& surfaceLocation,
     List<vectorList>& surfaceNormal,
@@ -726,23 +1130,23 @@ void Foam::refinementSurfaces::findAllHigherIntersections
         // To avoid overhead of calling getRegion for every point
 
         label n = 0;
-        forAll(hitInfo, pointi)
+        forAll(hitInfo, pointI)
         {
-            n += hitInfo[pointi].size();
+            n += hitInfo[pointI].size();
         }
 
         List<pointIndexHit> surfInfo(n);
         labelList pointMap(n);
         n = 0;
 
-        forAll(hitInfo, pointi)
+        forAll(hitInfo, pointI)
         {
-            const List<pointIndexHit>& pHits = hitInfo[pointi];
+            const List<pointIndexHit>& pHits = hitInfo[pointI];
 
             forAll(pHits, i)
             {
                 surfInfo[n] = pHits[i];
-                pointMap[n] = pointi;
+                pointMap[n] = pointI;
                 n++;
             }
         }
@@ -758,20 +1162,26 @@ void Foam::refinementSurfaces::findAllHigherIntersections
         forAll(surfRegion, i)
         {
             label region = globalRegion(surfI, surfRegion[i]);
-            label pointi = pointMap[i];
+            label pointI = pointMap[i];
 
-            if (globalRegionLevel[region] > currentLevel[pointi])
+            if
+            (
+                currentLevel[pointI] >= globalMinLevel[region]
+             && currentLevel[pointI] < globalMaxLevel[region]
+            )
             {
-                // Append to pointi info
-                label sz = surfaceNormal[pointi].size();
-                surfaceLocation[pointi].setSize(sz+1);
-                surfaceLocation[pointi][sz] = surfInfo[i].hitPoint();
+                // Append to pointI info
+                label sz = surfaceNormal[pointI].size();
+                surfaceLocation[pointI].setSize(sz+1);
+                surfaceLocation[pointI][sz] = surfInfo[i].hitPoint();
 
-                surfaceNormal[pointi].setSize(sz+1);
-                surfaceNormal[pointi][sz] = surfNormal[i];
+                surfaceNormal[pointI].setSize(sz+1);
+                surfaceNormal[pointI][sz] = surfNormal[i];
 
-                surfaceLevel[pointi].setSize(sz+1);
-                surfaceLevel[pointi][sz] = globalRegionLevel[region];
+                surfaceLevel[pointI].setSize(sz+1);
+                // Level should just be higher than provided point level.
+                // Actual value is not important.
+                surfaceLevel[pointI][sz] = globalMaxLevel[region];
             }
         }
     }
@@ -826,14 +1236,14 @@ void Foam::refinementSurfaces::findNearestIntersection
             region
         );
 
-        forAll(nearestInfo, pointi)
+        forAll(nearestInfo, pointI)
         {
-            if (nearestInfo[pointi].hit())
+            if (nearestInfo[pointI].hit())
             {
-                hit1[pointi] = nearestInfo[pointi];
-                surface1[pointi] = surfI;
-                region1[pointi] = region[pointi];
-                nearest[pointi] = hit1[pointi].hitPoint();
+                hit1[pointI] = nearestInfo[pointI];
+                surface1[pointI] = surfI;
+                region1[pointI] = region[pointI];
+                nearest[pointI] = hit1[pointI].hitPoint();
             }
         }
     }
@@ -849,16 +1259,16 @@ void Foam::refinementSurfaces::findNearestIntersection
     region2 = region1;
 
     // Set current end of segment to test.
-    forAll(nearest, pointi)
+    forAll(nearest, pointI)
     {
-        if (hit1[pointi].hit())
+        if (hit1[pointI].hit())
         {
-            nearest[pointi] = hit1[pointi].hitPoint();
+            nearest[pointI] = hit1[pointI].hitPoint();
         }
         else
         {
             // Disable testing by setting to end.
-            nearest[pointi] = end[pointi];
+            nearest[pointI] = end[pointI];
         }
     }
 
@@ -881,14 +1291,14 @@ void Foam::refinementSurfaces::findNearestIntersection
             region
         );
 
-        forAll(nearestInfo, pointi)
+        forAll(nearestInfo, pointI)
         {
-            if (nearestInfo[pointi].hit())
+            if (nearestInfo[pointI].hit())
             {
-                hit2[pointi] = nearestInfo[pointi];
-                surface2[pointi] = surfI;
-                region2[pointi] = region[pointi];
-                nearest[pointi] = hit2[pointi].hitPoint();
+                hit2[pointI] = nearestInfo[pointI];
+                surface2[pointI] = surfI;
+                region2[pointI] = region[pointI];
+                nearest[pointI] = hit2[pointI].hitPoint();
             }
         }
     }
@@ -896,13 +1306,13 @@ void Foam::refinementSurfaces::findNearestIntersection
 
     // Make sure that if hit1 has hit something, hit2 will have at least the
     // same point (due to tolerances it might miss its end point)
-    forAll(hit1, pointi)
+    forAll(hit1, pointI)
     {
-        if (hit1[pointi].hit() && !hit2[pointi].hit())
+        if (hit1[pointI].hit() && !hit2[pointI].hit())
         {
-            hit2[pointi] = hit1[pointi];
-            surface2[pointi] = surface1[pointi];
-            region2[pointi] = region1[pointi];
+            hit2[pointI] = hit1[pointI];
+            surface2[pointI] = surface1[pointI];
+            region2[pointI] = region1[pointI];
         }
     }
 }
@@ -954,15 +1364,15 @@ void Foam::refinementSurfaces::findNearestIntersection
         geom.getRegion(nearestInfo, region);
         geom.getNormal(nearestInfo, normal);
 
-        forAll(nearestInfo, pointi)
+        forAll(nearestInfo, pointI)
         {
-            if (nearestInfo[pointi].hit())
+            if (nearestInfo[pointI].hit())
             {
-                hit1[pointi] = nearestInfo[pointi];
-                surface1[pointi] = surfI;
-                region1[pointi] = region[pointi];
-                normal1[pointi] = normal[pointi];
-                nearest[pointi] = hit1[pointi].hitPoint();
+                hit1[pointI] = nearestInfo[pointI];
+                surface1[pointI] = surfI;
+                region1[pointI] = region[pointI];
+                normal1[pointI] = normal[pointI];
+                nearest[pointI] = hit1[pointI].hitPoint();
             }
         }
     }
@@ -979,16 +1389,16 @@ void Foam::refinementSurfaces::findNearestIntersection
     normal2 = normal1;
 
     // Set current end of segment to test.
-    forAll(nearest, pointi)
+    forAll(nearest, pointI)
     {
-        if (hit1[pointi].hit())
+        if (hit1[pointI].hit())
         {
-            nearest[pointi] = hit1[pointi].hitPoint();
+            nearest[pointI] = hit1[pointI].hitPoint();
         }
         else
         {
             // Disable testing by setting to end.
-            nearest[pointi] = end[pointi];
+            nearest[pointI] = end[pointI];
         }
     }
 
@@ -1002,15 +1412,15 @@ void Foam::refinementSurfaces::findNearestIntersection
         geom.getRegion(nearestInfo, region);
         geom.getNormal(nearestInfo, normal);
 
-        forAll(nearestInfo, pointi)
+        forAll(nearestInfo, pointI)
         {
-            if (nearestInfo[pointi].hit())
+            if (nearestInfo[pointI].hit())
             {
-                hit2[pointi] = nearestInfo[pointi];
-                surface2[pointi] = surfI;
-                region2[pointi] = region[pointi];
-                normal2[pointi] = normal[pointi];
-                nearest[pointi] = hit2[pointi].hitPoint();
+                hit2[pointI] = nearestInfo[pointI];
+                surface2[pointI] = surfI;
+                region2[pointI] = region[pointI];
+                normal2[pointI] = normal[pointI];
+                nearest[pointI] = hit2[pointI].hitPoint();
             }
         }
     }
@@ -1018,14 +1428,107 @@ void Foam::refinementSurfaces::findNearestIntersection
 
     // Make sure that if hit1 has hit something, hit2 will have at least the
     // same point (due to tolerances it might miss its end point)
-    forAll(hit1, pointi)
+    forAll(hit1, pointI)
     {
-        if (hit1[pointi].hit() && !hit2[pointi].hit())
+        if (hit1[pointI].hit() && !hit2[pointI].hit())
         {
-            hit2[pointi] = hit1[pointi];
-            surface2[pointi] = surface1[pointi];
-            region2[pointi] = region1[pointi];
-            normal2[pointi] = normal1[pointi];
+            hit2[pointI] = hit1[pointI];
+            surface2[pointI] = surface1[pointI];
+            region2[pointI] = region1[pointI];
+            normal2[pointI] = normal1[pointI];
+        }
+    }
+}
+
+
+void Foam::refinementSurfaces::findNearestIntersection
+(
+    const pointField& start,
+    const pointField& end,
+
+    labelList& surface1,
+    vectorField& normal1
+) const
+{
+    // Initialize arguments
+    surface1.setSize(start.size());
+    surface1 = -1;
+    normal1.setSize(start.size());
+    normal1 = Zero;
+
+    // Current end of segment to test.
+    pointField nearest(end);
+    // Work array
+    List<pointIndexHit> nearestInfo(start.size());
+    labelList region;
+    vectorField normal;
+
+    forAll(surfaces_, surfI)
+    {
+        const searchableSurface& geom = allGeometry_[surfaces_[surfI]];
+
+        // See if any intersection between start and current nearest
+        geom.findLine(start, nearest, nearestInfo);
+        geom.getNormal(nearestInfo, normal);
+
+        forAll(nearestInfo, pointI)
+        {
+            if (nearestInfo[pointI].hit())
+            {
+                surface1[pointI] = surfI;
+                normal1[pointI] = normal[pointI];
+                nearest[pointI] = nearestInfo[pointI].hitPoint();
+            }
+        }
+    }
+}
+
+
+void Foam::refinementSurfaces::findNearestIntersection
+(
+    const pointField& start,
+    const pointField& end,
+
+    labelList& surface1,
+    List<pointIndexHit>& hitInfo1,
+    vectorField& normal1
+) const
+{
+    // 1. intersection from start to end
+    // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+    // Initialize arguments
+    surface1.setSize(start.size());
+    surface1 = -1;
+    hitInfo1.setSize(start.size());
+    hitInfo1 = pointIndexHit();
+    normal1.setSize(start.size());
+    normal1 = Zero;
+
+    // Current end of segment to test.
+    pointField nearest(end);
+    // Work array
+    List<pointIndexHit> nearestInfo(start.size());
+    labelList region;
+    vectorField normal;
+
+    forAll(surfaces_, surfI)
+    {
+        const searchableSurface& geom = allGeometry_[surfaces_[surfI]];
+
+        // See if any intersection between start and current nearest
+        geom.findLine(start, nearest, nearestInfo);
+        geom.getNormal(nearestInfo, normal);
+
+        forAll(nearestInfo, pointI)
+        {
+            if (nearestInfo[pointI].hit())
+            {
+                surface1[pointI] = surfI;
+                hitInfo1[pointI] = nearestInfo[pointI];
+                normal1[pointI] = normal[pointI];
+                nearest[pointI] = nearestInfo[pointI].hitPoint();
+            }
         }
     }
 }
@@ -1056,12 +1559,12 @@ void Foam::refinementSurfaces::findNearest
 (
     const labelList& surfacesToTest,
     const pointField& samples,
-    const  scalarField& nearestDistSqr,
+    const scalarField& nearestDistSqr,
     labelList& hitSurface,
     List<pointIndexHit>& hitInfo
 ) const
 {
-    labelList geometries(UIndirectList<label>(surfaces_, surfacesToTest));
+    labelList geometries(labelUIndList(surfaces_, surfacesToTest));
 
     // Do the tests. Note that findNearest returns index in geometries.
     searchableSurfacesQueries::findNearest
@@ -1075,11 +1578,11 @@ void Foam::refinementSurfaces::findNearest
     );
 
     // Rework the hitSurface to be surface (i.e. index into surfaces_)
-    forAll(hitSurface, pointi)
+    forAll(hitSurface, pointI)
     {
-        if (hitSurface[pointi] != -1)
+        if (hitSurface[pointI] != -1)
         {
-            hitSurface[pointi] = surfacesToTest[hitSurface[pointi]];
+            hitSurface[pointI] = surfacesToTest[hitSurface[pointI]];
         }
     }
 }
@@ -1094,7 +1597,7 @@ void Foam::refinementSurfaces::findNearestRegion
     labelList& hitRegion
 ) const
 {
-    labelList geometries(UIndirectList<label>(surfaces_, surfacesToTest));
+    labelList geometries(labelUIndList(surfaces_, surfacesToTest));
 
     // Do the tests. Note that findNearest returns index in geometries.
     List<pointIndexHit> hitInfo;
@@ -1109,11 +1612,11 @@ void Foam::refinementSurfaces::findNearestRegion
     );
 
     // Rework the hitSurface to be surface (i.e. index into surfaces_)
-    forAll(hitSurface, pointi)
+    forAll(hitSurface, pointI)
     {
-        if (hitSurface[pointi] != -1)
+        if (hitSurface[pointI] != -1)
         {
-            hitSurface[pointi] = surfacesToTest[hitSurface[pointi]];
+            hitSurface[pointI] = surfacesToTest[hitSurface[pointI]];
         }
     }
 
@@ -1159,7 +1662,7 @@ void Foam::refinementSurfaces::findNearestRegion
     vectorField& hitNormal
 ) const
 {
-    labelList geometries(UIndirectList<label>(surfaces_, surfacesToTest));
+    labelList geometries(labelUIndList(surfaces_, surfacesToTest));
 
     // Do the tests. Note that findNearest returns index in geometries.
     searchableSurfacesQueries::findNearest
@@ -1173,11 +1676,11 @@ void Foam::refinementSurfaces::findNearestRegion
     );
 
     // Rework the hitSurface to be surface (i.e. index into surfaces_)
-    forAll(hitSurface, pointi)
+    forAll(hitSurface, pointI)
     {
-        if (hitSurface[pointi] != -1)
+        if (hitSurface[pointI] != -1)
         {
-            hitSurface[pointi] = surfacesToTest[hitSurface[pointi]];
+            hitSurface[pointI] = surfacesToTest[hitSurface[pointI]];
         }
     }
 
@@ -1307,26 +1810,143 @@ void Foam::refinementSurfaces::findInside
             List<volumeType> volType;
             surface.getVolumeType(pt, volType);
 
-            forAll(volType, pointi)
+            forAll(volType, pointI)
             {
-                if (insideSurfaces[pointi] == -1)
+                if (insideSurfaces[pointI] == -1)
                 {
                     if
                     (
                         (
-                            volType[pointi] == volumeType::INSIDE
+                            volType[pointI] == volumeType::INSIDE
                          && selectionMethod == surfaceZonesInfo::INSIDE
                         )
                      || (
-                            volType[pointi] == volumeType::OUTSIDE
+                            volType[pointI] == volumeType::OUTSIDE
                          && selectionMethod == surfaceZonesInfo::OUTSIDE
                         )
                     )
                     {
-                        insideSurfaces[pointi] = surfI;
+                        insideSurfaces[pointI] = surfI;
                     }
                 }
             }
+        }
+    }
+}
+
+
+void Foam::refinementSurfaces::findNearest
+(
+    const labelList& surfacesToTest,
+    const labelListList& regions,
+
+    const pointField& samples,
+    const scalarField& nearestDistSqr,
+
+    labelList& hitSurface,
+    List<pointIndexHit>& hitInfo
+) const
+{
+    labelList geometries(labelUIndList(surfaces_, surfacesToTest));
+
+    // Do the tests. Note that findNearest returns index in geometries.
+    searchableSurfacesQueries::findNearest
+    (
+        allGeometry_,
+        geometries,
+        regions,
+        samples,
+        nearestDistSqr,
+        hitSurface,
+        hitInfo
+    );
+
+    // Rework the hitSurface to be surface (i.e. index into surfaces_)
+    forAll(hitSurface, pointI)
+    {
+        if (hitSurface[pointI] != -1)
+        {
+            hitSurface[pointI] = surfacesToTest[hitSurface[pointI]];
+        }
+    }
+}
+
+
+void Foam::refinementSurfaces::findNearestRegion
+(
+    const labelList& surfacesToTest,
+    const labelListList& regions,
+
+    const pointField& samples,
+    const scalarField& nearestDistSqr,
+
+    labelList& hitSurface,
+    List<pointIndexHit>& hitInfo,
+    labelList& hitRegion,
+    vectorField& hitNormal
+) const
+{
+    labelList geometries(labelUIndList(surfaces_, surfacesToTest));
+
+    // Do the tests. Note that findNearest returns index in geometries.
+    searchableSurfacesQueries::findNearest
+    (
+        allGeometry_,
+        geometries,
+        regions,
+        samples,
+        nearestDistSqr,
+        hitSurface,
+        hitInfo
+    );
+
+    // Rework the hitSurface to be surface (i.e. index into surfaces_)
+    forAll(hitSurface, pointI)
+    {
+        if (hitSurface[pointI] != -1)
+        {
+            hitSurface[pointI] = surfacesToTest[hitSurface[pointI]];
+        }
+    }
+
+    // Collect the region
+    hitRegion.setSize(hitSurface.size());
+    hitRegion = -1;
+    hitNormal.setSize(hitSurface.size());
+    hitNormal = Zero;
+
+    forAll(surfacesToTest, i)
+    {
+        label surfI = surfacesToTest[i];
+
+        // Collect hits for surfI
+        const labelList localIndices(findIndices(hitSurface, surfI));
+
+        List<pointIndexHit> localHits
+        (
+            UIndirectList<pointIndexHit>
+            (
+                hitInfo,
+                localIndices
+            )
+        );
+
+        // Region
+        labelList localRegion;
+        allGeometry_[surfaces_[surfI]].getRegion(localHits, localRegion);
+
+        forAll(localIndices, i)
+        {
+            hitRegion[localIndices[i]] = localRegion[i];
+        }
+
+        // Normal
+        vectorField localNormal;
+        allGeometry_[surfaces_[surfI]].getNormal(localHits, localNormal);
+
+        forAll(localIndices, i)
+        {
+            hitNormal[localIndices[i]] = localNormal[i];
         }
     }
 }

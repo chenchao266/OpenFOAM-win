@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011 OpenFOAM Foundation
+    Copyright (C) 2016 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -22,10 +25,10 @@ License
     along with OpenFOAM.  If not, see <http://www.gnu.org/licenses/>.
 
 Class
-    Foam::meshWriters::STARCD
+    Foam::fileFormats::STARCDMeshWriter
 
 Description
-    Writes polyMesh in pro-STAR (v4) bnd/cel/vrt format
+    Writes polyMesh in PROSTAR (v4) bnd/cel/vrt format
 
     The cellTableId and cellTable information are used (if available).
     Otherwise the cellZones are used (if available).
@@ -39,42 +42,33 @@ SourceFiles
 #define STARCDMeshWriter_H
 
 #include "meshWriter.H"
-#include "IOstream.H"
+#include "STARCDCore.H"
+#include "_IOstream.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 namespace Foam
 {
 
-namespace meshWriters
+namespace fileFormats
 {
 
 /*---------------------------------------------------------------------------*\
-                    Class meshWriters::STARCD Declaration
+                Class fileFormats::STARCDMeshWriter Declaration
 \*---------------------------------------------------------------------------*/
 
-class STARCD
+class STARCDMeshWriter
 :
-    public meshWriter
+    public meshWriter,
+    protected STARCDCore
 {
-    // Private Data
+    // Private data
 
-        static const char* defaultBoundaryName;
+        //- Write boundary (bnd) file - default true
+        bool writeBoundary_;
 
 
     // Private Member Functions
-
-        //- Disallow default bitwise copy construct
-        STARCD(const STARCD&);
-
-        //- Disallow default bitwise assignment
-        void operator=(const STARCD&);
-
-        //- Pro-STAR 4+ header format
-        static void writeHeader(Ostream&, const char* filetype);
-
-        //- Write points
-        void writePoints(const fileName& baseName) const;
 
         //- Write cells
         void writeCells(const fileName& baseName) const;
@@ -87,50 +81,46 @@ class STARCD
         label findDefaultBoundary() const;
 
 
+        //- No copy construct
+        STARCDMeshWriter(const STARCDMeshWriter&) = delete;
+
+        //- No copy assignment
+        void operator=(const STARCDMeshWriter&) = delete;
+
+
 public:
-
-    // Static data members
-
-        //- Face addressing from OpenFOAM faces -> pro-STAR faces
-        static const label foamToStarFaceAddr[4][6];
-
 
     // Constructors
 
-        //- Open a file for writing
-        STARCD
+        //- Write mesh files in PROSTAR format
+        STARCDMeshWriter
         (
             const polyMesh&,
-            const scalar scaleFactor = 1.0
+            const scalar scaleFactor = 1.0,
+            const bool writeBndFile = true
         );
 
 
     //- Destructor
-    virtual ~STARCD();
+    virtual ~STARCDMeshWriter() = default;
 
 
     // Member Functions
 
-        // Edit
+    // Write
 
-            //- Remove STAR-CD files for the baseName
-            void rmFiles(const fileName& baseName) const;
-
-
-        // Write
-
-            //- Write volume mesh
-            virtual bool write
-            (
-                const fileName& meshName = fileName::null
-            ) const;
+        //- Write volume mesh
+        virtual bool write
+        (
+            const fileName& meshName = fileName::null
+        ) const;
 
 };
 
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
-} // End namespace meshWriters
+} // End namespace fileFormats
 } // End namespace Foam
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //

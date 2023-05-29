@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011 OpenFOAM Foundation
+    Copyright (C) 2019 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -26,30 +29,29 @@ License
 #include "facePointPatch.H"
 #include "pointBoundaryMesh.H"
 #include "pointMesh.H"
-#include "demandDrivenData.H"
-#include "boolList.H"
 #include "addToRunTimeSelectionTable.H"
-
-// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
-using namespace Foam;
-namespace Foam
-{
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
 
-defineTypeNameAndDebug(facePointPatch, 0);
-defineRunTimeSelectionTable(facePointPatch, polyPatch);
+namespace Foam
+{
+    defineTypeNameAndDebug(facePointPatch, 0);
+    defineRunTimeSelectionTable(facePointPatch, polyPatch);
 
-addToRunTimeSelectionTable
-(
-    facePointPatch,
-    facePointPatch,
-    polyPatch
-);
+    addToRunTimeSelectionTable
+    (
+        facePointPatch,
+        facePointPatch,
+        polyPatch
+    );
+
+} // End namespace Foam
 
 
 // * * * * * * * * * * * * * Protected Member Functions  * * * * * * * * * * //
 
+
+ namespace Foam{
 void facePointPatch::initGeometry(PstreamBuffers&)
 {}
 
@@ -82,13 +84,13 @@ facePointPatch::facePointPatch
 (
     const polyPatch& p,
     const pointBoundaryMesh& bm
-) :    pointPatch(bm),
+)
+:
+    pointPatch(bm),
     polyPatch_(p)
 {}
 
 
-// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
-
-} // End namespace Foam
-
 // ************************************************************************* //
+
+ } // End namespace Foam

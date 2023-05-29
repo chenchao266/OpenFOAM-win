@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -41,17 +44,17 @@ SourceFiles
 #ifndef directions_H
 #define directions_H
 
-#include "List.T.H"
+#include "List.H"
 #include "vectorField.H"
-#include "NamedEnum.T.H"
-#include "point.T.H"
+#include "Enum.H"
+#include "point.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 namespace Foam
 {
 
-// Forward declaration of classes
+// Forward Declarations
 class polyMesh;
 class twoDPointCorrector;
 class primitiveMesh;
@@ -66,10 +69,9 @@ class directions
 :
     public List<vectorField>
 {
-
 public:
 
-    // Data types
+    // Data Types
 
         //- Enumeration listing the possible coordinate directions.
         enum directionType
@@ -82,7 +84,7 @@ public:
 
 private:
 
-        static const NamedEnum<directionType, 3> directionTypeNames_;
+        static const Enum<directionType> directionTypeNames_;
 
 
     // Private Member Functions
@@ -126,11 +128,11 @@ private:
             const vector& defaultDir
         );
 
-        //- Disallow default bitwise copy construct
-        directions(const directions&);
+        //- No copy construct
+        directions(const directions&) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const directions&);
+        //- No copy assignment
+        void operator=(const directions&) = delete;
 
 
 public:

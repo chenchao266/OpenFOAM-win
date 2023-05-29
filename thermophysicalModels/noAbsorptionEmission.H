@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2015 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2015 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -24,6 +26,9 @@ License
 Class
     Foam::radiation::noAbsorptionEmission
 
+Group
+    grpRadiationAbsorptionEmissionSubModels
+
 Description
     Dummy absorption-emission model for 'none'
 
@@ -32,8 +37,8 @@ SourceFiles
 
 \*---------------------------------------------------------------------------*/
 
-#ifndef radiationNoAbsorptionEmission_H
-#define radiationNoAbsorptionEmission_H
+#ifndef radiation_noAbsorptionEmission_H
+#define radiation_noAbsorptionEmission_H
 
 #include "absorptionEmissionModel.H"
 

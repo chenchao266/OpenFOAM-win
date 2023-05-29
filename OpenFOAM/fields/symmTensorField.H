@@ -1,9 +1,12 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2015 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2015 OpenFOAM Foundation
+    Copyright (C) 2019 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -37,12 +40,12 @@ SourceFiles
 
 #include "scalarField.H"
 #include "vectorField.H"
-#include "sphericalTensor.H"
-#include "symmTensor.H"
-#include "tensor.H"
+#include "sphericalTensor2.H"
+#include "symmTensor2.H"
+#include "tensor2.H"
 
 #define TEMPLATE
-#include "FieldFunctionsM.T.H"
+#include "FieldFunctionsM.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -50,6 +53,54 @@ namespace Foam
 {
 
 typedef Field<symmTensor> symmTensorField;
+
+// * * * * * * * * * * * * * * * Global Functions  * * * * * * * * * * * * * //
+
+//- Zip together symmTensor field from components
+template<class Cmpt>
+void zip
+(
+    Field<SymmTensor<Cmpt>>& result,
+    const UList<Cmpt>& xx, const UList<Cmpt>& xy, const UList<Cmpt>& xz,
+    const UList<Cmpt>& yy, const UList<Cmpt>& yz,
+    const UList<Cmpt>& zz
+);
+
+//- Unzip symmTensor field into components
+template<class Cmpt>
+void unzip
+(
+    const UList<SymmTensor<Cmpt>>& input,
+    Field<Cmpt>& xx, Field<Cmpt>& xy, Field<Cmpt>& xz,
+    Field<Cmpt>& yy, Field<Cmpt>& yz,
+    Field<Cmpt>& zz
+);
+
+//- Zip together symmTensor field from components
+template<class Cmpt>
+tmp<Field<SymmTensor<Cmpt>>> zip
+(
+    const Field<Cmpt>& xx, const Field<Cmpt>& xy, const Field<Cmpt>& xz,
+    const Field<Cmpt>& yy, const Field<Cmpt>& yz,
+    const Field<Cmpt>& zz
+);
+
+
+//- Extract a symmTensor field diagonal
+template<class Cmpt>
+void unzipDiag
+(
+    const UList<SymmTensor<Cmpt>>& input,
+    Field<Vector<Cmpt>>& result
+);
+
+//- Extract a  symmTensor field diagonal
+template<class Cmpt>
+tmp<Field<Vector<Cmpt>>> unzipDiag
+(
+    const Field<SymmTensor<Cmpt>>& input
+);
+
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -82,6 +133,12 @@ BINARY_TYPE_OPERATOR(tensor, symmTensor, symmTensor, &, dot)
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 #include "undefFieldFunctionsM.H"
+
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+#ifdef NoRepository
+    #include "symmTensorFieldTemplates.C"
+#endif
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 

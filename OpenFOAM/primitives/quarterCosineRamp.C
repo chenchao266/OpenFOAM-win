@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2017 OpenFOAM Foundation
+    Copyright (C) 2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -24,44 +27,28 @@ License
 \*---------------------------------------------------------------------------*/
 
 #include "quarterCosineRamp.H"
-#include "mathematicalConstants.H"
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
-using namespace Foam;
+
 namespace Foam
 {
-namespace Function1Types
-{
-    makeScalarFunction1(quarterCosineRamp);
+    namespace Function1Types
+    {
+        makeScalarFunction1(quarterCosineRamp);
+    }
+
+
+    // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
+
+    Function1Types::quarterCosineRamp::quarterCosineRamp
+    (
+        const word& entryName,
+        const dictionary& dict,
+        const objectRegistry* obrPtr
+    )
+        :
+        ramp(entryName, dict)
+    {}
+
 }
-}
-
-
-// * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
-
-Function1Types::quarterCosineRamp::quarterCosineRamp
-(
-    const word& entryName,
-    const dictionary& dict
-) :    ramp(entryName, dict)
-{}
-
-
-// * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
-
-Function1Types::quarterCosineRamp::~quarterCosineRamp()
-{}
-
-
-// * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
-
-scalar Function1Types::quarterCosineRamp::value
-(
-    const scalar t
-) const
-{
-    return 1 - cos(0.5*constant::mathematical::pi*linearRamp(t));
-}
-
-
 // ************************************************************************* //

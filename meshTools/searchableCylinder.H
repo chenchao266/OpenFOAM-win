@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2015-2018 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -25,7 +28,19 @@ Class
     Foam::searchableCylinder
 
 Description
-    Searching on cylinder
+    Searching on a cylinder.
+
+    \heading Dictionary parameters
+    \table
+        Property    | Description                       | Required | Default
+        type        | cylinder                          | selector |
+        point1      | coordinate of endpoint            | yes   |
+        point2      | coordinate of endpoint            | yes   |
+        radius      | cylinder radius                   | yes   |
+    \endtable
+
+Note
+    Longer type name : \c searchableCylinder
 
 SourceFiles
     searchableCylinder.C
@@ -43,10 +58,8 @@ SourceFiles
 namespace Foam
 {
 
-// Forward declaration of classes
-
 /*---------------------------------------------------------------------------*\
-                           Class searchableCylinder Declaration
+                     Class searchableCylinder Declaration
 \*---------------------------------------------------------------------------*/
 
 class searchableCylinder
@@ -57,10 +70,10 @@ private:
 
     // Private Member Data
 
-        //- 'left' point
+        //- The 'left' point
         const point point1_;
 
-        //- 'right' point
+        //- The 'right' point
         const point point2_;
 
         //- Length of vector point2-point1
@@ -69,7 +82,7 @@ private:
         //- Normalised vector point2-point1
         const vector unitDir_;
 
-        //- Radius squared
+        //- The radius
         const scalar radius_;
 
         //- Names of regions
@@ -102,11 +115,11 @@ private:
         //- Return the boundBox of the cylinder
         boundBox calcBounds() const;
 
-        //- Disallow default bitwise copy construct
-        searchableCylinder(const searchableCylinder&);
+        //- No copy construct
+        searchableCylinder(const searchableCylinder&) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const searchableCylinder&);
+        //- No copy assignment
+        void operator=(const searchableCylinder&) = delete;
 
 
 public:
@@ -121,8 +134,8 @@ public:
         searchableCylinder
         (
             const IOobject& io,
-            const point&,
-            const point&,
+            const point& point1,
+            const point& point2,
             const scalar radius
         );
 
@@ -133,18 +146,26 @@ public:
             const dictionary& dict
         );
 
+
     //- Destructor
-    virtual ~searchableCylinder();
+    virtual ~searchableCylinder() = default;
 
 
     // Member Functions
 
+        //- Names of regions
         virtual const wordList& regions() const;
 
         //- Whether supports volume type below
         virtual bool hasVolumeType() const
         {
             return true;
+        }
+
+        //- What is type of points outside bounds
+        virtual volumeType outsideVolumeType() const
+        {
+            return volumeType::OUTSIDE;
         }
 
         //- Range of local indices that can be returned.
@@ -172,7 +193,6 @@ public:
         virtual bool overlaps(const boundBox& bb) const
         {
             NotImplemented;
-
             return false;
         }
 
@@ -222,12 +242,12 @@ public:
                 vectorField& normal
             ) const;
 
-            //- Determine type (inside/outside/mixed) for point. unknown if
-            //  cannot be determined (e.g. non-manifold surface)
+            //- Determine type (inside/outside/mixed) for point.
+            //  Unknown if cannot be determined (e.g. non-manifold surface)
             virtual void getVolumeType
             (
-                const pointField&,
-                List<volumeType>&
+                const pointField& points,
+                List<volumeType>& volType
             ) const;
 
 

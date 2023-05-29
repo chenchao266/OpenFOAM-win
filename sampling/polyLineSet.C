@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -25,7 +27,7 @@ License
 
 #include "polyLineSet.H"
 #include "meshSearch.H"
-#include "DynamicList.T.H"
+#include "DynamicList.H"
 #include "polyMesh.H"
 
 #include "addToRunTimeSelectionTable.H"
@@ -36,9 +38,9 @@ namespace Foam
 {
     defineTypeNameAndDebug(polyLineSet, 0);
     addToRunTimeSelectionTable(sampledSet, polyLineSet, word);
-
-    const scalar polyLineSet::tol = 1e-6;
 }
+
+const Foam::scalar Foam::polyLineSet::tol = 1e-6;
 
 
 // * * * * * * * * * * * * * Private Member Functions  * * * * * * * * * * * //
@@ -54,8 +56,6 @@ bool Foam::polyLineSet::trackToBoundary
     DynamicList<scalar>& samplingCurveDist
 ) const
 {
-    particle::TrackingData<passiveParticleCloud> trackData(particleCloud);
-
     while (true)
     {
         // Local geometry info
@@ -101,7 +101,7 @@ bool Foam::polyLineSet::trackToBoundary
         samplingCurveDist.append(sampleI + dist);
 
         // go to next samplePt
-        sampleI++;
+        ++sampleI;
 
         if (sampleI == sampleCoords_.size() - 1)
         {
@@ -131,7 +131,7 @@ void Foam::polyLineSet::calcSamples
             << sampleCoords_ << exit(FatalError);
     }
     point oldPoint = sampleCoords_[0];
-    for (label sampleI = 1; sampleI < sampleCoords_.size(); sampleI++)
+    for (label sampleI = 1; sampleI < sampleCoords_.size(); ++sampleI)
     {
         if (mag(sampleCoords_[sampleI] - oldPoint) < SMALL)
         {
@@ -231,7 +231,7 @@ void Foam::polyLineSet::calcSamples
             if (trackCelli == -1)
             {
                 // No intersection found. Go to next point
-                sampleI++;
+                ++sampleI;
             }
         } while ((trackCelli == -1) && (sampleI < sampleCoords_.size() - 1));
 
@@ -283,7 +283,7 @@ void Foam::polyLineSet::calcSamples
 
 
         // Find next boundary.
-        sampleI++;
+        ++sampleI;
 
         if (sampleI == sampleCoords_.size() - 1)
         {
@@ -293,7 +293,7 @@ void Foam::polyLineSet::calcSamples
             break;
         }
 
-        segmentI++;
+        ++segmentI;
 
         startSegmentI = samplingPts.size();
     }
@@ -326,14 +326,20 @@ void Foam::polyLineSet::genSamples()
     samplingSegments.shrink();
     samplingCurveDist.shrink();
 
+    // Move into *this
     setSamples
     (
-        samplingPts,
-        samplingCells,
-        samplingFaces,
-        samplingSegments,
-        samplingCurveDist
+        std::move(samplingPts),
+        std::move(samplingCells),
+        std::move(samplingFaces),
+        std::move(samplingSegments),
+        std::move(samplingCurveDist)
     );
+
+    if (debug)
+    {
+        write(Info);
+    }
 }
 
 
@@ -352,11 +358,6 @@ Foam::polyLineSet::polyLineSet
     sampleCoords_(sampleCoords)
 {
     genSamples();
-
-    if (debug)
-    {
-        write(Info);
-    }
 }
 
 
@@ -369,21 +370,10 @@ Foam::polyLineSet::polyLineSet
 )
 :
     sampledSet(name, mesh, searchEngine, dict),
-    sampleCoords_(dict.lookup("points"))
+    sampleCoords_(dict.get<pointField>("points"))
 {
     genSamples();
-
-    if (debug)
-    {
-        write(Info);
-    }
 }
-
-
-// * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
-
-Foam::polyLineSet::~polyLineSet()
-{}
 
 
 // ************************************************************************* //

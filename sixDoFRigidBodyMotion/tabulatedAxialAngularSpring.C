@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2018-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -149,9 +152,9 @@ bool Foam::sixDoFRigidBodyMotionRestraints::tabulatedAxialAngularSpring::read
 {
     sixDoFRigidBodyMotionRestraint::read(sDoFRBMRDict);
 
-    refQ_ = sDoFRBMRCoeffs_.lookupOrDefault<tensor>("referenceOrientation", I);
+    refQ_ = sDoFRBMRCoeffs_.getOrDefault<tensor>("referenceOrientation", I);
 
-    if (mag(mag(refQ_) - sqrt(3.0)) > 1e-9)
+    if (mag(mag(refQ_) - sqrt(3.0)) > ROOTSMALL)
     {
         FatalErrorInFunction
             << "referenceOrientation " << refQ_ << " is not a rotation tensor. "
@@ -160,7 +163,7 @@ bool Foam::sixDoFRigidBodyMotionRestraints::tabulatedAxialAngularSpring::read
             << exit(FatalError);
     }
 
-    axis_ = sDoFRBMRCoeffs_.lookup("axis");
+    sDoFRBMRCoeffs_.readEntry("axis", axis_);
 
     scalar magAxis(mag(axis_));
 
@@ -177,7 +180,7 @@ bool Foam::sixDoFRigidBodyMotionRestraints::tabulatedAxialAngularSpring::read
 
     moment_ = interpolationTable<scalar>(sDoFRBMRCoeffs_);
 
-    const word angleFormat = sDoFRBMRCoeffs_.lookup("angleFormat");
+    const word angleFormat(sDoFRBMRCoeffs_.get<word>("angleFormat"));
 
     if (angleFormat == "degrees" || angleFormat == "degree")
     {
@@ -194,7 +197,7 @@ bool Foam::sixDoFRigidBodyMotionRestraints::tabulatedAxialAngularSpring::read
             << abort(FatalError);
     }
 
-    sDoFRBMRCoeffs_.lookup("damping") >> damping_;
+    sDoFRBMRCoeffs_.readEntry("damping", damping_);
 
     return true;
 }
@@ -205,27 +208,21 @@ void Foam::sixDoFRigidBodyMotionRestraints::tabulatedAxialAngularSpring::write
     Ostream& os
 ) const
 {
-    os.writeKeyword("referenceOrientation")
-        << refQ_ << token::END_STATEMENT << nl;
-
-    os.writeKeyword("axis")
-        << axis_ << token::END_STATEMENT << nl;
+    os.writeEntry("referenceOrientation", refQ_);
+    os.writeEntry("axis", axis_);
 
     moment_.write(os);
 
-    os.writeKeyword("angleFormat");
-
     if (convertToDegrees_)
     {
-        os  << "degrees" << token::END_STATEMENT << nl;
+        os.writeEntry("angleFormat", "degrees");
     }
     else
     {
-        os  << "radians" << token::END_STATEMENT << nl;
+        os.writeEntry("angleFormat", "radians");
     }
 
-    os.writeKeyword("damping")
-        << damping_ << token::END_STATEMENT << nl;
+    os.writeEntry("damping", damping_);
 }
 
 

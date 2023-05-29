@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -79,10 +81,7 @@ Foam::autoPtr<Foam::solidMixtureProperties> Foam::solidMixtureProperties::New
     const dictionary& thermophysicalProperties
 )
 {
-    return autoPtr<solidMixtureProperties>
-    (
-        new solidMixtureProperties(thermophysicalProperties)
-    );
+    return autoPtr<solidMixtureProperties>::New(thermophysicalProperties);
 }
 
 

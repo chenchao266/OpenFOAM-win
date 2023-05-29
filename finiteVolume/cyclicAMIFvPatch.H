@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2019 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -66,6 +69,18 @@ protected:
         //- Make patch weighting factors
         void makeWeights(scalarField&) const;
 
+        //- Correct patch deltaCoeffs
+        virtual void makeDeltaCoeffs(scalarField&) const;
+
+        //- Correct patch non-ortho deltaCoeffs
+        virtual void makeNonOrthoDeltaCoeffs(scalarField&) const;
+
+        //- Correct patch non-ortho correction vectors
+        virtual void makeNonOrthoCorrVectors(vectorField&) const;
+
+        //- Correct patches after moving points
+        virtual void movePoints();
+
 
 public:
 
@@ -87,6 +102,41 @@ public:
     // Member functions
 
         // Access
+
+//             // Implicit treatment functions
+//
+//                 //- Return number of new internal of this polyPatch faces
+//                 virtual void newInternalProcFaces(label&, label&) const;
+//
+//                 //- Return nbrCells
+//                 virtual const labelUList& nbrCells() const
+//                 {
+//                     return cyclicAMIPolyPatch_.neighbPatch().faceCells();
+//                 }
+//
+//                 //- Return nbr patch ID
+//                 virtual label neighbPolyPatchID() const
+//                 {
+//                     return neighbPatchID();
+//                 }
+//
+//                 //- Return collocated faces map
+//                 virtual refPtr<labelListList> mapCollocatedFaces() const
+//                 {
+//                     const labelListList& sourceFaces =
+//                         cyclicAMIPolyPatch_.AMI().srcAddress();
+//                     return refPtr<labelListList>
+//                     (
+//                         new labelListList(sourceFaces)
+//                     );
+//                 }
+//
+//                 //- Return implicit master
+//                 virtual bool masterImplicit() const
+//                 {
+//                     return owner();
+//                 }
+
 
             //- Return local reference cast into the cyclic patch
             const cyclicAMIPolyPatch& cyclicAMIPatch() const
@@ -153,9 +203,10 @@ public:
                 );
             }
 
+
             //- Return true if this patch is coupled. This is equivalent
-            //  to the coupledPolyPatch::coupled() if parallel running or
-            //  both sides present, false otherwise
+            //- to the coupledPolyPatch::coupled() if parallel running or
+            //- both sides present, false otherwise
             virtual bool coupled() const;
 
             //- Return delta (P to N) vectors across coupled patch
@@ -185,11 +236,21 @@ public:
         // Interface transfer functions
 
             //- Return the values of the given internal data adjacent to
-            //  the interface as a field
+            //- the interface as a field
             virtual tmp<labelField> interfaceInternalField
             (
                 const labelUList& internalData
             ) const;
+
+
+            //- Return the values of the given internal data adjacent to
+            //- the interface as a field using a mapping faceCell
+            virtual tmp<labelField> interfaceInternalField
+            (
+                const labelUList& internalData,
+                const labelUList& faceCells
+            ) const;
+
 
             //- Return neighbour field
             virtual tmp<labelField> internalFieldTransfer
@@ -197,6 +258,7 @@ public:
                 const Pstream::commsTypes commsType,
                 const labelUList& internalData
             ) const;
+
 };
 
 

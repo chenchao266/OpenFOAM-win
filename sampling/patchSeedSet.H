@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2012 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2012-2014 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -27,6 +29,16 @@ Class
 Description
     Initialises points on or just off patch
 
+    For a dictionary specification:
+    \table
+        Property | Description                             | Required | Default
+        type     | patchSeed                               | yes      |
+        axis     | x, y, z, xyz, distance                  | yes      |
+        patches  | List of patch names or regexs           | yes      |
+        maxPoints | Max number of points to seed           | yes      |
+        points   | List of selected locations              | no       | empty
+    \endtable
+
 SourceFiles
     patchSeedSet.C
 
@@ -36,8 +48,8 @@ SourceFiles
 #define patchSeedSet_H
 
 #include "sampledSet.H"
-#include "DynamicList.T.H"
-#include "HashSet.T.H"
+#include "DynamicList.H"
+#include "HashSet.H"
 #include "Random.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
@@ -58,17 +70,14 @@ class patchSeedSet
         //- Patches to sample
         const labelHashSet patchSet_;
 
-//        //- Maximum distance to look for nearest
-//        const scalar searchDist_;
-//
-//        //- Offset distance
-//        const scalar offsetDist_;
-
-        //- Maximum number of patch faces to seed
+        //- Maximum number of patch faces to seed (if in random subset mode)
         const label maxPoints_;
 
         //- Random number generator (if maxPoints < num patch faces)
         autoPtr<Random> rndGenPtr_;
+
+        //- Patch faces to seed selected based on nearness to supplied points
+        const pointField selectedLocations_;
 
 
     // Private Member Functions
@@ -106,7 +115,7 @@ public:
 
 
     //- Destructor
-    virtual ~patchSeedSet();
+    virtual ~patchSeedSet() = default;
 };
 
 

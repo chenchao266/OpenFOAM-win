@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2016-2019 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -29,7 +32,7 @@ License
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
 
-const std::size_t Foam::molecule::sizeofFields_
+const std::size_t Foam::molecule::sizeofFields
 (
     offsetof(molecule, siteForces_) - offsetof(molecule, Q_)
 );
@@ -41,10 +44,11 @@ Foam::molecule::molecule
 (
     const polyMesh& mesh,
     Istream& is,
-    bool readFields
+    bool readFields,
+    bool newFormat
 )
 :
-    particle(mesh, is, readFields),
+    particle(mesh, is, readFields, newFormat),
     Q_(Zero),
     v_(Zero),
     a_(Zero),
@@ -55,45 +59,58 @@ Foam::molecule::molecule
     rf_(Zero),
     special_(0),
     id_(0),
-    siteForces_(0),
-    sitePositions_(0)
+    siteForces_(),
+    sitePositions_()
 {
     if (readFields)
     {
         if (is.format() == IOstream::ASCII)
         {
-            is  >> Q_;
-            is  >> v_;
-            is  >> a_;
-            is  >> pi_;
-            is  >> tau_;
-            is  >> specialPosition_;
-            potentialEnergy_ = readScalar(is);
-            is  >> rf_;
-            special_ = readLabel(is);
-            id_ = readLabel(is);
-            is  >> siteForces_;
-            is  >> sitePositions_;
+            is  >> Q_
+                >> v_
+                >> a_
+                >> pi_
+                >> tau_
+                >> specialPosition_
+                >> potentialEnergy_
+                >> rf_
+                >> special_
+                >> id_;
+        }
+        else if (!is.checkLabelSize<>() || !is.checkScalarSize<>())
+        {
+            // Non-native label or scalar size
+
+            is.beginRawRead();
+
+            readRawScalar(is, Q_.data(), tensor::nComponents);
+            readRawScalar(is, v_.data(), vector::nComponents);
+            readRawScalar(is, a_.data(), vector::nComponents);
+            readRawScalar(is, pi_.data(), vector::nComponents);
+            readRawScalar(is, tau_.data(), vector::nComponents);
+            readRawScalar(is, specialPosition_.data(), vector::nComponents);
+            readRawScalar(is, &potentialEnergy_);
+            readRawScalar(is, rf_.data(), tensor::nComponents);
+            readRawLabel(is, &special_);
+            readRawLabel(is, &id_);
+
+            is.endRawRead();
         }
         else
         {
-            is.read(reinterpret_cast<char*>(&Q_), sizeofFields_);
-            is  >> siteForces_ >> sitePositions_;
+            is.read(reinterpret_cast<char*>(&Q_), sizeofFields);
         }
+
+        is  >> siteForces_ >> sitePositions_;
     }
 
-    // Check state of Istream
-    is.check
-    (
-        "Foam::molecule::molecule"
-        "(const Cloud<molecule>& cloud, Foam::Istream&), bool"
-    );
+    is.check(FUNCTION_NAME);
 }
 
 
 void Foam::molecule::readFields(Cloud<molecule>& mC)
 {
-    bool valid = mC.size();
+    const bool valid = mC.size();
 
     particle::readFields(mC);
 
@@ -130,10 +147,8 @@ void Foam::molecule::readFields(Cloud<molecule>& mC)
     mC.checkFieldIOobject(mC, id);
 
     label i = 0;
-    forAllIter(moleculeCloud, mC, iter)
+    for (molecule& mol : mC)
     {
-        molecule& mol = iter();
-
         mol.Q_ = Q[i];
         mol.v_ = v[i];
         mol.a_ = a[i];
@@ -142,7 +157,8 @@ void Foam::molecule::readFields(Cloud<molecule>& mC)
         mol.specialPosition_ = specialPosition[i];
         mol.special_ = special[i];
         mol.id_ = id[i];
-        i++;
+
+        ++i;
     }
 }
 
@@ -151,7 +167,8 @@ void Foam::molecule::writeFields(const Cloud<molecule>& mC)
 {
     particle::writeFields(mC);
 
-    label np = mC.size();
+    const label np = mC.size();
+    const bool valid = np;
 
     IOField<tensor> Q(mC.fieldIOobject("Q", IOobject::NO_READ), np);
     IOField<vector> v(mC.fieldIOobject("v", IOobject::NO_READ), np);
@@ -199,10 +216,8 @@ void Foam::molecule::writeFields(const Cloud<molecule>& mC)
     );
 
     label i = 0;
-    forAllConstIter(moleculeCloud, mC, iter)
+    for (const molecule& mol : mC)
     {
-        const molecule& mol = iter();
-
         Q[i] = mol.Q_;
         v[i] = mol.v_;
         a[i] = mol.a_;
@@ -219,10 +234,8 @@ void Foam::molecule::writeFields(const Cloud<molecule>& mC)
         orientation2[i] = mol.Q_ & vector(0,1,0);
         orientation3[i] = mol.Q_ & vector(0,0,1);
 
-        i++;
+        ++i;
     }
-
-    const bool valid = np > 0;
 
     Q.write(valid);
     v.write(valid);
@@ -280,18 +293,12 @@ Foam::Ostream& Foam::operator<<(Ostream& os, const molecule& mol)
         os.write
         (
             reinterpret_cast<const char*>(&mol.Q_),
-            molecule::sizeofFields_
+            molecule::sizeofFields
         );
         os  << mol.siteForces_ << mol.sitePositions_;
     }
 
-    // Check state of Ostream
-    os.check
-    (
-        "Foam::Ostream& Foam::operator<<"
-        "(Foam::Ostream&, const Foam::molecule&)"
-    );
-
+    os.check(FUNCTION_NAME);
     return os;
 }
 

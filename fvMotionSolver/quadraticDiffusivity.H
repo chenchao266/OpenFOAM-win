@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2012 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2012 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -58,11 +60,11 @@ class quadraticDiffusivity
 
     // Private Member Functions
 
-        //- Disallow default bitwise copy construct
-        quadraticDiffusivity(const quadraticDiffusivity&);
+        //- No copy construct
+        quadraticDiffusivity(const quadraticDiffusivity&) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const quadraticDiffusivity&);
+        //- No copy assignment
+        void operator=(const quadraticDiffusivity&) = delete;
 
 
 public:

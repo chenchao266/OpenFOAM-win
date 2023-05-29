@@ -1,9 +1,12 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2018-2021 OpenCFD Ltd
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -30,10 +33,8 @@ License
 
 using namespace Foam::constant;
 
-const Foam::word Foam::radiation::radiativeIntensityRay::intensityPrefix
-(
-    "ILambda"
-);
+const Foam::word
+Foam::radiation::radiativeIntensityRay::intensityPrefix("ILambda");
 
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
@@ -67,7 +68,7 @@ Foam::radiation::radiativeIntensityRay::radiativeIntensityRay
             IOobject::NO_WRITE
         ),
         mesh_,
-        dimensionedScalar("I", dimMass/pow3(dimTime), 0.0)
+        dimensionedScalar(dimMass/pow3(dimTime), Zero)
     ),
     qr_
     (
@@ -80,7 +81,7 @@ Foam::radiation::radiativeIntensityRay::radiativeIntensityRay
             IOobject::NO_WRITE
         ),
         mesh_,
-        dimensionedScalar("qr", dimMass/pow3(dimTime), 0.0)
+        dimensionedScalar(dimMass/pow3(dimTime), Zero)
     ),
     qin_
     (
@@ -93,7 +94,7 @@ Foam::radiation::radiativeIntensityRay::radiativeIntensityRay
             IOobject::NO_WRITE
         ),
         mesh_,
-        dimensionedScalar("qin", dimMass/pow3(dimTime), 0.0)
+        dimensionedScalar(dimMass/pow3(dimTime), Zero)
     ),
     qem_
     (
@@ -106,7 +107,7 @@ Foam::radiation::radiativeIntensityRay::radiativeIntensityRay
             IOobject::NO_WRITE
         ),
         mesh_,
-        dimensionedScalar("qem", dimMass/pow3(dimTime), 0.0)
+        dimensionedScalar(dimMass/pow3(dimTime), Zero)
     ),
     d_(Zero),
     dAve_(Zero),
@@ -137,6 +138,68 @@ Foam::radiation::radiativeIntensityRay::radiativeIntensityRay
         0.5*deltaPhi*Foam::sin(2.0*theta)*Foam::sin(deltaTheta)
     );
 
+    if (mesh_.nSolutionD() == 2)
+    {
+        // Omega for 2D
+        omega_ = deltaPhi;
+
+        // dAve for 2D
+        dAve_ = vector
+        (
+            2*sinPhi*Foam::sin(0.5*deltaPhi),
+            2*cosPhi*Foam::sin(0.5*deltaPhi),
+            0
+        );
+
+        vector meshDir(Zero);
+        if (dom_.meshOrientation() != vector::zero_)
+        {
+            meshDir = dom_.meshOrientation();
+        }
+        else
+        {
+            for (direction cmpt=0; cmpt<vector::nComponents; cmpt++)
+            {
+                if (mesh_.geometricD()[cmpt] == -1)
+                {
+                    meshDir[cmpt] = 1;
+                }
+            }
+        }
+        const vector normal(vector(0, 0, 1));
+
+        const tensor coordRot = rotationTensor(normal, meshDir);
+
+        dAve_ = coordRot & dAve_;
+        d_ = coordRot & d_;
+
+    }
+    else if (mesh_.nSolutionD() == 1)
+    {
+        vector meshDir(Zero);
+        if (dom_.meshOrientation() != vector::zero_)
+        {
+            meshDir = dom_.meshOrientation();
+        }
+        else
+        {
+            for (direction cmpt=0; cmpt<vector::nComponents; cmpt++)
+            {
+                if (mesh_.geometricD()[cmpt] == 1)
+                {
+                    meshDir[cmpt] = 1;
+                }
+            }
+        }
+        const vector normal(vector(1, 0, 0));
+
+        dAve_ = (dAve_ & normal)*meshDir;
+        d_ = (d_ & normal)*meshDir;
+
+        // Omega normalization for 1D
+        omega_ /= 2;
+    }
+
     autoPtr<volScalarField> IDefaultPtr;
 
     forAll(ILambda_, lambdaI)
@@ -162,7 +225,7 @@ Foam::radiation::radiativeIntensityRay::radiativeIntensityRay
         else
         {
             // Demand driven load the IDefault field
-            if (!IDefaultPtr.valid())
+            if (!IDefaultPtr)
             {
                 IDefaultPtr.reset
                 (
@@ -183,7 +246,7 @@ Foam::radiation::radiativeIntensityRay::radiativeIntensityRay
 
             // Reset the MUST_READ flag
             IOobject noReadHeader(IHeader);
-            noReadHeader.readOpt() = IOobject::NO_READ;
+            noReadHeader.readOpt(IOobject::NO_READ);
 
             ILambda_.set
             (
@@ -207,6 +270,8 @@ Foam::scalar Foam::radiation::radiativeIntensityRay::correct()
 {
     // Reset boundary heat flux to zero
     qr_.boundaryFieldRef() = 0.0;
+    qem_.boundaryFieldRef() = 0.0;
+    qin_.boundaryFieldRef() = 0.0;
 
     scalar maxResidual = -GREAT;
 
@@ -223,7 +288,6 @@ Foam::scalar Foam::radiation::radiativeIntensityRay::correct()
         ==
             1.0/constant::mathematical::pi*omega_
            *(
-                // Remove aDisp from k
                 (k - absorptionEmission_.aDisp(lambdaI))
                *blackBody_.bLambda(lambdaI)
 
@@ -251,7 +315,7 @@ Foam::scalar Foam::radiation::radiativeIntensityRay::correct()
 
 void Foam::radiation::radiativeIntensityRay::addIntensity()
 {
-    I_ = dimensionedScalar("zero", dimMass/pow3(dimTime), 0.0);
+    I_ = dimensionedScalar(dimMass/pow3(dimTime), Zero);
 
     forAll(ILambda_, lambdaI)
     {

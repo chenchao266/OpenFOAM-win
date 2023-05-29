@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2015-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2015-2016 OpenFOAM Foundation
+    Copyright (C) 2018 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -25,6 +28,7 @@ Class
     Foam::decompositionConstraint
 
 Description
+    Abstract class for handling decomposition constraints.
 
 SourceFiles
     decompositionConstraint.C
@@ -34,22 +38,22 @@ SourceFiles
 #ifndef decompositionConstraint_H
 #define decompositionConstraint_H
 
-#include "dictionary.H"
-#include "runTimeSelectionTables.H"
+#include "dictionary2.H"
 #include "boolList.H"
 #include "labelList.H"
 #include "labelPair.H"
+#include "runTimeSelectionTables.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 namespace Foam
 {
 
-// Forward declaration of classes
+// Forward declarations
 class polyMesh;
 
 /*---------------------------------------------------------------------------*\
-                Class decompositionConstraint Declaration
+                   Class decompositionConstraint Declaration
 \*---------------------------------------------------------------------------*/
 
 class decompositionConstraint
@@ -58,19 +62,26 @@ protected:
 
     // Protected data
 
-        //- Model coefficients dictionary
+        //- Constraint coefficients dictionary
         dictionary coeffDict_;
 
-private:
 
-    // Private Member Functions
+    // Protected Member Functions
 
-        //- Disallow default bitwise copy construct
-        decompositionConstraint(const decompositionConstraint&);
+        //- Get minimum label across coupled boundary faces
+        void getMinBoundaryValue
+        (
+            const polyMesh& mesh,
+            const labelList& decomposition,
+            labelList& destProc
+        ) const;
 
-        //- Disallow default bitwise assignment
-        void operator=(const decompositionConstraint&);
 
+        //- No copy construct
+        decompositionConstraint(const decompositionConstraint&) = delete;
+
+        //- No copy assignment
+        void operator=(const decompositionConstraint&) = delete;
 
 public:
 
@@ -86,39 +97,50 @@ public:
             decompositionConstraint,
             dictionary,
             (
-                const dictionary& constraintsDict,
-                const word& type
+                const dictionary& dict
             ),
-            (constraintsDict, type)
+            (dict)
         );
 
 
     // Constructors
 
-        //- Construct with generic dictionary with optional entry for type
+        //- Construct with constraint dictionary
+        explicit decompositionConstraint(const dictionary& constraintDict);
+
+        //- Construct with constraint dictionary and model type.
+        //  The model type could be used for defining a coefficients
+        //  sub-dictionary.
         decompositionConstraint
         (
-            const dictionary& constraintsDict,
-            const word& type
+            const dictionary& constraintDict,
+            const word& modelType
         );
+
 
     // Selectors
 
         //- Return a reference to the selected decompositionConstraint
         static autoPtr<decompositionConstraint> New
         (
-            const dictionary& constraintsDict,
-            const word& type
+            const dictionary& constraintDict
+        );
+
+        //- Return a reference to the selected decompositionConstraint
+        static autoPtr<decompositionConstraint> New
+        (
+            const dictionary& constraintDict,
+            const word& modelType
         );
 
 
     //- Destructor
-    virtual ~decompositionConstraint();
+    virtual ~decompositionConstraint() = default;
 
 
     // Member Functions
 
-        //- Add my constraints to list of constraints
+        //- Add this constraint to list of constraints
         virtual void add
         (
             const polyMesh& mesh,
@@ -128,9 +150,9 @@ public:
             List<labelPair>& explicitConnections
         ) const = 0;
 
-        //- Apply any additional post-decomposition constraints. Usually no
-        //  need to do anything since decomposition method should have already
-        //  obeyed the constraints
+        //- Apply any additional post-decomposition constraints.
+        //  Usually no need to do anything since decomposition method
+        //  should have already obeyed the constraints
         virtual void apply
         (
             const polyMesh& mesh,

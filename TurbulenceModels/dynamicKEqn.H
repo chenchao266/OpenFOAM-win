@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2019-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -59,7 +62,7 @@ SourceFiles
 #ifndef dynamicKEqn_H
 #define dynamicKEqn_H
 
-#include "LESeddyViscosity.T.H"
+#include "LESeddyViscosity.H"
 #include "simpleFilter.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
@@ -80,9 +83,11 @@ class dynamicKEqn
 {
     // Private Member Functions
 
-        // Disallow default bitwise copy construct and assignment
-        dynamicKEqn(const dynamicKEqn&);
-        void operator=(const dynamicKEqn&);
+        //- No copy construct
+        dynamicKEqn(const dynamicKEqn&) = delete;
+
+        //- No copy assignment
+        void operator=(const dynamicKEqn&) = delete;
 
 
 protected:
@@ -159,8 +164,7 @@ public:
 
 
     //- Destructor
-    virtual ~dynamicKEqn()
-    {}
+    virtual ~dynamicKEqn() = default;
 
 
     // Member Functions
@@ -173,9 +177,6 @@ public:
         {
             return k_;
         }
-
-        //- Return sub-grid disipation rate
-        virtual tmp<volScalarField> epsilon() const;
 
         //- Return the effective diffusivity for k
         tmp<volScalarField> DkEff() const

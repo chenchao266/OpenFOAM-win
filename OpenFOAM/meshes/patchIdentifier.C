@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2013 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2013 OpenFOAM Foundation
+    Copyright (C) 2020-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -24,85 +27,100 @@ License
 \*---------------------------------------------------------------------------*/
 
 #include "patchIdentifier.H"
-#include "dictionary.H"
-#include "ListOps.T.H"
+#include "dictionary2.H"
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
-namespace Foam {
-    patchIdentifier::patchIdentifier
-    (
-        const word& name,
-        const label index,
-        const word& physicalType,
-        const wordList& inGroups
-    ) : name_(name),
-        index_(index),
-        physicalType_(physicalType),
-        inGroups_(inGroups)
-    {}
 
 
-    patchIdentifier::patchIdentifier
-    (
-        const word& name,
-        const dictionary& dict,
-        const label index
-    ) : name_(name),
-        index_(index)
-    {
-        dict.readIfPresent("physicalType", physicalType_);
-        dict.readIfPresent("inGroups", inGroups_);
-    }
+ namespace Foam{
+patchIdentifier::patchIdentifier()
+:
+    name_(),
+    index_(0)
+{}
 
 
-    patchIdentifier::patchIdentifier
-    (
-        const patchIdentifier& p,
-        const label index
-    ) : name_(p.name_),
-        index_(index),
-        physicalType_(p.physicalType_),
-        inGroups_(p.inGroups_)
-    {}
+patchIdentifier::patchIdentifier
+(
+    const word& name,
+    const label index
+)
+:
+    name_(name),
+    index_(index)
+{}
 
 
-    // * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
-
-    patchIdentifier::~patchIdentifier()
-    {}
-
-
-    // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
-
-    bool patchIdentifier::inGroup(const word& name) const
-    {
-        return findIndex(inGroups_, name) != -1;
-    }
-
-
-    void patchIdentifier::write(Ostream& os) const
-    {
-        if (physicalType_.size())
-        {
-            os.writeKeyword("physicalType") << physicalType_
-                << token::END_STATEMENT << nl;
-        }
-        if (inGroups_.size())
-        {
-            os.writeKeyword("inGroups") << inGroups_
-                << token::END_STATEMENT << nl;
-        }
-    }
+patchIdentifier::patchIdentifier
+(
+    const word& name,
+    const label index,
+    const word& physicalType,
+    const wordList& inGroups
+)
+:
+    name_(name),
+    index_(index),
+    physicalType_(physicalType),
+    inGroups_(inGroups)
+{}
 
 
-    // * * * * * * * * * * * * * * * Friend Operators  * * * * * * * * * * * * * //
-
-    Ostream& operator<<(Ostream& os, const patchIdentifier& pi)
-    {
-        pi.write(os);
-        os.check("Ostream& operator<<(Ostream&, const patchIdentifier&)");
-        return os;
-    }
-
+patchIdentifier::patchIdentifier
+(
+    const word& name,
+    const dictionary& dict,
+    const label index
+)
+:
+    patchIdentifier(name, index)
+{
+    dict.readIfPresent("physicalType", physicalType_);
+    dict.readIfPresent("inGroups", inGroups_);
 }
+
+
+patchIdentifier::patchIdentifier
+(
+    const patchIdentifier& ident,
+    const label index
+)
+:
+    name_(ident.name_),
+    index_(index),
+    physicalType_(ident.physicalType_),
+    inGroups_(ident.inGroups_)
+{}
+
+
+// * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
+
+void patchIdentifier::write(Ostream& os) const
+{
+    if (!physicalType_.empty())
+    {
+        os.writeEntry("physicalType", physicalType_);
+    }
+
+    if (!inGroups_.empty())
+    {
+        os.writeKeyword("inGroups");
+        // Flat output of list
+        inGroups_.writeList(os, 0) << token::END_STATEMENT << nl;
+    }
+}
+
+
+// * * * * * * * * * * * * * * * IOstream Operators  * * * * * * * * * * * * //
+
+Ostream& operator<<(Ostream& os, const patchIdentifier& ident)
+{
+    ident.write(os);
+    os.check(FUNCTION_NAME);
+    return os;
+}
+
+
 // ************************************************************************* //
+
+ } // End namespace Foam

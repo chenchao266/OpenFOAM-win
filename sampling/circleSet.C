@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2019 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -26,11 +29,11 @@ License
 #include "circleSet.H"
 #include "sampledSet.H"
 #include "meshSearch.H"
-#include "DynamicList.T.H"
+#include "DynamicList.H"
 #include "polyMesh.H"
 #include "addToRunTimeSelectionTable.H"
 #include "word.H"
-#include "mathematicalConstants.H"
+#include "unitConversion.H"
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
 
@@ -52,19 +55,7 @@ void Foam::circleSet::calcSamples
     DynamicList<scalar>& samplingCurveDist
 ) const
 {
-    static const string funcName =
-    (
-        "void circleSet::calcSamples"
-        "("
-            "DynamicList<point>&, "
-            "DynamicList<label>&, "
-            "DynamicList<label>&, "
-            "DynamicList<label>&, "
-            "DynamicList<scalar>&"
-        ") const"
-    );
-
-    // set start point
+    // Set start point
     label celli = searchEngine().findCell(startPoint_);
     if (celli != -1)
     {
@@ -81,12 +72,12 @@ void Foam::circleSet::calcSamples
             << " at location " << startPoint_ << endl;
     }
 
-    // add remaining points
-    const scalar alpha = constant::mathematical::pi/180.0*dTheta_;
+    // Add remaining points
+    const scalar alpha = degToRad(dTheta_);
     const scalar sinAlpha = sin(alpha);
     const scalar cosAlpha = cos(alpha);
 
-    // first axis
+    // First axis
     vector axis1 = startPoint_ - origin_;
     const scalar radius = mag(axis1);
 
@@ -106,8 +97,7 @@ void Foam::circleSet::calcSamples
     label nPoint = 1;
     while (theta < 360)
     {
-        axis1 = axis1*cosAlpha + (axis1^circleAxis_)*sinAlpha;
-        axis1 /= mag(axis1);
+        axis1 = normalised(axis1*cosAlpha + (axis1^circleAxis_)*sinAlpha);
         point pt = origin_ + radius*axis1;
 
         label celli = searchEngine().findCell(pt);
@@ -118,12 +108,9 @@ void Foam::circleSet::calcSamples
             samplingCells.append(celli);
             samplingFaces.append(-1);
             samplingSegments.append(nPoint);
-            samplingCurveDist.append
-            (
-                radius*constant::mathematical::pi/180.0*theta
-            );
+            samplingCurveDist.append(radius*degToRad(theta));
 
-            nPoint++;
+            ++nPoint;
         }
         else
         {
@@ -160,14 +147,20 @@ void Foam::circleSet::genSamples()
     samplingSegments.shrink();
     samplingCurveDist.shrink();
 
+    // Move into *this
     setSamples
     (
-        samplingPts,
-        samplingCells,
-        samplingFaces,
-        samplingSegments,
-        samplingCurveDist
+        std::move(samplingPts),
+        std::move(samplingCells),
+        std::move(samplingFaces),
+        std::move(samplingSegments),
+        std::move(samplingCurveDist)
     );
+
+    if (debug)
+    {
+        write(Info);
+    }
 }
 
 
@@ -192,11 +185,6 @@ Foam::circleSet::circleSet
     dTheta_(dTheta)
 {
     genSamples();
-
-    if (debug)
-    {
-        write(Info);
-    }
 }
 
 
@@ -209,27 +197,13 @@ Foam::circleSet::circleSet
 )
 :
     sampledSet(name, mesh, searchEngine, dict),
-    origin_(dict.lookup("origin")),
-    circleAxis_(dict.lookup("circleAxis")),
-    startPoint_(dict.lookup("startPoint")),
-    dTheta_(readScalar(dict.lookup("dTheta")))
+    origin_(dict.get<point>("origin")),
+    circleAxis_(normalised(dict.get<vector>("circleAxis"))),
+    startPoint_(dict.get<point>("startPoint")),
+    dTheta_(dict.get<scalar>("dTheta"))
 {
-    // normalise circleAxis
-    circleAxis_ /= mag(circleAxis_);
-
     genSamples();
-
-    if (debug)
-    {
-        write(Info);
-    }
 }
-
-
-// * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
-
-Foam::circleSet::~circleSet()
-{}
 
 
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //

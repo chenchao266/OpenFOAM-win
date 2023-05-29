@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2017-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -40,6 +43,8 @@ namespace Foam
     defineTypeNameAndDebug(surfaceToCell, 0);
     addToRunTimeSelectionTable(topoSetSource, surfaceToCell, word);
     addToRunTimeSelectionTable(topoSetSource, surfaceToCell, istream);
+    addToRunTimeSelectionTable(topoSetCellSource, surfaceToCell, word);
+    addToRunTimeSelectionTable(topoSetCellSource, surfaceToCell, istream);
 }
 
 
@@ -72,25 +77,22 @@ Foam::label Foam::surfaceToCell::getNearest
     Map<label>& cache
 )
 {
-    Map<label>::const_iterator iter = cache.find(pointi);
+    const auto iter = cache.cfind(pointi);
 
-    if (iter != cache.end())
+    if (iter.found())
     {
-        // Found cached answer
-        return iter();
+        return *iter;  // Return cached value
     }
-    else
-    {
-        pointIndexHit inter = querySurf.nearest(pt, span);
 
-        // Triangle label (can be -1)
-        label triI = inter.index();
+    pointIndexHit inter = querySurf.nearest(pt, span);
 
-        // Store triangle on point
-        cache.insert(pointi, triI);
+    // Triangle label (can be -1)
+    const label trii = inter.index();
 
-        return triI;
-    }
+    // Store triangle on point
+    cache.insert(pointi, trii);
+
+    return trii;
 }
 
 
@@ -113,14 +115,12 @@ bool Foam::surfaceToCell::differingPointNormals
 
     const labelList& cFaces = mesh().cells()[celli];
 
-    forAll(cFaces, cFacei)
+    for (const label facei : cFaces)
     {
-        const face& f = faces[cFaces[cFacei]];
+        const face& f = faces[facei];
 
-        forAll(f, fp)
+        for (const label pointi : f)
         {
-            label pointi = f[fp];
-
             label pointTriI =
                 getNearest
                 (
@@ -150,7 +150,6 @@ void Foam::surfaceToCell::combine(topoSet& set, const bool add) const
 {
     cpuTime timer;
 
-
     if (useSurfaceOrientation_ && (includeInside_ || includeOutside_))
     {
         const meshSearch queryMesh(mesh_);
@@ -158,16 +157,15 @@ void Foam::surfaceToCell::combine(topoSet& set, const bool add) const
         //- Calculate for each searchPoint inside/outside status.
         boolList isInside(querySurf().calcInside(mesh_.cellCentres()));
 
-        Info<< "    Marked inside/outside using surface orientation in = "
-            << timer.cpuTimeIncrement() << " s" << endl << endl;
+        if (verbose_)
+        {
+            Info<< "    Marked inside/outside using surface orientation in = "
+                << timer.cpuTimeIncrement() << " s" << nl << endl;
+        }
 
         forAll(isInside, celli)
         {
-            if (isInside[celli] && includeInside_)
-            {
-                addOrDelete(set, celli, add);
-            }
-            else if (!isInside[celli] && includeOutside_)
+            if (isInside[celli] ? includeInside_ : includeOutside_)
             {
                 addOrDelete(set, celli, add);
             }
@@ -186,10 +184,8 @@ void Foam::surfaceToCell::combine(topoSet& set, const bool add) const
 
 
         // Check all 'outside' points
-        forAll(outsidePoints_, outsideI)
+        for (const point& outsidePoint : outsidePoints_)
         {
-            const point& outsidePoint = outsidePoints_[outsideI];
-
             // Find cell point is in. Linear search.
             label celli = queryMesh.findCell(outsidePoint, -1, false);
             if (returnReduce(celli, maxOp<label>()) == -1)
@@ -212,8 +208,11 @@ void Foam::surfaceToCell::combine(topoSet& set, const bool add) const
         );
 
 
-        Info<< "    Marked inside/outside using surface intersection in = "
-            << timer.cpuTimeIncrement() << " s" << endl << endl;
+        if (verbose_)
+        {
+            Info<< "    Marked inside/outside using surface intersection in = "
+                << timer.cpuTimeIncrement() << " s" << nl << endl;
+        }
 
         //- Add/remove cells using set
         forAll(cellType, celli)
@@ -256,8 +255,11 @@ void Foam::surfaceToCell::combine(topoSet& set, const bool add) const
 
         if (curvature_ < -1)
         {
-            Info<< "    Selecting cells with cellCentre closer than "
-                << nearDist_ << " to surface" << endl;
+            if (verbose_)
+            {
+                Info<< "    Selecting cells with cellCentre closer than "
+                    << nearDist_ << " to surface" << endl;
+            }
 
             // No need to test curvature. Insert near cells into set.
 
@@ -273,17 +275,22 @@ void Foam::surfaceToCell::combine(topoSet& set, const bool add) const
                 }
             }
 
-            Info<< "    Determined nearest surface point in = "
-                << timer.cpuTimeIncrement() << " s" << endl << endl;
-
+            if (verbose_)
+            {
+                Info<< "    Determined nearest surface point in = "
+                    << timer.cpuTimeIncrement() << " s" << nl << endl;
+            }
         }
         else
         {
             // Test near cells for curvature
 
-            Info<< "    Selecting cells with cellCentre closer than "
-                << nearDist_ << " to surface and curvature factor"
-                << " less than " << curvature_ << endl;
+            if (verbose_)
+            {
+                Info<< "    Selecting cells with cellCentre closer than "
+                    << nearDist_ << " to surface and curvature factor"
+                    << " less than " << curvature_ << endl;
+            }
 
             // Cache for nearest surface triangle for a point
             Map<label> pointToNearest(mesh_.nCells()/10);
@@ -313,8 +320,11 @@ void Foam::surfaceToCell::combine(topoSet& set, const bool add) const
                 }
             }
 
-            Info<< "    Determined nearest surface point in = "
-                << timer.cpuTimeIncrement() << " s" << endl << endl;
+            if (verbose_)
+            {
+                Info<< "    Determined nearest surface point in = "
+                    << timer.cpuTimeIncrement() << " s" << nl << endl;
+            }
         }
     }
 }
@@ -368,7 +378,7 @@ Foam::surfaceToCell::surfaceToCell
     const scalar curvature
 )
 :
-    topoSetSource(mesh),
+    topoSetCellSource(mesh),
     surfName_(surfName),
     outsidePoints_(outsidePoints),
     includeCut_(includeCut),
@@ -400,7 +410,7 @@ Foam::surfaceToCell::surfaceToCell
     const scalar curvature
 )
 :
-    topoSetSource(mesh),
+    topoSetCellSource(mesh),
     surfName_(surfName),
     outsidePoints_(outsidePoints),
     includeCut_(includeCut),
@@ -423,19 +433,27 @@ Foam::surfaceToCell::surfaceToCell
     const dictionary& dict
 )
 :
-    topoSetSource(mesh),
-    surfName_(fileName(dict.lookup("file")).expand()),
-    outsidePoints_(dict.lookup("outsidePoints")),
-    includeCut_(readBool(dict.lookup("includeCut"))),
-    includeInside_(readBool(dict.lookup("includeInside"))),
-    includeOutside_(readBool(dict.lookup("includeOutside"))),
+    topoSetCellSource(mesh),
+    surfName_(dict.get<fileName>("file").expand()),
+    outsidePoints_(dict.get<pointField>("outsidePoints")),
+    includeCut_(dict.get<bool>("includeCut")),
+    includeInside_(dict.get<bool>("includeInside")),
+    includeOutside_(dict.get<bool>("includeOutside")),
     useSurfaceOrientation_
     (
-        dict.lookupOrDefault<bool>("useSurfaceOrientation", false)
+        dict.getOrDefault("useSurfaceOrientation", false)
     ),
-    nearDist_(readScalar(dict.lookup("nearDistance"))),
-    curvature_(readScalar(dict.lookup("curvature"))),
-    surfPtr_(new triSurface(surfName_)),
+    nearDist_(dict.get<scalar>("nearDistance")),
+    curvature_(dict.get<scalar>("curvature")),
+    surfPtr_
+    (
+        new triSurface
+        (
+            surfName_,
+            dict.getOrDefault<word>("fileType", word::null),
+            dict.getOrDefault<scalar>("scale", -1)
+        )
+    ),
     querySurfPtr_(new triSurfaceSearch(*surfPtr_)),
     IOwnPtrs_(true)
 {
@@ -449,7 +467,7 @@ Foam::surfaceToCell::surfaceToCell
     Istream& is
 )
 :
-    topoSetSource(mesh),
+    topoSetCellSource(mesh),
     surfName_(checkIs(is)),
     outsidePoints_(checkIs(is)),
     includeCut_(readBool(checkIs(is))),
@@ -486,17 +504,23 @@ void Foam::surfaceToCell::applyToSet
     topoSet& set
 ) const
 {
-    if ((action == topoSetSource::NEW) || (action == topoSetSource::ADD))
+    if (action == topoSetSource::ADD || action == topoSetSource::NEW)
     {
-        Info<< "    Adding cells in relation to surface " << surfName_
-            << " ..." << endl;
+        if (verbose_)
+        {
+            Info<< "    Adding cells in relation to surface " << surfName_
+                << " ..." << endl;
+        }
 
         combine(set, true);
     }
-    else if (action == topoSetSource::DELETE)
+    else if (action == topoSetSource::SUBTRACT)
     {
-        Info<< "    Removing cells in relation to surface " << surfName_
-            << " ..." << endl;
+        if (verbose_)
+        {
+            Info<< "    Removing cells in relation to surface " << surfName_
+                << " ..." << endl;
+        }
 
         combine(set, false);
     }

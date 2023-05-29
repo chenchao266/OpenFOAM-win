@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2017 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -36,7 +39,7 @@ namespace surfaceFilmModels
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
-transferModelList::transferModelList(surfaceFilmModel& film)
+transferModelList::transferModelList(surfaceFilmRegionModel& film)
 :
     PtrList<transferModel>(),
     filmSubModelBase(film)
@@ -45,7 +48,7 @@ transferModelList::transferModelList(surfaceFilmModel& film)
 
 transferModelList::transferModelList
 (
-    surfaceFilmModel& film,
+    surfaceFilmRegionModel& film,
     const dictionary& dict
 )
 :
@@ -58,18 +61,14 @@ transferModelList::transferModelList
         "transferModelList",
         "transferModelList"
     ),
-    massTransferred_(film.intCoupledPatchIDs().size(), 0.0)
+    massTransferred_(film.intCoupledPatchIDs().size(), Zero)
 {
     const wordList activeModels
     (
-        dict.lookupOrDefault("transferModels", wordList())
+        dict.getOrDefault<wordList>("transferModels", wordList())
     );
 
-    wordHashSet models;
-    forAll(activeModels, i)
-    {
-        models.insert(activeModels[i]);
-    }
+    wordHashSet models(activeModels);
 
     Info<< "    Selecting film transfer models" << endl;
     if (models.size() > 0)
@@ -77,9 +76,8 @@ transferModelList::transferModelList
         this->setSize(models.size());
 
         label i = 0;
-        forAllConstIter(wordHashSet, models, iter)
+        for (const word& model : models)
         {
-            const word& model = iter.key();
             set(i, transferModel::New(film, dict, model));
             i++;
         }
@@ -182,7 +180,7 @@ void transferModelList::info(Ostream& os)
         }
     }
 
-    scalarField mass0(massTransferred_.size(), 0);
+    scalarField mass0(massTransferred_.size(), Zero);
     this->getBaseProperty("massTransferred", mass0);
 
     scalarField mass(massTransferred_);

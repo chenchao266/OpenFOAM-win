@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -29,7 +32,6 @@ License
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
-// Null constructor
 inline Foam::directionInfo::directionInfo()
 :
     index_(-3),
@@ -37,7 +39,6 @@ inline Foam::directionInfo::directionInfo()
 {}
 
 
-// Construct from components
 inline Foam::directionInfo::directionInfo
 (
     const label index,
@@ -46,14 +47,6 @@ inline Foam::directionInfo::directionInfo
 :
     index_(index),
     n_(n)
-{}
-
-
-// Construct as copy
-inline Foam::directionInfo::directionInfo(const directionInfo& w2)
-:
-    index_(w2.index()),
-    n_(w2.n())
 {}
 
 
@@ -74,8 +67,7 @@ inline bool Foam::directionInfo::sameGeometry
     const directionInfo& w2,
     const scalar tol,
     TrackingData& td
-)
- const
+) const
 {
     return true;
 }
@@ -146,7 +138,7 @@ inline bool Foam::directionInfo::updateCell
         return false;
     }
 
-    if (hexMatcher().isA(mesh, thisCelli))
+    if (hexMatcher::test(mesh, thisCelli))
     {
         const face& f = mesh.faces()[neighbourFacei];
 
@@ -251,7 +243,6 @@ inline bool Foam::directionInfo::updateFace
         index_ = -2;
     }
 
-
     n_ = neighbourInfo.n();
 
     return true;
@@ -298,15 +289,19 @@ inline bool Foam::directionInfo::equal
 
 // * * * * * * * * * * * * * * * Member Operators  * * * * * * * * * * * * * //
 
-inline bool Foam::directionInfo::operator==(const Foam::directionInfo& rhs)
- const
+inline bool Foam::directionInfo::operator==
+(
+    const directionInfo& rhs
+) const
 {
-    return  index() == rhs.index() && n() == rhs.n();
+    return index_ == rhs.index_ && n_ == rhs.n_;
 }
 
 
-inline bool Foam::directionInfo::operator!=(const Foam::directionInfo& rhs)
- const
+inline bool Foam::directionInfo::operator!=
+(
+    const directionInfo& rhs
+) const
 {
     return !(*this == rhs);
 }

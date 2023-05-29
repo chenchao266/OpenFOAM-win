@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -145,7 +147,7 @@ class totalPressureFvPatchScalarField
         word phiName_;
 
         //- Name of the density field used to normalise the mass flux
-        //  if neccessary
+        //- if necessary
         word rhoName_;
 
         //- Name of the compressibility field used to calculate the wave speed

@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2015 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2019-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -23,9 +26,9 @@ License
 
 \*---------------------------------------------------------------------------*/
 
-#include "dynamicFvMesh.H"
-#include "Time.T.H"
-#include "dlLibraryTable.H"
+#include "staticFvMesh.H"
+#include "simplifiedDynamicFvMesh.H"
+#include "argList.H"
 
 // * * * * * * * * * * * * * * * * Selectors * * * * * * * * * * * * * * * * //
 
@@ -36,52 +39,141 @@ Foam::autoPtr<Foam::dynamicFvMesh> Foam::dynamicFvMesh::New(const IOobject& io)
     // - defaultRegion (region0) gets loaded from constant, other ones
     //   get loaded from constant/<regionname>. Normally we'd use
     //   polyMesh::dbDir() but we haven't got a polyMesh yet ...
-    IOdictionary dict
+    IOobject dictHeader
     (
-        IOobject
+        "dynamicMeshDict",
+        io.time().constant(),
+        (io.name() == polyMesh::defaultRegion ? "" : io.name()),
+        io.db(),
+        IOobject::MUST_READ_IF_MODIFIED,
+        IOobject::NO_WRITE,
+        false // Do not register
+    );
+
+    if (dictHeader.typeHeaderOk<IOdictionary>(true))
+    {
+        IOdictionary dict(dictHeader);
+
+        const word modelType(dict.get<word>("dynamicFvMesh"));
+
+        Info<< "Selecting dynamicFvMesh " << modelType << endl;
+
+        io.time().libs().open
         (
-            "dynamicMeshDict",
-            io.time().constant(),
-            (io.name() == polyMesh::defaultRegion ? "" : io.name()),
-            io.db(),
-            IOobject::MUST_READ_IF_MODIFIED,
-            IOobject::NO_WRITE,
-            false
-        )
-    );
+            dict,
+            "dynamicFvMeshLibs",
+            IOobjectConstructorTablePtr_
+        );
 
-    const word dynamicFvMeshTypeName(dict.lookup("dynamicFvMesh"));
+        if (!IOobjectConstructorTablePtr_)
+        {
+            FatalErrorInFunction
+                << "dynamicFvMesh table is empty"
+                << exit(FatalError);
+        }
 
-    Info<< "Selecting dynamicFvMesh " << dynamicFvMeshTypeName << endl;
+        auto* doInitCtor = doInitConstructorTable(modelType);
+        if (doInitCtor)
+        {
+            DebugInfo
+                << "Constructing dynamicFvMesh with explicit initialisation"
+                << endl;
 
-    const_cast<Time&>(io.time()).libs().open
-    (
-        dict,
-        "dynamicFvMeshLibs",
-        IOobjectConstructorTablePtr_
-    );
+            // Two-step constructor
+            // 1. Construct mesh, do not initialise
+            autoPtr<dynamicFvMesh> meshPtr(doInitCtor(io, false));
 
-    if (!IOobjectConstructorTablePtr_)
-    {
-        FatalErrorInFunction
-            << "dynamicFvMesh table is empty"
-            << exit(FatalError);
+            // 2. Initialise parents and itself
+            meshPtr().init(true);
+
+            return meshPtr;
+        }
+
+        auto* ctorPtr = IOobjectConstructorTable(modelType);
+
+        if (!ctorPtr)
+        {
+            FatalIOErrorInLookup
+            (
+                dict,
+                "dynamicFvMesh",
+                modelType,
+                *IOobjectConstructorTablePtr_
+            ) << exit(FatalIOError);
+        }
+
+        return autoPtr<dynamicFvMesh>(ctorPtr(io));
     }
 
-    IOobjectConstructorTable::iterator cstrIter =
-        IOobjectConstructorTablePtr_->find(dynamicFvMeshTypeName);
+    DebugInfo
+        << "Constructing staticFvMesh with explicit initialisation" << endl;
 
-    if (cstrIter == IOobjectConstructorTablePtr_->end())
+    // 1. Construct mesh, do not initialise
+    autoPtr<dynamicFvMesh> meshPtr(new staticFvMesh(io, false));
+
+    // 2. Initialise parents and itself
+    meshPtr().init(true);
+
+    return meshPtr;
+}
+
+
+Foam::autoPtr<Foam::dynamicFvMesh> Foam::dynamicFvMesh::New
+(
+    const argList& args,
+    const Time& runTime
+)
+{
+    if (args.dryRun() || args.found("dry-run-write"))
     {
-        FatalErrorInFunction
-            << "Unknown dynamicFvMesh type "
-            << dynamicFvMeshTypeName << nl << nl
-            << "Valid dynamicFvMesh types are :" << endl
-            << IOobjectConstructorTablePtr_->sortedToc()
-            << exit(FatalError);
-    }
+        Info
+            << "Operating in 'dry-run' mode: case will run for 1 time step.  "
+            << "All checks assumed OK on a clean exit" << endl;
 
-    return autoPtr<dynamicFvMesh>(cstrIter()(io));
+        FieldBase::allowConstructFromLargerSize = true;
+
+        // Stop after 1 iteration of the simplified mesh
+
+        if (args.found("dry-run-write"))
+        {
+            // Using saWriteNow triggers function objects execute(), write()
+            runTime.stopAt(Foam::Time::saWriteNow);
+        }
+        else
+        {
+            // Using saNoWriteNow triggers function objects execute(),
+            // but not write()
+            runTime.stopAt(Foam::Time::saNoWriteNow);
+        }
+
+        functionObject::outputPrefix = "postProcessing-dry-run";
+
+        return
+            simplifiedMeshes::simplifiedDynamicFvMeshBase::New
+            (
+                IOobject
+                (
+                    polyMesh::defaultRegion,
+                    runTime.timeName(),
+                    runTime,
+                    IOobject::MUST_READ
+                )
+            );
+    }
+    else
+    {
+        return
+            New
+            (
+                IOobject
+                (
+                    polyMesh::defaultRegion,
+                    runTime.timeName(),
+                    runTime,
+                    IOobject::MUST_READ
+                )
+            );
+    }
 }
 
 

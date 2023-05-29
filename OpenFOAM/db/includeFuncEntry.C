@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -28,26 +30,27 @@ License
 #include "addToMemberFunctionSelectionTable.H"
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
-using namespace Foam;
+
 namespace Foam
 {
 namespace functionEntries
 {
-    defineTypeNameAndDebug(includeFuncEntry, 0);
-
-    addToMemberFunctionSelectionTable
+    addNamedToMemberFunctionSelectionTable
     (
         functionEntry,
         includeFuncEntry,
         execute,
-        dictionaryIstream
+        dictionaryIstream,
+        includeFunc
     );
-}
-}
+} // End namespace functionEntries
+} // End namespace Foam
 
 
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
 
+
+ namespace Foam{
 bool functionEntries::includeFuncEntry::execute
 (
     dictionary& parentDict,
@@ -55,7 +58,7 @@ bool functionEntries::includeFuncEntry::execute
 )
 {
     const word fNameArgs(is);
-    HashSet<word> selectedFields;
+    HashSet<wordRe> selectedFields;
 
     return functionObjectList::readFunctionObject
     (
@@ -67,3 +70,5 @@ bool functionEntries::includeFuncEntry::execute
 
 
 // ************************************************************************* //
+
+ } // End namespace Foam

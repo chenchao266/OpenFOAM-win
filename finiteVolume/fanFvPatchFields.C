@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2017-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -27,8 +30,6 @@ License
 #include "addToRunTimeSelectionTable.H"
 #include "volFields.H"
 #include "surfaceFields.H"
-#include "Tuple2.T.H"
-#include "PolynomialEntry.T.H"
 
 // * * * * * * * * * * * * * Private Member Functions  * * * * * * * * * * * //
 
@@ -45,79 +46,61 @@ void Foam::fanFvPatchField<Foam::scalar>::calcFanJump()
 
         scalarField Un(max(phip/patch().magSf(), scalar(0)));
 
+        // The non-dimensional parameters
+
+        scalar rpm(0);
+        scalar meanDiam(0);
+
+        if (nonDimensional_)
+        {
+            rpm = rpm_->value(this->db().time().timeOutputValue());
+            meanDiam = dm_->value(this->db().time().timeOutputValue());
+        }
+
+        if (uniformJump_)
+        {
+            const scalar area = gSum(patch().magSf());
+            Un = gSum(Un*patch().magSf())/area;
+
+            if (nonDimensional_)
+            {
+                // Create an non-dimensional velocity
+                Un =
+                (
+                    120.0*Un
+                  / stabilise
+                    (
+                        pow3(constant::mathematical::pi) * meanDiam * rpm,
+                        VSMALL
+                    )
+                );
+            }
+        }
+
         if (phi.dimensions() == dimDensity*dimVelocity*dimArea)
         {
             Un /= patch().lookupPatchField<volScalarField, scalar>(rhoName_);
         }
 
-        this->jump_ = max(this->jumpTable_->value(Un), scalar(0));
-    }
-}
-
-
-// * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
-
-template<>
-Foam::fanFvPatchField<Foam::scalar>::fanFvPatchField
-(
-    const fvPatch& p,
-    const DimensionedField<scalar, volMesh>& iF,
-    const dictionary& dict
-)
-:
-    uniformJumpFvPatchField<scalar>(p, iF),
-    phiName_(dict.lookupOrDefault<word>("phi", "phi")),
-    rhoName_(dict.lookupOrDefault<word>("rho", "rho"))
-{
-    if (this->cyclicPatch().owner())
-    {
-        if (dict.found("f"))
+        if (nonDimensional_)
         {
-            // Backwards compatibility
-            Istream& is = dict.lookup("f");
-            is.format(IOstream::ASCII);
-            scalarList f(is);
+            scalarField deltap(this->jumpTable_->value(Un));
 
-            label nPows = 0;
-            forAll(f, powI)
-            {
-                if (mag(f[powI]) > VSMALL)
-                {
-                    nPows++;
-                }
-            }
-            List<Tuple2<scalar, scalar>> coeffs(nPows);
-            nPows = 0;
-            forAll(f, powI)
-            {
-                if (mag(f[powI]) > VSMALL)
-                {
-                    coeffs[nPows++] = Tuple2<scalar, scalar>(f[powI], powI);
-                }
-            }
-
-            this->jumpTable_.reset
+            // Convert non-dimensional deltap from curve into deltaP
+            scalarField pdFan
             (
-                new Function1Types::Polynomial<scalar>("jumpTable", coeffs)
+                deltap*pow4(constant::mathematical::pi)
+              * sqr(meanDiam*rpm)/1800.0
             );
+
+            this->setJump(pdFan);
         }
         else
         {
-            // Generic input constructed from dictionary
-            this->jumpTable_ = Function1<scalar>::New("jumpTable", dict);
+            this->setJump(jumpTable_->value(Un));
         }
-    }
 
-    if (dict.found("value"))
-    {
-        fvPatchScalarField::operator=
-        (
-            scalarField("value", dict, p.size())
-        );
-    }
-    else
-    {
-        this->evaluate(Pstream::commsTypes::blocking);
+        this->relax();
     }
 }
 

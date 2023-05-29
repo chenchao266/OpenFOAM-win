@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -23,6 +25,9 @@ License
 
 Class
     Foam::reverseLinear
+
+Group
+    grpFvSurfaceInterpolationSchemes
 
 Description
     Inversed weight central-differencing interpolation scheme class.
@@ -46,7 +51,7 @@ namespace Foam
 {
 
 /*---------------------------------------------------------------------------*\
-                           Class reverseLinear Declaration
+                       Class reverseLinear Declaration
 \*---------------------------------------------------------------------------*/
 
 template<class Type>
@@ -56,8 +61,8 @@ class reverseLinear
 {
     // Private Member Functions
 
-        //- Disallow default bitwise assignment
-        void operator=(const reverseLinear&);
+        //- No copy assignment
+        void operator=(const reverseLinear&) = delete;
 
 
 public:

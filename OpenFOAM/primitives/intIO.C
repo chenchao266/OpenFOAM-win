@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2014 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2014 OpenFOAM Foundation
+    Copyright (C) 2017 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -24,13 +27,61 @@ License
 \*---------------------------------------------------------------------------*/
 
 #include "int.H"
+#include "error.H"
+#include "parsing.H"
 #include "IOstreams.H"
+#include <cinttypes>
 
 // * * * * * * * * * * * * * * * IOstream Operators  * * * * * * * * * * * * //
-using namespace Foam;
+
+
+ namespace Foam{
+int readInt(const char* buf)
+{
+    char *endptr = nullptr;
+    errno = 0;
+    const intmax_t parsed = ::strtoimax(buf, &endptr, 10);
+
+    const int val = int(parsed);
+
+    const parsing::errorType err =
+    (
+        (parsed < INT_MIN || parsed > INT_MAX)
+      ? parsing::errorType::RANGE
+      : parsing::checkConversion(buf, endptr)
+    );
+
+    if (err != parsing::errorType::NONE)
+    {
+        FatalIOErrorInFunction("unknown")
+            << parsing::errorNames[err] << " '" << buf << "'"
+            << exit(FatalIOError);
+    }
+
+    return val;
+}
+
+
+bool readInt(const char* buf, int& val)
+{
+    char *endptr = nullptr;
+    errno = 0;
+    const intmax_t parsed = ::strtoimax(buf, &endptr, 10);
+
+    val = int(parsed);
+
+    return
+    (
+        (parsed < INT_MIN || parsed > INT_MAX)
+      ? false
+      : (parsing::checkConversion(buf, endptr) == parsing::errorType::NONE)
+    );
+}
+
+
 int readInt(Istream& is)
 {
-    int val;
+    int val(0);
     is >> val;
 
     return val;
@@ -38,3 +89,5 @@ int readInt(Istream& is)
 
 
 // ************************************************************************* //
+
+ } // End namespace Foam

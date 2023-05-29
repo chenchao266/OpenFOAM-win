@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -38,8 +41,8 @@ SourceFiles
 
 #include "bMesh.H"
 #include "boundaryPatch.H"
-#include "PrimitivePatch.T.H"
-#include "PtrList.T.H"
+#include "PrimitivePatch.H"
+#include "PtrList.H"
 #include "polyPatchList.H"
 #include "className.H"
 
@@ -48,7 +51,7 @@ SourceFiles
 namespace Foam
 {
 
-// Forward declaration of classes
+// Forward Declarations
 class Time;
 class polyMesh;
 class primitiveMesh;
@@ -59,7 +62,7 @@ class primitiveMesh;
 
 class boundaryMesh
 {
-    // Static data
+    // Static Data
 
         //- Normal along which to divide faces into categories
         //  (used in getNearest)
@@ -71,10 +74,10 @@ class boundaryMesh
         static const scalar distanceTol_;
 
 
-    // Private data
+    // Private Data
 
         //- All boundary mesh data. Reconstructed every time faces are repatched
-        bMesh* meshPtr_;
+        unique_ptr<bMesh> meshPtr_;
 
         //- Patches. Reconstructed every time faces are repatched.
         PtrList<boundaryPatch> patches_;
@@ -172,11 +175,11 @@ class boundaryMesh
         ) const;
 
 
-        //- Disallow default bitwise copy construct
-        boundaryMesh(const boundaryMesh&);
+        //- No copy construct
+        boundaryMesh(const boundaryMesh&) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const boundaryMesh&);
+        //- No copy assignment
+        void operator=(const boundaryMesh&) = delete;
 
 
 public:
@@ -187,12 +190,12 @@ public:
 
     // Constructors
 
-        //- Construct null
+        //- Default construct
         boundaryMesh();
 
 
     //- Destructor
-    ~boundaryMesh();
+    ~boundaryMesh() = default;
 
         void clearOut();
 
@@ -206,8 +209,8 @@ public:
                 if (!meshPtr_)
                 {
                     FatalErrorInFunction
-                        << "No mesh available. Probably mesh not yet"
-                        << " read." << abort(FatalError);
+                        << "No mesh available. Probably mesh not yet read\n"
+                        << abort(FatalError);
                 }
                 return *meshPtr_;
             }

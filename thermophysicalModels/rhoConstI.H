@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2012-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2012-2017 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -57,7 +59,7 @@ template<class Specie>
 inline Foam::autoPtr<Foam::rhoConst<Specie>>
 Foam::rhoConst<Specie>::clone() const
 {
-    return autoPtr<rhoConst<Specie>>(new rhoConst<Specie>(*this));
+    return autoPtr<rhoConst<Specie>>::New(*this);
 }
 
 
@@ -79,6 +81,20 @@ inline Foam::scalar Foam::rhoConst<Specie>::H(scalar p, scalar T) const
 
 template<class Specie>
 inline Foam::scalar Foam::rhoConst<Specie>::Cp(scalar p, scalar T) const
+{
+    return 0;
+}
+
+
+template<class Specie>
+inline Foam::scalar Foam::rhoConst<Specie>::E(scalar p, scalar T) const
+{
+    return 0;
+}
+
+
+template<class Specie>
+inline Foam::scalar Foam::rhoConst<Specie>::Cv(scalar p, scalar T) const
 {
     return 0;
 }

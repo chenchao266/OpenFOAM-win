@@ -1,9 +1,12 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2013 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2013 OpenFOAM Foundation
+    Copyright (C) 2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -32,7 +35,7 @@ SourceFiles
 
 \*---------------------------------------------------------------------------*/
 
-#include "Pstream.T.H"
+#include "Pstream.H"
 
 #ifndef OPstream_H
 #define OPstream_H
@@ -48,16 +51,17 @@ namespace Foam
                           Class OPstream Declaration
 \*---------------------------------------------------------------------------*/
 
-class OPstream :    public Pstream,
+class OPstream
+:
+    public Pstream,
     public UOPstream
 {
-
 public:
 
     // Constructors
 
-        //- Construct given process index to send to and optional buffer size,
-        //  write format and IO version
+        //- Construct for given process index to send to
+        //- and optional buffer size, write format
         OPstream
         (
             const commsTypes commsType,
@@ -65,10 +69,8 @@ public:
             const label bufSize = 0,
             const int tag = UPstream::msgType(),
             const label comm = UPstream::worldComm,
-            streamFormat format=BINARY,
-            versionNumber version=currentVersion
+            IOstreamOption::streamFormat fmt = IOstreamOption::BINARY
         );
-
 };
 
 

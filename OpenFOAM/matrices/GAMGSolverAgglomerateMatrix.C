@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -24,12 +26,14 @@ License
 \*---------------------------------------------------------------------------*/
 
 #include "GAMGSolver.H"
-#include "GAMGInterfaceField.T.H"
+#include "GAMGInterfaceField.H"
 #include "processorLduInterfaceField.H"
 #include "processorGAMGInterfaceField.H"
 
 // * * * * * * * * * * * * * Private Member Functions  * * * * * * * * * * * //
-using namespace Foam;
+
+
+ namespace Foam{
 void GAMGSolver::agglomerateMatrix
 (
     const label fineLevelIndex,
@@ -127,7 +131,7 @@ void GAMGSolver::agglomerateMatrix
         const boolList& faceFlipMap =
             agglomeration_.faceFlipMap(fineLevelIndex);
 
-        // Check if matrix is asymetric and if so agglomerate both upper
+        // Check if matrix is asymmetric and if so agglomerate both upper
         // and lower coefficients ...
         if (fineMatrix.hasLower())
         {
@@ -253,7 +257,7 @@ void GAMGSolver::agglomerateInterfaceCoefficients
             coarseInterfaceBouCoeffs.set
             (
                 inti,
-                new scalarField(nPatchFaces[inti], 0.0)
+                new scalarField(nPatchFaces[inti], Zero)
             );
             agglomeration_.restrictField
             (
@@ -265,7 +269,7 @@ void GAMGSolver::agglomerateInterfaceCoefficients
             coarseInterfaceIntCoeffs.set
             (
                 inti,
-                new scalarField(nPatchFaces[inti], 0.0)
+                new scalarField(nPatchFaces[inti], Zero)
             );
             agglomeration_.restrictField
             (
@@ -779,3 +783,5 @@ void GAMGSolver::procAgglomerateMatrix
 
 
 // ************************************************************************* //
+
+ } // End namespace Foam

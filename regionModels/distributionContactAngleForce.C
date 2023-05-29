@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2017 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -45,12 +47,12 @@ addToRunTimeSelectionTable(force, distributionContactAngleForce, dictionary);
 
 distributionContactAngleForce::distributionContactAngleForce
 (
-    surfaceFilmModel& film,
+    surfaceFilmRegionModel& film,
     const dictionary& dict
 )
 :
     contactAngleForce(typeName, film, dict),
-    rndGen_(label(0), -1),
+    rndGen_(),
     distribution_
     (
         distributionModel::New
@@ -83,7 +85,7 @@ tmp<volScalarField> distributionContactAngleForce::theta() const
                 filmModel_.regionMesh()
             ),
             filmModel_.regionMesh(),
-            dimensionedScalar("0", dimless, 0)
+            dimensionedScalar(dimless, Zero)
         )
     );
 

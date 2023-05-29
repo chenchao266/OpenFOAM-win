@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2018 OpenFOAM Foundation
+    Copyright (C) 2015-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -26,8 +29,7 @@ License
 #include "meshSearch.H"
 #include "polyMesh.H"
 #include "indexedOctree.H"
-#include "DynamicList.T.H"
-#include "demandDrivenData.H"
+#include "DynamicList.H"
 #include "treeDataCell.H"
 #include "treeDataFace.H"
 
@@ -38,6 +40,85 @@ namespace Foam
     defineTypeNameAndDebug(meshSearch, 0);
 
     scalar meshSearch::tol_ = 1e-3;
+
+    // Intersection operation that checks previous successful hits so that they
+    // are not duplicated
+    class findUniqueIntersectOp
+    :
+        public treeDataFace::findIntersectOp
+    {
+    public:
+
+        const indexedOctree<treeDataFace>& tree_;
+
+        const List<pointIndexHit>& hits_;
+
+    public:
+
+        //- Construct from components
+        findUniqueIntersectOp
+        (
+            const indexedOctree<treeDataFace>& tree,
+            const List<pointIndexHit>& hits
+        )
+        :
+            treeDataFace::findIntersectOp(tree),
+            tree_(tree),
+            hits_(hits)
+        {}
+
+        //- Calculate intersection of triangle with ray. Sets result
+        //  accordingly
+        bool operator()
+        (
+            const label index,
+            const point& start,
+            const point& end,
+            point& intersectionPoint
+        ) const
+        {
+            const primitiveMesh& mesh = tree_.shapes().mesh();
+
+            // Check whether this hit has already happened. If the new face
+            // index is the same as an existing hit then return no new hit. If
+            // the new face shares a point with an existing hit face and the
+            // line passes through both faces in the same direction, then this
+            // is also assumed to be a duplicate hit.
+            const label newFacei = tree_.shapes().faceLabels()[index];
+            const face& newFace = mesh.faces()[newFacei];
+            const scalar newDot = mesh.faceAreas()[newFacei] & (end - start);
+            forAll(hits_, hiti)
+            {
+                const label oldFacei = hits_[hiti].index();
+                const face& oldFace = mesh.faces()[oldFacei];
+                const scalar oldDot =
+                    mesh.faceAreas()[oldFacei] & (end - start);
+
+                if
+                (
+                    hits_[hiti].index() == newFacei
+                 || (
+                        newDot*oldDot > 0
+                     && (labelHashSet(newFace) & labelHashSet(oldFace)).size()
+                    )
+                )
+                {
+                    return false;
+                }
+            }
+
+            const bool hit =
+                treeDataFace::findIntersectOp::operator()
+                (
+                    index,
+                    start,
+                    end,
+                    intersectionPoint
+                );
+
+            return hit;
+        }
+    };
 }
 
 
@@ -186,7 +267,7 @@ Foam::label Foam::meshSearch::findNearestFaceTree(const point& location) const
 
     if (!info.hit())
     {
-        // Search with desparate span
+        // Search with desperate span
         info = tree.findNearest(location, Foam::sqr(GREAT));
     }
 
@@ -310,10 +391,8 @@ Foam::label Foam::meshSearch::findCellLinear(const point& location) const
     {
         return celli;
     }
-    else
-    {
-        return -1;
-    }
+
+    return -1;
 }
 
 
@@ -466,25 +545,6 @@ Foam::label Foam::meshSearch::findNearestBoundaryFaceWalk
 }
 
 
-Foam::vector Foam::meshSearch::offset
-(
-    const point& bPoint,
-    const label bFacei,
-    const vector& dir
-) const
-{
-    // Get the neighbouring cell
-    label ownerCelli = mesh_.faceOwner()[bFacei];
-
-    const point& c = mesh_.cellCentres()[ownerCelli];
-
-    // Typical dimension: distance from point on face to cell centre
-    scalar typDim = mag(c - bPoint);
-
-    return tol_*typDim*dir;
-}
-
-
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
 Foam::meshSearch::meshSearch
@@ -499,7 +559,8 @@ Foam::meshSearch::meshSearch
     if
     (
         cellDecompMode_ == polyMesh::FACE_DIAG_TRIS
-     || cellDecompMode_ == polyMesh::CELL_TETS)
+     || cellDecompMode_ == polyMesh::CELL_TETS
+    )
     {
         // Force construction of face diagonals
         (void)mesh.tetBasePtIs();
@@ -541,36 +602,38 @@ Foam::meshSearch::~meshSearch()
 
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
 
+const Foam::treeBoundBox& Foam::meshSearch::dataBoundBox() const
+{
+    if (!overallBbPtr_)
+    {
+        Random rndGen(261782);
+        overallBbPtr_.reset
+        (
+            new treeBoundBox(mesh_.points())
+        );
+
+        treeBoundBox& overallBb = overallBbPtr_();
+
+        // Extend slightly and make 3D
+        overallBb = overallBb.extend(rndGen, 1e-4);
+        overallBb.min() -= point::uniform(ROOTVSMALL);
+        overallBb.max() += point::uniform(ROOTVSMALL);
+    }
+
+    return *overallBbPtr_;
+}
+
+
 const Foam::indexedOctree<Foam::treeDataFace>&
 Foam::meshSearch::boundaryTree() const
 {
-    if (!boundaryTreePtr_.valid())
+    if (!boundaryTreePtr_)
     {
-        //
-        // Construct tree
-        //
-
-        if (!overallBbPtr_.valid())
-        {
-            Random rndGen(261782);
-            overallBbPtr_.reset
-            (
-                new treeBoundBox(mesh_.points())
-            );
-
-            treeBoundBox& overallBb = overallBbPtr_();
-            // Extend slightly and make 3D
-            overallBb = overallBb.extend(rndGen, 1e-4);
-            overallBb.min() -= point(ROOTVSMALL, ROOTVSMALL, ROOTVSMALL);
-            overallBb.max() += point(ROOTVSMALL, ROOTVSMALL, ROOTVSMALL);
-        }
-
-        // all boundary faces (not just walls)
-        labelList bndFaces(mesh_.nFaces()-mesh_.nInternalFaces());
-        forAll(bndFaces, i)
-        {
-            bndFaces[i] = mesh_.nInternalFaces() + i;
-        }
+        // All boundary faces (not just walls)
+        labelList bndFaces
+        (
+            identity(mesh_.nBoundaryFaces(), mesh_.nInternalFaces())
+        );
 
         boundaryTreePtr_.reset
         (
@@ -582,7 +645,7 @@ Foam::meshSearch::boundaryTree() const
                     mesh_,
                     bndFaces                    // boundary faces only
                 ),
-                overallBbPtr_(),                // overall search domain
+                dataBoundBox(),                 // overall search domain
                 8,                              // maxLevel
                 10,                             // leafsize
                 3.0                             // duplicity
@@ -590,34 +653,61 @@ Foam::meshSearch::boundaryTree() const
         );
     }
 
-    return boundaryTreePtr_();
+    return *boundaryTreePtr_;
+}
+
+
+
+const Foam::indexedOctree<Foam::treeDataFace>&
+Foam::meshSearch::nonCoupledBoundaryTree() const
+{
+    if (!nonCoupledBoundaryTreePtr_)
+    {
+        // All non-coupled boundary faces (not just walls)
+        const polyBoundaryMesh& patches = mesh_.boundaryMesh();
+
+        labelList bndFaces(mesh_.nBoundaryFaces());
+
+        label bndi = 0;
+        for (const polyPatch& pp : patches)
+        {
+            if (!pp.coupled())
+            {
+                forAll(pp, i)
+                {
+                    bndFaces[bndi++] = pp.start()+i;
+                }
+            }
+        }
+        bndFaces.setSize(bndi);
+
+        nonCoupledBoundaryTreePtr_.reset
+        (
+            new indexedOctree<treeDataFace>
+            (
+                treeDataFace    // all information needed to search faces
+                (
+                    false,                      // do not cache bb
+                    mesh_,
+                    bndFaces                    // boundary faces only
+                ),
+                dataBoundBox(),                 // overall search domain
+                8,                              // maxLevel
+                10,                             // leafsize
+                3.0                             // duplicity
+            )
+        );
+    }
+
+    return *nonCoupledBoundaryTreePtr_;
 }
 
 
 const Foam::indexedOctree<Foam::treeDataCell>&
 Foam::meshSearch::cellTree() const
 {
-    if (!cellTreePtr_.valid())
+    if (!cellTreePtr_)
     {
-        //
-        // Construct tree
-        //
-
-        if (!overallBbPtr_.valid())
-        {
-            Random rndGen(261782);
-            overallBbPtr_.reset
-            (
-                new treeBoundBox(mesh_.points())
-            );
-
-            treeBoundBox& overallBb = overallBbPtr_();
-            // Extend slightly and make 3D
-            overallBb = overallBb.extend(rndGen, 1e-4);
-            overallBb.min() -= point(ROOTVSMALL, ROOTVSMALL, ROOTVSMALL);
-            overallBb.max() += point(ROOTVSMALL, ROOTVSMALL, ROOTVSMALL);
-        }
-
         cellTreePtr_.reset
         (
             new indexedOctree<treeDataCell>
@@ -628,7 +718,7 @@ Foam::meshSearch::cellTree() const
                     mesh_,
                     cellDecompMode_ // cell decomposition mode for inside tests
                 ),
-                overallBbPtr_(),
+                dataBoundBox(),     // overall search domain
                 8,              // maxLevel
                 10,             // leafsize
                 6.0             // duplicity
@@ -636,7 +726,7 @@ Foam::meshSearch::cellTree() const
         );
     }
 
-    return cellTreePtr_();
+    return *cellTreePtr_;
 }
 
 
@@ -658,10 +748,8 @@ Foam::label Foam::meshSearch::findNearestCell
             return findNearestCellLinear(location);
         }
     }
-    else
-    {
-        return findNearestCellWalk(location, seedCelli);
-    }
+
+    return findNearestCellWalk(location, seedCelli);
 }
 
 
@@ -683,10 +771,8 @@ Foam::label Foam::meshSearch::findNearestFace
             return findNearestFaceLinear(location);
         }
     }
-    else
-    {
-        return findNearestFaceWalk(location, seedFacei);
-    }
+
+    return findNearestFaceWalk(location, seedFacei);
 }
 
 
@@ -709,10 +795,8 @@ Foam::label Foam::meshSearch::findCell
             return findCellLinear(location);
         }
     }
-    else
-    {
-        return findCellWalk(location, seedCelli);
-    }
+
+    return findCellWalk(location, seedCelli);
 }
 
 
@@ -777,10 +861,8 @@ Foam::label Foam::meshSearch::findNearestBoundaryFace
             return minFacei;
         }
     }
-    else
-    {
-        return findNearestBoundaryFaceWalk(location, seedFacei);
-    }
+
+    return findNearestBoundaryFaceWalk(location, seedFacei);
 }
 
 
@@ -808,40 +890,19 @@ Foam::List<Foam::pointIndexHit> Foam::meshSearch::intersections
 ) const
 {
     DynamicList<pointIndexHit> hits;
+    findUniqueIntersectOp iop(boundaryTree(), hits);
 
-    vector edgeVec = pEnd - pStart;
-    edgeVec /= mag(edgeVec);
-
-    point pt = pStart;
-
-    pointIndexHit bHit;
-    do
+    while (true)
     {
-        bHit = intersection(pt, pEnd);
+        // Get the next hit, or quit
+        pointIndexHit curHit = boundaryTree().findLine(pStart, pEnd, iop);
+        if (!curHit.hit()) break;
 
-        if (bHit.hit())
-        {
-            hits.append(bHit);
+        // Change index into octreeData into face label
+        curHit.setIndex(boundaryTree().shapes().faceLabels()[curHit.index()]);
 
-            const vector& area = mesh_.faceAreas()[bHit.index()];
-
-            scalar typDim = Foam::sqrt(mag(area));
-
-            if ((mag(bHit.hitPoint() - pEnd)/typDim) < SMALL)
-            {
-                break;
-            }
-
-            // Restart from hitPoint shifted a little bit in the direction
-            // of the destination
-
-            pt =
-                bHit.hitPoint()
-              + offset(bHit.hitPoint(), bHit.index(), edgeVec);
-        }
-
-    } while (bHit.hit());
-
+        hits.append(curHit);
+    }
 
     hits.shrink();
 

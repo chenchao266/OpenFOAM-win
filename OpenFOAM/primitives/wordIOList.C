@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2012-2013 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2012-2013 OpenFOAM Foundation
+    Copyright (C) 2019 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -38,36 +41,50 @@ namespace Foam
 
 
 
-    void printTable
+    // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+    Ostream& printTable
     (
-        const List<wordList>& wll,
-        List<string::size_type>& columnWidth,
-        Ostream& os
+        const UList<wordList>& tbl,
+        List<std::string::size_type>& columnWidths,
+        Ostream& os,
+        bool headerSeparator
     )
     {
-        if (!wll.size()) return;
-
-        // Find the maximum word length for each column
-        columnWidth.setSize(wll[0].size(), string::size_type(0));
-        forAll(columnWidth, j)
+        if (tbl.empty())
         {
-            forAll(wll, i)
+            return os;
+        }
+
+        // Find maximum width for each column
+        columnWidths.resize(tbl.first().size(), std::string::size_type(0));
+
+        forAll(columnWidths, coli)
+        {
+            auto& colWidth = columnWidths[coli];
+
+            for (const wordList& tblRow : tbl)
             {
-                columnWidth[j] = max(columnWidth[j], wll[i][j].size());
+                colWidth =
+                    std::max
+                    (
+                        colWidth,
+                        string::size_type(tblRow[coli].length())
+                    );
             }
         }
 
         // Print the rows adding spacing for the columns
-        forAll(wll, i)
+        for (const wordList& tblRow : tbl)
         {
-            forAll(wll[i], j)
+            forAll(tblRow, coli)
             {
-                os << wll[i][j];
+                os << tblRow[coli];
                 for
                     (
-                        string::size_type k = 0;
-                        k < columnWidth[j] - wll[i][j].size() + 2;
-                        k++
+                        string::size_type space = 0;
+                        space < columnWidths[coli] - tblRow[coli].length() + 2;
+                        ++space
                         )
                 {
                     os << ' ';
@@ -75,15 +92,24 @@ namespace Foam
             }
             os << nl;
 
-            if (i == 0) os << nl;
+            if (headerSeparator) os << nl;
+            headerSeparator = false;
         }
+
+        return os;
     }
 
 
-    void printTable(const List<wordList>& wll, Ostream& os)
+    Ostream& printTable
+    (
+        const UList<wordList>& tbl,
+        Ostream& os,
+        bool headerSeparator
+    )
     {
-        List<string::size_type> columnWidth;
-        printTable(wll, columnWidth, os);
+        List<std::string::size_type> columnWidths;
+        printTable(tbl, columnWidths, os, headerSeparator);
+        return os;
     }
 
 }

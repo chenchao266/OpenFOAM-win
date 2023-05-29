@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2015-2019 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -30,51 +33,40 @@ License
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 template<class Type>
-void Foam::functionObjects::surfaceInterpolate::interpolateFields
-(
-    PtrList<GeometricField<Type, fvsPatchField, surfaceMesh>>& sflds
-) const
+void Foam::functionObjects::surfaceInterpolate::interpolateFields()
 {
     typedef GeometricField<Type, fvPatchField, volMesh> VolFieldType;
-    typedef GeometricField<Type, fvsPatchField, surfaceMesh> SurfaceFieldType;
 
     // Convert field to map
     HashTable<word> fieldMap(2*fieldSet_.size());
-    forAll(fieldSet_, i)
+    for (const auto& namePair : fieldSet_)
     {
-        fieldMap.insert(fieldSet_[i].first(), fieldSet_[i].second());
+        fieldMap.insert(namePair.first(), namePair.second());
     }
 
 
     HashTable<const VolFieldType*> flds(obr_.lookupClass<VolFieldType>());
 
-    forAllConstIter(typename HashTable<const VolFieldType*>, flds, iter)
+    forAllConstIters(flds, iter)
     {
         const VolFieldType& fld = *iter();
 
         if (fieldMap.found(fld.name()))
         {
-            //const word sName = "interpolate(" + fld.name() + ')';
-            const word& sName = fieldMap[fld.name()];
+            // const word sName = "interpolate(" + fld.name() + ')';
+            word& sName = fieldMap[fld.name()];
 
             if (obr_.found(sName))
             {
-                Info<< "        surface field " << sName << " already exists"
-                    << endl;
+                Log << "        updating field " << sName << endl;
             }
             else
             {
-                label sz = sflds.size();
-                sflds.setSize(sz+1);
-                sflds.set
-                (
-                    sz,
-                    new SurfaceFieldType(sName, linearInterpolate(fld))
-                );
-
-                Info<< "        interpolated " << fld.name() << " to create "
-                    << sflds[sz].name() << endl;
+                Log << "        interpolating " << fld.name() << " to create "
+                    << sName << endl;
             }
+
+            store(sName, linearInterpolate(fld));
         }
     }
 }

@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2016-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2016-2017 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -89,7 +91,7 @@ Description
   Grow the EOA :
     More details about the minimum-volume ellipsoid covering an ellispoid E and
     a point p are found in [3]. Here is the main steps to obtain the modified
-    matrix L' describind the new ellipsoid.
+    matrix L' describing the new ellipsoid.
         1) calculate the point p' in the transformed space :
             p' = L^T.(p-phi)
         2) compute the rank-one decomposition:
@@ -142,7 +144,7 @@ class chemPointISAT
 {
     // Private data
 
-        //- Pointer to the chemistryModel object
+        //- Reference to the chemistryModel object
         TDACChemistryModel<CompType, ThermoType>& chemistry_;
 
         //- Vector storing the composition, temperature and pressure
@@ -195,7 +197,7 @@ class chemPointISAT
         label numRetrieve_;
 
         //- Variable to store the number of time steps the chempoint is allowed
-        //   to still live according to the maxChPLifeTime_ parameter
+        //  to still live according to the maxChPLifeTime_ parameter
         label nLifeTime_;
 
         List<label> completeToSimplifiedIndex_;
@@ -402,13 +404,13 @@ public:
         // ISAT functions
 
             //- To RETRIEVE the mapping from the stored chemPoint phi, the query
-            // point phiq has to be in the EOA of phi.
-            // To test if phiq is in the ellipsoid:
-            // ||L^T.dphi|| <= 1
+            //  point phiq has to be in the EOA of phi.
+            //  To test if phiq is in the ellipsoid:
+            //  ||L^T.dphi|| <= 1
             bool inEOA(const scalarField& phiq);
 
             //- More details about the minimum-volume ellipsoid covering an
-            //  ellispoid E and a point p are found in [1].
+            //  ellipsoid E and a point p are found in [1].
             //  Here is the main steps to obtain the
             //  modified matrix L' describind the new ellipsoid.
             //  1) calculate the point p' in the transformed space :
@@ -426,7 +428,7 @@ public:
             //- If phiq is not in the EOA, then the mapping is computed.
             //  But as the EOA is a conservative approximation of the region of
             //  accuracy surrounding the point phi, we could expand it by
-            //  comparing thecomputed results with the one obtained by linear
+            //  comparing the computed results with the one obtained by linear
             //  interpolation.  The error eps is calculated:
             //  eps = ||B.(dR - dRl)||,
             //  with dR = Rphiq - Rphi, dRl = A.dphi and B the diagonal scale

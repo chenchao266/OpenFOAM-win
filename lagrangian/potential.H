@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -37,7 +39,7 @@ SourceFiles
 
 #include "polyMesh.H"
 #include "IOdictionary.H"
-#include "Time.T.H"
+#include "Time1.H"
 #include "pairPotentialList.H"
 #include "electrostaticPotential.H"
 #include "tetherPotentialList.H"
@@ -86,11 +88,11 @@ class potential
             IOdictionary& idListDict
         );
 
-        //- Disallow default bitwise copy construct
-        potential(const potential&);
+        //- No copy construct
+        potential(const potential&) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const potential&);
+        //- No copy assignment
+        void operator=(const potential&) = delete;
 
 
 public:

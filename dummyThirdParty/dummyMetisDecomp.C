@@ -1,9 +1,12 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2015 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2015 OpenFOAM Foundation
+    Copyright (C) 2018-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -25,25 +28,21 @@ License
 
 #include "metisDecomp.H"
 #include "addToRunTimeSelectionTable.H"
-#include "Time.T.H"
 
 static const char* notImplementedMessage =
-"You are trying to use metis but do not have the metisDecomp library loaded."
-"\nThis message is from the dummy metisDecomp stub library instead.\n"
-"\n"
-"Please install metis and make sure that libmetis.so is in your "
-"LD_LIBRARY_PATH.\n"
+"Attempted to use <metis> without the metisDecomp library loaded.\n"
+"This message is from the dummy metisDecomp stub library instead.\n\n"
+"Please install <metis> and ensure libmetis.so is in LD_LIBRARY_PATH.\n"
 "The metisDecomp library can then be built from "
-"$FOAM_SRC/parallel/decompose/metisDecomp and dynamically loading or linking"
-" this library will add metis as a decomposition method.\n"
-"Please be aware that there are license restrictions on using Metis.";
+"src/parallel/decompose/metisDecomp.\n"
+"Dynamically loading or linking this library will add "
+"<metis> as a decomposition method.\n";
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 namespace Foam
 {
     defineTypeNameAndDebug(metisDecomp, 0);
-
     addToRunTimeSelectionTable
     (
         decompositionMethod,
@@ -53,15 +52,15 @@ namespace Foam
 }
 
 
-// * * * * * * * * * * * * * Private Member Functions  * * * * * * * * * * * //
+// * * * * * * * * * * * * Protected Member Functions  * * * * * * * * * * * //
 
-Foam::label Foam::metisDecomp::decompose
+Foam::label Foam::metisDecomp::decomposeSerial
 (
-    const List<label>& adjncy,
-    const List<label>& xadj,
-    const scalarField& cellWeights,
-    List<label>& finalDecomp
-)
+    const labelList& adjncy,
+    const labelList& xadj,
+    const List<scalar>& cellWeights,
+    labelList& decomp
+) const
 {
     FatalErrorInFunction
         << notImplementedMessage << exit(FatalError);
@@ -74,56 +73,12 @@ Foam::label Foam::metisDecomp::decompose
 
 Foam::metisDecomp::metisDecomp
 (
-    const dictionary& decompositionDict
+    const dictionary& decompDict,
+    const word& regionName
 )
 :
-    decompositionMethod(decompositionDict)
+    metisLikeDecomp("metis", decompDict, regionName)
 {}
-
-
-// * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
-
-Foam::labelList Foam::metisDecomp::decompose
-(
-    const polyMesh& mesh,
-    const pointField& points,
-    const scalarField& pointWeights
-)
-{
-    FatalErrorInFunction
-        << notImplementedMessage << exit(FatalError);
-
-    return labelList();
-}
-
-
-Foam::labelList Foam::metisDecomp::decompose
-(
-    const polyMesh& mesh,
-    const labelList& agglom,
-    const pointField& agglomPoints,
-    const scalarField& agglomWeights
-)
-{
-    FatalErrorInFunction
-        << notImplementedMessage << exit(FatalError);
-
-    return labelList();
-}
-
-
-Foam::labelList Foam::metisDecomp::decompose
-(
-    const labelListList& globalCellCells,
-    const pointField& cellCentres,
-    const scalarField& cellWeights
-)
-{
-    FatalErrorInFunction
-        << notImplementedMessage << exit(FatalError);
-
-    return labelList();
-}
 
 
 // ************************************************************************* //

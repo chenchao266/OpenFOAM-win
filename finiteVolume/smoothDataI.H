@@ -1,9 +1,12 @@
-﻿/*---------------------------------------------------------------------------*\
+/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2013 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2013 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -24,197 +27,188 @@ License
 \*---------------------------------------------------------------------------*/
 
 // * * * * * * * * * * * * * Private Member Functions  * * * * * * * * * * * //
-namespace Foam {
-    template<class TrackingData>
-    inline bool smoothData::update
-    (
-        const smoothData& svf,
-        const scalar scale,
-        const scalar tol,
-        TrackingData& td
-    )
+
+template<class TrackingData>
+inline bool Foam::smoothData::update
+(
+    const smoothData& svf,
+    const scalar scale,
+    const scalar tol,
+    TrackingData& td
+)
+{
+    if (!valid(td) || (value_ < VSMALL))
     {
-        if (!valid(td) || (value_ < VSMALL))
-        {
-            // My value not set - take over neighbour
-            value_ = svf.value() / scale;
+        // My value not set - take over neighbour
+        value_ = svf.value()/scale;
 
-            // Something changed - let caller know
-            return true;
-        }
-        else if (svf.value() > (1 + tol)*scale*value_)
-        {
-            // Neighbour is too big for me - Up my value
-            value_ = svf.value() / scale;
-
-            // Something changed - let caller know
-            return true;
-        }
-        else
-        {
-            // Neighbour is not too big for me or change is too small
-            // Nothing changed
-            return false;
-        }
-    }
-
-
-    // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
-
-    inline smoothData::smoothData()
-        :
-        value_(-GREAT)
-    {}
-
-
-    inline smoothData::smoothData(const scalar value)
-        :
-        value_(value)
-    {}
-
-
-    // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
-
-    template<class TrackingData>
-    inline bool smoothData::valid(TrackingData& td) const
-    {
-        return value_ > -SMALL;
-    }
-
-
-    template<class TrackingData>
-    inline bool smoothData::sameGeometry
-    (
-        const polyMesh&,
-        const smoothData&,
-        const scalar,
-        TrackingData& td
-    ) const
-    {
+        // Something changed - let caller know
         return true;
     }
-
-
-    template<class TrackingData>
-    inline void smoothData::leaveDomain
-    (
-        const polyMesh&,
-        const polyPatch&,
-        const label,
-        const point&,
-        TrackingData& td
-    )
-    {}
-
-
-    template<class TrackingData>
-    inline void smoothData::transform
-    (
-        const polyMesh&,
-        const tensor&,
-        TrackingData& td
-    )
-    {}
-
-
-    template<class TrackingData>
-    inline void smoothData::enterDomain
-    (
-        const polyMesh&,
-        const polyPatch&,
-        const label,
-        const point&,
-        TrackingData& td
-    )
-    {}
-
-
-    template<class TrackingData>
-    inline bool smoothData::updateCell
-    (
-        const polyMesh&,
-        const label,
-        const label,
-        const smoothData& svf,
-        const scalar tol,
-        TrackingData& td
-    )
+    else if (svf.value() > (1 + tol)*scale*value_)
     {
-        // Take over info from face if more than deltaRatio larger
-        return update(svf, td.maxRatio, tol, td);
+        // Neighbour is too big for me - Up my value
+        value_ = svf.value()/scale;
+
+        // Something changed - let caller know
+        return true;
     }
-
-
-    template<class TrackingData>
-    inline bool smoothData::updateFace
-    (
-        const polyMesh&,
-        const label,
-        const label,
-        const smoothData& svf,
-        const scalar tol,
-        TrackingData& td
-    )
+    else
     {
-        // Take over information from cell without any scaling (scale = 1.0)
-        return update(svf, 1.0, tol, td);
-    }
-
-
-    // Update this (face) with coupled face information.
-    template<class TrackingData>
-    inline bool smoothData::updateFace
-    (
-        const polyMesh&,
-        const label,
-        const smoothData& svf,
-        const scalar tol,
-        TrackingData& td
-    )
-    {
-        // Take over information from coupled face without any scaling (scale = 1.0)
-        return update(svf, 1.0, tol, td);
-    }
-
-
-    template<class TrackingData>
-    inline bool smoothData::equal
-    (
-        const smoothData& rhs,
-        TrackingData& td
-    ) const
-    {
-        return operator==(rhs);
-    }
-
-
-    // * * * * * * * * * * * * * * * Member Operators  * * * * * * * * * * * * * //
-
-    inline void smoothData::operator=
-        (
-            const scalar value
-            )
-    {
-        value_ = value;
-    }
-
-
-    inline bool smoothData::operator==
-        (
-            const smoothData& rhs
-            ) const
-    {
-        return value_ == rhs.value();
-    }
-
-
-    inline bool smoothData::operator!=
-        (
-            const smoothData& rhs
-            ) const
-    {
-        return !(*this == rhs);
+        // Neighbour is not too big for me or change is too small
+        // Nothing changed
+        return false;
     }
 }
+
+
+// * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
+
+inline Foam::smoothData::smoothData()
+:
+    value_(-GREAT)
+{}
+
+
+inline Foam::smoothData::smoothData(const scalar value)
+:
+    value_(value)
+{}
+
+
+// * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
+
+template<class TrackingData>
+inline bool Foam::smoothData::valid(TrackingData& td) const
+{
+    return value_ > -SMALL;
+}
+
+
+template<class TrackingData>
+inline bool Foam::smoothData::sameGeometry
+(
+    const polyMesh&,
+    const smoothData&,
+    const scalar,
+    TrackingData& td
+) const
+{
+    return true;
+}
+
+
+template<class TrackingData>
+inline void Foam::smoothData::leaveDomain
+(
+    const polyMesh&,
+    const polyPatch&,
+    const label,
+    const point&,
+    TrackingData& td
+)
+{}
+
+
+template<class TrackingData>
+inline void Foam::smoothData::transform
+(
+    const polyMesh&,
+    const tensor&,
+    TrackingData& td
+)
+{}
+
+
+template<class TrackingData>
+inline void Foam::smoothData::enterDomain
+(
+    const polyMesh&,
+    const polyPatch&,
+    const label,
+    const point&,
+    TrackingData& td
+)
+{}
+
+
+template<class TrackingData>
+inline bool Foam::smoothData::updateCell
+(
+    const polyMesh&,
+    const label,
+    const label,
+    const smoothData& svf,
+    const scalar tol,
+    TrackingData& td
+)
+{
+    // Take over info from face if more than deltaRatio larger
+    return update(svf, td.maxRatio, tol, td);
+}
+
+
+template<class TrackingData>
+inline bool Foam::smoothData::updateFace
+(
+    const polyMesh&,
+    const label,
+    const label,
+    const smoothData& svf,
+    const scalar tol,
+    TrackingData& td
+)
+{
+    // Take over information from cell without any scaling (scale = 1.0)
+    return update(svf, 1.0, tol, td);
+}
+
+
+// Update this (face) with coupled face information.
+template<class TrackingData>
+inline bool Foam::smoothData::updateFace
+(
+    const polyMesh&,
+    const label,
+    const smoothData& svf,
+    const scalar tol,
+    TrackingData& td
+)
+{
+    // Take over information from coupled face without any scaling (scale = 1.0)
+    return update(svf, 1.0, tol, td);
+}
+
+
+template<class TrackingData>
+inline bool Foam::smoothData::equal
+(
+    const smoothData& rhs,
+    TrackingData& td
+) const
+{
+    return operator==(rhs);
+}
+
+
+// * * * * * * * * * * * * * * * Member Operators  * * * * * * * * * * * * * //
+
+inline bool Foam::smoothData::operator==
+(
+    const smoothData& rhs
+) const
+{
+    return value_ == rhs.value_;
+}
+
+
+inline bool Foam::smoothData::operator!=
+(
+    const smoothData& rhs
+) const
+{
+    return !(*this == rhs);
+}
+
 
 // ************************************************************************* //

@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2014-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2014-2016 OpenFOAM Foundation
+    Copyright (C) 2019 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -84,9 +87,11 @@ class buoyantKEpsilon
 {
     // Private Member Functions
 
-        // Disallow default bitwise copy construct and assignment
-        buoyantKEpsilon(const buoyantKEpsilon&);
-        void operator=(const buoyantKEpsilon&);
+        //- No copy construct
+        buoyantKEpsilon(const buoyantKEpsilon&) = delete;
+
+        //- No copy assignment
+        void operator=(const buoyantKEpsilon&) = delete;
 
 
 protected:
@@ -133,8 +138,7 @@ public:
 
 
     //- Destructor
-    virtual ~buoyantKEpsilon()
-    {}
+    virtual ~buoyantKEpsilon() = default;
 
 
     // Member Functions

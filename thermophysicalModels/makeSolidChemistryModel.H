@@ -1,9 +1,11 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2012-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2012-2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -43,7 +45,7 @@ Description
     (                                                                          \
         sChemistry##Comp##SThermo,                                             \
         (Foam::word(sChemistry##Comp##SThermo::typeName_()) + "<"#Comp","      \
-        + SThermo::typeName() + ">").c_str(),                                  \
+        +  Foam::SThermo::typeName() + ">").c_str(),                                  \
         0                                                                      \
     );
 
@@ -57,7 +59,7 @@ Description
     (                                                                          \
         SS##Comp##SThermo##GThermo,                                            \
         (Foam::word(SS##Comp##SThermo##GThermo::typeName_()) + "<"#Comp","     \
-        + SThermo::typeName() + "," + GThermo::typeName() + ">").c_str(),      \
+        +  Foam::SThermo::typeName() + "," + Foam::GThermo::typeName() + ">").c_str(),      \
         0                                                                      \
     );
 

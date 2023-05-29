@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2013-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2013-2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -23,67 +25,71 @@ License
 
 \*---------------------------------------------------------------------------*/
 
-//#include "demandDrivenEntry.H"
+#include "demandDrivenEntry.H"
 
 // * * * * * * * * * * * * * * * Constructor * * * * * * * * * * * * * * * * //
-namespace Foam {
-    template<class Type>
-    demandDrivenEntry<Type>::demandDrivenEntry
-    (
-        const dictionary& dict,
-        const Type& value
-    )
-        :
-        dict_(dict),
-        keyword_("unknown-keyword"),
-        value_(value),
-        stored_(true)
-    {}
 
 
-    template<class Type>
-    demandDrivenEntry<Type>::demandDrivenEntry
-    (
-        const dictionary& dict,
-        const word& keyword
-    )
-        :
-        dict_(dict),
-        keyword_(keyword),
-        value_(Zero),
-        stored_(false)
-    {}
+ namespace Foam{
+template<class Type>
+demandDrivenEntry<Type>::demandDrivenEntry
+(
+    const dictionary& dict,
+    const Type& value
+)
+:
+    dict_(dict),
+    keyword_("unknown-keyword"),
+    value_(value),
+    stored_(true)
+{}
 
 
-    template<class Type>
-    demandDrivenEntry<Type>::demandDrivenEntry
-    (
-        const dictionary& dict,
-        const word& keyword,
-        const Type& defaultValue,
-        const bool readIfPresent
-    )
-        :
-        dict_(dict),
-        keyword_(keyword),
-        value_(defaultValue),
-        stored_(true)
+template<class Type>
+demandDrivenEntry<Type>::demandDrivenEntry
+(
+    const dictionary& dict,
+    const word& keyword
+)
+:
+    dict_(dict),
+    keyword_(keyword),
+    value_(Zero),
+    stored_(false)
+{}
+
+
+template<class Type>
+demandDrivenEntry<Type>::demandDrivenEntry
+(
+    const dictionary& dict,
+    const word& keyword,
+    const Type& defaultValue,
+    const bool readIfPresent
+)
+:
+    dict_(dict),
+    keyword_(keyword),
+    value_(defaultValue),
+    stored_(true)
+{
+    if (readIfPresent)
     {
-        if (readIfPresent)
-        {
-            dict_.readIfPresent<Type>(keyword, value_);
-        }
+        dict_.readIfPresent<Type>(keyword, value_);
     }
-
-
-    template<class Type>
-    demandDrivenEntry<Type>::demandDrivenEntry(const demandDrivenEntry& dde)
-        :
-        dict_(dde.dict_),
-        keyword_(dde.keyword_),
-        value_(dde.value_),
-        stored_(dde.stored_)
-    {}
 }
 
+
+template<class Type>
+demandDrivenEntry<Type>::demandDrivenEntry(const demandDrivenEntry& dde)
+:
+    dict_(dde.dict_),
+    keyword_(dde.keyword_),
+    value_(dde.value_),
+    stored_(dde.stored_)
+{}
+
+
 // ************************************************************************* //
+
+ } // End namespace Foam

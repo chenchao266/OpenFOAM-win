@@ -1,9 +1,12 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -45,7 +48,7 @@ inline bool Foam::wallPoint::update
     //    return false;
     //}
 
-    scalar dist2 = magSqr(pt - w2.origin());
+    const scalar dist2 = magSqr(pt - w2.origin());
 
     if (!valid(td))
     {
@@ -56,7 +59,7 @@ inline bool Foam::wallPoint::update
         return true;
     }
 
-    scalar diff = distSqr_ - dist2;
+    const scalar diff = distSqr_ - dist2;
 
     if (diff < 0)
     {
@@ -84,7 +87,7 @@ inline bool Foam::wallPoint::update
 
 inline Foam::wallPoint::wallPoint()
 :
-    origin_(point::max),
+    origin_(point::max_),
     distSqr_(-GREAT)
 {}
 
@@ -96,38 +99,7 @@ inline Foam::wallPoint::wallPoint(const point& origin, const scalar distSqr)
 {}
 
 
-inline Foam::wallPoint::wallPoint(const wallPoint& wpt)
-:
-    origin_(wpt.origin()),
-    distSqr_(wpt.distSqr())
-{}
-
-
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
-
-inline const Foam::point& Foam::wallPoint::origin() const
-{
-    return origin_;
-}
-
-
-inline Foam::point& Foam::wallPoint::origin()
-{
-    return origin_;
-}
-
-
-inline Foam::scalar Foam::wallPoint::distSqr() const
-{
-    return distSqr_;
-}
-
-
-inline Foam::scalar& Foam::wallPoint::distSqr()
-{
-    return distSqr_;
-}
-
 
 template<class TrackingData>
 inline bool Foam::wallPoint::valid(TrackingData& td) const
@@ -146,7 +118,7 @@ inline bool Foam::wallPoint::sameGeometry
     TrackingData& td
 ) const
 {
-    scalar diff = mag(distSqr() - w2.distSqr());
+    const scalar diff = mag(distSqr() - w2.distSqr());
 
     if (diff < SMALL)
     {
@@ -229,7 +201,7 @@ inline bool Foam::wallPoint::updateCell
             tol,
             td
         );
-    }
+}
 
 
 // Update this with w2 if w2 nearer to pt.
@@ -253,6 +225,7 @@ inline bool Foam::wallPoint::updateFace
             td
         );
 }
+
 
 // Update this with w2 if w2 nearer to pt.
 template<class TrackingData>
@@ -289,13 +262,19 @@ inline bool Foam::wallPoint::equal
 
 // * * * * * * * * * * * * * * * Member Operators  * * * * * * * * * * * * * //
 
-inline bool Foam::wallPoint::operator==(const Foam::wallPoint& rhs) const
+inline bool Foam::wallPoint::operator==
+(
+    const wallPoint& rhs
+) const
 {
-    return origin() == rhs.origin();
+    return origin_ == rhs.origin_;
 }
 
 
-inline bool Foam::wallPoint::operator!=(const Foam::wallPoint& rhs) const
+inline bool Foam::wallPoint::operator!=
+(
+    const wallPoint& rhs
+) const
 {
     return !(*this == rhs);
 }

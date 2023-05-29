@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011 OpenFOAM Foundation
+    Copyright (C) 2016-2018 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -50,8 +53,6 @@ class pointSet
 :
     public topoSet
 {
-
-
 public:
 
     //- Runtime type information
@@ -60,9 +61,8 @@ public:
 
     // Constructors
 
-
         //- Construct from IOobject
-        pointSet(const IOobject& obj);
+        explicit pointSet(const IOobject& obj);
 
         //- Construct from objectRegistry and name
         pointSet
@@ -73,36 +73,54 @@ public:
             writeOption w=NO_WRITE
         );
 
-        //- Construct from additional size of labelHashSet
+        //- Construct empty with initial size for labelHashSet
         pointSet
         (
             const polyMesh& mesh,
             const word& name,
-            const label,
+            const label size,
             writeOption w=NO_WRITE
         );
 
-        //- Construct from additional labelHashSet
+        //- Construct from existing set
         pointSet
         (
             const polyMesh& mesh,
             const word& name,
-            const topoSet&,
+            const topoSet& set,
             writeOption w=NO_WRITE
         );
 
-        //- Construct from additional labelHashSet
+        //- Construct (no-read) with copy of labelHashSet
         pointSet
         (
             const polyMesh& mesh,
             const word& name,
-            const labelHashSet&,
+            const labelHashSet& labels,
+            writeOption w=NO_WRITE
+        );
+
+        //- Construct (no-read) with moving labelHashSet
+        pointSet
+        (
+            const polyMesh& mesh,
+            const word& name,
+            labelHashSet&& labels,
+            writeOption w=NO_WRITE
+        );
+
+        //- Construct (no-read) with copy of labels
+        pointSet
+        (
+            const polyMesh& mesh,
+            const word& name,
+            const labelUList& labels,
             writeOption w=NO_WRITE
         );
 
 
     //- Destructor
-    virtual ~pointSet();
+    virtual ~pointSet() = default;
 
 
     // Member functions
@@ -116,8 +134,8 @@ public:
         //- Update any stored data for new labels
         virtual void updateMesh(const mapPolyMesh& morphMap);
 
-        //- Update any stored data for new labels
-        //virtual void updateMesh(const polyTopoChange& meshMod);
+        //- Update any stored data for mesh redistribution.
+        virtual void distribute(const mapDistributePolyMesh&);
 
         //- Write maxLen items with label and coordinates.
         virtual void writeDebug
@@ -126,7 +144,6 @@ public:
             const primitiveMesh&,
             const label maxLen
         ) const;
-
 };
 
 

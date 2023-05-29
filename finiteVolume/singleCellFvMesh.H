@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2019 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -78,11 +81,11 @@ class singleCellFvMesh
         void agglomerateMesh(const fvMesh&, const labelListList&);
 
 
-        //- Disallow default bitwise copy construct
-        singleCellFvMesh(const singleCellFvMesh&);
+        //- No copy construct
+        singleCellFvMesh(const singleCellFvMesh&) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const singleCellFvMesh&);
+        //- No copy assignment
+        void operator=(const singleCellFvMesh&) = delete;
 
 
 public:
@@ -111,9 +114,9 @@ public:
                     weights_(weights),
                     hasUnmapped_(false)
                 {
-                    forAll(addressing_, i)
+                    for (const labelList& addr : addressing)
                     {
-                        if (addressing_[i].empty())
+                        if (addr.empty())
                         {
                             hasUnmapped_ = true;
                             break;
@@ -155,7 +158,7 @@ public:
         singleCellFvMesh(const IOobject& io, const fvMesh&);
 
         //- Construct from fvMesh and agglomeration of boundary faces.
-        //  agglomeration is per patch, per patch face index the agglomeration
+        //  Agglomeration is per patch, per patch face index the agglomeration
         //  the face goes into.
         singleCellFvMesh
         (
@@ -193,14 +196,14 @@ public:
         }
 
         //- From point on original mesh to point on this (or -1 for removed
-        //  points)
+        //- points)
         const labelList& reversePointMap() const
         {
             return reversePointMap_;
         }
 
         //- Map volField. Internal field set to average, patch fields straight
-        //  copies.
+        //- copies.
         template<class Type>
         tmp<GeometricField<Type, fvPatchField, volMesh>>
         interpolate

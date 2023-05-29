@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2015-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2015-2016 OpenFOAM Foundation
+    Copyright (C) 2018 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -32,50 +35,52 @@ License
 
 namespace Foam
 {
-    defineTypeName(refinementHistoryConstraint);
+namespace decompositionConstraints
+{
+    defineTypeName(refinementHistory);
 
     addToRunTimeSelectionTable
     (
         decompositionConstraint,
-        refinementHistoryConstraint,
+        refinementHistory,
         dictionary
     );
+}
 }
 
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
-Foam::refinementHistoryConstraint::refinementHistoryConstraint
+Foam::decompositionConstraints::refinementHistory::refinementHistory
 (
-    const dictionary& constraintsDict,
-    const word& modelType
+    const dictionary& dict
 )
 :
-    decompositionConstraint(constraintsDict, typeName)
+    decompositionConstraint(dict, typeName)
 {
     if (decompositionConstraint::debug)
     {
-        Info<< type() << " : setting constraints to preserve refinement history"
-            << endl;
+        Info<< type()
+            << " : setting constraints to refinement history" << endl;
     }
 }
 
 
-Foam::refinementHistoryConstraint::refinementHistoryConstraint()
+Foam::decompositionConstraints::refinementHistory::refinementHistory()
 :
     decompositionConstraint(dictionary(), typeName)
 {
     if (decompositionConstraint::debug)
     {
-        Info<< type() << " : setting constraints to refinement history"
-            << endl;
+        Info<< type()
+            << " : setting constraints to refinement history" << endl;
     }
 }
 
 
 // * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * * //
 
-void Foam::refinementHistoryConstraint::add
+void Foam::decompositionConstraints::refinementHistory::add
 (
     const polyMesh& mesh,
     boolList& blockedFace,
@@ -84,16 +89,21 @@ void Foam::refinementHistoryConstraint::add
     List<labelPair>& explicitConnections
 ) const
 {
-    autoPtr<const refinementHistory> storagePtr;
-    refinementHistory const* refPtr = nullptr;
+    // The refinement history type
+    typedef ::Foam::refinementHistory HistoryType;
 
-    if (mesh.foundObject<refinementHistory>("refinementHistory"))
+    // Local storage if read from file
+    autoPtr<const HistoryType> readFromFile;
+
+    const HistoryType* historyPtr =
+        mesh.findObject<HistoryType>("refinementHistory");
+
+    if (historyPtr)
     {
         if (decompositionConstraint::debug)
         {
             Info<< type() << " : found refinementHistory" << endl;
         }
-        refPtr = &mesh.lookupObject<refinementHistory>("refinementHistory");
     }
     else
     {
@@ -102,9 +112,10 @@ void Foam::refinementHistoryConstraint::add
             Info<< type() << " : reading refinementHistory from time "
                 << mesh.facesInstance() << endl;
         }
-        storagePtr.reset
+
+        readFromFile.reset
         (
-            new refinementHistory
+            new HistoryType
             (
                 IOobject
                 (
@@ -118,14 +129,11 @@ void Foam::refinementHistoryConstraint::add
                 mesh.nCells()
             )
         );
+
+        historyPtr = readFromFile.get();  // get(), not release()
     }
 
-    const refinementHistory& history =
-    (
-        storagePtr.valid()
-      ? storagePtr()
-      : *refPtr
-    );
+    const auto& history = *historyPtr;
 
     if (history.active())
     {
@@ -141,7 +149,7 @@ void Foam::refinementHistoryConstraint::add
 }
 
 
-void Foam::refinementHistoryConstraint::apply
+void Foam::decompositionConstraints::refinementHistory::apply
 (
     const polyMesh& mesh,
     const boolList& blockedFace,
@@ -151,27 +159,20 @@ void Foam::refinementHistoryConstraint::apply
     labelList& decomposition
 ) const
 {
-    autoPtr<const refinementHistory> storagePtr;
-    refinementHistory const* refPtr = nullptr;
+    // The refinement history type
+    typedef ::Foam::refinementHistory HistoryType;
 
-    if (mesh.foundObject<refinementHistory>("refinementHistory"))
+    // Local storage if read from file
+    autoPtr<const HistoryType> readFromFile;
+
+    const HistoryType* historyPtr =
+        mesh.findObject<HistoryType>("refinementHistory");
+
+    if (!historyPtr)
     {
-        //if (decompositionConstraint::debug)
-        //{
-        //    Info<< type() << " : found refinementHistory" << endl;
-        //}
-        refPtr = &mesh.lookupObject<refinementHistory>("refinementHistory");
-    }
-    else
-    {
-        //if (decompositionConstraint::debug)
-        //{
-        //    Info<< type() << " : reading refinementHistory from time "
-        //        << mesh.facesInstance() << endl;
-        //}
-        storagePtr.reset
+        readFromFile.reset
         (
-            new refinementHistory
+            new HistoryType
             (
                 IOobject
                 (
@@ -185,14 +186,11 @@ void Foam::refinementHistoryConstraint::apply
                 mesh.nCells()
             )
         );
+
+        historyPtr = readFromFile.get();  // get(), not release()
     }
 
-    const refinementHistory& history =
-    (
-        storagePtr.valid()
-      ? storagePtr()
-      : *refPtr
-    );
+    const auto& history = *historyPtr;
 
     if (history.active())
     {

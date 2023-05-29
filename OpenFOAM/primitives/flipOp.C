@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2015-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2015-2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -26,51 +28,54 @@ License
 #include "flipOp.H"
 
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
-namespace Foam {
-    template<>
-    scalar flipOp::operator()(const scalar& v) const
-    {
-        return -v;
-    }
 
 
-    template<> vector flipOp::operator()(const vector& v) const
-    {
-        return -v;
-    }
-
-
-    template<>sphericalTensor flipOp::operator()
-        (
-            const sphericalTensor& v
-            ) const
-    {
-        return -v;
-    }
-
-
-    template<> symmTensor flipOp::operator()
-        (
-            const symmTensor& v
-            ) const
-    {
-        return -v;
-    }
-
-
-    template<> tensor flipOp::operator()(const tensor& v) const
-    {
-        return -v;
-    }
-
-
-    template<> triad flipOp::operator()
-        (
-            const triad& v
-            ) const
-    {
-        return -v;
-    }
-
+ namespace Foam{
+template<> scalar flipOp::operator()(const scalar& v) const
+{
+    return -v;
 }
+
+
+template<> vector flipOp::operator()(const vector& v) const
+{
+    return -v;
+}
+
+
+template<> sphericalTensor flipOp::operator()
+(
+    const sphericalTensor& v
+) const
+{
+    return -v;
+}
+
+
+template<> symmTensor flipOp::operator()
+(
+    const symmTensor& v
+) const
+{
+    return -v;
+}
+
+
+template<> tensor flipOp::operator()(const tensor& v) const
+{
+    return -v;
+}
+
+
+template<> triad flipOp::operator()
+(
+    const triad& v
+) const
+{
+    return -v;
+}
+
+
 // ************************************************************************* //
+
+ } // End namespace Foam

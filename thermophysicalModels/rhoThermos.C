@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2015 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2020-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -29,24 +32,30 @@ License
 #include "specie.H"
 #include "perfectGas.H"
 #include "incompressiblePerfectGas.H"
-#include "Boussinesq.T.H"
+#include "Boussinesq.H"
 #include "rhoConst.H"
+#include "rPolynomial.H"
 #include "perfectFluid.H"
-#include "PengRobinsonGas.T.H"
+#include "PengRobinsonGas.H"
 #include "adiabaticPerfectFluid.H"
+#include "icoTabulated.H"
 
 #include "hConstThermo.H"
+#include "eConstThermo.H"
 #include "janafThermo.H"
+#include "hTabulatedThermo.H"
 #include "sensibleEnthalpy.H"
 #include "sensibleInternalEnergy.H"
 #include "thermo.H"
 
 #include "constTransport.H"
 #include "sutherlandTransport.H"
+#include "WLFTransport.H"
 
 #include "icoPolynomial.H"
 #include "hPolynomialThermo.H"
 #include "polynomialTransport.H"
+#include "tabulatedTransport.H"
 
 #include "heRhoThermo.H"
 #include "pureMixture.H"
@@ -56,9 +65,9 @@ License
 namespace Foam
 {
 
-/* * * * * * * * * * * * * * * private static data * * * * * * * * * * * * * */
+/* * * * * * * * * * * * * * * Private Static Data * * * * * * * * * * * * * */
 
-makeThermo
+makeThermos
 (
     rhoThermo,
     heRhoThermo,
@@ -70,7 +79,7 @@ makeThermo
     specie
 );
 
-makeThermo
+makeThermos
 (
     rhoThermo,
     heRhoThermo,
@@ -82,7 +91,7 @@ makeThermo
     specie
 );
 
-makeThermo
+makeThermos
 (
     rhoThermo,
     heRhoThermo,
@@ -94,7 +103,19 @@ makeThermo
     specie
 );
 
-makeThermo
+makeThermos
+(
+    rhoThermo,
+    heRhoThermo,
+    pureMixture,
+    tabulatedTransport,
+    sensibleEnthalpy,
+    hTabulatedThermo,
+    perfectGas,
+    specie
+);
+
+makeThermos
 (
     rhoThermo,
     heRhoThermo,
@@ -106,7 +127,7 @@ makeThermo
     specie
 );
 
-makeThermo
+makeThermos
 (
     rhoThermo,
     heRhoThermo,
@@ -118,7 +139,43 @@ makeThermo
     specie
 );
 
-makeThermo
+makeThermos
+(
+    rhoThermo,
+    heRhoThermo,
+    pureMixture,
+    constTransport,
+    sensibleEnthalpy,
+    hConstThermo,
+    rPolynomial,
+    specie
+);
+
+makeThermos
+(
+    rhoThermo,
+    heRhoThermo,
+    pureMixture,
+    tabulatedTransport,
+    sensibleEnthalpy,
+    hTabulatedThermo,
+    icoTabulated,
+    specie
+);
+
+makeThermos
+(
+    rhoThermo,
+    heRhoThermo,
+    pureMixture,
+    constTransport,
+    sensibleEnthalpy,
+    hConstThermo,
+    icoTabulated,
+    specie
+);
+
+makeThermos
 (
     rhoThermo,
     heRhoThermo,
@@ -130,7 +187,7 @@ makeThermo
     specie
 );
 
-makeThermo
+makeThermos
 (
     rhoThermo,
     heRhoThermo,
@@ -142,7 +199,31 @@ makeThermo
     specie
 );
 
-makeThermo
+makeThermos
+(
+    rhoThermo,
+    heRhoThermo,
+    pureMixture,
+    tabulatedTransport,
+    sensibleEnthalpy,
+    hPolynomialThermo,
+    icoPolynomial,
+    specie
+);
+
+makeThermos
+(
+    rhoThermo,
+    heRhoThermo,
+    pureMixture,
+    polynomialTransport,
+    sensibleEnthalpy,
+    hPolynomialThermo,
+    rPolynomial,
+    specie
+);
+
+makeThermos
 (
     rhoThermo,
     heRhoThermo,
@@ -154,7 +235,7 @@ makeThermo
     specie
 );
 
-makeThermo
+makeThermos
 (
     rhoThermo,
     heRhoThermo,
@@ -166,7 +247,19 @@ makeThermo
     specie
 );
 
-makeThermo
+makeThermos
+(
+    rhoThermo,
+    heRhoThermo,
+    pureMixture,
+    sutherlandTransport,
+    sensibleEnthalpy,
+    hConstThermo,
+    icoTabulated,
+    specie
+);
+
+makeThermos
 (
     rhoThermo,
     heRhoThermo,
@@ -178,7 +271,31 @@ makeThermo
     specie
 );
 
-makeThermo
+makeThermos
+(
+    rhoThermo,
+    heRhoThermo,
+    pureMixture,
+    sutherlandTransport,
+    sensibleEnthalpy,
+    janafThermo,
+    icoTabulated,
+    specie
+);
+
+makeThermos
+(
+    rhoThermo,
+    heRhoThermo,
+    pureMixture,
+    tabulatedTransport,
+    sensibleEnthalpy,
+    janafThermo,
+    icoTabulated,
+    specie
+);
+
+makeThermos
 (
     rhoThermo,
     heRhoThermo,
@@ -190,7 +307,7 @@ makeThermo
     specie
 );
 
-makeThermo
+makeThermos
 (
     rhoThermo,
     heRhoThermo,
@@ -202,7 +319,7 @@ makeThermo
     specie
 );
 
-makeThermo
+makeThermos
 (
     rhoThermo,
     heRhoThermo,
@@ -214,7 +331,7 @@ makeThermo
     specie
 );
 
-makeThermo
+makeThermos
 (
     rhoThermo,
     heRhoThermo,
@@ -226,7 +343,7 @@ makeThermo
     specie
 );
 
-makeThermo
+makeThermos
 (
     rhoThermo,
     heRhoThermo,
@@ -238,7 +355,19 @@ makeThermo
     specie
 );
 
-makeThermo
+makeThermos
+(
+    rhoThermo,
+    heRhoThermo,
+    pureMixture,
+    polynomialTransport,
+    sensibleEnthalpy,
+    hPolynomialThermo,
+    icoTabulated,
+    specie
+);
+
+makeThermos
 (
     rhoThermo,
     heRhoThermo,
@@ -252,7 +381,7 @@ makeThermo
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
-makeThermo
+makeThermos
 (
     rhoThermo,
     heRhoThermo,
@@ -264,7 +393,19 @@ makeThermo
     specie
 );
 
-makeThermo
+makeThermos
+(
+    rhoThermo,
+    heRhoThermo,
+    pureMixture,
+    tabulatedTransport,
+    sensibleInternalEnergy,
+    hTabulatedThermo,
+    icoTabulated,
+    specie
+);
+
+makeThermos
 (
     rhoThermo,
     heRhoThermo,
@@ -276,7 +417,19 @@ makeThermo
     specie
 );
 
-makeThermo
+makeThermos
+(
+    rhoThermo,
+    heRhoThermo,
+    pureMixture,
+    sutherlandTransport,
+    sensibleInternalEnergy,
+    hConstThermo,
+    icoTabulated,
+    specie
+);
+
+makeThermos
 (
     rhoThermo,
     heRhoThermo,
@@ -288,7 +441,19 @@ makeThermo
     specie
 );
 
-makeThermo
+makeThermos
+(
+    rhoThermo,
+    heRhoThermo,
+    pureMixture,
+    sutherlandTransport,
+    sensibleInternalEnergy,
+    janafThermo,
+    icoTabulated,
+    specie
+);
+
+makeThermos
 (
     rhoThermo,
     heRhoThermo,
@@ -300,7 +465,19 @@ makeThermo
     specie
 );
 
-makeThermo
+makeThermos
+(
+    rhoThermo,
+    heRhoThermo,
+    pureMixture,
+    constTransport,
+    sensibleInternalEnergy,
+    eConstThermo,
+    rhoConst,
+    specie
+);
+
+makeThermos
 (
     rhoThermo,
     heRhoThermo,
@@ -312,7 +489,55 @@ makeThermo
     specie
 );
 
-makeThermo
+makeThermos
+(
+    rhoThermo,
+    heRhoThermo,
+    pureMixture,
+    constTransport,
+    sensibleInternalEnergy,
+    hConstThermo,
+    rPolynomial,
+    specie
+);
+
+makeThermos
+(
+    rhoThermo,
+    heRhoThermo,
+    pureMixture,
+    constTransport,
+    sensibleInternalEnergy,
+    eConstThermo,
+    perfectFluid,
+    specie
+);
+
+makeThermos
+(
+    rhoThermo,
+    heRhoThermo,
+    pureMixture,
+    constTransport,
+    sensibleInternalEnergy,
+    eConstThermo,
+    perfectGas,
+    specie
+);
+
+makeThermos
+(
+    rhoThermo,
+    heRhoThermo,
+    pureMixture,
+    constTransport,
+    sensibleInternalEnergy,
+    eConstThermo,
+    rPolynomial,
+    specie
+);
+
+makeThermos
 (
     rhoThermo,
     heRhoThermo,
@@ -324,7 +549,21 @@ makeThermo
     specie
 );
 
-makeThermo
+
+makeThermos
+(
+    rhoThermo,
+    heRhoThermo,
+    pureMixture,
+    constTransport,
+    sensibleInternalEnergy,
+    eConstThermo,
+    adiabaticPerfectFluid,
+    specie
+);
+
+
+makeThermos
 (
     rhoThermo,
     heRhoThermo,
@@ -336,7 +575,31 @@ makeThermo
     specie
 );
 
-makeThermo
+makeThermos
+(
+    rhoThermo,
+    heRhoThermo,
+    pureMixture,
+    tabulatedTransport,
+    sensibleInternalEnergy,
+    hPolynomialThermo,
+    icoPolynomial,
+    specie
+);
+
+makeThermos
+(
+    rhoThermo,
+    heRhoThermo,
+    pureMixture,
+    polynomialTransport,
+    sensibleInternalEnergy,
+    hPolynomialThermo,
+    icoTabulated,
+    specie
+);
+
+makeThermos
 (
     rhoThermo,
     heRhoThermo,
@@ -348,7 +611,7 @@ makeThermo
     specie
 );
 
-makeThermo
+makeThermos
 (
     rhoThermo,
     heRhoThermo,
@@ -360,7 +623,7 @@ makeThermo
     specie
 );
 
-makeThermo
+makeThermos
 (
     rhoThermo,
     heRhoThermo,
@@ -372,7 +635,7 @@ makeThermo
     specie
 );
 
-makeThermo
+makeThermos
 (
     rhoThermo,
     heRhoThermo,
@@ -384,7 +647,7 @@ makeThermo
     specie
 );
 
-makeThermo
+makeThermos
 (
     rhoThermo,
     heRhoThermo,
@@ -396,7 +659,7 @@ makeThermo
     specie
 );
 
-makeThermo
+makeThermos
 (
     rhoThermo,
     heRhoThermo,
@@ -405,6 +668,43 @@ makeThermo
     sensibleInternalEnergy,
     janafThermo,
     Boussinesq,
+    specie
+);
+
+
+makeThermos
+(
+    rhoThermo,
+    heRhoThermo,
+    pureMixture,
+    WLFTransport,
+    sensibleInternalEnergy,
+    eConstThermo,
+    rhoConst,
+    specie
+);
+
+makeThermos
+(
+    rhoThermo,
+    heRhoThermo,
+    pureMixture,
+    polynomialTransport,
+    sensibleEnthalpy,
+    hPolynomialThermo,
+    perfectGas,
+    specie
+);
+
+makeThermos
+(
+    rhoThermo,
+    heRhoThermo,
+    pureMixture,
+    polynomialTransport,
+    sensibleEnthalpy,
+    hPolynomialThermo,
+    incompressiblePerfectGas,
     specie
 );
 

@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2016 OpenFOAM Foundation
+    Copyright (C) 2019-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -51,22 +54,22 @@ Foam::autoPtr<Foam::RBD::joint> Foam::RBD::joint::New
     const dictionary& dict
 )
 {
-    const word bodyType(dict.lookup("type"));
+    const word bodyType(dict.get<word>("type"));
 
-    dictionaryConstructorTable::iterator cstrIter =
-        dictionaryConstructorTablePtr_->find(bodyType);
+    auto* ctorPtr = dictionaryConstructorTable(bodyType);
 
-    if (cstrIter == dictionaryConstructorTablePtr_->end())
+    if (!ctorPtr)
     {
-        FatalErrorInFunction
-            << "Unknown joint type "
-            << bodyType << nl << nl
-            << "Valid joint types are : " << endl
-            << dictionaryConstructorTablePtr_->sortedToc()
-            << exit(FatalError);
+        FatalIOErrorInLookup
+        (
+            dict,
+            "joint",
+            bodyType,
+            *dictionaryConstructorTablePtr_
+        ) << exit(FatalIOError);
     }
 
-    return autoPtr<joint>(cstrIter()(dict));
+    return autoPtr<joint>(ctorPtr(dict));
 }
 
 
@@ -80,7 +83,7 @@ Foam::RBD::joint::~joint()
 
 void Foam::RBD::joint::write(Ostream& os) const
 {
-    os.writeKeyword("type") << type() << token::END_STATEMENT << nl;
+    os.writeEntry("type", type());
 }
 
 

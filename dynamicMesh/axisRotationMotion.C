@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2012-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2012-2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -60,12 +62,6 @@ Foam::solidBodyMotionFunctions::axisRotationMotion::axisRotationMotion
 }
 
 
-// * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
-
-Foam::solidBodyMotionFunctions::axisRotationMotion::~axisRotationMotion()
-{}
-
-
 // * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * * //
 
 Foam::septernion
@@ -98,8 +94,8 @@ bool Foam::solidBodyMotionFunctions::axisRotationMotion::read
 {
     solidBodyMotionFunction::read(SBMFCoeffs);
 
-    SBMFCoeffs_.lookup("origin") >> origin_;
-    SBMFCoeffs_.lookup("radialVelocity") >> radialVelocity_;
+    SBMFCoeffs_.readEntry("origin", origin_);
+    SBMFCoeffs_.readEntry("radialVelocity", radialVelocity_);
 
     return true;
 }

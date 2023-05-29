@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -23,249 +25,254 @@ License
 
 \*---------------------------------------------------------------------------*/
 
-#include "Pstream.T.H"
-#include "PstreamBuffers.T.H"
-#include "PstreamCombineReduceOps.T.H"
+#include "Pstream.H"
+#include "PstreamBuffers.H"
+#include "PstreamCombineReduceOps.H"
 #include "globalIndexAndTransform.H"
 #include "transformField.H"
 #include "flipOp.H"
 
 // * * * * * * * * * * * * * Private Member Functions  * * * * * * * * * * * //
-namespace Foam {
-    template<class T>
-    void mapDistribute::applyDummyTransforms(List<T>& field) const
+
+
+ namespace Foam{
+template<class T>
+void mapDistribute::applyDummyTransforms(List<T>& field) const
+{
+    forAll(transformElements_, trafoI)
     {
-        forAll(transformElements_, trafoI)
+        const labelList& elems = transformElements_[trafoI];
+
+        label n = transformStart_[trafoI];
+
+        forAll(elems, i)
         {
-            const labelList& elems = transformElements_[trafoI];
-
-            label n = transformStart_[trafoI];
-
-            forAll(elems, i)
-            {
-                field[n++] = field[elems[i]];
-            }
+            field[n++] = field[elems[i]];
         }
     }
-
-
-    template<class T>
-    void mapDistribute::applyDummyInverseTransforms(List<T>& field) const
-    {
-        forAll(transformElements_, trafoI)
-        {
-            const labelList& elems = transformElements_[trafoI];
-            label n = transformStart_[trafoI];
-
-            forAll(elems, i)
-            {
-                field[elems[i]] = field[n++];
-            }
-        }
-    }
-
-
-    template<class T, class TransformOp>   //, class CombineOp>
-    void mapDistribute::applyTransforms
-    (
-        const globalIndexAndTransform& globalTransforms,
-        List<T>& field,
-        const TransformOp& top
-    ) const
-    {
-        const List<vectorTensorTransform>& totalTransform =
-            globalTransforms.transformPermutations();
-
-        forAll(totalTransform, trafoI)
-        {
-            const vectorTensorTransform& vt = totalTransform[trafoI];
-            const labelList& elems = transformElements_[trafoI];
-            label n = transformStart_[trafoI];
-
-            // Could be optimised to avoid memory allocations
-            List<T> transformFld(UIndirectList<T>(field, elems));
-            top(vt, true, transformFld);
-
-            forAll(transformFld, i)
-            {
-                //cop(field[n++], transformFld[i]);
-                field[n++] = transformFld[i];
-            }
-        }
-    }
-
-
-    template<class T, class TransformOp>   //, class CombineOp>
-    void mapDistribute::applyInverseTransforms
-    (
-        const globalIndexAndTransform& globalTransforms,
-        List<T>& field,
-        const TransformOp& top
-    ) const
-    {
-        const List<vectorTensorTransform>& totalTransform =
-            globalTransforms.transformPermutations();
-
-        forAll(totalTransform, trafoI)
-        {
-            const vectorTensorTransform& vt = totalTransform[trafoI];
-            const labelList& elems = transformElements_[trafoI];
-            label n = transformStart_[trafoI];
-
-            // Could be optimised to avoid memory allocations
-            List<T> transformFld(SubList<T>(field, elems.size(), n));
-            top(vt, false, transformFld);
-
-            forAll(transformFld, i)
-            {
-                //cop(field[elems[i]], transformFld[i]);
-                field[elems[i]] = transformFld[i];
-            }
-        }
-    }
-
-
-    template<class T, class negateOp>
-    void mapDistribute::distribute
-    (
-        List<T>& fld,
-        const negateOp& negOp,
-        const bool dummyTransform,
-        const int tag
-    ) const
-    {
-        mapDistributeBase::distribute(fld, negOp, tag);
-
-        //- Fill in transformed slots with copies
-        if (dummyTransform)
-        {
-            applyDummyTransforms(fld);
-        }
-    }
-
-
-    template<class T>
-    void mapDistribute::distribute
-    (
-        List<T>& fld,
-        const bool dummyTransform,
-        const int tag
-    ) const
-    {
-        distribute(fld, flipOp(), dummyTransform, tag);
-    }
-
-
-    template<class T>
-    void mapDistribute::distribute
-    (
-        DynamicList<T>& fld,
-        const bool dummyTransform,
-        const int tag
-    ) const
-    {
-        fld.shrink();
-
-        List<T>& fldList = static_cast<List<T>&>(fld);
-
-        distribute(fldList, dummyTransform, tag);
-
-        fld.setCapacity(fldList.size());
-    }
-
-
-    template<class T>
-    void mapDistribute::reverseDistribute
-    (
-        const label constructSize,
-        List<T>& fld,
-        const bool dummyTransform,
-        const int tag
-    ) const
-    {
-        if (dummyTransform)
-        {
-            applyDummyInverseTransforms(fld);
-        }
-
-        mapDistributeBase::reverseDistribute(constructSize, fld, tag);
-    }
-
-
-    template<class T>
-    void mapDistribute::reverseDistribute
-    (
-        const label constructSize,
-        const T& nullValue,
-        List<T>& fld,
-        const bool dummyTransform,
-        const int tag
-    ) const
-    {
-        if (dummyTransform)
-        {
-            applyDummyInverseTransforms(fld);
-        }
-
-        mapDistributeBase::reverseDistribute(constructSize, nullValue, fld, tag);
-    }
-
-
-    template<class T, class TransformOp>
-    void mapDistribute::distribute
-    (
-        const globalIndexAndTransform& git,
-        List<T>& fld,
-        const TransformOp& top,
-        const int tag
-    ) const
-    {
-        // Distribute. Leave out dummy transforms since we're doing them ourselves
-        distribute(fld, false, tag);
-        // Do transforms
-        applyTransforms(git, fld, top);
-    }
-
-
-    template<class T, class TransformOp>
-    void mapDistribute::reverseDistribute
-    (
-        const globalIndexAndTransform& git,
-        const label constructSize,
-        List<T>& fld,
-        const TransformOp& top,
-        const int tag
-    ) const
-    {
-        // Fill slots with reverse-transformed data. Note that it also copies
-        // back into the non-remote part of fld even though these values are not
-        // used.
-        applyInverseTransforms(git, fld, top);
-
-        // And send back (the remote slots). Disable dummy transformations.
-        reverseDistribute(constructSize, fld, false, tag);
-    }
-
-
-    template<class T, class TransformOp>
-    void mapDistribute::reverseDistribute
-    (
-        const globalIndexAndTransform& git,
-        const label constructSize,
-        const T& nullValue,
-        List<T>& fld,
-        const TransformOp& top,
-        const int tag
-    ) const
-    {
-        // Fill slots with reverse-transformed data Note that it also copies
-        // back into the non-remote part of fld even though these values are not
-        // used.
-        applyInverseTransforms(git, fld, top);   //, eqOp<T>());
-
-        // And send back (the remote slots) Disable dummy transformations.
-        reverseDistribute(constructSize, nullValue, fld, false, tag);
-    }
-    
 }
+
+
+template<class T>
+void mapDistribute::applyDummyInverseTransforms(List<T>& field) const
+{
+    forAll(transformElements_, trafoI)
+    {
+        const labelList& elems = transformElements_[trafoI];
+        label n = transformStart_[trafoI];
+
+        forAll(elems, i)
+        {
+            field[elems[i]] = field[n++];
+        }
+    }
+}
+
+
+template<class T, class TransformOp>   //, class CombineOp>
+void mapDistribute::applyTransforms
+(
+    const globalIndexAndTransform& globalTransforms,
+    List<T>& field,
+    const TransformOp& top
+) const
+{
+    const List<vectorTensorTransform>& totalTransform =
+        globalTransforms.transformPermutations();
+
+    forAll(totalTransform, trafoI)
+    {
+        const vectorTensorTransform& vt = totalTransform[trafoI];
+        const labelList& elems = transformElements_[trafoI];
+        label n = transformStart_[trafoI];
+
+        // Could be optimised to avoid memory allocations
+        List<T> transformFld(UIndirectList<T>(field, elems));
+        top(vt, true, transformFld);
+
+        forAll(transformFld, i)
+        {
+            //cop(field[n++], transformFld[i]);
+            field[n++] = transformFld[i];
+        }
+    }
+}
+
+
+template<class T, class TransformOp>   //, class CombineOp>
+void mapDistribute::applyInverseTransforms
+(
+    const globalIndexAndTransform& globalTransforms,
+    List<T>& field,
+    const TransformOp& top
+) const
+{
+    const List<vectorTensorTransform>& totalTransform =
+        globalTransforms.transformPermutations();
+
+    forAll(totalTransform, trafoI)
+    {
+        const vectorTensorTransform& vt = totalTransform[trafoI];
+        const labelList& elems = transformElements_[trafoI];
+        label n = transformStart_[trafoI];
+
+        // Could be optimised to avoid memory allocations
+        List<T> transformFld(SubList<T>(field, elems.size(), n));
+        top(vt, false, transformFld);
+
+        forAll(transformFld, i)
+        {
+            //cop(field[elems[i]], transformFld[i]);
+            field[elems[i]] = transformFld[i];
+        }
+    }
+}
+
+
+template<class T, class negateOp>
+void mapDistribute::distribute
+(
+    List<T>& fld,
+    const negateOp& negOp,
+    const bool dummyTransform,
+    const int tag
+) const
+{
+    mapDistributeBase::distribute(fld, negOp, tag);
+
+    //- Fill in transformed slots with copies
+    if (dummyTransform)
+    {
+        applyDummyTransforms(fld);
+    }
+}
+
+
+//- Distribute data using default commsType.
+template<class T>
+void mapDistribute::distribute
+(
+    List<T>& fld,
+    const bool dummyTransform,
+    const int tag
+) const
+{
+    distribute(fld, flipOp(), dummyTransform, tag);
+}
+
+
+template<class T>
+void mapDistribute::distribute
+(
+    DynamicList<T>& fld,
+    const bool dummyTransform,
+    const int tag
+) const
+{
+    fld.shrink();
+
+    List<T>& fldList = static_cast<List<T>&>(fld);
+
+    distribute(fldList, dummyTransform, tag);
+
+    fld.setCapacity(fldList.size());
+}
+
+
+template<class T>
+void mapDistribute::reverseDistribute
+(
+    const label constructSize,
+    List<T>& fld,
+    const bool dummyTransform,
+    const int tag
+) const
+{
+    if (dummyTransform)
+    {
+        applyDummyInverseTransforms(fld);
+    }
+
+    mapDistributeBase::reverseDistribute(constructSize, fld, tag);
+}
+
+
+template<class T>
+void mapDistribute::reverseDistribute
+(
+    const label constructSize,
+    const T& nullValue,
+    List<T>& fld,
+    const bool dummyTransform,
+    const int tag
+) const
+{
+    if (dummyTransform)
+    {
+        applyDummyInverseTransforms(fld);
+    }
+
+    mapDistributeBase::reverseDistribute(constructSize, nullValue, fld, tag);
+}
+
+
+template<class T, class TransformOp>
+void mapDistribute::distribute
+(
+    const globalIndexAndTransform& git,
+    List<T>& fld,
+    const TransformOp& top,
+    const int tag
+) const
+{
+    // Distribute. Leave out dummy transforms since we're doing them ourselves
+    distribute(fld, false, tag);
+    // Do transforms
+    applyTransforms(git, fld, top);
+}
+
+
+template<class T, class TransformOp>
+void mapDistribute::reverseDistribute
+(
+    const globalIndexAndTransform& git,
+    const label constructSize,
+    List<T>& fld,
+    const TransformOp& top,
+    const int tag
+) const
+{
+    // Fill slots with reverse-transformed data. Note that it also copies
+    // back into the non-remote part of fld even though these values are not
+    // used.
+    applyInverseTransforms(git, fld, top);
+
+    // And send back (the remote slots). Disable dummy transformations.
+    reverseDistribute(constructSize, fld, false, tag);
+}
+
+
+template<class T, class TransformOp>
+void mapDistribute::reverseDistribute
+(
+    const globalIndexAndTransform& git,
+    const label constructSize,
+    const T& nullValue,
+    List<T>& fld,
+    const TransformOp& top,
+    const int tag
+) const
+{
+    // Fill slots with reverse-transformed data Note that it also copies
+    // back into the non-remote part of fld even though these values are not
+    // used.
+    applyInverseTransforms(git, fld, top);   //, eqOp<T>());
+
+    // And send back (the remote slots) Disable dummy transformations.
+    reverseDistribute(constructSize, nullValue, fld, false, tag);
+}
+
+
 // ************************************************************************* //
+
+ } // End namespace Foam

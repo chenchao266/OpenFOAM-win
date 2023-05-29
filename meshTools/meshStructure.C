@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2013-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2013-2016 OpenFOAM Foundation
+    Copyright (C) 2019-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -24,16 +27,17 @@ License
 \*---------------------------------------------------------------------------*/
 
 #include "meshStructure.H"
-#include "FaceCellWave.T.H"
+#include "FaceCellWave.H"
 #include "topoDistanceData.H"
 #include "pointTopoDistanceData.H"
-#include "PointEdgeWave.T.H"
+#include "PointEdgeWave.H"
+#include "globalIndex.H"
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
 
 namespace Foam
 {
-defineTypeNameAndDebug(meshStructure, 0);
+    defineTypeNameAndDebug(meshStructure, 0);
 }
 
 
@@ -99,12 +103,15 @@ bool Foam::meshStructure::isStructuredCell
 void Foam::meshStructure::correct
 (
     const polyMesh& mesh,
-    const uindirectPrimitivePatch& pp
+    const uindirectPrimitivePatch& pp,
+    const globalIndex& globalFaces,
+    const globalIndex& globalEdges,
+    const globalIndex& globalPoints
 )
 {
     // Field on cells and faces.
-    List<topoDistanceData> cellData(mesh.nCells());
-    List<topoDistanceData> faceData(mesh.nFaces());
+    List<topoDistanceData<label>> cellData(mesh.nCells());
+    List<topoDistanceData<label>> faceData(mesh.nFaces());
 
     {
         if (debug)
@@ -117,16 +124,20 @@ void Foam::meshStructure::correct
 
         // Start of changes
         labelList patchFaces(pp.size());
-        List<topoDistanceData> patchData(pp.size());
+        List<topoDistanceData<label>> patchData(pp.size());
         forAll(pp, patchFacei)
         {
             patchFaces[patchFacei] = pp.addressing()[patchFacei];
-            patchData[patchFacei] = topoDistanceData(patchFacei, 0);
+            patchData[patchFacei] = topoDistanceData<label>
+            (
+                0,                                  // distance
+                globalFaces.toGlobal(patchFacei)    // passive data
+            );
         }
 
 
         // Propagate information inwards
-        FaceCellWave<topoDistanceData> distanceCalc
+        FaceCellWave<topoDistanceData<label>> distanceCalc
         (
             mesh,
             patchFaces,
@@ -221,21 +232,25 @@ void Foam::meshStructure::correct
         }
 
         // Field on edges and points.
-        List<pointTopoDistanceData> edgeData(mesh.nEdges());
-        List<pointTopoDistanceData> pointData(mesh.nPoints());
+        List<pointTopoDistanceData<label>> edgeData(mesh.nEdges());
+        List<pointTopoDistanceData<label>> pointData(mesh.nPoints());
 
         // Start of changes
         labelList patchPoints(pp.nPoints());
-        List<pointTopoDistanceData> patchData(pp.nPoints());
+        List<pointTopoDistanceData<label>> patchData(pp.nPoints());
         forAll(pp.meshPoints(), patchPointi)
         {
             patchPoints[patchPointi] = pp.meshPoints()[patchPointi];
-            patchData[patchPointi] = pointTopoDistanceData(patchPointi, 0);
+            patchData[patchPointi] = pointTopoDistanceData<label>
+            (
+                0,                                  // distance
+                globalPoints.toGlobal(patchPointi)  // passive data
+            );
         }
 
 
         // Walk
-        PointEdgeWave<pointTopoDistanceData> distanceCalc
+        PointEdgeWave<pointTopoDistanceData<label>> distanceCalc
         (
             mesh,
             patchPoints,
@@ -257,7 +272,13 @@ void Foam::meshStructure::correct
         EdgeMap<label> pointsToEdge(pp.nEdges());
         forAll(pp.edges(), edgeI)
         {
-            pointsToEdge.insert(pp.edges()[edgeI], edgeI);
+            const edge& e = pp.edges()[edgeI];
+            edge globalEdge
+            (
+                globalPoints.toGlobal(e[0]),
+                globalPoints.toGlobal(e[1])
+            );
+            pointsToEdge.insert(globalEdge, globalEdges.toGlobal(edgeI));
         }
 
         // Look up on faces
@@ -287,7 +308,8 @@ void Foam::meshStructure::correct
                     //    << " at:" << mesh.faceCentres()[facei]
                     //    << " data:" << faceData[facei]
                     //    << " pointDatas:"
-                    //    << UIndirectList<pointTopoDistanceData>(pointData, f)
+                    //    << UIndirectList<pointTopoDistanceData<label>>
+                    //       (pointData, f)
                     //    << endl;
 
                     label patchFacei = faceData[facei].data();
@@ -307,7 +329,7 @@ void Foam::meshStructure::correct
                         label pointi = f[fp];
                         label nextPointi = f.nextLabel(fp);
 
-                        EdgeMap<label>::const_iterator fnd = pointsToEdge.find
+                        const auto fnd = pointsToEdge.cfind
                         (
                             edge
                             (
@@ -315,9 +337,10 @@ void Foam::meshStructure::correct
                                 pointData[nextPointi].data()
                             )
                         );
-                        if (fnd != pointsToEdge.end())
+
+                        if (fnd.found())
                         {
-                            faceToPatchEdgeAddressing_[facei] = fnd();
+                            faceToPatchEdgeAddressing_[facei] = fnd.val();
                             faceToPatchFaceAddressing_[facei] = 0;
                             label own = mesh.faceOwner()[facei];
                             faceLayer_[facei] = cellData[own].distance();
@@ -380,7 +403,34 @@ Foam::meshStructure::meshStructure
     const uindirectPrimitivePatch& pp
 )
 {
-    correct(mesh, pp);
+    correct
+    (
+        mesh,
+        pp,
+        globalIndex(pp.size()),
+        globalIndex(pp.nEdges()),
+        globalIndex(pp.nPoints())
+    );
+}
+
+
+Foam::meshStructure::meshStructure
+(
+    const polyMesh& mesh,
+    const uindirectPrimitivePatch& pp,
+    const globalIndex& globalFaces,
+    const globalIndex& globalEdges,
+    const globalIndex& globalPoints
+)
+{
+    correct
+    (
+        mesh,
+        pp,
+        globalFaces,
+        globalEdges,
+        globalPoints
+    );
 }
 
 

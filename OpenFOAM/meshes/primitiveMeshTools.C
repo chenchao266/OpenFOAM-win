@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2012-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2012-2016 OpenFOAM Foundation
+    Copyright (C) 2017-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -24,11 +27,184 @@ License
 \*---------------------------------------------------------------------------*/
 
 #include "primitiveMeshTools.H"
+#include "primitiveMesh.H"
 #include "syncTools.H"
 #include "pyramidPointFaceRef.H"
+#include "PrecisionAdaptor.H"
 
 // * * * * * * * * * * * * * Private Member Functions  * * * * * * * * * * * //
-using namespace Foam;
+
+
+ namespace Foam{
+void primitiveMeshTools::makeFaceCentresAndAreas
+(
+    const primitiveMesh& mesh,
+    const pointField& p,
+    vectorField& fCtrs,
+    vectorField& fAreas
+)
+{
+    const faceList& fs = mesh.faces();
+
+    forAll(fs, facei)
+    {
+        const labelList& f = fs[facei];
+        const label nPoints = f.size();
+
+        // If the face is a triangle, do a direct calculation for efficiency
+        // and to avoid round-off error-related problems
+        if (nPoints == 3)
+        {
+            fCtrs[facei] = (1.0/3.0)*(p[f[0]] + p[f[1]] + p[f[2]]);
+            fAreas[facei] = 0.5*((p[f[1]] - p[f[0]])^(p[f[2]] - p[f[0]]));
+        }
+        else
+        {
+            typedef Vector<solveScalar> solveVector;
+
+            solveVector sumN = Zero;
+            solveScalar sumA = 0.0;
+            solveVector sumAc = Zero;
+
+            solveVector fCentre = p[f[0]];
+            for (label pi = 1; pi < nPoints; pi++)
+            {
+                fCentre += solveVector(p[f[pi]]);
+            }
+
+            fCentre /= nPoints;
+
+            for (label pi = 0; pi < nPoints; pi++)
+            {
+                const label nextPi(pi == nPoints-1 ? 0 : pi+1);
+                const solveVector nextPoint(p[f[nextPi]]);
+                const solveVector thisPoint(p[f[pi]]);
+
+                solveVector c = thisPoint + nextPoint + fCentre;
+                solveVector n = (nextPoint - thisPoint)^(fCentre - thisPoint);
+                solveScalar a = mag(n);
+                sumN += n;
+                sumA += a;
+                sumAc += a*c;
+            }
+
+            // This is to deal with zero-area faces. Mark very small faces
+            // to be detected in e.g., processorPolyPatch.
+            if (sumA < ROOTVSMALL)
+            {
+                fCtrs[facei] = fCentre;
+                fAreas[facei] = Zero;
+            }
+            else
+            {
+                fCtrs[facei] = (1.0/3.0)*sumAc/sumA;
+                fAreas[facei] = 0.5*sumN;
+            }
+        }
+    }
+}
+
+
+void primitiveMeshTools::makeCellCentresAndVols
+(
+    const primitiveMesh& mesh,
+    const vectorField& fCtrs,
+    const vectorField& fAreas,
+    vectorField& cellCtrs_s,
+    scalarField& cellVols_s
+)
+{
+    typedef Vector<solveScalar> solveVector;
+
+    PrecisionAdaptor<solveVector, vector> tcellCtrs(cellCtrs_s, false);
+    PrecisionAdaptor<solveScalar, scalar> tcellVols(cellVols_s, false);
+    Field<solveVector>& cellCtrs = tcellCtrs.ref();
+    Field<solveScalar>& cellVols = tcellVols.ref();
+
+    // Clear the fields for accumulation
+    cellCtrs = Zero;
+    cellVols = 0.0;
+
+    const labelList& own = mesh.faceOwner();
+    const labelList& nei = mesh.faceNeighbour();
+
+    // first estimate the approximate cell centre as the average of
+    // face centres
+
+    Field<solveVector> cEst(mesh.nCells(), Zero);
+    labelField nCellFaces(mesh.nCells(), Zero);
+
+    forAll(own, facei)
+    {
+        cEst[own[facei]] += solveVector(fCtrs[facei]);
+        ++nCellFaces[own[facei]];
+    }
+
+    forAll(nei, facei)
+    {
+        cEst[nei[facei]] += solveVector(fCtrs[facei]);
+        ++nCellFaces[nei[facei]];
+    }
+
+    forAll(cEst, celli)
+    {
+        cEst[celli] /= nCellFaces[celli];
+    }
+
+    forAll(own, facei)
+    {
+        const solveVector fc(fCtrs[facei]);
+        const solveVector fA(fAreas[facei]);
+
+        // Calculate 3*face-pyramid volume
+        solveScalar pyr3Vol =
+            fA & (fc - cEst[own[facei]]);
+
+        // Calculate face-pyramid centre
+        solveVector pc = (3.0/4.0)*fc + (1.0/4.0)*cEst[own[facei]];
+
+        // Accumulate volume-weighted face-pyramid centre
+        cellCtrs[own[facei]] += pyr3Vol*pc;
+
+        // Accumulate face-pyramid volume
+        cellVols[own[facei]] += pyr3Vol;
+    }
+
+    forAll(nei, facei)
+    {
+        const solveVector fc(fCtrs[facei]);
+        const solveVector fA(fAreas[facei]);
+
+        // Calculate 3*face-pyramid volume
+        solveScalar pyr3Vol =
+            fA & (cEst[nei[facei]] - fc);
+
+        // Calculate face-pyramid centre
+        solveVector pc = (3.0/4.0)*fc + (1.0/4.0)*cEst[nei[facei]];
+
+        // Accumulate volume-weighted face-pyramid centre
+        cellCtrs[nei[facei]] += pyr3Vol*pc;
+
+        // Accumulate face-pyramid volume
+        cellVols[nei[facei]] += pyr3Vol;
+    }
+
+    forAll(cellCtrs, celli)
+    {
+        if (mag(cellVols[celli]) > VSMALL)
+        {
+            cellCtrs[celli] /= cellVols[celli];
+        }
+        else
+        {
+            cellCtrs[celli] = cEst[celli];
+        }
+    }
+
+    cellVols *= (1.0/3.0);
+}
+
+
 scalar primitiveMeshTools::faceSkewness
 (
     const primitiveMesh& mesh,
@@ -78,8 +254,7 @@ scalar primitiveMeshTools::boundaryFaceSkewness
 {
     vector Cpf = fCtrs[facei] - ownCc;
 
-    vector normal = fAreas[facei];
-    normal /= mag(normal) + ROOTVSMALL;
+    vector normal = normalised(fAreas[facei]);
     vector d = normal*(normal & Cpf);
 
 
@@ -418,6 +593,7 @@ tmp<scalarField> primitiveMeshTools::faceFlatness
     tmp<scalarField> tfaceFlatness(new scalarField(mesh.nFaces(), 1.0));
     scalarField& faceFlatness = tfaceFlatness.ref();
 
+    typedef Vector<solveScalar> solveVector;
 
     forAll(fcs, facei)
     {
@@ -425,20 +601,20 @@ tmp<scalarField> primitiveMeshTools::faceFlatness
 
         if (f.size() > 3 && magAreas[facei] > ROOTVSMALL)
         {
-            const point& fc = fCtrs[facei];
+            const solveVector fc = fCtrs[facei];
 
             // Calculate the sum of magnitude of areas and compare to magnitude
             // of sum of areas.
 
-            scalar sumA = 0.0;
+            solveScalar sumA = 0.0;
 
             forAll(f, fp)
             {
-                const point& thisPoint = p[f[fp]];
-                const point& nextPoint = p[f.nextLabel(fp)];
+                const solveVector thisPoint = p[f[fp]];
+                const solveVector nextPoint = p[f.nextLabel(fp)];
 
                 // Triangle around fc.
-                vector n = 0.5*((nextPoint - thisPoint)^(fc - thisPoint));
+                solveVector n = 0.5*((nextPoint - thisPoint)^(fc - thisPoint));
                 sumA += mag(n);
             }
 
@@ -455,7 +631,7 @@ tmp<scalarField> primitiveMeshTools::cellDeterminant
     const primitiveMesh& mesh,
     const Vector<label>& meshD,
     const vectorField& faceAreas,
-    const PackedBoolList& internalOrCoupledFace
+    const bitSet& internalOrCoupledFace
 )
 {
     // Determine number of dimensions and (for 2D) missing dimension
@@ -495,7 +671,7 @@ tmp<scalarField> primitiveMeshTools::cellDeterminant
 
             forAll(curFaces, i)
             {
-                if (internalOrCoupledFace[curFaces[i]])
+                if (internalOrCoupledFace.test(curFaces[i]))
                 {
                     avgArea += mag(faceAreas[curFaces[i]]);
 
@@ -503,7 +679,7 @@ tmp<scalarField> primitiveMeshTools::cellDeterminant
                 }
             }
 
-            if (nInternalFaces == 0)
+            if (nInternalFaces == 0 || avgArea < ROOTVSMALL)
             {
                 cellDeterminant[celli] = 0;
             }
@@ -515,7 +691,7 @@ tmp<scalarField> primitiveMeshTools::cellDeterminant
 
                 forAll(curFaces, i)
                 {
-                    if (internalOrCoupledFace[curFaces[i]])
+                    if (internalOrCoupledFace.test(curFaces[i]))
                     {
                         areaTensor += sqr(faceAreas[curFaces[i]]/avgArea);
                     }
@@ -539,7 +715,15 @@ tmp<scalarField> primitiveMeshTools::cellDeterminant
                     }
                 }
 
-                cellDeterminant[celli] = mag(det(areaTensor));
+                // Note:
+                // - normalise to be 0..1 (since cube has eigenvalues 2 2 2)
+                // - we use the determinant (i.e. 3rd invariant) and not e.g.
+                //   condition number (= max ev / min ev) since we are
+                //   interested in the minimum connectivity and not the
+                //   uniformity. Using the condition number on corner cells
+                //   leads to uniformity 1 i.e. equally bad in all three
+                //   directions which is not what we want.
+                cellDeterminant[celli] = mag(det(areaTensor))/8.0;
             }
         }
     }
@@ -549,3 +733,5 @@ tmp<scalarField> primitiveMeshTools::cellDeterminant
 
 
 // ************************************************************************* //
+
+ } // End namespace Foam

@@ -1,9 +1,11 @@
-﻿/*---------------------------------------------------------------------------*\
+/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -23,7 +25,7 @@ License
 
 \*---------------------------------------------------------------------------*/
 
-//#include "janafThermo.H"
+#include "janafThermo.H"
 #include "IOstreams.H"
 
 // * * * * * * * * * * * * * Private Member Functions  * * * * * * * * * * * //
@@ -60,9 +62,9 @@ template<class EquationOfState>
 Foam::janafThermo<EquationOfState>::janafThermo(const dictionary& dict)
 :
     EquationOfState(dict),
-    Tlow_(readScalar(dict.subDict("thermodynamics").lookup("Tlow"))),
-    Thigh_(readScalar(dict.subDict("thermodynamics").lookup("Thigh"))),
-    Tcommon_(readScalar(dict.subDict("thermodynamics").lookup("Tcommon"))),
+    Tlow_(dict.subDict("thermodynamics").get<scalar>("Tlow")),
+    Thigh_(dict.subDict("thermodynamics").get<scalar>("Thigh")),
+    Tcommon_(dict.subDict("thermodynamics").get<scalar>("Tcommon")),
     highCpCoeffs_(dict.subDict("thermodynamics").lookup("highCpCoeffs")),
     lowCpCoeffs_(dict.subDict("thermodynamics").lookup("lowCpCoeffs"))
 {
@@ -93,13 +95,16 @@ void Foam::janafThermo<EquationOfState>::write(Ostream& os) const
         lowCpCoeffs[coefLabel] = lowCpCoeffs_[coefLabel]/this->R();
     }
 
-    dictionary dict("thermodynamics");
-    dict.add("Tlow", Tlow_);
-    dict.add("Thigh", Thigh_);
-    dict.add("Tcommon", Tcommon_);
-    dict.add("highCpCoeffs", highCpCoeffs);
-    dict.add("lowCpCoeffs", lowCpCoeffs);
-    os  << indent << dict.dictName() << dict;
+    // Entries in dictionary format
+    {
+        os.beginBlock("thermodynamics");
+        os.writeEntry("Tlow", Tlow_);
+        os.writeEntry("Thigh", Thigh_);
+        os.writeEntry("Tcommon", Tcommon_);
+        os.writeEntry("highCpCoeffs", highCpCoeffs);
+        os.writeEntry("lowCpCoeffs", lowCpCoeffs);
+        os.endBlock();
+    }
 }
 
 

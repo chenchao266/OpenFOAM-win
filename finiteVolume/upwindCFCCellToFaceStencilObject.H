@@ -1,9 +1,12 @@
-﻿/*---------------------------------------------------------------------------*\
+/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2015 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2015 OpenFOAM Foundation
+    Copyright (C) 2019 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -35,7 +38,7 @@ SourceFiles
 
 #include "extendedUpwindCellToFaceStencil.H"
 #include "CFCCellToFaceStencil.H"
-#include "MeshObject.T.H"
+#include "MeshObject.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -45,13 +48,13 @@ namespace Foam
 /*---------------------------------------------------------------------------*\
               Class upwindCFCCellToFaceStencilObject Declaration
 \*---------------------------------------------------------------------------*/
- 
+
 class upwindCFCCellToFaceStencilObject
 :
     public MeshObject
     <
-        fvMesh, 
-        Foam::TopologicalMeshObject,
+        fvMesh,
+        TopologicalMeshObject,
         upwindCFCCellToFaceStencilObject
     >,
     public extendedUpwindCellToFaceStencil
@@ -73,7 +76,7 @@ public:
         :
             MeshObject
             <
-                fvMesh, 
+                fvMesh,
                 Foam::TopologicalMeshObject,
                 upwindCFCCellToFaceStencilObject
             >(mesh),
@@ -93,36 +96,8 @@ public:
         }
 
 
-        upwindCFCCellToFaceStencilObject
-        (
-            const fvMesh& mesh
-            //const bool pureUpwind,
-            //const scalar minOpposedness
-        )
-            :
-            MeshObject
-            <
-            fvMesh,
-            Foam::TopologicalMeshObject,
-            upwindCFCCellToFaceStencilObject
-            >(mesh),
-            extendedUpwindCellToFaceStencil
-            (
-                CFCCellToFaceStencil(mesh)
-                //pureUpwind,
-                //minOpposedness
-            )
-        {
-            if (extendedCellToFaceStencil::debug)
-            {
-                Info << "Generated off-centred stencil (mesh)" << type()
-                    << nl << endl;
-                writeStencilStats(Info, ownStencil(), ownMap());
-            }
-        }
     //- Destructor
-    virtual ~upwindCFCCellToFaceStencilObject()
-    {}
+    virtual ~upwindCFCCellToFaceStencilObject() = default;
 };
 
 

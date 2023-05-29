@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -61,11 +63,11 @@ private:
 
     // Private Member Functions
 
-        //- Disallow default bitwise copy construct
-        force(const force&);
+        //- No copy construct
+        force(const force&) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const force&);
+        //- No copy assignment
+        void operator=(const force&) = delete;
 
 
 public:
@@ -82,7 +84,7 @@ public:
              force,
              dictionary,
              (
-                surfaceFilmModel& film,
+                surfaceFilmRegionModel& film,
                 const dictionary& dict
              ),
              (film, dict)
@@ -91,13 +93,13 @@ public:
     // Constructors
 
         //- Construct null
-        force(surfaceFilmModel& film);
+        force(surfaceFilmRegionModel& film);
 
         //- Construct from type name, dictionary and surface film model
         force
         (
             const word& modelType,
-            surfaceFilmModel& film,
+            surfaceFilmRegionModel& film,
             const dictionary& dict
         );
 
@@ -107,7 +109,7 @@ public:
         //- Return a reference to the selected force model
         static autoPtr<force> New
         (
-            surfaceFilmModel& film,
+            surfaceFilmRegionModel& film,
             const dictionary& dict,
             const word& modelType
         );

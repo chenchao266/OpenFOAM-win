@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2020-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -25,174 +28,217 @@ License
 
 #include "csvTableReader.H"
 #include "fileOperation.H"
-#include "DynamicList.T.H"
+#include "DynamicList.H"
+#include "ListOps.H"
+
+// * * * * * * * * * * * * * Static Member Functions * * * * * * * * * * * * //
+
+
+ namespace Foam{
+template<class Type>
+labelList csvTableReader<Type>::getComponentColumns
+(
+    const word& name,
+    std::initializer_list<std::pair<const char*,int>> compat,
+    const dictionary& dict
+)
+{
+    // Writing of columns was forced to be ASCII,
+    // do the same when reading
+
+    labelList cols;
+
+    ITstream& is = dict.lookupCompat(name, compat);
+    is.format(IOstream::ASCII);
+    is >> cols;
+    dict.checkITstream(is, name);
+
+    if (cols.size() != pTraits<Type>::nComponents)
+    {
+        FatalIOErrorInFunction(dict)
+            << name << " with " << cols
+            << " does not have the expected length "
+            << pTraits<Type>::nComponents << nl
+            << exit(FatalIOError);
+    }
+
+    return cols;
+}
+
+
+// * * * * * * * * * * * * * Private Member Functions  * * * * * * * * * * * //
+
+
+ } // End namespace Foam
+namespace Foam
+{
+    template<>
+    label csvTableReader<label>::readValue
+    (
+        const List<string>& strings
+    ) const
+    {
+        return readLabel(strings[componentColumns_[0]]);
+    }
+
+
+    template<>
+    scalar csvTableReader<scalar>::readValue
+    (
+        const List<string>& strings
+    ) const
+    {
+        return readScalar(strings[componentColumns_[0]]);
+    }
+
+} // End namespace Foam
+
+
+
+ namespace Foam{
+template<class Type>
+Type csvTableReader<Type>::readValue
+(
+    const List<string>& strings
+) const
+{
+    Type result;
+
+    for (label i = 0; i < pTraits<Type>::nComponents; ++i)
+    {
+        result[i] = readScalar(strings[componentColumns_[i]]);
+    }
+
+    return result;
+}
+
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
-namespace Foam {
-    template<class Type>
-    csvTableReader<Type>::csvTableReader(const dictionary& dict)
-        :
-        tableReader<Type>(dict),
-        headerLine_(readBool(dict.lookup("hasHeaderLine"))),
-        timeColumn_(readLabel(dict.lookup("timeColumn"))),
-        componentColumns_(dict.lookup("valueColumns")),
-        separator_(dict.lookupOrDefault<string>("separator", string(","))[0])
+
+template<class Type>
+csvTableReader<Type>::csvTableReader(const dictionary& dict)
+:
+    tableReader<Type>(dict),
+    headerLine_(dict.get<bool>("hasHeaderLine")),
+    refColumn_(dict.getCompat<label>("refColumn", {{"timeColumn", 1912}})),
+    componentColumns_
+    (
+        getComponentColumns("componentColumns", {{"valueColumns", 1912}}, dict)
+    ),
+    separator_(dict.getOrDefault<string>("separator", ",")[0])
+{}
+
+
+// * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
+
+template<class Type>
+void csvTableReader<Type>::operator()
+(
+    const fileName& fName,
+    List<Tuple2<scalar, Type>>& data
+)
+{
+    autoPtr<ISstream> isPtr(fileHandler().NewIFstream(fName));
+    ISstream& is = isPtr();
+
+    const label maxEntry =
+        max(refColumn_, componentColumns_[findMax(componentColumns_)]);
+
+    string line;
+    label lineNo = 0;
+
+    // Skip header
+    if (headerLine_)
     {
-        if (componentColumns_.size() != pTraits<Type>::nComponents)
+        is.getLine(line);
+        ++lineNo;
+    }
+
+    DynamicList<Tuple2<scalar, Type>> values;
+    DynamicList<string> strings(maxEntry+1);  // reserve
+
+    while (is.good())
+    {
+        is.getLine(line);
+        ++lineNo;
+
+        strings.clear();
+
+        std::size_t pos = 0;
+
+        for
+        (
+            label n = 0;
+            (pos != std::string::npos) && (n <= maxEntry);
+            ++n
+        )
+        {
+            const auto nPos = line.find(separator_, pos);
+
+            if (nPos == std::string::npos)
+            {
+                strings.append(line.substr(pos));
+                pos = nPos;
+            }
+            else
+            {
+                strings.append(line.substr(pos, nPos-pos));
+                pos = nPos + 1;
+            }
+        }
+
+        if (strings.size() <= 1)
+        {
+            break;
+        }
+
+        if (strings.size() <= maxEntry)
         {
             FatalErrorInFunction
-                << componentColumns_ << " does not have the expected length "
-                << pTraits<Type>::nComponents << endl
+                << "Not enough columns near line " << lineNo
+                << ". Require " << (maxEntry+1) << " but found "
+                << strings << nl
                 << exit(FatalError);
         }
+
+        scalar x = readScalar(strings[refColumn_]);
+        Type value = readValue(strings);
+
+        values.append(Tuple2<scalar,Type>(x, value));
     }
 
-
-    // * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
-
-    template<class Type>
-    csvTableReader<Type>::~csvTableReader()
-    {}
-
-
-    // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
-
- 
-        // doesn't recognize specialization otherwise
-        template<>
-        scalar csvTableReader<scalar>::readValue(const List<string>& splitted)
-        {
-            if (componentColumns_[0] >= splitted.size())
-            {
-                FatalErrorInFunction
-                    << "No column " << componentColumns_[0] << " in "
-                    << splitted << endl
-                    << exit(FatalError);
-            }
-
-            return readScalar(IStringStream(splitted[componentColumns_[0]])());
-        }
-
-
-        template<class Type>
-        Type csvTableReader<Type>::readValue(const List<string>& splitted)
-        {
-            Type result;
-
-            for (label i = 0; i < pTraits<Type>::nComponents; i++)
-            {
-                if (componentColumns_[i] >= splitted.size())
-                {
-                    FatalErrorInFunction
-                        << "No column " << componentColumns_[i] << " in "
-                        << splitted << endl
-                        << exit(FatalError);
-                }
-
-                result[i] = readScalar
-                (
-                    IStringStream(splitted[componentColumns_[i]])()
-                );
-            }
-
-            return result;
-        }
- 
- 
-
-    template<class Type>
-    void csvTableReader<Type>::operator()
-        (
-            const fileName& fName,
-            List<Tuple2<scalar, Type>>& data
-            )
-    {
-        //IFstream in(fName);
-        autoPtr<ISstream> inPtr(fileHandler().NewIFstream(fName));
-        ISstream& in = inPtr();
-
-        DynamicList<Tuple2<scalar, Type>> values;
-
-        // Skip header
-        if (headerLine_)
-        {
-            string line;
-            in.getLine(line);
-        }
-
-        while (in.good())
-        {
-            string line;
-            in.getLine(line);
-
-            DynamicList<string> splitted;
-
-            std::size_t pos = 0;
-            while (pos != std::string::npos)
-            {
-                std::size_t nPos = line.find(separator_, pos);
-
-                if (nPos == std::string::npos)
-                {
-                    splitted.append(line.substr(pos));
-                    pos = nPos;
-                }
-                else
-                {
-                    splitted.append(line.substr(pos, nPos - pos));
-                    pos = nPos + 1;
-                }
-            }
-
-            if (splitted.size() <= 1)
-            {
-                break;
-            }
-
-            scalar time = readScalar(IStringStream(splitted[timeColumn_])());
-            Type value = readValue(splitted);
-
-            values.append(Tuple2<scalar, Type>(time, value));
-        }
-
-        data.transfer(values);
-    }
-
-
-    template<class Type>
-    void csvTableReader<Type>::operator()
-        (
-            const fileName& fName,
-            List<Tuple2<scalar, List<Tuple2<scalar, Type>>>>& data
-            )
-    {
-        NotImplemented;
-    }
-
-
-    template<class Type>
-    void csvTableReader<Type>::write(Ostream& os) const
-    {
-        tableReader<Type>::write(os);
-
-        os.writeKeyword("hasHeaderLine")
-            << headerLine_ << token::END_STATEMENT << nl;
-        os.writeKeyword("timeColumn")
-            << timeColumn_ << token::END_STATEMENT << nl;
-
-        // Force writing labelList in ascii
-        os.writeKeyword("valueColumns");
-        if (os.format() == IOstream::BINARY)
-        {
-            os.format(IOstream::ASCII);
-            os << componentColumns_;
-            os.format(IOstream::BINARY);
-        }
-        os << token::END_STATEMENT << nl;
-
-        os.writeKeyword("separator")
-            << string(separator_) << token::END_STATEMENT << nl;
-    }
-
+    data.transfer(values);
 }
+
+
+template<class Type>
+void csvTableReader<Type>::operator()
+(
+    const fileName& fName,
+    List<Tuple2<scalar, List<Tuple2<scalar, Type>>>>& data
+)
+{
+    NotImplemented;
+}
+
+
+template<class Type>
+void csvTableReader<Type>::write(Ostream& os) const
+{
+    tableReader<Type>::write(os);
+
+    os.writeEntry("hasHeaderLine", headerLine_);
+    os.writeEntry("refColumn", refColumn_);
+
+    // Force writing labelList in ASCII
+    const auto oldFmt = os.format(IOstream::ASCII);
+    os.writeEntry("componentColumns", componentColumns_);
+    os.format(oldFmt);
+
+    os.writeEntry("separator", string(separator_));
+}
+
+
 // ************************************************************************* //
+
+ } // End namespace Foam

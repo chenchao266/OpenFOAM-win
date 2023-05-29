@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2018-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -28,34 +31,32 @@ License
 #include "fvPatchFieldMapper.H"
 #include "volFields.H"
 #include "surfaceFields.H"
-#include "uniformDimensionedFields.H"
-#include "EulerDdtScheme.T.H"
-#include "CrankNicolsonDdtScheme.T.H"
+#include "gravityMeshObject.H"
+#include "EulerDdtScheme.H"
+#include "CrankNicolsonDdtScheme.H"
 #include "backwardDdtScheme.H"
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
 
-namespace Foam
-{
-    template<>
-    const char* NamedEnum
-    <
-        waveSurfacePressureFvPatchScalarField::ddtSchemeType,
-        3
-    >::names[] =
-    {
-        fv::EulerDdtScheme<scalar>::typeName_(),
-        fv::CrankNicolsonDdtScheme<scalar>::typeName_(),
-        fv::backwardDdtScheme<scalar>::typeName_()
-    };
-}
-
-
-const Foam::NamedEnum
+const Foam::Enum
 <
-    Foam::waveSurfacePressureFvPatchScalarField::ddtSchemeType,
-    3
->   Foam::waveSurfacePressureFvPatchScalarField::ddtSchemeTypeNames_;
+    Foam::waveSurfacePressureFvPatchScalarField::ddtSchemeType
+>
+Foam::waveSurfacePressureFvPatchScalarField::ddtSchemeTypeNames_
+({
+    {
+        ddtSchemeType::tsEuler,
+        fv::EulerDdtScheme<scalar>::typeName_()
+    },
+    {
+        ddtSchemeType::tsCrankNicolson,
+        fv::CrankNicolsonDdtScheme<scalar>::typeName_()
+    },
+    {
+        ddtSchemeType::tsBackward,
+        fv::backwardDdtScheme<scalar>::typeName_()
+    },
+});
 
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
@@ -83,9 +84,9 @@ waveSurfacePressureFvPatchScalarField
 )
 :
     fixedValueFvPatchScalarField(p, iF, dict),
-    phiName_(dict.lookupOrDefault<word>("phi", "phi")),
-    zetaName_(dict.lookupOrDefault<word>("zeta", "zeta")),
-    rhoName_(dict.lookupOrDefault<word>("rho", "rho"))
+    phiName_(dict.getOrDefault<word>("phi", "phi")),
+    zetaName_(dict.getOrDefault<word>("zeta", "zeta")),
+    rhoName_(dict.getOrDefault<word>("rho", "rho"))
 {}
 
 
@@ -216,7 +217,7 @@ void Foam::waveSurfacePressureFvPatchScalarField::updateCoeffs()
 
     // Update the surface pressure
     const uniformDimensionedVectorField& g =
-        db().lookupObject<uniformDimensionedVectorField>("g");
+        meshObjects::gravity::New(db().time());
 
     operator==(-g.value() & zetap);
 
@@ -227,9 +228,9 @@ void Foam::waveSurfacePressureFvPatchScalarField::updateCoeffs()
 void Foam::waveSurfacePressureFvPatchScalarField::write(Ostream& os) const
 {
     fvPatchScalarField::write(os);
-    writeEntryIfDifferent<word>(os, "phi", "phi", phiName_);
-    writeEntryIfDifferent<word>(os, "zeta", "zeta", zetaName_);
-    writeEntryIfDifferent<word>(os, "rho", "rho", rhoName_);
+    os.writeEntryIfDifferent<word>("phi", "phi", phiName_);
+    os.writeEntryIfDifferent<word>("zeta", "zeta", zetaName_);
+    os.writeEntryIfDifferent<word>("rho", "rho", rhoName_);
     writeEntry("value", os);
 }
 

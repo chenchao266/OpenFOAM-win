@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2013-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2013-2016 OpenFOAM Foundation
+    Copyright (C) 2019 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -85,6 +88,15 @@ class cyclicACMIFvPatchField
         (
             const Field<Type2>&
         ) const;
+
+         //- Return new matrix coeffs
+        tmp<Field<scalar>> coeffs
+        (
+            fvMatrix<Type>& matrix,
+            const Field<scalar>&,
+            const label
+        ) const;
+
 
 
 public:
@@ -170,7 +182,7 @@ public:
 
             //- Return true if this patch field fixes a value
             //  Needed to check if a level has to be specified while solving
-            //  Poissons equations
+            //  Poisson equations
             virtual bool fixesValue() const
             {
                 const scalarField& mask =
@@ -201,8 +213,11 @@ public:
             //- Update result field based on interface functionality
             virtual void updateInterfaceMatrix
             (
-                scalarField& result,
-                const scalarField& psiInternal,
+                solveScalarField& result,
+                const bool add,
+                const lduAddressing& lduAddr,
+                const label patchId,
+                const solveScalarField& psiInternal,
                 const scalarField& coeffs,
                 const direction cmpt,
                 const Pstream::commsTypes commsType
@@ -212,6 +227,9 @@ public:
             virtual void updateInterfaceMatrix
             (
                 Field<Type>&,
+                const bool add,
+                const lduAddressing& lduAddr,
+                const label patchId,
                 const Field<Type>&,
                 const scalarField&,
                 const Pstream::commsTypes commsType
@@ -219,6 +237,14 @@ public:
 
             //- Manipulate matrix
             virtual void manipulateMatrix(fvMatrix<Type>& matrix);
+
+            //- Manipulate matrix
+            virtual void manipulateMatrix
+            (
+                fvMatrix<Type>& m,
+                const label iMatrix,
+                const direction cmpt
+            );
 
             //- Update the coefficients associated with the patch field
             virtual void updateCoeffs();

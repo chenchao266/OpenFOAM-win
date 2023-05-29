@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2017-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -71,7 +74,7 @@ rotatingPressureInletOutletVelocityFvPatchVectorField
 )
 :
     pressureInletOutletVelocityFvPatchVectorField(ptf, p, iF, mapper),
-    omega_(ptf.omega_, false)
+    omega_(ptf.omega_.clone())
 {
     calcTangentialVelocity();
 }
@@ -86,8 +89,9 @@ rotatingPressureInletOutletVelocityFvPatchVectorField
 )
 :
     pressureInletOutletVelocityFvPatchVectorField(p, iF, dict),
-    omega_(Function1<vector>::New("omega", dict))
+    omega_(Function1<vector>::New("omega", dict, &db()))
 {
+    patchType() = dict.getOrDefault<word>("patchType", word::null);
     calcTangentialVelocity();
 }
 
@@ -99,7 +103,7 @@ rotatingPressureInletOutletVelocityFvPatchVectorField
 )
 :
     pressureInletOutletVelocityFvPatchVectorField(rppvf),
-    omega_(rppvf.omega_, false)
+    omega_(rppvf.omega_.clone())
 {
     calcTangentialVelocity();
 }
@@ -113,7 +117,7 @@ rotatingPressureInletOutletVelocityFvPatchVectorField
 )
 :
     pressureInletOutletVelocityFvPatchVectorField(rppvf, iF),
-    omega_(rppvf.omega_, false)
+    omega_(rppvf.omega_.clone())
 {
     calcTangentialVelocity();
 }
@@ -127,7 +131,7 @@ void Foam::rotatingPressureInletOutletVelocityFvPatchVectorField::write
 ) const
 {
     fvPatchVectorField::write(os);
-    os.writeKeyword("phi") << phiName() << token::END_STATEMENT << nl;
+    os.writeEntry("phi", phiName());
     omega_->writeData(os);
     writeEntry("value", os);
 }

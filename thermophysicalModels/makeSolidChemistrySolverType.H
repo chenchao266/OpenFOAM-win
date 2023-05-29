@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -33,8 +35,8 @@ Description
 #include "addToRunTimeSelectionTable.H"
 
 #include "noChemistrySolver.H"
-#include "EulerImplicit.T.H"
-#include "ode.T.H"
+#include "EulerImplicit.H"
+#include "ode.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -61,7 +63,7 @@ namespace Foam
     (                                                                          \
         Comp,                                                                  \
         SS##Schem##Comp##SThermo##GThermo,                                     \
-        fvMesh                                                                 \
+        thermo                                                                 \
     );
 
 

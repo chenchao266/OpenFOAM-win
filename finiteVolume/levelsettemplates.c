@@ -1,9 +1,12 @@
-﻿/*---------------------------------------------------------------------------*\
+/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2017 OpenFOAM Foundation
+    Copyright (C) 2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -23,7 +26,7 @@ License
 
 \*---------------------------------------------------------------------------*/
 
-//#include "levelSet.H"
+#include "levelSet.H"
 #include "cut.H"
 #include "polyMeshTetDecomposition.H"
 #include "tetIndices.H"
@@ -53,7 +56,7 @@ Foam::tmp<Foam::DimensionedField<Type, Foam::volMesh>> Foam::levelSetAverage
                 mesh
             ),
             mesh,
-            dimensioned<Type>("0", positiveC.dimensions(), Zero)
+            dimensioned<Type>(positiveC.dimensions(), Zero)
         )
     );
     DimensionedField<Type, volMesh>& result = tResult.ref();
@@ -136,12 +139,12 @@ Foam::tmp<Foam::Field<Type>> Foam::levelSetAverage
     {
         const face& f = patch.patch().localFaces()[fI];
 
-        vector a = vector::_zero;
+        vector a(Zero);
         sumType r = Zero;
 
-        for(label eI = 0; eI < f.size(); ++ eI)
+        for (label edgei = 0; edgei < f.nEdges(); ++edgei)
         {
-            const edge e = f.faceEdge(eI);
+            const edge e = f.edge(edgei);
 
             const FixedList<point, 3>
                 tri =

@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2012 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2012 OpenFOAM Foundation
+    Copyright (C) 2018-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -25,7 +28,82 @@ Class
     Foam::pointToCell
 
 Description
-    A topoSetSource to select cells based on usage of points.
+    A \c topoSetCellSource to select cells with any
+    point or any edge within a given \c pointSet(s).
+
+    Operands
+    \table
+      Operand   | Type         | Location
+      input     | pointSeti(s) | $FOAM_CASE/constant/polyMesh/sets/\<set\>
+      output    | cellSet      | $FOAM_CASE/constant/polyMesh/sets/\<set\>
+    \endtable
+
+Usage
+    Minimal example by using \c system/topoSetDict.actions:
+    \verbatim
+    {
+        // Mandatory (inherited) entries
+        name        <name>;
+        type        cellSet;
+        action      <action>;
+
+        // Mandatory entries
+        source      pointToCell;
+        option      <option>;
+
+        // Conditional mandatory entries
+        // Select either of the below
+
+        // Option-1
+        sets
+        (
+            <pointSetName1>
+            <pointSetName2>
+            ...
+        );
+
+        // Option-2
+        set   <pointSetName>;
+    }
+    \endverbatim
+
+    where the entries mean:
+    \table
+      Property   | Description                         | Type | Req'd | Dflt
+      name       | Name of cellSet                     | word |  yes  | -
+      type       | Type name: cellSet                  | word |  yes  | -
+      action     | Action applied on cells - see below | word |  yes  | -
+      source     | Source name: pointToCell            | word |  yes  | -
+      option     | Selection type - see below          | word |  yes  | -
+    \endtable
+
+    Options for the \c action entry:
+    \verbatim
+      new      | Create a new cellSet from selected cells
+      add      | Add selected cells into this cellSet
+      subtract | Remove selected cells from this cellSet
+    \endverbatim
+
+    Options for the \c option entry:
+    \verbatim
+      any     | Cells using any point in pointSet
+      edge    | Cells using an edge with both points in pointSet
+    \endverbatim
+
+    Options for the conditional mandatory entries:
+    \verbatim
+      Entry    | Description                | Type     | Req'd  | Dflt
+      sets     | Names of input pointSets   | wordList | cond'l | -
+      set      | Name of input pointSet     | word     | cond'l | -
+    \endverbatim
+
+Note
+    The order of precedence among the conditional mandatory entries from the
+    highest to the lowest is \c sets, and \c set.
+
+See also
+    - Foam::topoSetSource
+    - Foam::topoSetCellSource
 
 SourceFiles
     pointToCell.C
@@ -35,8 +113,8 @@ SourceFiles
 #ifndef pointToCell_H
 #define pointToCell_H
 
-#include "topoSetSource.H"
-#include "NamedEnum.T.H"
+#include "topoSetCellSource.H"
+#include "Enum.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -49,7 +127,7 @@ namespace Foam
 
 class pointToCell
 :
-    public topoSetSource
+    public topoSetCellSource
 {
 public:
         //- Enumeration defining the valid options
@@ -60,30 +138,34 @@ public:
             //ALL   // Possible extension: cells whose all points are in set
         };
 
+
 private:
+
+    //Private Data
 
         //- Add usage string
         static addToUsageTable usage_;
 
-        static const NamedEnum<pointAction, 2> pointActionNames_;
+        static const Enum<pointAction> pointActionNames_;
 
-        //- Name of set to use
-        word setName_;
+        //- Names of sets to use
+        wordList names_;
 
-        //- Option
+        //- Selection type
         pointAction option_;
 
 
     // Private Member Functions
 
         //- Depending on point-to-cell option add to or delete from cellSet.
-        void combine(topoSet& set, const bool add) const;
+        void combine(topoSet& set, const bool add, const word& setName) const;
 
 
 public:
 
     //- Runtime type information
     TypeName("pointToCell");
+
 
     // Constructors
 
@@ -96,37 +178,23 @@ public:
         );
 
         //- Construct from dictionary
-        pointToCell
-        (
-            const polyMesh& mesh,
-            const dictionary& dict
-        );
+        pointToCell(const polyMesh& mesh, const dictionary& dict);
 
         //- Construct from Istream
-        pointToCell
-        (
-            const polyMesh& mesh,
-            Istream&
-        );
+        pointToCell(const polyMesh& mesh, Istream& is);
 
 
     //- Destructor
-    virtual ~pointToCell();
+    virtual ~pointToCell() = default;
 
 
     // Member Functions
 
-        virtual sourceType setType() const
-        {
-            return CELLSETSOURCE;
-        }
-
         virtual void applyToSet
         (
             const topoSetSource::setAction action,
-            topoSet&
+            topoSet& set
         ) const;
-
 };
 
 

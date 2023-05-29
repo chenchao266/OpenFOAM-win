@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2019-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -26,83 +29,95 @@ License
 #include "blockDescriptor.H"
 #include "lineEdge.H"
 #include "lineDivide.H"
+#include "hexCell.H"
 
 // * * * * * * * * * * * * * Private Member Functions  * * * * * * * * * * * //
 
-Foam::label Foam::blockDescriptor::edgePointsWeights
+int Foam::blockDescriptor::calcEdgePointsWeights
 (
-    pointField (&edgePoints)[12],
-    scalarList (&edgeWeights)[12],
-    const label edgei,
-    const label start,
-    const label end,
-    const label nDiv
+    pointField& edgePoints,
+    scalarList& edgeWeights,
+    const Foam::edge& cellModelEdge,
+    const label nDiv,
+    const gradingDescriptors& expand
 ) const
 {
-    // Set reference to the list of labels defining the block
-    const labelList& blockLabels = blockShape_;
+    // The topological edge on the block
+    const Foam::edge thisEdge(blockShape_, cellModelEdge);
 
-    // Get list of points for this block
-    const pointField blockPoints = blockShape_.points(vertices_);
+    const bool isCollapsedEdge = !thisEdge.valid();
+
+    if (blockEdge::debug && isCollapsedEdge)
+    {
+        Info<< "Collapsed edge:" << thisEdge;
+        if (index_ >= 0)
+        {
+            Info << " block:" << index_;
+        }
+        Info<< " model edge:" << cellModelEdge << nl;
+    }
+
+    // FUTURE: skip point generation for collapsed edge
+
 
     // Set the edge points/weights
     // The edge is a straight-line if it is not in the list of blockEdges
 
-    forAll(edges_, cedgei)
+    for (const blockEdge& cedge : blockEdges_)
     {
-        const blockEdge& cedge = edges_[cedgei];
+        const int cmp = cedge.compare(thisEdge);
 
-        const int cmp = cedge.compare(blockLabels[start], blockLabels[end]);
-
-        if (cmp)
+        if (cmp > 0)
         {
-            if (cmp > 0)
+            // Curve has the same orientation
+
+            // Divide the line
+            const lineDivide divEdge(cedge, nDiv, expand);
+
+            edgePoints  = divEdge.points();
+            edgeWeights = divEdge.lambdaDivisions();
+
+            return 1;  // Found curved-edge: done
+        }
+        else if (cmp < 0)
+        {
+            // Curve has the opposite orientation
+
+            // Divide the line
+            const lineDivide divEdge(cedge, nDiv, expand.inv());
+
+            const pointField& p = divEdge.points();
+            const scalarList& d = divEdge.lambdaDivisions();
+
+            edgePoints.resize(p.size());
+            edgeWeights.resize(d.size());
+
+            // Copy in reverse order
+            const label pn = (p.size() - 1);
+            forAll(p, pi)
             {
-                // Curve has the same orientation
-
-                // Divide the line
-                const lineDivide divEdge(cedge, nDiv, expand_[edgei]);
-
-                edgePoints[edgei]  = divEdge.points();
-                edgeWeights[edgei] = divEdge.lambdaDivisions();
-            }
-            else
-            {
-                // Curve has the opposite orientation
-
-                // Divide the line
-                const lineDivide divEdge(cedge, nDiv, expand_[edgei].inv());
-
-                const pointField& p = divEdge.points();
-                const scalarList& d = divEdge.lambdaDivisions();
-
-                edgePoints[edgei].setSize(p.size());
-                edgeWeights[edgei].setSize(d.size());
-
-                label pn = p.size() - 1;
-                forAll(p, pi)
-                {
-                    edgePoints[edgei][pi]  = p[pn - pi];
-                    edgeWeights[edgei][pi] = 1 - d[pn - pi];
-                }
+                edgePoints[pi]  = p[pn - pi];
+                edgeWeights[pi] = 1 - d[pn - pi];
             }
 
-            // Found curved-edge: done
-            return 1;
+            return 1;  // Found curved-edge: done
         }
     }
 
-
     // Not curved-edge: divide the edge as a straight line
+
+    // Get list of points for this block
+    const pointField blockPoints(blockShape_.points(vertices_));
+
     lineDivide divEdge
     (
-        blockEdges::lineEdge(blockPoints, start, end),
+        blockEdges::lineEdge(blockPoints, cellModelEdge),
         nDiv,
-        expand_[edgei]
+        expand
     );
 
-    edgePoints[edgei]  = divEdge.points();
-    edgeWeights[edgei] = divEdge.lambdaDivisions();
+    edgePoints = divEdge.points();
+    edgeWeights = divEdge.lambdaDivisions();
 
     return 0;
 }
@@ -110,36 +125,88 @@ Foam::label Foam::blockDescriptor::edgePointsWeights
 
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
 
-Foam::label Foam::blockDescriptor::edgesPointsWeights
+int Foam::blockDescriptor::edgesPointsWeights
 (
-    pointField (&edgePoints)[12],
-    scalarList (&edgeWeights)[12]
+    pointField (&edgesPoints)[12],
+    scalarList (&edgesWeights)[12]
 ) const
 {
-    label nCurvedEdges = 0;
+    int nCurved = 0;
 
-    // X-direction
-    const label ni = density_.x();
-    nCurvedEdges += edgePointsWeights(edgePoints, edgeWeights, 0,  0, 1, ni);
-    nCurvedEdges += edgePointsWeights(edgePoints, edgeWeights, 1,  3, 2, ni);
-    nCurvedEdges += edgePointsWeights(edgePoints, edgeWeights, 2,  7, 6, ni);
-    nCurvedEdges += edgePointsWeights(edgePoints, edgeWeights, 3,  4, 5, ni);
+    for (label edgei = 0; edgei < 12; ++edgei)  //< hexCell::nEdges()
+    {
+        nCurved += calcEdgePointsWeights
+        (
+            edgesPoints[edgei],
+            edgesWeights[edgei],
+            hexCell::modelEdges()[edgei],
 
-    // Y-direction
-    const label nj = density_.y();
-    nCurvedEdges += edgePointsWeights(edgePoints, edgeWeights, 4,  0, 3, nj);
-    nCurvedEdges += edgePointsWeights(edgePoints, edgeWeights, 5,  1, 2, nj);
-    nCurvedEdges += edgePointsWeights(edgePoints, edgeWeights, 6,  5, 6, nj);
-    nCurvedEdges += edgePointsWeights(edgePoints, edgeWeights, 7,  4, 7, nj);
+            sizes()[edgei/4],   // 12 edges -> 3 components (x,y,z)
+            expand_[edgei]
+        );
+    }
 
-    // Z-direction
-    const label nk = density_.z();
-    nCurvedEdges += edgePointsWeights(edgePoints, edgeWeights, 8,  0, 4, nk);
-    nCurvedEdges += edgePointsWeights(edgePoints, edgeWeights, 9,  1, 5, nk);
-    nCurvedEdges += edgePointsWeights(edgePoints, edgeWeights, 10, 2, 6, nk);
-    nCurvedEdges += edgePointsWeights(edgePoints, edgeWeights, 11, 3, 7, nk);
+    return nCurved;
+}
 
-    return nCurvedEdges;
+
+bool Foam::blockDescriptor::edgePointsWeights
+(
+    const label edgei,
+    pointField& edgePoints,
+    scalarList& edgeWeights,
+    const label nDiv,
+    const gradingDescriptors& gd
+) const
+{
+    if (edgei < 0 || edgei >= 12)  //< hexCell::nEdges()
+    {
+        FatalErrorInFunction
+            << "Edge label " << edgei
+            << " out of range 0..11"
+            << exit(FatalError);
+    }
+
+    const int nCurved = calcEdgePointsWeights
+    (
+        edgePoints,
+        edgeWeights,
+        hexCell::modelEdges()[edgei],
+
+        nDiv,
+        gd
+    );
+
+    return nCurved;
+}
+
+
+bool Foam::blockDescriptor::edgePointsWeights
+(
+    const label edgei,
+    pointField& edgePoints,
+    scalarList& edgeWeights
+) const
+{
+    if (edgei < 0 || edgei >= 12)  //< hexCell::nEdges()
+    {
+        FatalErrorInFunction
+            << "Edge label " << edgei
+            << " out of range 0..11"
+            << exit(FatalError);
+    }
+
+    const int nCurved = calcEdgePointsWeights
+    (
+        edgePoints,
+        edgeWeights,
+        hexCell::modelEdges()[edgei],
+
+        sizes()[edgei/4],   // 12 edges -> 3 components (x,y,z)
+        expand_[edgei]
+    );
+
+    return nCurved;
 }
 
 

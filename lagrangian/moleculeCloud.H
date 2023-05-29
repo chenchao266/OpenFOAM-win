@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2019 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -30,17 +33,16 @@ SourceFiles
     moleculeCloudI.H
     moleculeCloud.C
 
-
 \*---------------------------------------------------------------------------*/
 
 #ifndef moleculeCloud_H
 #define moleculeCloud_H
 
-#include "Cloud.T.H"
+#include "Cloud.H"
 #include "molecule.H"
 #include "IOdictionary.H"
 #include "potential.H"
-#include "InteractionLists.T.H"
+#include "InteractionLists.H"
 #include "labelVector.H"
 #include "Random.H"
 #include "fileName.H"
@@ -58,10 +60,7 @@ class moleculeCloud
 :
     public Cloud<molecule>
 {
-
-private:
-
-    // Private data
+    // Private Data
 
         const polyMesh& mesh_;
 
@@ -134,11 +133,11 @@ private:
             const molecule::constantProperties& cP
         );
 
-        //- Disallow default bitwise copy construct
-        moleculeCloud(const moleculeCloud&);
+        //- No copy construct
+        moleculeCloud(const moleculeCloud&) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const moleculeCloud&);
+        //- No copy assignment
+        void operator=(const moleculeCloud&) = delete;
 
 
 public:
@@ -177,22 +176,21 @@ public:
         );
 
 
-        // Access
+    // Access
 
-            inline const polyMesh& mesh() const;
+        inline const polyMesh& mesh() const;
 
-            inline const potential& pot() const;
+        inline const potential& pot() const;
 
-            inline const List<DynamicList<molecule*>>& cellOccupancy() const;
+        inline const List<DynamicList<molecule*>>& cellOccupancy() const;
 
-            inline const InteractionLists<molecule>& il() const;
+        inline const InteractionLists<molecule>& il() const;
 
-            inline const List<molecule::constantProperties> constProps() const;
+        inline const List<molecule::constantProperties> constProps() const;
 
-            inline const molecule::constantProperties&
-                constProps(label id) const;
+        inline const molecule::constantProperties& constProps(label id) const;
 
-            inline Random& rndGen();
+        inline Random& rndGen();
 
 
     // Member Operators

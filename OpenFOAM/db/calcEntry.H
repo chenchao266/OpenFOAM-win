@@ -1,9 +1,12 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2013 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2013 OpenFOAM Foundation
+    Copyright (C) 2019 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -33,7 +36,7 @@ Description
     \verbatim
     a 1.0;
     b 3;
-    c #calc "$a/$b";
+    c \#calc "$a/$b";
     \endverbatim
 
     Note the explicit trailing 0 ('1.0') to force a to be read (and written)
@@ -41,24 +44,22 @@ Description
 
 Note
     Internally this is just a wrapper around codeStream functionality - the
-    #calc string gets used to construct a dictionary for codeStream.
+    \#calc string gets used to construct a dictionary for codeStream.
 
 SourceFiles
     calcEntry.C
 
 \*---------------------------------------------------------------------------*/
 
-#ifndef calcEntry_H
-#define calcEntry_H
+#ifndef functionEntries_calcEntry_H
+#define functionEntries_calcEntry_H
 
-#include "functionEntry.H"
+#include "codeStream.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 namespace Foam
 {
-class dlLibraryTable;
-
 namespace functionEntries
 {
 
@@ -66,37 +67,28 @@ namespace functionEntries
                          Class calcEntry Declaration
 \*---------------------------------------------------------------------------*/
 
-class calcEntry :    public functionEntry
+class calcEntry
+:
+    public codeStream
 {
-
     // Private Member Functions
 
-        //- Disallow default bitwise copy construct
-        calcEntry(const calcEntry&);
-
-        //- Disallow default bitwise assignment
-        void operator=(const calcEntry&);
+    //- Evaluate dynamically compiled code, returning result as string
+    static string evaluate(const dictionary& parentDict, Istream& is);
 
 
 public:
 
-    //- Runtime type information
-    ClassName("calc");
+    //- Execute in a primitiveEntry context
+    static bool execute
+    (
+        const dictionary& parentDict,
+        primitiveEntry& entry,
+        Istream& is
+    );
 
-
-    // Member Functions
-
-        //- Execute the functionEntry in a sub-dict context
-        static bool execute(dictionary& parentDict, Istream&);
-
-        //- Execute the functionEntry in a primitiveEntry context
-        static bool execute
-        (
-            const dictionary& parentDict,
-            primitiveEntry&,
-            Istream&
-        );
-
+    //- Execute in a sub-dict context
+    static bool execute(dictionary& parentDict, Istream& is);
 };
 
 

@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -126,23 +129,30 @@ inline Foam::scalar Foam::hPolynomialThermo<EquationOfState, PolySize>::S
 }
 
 
-// * * * * * * * * * * * * * * * Member Operators  * * * * * * * * * * * * * //
-
 template<class EquationOfState, int PolySize>
-inline void Foam::hPolynomialThermo<EquationOfState, PolySize>::operator=
+inline Foam::scalar Foam::hPolynomialThermo<EquationOfState, PolySize>::Gstd
 (
-    const hPolynomialThermo<EquationOfState, PolySize>& pt
-)
+    const scalar T
+) const
 {
-    EquationOfState::operator=(pt);
-
-    Hf_ = pt.Hf_;
-    Sf_ = pt.Sf_;
-    CpCoeffs_ = pt.CpCoeffs_;
-    hCoeffs_ = pt.hCoeffs_;
-    sCoeffs_ = pt.sCoeffs_;
+    return hCoeffs_.value(T) - sCoeffs_.value(T)*T;
 }
 
+
+template<class EquationOfState, int PolySize>
+inline Foam::scalar Foam::hPolynomialThermo<EquationOfState, PolySize>::dCpdT
+(
+    const scalar p,
+    const scalar T
+) const
+{
+    return
+    (
+        CpCoeffs_.derivative(T)
+    );
+}
+
+// * * * * * * * * * * * * * * * Member Operators  * * * * * * * * * * * * * //
 
 template<class EquationOfState, int PolySize>
 inline void Foam::hPolynomialThermo<EquationOfState, PolySize>::operator+=

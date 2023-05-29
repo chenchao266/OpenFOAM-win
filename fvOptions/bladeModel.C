@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2020-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -25,15 +28,15 @@ License
 
 #include "bladeModel.H"
 #include "unitConversion.H"
-#include "Tuple2.T.H"
-#include "vector.H"
+#include "Tuple2.H"
+#include "vector2.H"
 #include "IFstream.H"
 
 // * * * * * * * * * * * * * Protected Member Functions  * * * * * * * * * * //
 
 bool Foam::bladeModel::readFromFile() const
 {
-    return fName_ != fileName::null;
+    return !fName_.empty();
 }
 
 
@@ -93,7 +96,7 @@ Foam::bladeModel::bladeModel(const dictionary& dict)
     radius_(),
     twist_(),
     chord_(),
-    fName_(fileName::null)
+    fName_()
 {
     List<Tuple2<word, vector>> data;
     if (readFromFile())
@@ -103,10 +106,10 @@ Foam::bladeModel::bladeModel(const dictionary& dict)
     }
     else
     {
-        dict.lookup("data") >> data;
+        dict.readEntry("data", data);
     }
 
-    if (data.size() > 0)
+    if (data.size())
     {
         profileName_.setSize(data.size());
         profileID_.setSize(data.size());
@@ -125,15 +128,11 @@ Foam::bladeModel::bladeModel(const dictionary& dict)
     }
     else
     {
-        FatalErrorInFunction
-            << "No blade data specified" << exit(FatalError);
+        FatalIOErrorInFunction(dict)
+            << "No blade data specified"
+            << exit(FatalIOError);
     }
 }
-
-// * * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * //
-
-Foam::bladeModel::~bladeModel()
-{}
 
 
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //

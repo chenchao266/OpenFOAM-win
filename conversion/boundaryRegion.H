@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -53,11 +55,11 @@ SourceFiles
 #define boundaryRegion_H
 
 #include "polyMesh.H"
-#include "Map.T.H"
-#include "dictionary.H"
+#include "Map.H"
+#include "dictionary2.H"
 #include "labelList.H"
 #include "wordList.H"
-#include "wordReList.H"
+#include "wordRes.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -74,8 +76,8 @@ class boundaryRegion
 {
     // Private Member Functions
 
-        //- Disallow default bitwise copy construct
-        boundaryRegion(const boundaryRegion&);
+        //- No copy construct
+        boundaryRegion(const boundaryRegion&) = delete;
 
 
 public:
@@ -95,7 +97,7 @@ public:
 
 
     //- Destructor
-    ~boundaryRegion();
+    ~boundaryRegion() = default;
 
 
     // Member Functions
@@ -111,7 +113,7 @@ public:
         Map<word> names() const;
 
         //- Return a Map of (id => names) selected by patterns
-        Map<word> names(const UList<wordRe>& patterns) const;
+        Map<word> names(const wordRes& patterns) const;
 
         //- Return a Map of (id => type)
         Map<word> boundaryTypes() const;

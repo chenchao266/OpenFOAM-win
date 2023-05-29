@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -34,8 +36,8 @@ SourceFiles
 #ifndef tetherPotentialList_H
 #define tetherPotentialList_H
 
-#include "ListOps.T.H"
-#include "PtrList.T.H"
+#include "ListOps.H"
+#include "PtrList.H"
 #include "word.H"
 #include "tetherPotential.H"
 
@@ -71,11 +73,11 @@ class tetherPotentialList
             const List<word>& tetherSiteIdList
         );
 
-        //- Disallow default bitwise assignment
-        void operator=(const tetherPotentialList&);
+        //- No copy construct
+        tetherPotentialList(const tetherPotentialList&) = delete;
 
-        //- Disallow default bitwise copy construct
-        tetherPotentialList(const tetherPotentialList&);
+        //- No copy assignment
+        void operator=(const tetherPotentialList&) = delete;
 
 
 public:
@@ -84,7 +86,7 @@ public:
 
         tetherPotentialList();
 
-        //- Construct from siteIdList and potental dictionaries
+        //- Construct from siteIdList and potential dictionaries
         tetherPotentialList
         (
             const List<word>& siteIdList,

@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2019-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -38,14 +41,14 @@ SourceFiles
 #define solidReaction_H
 
 #include "speciesTable.H"
-#include "Reaction.T.H"
+#include "Reaction.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 namespace Foam
 {
 
-// Forward declaration of friend functions and operators
+// Forward Declarations
 template<class ReactionThermo>
 class solidReaction;
 
@@ -59,12 +62,11 @@ inline Ostream& operator<<(Ostream&, const solidReaction<ReactionThermo>&);
 template<class ReactionThermo>
 class solidReaction
 :
-    public  Reaction<ReactionThermo>
+    public Reaction<ReactionThermo>
 {
-
 private:
 
-    // Private data
+    // Private Data
 
         typedef typename Reaction<ReactionThermo>::specieCoeffs specieCoeffs;
 
@@ -90,8 +92,8 @@ private:
         //- Return string representation of the right of the reaction
         void solidReactionStrRight(OStringStream&) const;
 
-        //- Disallow default bitwise assignment
-        void operator=(const solidReaction&);
+        //- No copy assignment
+        void operator=(const solidReaction&) = delete;
 
 
 public:
@@ -124,7 +126,7 @@ public:
         solidReaction
         (
             const speciesTable& species,
-            const HashPtrTable<ReactionThermo>& thermoDatabase,
+            const ReactionTable<ReactionThermo>& thermoDatabase,
             const dictionary& dict
         );
 
@@ -152,25 +154,23 @@ public:
 
 
     //- Destructor
-    virtual ~solidReaction()
-    {}
+    virtual ~solidReaction() = default;
 
 
     // Member Functions
 
         // Access
 
-
-            // - Acces to gas components of the reaction
+            //- Access to gas components of the reaction
             virtual const List<specieCoeffs>& grhs() const;
             virtual const List<specieCoeffs>& glhs() const;
 
-            // - Access to gas specie list
+            //- Access to gas specie list
             virtual const speciesTable& gasSpecies() const;
 
 
         //- Write
-        virtual void write(Ostream&) const;
+        virtual void write(Ostream& os) const;
 
 
     // Ostream Operator

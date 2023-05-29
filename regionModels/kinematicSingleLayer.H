@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -22,7 +25,7 @@ License
     along with OpenFOAM.  If not, see <http://www.gnu.org/licenses/>.
 
 Class
-    Foam::kinematicSingleLayer
+    Foam::regionModels::surfaceFilmModels::kinematicSingleLayer
 
 Description
     Kinematic form of single-cell layer surface film model
@@ -35,7 +38,7 @@ SourceFiles
 #ifndef kinematicSingleLayer_H
 #define kinematicSingleLayer_H
 
-#include "surfaceFilmModel.H"
+#include "surfaceFilmRegionModel.H"
 #include "fvMesh.H"
 #include "volFields.H"
 #include "surfaceFields.H"
@@ -55,7 +58,7 @@ namespace regionModels
 namespace surfaceFilmModels
 {
 
-// Forward class declarations
+// Forward Declarations
 class filmThermoModel;
 
 /*---------------------------------------------------------------------------*\
@@ -64,17 +67,17 @@ class filmThermoModel;
 
 class kinematicSingleLayer
 :
-    public surfaceFilmModel
+    public surfaceFilmRegionModel
 {
 private:
 
     // Private member functions
 
-        //- Disallow default bitwise copy construct
-        kinematicSingleLayer(const kinematicSingleLayer&);
+        //- No copy construct
+        kinematicSingleLayer(const kinematicSingleLayer&) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const kinematicSingleLayer&);
+        //- No copy assignment
+        void operator=(const kinematicSingleLayer&) = delete;
 
 
 protected:
@@ -161,7 +164,7 @@ protected:
             // Note: need boundary value mapped from primary region, and then
             // pushed into the patch internal field
 
-                //- Momementum [kg/m/s2]
+                //- Momentum [kg/m/s2]
                 volVectorField USp_;
 
                 //- Pressure [Pa]
@@ -174,7 +177,7 @@ protected:
             // Primary region - registered to the primary region mesh
             // Internal use only - not read-in
 
-                //- Momementum [kg/m/s2]
+                //- Momentum [kg/m/s2]
                 volVectorField USpPrimary_;
 
                 //- Pressure [Pa]
@@ -289,7 +292,7 @@ protected:
             (
                 const volScalarField& pu,
                 const volScalarField& pp,
-                const fvVectorMatrix& UEqn
+                fvVectorMatrix& UEqn
             );
 
 
@@ -324,7 +327,7 @@ public:
             virtual scalar CourantNumber() const;
 
             //- Return the momentum predictor
-            inline const Switch& momentumPredictor() const;
+            inline Switch momentumPredictor() const;
 
             //- Return the number of outer correctors
             inline label nOuterCorr() const;
@@ -423,7 +426,7 @@ public:
 
             // Primary region
 
-                //- Momementum [kg/m/s2]
+                //- Momentum [kg/m/s2]
                 inline volVectorField& USpPrimary();
 
                 //- Pressure [Pa]
@@ -489,9 +492,6 @@ public:
             //- Return the current film mass
             inline tmp<volScalarField> mass() const;
 
-            //- Return the net film mass available over the next integration
-            inline tmp<volScalarField> netMass() const;
-
             //- Return the change in film mass due to sources/sinks
             inline tmp<volScalarField> deltaMass() const;
 
@@ -505,6 +505,9 @@ public:
             //- Return the gravity tangential component contributions
             inline tmp<volVectorField> gTan() const;
 
+            //- Return the gravity tangential component contributions for patchI
+            inline tmp<vectorField> gTan(const label patchI) const;
+
 
         // Evolution
 
@@ -513,6 +516,9 @@ public:
 
             //- Evolve the film equations
             virtual void evolveRegion();
+
+            //- Post-evolve film hook
+            virtual void postEvolveRegion();
 
 
         // Source fields

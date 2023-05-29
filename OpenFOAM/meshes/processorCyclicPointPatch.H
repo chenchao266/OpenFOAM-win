@@ -1,9 +1,11 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -55,17 +57,19 @@ namespace Foam
                       Class processorCyclicPointPatch Declaration
 \*---------------------------------------------------------------------------*/
 
-class processorCyclicPointPatch :    public processorPointPatch
+class processorCyclicPointPatch
+:
+    public processorPointPatch
 {
     // Private data
 
         const processorCyclicPolyPatch& procCycPolyPatch_;
 
-        //- Disallow default construct as copy
-        processorCyclicPointPatch(const processorCyclicPointPatch&);
+        //- No copy construct
+        processorCyclicPointPatch(const processorCyclicPointPatch&) = delete;
 
-        //- Disallow default assignment
-        void operator=(const processorCyclicPointPatch&);
+        //- No copy assignment
+        void operator=(const processorCyclicPointPatch&) = delete;
 
 public:
 

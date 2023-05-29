@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2019-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -25,14 +28,16 @@ License
 
 #include "primitiveMesh.H"
 #include "pyramidPointFaceRef.H"
-#include "ListOps.T.H"
+#include "ListOps.H"
 #include "unitConversion.H"
-#include "SortableList.T.H"
-#include "EdgeMap.T.H"
+#include "SortableList.H"
+#include "edgeHashes.H"
 #include "primitiveMeshTools.H"
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
-using namespace Foam;
+
+
+ namespace Foam{
 scalar primitiveMesh::closedThreshold_  = 1.0e-6;
 scalar primitiveMesh::aspectThreshold_  = 1000;
 scalar primitiveMesh::nonOrthThreshold_ = 70;    // deg
@@ -46,34 +51,30 @@ bool primitiveMesh::checkClosedBoundary
 (
     const vectorField& areas,
     const bool report,
-    const PackedBoolList& internalOrCoupledFaces
+    const bitSet& internalOrCoupledFaces
 ) const
 {
-    if (debug)
-    {
-        InfoInFunction
-            << "Checking whether the boundary is closed" << endl;
-    }
+    DebugInFunction << "Checking if boundary is closed" << endl;
 
     // Loop through all boundary faces and sum up the face area vectors.
     // For a closed boundary, this should be zero in all vector components
 
-    vector sumClosed(Zero);
-    scalar sumMagClosedBoundary = 0;
+    Vector<solveScalar> sumClosed(Zero);
+    solveScalar sumMagClosedBoundary = 0;
 
     for (label facei = nInternalFaces(); facei < areas.size(); facei++)
     {
         if (!internalOrCoupledFaces.size() || !internalOrCoupledFaces[facei])
         {
-            sumClosed += areas[facei];
+            sumClosed += Vector<solveScalar>(areas[facei]);
             sumMagClosedBoundary += mag(areas[facei]);
         }
     }
 
-    reduce(sumClosed, sumOp<vector>());
-    reduce(sumMagClosedBoundary, sumOp<scalar>());
+    reduce(sumClosed, sumOp<Vector<solveScalar>>());
+    reduce(sumMagClosedBoundary, sumOp<solveScalar>());
 
-    vector openness = sumClosed/(sumMagClosedBoundary + VSMALL);
+    Vector<solveScalar> openness = sumClosed/(sumMagClosedBoundary + VSMALL);
 
     if (cmptMax(cmptMag(openness)) > closedThreshold_)
     {
@@ -86,16 +87,14 @@ bool primitiveMesh::checkClosedBoundary
 
         return true;
     }
-    else
-    {
-        if (debug || report)
-        {
-            Info<< "    Boundary openness " << openness << " OK."
-                << endl;
-        }
 
-        return false;
+    if (debug || report)
+    {
+        Info<< "    Boundary openness " << openness << " OK."
+            << endl;
     }
+
+    return false;
 }
 
 
@@ -109,11 +108,7 @@ bool primitiveMesh::checkClosedCells
     const Vector<label>& meshD
 ) const
 {
-    if (debug)
-    {
-        InfoInFunction
-            << "Checking whether cells are closed" << endl;
-    }
+    DebugInFunction << "Checking if cells are closed" << endl;
 
     // Check that all cells labels are valid
     const cellList& c = cells();
@@ -239,10 +234,7 @@ bool primitiveMesh::checkFaceAreas
     labelHashSet* setPtr
 ) const
 {
-    if (debug)
-    {
-        InfoInFunction << "Checking face area magnitudes" << endl;
-    }
+    DebugInFunction << "Checking face area magnitudes" << endl;
 
     const scalarField magFaceAreas(mag(faceAreas));
 
@@ -295,17 +287,15 @@ bool primitiveMesh::checkFaceAreas
 
         return true;
     }
-    else
-    {
-        if (debug || report)
-        {
-            Info<< "    Minimum face area = " << minArea
-                << ". Maximum face area = " << maxArea
-                << ".  Face area magnitudes OK." << endl;
-        }
 
-        return false;
+    if (debug || report)
+    {
+        Info<< "    Minimum face area = " << minArea
+            << ". Maximum face area = " << maxArea
+            << ".  Face area magnitudes OK." << endl;
     }
+
+    return false;
 }
 
 
@@ -317,10 +307,7 @@ bool primitiveMesh::checkCellVolumes
     labelHashSet* setPtr
 ) const
 {
-    if (debug)
-    {
-        InfoInFunction << "Checking cell volumes" << endl;
-    }
+    DebugInFunction << "Checking cell volumes" << endl;
 
     scalar minVolume = GREAT;
     scalar maxVolume = -GREAT;
@@ -364,18 +351,16 @@ bool primitiveMesh::checkCellVolumes
 
         return true;
     }
-    else
-    {
-        if (debug || report)
-        {
-            Info<< "    Min volume = " << minVolume
-                << ". Max volume = " << maxVolume
-                << ".  Total volume = " << gSum(vols)
-                << ".  Cell volumes OK." << endl;
-        }
 
-        return false;
+    if (debug || report)
+    {
+        Info<< "    Min volume = " << minVolume
+            << ". Max volume = " << maxVolume
+            << ".  Total volume = " << gSum(vols)
+            << ".  Cell volumes OK." << endl;
     }
+
+    return false;
 }
 
 
@@ -387,11 +372,7 @@ bool primitiveMesh::checkFaceOrthogonality
     labelHashSet* setPtr
 ) const
 {
-    if (debug)
-    {
-        InfoInFunction << "Checking mesh non-orthogonality" << endl;
-    }
-
+    DebugInFunction << "Checking mesh non-orthogonality" << endl;
 
     tmp<scalarField> tortho = primitiveMeshTools::faceOrthogonality
     (
@@ -477,15 +458,13 @@ bool primitiveMesh::checkFaceOrthogonality
 
         return true;
     }
-    else
-    {
-        if (debug || report)
-        {
-            Info<< "    Non-orthogonality check OK." << endl;
-        }
 
-        return false;
+    if (debug || report)
+    {
+        Info<< "    Non-orthogonality check OK." << endl;
     }
+
+    return false;
 }
 
 
@@ -499,10 +478,7 @@ bool primitiveMesh::checkFacePyramids
     labelHashSet* setPtr
 ) const
 {
-    if (debug)
-    {
-        InfoInFunction << "Checking face orientation" << endl;
-    }
+    DebugInFunction << "Checking face orientation" << endl;
 
     const labelList& own = faceOwner();
     const labelList& nei = faceNeighbour();
@@ -579,15 +555,13 @@ bool primitiveMesh::checkFacePyramids
 
         return true;
     }
-    else
-    {
-        if (debug || report)
-        {
-            Info<< "    Face pyramids OK." << endl;
-        }
 
-        return false;
+    if (debug || report)
+    {
+        Info<< "    Face pyramids OK." << endl;
     }
+
+    return false;
 }
 
 
@@ -601,10 +575,7 @@ bool primitiveMesh::checkFaceSkewness
     labelHashSet* setPtr
 ) const
 {
-    if (debug)
-    {
-        InfoInFunction << "Checking face skewness" << endl;
-    }
+    DebugInFunction << "Checking face skewness" << endl;
 
     // Warn if the skew correction vector is more than skewWarning times
     // larger than the face area vector
@@ -652,15 +623,13 @@ bool primitiveMesh::checkFaceSkewness
 
         return true;
     }
-    else
-    {
-        if (debug || report)
-        {
-            Info<< "    Max skewness = " << maxSkew << " OK." << endl;
-        }
 
-        return false;
+    if (debug || report)
+    {
+        Info<< "    Max skewness = " << maxSkew << " OK." << endl;
     }
+
+    return false;
 }
 
 
@@ -673,10 +642,7 @@ bool primitiveMesh::checkFaceAngles
     labelHashSet* setPtr
 ) const
 {
-    if (debug)
-    {
-        InfoInFunction << "Checking face angles" << endl;
-    }
+    DebugInFunction << "Checking face angles" << endl;
 
     if (maxDeg < -SMALL || maxDeg > 180+SMALL)
     {
@@ -732,15 +698,13 @@ bool primitiveMesh::checkFaceAngles
 
         return true;
     }
-    else
-    {
-        if (debug || report)
-        {
-            Info<< "    All angles in faces OK." << endl;
-        }
 
-        return false;
+    if (debug || report)
+    {
+        Info<< "    All angles in faces OK." << endl;
     }
+
+    return false;
 }
 
 
@@ -754,15 +718,12 @@ bool primitiveMesh::checkFaceFlatness
     labelHashSet* setPtr
 ) const
 {
-    if (debug)
-    {
-        InfoInFunction << "Checking face flatness" << endl;
-    }
+    DebugInFunction << "Checking face flatness" << endl;
 
     if (warnFlatness < 0 || warnFlatness > 1)
     {
         FatalErrorInFunction
-            << "warnFlatness should be [0..1] but is now " << warnFlatness
+            << "warnFlatness should be [0..1] but is " << warnFlatness
             << exit(FatalError);
     }
 
@@ -823,7 +784,7 @@ bool primitiveMesh::checkFaceFlatness
     }
 
 
-    if (nWarped> 0)
+    if (nWarped > 0)
     {
         if (debug || report)
         {
@@ -837,15 +798,13 @@ bool primitiveMesh::checkFaceFlatness
 
         return true;
     }
-    else
-    {
-        if (debug || report)
-        {
-            Info<< "    All face flatness OK." << endl;
-        }
 
-        return false;
+    if (debug || report)
+    {
+        Info<< "    All face flatness OK." << endl;
     }
+
+    return false;
 }
 
 
@@ -857,10 +816,7 @@ bool primitiveMesh::checkConcaveCells
     labelHashSet* setPtr
 ) const
 {
-    if (debug)
-    {
-        InfoInFunction << "Checking for concave cells" << endl;
-    }
+    DebugInFunction << "Checking for concave cells" << endl;
 
     const cellList& c = cells();
     const labelList& fOwner = faceOwner();
@@ -948,14 +904,10 @@ bool primitiveMesh::checkConcaveCells
 
         return true;
     }
-    else
-    {
-        if (debug || report)
-        {
-            Info<< "    Concave cell check OK." << endl;
-        }
 
-        return false;
+    if (debug || report)
+    {
+        Info<< "    Concave cell check OK." << endl;
     }
 
     return false;
@@ -968,10 +920,7 @@ bool primitiveMesh::checkUpperTriangular
     labelHashSet* setPtr
 ) const
 {
-    if (debug)
-    {
-        InfoInFunction << "Checking face ordering" << endl;
-    }
+    DebugInFunction << "Checking face ordering" << endl;
 
     // Check whether internal faces are ordered in the upper triangular order
     const labelList& own = faceOwner();
@@ -1113,15 +1062,13 @@ bool primitiveMesh::checkUpperTriangular
 
         return true;
     }
-    else
-    {
-        if (debug || report)
-        {
-            Info<< "    Upper triangular ordering OK." << endl;
-        }
 
-        return false;
+    if (debug || report)
+    {
+        Info<< "    Upper triangular ordering OK." << endl;
     }
+
+    return false;
 }
 
 
@@ -1131,10 +1078,7 @@ bool primitiveMesh::checkCellsZipUp
     labelHashSet* setPtr
 ) const
 {
-    if (debug)
-    {
-        InfoInFunction << "Checking topological cell openness" << endl;
-    }
+    DebugInFunction << "Checking topological cell openness" << endl;
 
     label nOpenCells = 0;
 
@@ -1147,7 +1091,7 @@ bool primitiveMesh::checkCellsZipUp
 
         const edgeList cellEdges = c[celli].edges(f);
 
-        labelList edgeUsage(cellEdges.size(), 0);
+        labelList edgeUsage(cellEdges.size(), Zero);
 
         forAll(curFaces, facei)
         {
@@ -1211,15 +1155,13 @@ bool primitiveMesh::checkCellsZipUp
 
         return true;
     }
-    else
-    {
-        if (debug || report)
-        {
-            Info<< "    Topological cell zip-up check OK." << endl;
-        }
 
-        return false;
+    if (debug || report)
+    {
+        Info<< "    Topological cell zip-up check OK." << endl;
     }
+
+    return false;
 }
 
 
@@ -1229,10 +1171,7 @@ bool primitiveMesh::checkFaceVertices
     labelHashSet* setPtr
 ) const
 {
-    if (debug)
-    {
-        InfoInFunction << "Checking face vertices" << endl;
-    }
+    DebugInFunction << "Checking face vertices" << endl;
 
     // Check that all vertex labels are valid
     const faceList& f = faces();
@@ -1284,15 +1223,13 @@ bool primitiveMesh::checkFaceVertices
 
         return true;
     }
-    else
-    {
-        if (debug || report)
-        {
-            Info<< "    Face vertices OK." << endl;
-        }
 
-        return false;
+    if (debug || report)
+    {
+        Info<< "    Face vertices OK." << endl;
     }
+
+    return false;
 }
 
 
@@ -1302,10 +1239,7 @@ bool primitiveMesh::checkPoints
     labelHashSet* setPtr
 ) const
 {
-    if (debug)
-    {
-        InfoInFunction << "Checking points" << endl;
-    }
+    DebugInFunction << "Checking points" << endl;
 
     label nFaceErrors = 0;
     label nCellErrors = 0;
@@ -1356,15 +1290,13 @@ bool primitiveMesh::checkPoints
 
         return true;
     }
-    else
-    {
-        if (debug || report)
-        {
-            Info<< "    Point usage OK." << endl;
-        }
 
-        return false;
+    if (debug || report)
+    {
+        Info<< "    Point usage OK." << endl;
     }
+
+    return false;
 }
 
 
@@ -1378,7 +1310,7 @@ bool primitiveMesh::checkDuplicateFaces
 {
     bool error = false;
 
-    forAllConstIter(Map<label>, nCommonPoints, iter)
+    forAllConstIters(nCommonPoints, iter)
     {
         label nbFacei = iter.key();
         label nCommon = iter();
@@ -1418,7 +1350,7 @@ bool primitiveMesh::checkCommonOrder
 {
     bool error = false;
 
-    forAllConstIter(Map<label>, nCommonPoints, iter)
+    forAllConstIters(nCommonPoints, iter)
     {
         label nbFacei = iter.key();
         label nCommon = iter();
@@ -1436,7 +1368,7 @@ bool primitiveMesh::checkCommonOrder
             forAll(curFace, fp)
             {
                 // Get the index in the neighbouring face shared with curFace
-                label nb = findIndex(nbFace, curFace[fp]);
+                label nb = nbFace.find(curFace[fp]);
 
                 if (nb != -1)
                 {
@@ -1576,17 +1508,14 @@ bool primitiveMesh::checkFaceFaces
     labelHashSet* setPtr
 ) const
 {
-    if (debug)
-    {
-        InfoInFunction << "Checking face-face connectivity" << endl;
-    }
+    DebugInFunction << "Checking face-face connectivity" << endl;
 
     const labelListList& pf = pointFaces();
 
     label nBaffleFaces = 0;
     label nErrorDuplicate = 0;
     label nErrorOrder = 0;
-    Map<label> nCommonPoints(100);
+    Map<label> nCommonPoints(128);
 
     for (label facei = 0; facei < nFaces(); facei++)
     {
@@ -1609,18 +1538,7 @@ bool primitiveMesh::checkFaceFaces
                 if (facei < nbFacei)
                 {
                     // Only check once for each combination of two faces.
-
-                    Map<label>::iterator fnd = nCommonPoints.find(nbFacei);
-
-                    if (fnd == nCommonPoints.end())
-                    {
-                        // First common vertex found.
-                        nCommonPoints.insert(nbFacei, 1);
-                    }
-                    else
-                    {
-                        fnd()++;
-                    }
+                    ++(nCommonPoints(nbFacei, 0));
                 }
             }
         }
@@ -1668,15 +1586,13 @@ bool primitiveMesh::checkFaceFaces
 
         return false;   //return true;
     }
-    else
-    {
-        if (debug || report)
-        {
-            Info<< "    Face-face connectivity OK." << endl;
-        }
 
-        return false;
+    if (debug || report)
+    {
+        Info<< "    Face-face connectivity OK." << endl;
     }
+
+    return false;
 }
 
 
@@ -1684,7 +1600,7 @@ bool primitiveMesh::checkFaceFaces
 
 bool primitiveMesh::checkClosedBoundary(const bool report) const
 {
-    return checkClosedBoundary(faceAreas(), report, PackedBoolList(0));
+    return checkClosedBoundary(faceAreas(), report, bitSet());
 }
 
 
@@ -1693,7 +1609,7 @@ bool primitiveMesh::checkClosedCells
     const bool report,
     labelHashSet* setPtr,
     labelHashSet* aspectSetPtr,
-     const Vector<label>& solutionD
+    const Vector<label>& solutionD
 ) const
 {
     return checkClosedCells
@@ -1848,97 +1764,89 @@ bool primitiveMesh::checkConcaveCells
 
 bool primitiveMesh::checkTopology(const bool report) const
 {
-    label noFailedChecks = 0;
+    label nFailedChecks = 0;
 
-    if (checkPoints(report)) noFailedChecks++;
-    if (checkUpperTriangular(report)) noFailedChecks++;
-    if (checkCellsZipUp(report)) noFailedChecks++;
-    if (checkFaceVertices(report)) noFailedChecks++;
-    if (checkFaceFaces(report)) noFailedChecks++;
+    if (checkPoints(report)) ++nFailedChecks;
+    if (checkUpperTriangular(report)) ++nFailedChecks;
+    if (checkCellsZipUp(report)) ++nFailedChecks;
+    if (checkFaceVertices(report)) ++nFailedChecks;
+    if (checkFaceFaces(report)) ++nFailedChecks;
 
-    if (noFailedChecks == 0)
+    if (nFailedChecks)
     {
         if (debug || report)
         {
-            Info<< "    Mesh topology OK." << endl;
-        }
-
-        return false;
-    }
-    else
-    {
-        if (debug || report)
-        {
-            Info<< "    Failed " << noFailedChecks
+            Info<< "    Failed " << nFailedChecks
                 << " mesh topology checks." << endl;
         }
 
         return true;
     }
+
+    if (debug || report)
+    {
+        Info<< "    Mesh topology OK." << endl;
+    }
+
+    return false;
 }
 
 
 bool primitiveMesh::checkGeometry(const bool report) const
 {
-    label noFailedChecks = 0;
+    label nFailedChecks = 0;
 
-    if (checkClosedBoundary(report)) noFailedChecks++;
-    if (checkClosedCells(report)) noFailedChecks++;
-    if (checkFaceAreas(report)) noFailedChecks++;
-    if (checkCellVolumes(report)) noFailedChecks++;
-    if (checkFaceOrthogonality(report)) noFailedChecks++;
-    if (checkFacePyramids(report)) noFailedChecks++;
-    if (checkFaceSkewness(report)) noFailedChecks++;
+    if (checkClosedBoundary(report)) ++nFailedChecks;
+    if (checkClosedCells(report)) ++nFailedChecks;
+    if (checkFaceAreas(report)) ++nFailedChecks;
+    if (checkCellVolumes(report)) ++nFailedChecks;
+    if (checkFaceOrthogonality(report)) ++nFailedChecks;
+    if (checkFacePyramids(report)) ++nFailedChecks;
+    if (checkFaceSkewness(report)) ++nFailedChecks;
 
-    if (noFailedChecks == 0)
+    if (nFailedChecks)
     {
         if (debug || report)
         {
-            Info<< "    Mesh geometry OK." << endl;
-        }
-        return false;
-    }
-    else
-    {
-        if (debug || report)
-        {
-            Info<< "    Failed " << noFailedChecks
+            Info<< "    Failed " << nFailedChecks
                 << " mesh geometry checks." << endl;
         }
 
         return true;
     }
+
+    if (debug || report)
+    {
+        Info<< "    Mesh geometry OK." << endl;
+    }
+
+    return false;
 }
 
 
 bool primitiveMesh::checkMesh(const bool report) const
 {
-    if (debug)
-    {
-        InfoInFunction << "Checking primitiveMesh" << endl;
-    }
+    DebugInFunction << "Checking primitiveMesh" << endl;
 
-    label noFailedChecks = checkTopology(report) + checkGeometry(report);
+    label nFailedChecks = checkTopology(report) + checkGeometry(report);
 
-    if (noFailedChecks == 0)
+    if (nFailedChecks)
     {
         if (debug || report)
         {
-            Info<< "Mesh OK." << endl;
-        }
-
-        return false;
-    }
-    else
-    {
-        if (debug || report)
-        {
-            Info<< "    Failed " << noFailedChecks
+            Info<< "    Failed " << nFailedChecks
                 << " mesh checks." << endl;
         }
 
         return true;
     }
+
+    if (debug || report)
+    {
+        Info<< "Mesh OK." << endl;
+    }
+
+    return false;
 }
 
 
@@ -1979,3 +1887,5 @@ scalar primitiveMesh::setSkewThreshold(const scalar val)
 
 
 // ************************************************************************* //
+
+ } // End namespace Foam

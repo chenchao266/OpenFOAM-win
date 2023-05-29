@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2017 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -45,7 +48,7 @@ namespace viscosityModels
 }
 
 
-// * * * * * * * * * * * * Private Member Functions  * * * * * * * * * * * * //
+// * * * * * * * * * * * * Protected Member Functions  * * * * * * * * * * * * //
 
 Foam::tmp<Foam::volScalarField>
 Foam::viscosityModels::CrossPowerLaw::calcNu() const
@@ -100,10 +103,10 @@ bool Foam::viscosityModels::CrossPowerLaw::read
     CrossPowerLawCoeffs_ =
         viscosityProperties.optionalSubDict(typeName + "Coeffs");
 
-    CrossPowerLawCoeffs_.lookup("nu0") >> nu0_;
-    CrossPowerLawCoeffs_.lookup("nuInf") >> nuInf_;
-    CrossPowerLawCoeffs_.lookup("m") >> m_;
-    CrossPowerLawCoeffs_.lookup("n") >> n_;
+    CrossPowerLawCoeffs_.readEntry("nu0", nu0_);
+    CrossPowerLawCoeffs_.readEntry("nuInf", nuInf_);
+    CrossPowerLawCoeffs_.readEntry("m", m_);
+    CrossPowerLawCoeffs_.readEntry("n", n_);
 
     return true;
 }

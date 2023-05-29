@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2017-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -22,7 +25,7 @@ License
     along with OpenFOAM.  If not, see <http://www.gnu.org/licenses/>.
 
 Class
-    Foam::STARCDCoordinateRotation
+    Foam::coordinateRotations::starcd
 
 Description
     A coordinateRotation defined by the STAR-CD convention.
@@ -34,21 +37,28 @@ Description
     - the rotation angles are in degrees, unless otherwise explicitly specified:
 
     \verbatim
-    coordinateRotation
+    rotation
     {
-        type        STARCDRotation;
-        degrees     false;
-        rotation    (0 0 3.141592654);
+        type    starcd;
+        angles  (0 0 180);
     }
     \endverbatim
+
+    \heading Dictionary entries
+    \table
+        Property    | Description                           | Required | Default
+        type        | Type name: starcd (or STARCDRotation) | yes   |
+        angles      | The z-x-y rotation angles             | yes   |
+        degrees     | Angles are in degrees                 | no    | true
+    \endtable
 
 SourceFiles
     STARCDCoordinateRotation.C
 
 \*---------------------------------------------------------------------------*/
 
-#ifndef STARCDCoordinateRotation_H
-#define STARCDCoordinateRotation_H
+#ifndef coordinateRotations_starcd_H
+#define coordinateRotations_starcd_H
 
 #include "coordinateRotation.H"
 
@@ -56,161 +66,92 @@ SourceFiles
 
 namespace Foam
 {
+namespace coordinateRotations
+{
 
 /*---------------------------------------------------------------------------*\
-                  Class STARCDCoordinateRotation Declaration
+                 Class coordinateRotations::starcd Declaration
 \*---------------------------------------------------------------------------*/
 
-class STARCDCoordinateRotation
+class starcd
 :
     public coordinateRotation
 {
+    // Private Data
 
-    // Private Member Data
+        //- The rotation angles
+        vector angles_;
 
-        //- Local-to-Global transformation tensor
-        tensor R_;
-
-        //- Global-to-Local transformation tensor
-        tensor Rtr_;
-
-
-    // Private Member Functions
-
-        //- Calculate transformation tensor
-        void calcTransform
-        (
-            const scalar rotZ,
-            const scalar rotX,
-            const scalar rotY,
-            const bool inDegrees=true
-        );
+        //- Angles measured in degrees
+        bool degrees_;
 
 
 public:
 
     //- Runtime type information
-    TypeName("STARCDRotation");
+    TypeNameNoDebug("starcd");
 
 
     // Constructors
 
-        //- Construct null
-        STARCDCoordinateRotation();
+        //- Default construct - an identity transform
+        starcd();
+
+        //- Copy construct
+        starcd(const starcd& crot);
 
         //- Construct from rotation vector
-        STARCDCoordinateRotation
-        (
-            const vector& rotZrotXrotY,
-            const bool inDegrees=true
-        );
+        starcd(const vector& rotZrotXrotY, bool degrees);
 
         //- Construct from components of rotation vector
-        STARCDCoordinateRotation
-        (
-            const scalar rotZ,
-            const scalar rotX,
-            const scalar rotY,
-            const bool inDegrees=true
-        );
+        starcd(scalar rotZ, scalar rotX, scalar rotY, bool degrees);
 
         //- Construct from dictionary
-        STARCDCoordinateRotation(const dictionary&);
+        explicit starcd(const dictionary& dict);
 
-        //- Construct from dictionary and mesh
-        STARCDCoordinateRotation(const dictionary&, const objectRegistry&);
-
-         // Member Functions
-
-        //- Reset rotation to an identity rotation
-        virtual void clear()
+        //- Return clone
+        autoPtr<coordinateRotation> clone() const
         {
-            R_ = sphericalTensor::I;
-            Rtr_ = sphericalTensor::I;
+            return
+                autoPtr<coordinateRotation>::NewFrom
+                <coordinateRotations::starcd>(*this);
         }
 
-        //- Update the rotation for a list of cells
-        virtual void updateCells(const polyMesh&, const labelList&)
-        {}
 
-        //- Return local-to-global transformation tensor
-        virtual const tensor& R() const
-        {
-            return R_;
-        }
-
-        //- Return global-to-local transformation tensor
-        virtual const tensor& Rtr() const
-        {
-            return Rtr_;
-        };
-
-        //- Return local Cartesian x-axis in global coordinates
-        virtual const vector e1() const
-        {
-            return Rtr_.x();
-        }
-
-        //- Return local Cartesian y-axis in global coordinates
-        virtual const vector e2() const
-        {
-            return Rtr_.y();
-        }
-
-        //- Return local Cartesian z-axis in global coordinates
-        virtual const vector e3() const
-        {
-            return Rtr_.z();
-        }
-
-        //- Return transformation tensor field
-        virtual const tensorField& Tr() const;
-
-        //- Transform vectorField using transformation tensor field
-        virtual tmp<vectorField> transform(const vectorField& st) const;
-
-        //- Transform vector using transformation tensor
-        virtual vector transform(const vector& st) const;
-
-        //- Inverse transform vectorField using transformation tensor field
-        virtual tmp<vectorField> invTransform(const vectorField& st) const;
-
-        //- Inverse transform vector using transformation tensor
-        virtual vector invTransform(const vector& st) const;
-
-        //- Transform tensor field using transformation tensorField
-        virtual tmp<tensorField> transformTensor(const tensorField& st) const;
-
-        //- Transform tensor using transformation tensorField
-        virtual tensor transformTensor(const tensor& st) const;
-
-        //- Transform tensor sub-field using transformation tensorField
-        virtual tmp<tensorField> transformTensor
-        (
-            const tensorField& st,
-            const labelList& cellMap
-        ) const;
-
-        //- Transform vectorField using transformation tensorField and return
-        // symmetrical tensorField
-        virtual tmp<symmTensorField> transformVector
-        (
-            const vectorField& st
-        ) const;
-
-        //- Transform vector using transformation tensor and return
-        // symmetrical tensor
-        virtual symmTensor transformVector(const vector& st) const;
+    //- Destructor
+    virtual ~starcd() = default;
 
 
-    // Write
+    // Static Member Functions
 
-        //- Write
-        virtual void write(Ostream&) const;
+        //- The rotation tensor calculated for the specified STARCD angles
+        //- interpreted as rotate-Z, rotate-X, rotate-Y
+        static tensor rotation(const vector& angles, bool degrees);
+
+
+    // Member Functions
+
+        //- Reset specification
+        virtual void clear();
+
+        //- The rotation tensor calculated for the specified STARCD angles.
+        virtual tensor R() const;
+
+        //- Write information
+        virtual void write(Ostream& os) const;
+
+        //- Write dictionary entry
+        virtual void writeEntry(const word& keyword, Ostream& os) const;
+
 };
 
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+} // End namespace coordinateRotations
+
+//- Compatibility typedef 1806
+typedef coordinateRotations::starcd STARCDCoordinateRotation;
 
 } // End namespace Foam
 

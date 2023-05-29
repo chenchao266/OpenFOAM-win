@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -32,15 +34,21 @@ Description
 #ifndef basicKinematicCloud_H
 #define basicKinematicCloud_H
 
-#include "Cloud.T.H"
-#include "KinematicCloud.T.H"
+#include "Cloud.H"
+#include "KinematicCloud.H"
 #include "basicKinematicParcel.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 namespace Foam
 {
-    typedef KinematicCloud<Cloud<basicKinematicParcel>> basicKinematicCloud;
+    typedef KinematicCloud
+    <
+        Cloud
+        <
+            basicKinematicParcel
+        >
+    > basicKinematicCloud;
 }
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //

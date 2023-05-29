@@ -1,9 +1,12 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2016-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -70,8 +73,9 @@ void Foam::sixDoFRigidBodyMotion::applyRestraints()
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
-Foam::sixDoFRigidBodyMotion::sixDoFRigidBodyMotion()
+Foam::sixDoFRigidBodyMotion::sixDoFRigidBodyMotion(const Time& time)
 :
+    time_(time),
     motionState_(),
     motionState0_(),
     restraints_(),
@@ -82,7 +86,7 @@ Foam::sixDoFRigidBodyMotion::sixDoFRigidBodyMotion()
     initialCentreOfRotation_(Zero),
     initialQ_(I),
     mass_(VSMALL),
-    momentOfInertia_(diagTensor::one*VSMALL),
+    momentOfInertia_(diagTensor::one_*VSMALL),
     aRelax_(1.0),
     aDamp_(1.0),
     report_(false),
@@ -93,9 +97,11 @@ Foam::sixDoFRigidBodyMotion::sixDoFRigidBodyMotion()
 Foam::sixDoFRigidBodyMotion::sixDoFRigidBodyMotion
 (
     const dictionary& dict,
-    const dictionary& stateDict
+    const dictionary& stateDict,
+    const Time& time
 )
 :
+    time_(time),
     motionState_(stateDict),
     motionState0_(),
     restraints_(),
@@ -104,26 +110,26 @@ Foam::sixDoFRigidBodyMotion::sixDoFRigidBodyMotion
     rConstraints_(tensor::I),
     initialCentreOfMass_
     (
-        dict.lookupOrDefault
+        dict.getOrDefault
         (
             "initialCentreOfMass",
-            vector(dict.lookup("centreOfMass"))
+            dict.get<vector>("centreOfMass")
         )
     ),
     initialCentreOfRotation_(initialCentreOfMass_),
     initialQ_
     (
-        dict.lookupOrDefault
+        dict.getOrDefault
         (
             "initialOrientation",
-            dict.lookupOrDefault("orientation", tensor::I)
+            dict.getOrDefault("orientation", tensor::I)
         )
     ),
-    mass_(readScalar(dict.lookup("mass"))),
-    momentOfInertia_(dict.lookup("momentOfInertia")),
-    aRelax_(dict.lookupOrDefault<scalar>("accelerationRelaxation", 1.0)),
-    aDamp_(dict.lookupOrDefault<scalar>("accelerationDamping", 1.0)),
-    report_(dict.lookupOrDefault<Switch>("report", false)),
+    mass_(dict.get<scalar>("mass")),
+    momentOfInertia_(dict.get<diagTensor>("momentOfInertia")),
+    aRelax_(dict.getOrDefault<scalar>("accelerationRelaxation", 1)),
+    aDamp_(dict.getOrDefault<scalar>("accelerationDamping", 1)),
+    report_(dict.getOrDefault("report", false)),
     solver_(sixDoFSolver::New(dict.subDict("solver"), *this))
 {
     addRestraints(dict);
@@ -157,6 +163,7 @@ Foam::sixDoFRigidBodyMotion::sixDoFRigidBodyMotion
     const sixDoFRigidBodyMotion& sDoFRBM
 )
 :
+    time_(sDoFRBM.time_),
     motionState_(sDoFRBM.motionState_),
     motionState0_(sDoFRBM.motionState0_),
     restraints_(sDoFRBM.restraints_),
@@ -170,14 +177,15 @@ Foam::sixDoFRigidBodyMotion::sixDoFRigidBodyMotion
     momentOfInertia_(sDoFRBM.momentOfInertia_),
     aRelax_(sDoFRBM.aRelax_),
     aDamp_(sDoFRBM.aDamp_),
-    report_(sDoFRBM.report_)
+    report_(sDoFRBM.report_),
+    solver_(sDoFRBM.solver_.clone())
 {}
 
 
 // * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
 
 Foam::sixDoFRigidBodyMotion::~sixDoFRigidBodyMotion()
-{}
+{} // Define here (incomplete type in header)
 
 
 // * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * * //
@@ -195,17 +203,17 @@ void Foam::sixDoFRigidBodyMotion::addRestraints
 
         restraints_.setSize(restraintDict.size());
 
-        forAllConstIter(IDLList<entry>, restraintDict, iter)
+        for (const entry& dEntry : restraintDict)
         {
-            if (iter().isDict())
+            if (dEntry.isDict())
             {
                 restraints_.set
                 (
                     i++,
                     sixDoFRigidBodyMotionRestraint::New
                     (
-                        iter().keyword(),
-                        iter().dict()
+                        dEntry.keyword(),
+                        dEntry.dict()
                     )
                 );
             }
@@ -232,17 +240,17 @@ void Foam::sixDoFRigidBodyMotion::addConstraints
         pointConstraint pct;
         pointConstraint pcr;
 
-        forAllConstIter(IDLList<entry>, constraintDict, iter)
+        for (const entry& dEntry : constraintDict)
         {
-            if (iter().isDict())
+            if (dEntry.isDict())
             {
                 constraints_.set
                 (
                     i,
                     sixDoFRigidBodyMotionConstraint::New
                     (
-                        iter().keyword(),
-                        iter().dict(),
+                        dEntry.keyword(),
+                        dEntry.dict(),
                         *this
                     )
                 );

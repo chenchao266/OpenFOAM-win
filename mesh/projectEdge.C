@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2016 OpenFOAM Foundation
+    Copyright (C) 2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -23,26 +26,27 @@ License
 
 \*---------------------------------------------------------------------------*/
 
-#include "searchableSurfacesQueries.H"
 #include "projectEdge.H"
-#include "unitConversion.H"
-#include "addToRunTimeSelectionTable.H"
 #include "pointConstraint.H"
+#include "searchableSurfacesQueries.H"
 #include "OBJstream.H"
 #include "linearInterpolationWeights.H"
+#include "addToRunTimeSelectionTable.H"
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
 
 namespace Foam
 {
+namespace blockEdges
+{
     defineTypeNameAndDebug(projectEdge, 0);
     addToRunTimeSelectionTable(blockEdge, projectEdge, Istream);
 }
-
+}
 
 // * * * * * * * * * * * * * Private Member Functions  * * * * * * * * * * * //
 
-void Foam::projectEdge::findNearest
+void Foam::blockEdges::projectEdge::findNearest
 (
     const point& pt,
     point& near,
@@ -51,7 +55,7 @@ void Foam::projectEdge::findNearest
 {
     if (surfaces_.size())
     {
-        const scalar distSqr = magSqr(points_[end_]-points_[start_]);
+        const scalar distSqr = Foam::magSqr(lastPoint()-firstPoint());
 
         pointField boundaryNear(1);
         List<pointConstraint> boundaryConstraint(1);
@@ -78,7 +82,7 @@ void Foam::projectEdge::findNearest
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
-Foam::projectEdge::projectEdge
+Foam::blockEdges::projectEdge::projectEdge
 (
     const dictionary& dict,
     const label index,
@@ -91,7 +95,7 @@ Foam::projectEdge::projectEdge
     geometry_(geometry)
 {
     wordList names(is);
-    surfaces_.setSize(names.size());
+    surfaces_.resize(names.size());
     forAll(names, i)
     {
         surfaces_[i] = geometry_.findSurfaceID(names[i]);
@@ -108,10 +112,10 @@ Foam::projectEdge::projectEdge
 
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
 
-Foam::point Foam::projectEdge::position(const scalar lambda) const
+Foam::point Foam::blockEdges::projectEdge::position(const scalar lambda) const
 {
     // Initial guess
-    const point start(points_[start_] + lambda*(points_[end_]-points_[start_]));
+    const point start(blockEdge::linearPosition(lambda));
 
     point near(start);
 
@@ -126,7 +130,7 @@ Foam::point Foam::projectEdge::position(const scalar lambda) const
 
 
 Foam::tmp<Foam::pointField>
-Foam::projectEdge::position(const scalarList& lambdas) const
+Foam::blockEdges::projectEdge::position(const scalarList& lambdas) const
 {
     // For debugging to tag the output
     static label eIter = 0;
@@ -143,25 +147,24 @@ Foam::projectEdge::position(const scalarList& lambdas) const
     }
 
 
-    tmp<pointField> tpoints(new pointField(lambdas.size()));
-    pointField& points = tpoints.ref();
+    auto tpoints = tmp<pointField>::New(lambdas.size());
+    auto& points = tpoints.ref();
 
-    const point& startPt = points_[start_];
-    const point& endPt = points_[end_];
-    const vector d = endPt-startPt;
+    const scalar distSqr = Foam::magSqr(lastPoint()-firstPoint());
 
     // Initial guess
     forAll(lambdas, i)
     {
-        points[i] = startPt+lambdas[i]*d;
+        points[i] = blockEdge::linearPosition(lambdas[i]);
     }
 
 
     // Upper limit for number of iterations
-    const label maxIter = 10;
+    constexpr label maxIter = 10;
+
     // Residual tolerance
-    const scalar relTol = 0.1;
-    const scalar absTol = 1e-4;
+    constexpr scalar relTol = 0.1;
+    constexpr scalar absTol = 1e-4;
 
     scalar initialResidual = 0.0;
 
@@ -176,7 +179,7 @@ Foam::projectEdge::position(const scalarList& lambdas) const
                 geometry_,
                 surfaces_,
                 start,
-                scalarField(start.size(), magSqr(d)),
+                scalarField(start.size(), distSqr),
                 points,
                 constraints
             );
@@ -184,14 +187,14 @@ Foam::projectEdge::position(const scalarList& lambdas) const
             // Reset start and end point
             if (lambdas[0] < SMALL)
             {
-                points[0] = startPt;
+                points[0] = firstPoint();
             }
             if (lambdas.last() > 1.0-SMALL)
             {
-                points.last() = endPt;
+                points.last() = lastPoint();
             }
 
-            if (debugStr.valid())
+            if (debugStr)
             {
                 forAll(points, i)
                 {
@@ -214,14 +217,14 @@ Foam::projectEdge::position(const scalarList& lambdas) const
 
         // Compare actual distances and move points (along straight line;
         // not along surface)
-        vectorField residual(points.size(), vector::_zero);
+        vectorField residual(points.size(), Zero);
         labelList indices;
         scalarField weights;
         for (label i = 1; i < points.size() - 1; i++)
         {
             interpolator.valueWeights(lambdas[i], indices, weights);
 
-            point predicted = vector::_zero;
+            point predicted(Zero);
             forAll(indices, indexi)
             {
                 predicted += weights[indexi]*points[indices[indexi]];
@@ -251,7 +254,7 @@ Foam::projectEdge::position(const scalarList& lambdas) const
         }
 
 
-        if (debugStr.valid())
+        if (debugStr)
         {
             forAll(points, i)
             {
@@ -264,6 +267,13 @@ Foam::projectEdge::position(const scalarList& lambdas) const
     }
 
     return tpoints;
+}
+
+
+Foam::scalar Foam::blockEdges::projectEdge::length() const
+{
+    NotImplemented;
+    return 1;
 }
 
 

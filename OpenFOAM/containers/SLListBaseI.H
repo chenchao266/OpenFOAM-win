@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2017-2019 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -21,339 +24,337 @@ License
     You should have received a copy of the GNU General Public License
     along with OpenFOAM.  If not, see <http://www.gnu.org/licenses/>.
 
-Description
-    Base singly-linked list.
-
 \*---------------------------------------------------------------------------*/
 
 #include "error.H"
+#include "nullObject.H"
 
-// * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * * //
-namespace Foam {
-    inline SLListBase::link::link()
-        :
-        next_(0)
-    {}
+// * * * * * * * * * * * * Protected Member Functions  * * * * * * * * * * * //
 
 
-    inline SLListBase::link::link(link* p)
-        :
-        next_(p)
-    {}
+ namespace Foam{
+template<class IteratorType>
+inline const IteratorType& SLListBase::iterator_end()
+{
+    return *reinterpret_cast<const IteratorType*>(nullObjectPtr);
+}
 
 
-    inline SLListBase::SLListBase()
-        :
-        last_(0),
-        nElmts_(0)
-    {}
+template<class IteratorType>
+inline IteratorType SLListBase::iterator_first() const
+{
+    SLListBase* list = const_cast<SLListBase*>(this);
 
-
-    inline SLListBase::SLListBase(link* a)
-        :
-        last_(a->next_ = a),
-        nElmts_(1)
-    {}
-
-
-    // * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
-
-    inline SLListBase::~SLListBase()
-    {}
-
-
-    // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
-
-    inline label SLListBase::size() const
+    if (size())
     {
-        return nElmts_;
+        return IteratorType(list, const_cast<SLListBase::link*>(last_->next_));
     }
 
+    // Return an end iterator
+    return IteratorType(list, nullptr);
+}
 
-    inline bool SLListBase::empty() const
+
+template<class IteratorType>
+inline IteratorType SLListBase::iterator_last() const
+{
+    SLListBase* list = const_cast<SLListBase*>(this);
+
+    if (size())
     {
-        return !nElmts_;
+        return IteratorType(list, const_cast<SLListBase::link*>(last_));
     }
 
+    // Return an end iterator
+    return IteratorType(list, nullptr);
+}
 
-    inline SLListBase::link*
-        SLListBase::first()
+
+// * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
+
+inline label SLListBase::size() const noexcept
+{
+    return size_;
+}
+
+
+inline bool SLListBase::empty() const noexcept
+{
+    return !size_;
+}
+
+
+inline SLListBase::link*
+SLListBase::first()
+{
+    if (!size_)
     {
-        if (!nElmts_)
-        {
-            FatalErrorInFunction
-                << "list is empty"
-                << abort(FatalError);
-        }
-        return last_->next_;
+        FatalErrorInFunction
+            << "list is empty"
+            << abort(FatalError);
+    }
+    return last_->next_;
+}
+
+
+inline const SLListBase::link*
+SLListBase::first() const
+{
+    if (!size_)
+    {
+        FatalErrorInFunction
+            << "list is empty"
+            << abort(FatalError);
+    }
+    return last_->next_;
+}
+
+
+inline SLListBase::link*
+SLListBase::last()
+{
+    if (!size_)
+    {
+        FatalErrorInFunction
+            << "list is empty"
+            << abort(FatalError);
+    }
+    return last_;
+}
+
+
+inline const SLListBase::link*
+SLListBase::last() const
+{
+    if (!size_)
+    {
+        FatalErrorInFunction
+            << "list is empty"
+            << abort(FatalError);
+    }
+    return last_;
+}
+
+
+inline void SLListBase::clear()
+{
+    last_ = nullptr;
+    size_ = 0;
+}
+
+
+inline void SLListBase::swap(SLListBase& lst)
+{
+    if (this == &lst)
+    {
+        return;  // Self-swap is a no-op
     }
 
+    std::swap(last_, lst.last_);
+    std::swap(size_, lst.size_);
+}
 
-    inline const SLListBase::link*
-        SLListBase::first() const
+
+inline void SLListBase::transfer(SLListBase& lst)
+{
+    if (this == &lst)
     {
-        if (!nElmts_)
-        {
-            FatalErrorInFunction
-                << "list is empty"
-                << abort(FatalError);
-        }
-        return last_->next_;
+        return;  // Self-assignment is a no-op
     }
 
+    last_ = lst.last_;
+    size_ = lst.size_;
 
-    inline SLListBase::link*
-        SLListBase::last()
+    lst.clear();
+}
+
+
+inline SLListBase::link* SLListBase::remove
+(
+    SLListBase::iterator& iter
+)
+{
+    return remove(iter.node_);
+}
+
+
+// * * * * * * * * * * * * * * * STL iterator  * * * * * * * * * * * * * * * //
+
+inline SLListBase::iterator::iterator
+(
+    SLListBase* list,
+    SLListBase::link* item
+)
+:
+    node_(item),
+    list_(list),
+    copy_()
+{
+    if (node_ != nullptr)
     {
-        if (!nElmts_)
-        {
-            FatalErrorInFunction
-                << "list is empty"
-                << abort(FatalError);
-        }
-        return last_;
-    }
-
-
-    inline const SLListBase::link*
-        SLListBase::last() const
-    {
-        if (!nElmts_)
-        {
-            FatalErrorInFunction
-                << "list is empty"
-                << abort(FatalError);
-        }
-        return last_;
-    }
-
-
-    inline void SLListBase::clear()
-    {
-        last_ = 0;
-        nElmts_ = 0;
-    }
-
-
-    inline void SLListBase::transfer(SLListBase& lst)
-    {
-        last_ = lst.last_;
-        nElmts_ = lst.nElmts_;
-
-        lst.clear();
-    }
-
-
-    inline SLListBase::link* SLListBase::remove
-    (
-        SLListBase::iterator& it
-    )
-    {
-        return remove(it.curElmt_);
-    }
-
-
-    // * * * * * * * * * * * * * * * STL iterator  * * * * * * * * * * * * * * * //
-
-    inline SLListBase::iterator::iterator(SLListBase& s, link* elmt)
-        :
-        curList_(s),
-        curElmt_(elmt),
-        curLink_(*curElmt_)
-    {}
-
-
-    inline SLListBase::iterator::iterator(SLListBase& s)
-        :
-        curList_(s),
-        curElmt_(nullptr),
-        curLink_()
-    {}
-
-
-    inline void SLListBase::iterator::operator=(const iterator& iter)
-    {
-        curElmt_ = iter.curElmt_;
-        curLink_ = iter.curLink_;
-    }
-
-
-    inline bool SLListBase::iterator::operator==(const iterator& iter) const
-    {
-        return curElmt_ == iter.curElmt_;
-    }
-
-
-    inline bool SLListBase::iterator::operator!=(const iterator& iter) const
-    {
-        return curElmt_ != iter.curElmt_;
-    }
-
-
-    inline SLListBase::link& SLListBase::iterator::operator*()
-    {
-        return *curElmt_;
-    }
-
-
-    inline SLListBase::iterator& SLListBase::iterator::operator++()
-    {
-        if (curElmt_ == curList_.last_ || curList_.last_ == 0)
-        {
-            curElmt_ = 0;
-        }
-        else
-        {
-            curElmt_ = curLink_.next_;
-            curLink_ = *curElmt_;
-        }
-
-        return *this;
-    }
-
-
-    inline SLListBase::iterator
-        SLListBase::iterator::operator++(int)
-    {
-        iterator tmp = *this;
-        ++*this;
-        return tmp;
-    }
-
-
-    inline SLListBase::iterator
-        SLListBase::begin()
-    {
-        if (size())
-        {
-            return iterator(*this, first());
-        }
-        else
-        {
-            return endIter_;
-        }
-    }
-
-
-    inline const SLListBase::iterator&
-        SLListBase::end()
-    {
-        return endIter_;
-    }
-
-
-    // * * * * * * * * * * * * * * STL const_iterator  * * * * * * * * * * * * * //
-
-    inline SLListBase::const_iterator::const_iterator
-    (
-        const SLListBase& s,
-        const link* elmt
-    )
-        :
-        curList_(s),
-        curElmt_(elmt)
-    {}
-
-
-    inline SLListBase::const_iterator::const_iterator(const iterator& iter)
-        :
-        curList_(iter.curList_),
-        curElmt_(iter.curElmt_)
-    {}
-
-
-    inline void SLListBase::const_iterator::operator=
-        (
-            const const_iterator& iter
-            )
-    {
-        curElmt_ = iter.curElmt_;
-    }
-
-
-    inline bool SLListBase::const_iterator::operator==
-        (
-            const const_iterator& iter
-            ) const
-    {
-        return curElmt_ == iter.curElmt_;
-    }
-
-
-    inline bool SLListBase::const_iterator::operator!=
-        (
-            const const_iterator& iter
-            ) const
-    {
-        return curElmt_ != iter.curElmt_;
-    }
-
-
-    inline const SLListBase::link&
-        SLListBase::const_iterator::operator*()
-    {
-        return *curElmt_;
-    }
-
-
-    inline SLListBase::const_iterator&
-        SLListBase::const_iterator::operator++()
-    {
-        if (curElmt_ == curList_.last_)
-        {
-            curElmt_ = 0;
-        }
-        else
-        {
-            curElmt_ = curElmt_->next_;
-        }
-
-        return *this;
-    }
-
-
-    inline SLListBase::const_iterator
-        SLListBase::const_iterator::operator++(int)
-    {
-        const_iterator tmp = *this;
-        ++*this;
-        return tmp;
-    }
-
-
-    inline SLListBase::const_iterator
-        SLListBase::cbegin() const
-    {
-        if (size())
-        {
-            return const_iterator(*this, first());
-        }
-        else
-        {
-            return endConstIter_;
-        }
-    }
-
-
-    inline const SLListBase::const_iterator&
-        SLListBase::cend() const
-    {
-        return endConstIter_;
-    }
-
-
-    inline SLListBase::const_iterator
-        SLListBase::begin() const
-    {
-        return this->cbegin();
-    }
-
-
-    inline const SLListBase::const_iterator&
-        SLListBase::end() const
-    {
-        return endConstIter_;
+        copy_ = *node_;
     }
 }
 
+
+inline SLListBase::link*
+SLListBase::iterator::get_node() const
+{
+    return node_;
+}
+
+
+inline bool SLListBase::iterator::good() const
+{
+    return (node_ != nullptr);
+}
+
+
+inline void SLListBase::iterator::next()
+{
+    if (list_)
+    {
+        if (node_ == list_->last_ || list_->last_ == nullptr)
+        {
+            node_ = nullptr;
+        }
+        else
+        {
+            node_ = copy_.next_;
+            copy_ = *node_;
+        }
+    }
+}
+
+
+inline void SLListBase::iterator::operator=(const iterator& iter)
+{
+    node_ = iter.node_;
+    list_ = iter.list_;
+    copy_ = iter.copy_;
+}
+
+
+inline bool SLListBase::iterator::operator==(const iterator& iter) const
+{
+    return node_ == iter.node_;
+}
+
+
+inline bool SLListBase::iterator::operator!=(const iterator& iter) const
+{
+    return node_ != iter.node_;
+}
+
+
+inline SLListBase::iterator
+SLListBase::begin()
+{
+    if (size())
+    {
+        return iterator_first<iterator>();
+    }
+
+    return end();
+}
+
+
+inline const SLListBase::iterator&
+SLListBase::end()
+{
+    return iterator_end<SLListBase::iterator>();
+}
+
+
+inline const SLListBase::const_iterator&
+SLListBase::cend() const
+{
+    return iterator_end<SLListBase::const_iterator>();
+}
+
+
+// * * * * * * * * * * * * * * STL const_iterator  * * * * * * * * * * * * * //
+
+inline SLListBase::const_iterator::const_iterator
+(
+    const SLListBase* list,
+    const SLListBase::link* item
+)
+:
+    node_(item),
+    list_(list)
+{}
+
+
+inline SLListBase::const_iterator::const_iterator
+(
+    const SLListBase::iterator& iter
+)
+:
+    node_(iter.node_),
+    list_(iter.list_)
+{}
+
+
+inline const SLListBase::link*
+SLListBase::const_iterator::get_node() const
+{
+    return node_;
+}
+
+
+inline bool SLListBase::const_iterator::good() const
+{
+    return (node_ != nullptr);
+}
+
+
+inline void SLListBase::const_iterator::next()
+{
+    if (list_)
+    {
+        if (node_ == list_->last_)
+        {
+            node_ = nullptr;
+        }
+        else
+        {
+            node_ = node_->next_;
+        }
+    }
+}
+
+
+inline bool SLListBase::const_iterator::operator==
+(
+    const const_iterator& iter
+) const
+{
+    return node_ == iter.node_;
+}
+
+
+inline bool SLListBase::const_iterator::operator!=
+(
+    const const_iterator& iter
+) const
+{
+    return node_ != iter.node_;
+}
+
+
+inline SLListBase::const_iterator
+SLListBase::cbegin() const
+{
+    if (size())
+    {
+        return iterator_first<const_iterator>();
+    }
+
+    return cend();
+}
+
+
 // ************************************************************************* //
+
+ } // End namespace Foam

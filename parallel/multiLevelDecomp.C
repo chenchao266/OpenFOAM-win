@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2017-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -29,12 +32,11 @@ License
 #include "globalIndex.H"
 #include "mapDistribute.H"
 
-// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+// * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
 
 namespace Foam
 {
     defineTypeNameAndDebug(multiLevelDecomp, 0);
-
     addToRunTimeSelectionTable
     (
         decompositionMethod,
@@ -45,6 +47,197 @@ namespace Foam
 
 
 // * * * * * * * * * * * * * Private Member Functions  * * * * * * * * * * * //
+
+void Foam::multiLevelDecomp::createMethodsDict()
+{
+    methodsDict_.clear();
+
+    word defaultMethod;
+    labelList domains;
+
+    label nTotal = 0;
+    label nLevels = 0;
+
+    // Found (non-recursive, no patterns) "method" and "domains" ?
+    // Allow as quick short-cut entry
+    if
+    (
+        // non-recursive, no patterns
+        coeffsDict_.readIfPresent("method", defaultMethod, keyType::LITERAL)
+        // non-recursive, no patterns
+     && coeffsDict_.readIfPresent("domains", domains, keyType::LITERAL)
+    )
+    {
+        // Short-cut version specified by method, domains only
+
+        nTotal = (domains.empty() ? 0 : 1);
+
+        for (const label n : domains)
+        {
+            nTotal *= n;
+            ++nLevels;
+        }
+
+        if (nTotal == 1)
+        {
+            // Emit Warning
+            nTotal = nDomains();
+            nLevels = 1;
+
+            domains.setSize(1);
+            domains[0] = nTotal;
+        }
+        else if (nTotal > 0 && nTotal < nDomains() && !(nDomains() % nTotal))
+        {
+            // nTotal < nDomains, but with an integral factor,
+            // which we insert as level 0
+            ++nLevels;
+
+            labelList old(std::move(domains));
+
+            domains.setSize(old.size()+1);
+
+            domains[0] = nDomains() / nTotal;
+            forAll(old, i)
+            {
+                domains[i+1] = old[i];
+            }
+            nTotal *= domains[0];
+
+            Info<<"    inferred level0 with " << domains[0]
+                << " domains" << nl << nl;
+        }
+
+        if (!nLevels || nTotal != nDomains())
+        {
+            FatalErrorInFunction
+                << "Top level decomposition specifies " << nDomains()
+                << " domains which is not equal to the product of"
+                << " all sub domains " << nTotal
+                << exit(FatalError);
+        }
+
+        // Create editable methods dictionaries
+        nLevels = 0;
+
+        // Common coeffs dictionary
+        const dictionary& subMethodCoeffsDict
+        (
+            findCoeffsDict
+            (
+                coeffsDict_,
+                defaultMethod + "Coeffs",
+                selectionType::NULL_DICT
+            )
+        );
+
+        for (const label n : domains)
+        {
+            const word levelName("level" + Foam::name(nLevels++));
+
+            entry* dictptr = methodsDict_.set(levelName, dictionary());
+
+            dictionary& dict = dictptr->dict();
+            dict.add("method", defaultMethod);
+            dict.add("numberOfSubdomains", n);
+
+            // Inject coeffs dictionary too
+            if (subMethodCoeffsDict.size())
+            {
+                dict.add(subMethodCoeffsDict.dictName(), subMethodCoeffsDict);
+            }
+        }
+    }
+    else
+    {
+        // Specified by full dictionaries
+
+        // Create editable methods dictionaries
+        // - Only consider sub-dictionaries with a "numberOfSubdomains" entry
+        //   This automatically filters out any coeffs dictionaries
+
+        for (const entry& dEntry : coeffsDict_)
+        {
+            word methodName;
+
+            if
+            (
+                dEntry.isDict()
+                // non-recursive, no patterns
+             && dEntry.dict().found("numberOfSubdomains", keyType::LITERAL)
+            )
+            {
+                // No method specified? can use a default method?
+
+                const bool addDefaultMethod
+                (
+                    !(dEntry.dict().found("method", keyType::LITERAL))
+                 && !defaultMethod.empty()
+                );
+
+                entry* e = methodsDict_.add(dEntry);
+
+                if (addDefaultMethod && e && e->isDict())
+                {
+                    e->dict().add("method", defaultMethod);
+                }
+            }
+        }
+    }
+}
+
+
+void Foam::multiLevelDecomp::setMethods()
+{
+    // Assuming methodsDict_ has be properly created, convert the method
+    // dictionaries to actual methods
+
+    label nLevels = 0;
+
+    methods_.clear();
+    methods_.setSize(methodsDict_.size());
+    for (const entry& dEntry : methodsDict_)
+    {
+        // Dictionary entries only
+        // - these method dictionaries are non-regional
+        if (dEntry.isDict())
+        {
+            methods_.set
+            (
+                nLevels++,
+                // non-verbose would be nicer
+                decompositionMethod::New(dEntry.dict())
+            );
+        }
+    }
+
+    methods_.setSize(nLevels);
+
+    // Verify that nTotal is correct based on what each method delivers
+
+    Info<< nl
+        << "Decompose " << type() << " [" << nDomains() << "] in "
+        << nLevels << " levels:" << endl;
+
+    label nTotal = 1;
+    forAll(methods_, i)
+    {
+        Info<< "    level " << i << " : " << methods_[i].type()
+            << " [" << methods_[i].nDomains() << "]" << endl;
+
+        nTotal *= methods_[i].nDomains();
+    }
+
+    if (nTotal != nDomains())
+    {
+        FatalErrorInFunction
+            << "Top level decomposition specifies " << nDomains()
+            << " domains which is not equal to the product of"
+            << " all sub domains " << nTotal
+            << exit(FatalError);
+    }
+}
+
 
 // Given a subset of cells determine the new global indices. The problem
 // is in the cells from neighbouring processors which need to be renumbered.
@@ -99,7 +292,7 @@ void Foam::multiLevelDecomp::subsetGlobalCellCells
         forAll(cCells, i)
         {
             // Get locally-compact cell index of neighbouring cell
-            label nbrCelli = oldToNew[cCells[i]];
+            const label nbrCelli = oldToNew[cCells[i]];
             if (nbrCelli == -1)
             {
                 cutConnections[allDist[cCells[i]]]++;
@@ -109,10 +302,10 @@ void Foam::multiLevelDecomp::subsetGlobalCellCells
                 // Reconvert local cell index into global one
 
                 // Get original neighbour
-                label celli = set[subCelli];
-                label oldNbrCelli = cellCells[celli][i];
+                const label celli = set[subCelli];
+                const label oldNbrCelli = cellCells[celli][i];
                 // Get processor from original neighbour
-                label proci = globalCells.whichProcID(oldNbrCelli);
+                const label proci = globalCells.whichProcID(oldNbrCelli);
                 // Convert into global compact numbering
                 cCells[newI++] = globalSubCells.toGlobal(proci, nbrCelli);
             }
@@ -127,15 +320,16 @@ void Foam::multiLevelDecomp::decompose
     const labelListList& pointPoints,
     const pointField& points,
     const scalarField& pointWeights,
-    const labelList& pointMap,      // map back to original points
-    const label levelI,
+    const labelUList& pointMap,     // map back to original points
+    const label currLevel,
+    const label leafOffset,
 
-    labelField& finalDecomp
-)
+    labelList& finalDecomp
+) const
 {
     labelList dist
     (
-        methods_[levelI].decompose
+        methods_[currLevel].decompose
         (
             pointPoints,
             points,
@@ -143,30 +337,62 @@ void Foam::multiLevelDecomp::decompose
         )
     );
 
-    forAll(pointMap, i)
+    // The next recursion level
+    const label nextLevel = currLevel+1;
+
+    // Number of domains at this current level
+    const label nCurrDomains = methods_[currLevel].nDomains();
+
+    // Calculate the domain remapping.
+    // The decompose() method delivers a distribution of [0..nDomains-1]
+    // which we map to the final location according to the decomposition
+    // leaf we are on.
+
+    labelList domainLookup(nCurrDomains);
     {
-        label orig = pointMap[i];
-        finalDecomp[orig] += dist[i];
+        label sizes = 1;  // Cumulative number of domains
+        for (label i = 0; i <= currLevel; ++i)
+        {
+            sizes *= methods_[i].nDomains();
+        }
+
+        // Distribution of domains at this level
+        sizes = this->nDomains() / sizes;
+
+        forAll(domainLookup, i)
+        {
+            domainLookup[i] = i * sizes + leafOffset;
+        }
     }
 
-    if (levelI != methods_.size()-1)
+    if (debug)
+    {
+        Info<< "Distribute at level " << currLevel
+            << " to domains" << nl
+            << flatOutput(domainLookup) << endl;
+    }
+
+    // Extract processor+local index from point-point addressing
+    forAll(pointMap, i)
+    {
+        const label orig = pointMap[i];
+        finalDecomp[orig] = domainLookup[dist[i]];
+    }
+
+    if (nextLevel < methods_.size())
     {
         // Recurse
 
         // Determine points per domain
-        label n = methods_[levelI].nDomains();
-        labelListList domainToPoints(invertOneToMany(n, dist));
-
-        // 'Make space' for new levels of decomposition
-        finalDecomp *= methods_[levelI+1].nDomains();
+        labelListList domainToPoints(invertOneToMany(nCurrDomains, dist));
 
         // Extract processor+local index from point-point addressing
         if (debug && Pstream::master())
         {
-            Pout<< "Decomposition at level " << levelI << " :" << endl;
+            Pout<< "Decomposition at level " << currLevel << " :" << endl;
         }
 
-        for (label domainI = 0; domainI < n; domainI++)
+        for (label domainI = 0; domainI < nCurrDomains; ++domainI)
         {
             // Extract elements for current domain
             const labelList domainPoints(findIndices(dist, domainI));
@@ -174,13 +400,13 @@ void Foam::multiLevelDecomp::decompose
             // Subset point-wise data.
             pointField subPoints(points, domainPoints);
             scalarField subWeights(pointWeights, domainPoints);
-            labelList subPointMap(UIndirectList<label>(pointMap, domainPoints));
+            labelList subPointMap(labelUIndList(pointMap, domainPoints));
             // Subset point-point addressing (adapt global numbering)
             labelListList subPointPoints;
             labelList nOutsideConnections;
             subsetGlobalCellCells
             (
-                n,
+                nCurrDomains,
                 domainI,
                 dist,
 
@@ -196,12 +422,12 @@ void Foam::multiLevelDecomp::decompose
             Pstream::listCombineScatter(nOutsideConnections);
             label nPatches = 0;
             label nFaces = 0;
-            forAll(nOutsideConnections, i)
+            for (const label nConnect : nOutsideConnections)
             {
-                if (nOutsideConnections[i] > 0)
+                if (nConnect > 0)
                 {
-                    nPatches++;
-                    nFaces += nOutsideConnections[i];
+                    ++nPatches;
+                    nFaces += nConnect;
                 }
             }
 
@@ -224,7 +450,8 @@ void Foam::multiLevelDecomp::decompose
                 subPoints,
                 subWeights,
                 subPointMap,
-                levelI+1,
+                nextLevel,
+                domainLookup[domainI], // The offset for this level and leaf
 
                 finalDecomp
             );
@@ -238,24 +465,30 @@ void Foam::multiLevelDecomp::decompose
         if (debug)
         {
             // Do straight decompose of two levels
-            label nNext = methods_[levelI+1].nDomains();
-            label nTotal = n*nNext;
+            const label nNext = methods_[nextLevel].nDomains();
+            const label nTotal = nCurrDomains * nNext;
 
-            // Retrieve original level0 dictionary and modify number of domains
-            dictionary::const_iterator iter =
-                decompositionDict_.optionalSubDict(typeName + "Coeffs").begin();
-            dictionary myDict = iter().dict();
-            myDict.set("numberOfSubdomains", nTotal);
+            // Get original level0 dictionary and modify numberOfSubdomains
+            dictionary level0Dict;
+            for (const entry& dEntry : methodsDict_)
+            {
+                if (dEntry.isDict())
+                {
+                    level0Dict = dEntry.dict();
+                    break;
+                }
+            }
+            level0Dict.set("numberOfSubdomains", nTotal);
 
             if (debug && Pstream::master())
             {
-                Pout<< "Reference decomposition with " << myDict << " :"
+                Pout<< "Reference decomposition with " << level0Dict << " :"
                     << endl;
             }
 
             autoPtr<decompositionMethod> method0 = decompositionMethod::New
             (
-                myDict
+                level0Dict
             );
             labelList dist
             (
@@ -267,12 +500,12 @@ void Foam::multiLevelDecomp::decompose
                 )
             );
 
-            for (label blockI = 0; blockI < n; blockI++)
+            for (label blockI = 0; blockI < nCurrDomains; ++blockI)
             {
                 // Count the number inbetween blocks of nNext size
 
                 label nPoints = 0;
-                labelList nOutsideConnections(n, 0);
+                labelList nOutsideConnections(nCurrDomains, Zero);
                 forAll(pointPoints, pointi)
                 {
                     if ((dist[pointi] / nNext) == blockI)
@@ -283,7 +516,7 @@ void Foam::multiLevelDecomp::decompose
 
                         forAll(pPoints, i)
                         {
-                            label distBlockI = dist[pPoints[i]] / nNext;
+                            const label distBlockI = dist[pPoints[i]] / nNext;
                             if (distBlockI != blockI)
                             {
                                 nOutsideConnections[distBlockI]++;
@@ -301,12 +534,12 @@ void Foam::multiLevelDecomp::decompose
                 Pstream::listCombineScatter(nOutsideConnections);
                 label nPatches = 0;
                 label nFaces = 0;
-                forAll(nOutsideConnections, i)
+                for (const label nConnect : nOutsideConnections)
                 {
-                    if (nOutsideConnections[i] > 0)
+                    if (nConnect > 0)
                     {
-                        nPatches++;
-                        nFaces += nOutsideConnections[i];
+                        ++nPatches;
+                        nFaces += nConnect;
                     }
                 }
 
@@ -327,36 +560,26 @@ void Foam::multiLevelDecomp::decompose
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
-Foam::multiLevelDecomp::multiLevelDecomp(const dictionary& decompositionDict)
+Foam::multiLevelDecomp::multiLevelDecomp
+(
+    const dictionary& decompDict,
+    const word& regionName
+)
 :
-    decompositionMethod(decompositionDict),
-    methodsDict_(decompositionDict_.optionalSubDict(typeName + "Coeffs"))
+    decompositionMethod(decompDict, regionName),
+    coeffsDict_
+    (
+        findCoeffsDict
+        (
+            typeName + "Coeffs",
+            (selectionType::EXACT | selectionType::MANDATORY)
+        )
+    ),
+    methodsDict_(),
+    methods_()
 {
-    methods_.setSize(methodsDict_.size());
-    label i = 0;
-    forAllConstIter(dictionary, methodsDict_, iter)
-    {
-        methods_.set(i++, decompositionMethod::New(iter().dict()));
-    }
-
-    label n = 1;
-    Info<< "decompositionMethod " << type() << " :" << endl;
-    forAll(methods_, i)
-    {
-        Info<< "    level " << i << " decomposing with " << methods_[i].type()
-            << " into " << methods_[i].nDomains() << " subdomains." << endl;
-
-        n *= methods_[i].nDomains();
-    }
-
-    if (n != nDomains())
-    {
-        FatalErrorInFunction
-            << "Top level decomposition specifies " << nDomains()
-            << " domains which is not equal to the product of"
-            << " all sub domains " << n
-            << exit(FatalError);
-    }
+    createMethodsDict();
+    setMethods();
 }
 
 
@@ -364,13 +587,14 @@ Foam::multiLevelDecomp::multiLevelDecomp(const dictionary& decompositionDict)
 
 bool Foam::multiLevelDecomp::parallelAware() const
 {
-    forAll(methods_, i)
+    for (const decompositionMethod& meth : methods_)
     {
-        if (!methods_[i].parallelAware())
+        if (!meth.parallelAware())
         {
             return false;
         }
     }
+
     return true;
 }
 
@@ -380,12 +604,12 @@ Foam::labelList Foam::multiLevelDecomp::decompose
     const polyMesh& mesh,
     const pointField& cc,
     const scalarField& cWeights
-)
+) const
 {
     CompactListList<label> cellCells;
     calcCellCells(mesh, identity(cc.size()), cc.size(), true, cellCells);
 
-    labelField finalDecomp(cc.size(), 0);
+    labelList finalDecomp(cc.size(), Zero);
     labelList cellMap(identity(cc.size()));
 
     decompose
@@ -394,6 +618,7 @@ Foam::labelList Foam::multiLevelDecomp::decompose
         cc,
         cWeights,
         cellMap,      // map back to original cells
+        0,
         0,
 
         finalDecomp
@@ -408,9 +633,9 @@ Foam::labelList Foam::multiLevelDecomp::decompose
     const labelListList& globalPointPoints,
     const pointField& points,
     const scalarField& pointWeights
-)
+) const
 {
-    labelField finalDecomp(points.size(), 0);
+    labelList finalDecomp(points.size(), Zero);
     labelList pointMap(identity(points.size()));
 
     decompose
@@ -419,6 +644,7 @@ Foam::labelList Foam::multiLevelDecomp::decompose
         points,
         pointWeights,
         pointMap,       // map back to original points
+        0,
         0,
 
         finalDecomp

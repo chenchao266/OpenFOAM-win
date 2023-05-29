@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -36,17 +38,15 @@ SourceFiles
 #define refineCell_H
 
 #include "label.H"
-#include "vector.H"
+#include "vector2.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 namespace Foam
 {
 
-// Forward declaration of friend functions and operators
-
+// Forward Declarations
 class refineCell;
-
 Ostream& operator<<(Ostream&, const refineCell&);
 
 
@@ -56,26 +56,27 @@ Ostream& operator<<(Ostream&, const refineCell&);
 
 class refineCell
 {
-    // Private data
+    // Private Data
 
-    //- Cell label
-    label cellNo_;
+        //- Cell label
+        label cellNo_;
 
-    //- Preferred refinement direction (always normalized).
-    vector direction_;
+        //- Preferred refinement direction (always normalized).
+        vector direction_;
+
 
 public:
 
     // Constructors
 
-        //- Null
+        //- Default construct
         refineCell();
 
         //- From components. Vector will be normalized upon construction.
-        refineCell(const label, const vector&);
+        refineCell(const label celli, const vector& direction);
 
         //- From Istream. Vector will be normalized upon construction.
-        refineCell(Istream& is);
+        explicit refineCell(Istream& is);
 
 
     // Member Functions

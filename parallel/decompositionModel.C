@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2014-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2014-2016 OpenFOAM Foundation
+    Copyright (C) 2015-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -25,7 +28,7 @@ License
 
 #include "decompositionModel.H"
 #include "polyMesh.H"
-#include "Time.T.H"
+#include "Time1.H"
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
 
@@ -34,12 +37,16 @@ namespace Foam
     defineTypeNameAndDebug(decompositionModel, 0);
 }
 
+const Foam::word Foam::decompositionModel::canonicalName("decomposeParDict");
+
+
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
 Foam::decompositionModel::decompositionModel
 (
     const polyMesh& mesh,
-    const fileName& decompDictFile
+    const fileName& decompDictFile,
+    const dictionary* fallback
 )
 :
     MeshObject
@@ -50,54 +57,22 @@ Foam::decompositionModel::decompositionModel
     >(mesh),
     IOdictionary
     (
-        selectIO
+        IOobject::selectIO
         (
             IOobject
             (
-                "decomposeParDict",
+                decompositionModel::canonicalName,
                 mesh.time().system(),
                 mesh.local(),
-                mesh,
-                IOobject::MUST_READ,
+                mesh.thisDb(),
+                (fallback ? IOobject::READ_IF_PRESENT : IOobject::MUST_READ),
                 IOobject::NO_WRITE,
-                false   //io.registerObject()
-            ),
-            decompDictFile
-        )
-    )
-{}
-
-
-Foam::decompositionModel::decompositionModel
-(
-    const polyMesh& mesh,
-    const dictionary& dict,
-    const fileName& decompDictFile
-)
-:
-    MeshObject
-    <
-        polyMesh,
-        Foam::UpdateableMeshObject,
-        decompositionModel
-    >(mesh),
-    IOdictionary
-    (
-        selectIO
-        (
-            IOobject
-            (
-                "decomposeParDict",
-                mesh.time().system(),
-                mesh.local(),
-                mesh,
-                (dict.size() ? IOobject::NO_READ : IOobject::MUST_READ),
-                IOobject::NO_WRITE,
-                false   //io.registerObject()
+                false,  //io.registerObject(),
+                true    //io.globalObject()
             ),
             decompDictFile
         ),
-        dict
+        fallback
     )
 {}
 
@@ -107,7 +82,8 @@ Foam::decompositionModel::decompositionModel
 const Foam::decompositionModel& Foam::decompositionModel::New
 (
     const polyMesh& mesh,
-    const fileName& decompDictFile
+    const fileName& decompDictFile,
+    const dictionary* content
 )
 {
     return
@@ -116,48 +92,24 @@ const Foam::decompositionModel& Foam::decompositionModel::New
             polyMesh,
             Foam::UpdateableMeshObject,
             decompositionModel
-        >::New(mesh, decompDictFile);
-}
-
-
-const Foam::decompositionModel& Foam::decompositionModel::New
-(
-    const polyMesh& mesh,
-    const dictionary& dict,
-    const fileName& decompDictFile
-)
-{
-    return
-        MeshObject
-        <
-            polyMesh,
-            Foam::UpdateableMeshObject,
-            decompositionModel
-        >::New(mesh, dict, decompDictFile);
+        >::New(mesh, decompDictFile, content);
 }
 
 
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
 
-Foam::IOobject Foam::decompositionModel::selectIO
-(
-    const IOobject& io,
-    const fileName& f
-)
+Foam::decompositionMethod& Foam::decompositionModel::decomposer() const
 {
-    return
-    (
-        f.size()
-      ? IOobject        // construct from filePath instead
-        (
-            fileName(f).toAbsolute(),
-            io.db(),
-            io.readOpt(),
-            io.writeOpt(),
-            io.registerObject()
-        )
-     :  io
-    );
+    if (!decomposerPtr_)
+    {
+        decomposerPtr_ =
+            decompositionMethod::New
+            (
+                *this,
+                this->mesh().name()  // Name of mesh region
+            );
+    }
+    return *decomposerPtr_;
 }
 
 

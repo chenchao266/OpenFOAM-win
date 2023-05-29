@@ -1,9 +1,11 @@
-﻿/*---------------------------------------------------------------------------*\
+/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2013-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2013-2017 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -23,7 +25,7 @@ License
 
 \*---------------------------------------------------------------------------*/
 
-//#include "linear.H"
+#include "linear.H"
 #include "IOstreams.H"
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
@@ -32,8 +34,8 @@ template<class Specie>
 Foam::linear<Specie>::linear(const dictionary& dict)
 :
     Specie(dict),
-    psi_(readScalar(dict.subDict("equationOfState").lookup("psi"))),
-    rho0_(readScalar(dict.subDict("equationOfState").lookup("rho0")))
+    psi_(dict.subDict("equationOfState").get<scalar>("psi")),
+    rho0_(dict.subDict("equationOfState").get<scalar>("rho0"))
 {}
 
 
@@ -44,11 +46,13 @@ void Foam::linear<Specie>::write(Ostream& os) const
 {
     Specie::write(os);
 
-    dictionary dict("equationOfState");
-    dict.add("psi", psi_);
-    dict.add("rho0", rho0_);
-
-    os  << indent << dict.dictName() << dict;
+    // Entries in dictionary format
+    {
+        os.beginBlock("equationOfState");
+        os.writeEntry("psi", psi_);
+        os.writeEntry("rho0", rho0_);
+        os.endBlock();
+    }
 }
 
 

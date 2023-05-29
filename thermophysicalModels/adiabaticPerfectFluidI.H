@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2013-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2013-2017 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -66,10 +68,7 @@ template<class Specie>
 inline Foam::autoPtr<Foam::adiabaticPerfectFluid<Specie>>
 Foam::adiabaticPerfectFluid<Specie>::clone() const
 {
-    return autoPtr<adiabaticPerfectFluid<Specie>>
-    (
-        new adiabaticPerfectFluid<Specie>(*this)
-    );
+    return autoPtr<adiabaticPerfectFluid<Specie>>::New(*this);
 }
 
 
@@ -80,10 +79,7 @@ Foam::adiabaticPerfectFluid<Specie>::New
     const dictionary& dict
 )
 {
-    return autoPtr<adiabaticPerfectFluid<Specie>>
-    (
-        new adiabaticPerfectFluid<Specie>(dict)
-    );
+    return autoPtr<adiabaticPerfectFluid<Specie>>::New(dict);
 }
 
 
@@ -113,6 +109,28 @@ inline Foam::scalar Foam::adiabaticPerfectFluid<Specie>::H
 
 template<class Specie>
 inline Foam::scalar Foam::adiabaticPerfectFluid<Specie>::Cp
+(
+    scalar p,
+    scalar T
+) const
+{
+    return 0;
+}
+
+
+template<class Specie>
+inline Foam::scalar Foam::adiabaticPerfectFluid<Specie>::E
+(
+    scalar p,
+    scalar T
+) const
+{
+    return 0;
+}
+
+
+template<class Specie>
+inline Foam::scalar Foam::adiabaticPerfectFluid<Specie>::Cv
 (
     scalar p,
     scalar T

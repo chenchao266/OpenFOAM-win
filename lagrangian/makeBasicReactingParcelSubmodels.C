@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2015 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2014 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -25,41 +27,16 @@ License
 
 #include "basicReactingCloud.H"
 
-#include "makeParcelCloudFunctionObjects.H"
-
-// Kinematic
-#include "makeThermoParcelForces.H" // thermo variant
-#include "makeParcelDispersionModels.H"
-#include "makeReactingParcelInjectionModels.H" // Reacting variant
-#include "makeParcelPatchInteractionModels.H"
-#include "makeParcelStochasticCollisionModels.H"
-#include "makeReactingParcelSurfaceFilmModels.H" // Reacting variant
-
-// Thermodynamic
-#include "makeParcelHeatTransferModels.H"
-
-// Reacting
-#include "makeReactingParcelCompositionModels.H"
-#include "makeReactingParcelPhaseChangeModels.H"
+#include "makeParcelTurbulenceDispersionModels.H"
+#include "makeThermoParcelTurbulenceForces.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
-makeParcelCloudFunctionObjects(basicReactingCloud);
-
-// Kinematic sub-models
-makeThermoParcelForces(basicReactingCloud);
-makeParcelDispersionModels(basicReactingCloud);
-makeReactingParcelInjectionModels(basicReactingCloud);
-makeParcelPatchInteractionModels(basicReactingCloud);
-makeParcelStochasticCollisionModels(basicReactingCloud);
-makeReactingParcelSurfaceFilmModels(basicReactingCloud);
-
-// Thermo sub-models
-makeParcelHeatTransferModels(basicReactingCloud);
-
-// Reacting sub-models
-makeReactingParcelCompositionModels(basicReactingCloud);
-makeReactingParcelPhaseChangeModels(basicReactingCloud);
+namespace Foam
+{
+    makeThermoParcelTurbulenceForces(basicReactingCloud);
+    makeParcelTurbulenceDispersionModels(basicReactingCloud);
+}
 
 
 // ************************************************************************* //

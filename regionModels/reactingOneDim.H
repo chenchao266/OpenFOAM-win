@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2016 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -22,10 +25,12 @@ License
     along with OpenFOAM.  If not, see <http://www.gnu.org/licenses/>.
 
 Class
-    Foam::reactingOneDim
+    Foam::regionModels::pyrolysisModels::reactingOneDim
 
 Description
     Reacting, 1-D pyrolysis model
+    NOTE: The moveMesh option can only be applied to solid reaction such as:
+          PMMA -> gas at the moment.
 
 SourceFiles
     reactingOneDim.C
@@ -61,11 +66,11 @@ private:
 
     // Private member functions
 
-        //- Disallow default bitwise copy construct
-        reactingOneDim(const reactingOneDim&);
+        //- No copy construct
+        reactingOneDim(const reactingOneDim&) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const reactingOneDim&);
+        //- No copy assignment
+        void operator=(const reactingOneDim&) = delete;
 
         //- Read model controls
         void readReactingOneDimControls();
@@ -75,11 +80,11 @@ protected:
 
     // Protected data
 
+        //- Reference to solid thermo
+        autoPtr<solidReactionThermo> solidThermo_;
+
         //- Reference to the solid chemistry model
         autoPtr<basicSolidChemistryModel> solidChemistry_;
-
-        //- Reference to solid thermo
-        solidReactionThermo& solidThermo_;
 
         //- Pointer to radiation model
         autoPtr<radiation::radiationModel> radiation_;
@@ -102,7 +107,7 @@ protected:
             //- Number of non-orthogonal correctors
             label nNonOrthCorr_;
 
-            //- Maximum diffussivity
+            //- Maximum diffusivity
             scalar maxDiff_;
 
             //- Minimum delta for combustion

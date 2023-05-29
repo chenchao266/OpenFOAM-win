@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2017 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -35,7 +37,7 @@ SourceFiles
 #ifndef transferModelList_H
 #define transferModelList_H
 
-#include "PtrList.T.H"
+#include "PtrList.H"
 #include "transferModel.H"
 #include "filmSubModelBase.H"
 
@@ -65,11 +67,11 @@ class transferModelList
 
     // Private Member Functions
 
-        //- Disallow default bitwise copy construct
-        transferModelList(const transferModelList&);
+        //- No copy construct
+        transferModelList(const transferModelList&) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const transferModelList&);
+        //- No copy assignment
+        void operator=(const transferModelList&) = delete;
 
 
 public:
@@ -77,12 +79,12 @@ public:
     // Constructors
 
         //- Construct null
-        transferModelList(surfaceFilmModel& film);
+        transferModelList(surfaceFilmRegionModel& film);
 
         //- Construct from type name, dictionary and surface film model
         transferModelList
         (
-            surfaceFilmModel& film,
+            surfaceFilmRegionModel& film,
             const dictionary& dict
         );
 

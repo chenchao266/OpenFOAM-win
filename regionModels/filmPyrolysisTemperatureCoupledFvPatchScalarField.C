@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -27,7 +30,7 @@ License
 #include "addToRunTimeSelectionTable.H"
 #include "surfaceFields.H"
 #include "pyrolysisModel.H"
-#include "surfaceFilmModel.H"
+#include "surfaceFilmRegionModel.H"
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
@@ -74,14 +77,14 @@ filmPyrolysisTemperatureCoupledFvPatchScalarField
     fixedValueFvPatchScalarField(p, iF, dict),
     filmRegionName_
     (
-        dict.lookupOrDefault<word>("filmRegion", "surfaceFilmProperties")
+        dict.getOrDefault<word>("filmRegion", "surfaceFilmProperties")
     ),
     pyrolysisRegionName_
     (
-        dict.lookupOrDefault<word>("pyrolysisRegion", "pyrolysisProperties")
+        dict.getOrDefault<word>("pyrolysisRegion", "pyrolysisProperties")
     ),
-    phiName_(dict.lookupOrDefault<word>("phi", "phi")),
-    rhoName_(dict.lookupOrDefault<word>("rho", "rho"))
+    phiName_(dict.getOrDefault<word>("phi", "phi")),
+    rhoName_(dict.getOrDefault<word>("rho", "rho"))
 {}
 
 
@@ -123,33 +126,37 @@ void Foam::filmPyrolysisTemperatureCoupledFvPatchScalarField::updateCoeffs()
         return;
     }
 
-    typedef regionModels::surfaceFilmModels::surfaceFilmModel filmModelType;
-    typedef regionModels::pyrolysisModels::pyrolysisModel pyrModelType;
+    // Film model
+    const auto* filmModelPtr = db().time().findObject
+        <regionModels::surfaceFilmModels::surfaceFilmRegionModel>
+        (filmRegionName_);
+
+    // Pyrolysis model
+    const auto* pyrModelPtr = db().time().findObject
+        <regionModels::pyrolysisModels::pyrolysisModel>
+        (pyrolysisRegionName_);
+
+    if (!filmModelPtr || !pyrModelPtr)
+    {
+        // Do nothing on construction - film model doesn't exist yet
+        return;
+    }
+
+    const auto& filmModel = *filmModelPtr;
+    const auto& pyrModel = *pyrModelPtr;
+
 
     // Since we're inside initEvaluate/evaluate there might be processor
     // comms underway. Change the tag we use.
     int oldTag = UPstream::msgType();
     UPstream::msgType() = oldTag+1;
 
-    bool filmOk = db().time().foundObject<filmModelType>(filmRegionName_);
-
-
-    bool pyrOk = db().time().foundObject<pyrModelType>(pyrolysisRegionName_);
-
-    if (!filmOk || !pyrOk)
-    {
-        // Do nothing on construction - film model doesn't exist yet
-        return;
-    }
 
     scalarField& Tp = *this;
 
     const label patchi = patch().index();
 
-    // Retrieve film model
-    const filmModelType& filmModel =
-        db().time().lookupObject<filmModelType>(filmRegionName_);
-
+    // The film model
     const label filmPatchi = filmModel.regionPatchID(patchi);
 
     scalarField alphaFilm = filmModel.alpha().boundaryField()[filmPatchi];
@@ -158,10 +165,7 @@ void Foam::filmPyrolysisTemperatureCoupledFvPatchScalarField::updateCoeffs()
     scalarField TFilm = filmModel.Ts().boundaryField()[filmPatchi];
     filmModel.toPrimary(filmPatchi, TFilm);
 
-    // Retrieve pyrolysis model
-    const pyrModelType& pyrModel =
-        db().time().lookupObject<pyrModelType>(pyrolysisRegionName_);
-
+    // The pyrolysis model
     const label pyrPatchi = pyrModel.regionPatchID(patchi);
 
     scalarField TPyr = pyrModel.T().boundaryField()[pyrPatchi];
@@ -184,22 +188,20 @@ void Foam::filmPyrolysisTemperatureCoupledFvPatchScalarField::write
 ) const
 {
     fvPatchScalarField::write(os);
-    writeEntryIfDifferent<word>
+    os.writeEntryIfDifferent<word>
     (
-        os,
         "filmRegion",
         "surfaceFilmProperties",
         filmRegionName_
     );
-    writeEntryIfDifferent<word>
+    os.writeEntryIfDifferent<word>
     (
-        os,
         "pyrolysisRegion",
         "pyrolysisProperties",
         pyrolysisRegionName_
     );
-    writeEntryIfDifferent<word>(os, "phi", "phi", phiName_);
-    writeEntryIfDifferent<word>(os, "rho", "rho", rhoName_);
+    os.writeEntryIfDifferent<word>("phi", "phi", phiName_);
+    os.writeEntryIfDifferent<word>("rho", "rho", rhoName_);
     writeEntry("value", os);
 }
 

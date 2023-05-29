@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -27,143 +30,124 @@ License
 #include "pyramidPointFaceRef.H"
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
-using namespace Foam;
+
+
+ namespace Foam{
 const char* const cell::typeName = "cell";
+
 
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
 
-labelList cell::labels(const faceUList& f) const
+labelList cell::labels(const faceUList& meshFaces) const
 {
-    // return the unordered list of vertex labels supporting the cell
+    const labelList& cFaces = *this;
 
-    // count the maximum size of all vertices
-    label maxVert = 0;
-
-    const labelList& faces = *this;
-
-    forAll(faces, facei)
+    label nVerts = 0;
+    for (const label facei : cFaces)
     {
-        maxVert += f[faces[facei]].size();
+        nVerts += meshFaces[facei].size();
     }
 
-    // set the fill-in list
-    labelList p(maxVert);
+    labelList pointLabels(nVerts);
 
-    // in the first face there is no duplicates
-    const labelList& first = f[faces[0]];
+    // The first face has no duplicates, can copy in values
+    const labelList& firstFace = meshFaces[cFaces[0]];
 
-    forAll(first, pointi)
-    {
-        p[pointi] = first[pointi];
-    }
+    std::copy(firstFace.cbegin(), firstFace.cend(), pointLabels.begin());
 
-    // re-use maxVert to count the real vertices
-    maxVert = first.size();
+    // Now already contains some vertices
+    nVerts = firstFace.size();
 
-    // go through the rest of the faces. For each vertex, check if the point is
-    // already inserted (up to maxVert, which now carries the number of real
+    // For the rest of the faces. For each vertex, check if the point is
+    // already inserted (up to nVerts, which now carries the number of real
     // points. If not, add it at the end of the list.
-    for (label facei = 1; facei < faces.size(); facei++)
+
+    for (label facei = 1; facei < cFaces.size(); ++facei)
     {
-        const labelList& curFace = f[faces[facei]];
-
-        forAll(curFace, pointi)
+        for (const label curPoint : meshFaces[cFaces[facei]])
         {
-            const label curPoint = curFace[pointi];
+            bool pointFound = false;
 
-            bool found = false;
-
-            for (label checkI = 0; checkI < maxVert; checkI++)
+            for (label checki = 0; checki < nVerts; ++checki)
             {
-                if (curPoint == p[checkI])
+                if (curPoint == pointLabels[checki])
                 {
-                    found = true;
+                    pointFound = true;
                     break;
                 }
             }
 
-            if (!found)
+            if (!pointFound)
             {
-                p[maxVert] = curPoint;
-
-                maxVert++;
+                pointLabels[nVerts] = curPoint;
+                ++nVerts;
             }
         }
     }
 
-    // reset the size of the list
-    p.setSize(maxVert);
+    pointLabels.resize(nVerts);
 
-    return p;
+    return pointLabels;
 }
 
 
 pointField cell::points
 (
-    const faceUList& f,
-    const pointField& meshPoints
+    const faceUList& meshFaces,
+    const UList<point>& meshPoints
 ) const
 {
-    labelList pointLabels = labels(f);
+    const labelList pointLabels = labels(meshFaces);
 
-    pointField p(pointLabels.size());
+    pointField allPoints(pointLabels.size());
 
-    forAll(p, i)
+    forAll(allPoints, i)
     {
-        p[i] = meshPoints[pointLabels[i]];
+        allPoints[i] = meshPoints[pointLabels[i]];
     }
 
-    return p;
+    return allPoints;
 }
 
 
-edgeList cell::edges(const faceUList& f) const
+edgeList cell::edges(const faceUList& meshFaces) const
 {
-    // return the lisf of cell edges
+    const labelList& cFaces = *this;
 
-    const labelList& curFaces = *this;
-
-    // create a list of edges
-    label maxNoEdges = 0;
-
-    forAll(curFaces, facei)
+    label nEdges = 0;
+    for (const label facei : cFaces)
     {
-        maxNoEdges += f[curFaces[facei]].nEdges();
+        nEdges += meshFaces[facei].nEdges();
     }
 
-    edgeList allEdges(maxNoEdges);
-    label nEdges = 0;
+    edgeList allEdges(nEdges);
 
-    forAll(curFaces, facei)
+    nEdges = 0;
+
+    forAll(cFaces, facei)
     {
-        const edgeList curFaceEdges = f[curFaces[facei]].edges();
-
-        forAll(curFaceEdges, faceEdgeI)
+        for (const edge& curEdge : meshFaces[cFaces[facei]].edges())
         {
-            const edge& curEdge = curFaceEdges[faceEdgeI];
-
             bool edgeFound = false;
 
-            for (label addedEdgeI = 0; addedEdgeI < nEdges; addedEdgeI++)
+            for (label checki = 0; checki < nEdges; ++checki)
             {
-                if (allEdges[addedEdgeI] == curEdge)
+                if (curEdge == allEdges[checki])
                 {
                     edgeFound = true;
-
                     break;
                 }
             }
 
             if (!edgeFound)
             {
-                // Add the new edge onto the list
                 allEdges[nEdges] = curEdge;
-                nEdges++;
+                ++nEdges;
             }
         }
     }
 
-    allEdges.setSize(nEdges);
+    allEdges.resize(nEdges);
 
     return allEdges;
 }
@@ -171,8 +155,8 @@ edgeList cell::edges(const faceUList& f) const
 
 point cell::centre
 (
-    const pointField& p,
-    const faceUList& f
+    const UList<point>& meshPoints,
+    const faceUList& meshFaces
 ) const
 {
     // When one wants to access the cell centre and magnitude, the
@@ -190,35 +174,33 @@ point cell::centre
     // relationship, which is not available on this level. Thus, all the
     // pyramids are believed to be positive with no checking.
 
-    // first calculate the aproximate cell centre as the average of all
-    // face centres
-    vector cEst = Zero;
+    // Approximate cell centre as the area average of all face centres
+
+    vector ctr = Zero;
     scalar sumArea = 0;
 
-    const labelList& faces = *this;
+    const labelList& cFaces = *this;
 
-    forAll(faces, facei)
+    for (const label facei : cFaces)
     {
-        scalar a = f[faces[facei]].mag(p);
-        cEst += f[faces[facei]].centre(p)*a;
-        sumArea += a;
+        const scalar magArea = meshFaces[facei].mag(meshPoints);
+        ctr += meshFaces[facei].centre(meshPoints)*magArea;
+        sumArea += magArea;
     }
 
-    cEst /= sumArea + VSMALL;
+    ctr /= sumArea + VSMALL;
 
     // Calculate the centre by breaking the cell into pyramids and
     // volume-weighted averaging their centres
-    vector sumVc = Zero;
 
     scalar sumV = 0;
+    vector sumVc = Zero;
 
-    forAll(faces, facei)
+    for (const label facei : cFaces)
     {
-        // calculate pyramid volume. If it is greater than zero, OK.
-        // If not, the pyramid is inside-out. Create a face with the opposite
-        // order and recalculate pyramid centre!
-        scalar pyrVol = pyramidPointFaceRef(f[faces[facei]], cEst).mag(p);
-        vector pyrCentre = pyramidPointFaceRef(f[faces[facei]], cEst).centre(p);
+        const face& f = meshFaces[facei];
+
+        scalar pyrVol = pyramidPointFaceRef(f, ctr).mag(meshPoints);
 
         // if pyramid inside-out because face points inwards invert
         // N.B. pyramid remains unchanged
@@ -227,8 +209,8 @@ point cell::centre
             pyrVol = -pyrVol;
         }
 
-        sumVc += pyrVol*pyrCentre;
         sumV += pyrVol;
+        sumVc += pyrVol * pyramidPointFaceRef(f, ctr).centre(meshPoints);
     }
 
     return sumVc/(sumV + VSMALL);
@@ -237,8 +219,8 @@ point cell::centre
 
 scalar cell::mag
 (
-    const pointField& p,
-    const faceUList& f
+    const UList<point>& meshPoints,
+    const faceUList& meshFaces
 ) const
 {
     // When one wants to access the cell centre and magnitude, the
@@ -249,34 +231,32 @@ scalar cell::mag
 
     // WARNING! See cell::centre
 
-    // first calculate the aproximate cell centre as the average of all
-    // face centres
-    vector cEst = Zero;
-    scalar nCellFaces = 0;
+    const labelList& cFaces = *this;
 
-    const labelList& faces = *this;
+    // Approximate cell centre as the average of all face centres
 
-    forAll(faces, facei)
+    vector ctr = Zero;
+    for (const label facei : cFaces)
     {
-        cEst += f[faces[facei]].centre(p);
-        nCellFaces += 1;
+        ctr += meshFaces[facei].centre(meshPoints);
     }
-
-    cEst /= nCellFaces;
+    ctr /= cFaces.size();
 
     // Calculate the magnitude by summing the mags of the pyramids
-    scalar v = 0;
+    scalar sumV = 0;
 
-    forAll(faces, facei)
+    for (const label facei : cFaces)
     {
-        v += ::mag(pyramidPointFaceRef(f[faces[facei]], cEst).mag(p));
+        const face& f = meshFaces[facei];
+
+        sumV += ::Foam::mag(pyramidPointFaceRef(f, ctr).mag(meshPoints));
     }
 
-    return v;
+    return sumV;
 }
 
 
-// * * * * * * * * * * * * * * * Friend Operators  * * * * * * * * * * * * * //
+// * * * * * * * * * * * * * * Global Operators  * * * * * * * * * * * * * * //
 
 bool operator==(const cell& a, const cell& b)
 {
@@ -288,18 +268,16 @@ bool operator==(const cell& a, const cell& b)
 
     List<bool> fnd(a.size(), false);
 
-    forAll(b, bI)
+    for (const label curLabel : b)
     {
-        label curLabel = b[bI];
-
         bool found = false;
 
-        forAll(a, aI)
+        forAll(a, ai)
         {
-            if (a[aI] == curLabel)
+            if (a[ai] == curLabel)
             {
                 found = true;
-                fnd[aI] = true;
+                fnd[ai] = true;
                 break;
             }
         }
@@ -310,16 +288,19 @@ bool operator==(const cell& a, const cell& b)
         }
     }
 
-    // check if all faces on a were marked
-    bool result = true;
-
-    forAll(fnd, aI)
+    // Any faces missed?
+    forAll(fnd, ai)
     {
-        result = (result && fnd[aI]);
+        if (!fnd[ai])
+        {
+            return false;
+        }
     }
 
-    return result;
+    return true;
 }
 
 
 // ************************************************************************* //
+
+ } // End namespace Foam

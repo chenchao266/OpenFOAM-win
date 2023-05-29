@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2017 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -31,6 +34,7 @@ namespace Foam
 {
     defineTypeNameAndDebug(rhoThermo, 0);
     defineRunTimeSelectionTable(rhoThermo, fvMesh);
+    defineRunTimeSelectionTable(rhoThermo, fvMeshDictPhase);
 }
 
 
@@ -135,6 +139,58 @@ Foam::rhoThermo::rhoThermo
 {}
 
 
+Foam::rhoThermo::rhoThermo
+(
+    const fvMesh& mesh,
+    const word& phaseName,
+    const word& dictionaryName
+)
+:
+    fluidThermo(mesh, phaseName, dictionaryName),
+    rho_
+    (
+        IOobject
+        (
+            phasePropertyName("thermo:rho"),
+            mesh.time().timeName(),
+            mesh,
+            IOobject::NO_READ,
+            IOobject::NO_WRITE
+        ),
+        mesh,
+        dimDensity
+    ),
+
+    psi_
+    (
+        IOobject
+        (
+            phasePropertyName("thermo:psi"),
+            mesh.time().timeName(),
+            mesh,
+            IOobject::NO_READ,
+            IOobject::NO_WRITE
+        ),
+        mesh,
+        dimensionSet(0, -2, 2, 0, 0)
+    ),
+
+    mu_
+    (
+        IOobject
+        (
+            phasePropertyName("thermo:mu"),
+            mesh.time().timeName(),
+            mesh,
+            IOobject::NO_READ,
+            IOobject::NO_WRITE
+        ),
+        mesh,
+        dimensionSet(1, -1, -1, 0, 0)
+    )
+{}
+
+
 // * * * * * * * * * * * * * * * * Selectors * * * * * * * * * * * * * * * * //
 
 Foam::autoPtr<Foam::rhoThermo> Foam::rhoThermo::New
@@ -146,6 +202,16 @@ Foam::autoPtr<Foam::rhoThermo> Foam::rhoThermo::New
     return basicThermo::New<rhoThermo>(mesh, phaseName);
 }
 
+
+Foam::autoPtr<Foam::rhoThermo> Foam::rhoThermo::New
+(
+     const fvMesh& mesh,
+     const word& phaseName,
+     const word& dictName
+)
+{
+    return basicThermo::New<rhoThermo>(mesh, phaseName, dictName);
+}
 
 // * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
 
@@ -172,6 +238,18 @@ Foam::volScalarField& Foam::rhoThermo::rho()
     return rho_;
 }
 
+
+void Foam::rhoThermo::correctRho
+(
+    const Foam::volScalarField& deltaRho,
+    const dimensionedScalar& rhoMin,
+    const dimensionedScalar& rhoMax
+)
+{
+    rho_ += deltaRho;
+    rho_ = max(rho_, rhoMin);
+    rho_ = min(rho_, rhoMax);
+}
 
 void Foam::rhoThermo::correctRho(const Foam::volScalarField& deltaRho)
 {

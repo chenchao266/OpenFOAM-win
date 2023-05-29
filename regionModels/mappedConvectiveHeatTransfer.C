@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -52,7 +54,7 @@ addToRunTimeSelectionTable
 
 mappedConvectiveHeatTransfer::mappedConvectiveHeatTransfer
 (
-    surfaceFilmModel& film,
+    surfaceFilmRegionModel& film,
     const dictionary& dict
 )
 :
@@ -80,7 +82,7 @@ mappedConvectiveHeatTransfer::mappedConvectiveHeatTransfer
             IOobject::NO_WRITE
         ),
         film.regionMesh(),
-        dimensionedScalar("zero", dimMass/pow3(dimTime)/dimTemperature, 0.0),
+        dimensionedScalar(dimMass/pow3(dimTime)/dimTemperature, Zero),
         film.mappedPushedFieldPatchTypes<scalar>()
     )
 {

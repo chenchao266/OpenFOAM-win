@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -28,7 +31,7 @@ License
 #include "volFields.H"
 #include "turbulentFluidThermoModel.H"
 #include "addToRunTimeSelectionTable.H"
-#include "surfaceFilmModel.H"
+#include "surfaceFilmRegionModel.H"
 #include "mappedWallPolyPatch.H"
 #include "mapDistribute.H"
 
@@ -48,15 +51,14 @@ tmp<scalarField> nutkFilmWallFunctionFvPatchScalarField::calcUTau
     const scalarField& magGradU
 ) const
 {
-    tmp<scalarField> tuTau(new scalarField(patch().size(), 0.0));
+    tmp<scalarField> tuTau(new scalarField(patch().size(), Zero));
     scalarField& uTau = tuTau.ref();
 
-    typedef regionModels::surfaceFilmModels::surfaceFilmModel modelType;
+    const auto* filmModelPtr = db().time().findObject
+        <regionModels::surfaceFilmModels::surfaceFilmRegionModel>
+        (filmRegionName_);
 
-    bool foundFilm =
-        db().time().foundObject<modelType>("surfaceFilmProperties");
-
-    if (!foundFilm)
+    if (!filmModelPtr)
     {
         // Do nothing on construction - film model doesn't exist yet
         return tuTau;
@@ -65,8 +67,7 @@ tmp<scalarField> nutkFilmWallFunctionFvPatchScalarField::calcUTau
     const label patchi = patch().index();
 
     // Retrieve phase change mass from surface film model
-    const modelType& filmModel =
-        db().time().lookupObject<modelType>("surfaceFilmProperties");
+    const auto& filmModel = *filmModelPtr;
 
     const label filmPatchi = filmModel.regionPatchID(patchi);
 
@@ -158,6 +159,7 @@ nutkFilmWallFunctionFvPatchScalarField::nutkFilmWallFunctionFvPatchScalarField
 )
 :
     nutkWallFunctionFvPatchScalarField(p, iF),
+    filmRegionName_("surfaceFilmProperties"),
     B_(5.5),
     yPlusCrit_(11.05)
 {}
@@ -172,6 +174,7 @@ nutkFilmWallFunctionFvPatchScalarField::nutkFilmWallFunctionFvPatchScalarField
 )
 :
     nutkWallFunctionFvPatchScalarField(ptf, p, iF, mapper),
+    filmRegionName_(ptf.filmRegionName_),
     B_(5.5),
     yPlusCrit_(11.05)
 {}
@@ -185,8 +188,12 @@ nutkFilmWallFunctionFvPatchScalarField::nutkFilmWallFunctionFvPatchScalarField
 )
 :
     nutkWallFunctionFvPatchScalarField(p, iF, dict),
-    B_(dict.lookupOrDefault("B", 5.5)),
-    yPlusCrit_(dict.lookupOrDefault("yPlusCrit", 11.05))
+    filmRegionName_
+    (
+        dict.getOrDefault<word>("filmRegion", "surfaceFilmProperties")
+    ),
+    B_(dict.getOrDefault("B", 5.5)),
+    yPlusCrit_(dict.getOrDefault("yPlusCrit", 11.05))
 {}
 
 
@@ -196,6 +203,7 @@ nutkFilmWallFunctionFvPatchScalarField::nutkFilmWallFunctionFvPatchScalarField
 )
 :
     nutkWallFunctionFvPatchScalarField(wfpsf),
+    filmRegionName_(wfpsf.filmRegionName_),
     B_(wfpsf.B_),
     yPlusCrit_(wfpsf.yPlusCrit_)
 {}
@@ -208,6 +216,7 @@ nutkFilmWallFunctionFvPatchScalarField::nutkFilmWallFunctionFvPatchScalarField
 )
 :
     nutkWallFunctionFvPatchScalarField(wfpsf, iF),
+    filmRegionName_(wfpsf.filmRegionName_),
     B_(wfpsf.B_),
     yPlusCrit_(wfpsf.yPlusCrit_)
 {}
@@ -240,9 +249,15 @@ tmp<scalarField> nutkFilmWallFunctionFvPatchScalarField::yPlus() const
 void nutkFilmWallFunctionFvPatchScalarField::write(Ostream& os) const
 {
     fvPatchField<scalar>::write(os);
+    os.writeEntryIfDifferent<word>
+    (
+        "filmRegion",
+        "surfaceFilmProperties",
+        filmRegionName_
+    );
     writeLocalEntries(os);
-    os.writeKeyword("B") << B_ << token::END_STATEMENT << nl;
-    os.writeKeyword("yPlusCrit") << yPlusCrit_ << token::END_STATEMENT << nl;
+    os.writeEntry("B", B_);
+    os.writeEntry("yPlusCrit", yPlusCrit_);
     writeEntry("value", os);
 }
 

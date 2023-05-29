@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -22,71 +24,88 @@ License
     along with OpenFOAM.  If not, see <http://www.gnu.org/licenses/>.
 
 Class
-    Foam::pairPotentials::noInteraction
+    Foam::NoInteraction
+
+Group
+    grpLagrangianIntermediatePatchInteractionSubModels
 
 Description
-
-
-SourceFiles
-    noInteraction.C
+    Dummy class for 'none' option - will raise an error if any functions are
+    called that require return values.
 
 \*---------------------------------------------------------------------------*/
 
-#ifndef noInteraction_H
-#define noInteraction_H
+#ifndef NoInteraction_H
+#define NoInteraction_H
 
-#include "pairPotential.H"
+#include "PatchInteractionModel.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 namespace Foam
 {
-namespace pairPotentials
-{
-
 /*---------------------------------------------------------------------------*\
-                       Class noInteraction Declaration
+                       Class NoInteraction Declaration
 \*---------------------------------------------------------------------------*/
 
-class noInteraction
+template<class CloudType>
+class NoInteraction
 :
-    public pairPotential
+    public PatchInteractionModel<CloudType>
 {
-
 public:
 
     //- Runtime type information
-    TypeName("noInteraction");
+    TypeName("none");
 
 
     // Constructors
 
-        //- Construct from components
-        noInteraction
-        (
-            const word& name,
-            const dictionary& pairPotentialProperties
-        );
+        //- Construct from dictionary
+        NoInteraction(const dictionary& dict, CloudType& cloud);
+
+        //- Construct copy
+        NoInteraction(const NoInteraction<CloudType>& pim);
+
+        //- Construct and return a clone
+        virtual autoPtr<PatchInteractionModel<CloudType>> clone() const
+        {
+            return autoPtr<PatchInteractionModel<CloudType>>
+            (
+                new NoInteraction<CloudType>(*this)
+            );
+        }
 
 
     //- Destructor
-    ~noInteraction()
-    {}
+    virtual ~NoInteraction() = default;
 
 
     // Member Functions
 
-        scalar unscaledEnergy(const scalar r) const;
+        //- Flag to indicate whether model activates patch interaction model
+        virtual bool active() const;
 
-        //- Read dictionary
-        bool read(const dictionary& pairPotentialProperties);
+        //- Apply velocity correction
+        //  Returns true if particle remains in same cell
+        virtual bool correct
+        (
+            typename CloudType::parcelType& p,
+            const polyPatch& pp,
+            bool& keepParticle
+        );
 };
 
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
-} // End namespace pairPotentials
 } // End namespace Foam
+
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+#ifdef NoRepository
+    #include "NoInteraction.C"
+#endif
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 

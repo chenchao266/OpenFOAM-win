@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2013-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2013-2017 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -22,7 +24,7 @@ License
     along with OpenFOAM.  If not, see <http://www.gnu.org/licenses/>.
 
 Class
-    Foam::filmViscosityModel
+    Foam::regionModels::surfaceFilmModels::filmViscosityModel
 
 Description
     Base class for surface film viscosity models
@@ -61,11 +63,11 @@ private:
 
     // Private Member Functions
 
-        //- Disallow default bitwise copy construct
-        filmViscosityModel(const filmViscosityModel&);
+        //- No copy construct
+        filmViscosityModel(const filmViscosityModel&) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const filmViscosityModel&);
+        //- No copy assignment
+        void operator=(const filmViscosityModel&) = delete;
 
 
 protected:
@@ -90,7 +92,7 @@ public:
              filmViscosityModel,
              dictionary,
              (
-                surfaceFilmModel& film,
+                surfaceFilmRegionModel& film,
                 const dictionary& dict,
                 volScalarField& mu
              ),
@@ -103,7 +105,7 @@ public:
         filmViscosityModel
         (
             const word& modelType,
-            surfaceFilmModel& film,
+            surfaceFilmRegionModel& film,
             const dictionary& dict,
             volScalarField& mu
         );
@@ -114,7 +116,7 @@ public:
         //- Return a reference to the selected phase change model
         static autoPtr<filmViscosityModel> New
         (
-            surfaceFilmModel& film,
+            surfaceFilmRegionModel& film,
             const dictionary& dict,
             volScalarField& mu
         );

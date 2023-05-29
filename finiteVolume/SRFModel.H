@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -81,7 +83,7 @@ protected:
         //- Axis of rotation, a direction vector which passes through the origin
         vector axis_;
 
-        //- SRF model coeficients dictionary
+        //- SRF model coefficients dictionary
         dictionary SRFModelCoeffs_;
 
         //- Angular velocity of the frame (rad/s)
@@ -92,11 +94,11 @@ private:
 
     // Private Member Functions
 
-        //- Disallow default bitwise copy construct
-        SRFModel(const SRFModel&);
+        //- No copy construct
+        SRFModel(const SRFModel&) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const SRFModel&);
+        //- No copy assignment
+        void operator=(const SRFModel&) = delete;
 
 
 public:

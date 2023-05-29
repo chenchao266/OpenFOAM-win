@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2020-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -21,31 +24,26 @@ License
     You should have received a copy of the GNU General Public License
     along with OpenFOAM.  If not, see <http://www.gnu.org/licenses/>.
 
-Description
-    write function for regIOobjects
-
 \*---------------------------------------------------------------------------*/
 
 #include "regIOobject.H"
-#include "Time.T.H"
-#include "OSspecific.H"
+#include "Time1.h"
 #include "OFstream.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
-using namespace Foam;
+
+
+ namespace Foam{
 bool regIOobject::writeObject
 (
-    IOstream::streamFormat fmt,
-    IOstream::versionNumber ver,
-    IOstream::compressionType cmp,
+    IOstreamOption streamOpt,
     const bool valid
 ) const
 {
     if (!good())
     {
         SeriousErrorInFunction
-            << "bad object " << name()
-            << endl;
+            << "bad object " << name() << endl;
 
         return false;
     }
@@ -53,12 +51,10 @@ bool regIOobject::writeObject
     if (instance().empty())
     {
         SeriousErrorInFunction
-            << "instance undefined for object " << name()
-            << endl;
+            << "instance undefined for object " << name() << endl;
 
         return false;
     }
-
 
 
     //- uncomment this if you want to write global objects on master only
@@ -100,48 +96,18 @@ bool regIOobject::writeObject
     }
 
 
-    bool osGood = false;
-
-
     // Everyone check or just master
     bool masterOnly =
         isGlobal
      && (
-            regIOobject::fileModificationChecking == timeStampMaster
-         || regIOobject::fileModificationChecking == inotifyMaster
+            IOobject::fileModificationChecking == IOobject::timeStampMaster
+         || IOobject::fileModificationChecking == IOobject::inotifyMaster
         );
 
-
+    bool osGood = false;
     if (Pstream::master() || !masterOnly)
     {
-        //if (mkDir(path()))
-        //{
-        //    // Try opening an OFstream for object
-        //    OFstream os(objectPath(), fmt, ver, cmp);
-        //
-        //    // If any of these fail, return (leave error handling to Ostream
-        //    // class)
-        //    if (!os.good())
-        //    {
-        //        return false;
-        //    }
-        //
-        //    if (!writeHeader(os))
-        //    {
-        //        return false;
-        //    }
-        //
-        //    // Write the data to the Ostream
-        //    if (!writeData(os))
-        //    {
-        //        return false;
-        //    }
-        //
-        //    writeEndDivider(os);
-        //
-        //    osGood = os.good();
-        //}
-        osGood = fileHandler().writeObject(*this, fmt, ver, cmp, valid);
+        osGood = fileHandler().writeObject(*this, streamOpt, valid);
     }
     else
     {
@@ -169,11 +135,24 @@ bool regIOobject::write(const bool valid) const
 {
     return writeObject
     (
-        time().writeFormat(),
-        IOstream::currentVersion,
-        time().writeCompression(),
+        IOstreamOption(time().writeFormat(), time().writeCompression()),
         valid
     );
 }
 
+
+bool regIOobject::writeObject
+(
+    IOstreamOption::streamFormat fmt,
+    IOstreamOption::versionNumber ver,
+    IOstreamOption::compressionType cmp,
+    const bool valid
+) const
+{
+    return writeObject(IOstreamOption(fmt, ver, cmp), valid);
+}
+
+
 // ************************************************************************* //
+
+ } // End namespace Foam

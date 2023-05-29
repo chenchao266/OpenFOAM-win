@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2016-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2016-2017 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -25,7 +27,23 @@ Class
     Foam::searchableExtrudedCircle
 
 Description
-    Searching on edgemesh with constant radius
+    Searching on edgeMesh with constant radius
+
+    \heading Dictionary parameters
+    \table
+        Property    | Description                       | Required | Default
+        type        | extrudedCircle                    | selector |
+        file        | The name of the edge mesh         | yes   |
+        radius      | Search radius around the edges    | yes   |
+    \endtable
+
+Note
+    - The edge mesh file is to be located in the constant/geometry directory.
+    - Can not be used with snappyHexMesh since only implements nearest
+      searching.
+
+Note
+    Longer type name : \c searchableExtrudedCircle
 
 SourceFiles
     searchableExtrudedCircle.C
@@ -43,10 +61,10 @@ SourceFiles
 namespace Foam
 {
 
-// Forward declaration of classes
+// Forward declarations
 class edgeMesh;
 class treeDataEdge;
-template <class Type> class indexedOctree;
+template<class Type> class indexedOctree;
 
 /*---------------------------------------------------------------------------*\
                   Class searchableExtrudedCircle Declaration
@@ -73,11 +91,11 @@ class searchableExtrudedCircle
 
     // Private Member Functions
 
-        //- Disallow default bitwise copy construct
-        searchableExtrudedCircle(const searchableExtrudedCircle&);
+        //- No copy construct
+        searchableExtrudedCircle(const searchableExtrudedCircle&) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const searchableExtrudedCircle&);
+        //- No copy assignment
+        void operator=(const searchableExtrudedCircle&) = delete;
 
 
 public:
@@ -102,12 +120,19 @@ public:
 
     // Member Functions
 
+        //- Names of regions
         virtual const wordList& regions() const;
 
         //- Whether supports volume type below
         virtual bool hasVolumeType() const
         {
             return true;
+        }
+
+        //- What is type of points outside bounds
+        virtual volumeType outsideVolumeType() const
+        {
+            return volumeType::OUTSIDE;
         }
 
         //- Range of local indices that can be returned.
@@ -206,8 +231,8 @@ public:
                 vectorField& normal
             ) const;
 
-            //- Determine type (inside/outside/mixed) for point. unknown if
-            //  cannot be determined (e.g. non-manifold surface)
+            //- Determine type (inside/outside/mixed) for point.
+            //  Unknown if cannot be determined (e.g. non-manifold surface)
             virtual void getVolumeType
             (
                 const pointField&,

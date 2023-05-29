@@ -1,9 +1,12 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011 OpenFOAM Foundation
+    Copyright (C) 2019 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -49,7 +52,9 @@ namespace Foam
                    Class DILUGaussSeidelSmoother Declaration
 \*---------------------------------------------------------------------------*/
 
-class DILUGaussSeidelSmoother :    public lduMatrix::smoother
+class DILUGaussSeidelSmoother
+:
+    public lduMatrix::smoother
 {
     // Private data
 
@@ -82,8 +87,17 @@ public:
         //- Smooth the solution for a given number of sweeps
         virtual void smooth
         (
-            scalarField& psi,
+            solveScalarField& psi,
             const scalarField& Source,
+            const direction cmpt,
+            const label nSweeps
+        ) const;
+
+        //- Smooth the solution for a given number of sweeps
+        void scalarSmooth
+        (
+            solveScalarField& psi,
+            const solveScalarField& source,
             const direction cmpt,
             const label nSweeps
         ) const;

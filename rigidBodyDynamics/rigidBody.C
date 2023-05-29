@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2016 OpenFOAM Foundation
+    Copyright (C) 2019-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -50,7 +53,7 @@ namespace RBD
 
 Foam::autoPtr<Foam::RBD::rigidBody> Foam::RBD::rigidBody::clone() const
 {
-    return autoPtr<rigidBody>(new rigidBody(*this));
+    return autoPtr<rigidBody>::New(*this);
 }
 
 
@@ -64,7 +67,7 @@ Foam::autoPtr<Foam::RBD::rigidBody> Foam::RBD::rigidBody::New
     const symmTensor& Ic
 )
 {
-    return autoPtr<rigidBody>(new rigidBody(name, m, c, Ic));
+    return autoPtr<rigidBody>::New(name, m, c, Ic);
 }
 
 
@@ -74,22 +77,22 @@ Foam::autoPtr<Foam::RBD::rigidBody> Foam::RBD::rigidBody::New
     const dictionary& dict
 )
 {
-    const word bodyType(dict.lookup("type"));
+    const word bodyType(dict.get<word>("type"));
 
-    dictionaryConstructorTable::iterator cstrIter =
-        dictionaryConstructorTablePtr_->find(bodyType);
+    auto* ctorPtr = dictionaryConstructorTable(bodyType);
 
-    if (cstrIter == dictionaryConstructorTablePtr_->end())
+    if (!ctorPtr)
     {
-        FatalErrorInFunction
-            << "Unknown rigidBody type "
-            << bodyType << nl << nl
-            << "Valid rigidBody types are : " << endl
-            << dictionaryConstructorTablePtr_->sortedToc()
-            << exit(FatalError);
+        FatalIOErrorInLookup
+        (
+            dict,
+            "rigidBody",
+            bodyType,
+            *dictionaryConstructorTablePtr_
+        ) << exit(FatalIOError);
     }
 
-    return autoPtr<rigidBody>(cstrIter()(name, dict));
+    return autoPtr<rigidBody>(ctorPtr(name, dict));
 }
 
 
@@ -119,17 +122,10 @@ void Foam::RBD::rigidBody::merge(const subBody& subBody)
 
 void Foam::RBD::rigidBody::write(Ostream& os) const
 {
-    os.writeKeyword("type")
-        << type() << token::END_STATEMENT << nl;
-
-    os.writeKeyword("mass")
-        << m() << token::END_STATEMENT << nl;
-
-    os.writeKeyword("centreOfMass")
-        << c() << token::END_STATEMENT << nl;
-
-    os.writeKeyword("inertia")
-        << Ic() << token::END_STATEMENT << nl;
+    os.writeEntry("type", type());
+    os.writeEntry("mass", m());
+    os.writeEntry("centreOfMass", c());
+    os.writeEntry("inertia", Ic());
 }
 
 

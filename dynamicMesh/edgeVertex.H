@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -29,6 +31,7 @@ Description
     cell circumference.
 
 SourceFiles
+    edgeVertex.C
 
 \*---------------------------------------------------------------------------*/
 
@@ -43,7 +46,7 @@ SourceFiles
 namespace Foam
 {
 
-// Forward declaration of classes
+// Forward Declarations
 class refineCell;
 
 /*---------------------------------------------------------------------------*\
@@ -52,7 +55,7 @@ class refineCell;
 
 class edgeVertex
 {
-    // Private data
+    // Private Data
 
         //- Reference to mesh. (could be primitive mesh but keeping polyMesh
         //  here saves storing reference at higher levels where we do need it)
@@ -60,11 +63,11 @@ class edgeVertex
 
     // Private Member Functions
 
-        //- Disallow default bitwise copy construct
-        edgeVertex(const edgeVertex&);
+        //- No copy construct
+        edgeVertex(const edgeVertex&) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const edgeVertex&);
+        //- No copy assignment
+        void operator=(const edgeVertex&) = delete;
 
 
 public:
@@ -88,7 +91,7 @@ public:
     // Constructors
 
         //- Construct from mesh
-        edgeVertex(const polyMesh& mesh)
+        explicit edgeVertex(const polyMesh& mesh)
         :
             mesh_(mesh)
         {}

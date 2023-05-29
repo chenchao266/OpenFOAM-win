@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2013-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2013-2014 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -66,19 +68,36 @@ protected:
         //- Reference to point motion field
         pointVectorField& pointDisplacement_;
 
+        //- In dry-run mode?
+        const bool dryRun_;
+
+
+    // Protected Member functions
+
+        //- Extract fixed-value patchfields
+        static labelList getFixedValueBCs(const pointVectorField&);
+
+        //- Construct patch on selected patches
+        static autoPtr<indirectPrimitivePatch> getPatch
+        (
+            const polyMesh&,
+            const labelList&
+        );
+
 
 private:
 
     // Private Member Functions
 
-        //- Disallow default bitwise copy construct
+        //- No copy construct
         externalDisplacementMeshMover
         (
             const externalDisplacementMeshMover&
-        );
+        ) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const externalDisplacementMeshMover&);
+        //- No copy assignment
+        void operator=(const externalDisplacementMeshMover&) = delete;
+
 
 public:
 
@@ -96,9 +115,10 @@ public:
             (
                 const dictionary& dict,
                 const List<labelPair>& baffles,
-                pointVectorField& pointDisplacement
+                pointVectorField& pointDisplacement,
+                const bool dryRun
             ),
-            (dict, baffles, pointDisplacement)
+            (dict, baffles, pointDisplacement, dryRun)
         );
 
 
@@ -110,7 +130,8 @@ public:
         (
             const dictionary& dict,
             const List<labelPair>& baffles,
-            pointVectorField& pointDisplacement
+            pointVectorField& pointDisplacement,
+            const bool dryRun
         );
 
 
@@ -122,7 +143,8 @@ public:
             const word& type,
             const dictionary& dict,
             const List<labelPair>& baffles,
-            pointVectorField& pointDisplacement
+            pointVectorField& pointDisplacement,
+            const bool dryRun = false
         );
 
 
@@ -160,7 +182,7 @@ public:
         // Mesh mover
 
             //- Move mesh using current pointDisplacement boundary values
-            //  and current dictionary settings. Return true if succesful
+            //  and current dictionary settings. Return true if successful
             //  (errors  on checkFaces less than allowable). Updates
             //  pointDisplacement.
             virtual bool move

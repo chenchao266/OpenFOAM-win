@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2014-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2014-2016 OpenFOAM Foundation
+    Copyright (C) 2017-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -25,19 +28,27 @@ License
 
 #include "int64.H"
 
-// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
-using namespace Foam;
-const int64_t pTraits<int64_t>::_zero = 0;
-const int64_t pTraits<int64_t>::one = 1;
-const int64_t pTraits<int64_t>::min = INT64_MIN;
-const int64_t pTraits<int64_t>::max = INT64_MAX;
-const int64_t pTraits<int64_t>::rootMin = pTraits<int64_t>::min;
-const int64_t pTraits<int64_t>::rootMax = pTraits<int64_t>::max;
+// * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
 
+
+ namespace Foam{
 const char* const pTraits<int64_t>::componentNames[] = { "" };
 
-pTraits<int64_t>::pTraits(const int64_t& p) :    p_(p)
+const int64_t pTraits<int64_t>::zero_ = 0;
+const int64_t pTraits<int64_t>::one_ = 1;
+const int64_t pTraits<int64_t>::min_ = INT64_MIN;
+const int64_t pTraits<int64_t>::max_ = INT64_MAX;
+const int64_t pTraits<int64_t>::rootMin_ = pTraits<int64_t>::min_;
+const int64_t pTraits<int64_t>::rootMax_ = pTraits<int64_t>::max_;
+
+
+// * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
+
+pTraits<int64_t>::pTraits(const int64_t& val) noexcept
+:
+    p_(val)
 {}
+
 
 pTraits<int64_t>::pTraits(Istream& is)
 {
@@ -46,3 +57,5 @@ pTraits<int64_t>::pTraits(Istream& is)
 
 
 // ************************************************************************* //
+
+ } // End namespace Foam

@@ -1,9 +1,11 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2015 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2015 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -32,13 +34,12 @@ SourceFiles
 
 \*---------------------------------------------------------------------------*/
 
-
 #ifndef dimensionSets_H
 #define dimensionSets_H
 
 #include "scalarMatrices.H"
 #include "dimensionedScalarFwd.H"
-#include "PtrList.T.H"
+#include "PtrList.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -47,6 +48,7 @@ namespace Foam
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
+//- Dimensionless
 extern const dimensionSet dimless;
 
 extern const dimensionSet dimMass;
@@ -59,6 +61,9 @@ extern const dimensionSet dimLuminousIntensity;
 
 extern const dimensionSet dimArea;
 extern const dimensionSet dimVolume;
+
+//- Older spelling for dimVolume
+//  \deprecated(2019-01) use dimVolume instead
 extern const dimensionSet dimVol;
 
 extern const dimensionSet dimDensity;
@@ -76,9 +81,10 @@ extern const dimensionSet dimViscosity;
 extern const dimensionSet dimDynamicViscosity;
 
 
+//- Construction of unit sets
 class dimensionSets
 {
-    // Private data
+    // Private Data
 
         //- Set of dimensions
         PtrList<dimensionedScalar> units_;
@@ -96,31 +102,31 @@ public:
 
     // Constructors
 
-        //- Construct from all units and set of units to use for inversion
-        //  (writing)
+        //- Construct from all units and set of units to use
+        //- for inversion (writing)
         dimensionSets
         (
             const HashTable<dimensionedScalar>&,
             const wordList& unitNames
         );
 
-    // Member functions
+
+    // Member Functions
 
         //- Return the units
-        const PtrList<dimensionedScalar>& units() const
+        const PtrList<dimensionedScalar>& units() const noexcept
         {
             return units_;
         }
 
         //- Is there a valid inverse of the selected unit
-        bool valid() const
+        bool valid() const noexcept
         {
             return valid_;
         }
 
         //- (if valid) obtain set of coefficients of unitNames
-        void coefficients(scalarField&) const;
-
+        void coefficients(scalarField& exponents) const;
 };
 
 

@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2015 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2015 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -23,66 +25,62 @@ License
 
 \*---------------------------------------------------------------------------*/
 
-#include "diagonalPreconditioner.H"
-
-// * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
-using namespace Foam;
-namespace Foam
-{
-    defineTypeNameAndDebug(diagonalPreconditioner, 0);
-
-    lduMatrix::preconditioner::
-        addsymMatrixConstructorToTable<diagonalPreconditioner>
-        adddiagonalPreconditionerSymMatrixConstructorToTable_;
-
-    lduMatrix::preconditioner::
-        addasymMatrixConstructorToTable<diagonalPreconditioner>
-        adddiagonalPreconditionerAsymMatrixConstructorToTable_;
-}
-
+#include "DiagonalPreconditioner.H"
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
-diagonalPreconditioner::diagonalPreconditioner
+
+ namespace Foam{
+template<class Type, class DType, class LUType>
+DiagonalPreconditioner<Type, DType, LUType>::DiagonalPreconditioner
 (
-    const lduMatrix::solver& sol,
+    const typename LduMatrix<Type, DType, LUType>::solver& sol,
     const dictionary&
-) :    lduMatrix::preconditioner(sol),
+)
+:
+    LduMatrix<Type, DType, LUType>::preconditioner(sol),
     rD(sol.matrix().diag().size())
 {
-    scalar* __restrict__ rDPtr = rD.begin();
-    const scalar* __restrict__ DPtr = solver_.matrix().diag().begin();
+    DType* __restrict__ rDPtr = rD.begin();
+    const DType* __restrict__ DPtr = this->solver_.matrix().diag().begin();
 
     label nCells = rD.size();
 
-    // Generate reciprocal diagonal
+    // Generate inverse (reciprocal for scalar) diagonal
     for (label cell=0; cell<nCells; cell++)
     {
-        rDPtr[cell] = 1.0/DPtr[cell];
+        rDPtr[cell] = inv(DPtr[cell]);
     }
 }
 
 
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
 
-void diagonalPreconditioner::precondition
+template<class Type, class DType, class LUType>
+void DiagonalPreconditioner<Type, DType, LUType>::read(const dictionary&)
+{}
+
+
+template<class Type, class DType, class LUType>
+void DiagonalPreconditioner<Type, DType, LUType>::precondition
 (
-    scalarField& wA,
-    const scalarField& rA,
-    const direction
+    Field<Type>& wA,
+    const Field<Type>& rA
 ) const
 {
-    scalar* __restrict__ wAPtr = wA.begin();
-    const scalar* __restrict__ rAPtr = rA.begin();
-    const scalar* __restrict__ rDPtr = rD.begin();
+    Type* __restrict__ wAPtr = wA.begin();
+    const Type* __restrict__ rAPtr = rA.begin();
+    const DType* __restrict__ rDPtr = rD.begin();
 
     label nCells = wA.size();
 
     for (label cell=0; cell<nCells; cell++)
     {
-        wAPtr[cell] = rDPtr[cell]*rAPtr[cell];
+        wAPtr[cell] = dot(rDPtr[cell], rAPtr[cell]);
     }
 }
 
 
 // ************************************************************************* //
+
+ } // End namespace Foam

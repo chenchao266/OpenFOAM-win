@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2018-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -24,11 +27,12 @@ License
 \*---------------------------------------------------------------------------*/
 
 #include "sampledPatch.H"
-#include "dictionary.H"
+#include "dictionary2.H"
 #include "polyMesh.H"
 #include "polyPatch.H"
 #include "volFields.H"
 #include "surfaceFields.H"
+#include "uindirectPrimitivePatch.H"
 
 #include "addToRunTimeSelectionTable.H"
 
@@ -47,12 +51,12 @@ Foam::sampledPatch::sampledPatch
 (
     const word& name,
     const polyMesh& mesh,
-    const wordReList& patchNames,
+    const UList<wordRe>& patchNames,
     const bool triangulate
 )
 :
     sampledSurface(name, mesh),
-    patchNames_(patchNames),
+    selectionNames_(patchNames),
     triangulate_(triangulate),
     needsUpdate_(true)
 {}
@@ -66,15 +70,9 @@ Foam::sampledPatch::sampledPatch
 )
 :
     sampledSurface(name, mesh, dict),
-    patchNames_(dict.lookup("patches")),
-    triangulate_(dict.lookupOrDefault("triangulate", false)),
+    selectionNames_(dict.get<wordRes>("patches")),
+    triangulate_(dict.getOrDefault("triangulate", false)),
     needsUpdate_(true)
-{}
-
-
-// * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
-
-Foam::sampledPatch::~sampledPatch()
 {}
 
 
@@ -84,12 +82,63 @@ const Foam::labelList& Foam::sampledPatch::patchIDs() const
 {
     if (patchIDs_.empty())
     {
-        patchIDs_ = mesh().boundaryMesh().patchSet
+        labelList selected
         (
-            patchNames_,
-            false
-        ).sortedToc();
+            mesh().boundaryMesh().patchSet(selectionNames_).sortedToc()
+        );
+
+        DynamicList<label> bad;
+        for (const label patchi : selected)
+        {
+            const polyPatch& pp = mesh().boundaryMesh()[patchi];
+
+            if (isA<emptyPolyPatch>(pp))
+            {
+                bad.append(patchi);
+            }
+        }
+
+        if (bad.size())
+        {
+            label nGood = (selected.size() - bad.size());
+
+            auto& os = nGood > 0 ? WarningInFunction : FatalErrorInFunction;
+
+            os  << "Cannot sample an empty patch" << nl;
+
+            for (const label patchi : bad)
+            {
+                os  << "    "
+                    << mesh().boundaryMesh()[patchi].name() << nl;
+            }
+
+            if (nGood)
+            {
+                os  << "No non-empty patches selected" << endl
+                    << exit(FatalError);
+            }
+            else
+            {
+                os  << "Selected " << nGood << " non-empty patches" << nl;
+            }
+
+            patchIDs_.resize(nGood);
+            nGood = 0;
+            for (const label patchi : selected)
+            {
+                if (!bad.found(patchi))
+                {
+                    patchIDs_[nGood] = patchi;
+                    ++nGood;
+                }
+            }
+        }
+        else
+        {
+            patchIDs_ = std::move(selected);
+        }
     }
+
     return patchIDs_;
 }
 
@@ -109,11 +158,13 @@ bool Foam::sampledPatch::expire()
     }
 
     sampledSurface::clearGeom();
-    MeshStorage::clear();
+    Mesh::clear();
+
     patchIDs_.clear();
+    patchStart_.clear();
+
     patchIndex_.clear();
     patchFaceLabels_.clear();
-    patchStart_.clear();
 
     needsUpdate_ = true;
     return true;
@@ -127,53 +178,45 @@ bool Foam::sampledPatch::update()
         return false;
     }
 
-    label sz = 0;
-    forAll(patchIDs(), i)
+    // Total number of faces selected
+    label numFaces = 0;
+    for (const label patchi : patchIDs())
     {
-        label patchi = patchIDs()[i];
         const polyPatch& pp = mesh().boundaryMesh()[patchi];
-
-        if (isA<emptyPolyPatch>(pp))
-        {
-            FatalErrorInFunction
-                << "Cannot sample an empty patch. Patch " << pp.name()
-                << exit(FatalError);
-        }
-
-        sz += pp.size();
+        numFaces += pp.size();
     }
 
-    // For every face (or triangle) the originating patch and local face in the
-    // patch.
-    patchIndex_.setSize(sz);
-    patchFaceLabels_.setSize(sz);
-    patchStart_.setSize(patchIDs().size());
-    labelList meshFaceLabels(sz);
+    patchStart_.resize(patchIDs().size());
 
-    sz = 0;
+    // The originating patch and local face in the patch.
+    patchIndex_.resize(numFaces);
+    patchFaceLabels_.resize(numFaces);
 
-    forAll(patchIDs(), i)
+    IndirectList<face> selectedFaces(mesh().faces(), labelList());
+    labelList& meshFaceIds = selectedFaces.addressing();
+    meshFaceIds.resize(numFaces);
+
+    numFaces = 0;
+
+    forAll(patchIDs(), idx)
     {
-        label patchi = patchIDs()[i];
-
-        patchStart_[i] = sz;
-
+        const label patchi = patchIDs()[idx];
         const polyPatch& pp = mesh().boundaryMesh()[patchi];
+        const label len = pp.size();
 
-        forAll(pp, j)
-        {
-            patchIndex_[sz] = i;
-            patchFaceLabels_[sz] = j;
-            meshFaceLabels[sz] = pp.start()+j;
-            sz++;
-        }
+        patchStart_[idx] = numFaces;
+
+        SubList<label>(patchIndex_, len, numFaces) = idx;
+
+        SubList<label>(patchFaceLabels_, len, numFaces) = identity(len);
+
+        SubList<label>(meshFaceIds, len, numFaces) = identity(len, pp.start());
+
+        numFaces += len;
     }
 
-    indirectPrimitivePatch allPatches
-    (
-        IndirectList<face>(mesh().faces(), meshFaceLabels),
-        mesh().points()
-    );
+
+    uindirectPrimitivePatch allPatches(selectedFaces, mesh().points());
 
     this->storedPoints() = allPatches.localPoints();
     this->storedFaces()  = allPatches.localFaces();
@@ -185,12 +228,12 @@ bool Foam::sampledPatch::update()
     // too often anyhow.
     if (triangulate_)
     {
-        MeshStorage::triangulate();
+        Mesh::triangulate();
     }
 
     if (debug)
     {
-        print(Pout);
+        print(Pout, debug);
         Pout<< endl;
     }
 
@@ -202,24 +245,23 @@ bool Foam::sampledPatch::update()
 // remap action on triangulation
 void Foam::sampledPatch::remapFaces(const labelUList& faceMap)
 {
-    // recalculate the cells cut
-    if (notNull(faceMap) && faceMap.size())
+    if (!faceMap.empty())
     {
-        MeshStorage::remapFaces(faceMap);
+        Mesh::remapFaces(faceMap);
         patchFaceLabels_ = labelList
         (
-            UIndirectList<label>(patchFaceLabels_, faceMap)
+            labelUIndList(patchFaceLabels_, faceMap)
         );
         patchIndex_ = labelList
         (
-            UIndirectList<label>(patchIndex_, faceMap)
+            labelUIndList(patchIndex_, faceMap)
         );
 
-        // Redo patchStart.
-        if (patchIndex_.size() > 0)
+        // Update patchStart
+        if (patchIndex_.size())
         {
             patchStart_[patchIndex_[0]] = 0;
-            for (label i = 1; i < patchIndex_.size(); i++)
+            for (label i = 1; i < patchIndex_.size(); ++i)
             {
                 if (patchIndex_[i] != patchIndex_[i-1])
                 {
@@ -233,46 +275,52 @@ void Foam::sampledPatch::remapFaces(const labelUList& faceMap)
 
 Foam::tmp<Foam::scalarField> Foam::sampledPatch::sample
 (
-    const volScalarField& vField
+    const interpolation<scalar>& sampler
 ) const
 {
-    return sampleField(vField);
+    return sampleOnFaces(sampler);
 }
 
 
 Foam::tmp<Foam::vectorField> Foam::sampledPatch::sample
 (
-    const volVectorField& vField
+    const interpolation<vector>& sampler
 ) const
 {
-    return sampleField(vField);
+    return sampleOnFaces(sampler);
 }
 
 
 Foam::tmp<Foam::sphericalTensorField> Foam::sampledPatch::sample
 (
-    const volSphericalTensorField& vField
+    const interpolation<sphericalTensor>& sampler
 ) const
 {
-    return sampleField(vField);
+    return sampleOnFaces(sampler);
 }
 
 
 Foam::tmp<Foam::symmTensorField> Foam::sampledPatch::sample
 (
-    const volSymmTensorField& vField
+    const interpolation<symmTensor>& sampler
 ) const
 {
-    return sampleField(vField);
+    return sampleOnFaces(sampler);
 }
 
 
 Foam::tmp<Foam::tensorField> Foam::sampledPatch::sample
 (
-    const volTensorField& vField
+    const interpolation<tensor>& sampler
 ) const
 {
-    return sampleField(vField);
+    return sampleOnFaces(sampler);
+}
+
+
+bool Foam::sampledPatch::withSurfaceFields() const
+{
+    return true;
 }
 
 
@@ -281,7 +329,7 @@ Foam::tmp<Foam::scalarField> Foam::sampledPatch::sample
     const surfaceScalarField& sField
 ) const
 {
-    return sampleField(sField);
+    return sampleOnFaces(sField);
 }
 
 
@@ -290,7 +338,7 @@ Foam::tmp<Foam::vectorField> Foam::sampledPatch::sample
     const surfaceVectorField& sField
 ) const
 {
-    return sampleField(sField);
+    return sampleOnFaces(sField);
 }
 
 
@@ -299,7 +347,7 @@ Foam::tmp<Foam::sphericalTensorField> Foam::sampledPatch::sample
     const surfaceSphericalTensorField& sField
 ) const
 {
-    return sampleField(sField);
+    return sampleOnFaces(sField);
 }
 
 
@@ -308,7 +356,7 @@ Foam::tmp<Foam::symmTensorField> Foam::sampledPatch::sample
     const surfaceSymmTensorField& sField
 ) const
 {
-    return sampleField(sField);
+    return sampleOnFaces(sField);
 }
 
 
@@ -317,7 +365,7 @@ Foam::tmp<Foam::tensorField> Foam::sampledPatch::sample
     const surfaceTensorField& sField
 ) const
 {
-    return sampleField(sField);
+    return sampleOnFaces(sField);
 }
 
 
@@ -326,7 +374,7 @@ Foam::tmp<Foam::scalarField> Foam::sampledPatch::interpolate
     const interpolation<scalar>& interpolator
 ) const
 {
-    return interpolateField(interpolator);
+    return sampleOnPoints(interpolator);
 }
 
 
@@ -335,7 +383,7 @@ Foam::tmp<Foam::vectorField> Foam::sampledPatch::interpolate
     const interpolation<vector>& interpolator
 ) const
 {
-    return interpolateField(interpolator);
+    return sampleOnPoints(interpolator);
 }
 
 
@@ -344,7 +392,7 @@ Foam::tmp<Foam::sphericalTensorField> Foam::sampledPatch::interpolate
     const interpolation<sphericalTensor>& interpolator
 ) const
 {
-    return interpolateField(interpolator);
+    return sampleOnPoints(interpolator);
 }
 
 
@@ -353,7 +401,7 @@ Foam::tmp<Foam::symmTensorField> Foam::sampledPatch::interpolate
     const interpolation<symmTensor>& interpolator
 ) const
 {
-    return interpolateField(interpolator);
+    return sampleOnPoints(interpolator);
 }
 
 
@@ -362,16 +410,20 @@ Foam::tmp<Foam::tensorField> Foam::sampledPatch::interpolate
     const interpolation<tensor>& interpolator
 ) const
 {
-    return interpolateField(interpolator);
+    return sampleOnPoints(interpolator);
 }
 
 
-void Foam::sampledPatch::print(Ostream& os) const
+void Foam::sampledPatch::print(Ostream& os, int level) const
 {
     os  << "sampledPatch: " << name() << " :"
-        << "  patches:" << patchNames()
-        << "  faces:" << faces().size()
-        << "  points:" << points().size();
+        << " patches:" << flatOutput(selectionNames_);
+
+    if (level)
+    {
+        os  << "  faces:" << faces().size()
+            << "  points:" << points().size();
+    }
 }
 
 

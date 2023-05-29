@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2017 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -39,7 +41,7 @@ Foam::pressureControl::pressureControl
     refCell_(-1),
     refValue_(0),
     pMax_("pMax", dimPressure, GREAT),
-    pMin_("pMin", dimPressure, 0),
+    pMin_("pMin", dimPressure, Zero),
     limitMaxP_(false),
     limitMinP_(false)
 {
@@ -58,10 +60,8 @@ Foam::pressureControl::pressureControl
 
     if (dict.found("pMax") && dict.found("pMin"))
     {
-        pMax_.value() = readScalar(dict.lookup("pMax"));
-        limitMaxP_ = true;
-        pMin_.value() = readScalar(dict.lookup("pMin"));
-        limitMinP_ = true;
+        dict.readEntry("pMax", pMax_.value()); limitMaxP_ = true;
+        dict.readEntry("pMin", pMin_.value()); limitMinP_ = true;
     }
     else
     {
@@ -97,9 +97,8 @@ Foam::pressureControl::pressureControl
             reduce(rhoRefMin, minOp<scalar>());
         }
 
-        if (dict.found("pMax"))
+        if (dict.readIfPresent("pMax", pMax_.value()))
         {
-            pMax_.value() = readScalar(dict.lookup("pMax"));
             limitMaxP_ = true;
         }
         else if (dict.found("pMaxFactor"))
@@ -114,8 +113,7 @@ Foam::pressureControl::pressureControl
                     << exit(FatalIOError);
             }
 
-            const scalar pMaxFactor(readScalar(dict.lookup("pMaxFactor")));
-            pMax_.value() = pMaxFactor*pMax;
+            pMax_.value() = pMax * dict.get<scalar>("pMaxFactor");
             limitMaxP_ = true;
         }
         else if (dict.found("rhoMax"))
@@ -125,8 +123,8 @@ Foam::pressureControl::pressureControl
             IOWarningInFunction(dict)
                  << "'rhoMax' specified rather than 'pMax' or 'pMaxFactor'"
                  << nl
-                 << "    This is supported for backward-compatibility but "
-                    "'pMax' or 'pMaxFactor' are more reliable." << endl;
+                 << "    This is supported for backward-compatibility but"
+                    " 'pMax' or 'pMaxFactor' are more reliable." << endl;
 
             if (!pLimits)
             {
@@ -154,9 +152,8 @@ Foam::pressureControl::pressureControl
             limitMaxP_ = true;
         }
 
-        if (dict.found("pMin"))
+        if (dict.readIfPresent("pMin", pMin_.value()))
         {
-            pMin_.value() = readScalar(dict.lookup("pMin"));
             limitMinP_ = true;
         }
         else if (dict.found("pMinFactor"))
@@ -171,8 +168,7 @@ Foam::pressureControl::pressureControl
                     << exit(FatalIOError);
             }
 
-            const scalar pMinFactor(readScalar(dict.lookup("pMinFactor")));
-            pMin_.value() = pMinFactor*pMin;
+            pMin_.value() = pMin * dict.get<scalar>("pMinFactor");
             limitMinP_ = true;
         }
         else if (dict.found("rhoMin"))
@@ -182,7 +178,7 @@ Foam::pressureControl::pressureControl
             IOWarningInFunction(dict)
                 << "'rhoMin' specified rather than 'pMin' or 'pMinFactor'" << nl
                 << "    This is supported for backward-compatibility but"
-                   "'pMin' or 'pMinFactor' are more reliable." << endl;
+                   " 'pMin' or 'pMinFactor' are more reliable." << endl;
 
             if (!pLimits)
             {
@@ -260,10 +256,8 @@ bool Foam::pressureControl::limit(volScalarField& p) const
 
         return true;
     }
-    else
-    {
-        return false;
-    }
+
+    return false;
 }
 
 

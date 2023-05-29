@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -38,7 +40,7 @@ Foam::SRFVelocityFvPatchVectorField::SRFVelocityFvPatchVectorField
 )
 :
     fixedValueFvPatchVectorField(p, iF),
-    relative_(0),
+    relative_(false),
     inletValue_(p.size(), Zero)
 {}
 
@@ -65,7 +67,7 @@ Foam::SRFVelocityFvPatchVectorField::SRFVelocityFvPatchVectorField
 )
 :
     fixedValueFvPatchVectorField(p, iF, dict),
-    relative_(dict.lookup("relative")),
+    relative_(dict.get<Switch>("relative")),
     inletValue_("inletValue", dict, p.size())
 {}
 
@@ -153,7 +155,7 @@ void Foam::SRFVelocityFvPatchVectorField::updateCoeffs()
 void Foam::SRFVelocityFvPatchVectorField::write(Ostream& os) const
 {
     fvPatchVectorField::write(os);
-    os.writeKeyword("relative") << relative_ << token::END_STATEMENT << nl;
+    os.writeEntry("relative", relative_);
     inletValue_.writeEntry("inletValue", os);
     writeEntry("value", os);
 }

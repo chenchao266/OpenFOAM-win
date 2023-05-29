@@ -1,9 +1,12 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -25,23 +28,26 @@ Typedef
     Foam::primitiveFacePatch
 
 Description
-    Foam::primitiveFacePatch
+    A PrimitivePatch with List storage for the faces,
+    const reference for the point field.
+
+    Can be used to store faces.
 
 \*---------------------------------------------------------------------------*/
 
 #ifndef primitiveFacePatch_H
 #define primitiveFacePatch_H
 
-#include "PrimitivePatch.T.H"
-#include "face.T.H"
-#include "List.T.H"
+#include "PrimitivePatch.H"
+#include "face.H"
+#include "List.H"
 #include "pointField.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 namespace Foam
 {
-    typedef PrimitivePatch<face, List, const pointField&>
+    typedef PrimitivePatch<List<face>, const pointField&>
         primitiveFacePatch;
 }
 

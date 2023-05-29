@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2019 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -25,16 +28,27 @@ License
 
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
 
-inline const Foam::pointField& Foam::block::points() const
+inline const Foam::pointField& Foam::block::points() const noexcept
 {
     return points_;
 }
 
 
-inline const Foam::FixedList<Foam::List<Foam::FixedList<Foam::label, 4>>, 6>&
-Foam::block::boundaryPatches() const
+inline const Foam::List<Foam::hexCell>& Foam::block::cells() const
 {
-    return boundaryPatches_;
+    if (blockCells_.empty())
+    {
+        const_cast<block&>(*this).createCells();
+    }
+
+    return blockCells_;
+}
+
+
+inline const Foam::FixedList<Foam::List<Foam::FixedList<Foam::label, 4>>, 6>&
+Foam::block::boundaryPatches() const noexcept
+{
+    return blockPatches_;
 }
 
 

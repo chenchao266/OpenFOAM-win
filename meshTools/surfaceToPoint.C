@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2017-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -37,6 +40,8 @@ namespace Foam
     defineTypeNameAndDebug(surfaceToPoint, 0);
     addToRunTimeSelectionTable(topoSetSource, surfaceToPoint, word);
     addToRunTimeSelectionTable(topoSetSource, surfaceToPoint, istream);
+    addToRunTimeSelectionTable(topoSetPointSource, surfaceToPoint, word);
+    addToRunTimeSelectionTable(topoSetPointSource, surfaceToPoint, istream);
 }
 
 
@@ -59,10 +64,13 @@ void Foam::surfaceToPoint::combine(topoSet& set, const bool add) const
 {
     cpuTime timer;
 
-    triSurface surf(surfName_);
+    triSurface surf(surfName_, surfType_, scale_);
 
-    Info<< "    Read surface from " << surfName_
-        << " in = "<< timer.cpuTimeIncrement() << " s" << endl << endl;
+    if (verbose_)
+    {
+        Info<< "    Read surface from " << surfName_
+            << " in = "<< timer.cpuTimeIncrement() << " s" << nl << endl;
+    }
 
     // Construct search engine on surface
     triSurfaceSearch querySurf(surf);
@@ -73,9 +81,7 @@ void Foam::surfaceToPoint::combine(topoSet& set, const bool add) const
 
         forAll(pointInside, pointi)
         {
-            bool isInside = pointInside[pointi];
-
-            if ((isInside && includeInside_) || (!isInside && includeOutside_))
+            if (pointInside[pointi] ? includeInside_ : includeOutside_)
             {
                 addOrDelete(set, pointi, add);
             }
@@ -129,8 +135,10 @@ Foam::surfaceToPoint::surfaceToPoint
     const bool includeOutside
 )
 :
-    topoSetSource(mesh),
+    topoSetPointSource(mesh),
     surfName_(surfName),
+    surfType_(),
+    scale_(-1),
     nearDist_(nearDist),
     includeInside_(includeInside),
     includeOutside_(includeOutside)
@@ -145,11 +153,13 @@ Foam::surfaceToPoint::surfaceToPoint
     const dictionary& dict
 )
 :
-    topoSetSource(mesh),
-    surfName_(fileName(dict.lookup("file")).expand()),
-    nearDist_(readScalar(dict.lookup("nearDistance"))),
-    includeInside_(readBool(dict.lookup("includeInside"))),
-    includeOutside_(readBool(dict.lookup("includeOutside")))
+    topoSetPointSource(mesh),
+    surfName_(dict.get<fileName>("file").expand()),
+    surfType_(dict.getOrDefault<word>("fileType", word::null)),
+    scale_(dict.getOrDefault<scalar>("scale", -1)),
+    nearDist_(dict.get<scalar>("nearDistance")),
+    includeInside_(dict.get<bool>("includeInside")),
+    includeOutside_(dict.get<bool>("includeOutside"))
 {
     checkSettings();
 }
@@ -161,20 +171,16 @@ Foam::surfaceToPoint::surfaceToPoint
     Istream& is
 )
 :
-    topoSetSource(mesh),
+    topoSetPointSource(mesh),
     surfName_(checkIs(is)),
+    surfType_(),
+    scale_(-1),
     nearDist_(readScalar(checkIs(is))),
     includeInside_(readBool(checkIs(is))),
     includeOutside_(readBool(checkIs(is)))
 {
     checkSettings();
 }
-
-
-// * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
-
-Foam::surfaceToPoint::~surfaceToPoint()
-{}
 
 
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
@@ -185,17 +191,23 @@ void Foam::surfaceToPoint::applyToSet
     topoSet& set
 ) const
 {
-    if ( (action == topoSetSource::NEW) || (action == topoSetSource::ADD))
+    if (action == topoSetSource::ADD || action == topoSetSource::NEW)
     {
-        Info<< "    Adding points in relation to surface " << surfName_
-            << " ..." << endl;
+        if (verbose_)
+        {
+            Info<< "    Adding points in relation to surface " << surfName_
+                << " ..." << endl;
+        }
 
         combine(set, true);
     }
-    else if (action == topoSetSource::DELETE)
+    else if (action == topoSetSource::SUBTRACT)
     {
-        Info<< "    Removing points in relation to surface " << surfName_
-            << " ..." << endl;
+        if (verbose_)
+        {
+            Info<< "    Removing points in relation to surface " << surfName_
+                << " ..." << endl;
+        }
 
         combine(set, false);
     }

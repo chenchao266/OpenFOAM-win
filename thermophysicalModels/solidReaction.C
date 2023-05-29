@@ -1,9 +1,12 @@
-﻿/*---------------------------------------------------------------------------*\
+/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2017-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -23,9 +26,8 @@ License
 
 \*---------------------------------------------------------------------------*/
 
-//#include "solidReaction.H"
-#include "DynamicList.T.H"
-
+#include "solidReaction.H"
+#include "DynamicList.H"
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
@@ -63,18 +65,18 @@ template<class ReactionThermo>
 Foam::solidReaction<ReactionThermo>::solidReaction
 (
     const speciesTable& species,
-    const HashPtrTable<ReactionThermo>& thermoDatabase,
+    const ReactionTable<ReactionThermo>& thermoDatabase,
     const dictionary& dict
 )
 :
-    Reaction<ReactionThermo>(species, thermoDatabase, dict),
+    Reaction<ReactionThermo>(species, thermoDatabase, dict, false),
     pyrolisisGases_(dict.parent().parent().lookup("gaseousSpecies")),
     glhs_(),
     grhs_()
 {
     this->setLRhs
     (
-        IStringStream(dict.lookup("reaction"))(),
+        IStringStream(dict.getString("reaction"))(),
         pyrolisisGases_,
         glhs_,
         grhs_
@@ -112,8 +114,7 @@ template<class ReactionThermo>
 void Foam::solidReaction<ReactionThermo>::write(Ostream& os) const
 {
     OStringStream reaction;
-    os.writeKeyword("reaction") << solidReactionStr(reaction)
-        << token::END_STATEMENT << nl;
+    os.writeEntry("reaction", solidReactionStr(reaction));
 }
 
 

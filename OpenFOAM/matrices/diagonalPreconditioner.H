@@ -1,9 +1,12 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2019 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -22,23 +25,23 @@ License
     along with OpenFOAM.  If not, see <http://www.gnu.org/licenses/>.
 
 Class
-    Foam::diagonalPreconditioner
+    Foam::DiagonalPreconditioner
 
 Description
     Diagonal preconditioner for both symmetric and asymmetric matrices.
 
-    The reciprocal of the diagonal is calculated and stored for reuse
-    because on most systems '*' is faster than '/'.
+    The inverse (reciprocal for scalar) of the diagonal is calculated and
+    stored.
 
 SourceFiles
-    diagonalPreconditioner.C
+    DiagonalPreconditioner.C
 
 \*---------------------------------------------------------------------------*/
 
-#ifndef diagonalPreconditioner_H
-#define diagonalPreconditioner_H
+#ifndef DiagonalPreconditioner_H
+#define DiagonalPreconditioner_H
 
-#include "lduMatrix.H"
+#include "LduMatrix.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -46,24 +49,27 @@ namespace Foam
 {
 
 /*---------------------------------------------------------------------------*\
-                           Class diagonalPreconditioner Declaration
+                           Class DiagonalPreconditioner Declaration
 \*---------------------------------------------------------------------------*/
 
-class diagonalPreconditioner :    public lduMatrix::preconditioner
+template<class Type, class DType, class LUType>
+class DiagonalPreconditioner
+:
+    public LduMatrix<Type, DType, LUType>::preconditioner
 {
     // Private data
 
-        //- The reciprocal diagonal
-        scalarField rD;
+        //- The inverse (reciprocal for scalar) diagonal
+        Field<DType> rD;
 
 
     // Private Member Functions
 
-        //- Disallow default bitwise copy construct
-        diagonalPreconditioner(const diagonalPreconditioner&);
+        //- No copy construct
+        DiagonalPreconditioner(const DiagonalPreconditioner&) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const diagonalPreconditioner&);
+        //- No copy assignment
+        void operator=(const DiagonalPreconditioner&) = delete;
 
 
 public:
@@ -74,38 +80,41 @@ public:
 
     // Constructors
 
-        //- Construct from matrix components and preconditioner solver controls
-        diagonalPreconditioner
+        //- Construct from matrix components and preconditioner data dictionary
+        DiagonalPreconditioner
         (
-            const lduMatrix::solver&,
-            const dictionary& solverControlsUnused
+            const typename LduMatrix<Type, DType, LUType>::solver& sol,
+            const dictionary& preconditionerDict
         );
 
 
-    //- Destructor
-    virtual ~diagonalPreconditioner()
-    {}
+    // Destructor
+
+        virtual ~DiagonalPreconditioner() = default;
 
 
     // Member Functions
 
+        //- Read and reset the preconditioner parameters from the given
+        //  dictionary
+        virtual void read(const dictionary& preconditionerDict);
+
         //- Return wA the preconditioned form of residual rA
         virtual void precondition
         (
-            scalarField& wA,
-            const scalarField& rA,
-            const direction cmpt=0
+            Field<Type>& wA,
+            const Field<Type>& rA
         ) const;
 
-        //- Return wT the transpose-matrix preconditioned form of residual rT.
+        //- Return wT the transpose-matrix preconditioned form of
+        //  residual rT.
         virtual void preconditionT
         (
-            scalarField& wT,
-            const scalarField& rT,
-            const direction cmpt=0
+            Field<Type>& wT,
+            const Field<Type>& rT
         ) const
         {
-            return precondition(wT, rT, cmpt);
+            return(precondition(wT, rT));
         }
 };
 
@@ -113,6 +122,12 @@ public:
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 } // End namespace Foam
+
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+#ifdef NoRepository
+    #include "DiagonalPreconditioner.C"
+#endif
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 

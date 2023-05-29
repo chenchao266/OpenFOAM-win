@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -37,8 +39,8 @@ Description
 
     where
     \vartable
-        p_rgh   | Pressure - \rho g.(h - hRef) [Pa]
-        ph_rgh  | Hydrostatic pressure - \rho g.(h - hRef) [Pa]
+        p_rgh   | Pressure: \f$ \rho g (h - h_{ref}) \f$ [Pa]
+        ph_rgh  | Hydrostatic pressure: \f$ \rho g (h - h_{ref}) \f$ [Pa]
         h       | Height in the opposite direction to gravity
         hRef    | Reference height in the opposite direction to gravity
         \rho    | Density
@@ -151,7 +153,7 @@ public:
         //- Construct and return a clone
         virtual tmp<fvPatchScalarField> clone() const
         {
-            return tmp<fvPatchScalarField >
+            return tmp<fvPatchScalarField>
             (
                 new prghTotalHydrostaticPressureFvPatchScalarField(*this)
             );

@@ -1,0 +1,196 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|Win32">
+      <Configuration>Debug</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|Win32">
+      <Configuration>Release</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Debug|x64">
+      <Configuration>Debug</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64">
+      <Configuration>Release</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="adjointEikonalSolverIncompressible.C" />
+    <ClCompile Include="adjointFarFieldNuaTildaFvPatchScalarField.C" />
+    <ClCompile Include="adjointFarFieldPressureFvPatchScalarField.C" />
+    <ClCompile Include="adjointFarFieldVelocityFvPatchVectorField.C" />
+    <ClCompile Include="adjointInletNuaTildaFvPatchScalarField.C" />
+    <ClCompile Include="adjointInletVelocityFvPatchVectorField.C" />
+    <ClCompile Include="adjointLaminar.C" />
+    <ClCompile Include="adjointMeshMovementSolverIncompressible.C" />
+    <ClCompile Include="adjointOutletFluxFvPatchScalarField.C" />
+    <ClCompile Include="adjointOutletNuaTildaFluxFvPatchScalarField.C" />
+    <ClCompile Include="adjointOutletNuaTildaFvPatchScalarField.C" />
+    <ClCompile Include="adjointOutletPressureFvPatchScalarField.C" />
+    <ClCompile Include="adjointOutletVelocityFluxFvPatchVectorField.C" />
+    <ClCompile Include="adjointOutletVelocityFvPatchVectorField.C" />
+    <ClCompile Include="adjointRASModel.C" />
+    <ClCompile Include="adjointSensitivityIncompressible.C" />
+    <ClCompile Include="adjointSimple.C" />
+    <ClCompile Include="adjointSolver.C" />
+    <ClCompile Include="adjointSolverManager.C" />
+    <ClCompile Include="adjointSpalartAllmaras.C" />
+    <ClCompile Include="adjointTurbulenceModel.C" />
+    <ClCompile Include="adjointWallVelocityFvPatchVectorField.C" />
+    <ClCompile Include="adjointWallVelocityLowReFvPatchVectorField.C" />
+    <ClCompile Include="adjointZeroInletFvPatchFields.C" />
+    <ClCompile Include="ArmijoConditions.C" />
+    <ClCompile Include="ATCModel.C" />
+    <ClCompile Include="ATCstandard.C" />
+    <ClCompile Include="ATCUaGradU.C" />
+    <ClCompile Include="Bezier.C" />
+    <ClCompile Include="BFGS.C" />
+    <ClCompile Include="bisection.C" />
+    <ClCompile Include="boundaryAdjointContribution.C" />
+    <ClCompile Include="boundaryAdjointContributionIncompressible.C" />
+    <ClCompile Include="cancelATC.C" />
+    <ClCompile Include="conjugateGradient.C" />
+    <ClCompile Include="constrainedOptimisationMethod.C" />
+    <ClCompile Include="constraintProjection.C" />
+    <ClCompile Include="DBFGS.C" />
+    <ClCompile Include="deltaBoundary.C" />
+    <ClCompile Include="displacementMethod.C" />
+    <ClCompile Include="displacementMethoddisplacementLaplacian.C" />
+    <ClCompile Include="displacementMethodelasticityMotionSolver.C" />
+    <ClCompile Include="displacementMethodlaplacianMotionSolver.C" />
+    <ClCompile Include="displacementMethodvelocityLaplacian.C" />
+    <ClCompile Include="displacementMethodvolumetricBSplinesMotionSolver.C" />
+    <ClCompile Include="elasticityMotionSolver.C" />
+    <ClCompile Include="faceCells.C" />
+    <ClCompile Include="FIBaseIncompressible.C" />
+    <ClCompile Include="incompressibleAdjointMeanFlowVars.C" />
+    <ClCompile Include="incompressibleAdjointSolver.C" />
+    <ClCompile Include="incompressibleAdjointVars.C" />
+    <ClCompile Include="incompressiblePrimalSolver.C" />
+    <ClCompile Include="incompressibleVars.C" />
+    <ClCompile Include="kEpsilon.C" />
+    <ClCompile Include="kOmegaSST.C" />
+    <ClCompile Include="laminar.C" />
+    <ClCompile Include="laplacianMotionSolver.C" />
+    <ClCompile Include="LaunderSharmaKE.C" />
+    <ClCompile Include="LBFGS.C" />
+    <ClCompile Include="linearUpwindNormal.C" />
+    <ClCompile Include="lineSearch.C" />
+    <ClCompile Include="NURBS3DCurve.C" />
+    <ClCompile Include="NURBS3DSurface.C" />
+    <ClCompile Include="NURBS3DVolume.C" />
+    <ClCompile Include="NURBS3DVolumeCartesian.C" />
+    <ClCompile Include="NURBS3DVolumeCylindrical.C" />
+    <ClCompile Include="NURBSbasis.C" />
+    <ClCompile Include="objective.C" />
+    <ClCompile Include="objectiveForce.C" />
+    <ClCompile Include="objectiveIncompressible.C" />
+    <ClCompile Include="objectiveManager.C" />
+    <ClCompile Include="objectiveManagerIncompressible.C" />
+    <ClCompile Include="objectiveMoment.C" />
+    <ClCompile Include="objectivePartialVolume.C" />
+    <ClCompile Include="objectivePtLosses.C" />
+    <ClCompile Include="optimisationManager.C" />
+    <ClCompile Include="optimisationTypeIncompressible.C" />
+    <ClCompile Include="optMeshMovement.C" />
+    <ClCompile Include="optMeshMovementBezier.C" />
+    <ClCompile Include="optMeshMovementNULL.C" />
+    <ClCompile Include="optMeshMovementVolumetricBSplines.C" />
+    <ClCompile Include="optMeshMovementVolumetricBSplinesExternalMotionSolver.C" />
+    <ClCompile Include="pointCells.C" />
+    <ClCompile Include="pointVolInterpolation.C" />
+    <ClCompile Include="primalSolver.C" />
+    <ClCompile Include="quadratic.C" />
+    <ClCompile Include="RASModelVariables.C" />
+    <ClCompile Include="RASTurbulenceModel.C" />
+    <ClCompile Include="sensitivity.C" />
+    <ClCompile Include="sensitivityBezierFIIncompressible.C" />
+    <ClCompile Include="sensitivityBezierIncompressible.C" />
+    <ClCompile Include="sensitivityMultipleIncompressible.C" />
+    <ClCompile Include="sensitivitySurfaceIncompressible.C" />
+    <ClCompile Include="sensitivitySurfacePointsIncompressible.C" />
+    <ClCompile Include="sensitivityVolBSplinesFIIncompressible.C" />
+    <ClCompile Include="sensitivityVolBSplinesIncompressible.C" />
+    <ClCompile Include="shapeOptimisationIncompressible.C" />
+    <ClCompile Include="shapeSensitivitiesBase.C" />
+    <ClCompile Include="SIBaseIncompressible.C" />
+    <ClCompile Include="simple.C" />
+    <ClCompile Include="SIMPLEControl.C" />
+    <ClCompile Include="SIMPLEControlOpt.C" />
+    <ClCompile Include="SIMPLEControlSingleRun.C" />
+    <ClCompile Include="singleRun.C" />
+    <ClCompile Include="solver.C" />
+    <ClCompile Include="solverControl.C" />
+    <ClCompile Include="SpalartAllmaras.C" />
+    <ClCompile Include="SQP.C" />
+    <ClCompile Include="SR1.C" />
+    <ClCompile Include="steadyOptimisation.C" />
+    <ClCompile Include="steepestDescent.C" />
+    <ClCompile Include="stepUpdate.C" />
+    <ClCompile Include="updateMethod.C" />
+    <ClCompile Include="variablesSet.C" />
+    <ClCompile Include="volBSplinesBase.C" />
+    <ClCompile Include="volumetricBSplinesMotionSolver.C" />
+    <ClCompile Include="zeroATCcells.C" />
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <VCProjectVersion>15.0</VCProjectVersion>
+    <ProjectGuid>{44652623-3063-4265-926F-9555263533A1}</ProjectGuid>
+    <WindowsTargetPlatformVersion>10.0.17763.0</WindowsTargetPlatformVersion>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <PlatformToolset>v143</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v143</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <PlatformToolset>v141</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v141</PlatformToolset>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings">
+  </ImportGroup>
+  <ImportGroup Label="Shared">
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <PropertyGroup Label="UserMacros" />
+  <PropertyGroup />
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <ClCompile>
+      <AdditionalIncludeDirectories>..\OpenFOAM\algorithms;..\OpenFOAM\containers;..\OpenFOAM\db;..\OpenFOAM\dimensionedTypes;..\OpenFOAM\dimensionSet;..\OpenFOAM\fields;..\OpenFOAM\global;..\OpenFOAM\graph;..\OpenFOAM\include;..\OpenFOAM\interpolations;..\OpenFOAM\matrices;..\OpenFOAM\memory;..\OpenFOAM\meshes;..\OpenFOAM\primitives;..\OSspecific;..\meshTools;..\finiteVolume;..\TurbulenceModels;..\thermophysicalModels;..\transportModels;..\dynamicMesh;..\fvMotionSolver;..\surfMesh;..\faOptions;..\finiteArea;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>WM_LABEL_SIZE=64;WM_DP;NoRepository;WIN32;WIN64;_WINDOWS;NOMINMAX;_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <CompileAs>CompileAsCpp</CompileAs>
+      <LanguageStandard>stdcpp17</LanguageStandard>
+    </ClCompile>
+  </ItemDefinitionGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets">
+  </ImportGroup>
+</Project>

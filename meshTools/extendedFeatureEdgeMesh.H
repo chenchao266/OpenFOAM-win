@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2014 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -44,6 +47,7 @@ SourceFiles
 namespace Foam
 {
 
+// Forward Declarations
 class objectRegistry;
 
 /*---------------------------------------------------------------------------*\
@@ -65,12 +69,12 @@ public:
     // Constructors
 
         //- Construct (read) given an IOobject
-        extendedFeatureEdgeMesh(const IOobject&);
+        explicit extendedFeatureEdgeMesh(const IOobject& io);
 
-        //- Construct as copy
+        //- Copy construct with IOobject
         extendedFeatureEdgeMesh
         (
-            const IOobject&,
+            const IOobject& io,
             const extendedEdgeMesh&
         );
 
@@ -89,11 +93,11 @@ public:
         //- Construct from PrimitivePatch
         extendedFeatureEdgeMesh
         (
-            const IOobject&,
-            const PrimitivePatch<face, List, pointField, point>& surf,
-            const labelList& featureEdges,
-            const labelList& regionFeatureEdges,
-            const labelList& featurePoints
+            const IOobject& io,
+            const PrimitivePatch<faceList, pointField>& surf,
+            const labelUList& featureEdges,
+            const labelUList& regionFeatureEdges,
+            const labelUList& featurePoints
         );
 
         //- Construct from all components
@@ -121,7 +125,7 @@ public:
 
 
     //- Destructor
-    virtual ~extendedFeatureEdgeMesh();
+    virtual ~extendedFeatureEdgeMesh() = default;
 
 
     // IO
@@ -142,7 +146,7 @@ public:
         }
 
         //- Return complete path + object name if the file exists
-        //  either in the case/processor or case otherwise null
+        //- either in the case/processor or case otherwise null
         virtual fileName filePath() const
         {
             return globalFilePath(type());

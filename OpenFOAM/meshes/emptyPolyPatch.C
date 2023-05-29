@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2012 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2012 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -27,68 +29,78 @@ License
 #include "addToRunTimeSelectionTable.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
-using namespace Foam;
+
 namespace Foam
 {
     defineTypeNameAndDebug(emptyPolyPatch, 0);
 
     addToRunTimeSelectionTable(polyPatch, emptyPolyPatch, word);
     addToRunTimeSelectionTable(polyPatch, emptyPolyPatch, dictionary);
+
+
+    // * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * * * * * //
+
+    emptyPolyPatch::emptyPolyPatch
+    (
+        const word& name,
+        const label size,
+        const label start,
+        const label index,
+        const polyBoundaryMesh& bm,
+        const word& patchType
+    )
+        :
+        polyPatch(name, size, start, index, bm, patchType)
+    {}
+
+
+    emptyPolyPatch::emptyPolyPatch
+    (
+        const word& name,
+        const dictionary& dict,
+        const label index,
+        const polyBoundaryMesh& bm,
+        const word& patchType
+    )
+        :
+        polyPatch(name, dict, index, bm, patchType)
+    {}
+
+
+    emptyPolyPatch::emptyPolyPatch
+    (
+        const emptyPolyPatch& pp,
+        const polyBoundaryMesh& bm
+    )
+        :
+        polyPatch(pp, bm)
+    {}
+
+
+    emptyPolyPatch::emptyPolyPatch
+    (
+        const emptyPolyPatch& pp,
+        const polyBoundaryMesh& bm,
+        const label index,
+        const label newSize,
+        const label newStart
+    )
+        :
+        polyPatch(pp, bm, index, newSize, newStart)
+    {}
+
+
+    emptyPolyPatch::emptyPolyPatch
+    (
+        const emptyPolyPatch& pp,
+        const polyBoundaryMesh& bm,
+        const label index,
+        const labelUList& mapAddressing,
+        const label newStart
+    )
+        :
+        polyPatch(pp, bm, index, mapAddressing, newStart)
+    {}
+
 }
-
-// * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * * * * * //
-
-emptyPolyPatch::emptyPolyPatch
-(
-    const word& name,
-    const label size,
-    const label start,
-    const label index,
-    const polyBoundaryMesh& bm,
-    const word& patchType
-) :    polyPatch(name, size, start, index, bm, patchType)
-{}
-
-
-emptyPolyPatch::emptyPolyPatch
-(
-    const word& name,
-    const dictionary& dict,
-    const label index,
-    const polyBoundaryMesh& bm,
-    const word& patchType
-) :    polyPatch(name, dict, index, bm, patchType)
-{}
-
-
-emptyPolyPatch::emptyPolyPatch
-(
-    const emptyPolyPatch& pp,
-    const polyBoundaryMesh& bm
-) :    polyPatch(pp, bm)
-{}
-
-
-emptyPolyPatch::emptyPolyPatch
-(
-    const emptyPolyPatch& pp,
-    const polyBoundaryMesh& bm,
-    const label index,
-    const label newSize,
-    const label newStart
-) :    polyPatch(pp, bm, index, newSize, newStart)
-{}
-
-
-emptyPolyPatch::emptyPolyPatch
-(
-    const emptyPolyPatch& pp,
-    const polyBoundaryMesh& bm,
-    const label index,
-    const labelUList& mapAddressing,
-    const label newStart
-) :    polyPatch(pp, bm, index, mapAddressing, newStart)
-{}
-
-
 // ************************************************************************* //

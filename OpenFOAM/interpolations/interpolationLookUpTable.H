@@ -1,9 +1,11 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -40,10 +42,10 @@ SourceFiles
 #ifndef interpolationLookUpTable_H
 #define interpolationLookUpTable_H
 
-#include "List.T.H"
-#include "ListOps.T.H"
+#include "List.H"
+#include "ListOps.H"
 #include "scalarField.H"
-#include "HashTable.T.H"
+#include "HashTable.H"
 #include "IOdictionary.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
@@ -59,7 +61,9 @@ class fvMesh;
 \*---------------------------------------------------------------------------*/
 
 template<class Type>
-class interpolationLookUpTable :    public List<scalarField>
+class interpolationLookUpTable
+:
+    public List<scalarField>
 {
 private:
 

@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2015-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2015-2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -46,7 +48,7 @@ Foam::sixDoFSolvers::symplectic::symplectic
     sixDoFRigidBodyMotion& body
 )
 :
-    sixDoFSolver(body)
+    sixDoFSolver(dict, body)
 {}
 
 
@@ -89,6 +91,5 @@ void Foam::sixDoFSolvers::symplectic::solve
     v() += tConstraints() & aDamp()*0.5*deltaT*a();
     pi() += rConstraints() & aDamp()*0.5*deltaT*tau();
 }
-
 
 // ************************************************************************* //

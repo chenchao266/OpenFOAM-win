@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -37,7 +40,7 @@ translatingWallVelocityFvPatchVectorField
 )
 :
     fixedValueFvPatchField<vector>(p, iF),
-    U_(0)
+    U_(nullptr)
 {}
 
 
@@ -50,7 +53,7 @@ translatingWallVelocityFvPatchVectorField
 )
 :
     fixedValueFvPatchField<vector>(p, iF, dict, false),
-    U_(Function1<vector>::New("U", dict))
+    U_(Function1<vector>::New("U", dict, &db()))
 {
     // Evaluate the wall velocity
     updateCoeffs();
@@ -67,7 +70,7 @@ translatingWallVelocityFvPatchVectorField
 )
 :
     fixedValueFvPatchField<vector>(ptf, p, iF, mapper),
-    U_(ptf.U_, false)
+    U_(ptf.U_.clone())
 {}
 
 
@@ -78,7 +81,7 @@ translatingWallVelocityFvPatchVectorField
 )
 :
     fixedValueFvPatchField<vector>(twvpvf),
-    U_(twvpvf.U_, false)
+    U_(twvpvf.U_.clone())
 {}
 
 
@@ -90,7 +93,7 @@ translatingWallVelocityFvPatchVectorField
 )
 :
     fixedValueFvPatchField<vector>(twvpvf, iF),
-    U_(twvpvf.U_, false)
+    U_(twvpvf.U_.clone())
 {}
 
 

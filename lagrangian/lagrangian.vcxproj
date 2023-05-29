@@ -21,18 +21,18 @@
   <PropertyGroup Label="Globals">
     <VCProjectVersion>15.0</VCProjectVersion>
     <ProjectGuid>{9856874B-3056-498C-956F-96A566D9AEA1}</ProjectGuid>
-    <WindowsTargetPlatformVersion>8.1</WindowsTargetPlatformVersion>
+    <WindowsTargetPlatformVersion>10.0.17763.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
-    <PlatformToolset>v141</PlatformToolset>
+    <PlatformToolset>v143</PlatformToolset>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
-    <PlatformToolset>v141</PlatformToolset>
+    <PlatformToolset>v143</PlatformToolset>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
     <ConfigurationType>StaticLibrary</ConfigurationType>
@@ -65,16 +65,17 @@
   <PropertyGroup />
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
-      <AdditionalIncludeDirectories>..\OpenFOAM\algorithms;..\OpenFOAM\containers;..\OpenFOAM\db;..\OpenFOAM\dimensionedTypes;..\OpenFOAM\dimensionSet;..\OpenFOAM\fields;..\OpenFOAM\global;..\OpenFOAM\graph;..\OpenFOAM\include;..\OpenFOAM\interpolations;..\OpenFOAM\matrices;..\OpenFOAM\memory;..\OpenFOAM\meshes;..\OpenFOAM\primitives;..\OSspecific;..\meshTools;..\finiteVolume;..\triSurface;..\surfMesh;..\fileFormats;..\lagrangian;..\TurbulenceModels;..\sampling;..\transportModels;..\regionModels;..\thermophysicalModels;..\dynamicMesh;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..\OpenFOAM\algorithms;..\OpenFOAM\containers;..\OpenFOAM\db;..\OpenFOAM\dimensionedTypes;..\OpenFOAM\dimensionSet;..\OpenFOAM\fields;..\OpenFOAM\global;..\OpenFOAM\graph;..\OpenFOAM\include;..\OpenFOAM\interpolations;..\OpenFOAM\matrices;..\OpenFOAM\memory;..\OpenFOAM\meshes;..\OpenFOAM\primitives;..\OSspecific;..\meshTools;..\finiteArea;..\finiteVolume;..\triSurface;..\surfMesh;..\fileFormats;..\lagrangian;..\TurbulenceModels;..\sampling;..\transportModels;..\regionModels;..\thermophysicalModels;..\dynamicMesh;..\faOptions;..\regionFaModels;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>WM_LABEL_SIZE=64;WM_DP;NoRepository;WIN32;WIN64;_WINDOWS;NOMINMAX;_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <CompileAs>CompileAsCpp</CompileAs>
       <LanguageStandard>stdcpp17</LanguageStandard>
-      <WarningLevel>Level4</WarningLevel>
     </ClCompile>
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="absolute.C" />
+    <ClCompile Include="analytical.C" />
     <ClCompile Include="azizChen.C" />
+    <ClCompile Include="binned.C" />
     <ClCompile Include="cloudAbsorptionEmission.C" />
     <ClCompile Include="cloudScatter.C" />
     <ClCompile Include="cloudSolution.C" />
@@ -82,6 +83,7 @@
     <ClCompile Include="CorrectionLimitingMethod.C" />
     <ClCompile Include="coulomb.C" />
     <ClCompile Include="dampedCoulomb.C" />
+    <ClCompile Include="defineBasicHeterogeneousReactingParcel.C" />
     <ClCompile Include="defineBasicKinematicCollidingParcel.C" />
     <ClCompile Include="defineBasicKinematicMPPICParcel.C" />
     <ClCompile Include="defineBasicKinematicParcel.C" />
@@ -95,21 +97,29 @@
     <ClCompile Include="distributionModelNew.C" />
     <ClCompile Include="doubleSigmoid.C" />
     <ClCompile Include="DSMCBaseCloud.C" />
-    <ClCompile Include="dsmcParcel.C" />
+    <ClCompile Include="dsmcParcel2.C" />
     <ClCompile Include="electrostaticPotential.C" />
     <ClCompile Include="energyScalingFunction.C" />
     <ClCompile Include="energyScalingFunctionNew.C" />
+    <ClCompile Include="ensightOutputCloud.C" />
     <ClCompile Include="equilibrium.C" />
-    <ClCompile Include="exponential_psm.C" />
+    <ClCompile Include="Euler.C" />
+    <ClCompile Include="exponential2.C" />
     <ClCompile Include="exponential.C" />
     <ClCompile Include="exponentialRepulsion.C" />
     <ClCompile Include="fixedValue.C" />
+    <ClCompile Include="foamVtkLagrangianWriter.C" />
     <ClCompile Include="general.C" />
     <ClCompile Include="harmonicSpring.C" />
     <ClCompile Include="HarrisCrighton.C" />
     <ClCompile Include="indexedParticleCloud.C" />
+    <ClCompile Include="injectedParticle.C" />
+    <ClCompile Include="injectedParticleCloud.C" />
+    <ClCompile Include="injectedParticleIO.C" />
+    <ClCompile Include="integrationScheme.C" />
+    <ClCompile Include="integrationSchemeNew.C" />
     <ClCompile Include="isotropic.C" />
-    <ClCompile Include="kinematicCloud.C" />
+    <ClCompile Include="kinematicCloud2.C" />
     <ClCompile Include="kinematicParcelInjectionData.C" />
     <ClCompile Include="kinematicParcelInjectionDataIO.C" />
     <ClCompile Include="kinematicParcelInjectionDataIOList.C" />
@@ -117,31 +127,32 @@
     <ClCompile Include="Lun.C" />
     <ClCompile Include="maitlandSmith.C" />
     <ClCompile Include="makeAveragingMethods.C" />
-    <ClCompile Include="makeBasicKinematicCollidingParcelSubmodels_tdm.C" />
+    <ClCompile Include="makeBasicHeterogeneousParcelSubmodels.C" />
+    <ClCompile Include="makeBasicHeterogeneousReactingParcelSubmodels.C" />
+    <ClCompile Include="makeBasicKinematicCollidingParcelSubmodels2.C" />
     <ClCompile Include="makeBasicKinematicCollidingParcelSubmodels.C" />
-    <ClCompile Include="makeBasicKinematicMPPICParcelSubmodels_tdm.C" />
+    <ClCompile Include="makeBasicKinematicMPPICParcelSubmodels2.C" />
     <ClCompile Include="makeBasicKinematicMPPICParcelSubmodels.C" />
-    <ClCompile Include="makeBasicKinematicParcelSubmodels_tdm.C" />
+    <ClCompile Include="makeBasicKinematicParcelSubmodels2.C" />
     <ClCompile Include="makeBasicKinematicParcelSubmodels.C" />
-    <ClCompile Include="makeBasicReactingMultiphaseParcelSubmodels_tdm.C" />
+    <ClCompile Include="makeBasicReactingMultiphaseParcelSubmodels2.C" />
     <ClCompile Include="makeBasicReactingMultiphaseParcelSubmodels.C" />
-    <ClCompile Include="makeBasicReactingParcelSubmodels_tdm.C" />
+    <ClCompile Include="makeBasicReactingParcelSubmodels2.C" />
     <ClCompile Include="makeBasicReactingParcelSubmodels.C" />
     <ClCompile Include="makeBasicSprayParcelSubmodels.C" />
-    <ClCompile Include="makeBasicThermoParcelSubmodels_tdm.C" />
+    <ClCompile Include="makeBasicThermoParcelSubmodels2.C" />
     <ClCompile Include="makeBasicThermoParcelSubmodels.C" />
     <ClCompile Include="makeCoalParcelSubmodels.C" />
     <ClCompile Include="makeDSMCParcelBinaryCollisionModels.C" />
     <ClCompile Include="makeDSMCParcelInflowBoundaryModels.C" />
     <ClCompile Include="makeDSMCParcelWallInteractionModels.C" />
-    <ClCompile Include="makeIntegrationSchemes.C" />
     <ClCompile Include="massRosinRammler.C" />
     <ClCompile Include="molecule.C" />
     <ClCompile Include="moleculeCloud.C" />
     <ClCompile Include="moleculeIO.C" />
     <ClCompile Include="multiNormal.C" />
     <ClCompile Include="noCorrectionLimiting.C" />
-    <ClCompile Include="noInteraction.C" />
+    <ClCompile Include="noInteraction2.C" />
     <ClCompile Include="nonEquilibrium.C" />
     <ClCompile Include="normal.C" />
     <ClCompile Include="noScaling.C" />
@@ -161,8 +172,9 @@
     <ClCompile Include="phasePropertiesList.C" />
     <ClCompile Include="pitchForkRing.C" />
     <ClCompile Include="potential.C" />
-    <ClCompile Include="reactingCloud.C" />
-    <ClCompile Include="reactingMultiphaseCloud.C" />
+    <ClCompile Include="reactingCloud2.C" />
+    <ClCompile Include="reactingHeterogeneousCloud2.C" />
+    <ClCompile Include="reactingMultiphaseCloud2.C" />
     <ClCompile Include="reactingMultiphaseParcelInjectionData.C" />
     <ClCompile Include="reactingMultiphaseParcelInjectionDataIO.C" />
     <ClCompile Include="reactingMultiphaseParcelInjectionDataIOList.C" />
@@ -181,15 +193,15 @@
     <ClCompile Include="solidParticle.C" />
     <ClCompile Include="solidParticleCloud.C" />
     <ClCompile Include="solidParticleIO.C" />
-    <ClCompile Include="sprayCloud.C" />
+    <ClCompile Include="sprayCloud2.C" />
     <ClCompile Include="tetherPotential.C" />
     <ClCompile Include="tetherPotentialList.C" />
     <ClCompile Include="tetherPotentialNew.C" />
-    <ClCompile Include="thermoCloud.C" />
+    <ClCompile Include="thermoCloud2.C" />
     <ClCompile Include="thermoParcelInjectionData.C" />
     <ClCompile Include="thermoParcelInjectionDataIO.C" />
     <ClCompile Include="thermoParcelInjectionDataIOList.C" />
-    <ClCompile Include="TimeScaleModel.T.C" />
+    <ClCompile Include="TimeScaleModel.C" />
     <ClCompile Include="uniform.C" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

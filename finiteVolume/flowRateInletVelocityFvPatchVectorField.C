@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2019-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -27,6 +30,7 @@ License
 #include "addToRunTimeSelectionTable.H"
 #include "volFields.H"
 #include "one.H"
+#include "Switch.H"
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
@@ -39,9 +43,9 @@ flowRateInletVelocityFvPatchVectorField
 :
     fixedValueFvPatchField<vector>(p, iF),
     flowRate_(),
-    volumetric_(false),
     rhoName_("rho"),
     rhoInlet_(0.0),
+    volumetric_(false),
     extrapolateProfile_(false)
 {}
 
@@ -55,31 +59,32 @@ flowRateInletVelocityFvPatchVectorField
 )
 :
     fixedValueFvPatchField<vector>(p, iF, dict, false),
-    rhoInlet_(dict.lookupOrDefault<scalar>("rhoInlet", -VGREAT)),
+    rhoName_("rho"),
+    rhoInlet_(dict.getOrDefault<scalar>("rhoInlet", -VGREAT)),
+    volumetric_(false),
     extrapolateProfile_
     (
-        dict.lookupOrDefault<Switch>("extrapolateProfile", false)
+        dict.getOrDefault<Switch>("extrapolateProfile", false)
     )
 {
     if (dict.found("volumetricFlowRate"))
     {
         volumetric_ = true;
-        flowRate_ = Function1<scalar>::New("volumetricFlowRate", dict);
-        rhoName_ = "rho";
+        flowRate_ =
+            Function1<scalar>::New("volumetricFlowRate", dict, &db());
     }
     else if (dict.found("massFlowRate"))
     {
         volumetric_ = false;
-        flowRate_ = Function1<scalar>::New("massFlowRate", dict);
-        rhoName_ = word(dict.lookupOrDefault<word>("rho", "rho"));
+        flowRate_ = Function1<scalar>::New("massFlowRate", dict, &db());
+        rhoName_ = dict.getOrDefault<word>("rho", "rho");
     }
     else
     {
-        FatalIOErrorInFunction
-        (
-            dict
-        )   << "Please supply either 'volumetricFlowRate' or"
-            << " 'massFlowRate' and 'rho'" << exit(FatalIOError);
+        FatalIOErrorInFunction(dict)
+            << "Please supply either 'volumetricFlowRate' or"
+            << " 'massFlowRate' and 'rho'" << nl
+            << exit(FatalIOError);
     }
 
     // Value field require if mass based
@@ -107,10 +112,10 @@ flowRateInletVelocityFvPatchVectorField
 )
 :
     fixedValueFvPatchField<vector>(ptf, p, iF, mapper),
-    flowRate_(ptf.flowRate_, false),
-    volumetric_(ptf.volumetric_),
+    flowRate_(ptf.flowRate_.clone()),
     rhoName_(ptf.rhoName_),
     rhoInlet_(ptf.rhoInlet_),
+    volumetric_(ptf.volumetric_),
     extrapolateProfile_(ptf.extrapolateProfile_)
 {}
 
@@ -122,10 +127,10 @@ flowRateInletVelocityFvPatchVectorField
 )
 :
     fixedValueFvPatchField<vector>(ptf),
-    flowRate_(ptf.flowRate_, false),
-    volumetric_(ptf.volumetric_),
+    flowRate_(ptf.flowRate_.clone()),
     rhoName_(ptf.rhoName_),
     rhoInlet_(ptf.rhoInlet_),
+    volumetric_(ptf.volumetric_),
     extrapolateProfile_(ptf.extrapolateProfile_)
 {}
 
@@ -138,10 +143,10 @@ flowRateInletVelocityFvPatchVectorField
 )
 :
     fixedValueFvPatchField<vector>(ptf, iF),
-    flowRate_(ptf.flowRate_, false),
-    volumetric_(ptf.volumetric_),
+    flowRate_(ptf.flowRate_.clone()),
     rhoName_(ptf.rhoName_),
     rhoInlet_(ptf.rhoInlet_),
+    volumetric_(ptf.volumetric_),
     extrapolateProfile_(ptf.extrapolateProfile_)
 {}
 
@@ -174,7 +179,7 @@ void Foam::flowRateInletVelocityFvPatchVectorField::updateValues
         const scalar flowRate = flowRate_->value(t);
         const scalar estimatedFlowRate = -gSum(rho*(this->patch().magSf()*nUp));
 
-        if (estimatedFlowRate/flowRate > 0.5)
+        if (estimatedFlowRate > 0.5*flowRate)
         {
             nUp *= (mag(flowRate)/mag(estimatedFlowRate));
         }
@@ -206,7 +211,7 @@ void Foam::flowRateInletVelocityFvPatchVectorField::updateCoeffs()
 
     if (volumetric_ || rhoName_ == "none")
     {
-        updateValues(one());
+        updateValues(one{});
     }
     else
     {
@@ -243,11 +248,13 @@ void Foam::flowRateInletVelocityFvPatchVectorField::write(Ostream& os) const
     flowRate_->writeData(os);
     if (!volumetric_)
     {
-        writeEntryIfDifferent<word>(os, "rho", "rho", rhoName_);
-        writeEntryIfDifferent<scalar>(os, "rhoInlet", -VGREAT, rhoInlet_);
+        os.writeEntryIfDifferent<word>("rho", "rho", rhoName_);
+        os.writeEntryIfDifferent<scalar>("rhoInlet", -VGREAT, rhoInlet_);
     }
-    os.writeKeyword("extrapolateProfile")
-        << extrapolateProfile_ << token::END_STATEMENT << nl;
+    if (extrapolateProfile_)
+    {
+        os.writeEntry("extrapolateProfile", extrapolateProfile_);
+    }
     writeEntry("value", os);
 }
 

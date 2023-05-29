@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2019 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -27,7 +30,7 @@ License
 #include "addToRunTimeSelectionTable.H"
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
-using namespace Foam;
+
 namespace Foam
 {
     defineTypeNameAndDebug(xmgrGraph, 0);
@@ -35,33 +38,33 @@ namespace Foam
 
     typedef graph::writer graphWriter;
     addToRunTimeSelectionTable(graphWriter, xmgrGraph, word);
-}
 
 
-// * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
 
-void xmgrGraph::write(const graph& g, Ostream& os) const
-{
-    os  << "@title " << g.title() << nl
-        << "@xaxis label " << g.xName() << nl
-        << "@yaxis label " << g.yName() << endl;
+    // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
 
-    label fieldi = 0;
-
-    forAllConstIter(graph, g, iter)
+    void xmgrGraph::write(const graph& g, Ostream& os) const
     {
-        os  << "@s" << fieldi << " legend "
-            << iter()->name() << nl
-            << "@target G0.S" << fieldi << nl
-            << "@type xy" << endl;
+        os << "@title " << g.title() << nl
+            << "@xaxis label " << g.xName() << nl
+            << "@yaxis label " << g.yName() << endl;
 
-        writeXY(g.x(), *iter(), os);
+        label fieldi = 0;
 
-        os << endl;
+        forAllConstIters(g, iter)
+        {
+            os << "@s" << fieldi << " legend "
+                << iter()->name() << nl
+                << "@target G0.S" << fieldi << nl
+                << "@type xy" << endl;
 
-        fieldi++;
+            writeXY(g.x(), *iter(), os);
+
+            os << endl;
+
+            fieldi++;
+        }
     }
+
 }
-
-
 // ************************************************************************* //

@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2012-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2012-2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -24,6 +26,9 @@ License
 Class
     Foam::radiation::noScatter
 
+Group
+    grpRadiationScatterSubModels
+
 Description
     Dummy scatter model for 'none'
 
@@ -32,8 +37,8 @@ SourceFiles
 
 \*---------------------------------------------------------------------------*/
 
-#ifndef radiationNoScatter_H
-#define radiationNoScatter_H
+#ifndef radiation_noScatter_H
+#define radiation_noScatter_H
 
 #include "scatterModel.H"
 
@@ -66,7 +71,7 @@ public:
 
 
     //- Destructor
-    virtual ~noScatter();
+    virtual ~noScatter() = default;
 
 
     // Member Functions

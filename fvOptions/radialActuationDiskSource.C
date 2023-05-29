@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -34,12 +37,7 @@ namespace Foam
 namespace fv
 {
     defineTypeNameAndDebug(radialActuationDiskSource, 0);
-    addToRunTimeSelectionTable
-    (
-        option,
-        radialActuationDiskSource,
-        dictionary
-    );
+    addToRunTimeSelectionTable(option, radialActuationDiskSource, dictionary);
 }
 }
 
@@ -115,13 +113,12 @@ bool Foam::fv::radialActuationDiskSource::read(const dictionary& dict)
 {
     if (actuationDiskSource::read(dict))
     {
-        coeffs_.lookup("coeffs") >> radialCoeffs_;
+        coeffs_.readEntry("coeffs", radialCoeffs_);
+
         return true;
     }
-    else
-    {
-        return false;
-    }
+
+    return false;
 }
 
 

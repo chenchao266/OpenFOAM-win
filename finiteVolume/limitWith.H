@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -23,6 +25,9 @@ License
 
 Class
     Foam::limitWith
+
+Group
+    grpFvLimitedSurfaceInterpolationSchemes
 
 Description
     limitWith differencing scheme limits the specified scheme with the
@@ -62,11 +67,11 @@ class limitWith
         tmp<limitedSurfaceInterpolationScheme<Type>> tLimiter_;
 
 
-        //- Disallow default bitwise copy construct
-        limitWith(const limitWith&);
+        //- No copy construct
+        limitWith(const limitWith&) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const limitWith&);
+        //- No copy assignment
+        void operator=(const limitWith&) = delete;
 
 
 public:
@@ -122,7 +127,7 @@ public:
         //- Return the interpolation weighting factors
         virtual tmp<surfaceScalarField> weights
         (
-            const volFieldType<Type>& vf
+            const GeometricField<Type, fvPatchField, volMesh>& vf
         ) const
         {
             return tLimiter_().weights
@@ -141,8 +146,8 @@ public:
 
         //- Return the explicit correction to the face-interpolate
         //  for the given field
-        virtual tmp<surfaceFieldType<Type>>
-        correction(const volFieldType<Type>& vf) const
+        virtual tmp<GeometricField<Type, fvsPatchField, surfaceMesh>>
+        correction(const GeometricField<Type, fvPatchField, volMesh>& vf) const
         {
             return tLimiter_().limiter(vf)*tInterp_().correction(vf);
         }

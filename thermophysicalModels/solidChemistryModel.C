@@ -1,9 +1,11 @@
-﻿/*---------------------------------------------------------------------------*\
+/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -23,32 +25,30 @@ License
 
 \*---------------------------------------------------------------------------*/
 
-//#include "solidChemistryModel.H"
+#include "solidChemistryModel.H"
 #include "reactingMixture.H"
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
 template<class CompType, class SolidThermo>
-Foam::solidChemistryModel<CompType, SolidThermo>::
-solidChemistryModel
+Foam::solidChemistryModel<CompType, SolidThermo>::solidChemistryModel
 (
-    const fvMesh& mesh,
-    const word& phaseName
+    typename CompType::reactionThermo& thermo
 )
 :
-    CompType(mesh, phaseName),
+    CompType(thermo),
     ODESystem(),
     Ys_(this->solidThermo().composition().Y()),
     reactions_
     (
-        dynamic_cast<const reactingMixture<SolidThermo>& >
+        dynamic_cast<const reactingMixture<SolidThermo>&>
         (
             this->solidThermo()
         )
     ),
     solidThermo_
     (
-        dynamic_cast<const reactingMixture<SolidThermo>& >
+        dynamic_cast<const reactingMixture<SolidThermo>&>
         (
             this->solidThermo()
         ).speciesData()
@@ -56,7 +56,7 @@ solidChemistryModel
     nSolids_(Ys_.size()),
     nReaction_(reactions_.size()),
     RRs_(nSolids_),
-    reactingCells_(mesh.nCells(), true)
+    reactingCells_(this->mesh().nCells(), true)
 {
     // create the fields for the chemistry sources
     forAll(RRs_, fieldi)
@@ -69,13 +69,13 @@ solidChemistryModel
                 IOobject
                 (
                     "RRs." + Ys_[fieldi].name(),
-                    mesh.time().timeName(),
-                    mesh,
+                    this->mesh().time().timeName(),
+                    this->mesh(),
                     IOobject::NO_READ,
                     IOobject::NO_WRITE
                 ),
-                mesh,
-                dimensionedScalar("zero", dimMass/dimVolume/dimTime, 0.0)
+                this->mesh(),
+                dimensionedScalar(dimMass/dimVolume/dimTime, Zero)
             )
         );
    }
@@ -130,7 +130,7 @@ Foam::solidChemistryModel<CompType, SolidThermo>::Qdot() const
                 false
             ),
             this->mesh_,
-            dimensionedScalar("zero", dimEnergy/dimVolume/dimTime, 0.0)
+            dimensionedScalar(dimEnergy/dimVolume/dimTime, Zero)
         )
     );
 

@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2019-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -112,7 +115,7 @@ LamBremhorstKE::LamBremhorstKE
 
     Cmu_
     (
-        dimensioned<scalar>::lookupOrAddToDict
+        dimensioned<scalar>::getOrAddToDict
         (
             "Cmu",
             coeffDict_,
@@ -121,7 +124,7 @@ LamBremhorstKE::LamBremhorstKE
     ),
     Ceps1_
     (
-        dimensioned<scalar>::lookupOrAddToDict
+        dimensioned<scalar>::getOrAddToDict
         (
             "Ceps1",
             coeffDict_,
@@ -130,7 +133,7 @@ LamBremhorstKE::LamBremhorstKE
     ),
     Ceps2_
     (
-        dimensioned<scalar>::lookupOrAddToDict
+        dimensioned<scalar>::getOrAddToDict
         (
             "Ceps2",
             coeffDict_,
@@ -139,7 +142,7 @@ LamBremhorstKE::LamBremhorstKE
     ),
     sigmaEps_
     (
-        dimensioned<scalar>::lookupOrAddToDict
+        dimensioned<scalar>::getOrAddToDict
         (
             "alphaEps",
             coeffDict_,
@@ -151,7 +154,7 @@ LamBremhorstKE::LamBremhorstKE
     (
         IOobject
         (
-            IOobject::groupName("k", U.group()),
+            IOobject::groupName("k", alphaRhoPhi.group()),
             runTime_.timeName(),
             mesh_,
             IOobject::MUST_READ,
@@ -164,7 +167,7 @@ LamBremhorstKE::LamBremhorstKE
     (
         IOobject
         (
-            IOobject::groupName("epsilon", U.group()),
+            IOobject::groupName("epsilon", alphaRhoPhi.group()),
             runTime_.timeName(),
             mesh_,
             IOobject::MUST_READ,
@@ -198,10 +201,8 @@ bool LamBremhorstKE::read()
 
         return true;
     }
-    else
-    {
-        return false;
-    }
+
+    return false;
 }
 
 
@@ -254,7 +255,8 @@ void LamBremhorstKE::correct()
     solve(kEqn);
     bound(k_, kMin_);
 
-    correctNut(fMu);
+    // Update nut with latest available k,epsilon
+    correctNut();
 }
 
 

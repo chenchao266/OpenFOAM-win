@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -50,9 +52,9 @@ Foam::solidParticleCloud::solidParticleCloud
             IOobject::NO_WRITE
         )
     ),
-    rhop_(dimensionedScalar(particleProperties_.lookup("rhop")).value()),
-    e_(dimensionedScalar(particleProperties_.lookup("e")).value()),
-    mu_(dimensionedScalar(particleProperties_.lookup("mu")).value())
+    rhop_(dimensionedScalar("rhop", particleProperties_).value()),
+    e_(dimensionedScalar("e", particleProperties_).value()),
+    mu_(dimensionedScalar("mu", particleProperties_).value())
 {
     if (readFields)
     {
@@ -62,12 +64,6 @@ Foam::solidParticleCloud::solidParticleCloud
 
 
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
-
-bool Foam::solidParticleCloud::hasWallImpactDistance() const
-{
-    return true;
-}
-
 
 void Foam::solidParticleCloud::move(const dimensionedVector& g)
 {
@@ -82,7 +78,7 @@ void Foam::solidParticleCloud::move(const dimensionedVector& g)
     solidParticle::trackingData
         td(*this, rhoInterp, UInterp, nuInterp, g.value());
 
-    Cloud<solidParticle>::move(td, mesh_.time().deltaTValue());
+    Cloud<solidParticle>::move(*this, td, mesh_.time().deltaTValue());
 }
 
 

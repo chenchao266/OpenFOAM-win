@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -23,6 +25,9 @@ License
 
 Class
     Foam::upwind
+
+Group
+    grpFvLimitedSurfaceInterpolationSchemes
 
 Description
     Upwind differencing scheme class.
@@ -55,8 +60,8 @@ class upwind
 {
     // Private Member Functions
 
-        //- Disallow default bitwise assignment
-        void operator=(const upwind&);
+        //- No copy assignment
+        void operator=(const upwind&) = delete;
 
 
 public:
@@ -109,22 +114,19 @@ public:
             const GeometricField<Type, fvPatchField, volMesh>&
         ) const
         {
-            return tmp<surfaceScalarField>
+            return tmp<surfaceScalarField>::New
             (
-                new surfaceScalarField
+                IOobject
                 (
-                    IOobject
-                    (
-                        "upwindLimiter",
-                        this->mesh().time().timeName(),
-                        this->mesh(),
-                        IOobject::NO_READ,
-                        IOobject::NO_WRITE,
-                        false
-                    ),
+                    "upwindLimiter",
+                    this->mesh().time().timeName(),
                     this->mesh(),
-                    dimensionedScalar("upwindLimiter", dimless, 0.0)
-                )
+                    IOobject::NO_READ,
+                    IOobject::NO_WRITE,
+                    false
+                ),
+                this->mesh(),
+                dimensionedScalar(dimless, Zero)
             );
         }
 

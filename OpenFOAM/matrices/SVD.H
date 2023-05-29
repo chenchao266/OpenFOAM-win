@@ -1,9 +1,11 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -71,11 +73,11 @@ class SVD
 
     // Private Member Functions
 
-        //- Disallow default bitwise copy construct
-        SVD(const SVD&);
+        //- No copy construct
+        SVD(const SVD&) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const SVD&);
+        //- No copy assignment
+        void operator=(const SVD&) = delete;
 
         template<class T>
         inline const T sign(const T& a, const T& b);

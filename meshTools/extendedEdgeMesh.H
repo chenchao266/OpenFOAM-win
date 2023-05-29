@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2015-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -60,18 +63,16 @@ SourceFiles
 #include "indexedOctree.H"
 #include "treeDataEdge.H"
 #include "treeDataPoint.H"
-#include "PrimitivePatch.T.H"
+#include "PrimitivePatch.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 namespace Foam
 {
 
+// Forward Declarations
 class surfaceFeatures;
-class objectRegistry;
-
-// Forward declaration of friend functions and operators
-
+class searchableSurface;
 class extendedEdgeMesh;
 
 Istream& operator>>(Istream&, extendedEdgeMesh&);
@@ -86,7 +87,6 @@ class extendedEdgeMesh
 :
     public edgeMesh
 {
-
 public:
 
     //- Runtime type information
@@ -94,37 +94,36 @@ public:
 
     enum pointStatus
     {
-        CONVEX,     // Fully convex point (w.r.t normals)
-        CONCAVE,    // Fully concave point
-        MIXED,      // A point surrounded by both convex and concave edges
-        NONFEATURE  // Not a feature point
+        CONVEX,     //!< Fully convex point (w.r.t normals)
+        CONCAVE,    //!< Fully concave point
+        MIXED,      //!< A point surrounded by both convex and concave edges
+        NONFEATURE  //!< Not a feature point
     };
 
-    static const Foam::NamedEnum<pointStatus, 4> pointStatusNames_;
+    static const Enum<pointStatus> pointStatusNames_;
 
     enum edgeStatus
     {
-        EXTERNAL,   // "Convex" edge
-        INTERNAL,   // "Concave" edge
-        FLAT,       // Neither concave or convex, on a flat surface
-        OPEN,       // i.e. only connected to one face
-        MULTIPLE,   // Multiply connected (connected to more than two faces)
-        NONE        // Not a classified feature edge (consistency with
-                    // surfaceFeatures)
+        EXTERNAL,   //!< "Convex" edge
+        INTERNAL,   //!< "Concave" edge
+        FLAT,       //!< Neither concave or convex, on a flat surface
+        OPEN,       //!< Only connected to a single face
+        MULTIPLE,   //!< Multiply connected (connected to more than two faces)
+        NONE        //!< Unclassified (consistency with surfaceFeatures)
     };
 
-    static const Foam::NamedEnum<edgeStatus, 6> edgeStatusNames_;
+    static const Enum<edgeStatus> edgeStatusNames_;
 
     //- Normals point to the outside
     enum sideVolumeType
     {
-        INSIDE  = 0,  // mesh inside
-        OUTSIDE = 1,  // mesh outside
-        BOTH    = 2,  // e.g. a baffle
-        NEITHER = 3   // not sure when this may be used
+        INSIDE  = 0,  //!< mesh inside
+        OUTSIDE = 1,  //!< mesh outside
+        BOTH    = 2,  //!< e.g. a baffle
+        NEITHER = 3   //!< not sure when this may be used
     };
 
-    static const Foam::NamedEnum<sideVolumeType, 4> sideVolumeTypeNames_;
+    static const Enum<sideVolumeType> sideVolumeTypeNames_;
 
     //- Angular closeness tolerance for treating normals as the same
     static scalar cosNormalAngleTol_;
@@ -132,7 +131,7 @@ public:
 
 protected:
 
-    // Static data
+    // Static Data
 
         //- Index of the start of the convex feature points - static as 0
         static label convexStart_;
@@ -141,7 +140,7 @@ protected:
         static label externalStart_;
 
 
-    // Protected data
+    // Protected Data
 
         //- Index of the start of the concave feature points
         label concaveStart_;
@@ -194,76 +193,108 @@ protected:
         labelList regionEdges_;
 
         //- Search tree for all feature points
-        mutable autoPtr<indexedOctree<treeDataPoint>> pointTree_;
+        mutable unique_ptr<indexedOctree<treeDataPoint>> pointTree_;
 
         //- Search tree for all edges
-        mutable autoPtr<indexedOctree<treeDataEdge>> edgeTree_;
+        mutable unique_ptr<indexedOctree<treeDataEdge>> edgeTree_;
 
         //- Individual search trees for each type of edge
         mutable PtrList<indexedOctree<treeDataEdge>> edgeTreesByType_;
 
 
+    // Protected Constructors
+
+        //- Construct null, initializing start indices with -1
+        explicit extendedEdgeMesh(class one::minus);
+
+
     // Protected Member Functions
 
-        //- Classify the type of feature point.  Requires valid stored member
+        //- Classify the type of feature point. Requires valid stored member
         //  data for edges and normals.
         pointStatus classifyFeaturePoint(label ptI) const;
+
+        //- Cut edges with surface. Return map from cut points&edges back
+        //  to original
+        void cut
+        (
+            const searchableSurface&,
+            labelList& pMap,
+            labelList& eMap,
+            labelList& pointsFromEdge,  // new points created by cutting
+            labelList& oldEdge,         // the original edge
+            labelList& surfTri          // the surface triangle index
+        );
+
+        //- Remove outside/inside edges. volType denotes which side to keep
+        void select
+        (
+            const searchableSurface& surf,
+            const volumeType volType,
+            labelList& pMap,
+            labelList& eMap
+        );
 
         template<class Patch>
         void sortPointsAndEdges
         (
             const Patch&,
-            const labelList& featureEdges,
-            const labelList& regionFeatureEdges,
-            const labelList& feaurePoints
+            const labelUList& featureEdges,
+            const labelUList& regionFeatureEdges,
+            const labelUList& feaurePoints
         );
 
 public:
 
-    // Static data
+    // Static Data
 
         //- Number of possible point types (i.e. number of slices)
-        static label nPointTypes;
+        static constexpr label nPointTypes = 4;
 
         //- Number of possible feature edge types (i.e. number of slices)
-        static label nEdgeTypes;
+        static constexpr label nEdgeTypes = 5;
+
+
+    // Static Member Functions
+
+        //- Summary of supported read file types.
+        static wordHashSet readTypes();
+
+        //- Summary of supported write file types.
+        static wordHashSet writeTypes();
 
         //- Can we read this file format?
-        static bool canRead(const fileName&, const bool verbose=false);
-
-        //- Can we read this file format?
-        static bool canReadType(const word& ext, const bool verbose=false);
+        static bool canReadType(const word& fileType, bool verbose=false);
 
         //- Can we write this file format type?
-        static bool canWriteType(const word& ext, const bool verbose=false);
+        static bool canWriteType(const word& fileType, bool verbose=false);
 
-        static wordHashSet readTypes();
-        static wordHashSet writeTypes();
+        //- Can we read this file format?
+        static bool canRead(const fileName& name, bool verbose=false);
 
 
     // Constructors
 
-        //- Construct null
+        //- Default construct
         extendedEdgeMesh();
 
-        //- Construct as copy
-        explicit extendedEdgeMesh(const extendedEdgeMesh&);
+        //- Copy construct
+        explicit extendedEdgeMesh(const extendedEdgeMesh& fem);
 
         //- Construct from file name (uses extension to determine type)
-        extendedEdgeMesh(const fileName&);
+        explicit extendedEdgeMesh(const fileName& name);
 
-        //- Construct from file name (uses extension to determine type)
-        extendedEdgeMesh(const fileName&, const word& ext);
+        //- Construct from file name with given format type
+        extendedEdgeMesh(const fileName& name, const word& fileType);
 
         //- Construct from Istream
-        extendedEdgeMesh(Istream&);
+        explicit extendedEdgeMesh(Istream& is);
 
-        //- Construct by transferring components (points, edges)
-        extendedEdgeMesh
-        (
-            const Xfer<pointField>&,
-            const Xfer<edgeList>&
-        );
+        //- Copy construct from components
+        extendedEdgeMesh(const pointField& points, const edgeList& edges);
+
+        //- Move construct from components
+        extendedEdgeMesh(pointField&& points, edgeList&& edges);
 
         //- Construct given a surface with selected edges,points
         //  (surfaceFeatures)
@@ -277,10 +308,10 @@ public:
         //- Construct from PrimitivePatch
         extendedEdgeMesh
         (
-            const PrimitivePatch<face, List, pointField, point>& surf,
-            const labelList& featureEdges,
-            const labelList& regionFeatureEdges,
-            const labelList& featurePoints
+            const PrimitivePatch<faceList, pointField>& surf,
+            const labelUList& featureEdges,
+            const labelUList& regionFeatureEdges,
+            const labelUList& featurePoints
         );
 
         //- Construct from all components
@@ -322,19 +353,19 @@ public:
 
     // Selectors
 
-        //- Select constructed from filename (explicit extension)
+        //- Select constructed from filename with given file format
         static autoPtr<extendedEdgeMesh> New
         (
-            const fileName&,
-            const word& ext
+            const fileName& name,
+            const word& fileType
         );
 
         //- Select constructed from filename (implicit extension)
-        static autoPtr<extendedEdgeMesh> New(const fileName&);
+        static autoPtr<extendedEdgeMesh> New(const fileName& name);
 
 
     //- Destructor
-    ~extendedEdgeMesh();
+    ~extendedEdgeMesh() = default;
 
 
     // Member Functions
@@ -488,29 +519,63 @@ public:
         // Edit
 
             //- Transfer the contents of the argument and annul the argument
-            void transfer(extendedEdgeMesh&);
-
-            //- Transfer contents to the Xfer container
-            Xfer<extendedEdgeMesh > xfer();
+            void transfer(extendedEdgeMesh& mesh);
 
             //- Clear all storage
             virtual void clear();
 
             //- Add extendedEdgeMesh. No filtering of duplicates.
-            void add(const extendedEdgeMesh&);
+            void add(const extendedEdgeMesh& fem);
 
             //- Flip normals. All concave become convex, all internal external
             //  etc.
             void flipNormals();
 
+            //- Update with derived geometry
+            void autoMap
+            (
+                const pointField& subPoints,
+                const edgeList& subEdges,
+                const labelList& pointMap,
+                const labelList& edgeMap
+            );
+
+            //- Trim to surface. Keep volType side. Return map from current back
+            //  to original points (-1 for newly introduced points), edges
+            void trim
+            (
+                const searchableSurface& surf,
+                const volumeType volType,
+                labelList& pointMap,
+                labelList& edgeMap
+            );
+
+            //- Order according to point and edge status
+            void setFromStatus
+            (
+                const List<extendedEdgeMesh::pointStatus>& pointStat,
+                const List<extendedEdgeMesh::edgeStatus>& edgeStat,
+                labelList& sortedToOriginalPoint,
+                labelList& sortedToOriginalEdge
+            );
+
+            //- Geometric merge points. Returns true if any points merged.
+            //  Return maps from new back to original points/edges.
+            bool mergePointsAndSort
+            (
+                const scalar mergeDist,
+                labelList& pointMap,
+                labelList& edgeMap
+            );
+
 
         // Read
 
             //- Read from file. Chooses reader based on explicit extension
-            bool read(const fileName&, const word& ext);
+            bool read(const fileName& name, const word& ext);
 
             //- Read from file. Chooses reader based on detected extension
-            virtual bool read(const fileName&);
+            virtual bool read(const fileName& name);
 
 
         // Write
@@ -534,11 +599,29 @@ public:
             const vector& fC0tofC1
         );
 
+        //- Determine the ordering
+        static void sortedOrder
+        (
+            const List<extendedEdgeMesh::pointStatus>& pointStat,
+            const List<extendedEdgeMesh::edgeStatus>& edgeStat,
+            labelList& sortedToOriginalPoint,
+            labelList& sortedToOriginalEdge,
 
-        // Ostream Operator
+            label& pointConcaveStart,
+            label& pointMixedStart,
+            label& pointNonFeatStart,
 
-            friend Ostream& operator<<(Ostream&, const extendedEdgeMesh&);
-            friend Istream& operator>>(Istream&, extendedEdgeMesh&);
+            label& edgeInternalStart,
+            label& edgeFlatStart,
+            label& edgeOpenStart,
+            label& edgeMultipleStart
+        );
+
+
+    // Ostream Operator
+
+        friend Ostream& operator<<(Ostream&, const extendedEdgeMesh&);
+        friend Istream& operator>>(Istream&, extendedEdgeMesh&);
 };
 
 

@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2015 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2015 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -92,7 +94,7 @@ bool Foam::sixDoFRigidBodyMotionConstraints::axis::read
 {
     sixDoFRigidBodyMotionConstraint::read(sDoFRBMCDict);
 
-    sDoFRBMCCoeffs_.lookup("axis") >> axis_;
+    sDoFRBMCCoeffs_.readEntry("axis", axis_);
 
     scalar magFixedAxis(mag(axis_));
 
@@ -116,8 +118,7 @@ void Foam::sixDoFRigidBodyMotionConstraints::axis::write
     Ostream& os
 ) const
 {
-    os.writeKeyword("axis")
-        << axis_ << token::END_STATEMENT << nl;
+    os.writeEntry("axis", axis_);
 }
 
 // ************************************************************************* //

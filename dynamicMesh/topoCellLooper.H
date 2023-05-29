@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -57,7 +60,7 @@ SourceFiles
 namespace Foam
 {
 
-// Forward declaration of classes
+// Forward Declarations
 class cellFeatures;
 
 /*---------------------------------------------------------------------------*\
@@ -68,7 +71,6 @@ class topoCellLooper
 :
     public hexCellLooper
 {
-
     // Private Member Functions
 
         //- In-memory truncate a list
@@ -144,11 +146,11 @@ class topoCellLooper
         ) const;
 
 
-        //- Disallow default bitwise copy construct
-        topoCellLooper(const topoCellLooper&);
+        //- No copy construct
+        topoCellLooper(const topoCellLooper&) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const topoCellLooper&);
+        //- No copy assignment
+        void operator=(const topoCellLooper&) = delete;
 
 
 public:
@@ -164,12 +166,12 @@ public:
 
     // Constructors
 
-        //- Construct from components
-        topoCellLooper(const polyMesh& mesh);
+        //- Construct from mesh
+        explicit topoCellLooper(const polyMesh& mesh);
 
 
     //- Destructor
-    virtual ~topoCellLooper();
+    virtual ~topoCellLooper() = default;
 
 
     // Member Functions

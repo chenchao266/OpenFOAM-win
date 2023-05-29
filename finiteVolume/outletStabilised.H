@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-   \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+   \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -23,6 +25,9 @@ License
 
 Class
     Foam::outletStabilised
+
+Group
+    grpFvSurfaceInterpolationSchemes
 
 Description
     Outlet-stabilised interpolation scheme which applies upwind differencing
@@ -54,7 +59,7 @@ namespace Foam
 {
 
 /*---------------------------------------------------------------------------*\
-                           Class outletStabilised Declaration
+                      Class outletStabilised Declaration
 \*---------------------------------------------------------------------------*/
 
 template<class Type>
@@ -70,11 +75,11 @@ class outletStabilised
 
     // Private Member Functions
 
-        //- Disallow default bitwise copy construct
-        outletStabilised(const outletStabilised&);
+        //- No copy construct
+        outletStabilised(const outletStabilised&) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const outletStabilised&);
+        //- No copy assignment
+        void operator=(const outletStabilised&) = delete;
 
 
 public:
@@ -129,7 +134,7 @@ public:
         //- Return the interpolation weighting factors
         tmp<surfaceScalarField> weights
         (
-            const volFieldType<Type>& vf
+            const GeometricField<Type, fvPatchField, volMesh>& vf
         ) const
         {
             tmp<surfaceScalarField> tw = tScheme_().weights(vf);
@@ -181,18 +186,18 @@ public:
 
         //- Return the explicit correction to the face-interpolate
         //  set to zero on the near-boundary faces where upwind is applied
-        virtual tmp<surfaceFieldType<Type>>
+        virtual tmp<GeometricField<Type, fvsPatchField, surfaceMesh>>
         correction
         (
-            const volFieldType<Type>& vf
+            const GeometricField<Type, fvPatchField, volMesh>& vf
         ) const
         {
             if (tScheme_().corrected())
             {
-                tmp<surfaceFieldType<Type>> tcorr =
+                tmp<GeometricField<Type, fvsPatchField, surfaceMesh>> tcorr =
                     tScheme_().correction(vf);
 
-                surfaceFieldType<Type>& corr =
+                GeometricField<Type, fvsPatchField, surfaceMesh>& corr =
                     tcorr.ref();
 
                 const fvMesh& mesh_ = this->mesh();
@@ -233,7 +238,7 @@ public:
             }
             else
             {
-                return tmp<surfaceFieldType<Type>>
+                return tmp<GeometricField<Type, fvsPatchField, surfaceMesh>>
                 (
                     nullptr
                 );

@@ -1,9 +1,11 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2013 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2013 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -55,7 +57,9 @@ namespace Foam
                       Class processorPointPatch Declaration
 \*---------------------------------------------------------------------------*/
 
-class processorPointPatch :    public coupledFacePointPatch
+class processorPointPatch
+:
+    public coupledFacePointPatch
 {
     // Private data
 
@@ -85,11 +89,11 @@ class processorPointPatch :    public coupledFacePointPatch
         virtual void updateMesh(PstreamBuffers&);
 
 
-        //- Disallow default construct as copy
-        processorPointPatch(const processorPointPatch&);
+        //- No copy construct
+        processorPointPatch(const processorPointPatch&) = delete;
 
-        //- Disallow default assignment
-        void operator=(const processorPointPatch&);
+        //- No copy assignment
+        void operator=(const processorPointPatch&) = delete;
 
 public:
 
@@ -137,7 +141,7 @@ public:
             return procPolyPatch_.myProcNo();
         }
 
-        //- Return neigbour processor number
+        //- Return neighbour processor number
         int neighbProcNo() const
         {
             return procPolyPatch_.neighbProcNo();

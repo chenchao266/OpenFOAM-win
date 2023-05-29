@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2015 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2015 OpenFOAM Foundation
+    Copyright (C) 2016 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -35,8 +38,8 @@ SourceFiles
 
 \*---------------------------------------------------------------------------*/
 
-#ifndef maxDeltaxyzDelta_H
-#define maxDeltaxyzDelta_H
+#ifndef LESModels_maxDeltaxyz_H
+#define LESModels_maxDeltaxyz_H
 
 #include "LESdelta.H"
 
@@ -63,12 +66,11 @@ class maxDeltaxyz
 
     // Private Member Functions
 
-        //- Disallow default bitwise copy construct and assignment
-        maxDeltaxyz(const maxDeltaxyz&);
-        void operator=(const maxDeltaxyz&);
+        //- No copy construct
+        maxDeltaxyz(const maxDeltaxyz&) = delete;
 
-        // Calculate the delta values
-        void calcDelta();
+        //- No copy assignment
+        void operator=(const maxDeltaxyz&) = delete;
 
 
 public:
@@ -89,11 +91,13 @@ public:
 
 
     //- Destructor
-    virtual ~maxDeltaxyz()
-    {}
+    virtual ~maxDeltaxyz() = default;
 
 
     // Member Functions
+
+        //- Calculate the delta values
+        void calcDelta();
 
         //- Read the LESdelta dictionary
         virtual void read(const dictionary&);

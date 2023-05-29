@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2019 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -47,41 +50,34 @@ addToRunTimeSelectionTable(pyrolysisModel, noPyrolysis, dictionary);
 
 void noPyrolysis::constructThermoChemistry()
 {
-    solidChemistry_.reset
+    solidThermo_.reset
     (
-        basicSolidChemistryModel::New(regionMesh()).ptr()
+        solidReactionThermo::New(regionMesh()).ptr()
     );
 
-    solidThermo_.reset(&solidChemistry_->solidThermo());
-    radiation_.reset(radiation::radiationModel::New(solidThermo_->T()).ptr());
+    solidChemistry_.reset
+    (
+        basicSolidChemistryModel::New(solidThermo_()).ptr()
+    );
+
+    radiation_.reset(radiation::radiationModel::New
+    (
+        solidChemistry_->solidThermo().T()
+    ).ptr());
 }
 
 
 bool noPyrolysis::read()
 {
-    if (pyrolysisModel::read())
-    {
-        // no additional info to read
-        return true;
-    }
-    else
-    {
-        return false;
-    }
+    // No additional info to read
+    return pyrolysisModel::read();
 }
 
 
 bool noPyrolysis::read(const dictionary& dict)
 {
-    if (pyrolysisModel::read(dict))
-    {
-        // no additional info to read
-        return true;
-    }
-    else
-    {
-        return false;
-    }
+    // No additional info to read
+    return pyrolysisModel::read(dict);
 }
 
 
@@ -95,8 +91,8 @@ noPyrolysis::noPyrolysis
 )
 :
     pyrolysisModel(mesh, regionType),
-    solidChemistry_(nullptr),
     solidThermo_(nullptr),
+    solidChemistry_(nullptr),
     radiation_(nullptr)
 {
     if (active())
@@ -115,8 +111,8 @@ noPyrolysis::noPyrolysis
 )
 :
     pyrolysisModel(mesh, regionType),
-    solidChemistry_(nullptr),
     solidThermo_(nullptr),
+    solidChemistry_(nullptr),
     radiation_(nullptr)
 {
     if (active())
@@ -144,19 +140,19 @@ void noPyrolysis::evolveRegion()
 
 const volScalarField& noPyrolysis::rho() const
 {
-    return solidThermo_->rho();
+    return solidChemistry_->solidThermo().rho();
 }
 
 
 const volScalarField& noPyrolysis::T() const
 {
-    return solidThermo_->T();
+    return solidChemistry_->solidThermo().T();
 }
 
 
 const tmp<volScalarField> noPyrolysis::Cp() const
 {
-    return solidThermo_->Cp();
+    return solidChemistry_->solidThermo().Cp();
 }
 
 
@@ -168,7 +164,7 @@ tmp<volScalarField> noPyrolysis::kappaRad() const
 
 tmp<volScalarField> noPyrolysis::kappa() const
 {
-     return solidThermo_->kappa();
+    return solidChemistry_->solidThermo().kappa();
 }
 
 

@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2019 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -53,10 +56,12 @@ void Foam::faceCoupleInfo::writeOBJ
 {
     OFstream str(fName);
 
-    labelList pointMap(points.size(), -1);
+    labelList pointMap;
 
     if (compact)
     {
+        pointMap.resize(points.size(), -1);
+
         label newPointi = 0;
 
         forAll(edges, edgeI)
@@ -65,7 +70,7 @@ void Foam::faceCoupleInfo::writeOBJ
 
             forAll(e, eI)
             {
-                label pointi = e[eI];
+                const label pointi = e[eI];
 
                 if (pointMap[pointi] == -1)
                 {
@@ -78,12 +83,12 @@ void Foam::faceCoupleInfo::writeOBJ
     }
     else
     {
+        pointMap = identity(points.size());
+
         forAll(points, pointi)
         {
             meshTools::writeOBJ(str, points[pointi]);
         }
-
-        pointMap = identity(points.size());
     }
 
     forAll(edges, edgeI)
@@ -241,8 +246,7 @@ void Foam::faceCoupleInfo::writeEdges
         {
             if (cutToMasterEdges[cutEdgeI] != -1)
             {
-                const edge& masterEdge =
-                    m.edges()[cutToMasterEdges[cutEdgeI]];
+                const edge& masterEdge = m.edges()[cutToMasterEdges[cutEdgeI]];
                 const edge& cutEdge = c.edges()[cutEdgeI];
 
                 meshTools::writeOBJ(str, m.localPoints()[masterEdge[0]]);
@@ -364,8 +368,9 @@ bool Foam::faceCoupleInfo::regionEdge
                 return true;
             }
         }
-        return false;
     }
+
+    return false;
 }
 
 
@@ -392,7 +397,7 @@ Foam::label Foam::faceCoupleInfo::mostAlignedCutEdge
     if (report)
     {
         Pout<< "mostAlignedEdge : finding nearest edge among "
-            << UIndirectList<edge>(cutFaces().edges(), pEdges)()
+            << UIndirectList<edge>(cutFaces().edges(), pEdges)
             << " connected to point " << pointi
             << " coord:" << localPoints[pointi]
             << " running between " << edgeStart << " coord:"
@@ -458,8 +463,11 @@ Foam::label Foam::faceCoupleInfo::mostAlignedCutEdge
 
             eVec /= magEVec;
 
-            vector eToEndPoint(localPoints[edgeEnd] - localPoints[otherPointi]);
-            eToEndPoint /= mag(eToEndPoint);
+            const vector eToEndPoint =
+                normalised
+                (
+                    localPoints[edgeEnd] - localPoints[otherPointi]
+                );
 
             scalar cosAngle = eVec & eToEndPoint;
 
@@ -603,7 +611,7 @@ void Foam::faceCoupleInfo::setCutEdgeToPoints(const labelList& cutToMasterEdges)
                     FatalErrorInFunction
                         << " unsplitEdge:" << unsplitEdge
                         << " does not correspond to split edges "
-                        << UIndirectList<edge>(cutEdges, stringedEdges)()
+                        << UIndirectList<edge>(cutEdges, stringedEdges)
                         << abort(FatalError);
                 }
             }
@@ -615,7 +623,7 @@ void Foam::faceCoupleInfo::setCutEdgeToPoints(const labelList& cutToMasterEdges)
             //        (
             //            cutFaces().localPoints(),
             //            splitPoints.shrink()
-            //        )()
+            //        )
             //    << endl;
 
             cutEdgeToPoints_.insert(unsplitEdge, splitPoints.shrink());
@@ -638,9 +646,9 @@ Foam::label Foam::faceCoupleInfo::matchFaces
     {
         FatalErrorInFunction
             << "Different sizes for supposedly matching faces." << nl
-            << "f0:" << f0 << " coords:" << UIndirectList<point>(points0, f0)()
+            << "f0:" << f0 << " coords:" << UIndirectList<point>(points0, f0)
             << nl
-            << "f1:" << f1 << " coords:" << UIndirectList<point>(points1, f1)()
+            << "f1:" << f1 << " coords:" << UIndirectList<point>(points1, f1)
             << abort(FatalError);
     }
 
@@ -691,9 +699,9 @@ Foam::label Foam::faceCoupleInfo::matchFaces
         FatalErrorInFunction
             << "No unique match between two faces" << nl
             << "Face " << f0 << " coords "
-            << UIndirectList<point>(points0, f0)() << nl
+            << UIndirectList<point>(points0, f0) << nl
             << "Face " << f1 << " coords "
-            << UIndirectList<point>(points1, f1)()
+            << UIndirectList<point>(points1, f1)
             << "when using tolerance " << absTol
             << " and forwardMatching:" << sameOrientation
             << abort(FatalError);
@@ -886,6 +894,15 @@ void Foam::faceCoupleInfo::findPerfectMatchingFaces
     labelList& mesh1Faces
 )
 {
+    // Quick check: skip face matching if either mesh has no faces
+    if (!mesh0.nFaces() || !mesh1.nFaces())
+    {
+        mesh0Faces.clear();
+        mesh1Faces.clear();
+
+        return;
+    }
+
     // Face centres of external faces (without invoking
     // mesh.faceCentres since mesh might have been clearedOut)
 
@@ -896,7 +913,7 @@ void Foam::faceCoupleInfo::findPerfectMatchingFaces
             mesh0.faces(),
             mesh0.points(),
             mesh0.nInternalFaces(),
-            mesh0.nFaces() - mesh0.nInternalFaces()
+            mesh0.nBoundaryFaces()
         )
     );
 
@@ -907,7 +924,7 @@ void Foam::faceCoupleInfo::findPerfectMatchingFaces
             mesh1.faces(),
             mesh1.points(),
             mesh1.nInternalFaces(),
-            mesh1.nFaces() - mesh1.nInternalFaces()
+            mesh1.nBoundaryFaces()
         )
     );
 
@@ -972,11 +989,10 @@ void Foam::faceCoupleInfo::findSlavesCoveringMaster
 )
 {
     // Construct octree from all mesh0 boundary faces
-    labelList bndFaces(mesh0.nFaces()-mesh0.nInternalFaces());
-    forAll(bndFaces, i)
-    {
-        bndFaces[i] = mesh0.nInternalFaces() + i;
-    }
+    labelList bndFaces
+    (
+        identity(mesh0.nBoundaryFaces(), mesh0.nInternalFaces())
+    );
 
     treeBoundBox overallBb(mesh0.points());
 
@@ -1004,8 +1020,8 @@ void Foam::faceCoupleInfo::findSlavesCoveringMaster
 
     // Search nearest face for every mesh1 boundary face.
 
-    labelHashSet mesh0Set(mesh0.nFaces() - mesh0.nInternalFaces());
-    labelHashSet mesh1Set(mesh1.nFaces() - mesh1.nInternalFaces());
+    labelHashSet mesh0Set(mesh0.nBoundaryFaces());
+    labelHashSet mesh1Set(mesh1.nBoundaryFaces());
 
     for
     (
@@ -1271,9 +1287,9 @@ Foam::label Foam::faceCoupleInfo::matchEdgeFaces
 
                     // Combine master faces with current set of candidate
                     // master faces.
-                    Map<labelList>::iterator fnd = candidates.find(cutFacei);
+                    auto fnd = candidates.find(cutFacei);
 
-                    if (fnd == candidates.end())
+                    if (!fnd.found())
                     {
                         // No info yet for cutFacei. Add all master faces as
                         // candidates
@@ -1284,13 +1300,13 @@ Foam::label Foam::faceCoupleInfo::matchEdgeFaces
                         // From some other cutEdgeI there are already some
                         // candidate master faces. Check the overlap with
                         // the current set of master faces.
-                        const labelList& masterFaces = fnd();
+                        const labelList& masterFaces = fnd.val();
 
                         DynamicList<label> newCandidates(masterFaces.size());
 
                         forAll(masterEFaces, j)
                         {
-                            if (findIndex(masterFaces, masterEFaces[j]) != -1)
+                            if (masterFaces.found(masterEFaces[j]))
                             {
                                 newCandidates.append(masterEFaces[j]);
                             }
@@ -1298,8 +1314,7 @@ Foam::label Foam::faceCoupleInfo::matchEdgeFaces
 
                         if (newCandidates.size() == 1)
                         {
-                            // We found a perfect match. Delete entry from
-                            // candidates map.
+                            // Perfect match. Delete entry from candidates map.
                             cutToMasterFaces_[cutFacei] = newCandidates[0];
                             candidates.erase(cutFacei);
                             nChanged++;
@@ -1355,16 +1370,15 @@ Foam::label Foam::faceCoupleInfo::geometricMatchEdgeFaces
         )
     );
 
-    forAllConstIter(Map<labelList>, candidates, iter)
+    forAllConstIters(candidates, iter)
     {
         label cutFacei = iter.key();
+        const labelList& masterFaces = iter.val();
 
         const face& cutF = cutFaces()[cutFacei];
 
         if (cutToMasterFaces_[cutFacei] == -1)
         {
-            const labelList& masterFaces = iter();
-
             // Find the best matching master face.
             scalar minDist = GREAT;
             label minMasterFacei = -1;
@@ -1475,12 +1489,13 @@ void Foam::faceCoupleInfo::perfectPointMatch
         // Faces do not have to be ordered (but all have
         // to match). Note: Faces will be already ordered if we enter here from
         // construct from meshes.
+
         matchedAllFaces = matchPoints
         (
             calcFaceCentres<List>
             (
                 cutFaces(),
-                cutPoints_,
+                cutFaces().points(),
                 0,
                 cutFaces().size()
             ),
@@ -1492,9 +1507,43 @@ void Foam::faceCoupleInfo::perfectPointMatch
                 slavePatch().size()
             ),
             scalarField(slavePatch().size(), absTol),
-            true,
+            false,
             cutToSlaveFaces_
         );
+
+        // If some of the face centres did not match, then try to match the
+        // point averages instead. There is no division by the face area in
+        // calculating the point average, so this is more stable when faces
+        // collapse onto a line or point.
+        if (!matchedAllFaces)
+        {
+            labelList cutToSlaveFacesTemp(cutToSlaveFaces_.size(), -1);
+
+            matchPoints
+            (
+                calcFacePointAverages<List>
+                (
+                    cutFaces(),
+                    cutFaces().points(),
+                    0,
+                    cutFaces().size()
+                ),
+                calcFacePointAverages<IndirectList>
+                (
+                    slavePatch(),
+                    slavePatch().points(),
+                    0,
+                    slavePatch().size()
+                ),
+                scalarField(slavePatch().size(), absTol),
+                true,
+                cutToSlaveFacesTemp
+            );
+
+            cutToSlaveFaces_ = max(cutToSlaveFaces_, cutToSlaveFacesTemp);
+
+            matchedAllFaces = min(cutToSlaveFaces_) != -1;
+        }
     }
 
 
@@ -1841,7 +1890,7 @@ void Foam::faceCoupleInfo::subDivisionMatch
             FatalErrorInFunction
                 << "Did not match all of cutFaces to a master face" << nl
                 << "First unmatched cut face:" << cutFacei << " with points:"
-                << UIndirectList<point>(cutFaces().points(), cutF)()
+                << UIndirectList<point>(cutFaces().points(), cutF)
                 << nl
                 << "This usually means that the slave patch is not a"
                 << " subdivision of the master patch"
@@ -2037,12 +2086,6 @@ Foam::faceCoupleInfo::faceCoupleInfo
         writePointsFaces();
     }
 }
-
-
-// * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
-
-Foam::faceCoupleInfo::~faceCoupleInfo()
-{}
 
 
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //

@@ -1,9 +1,12 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2012 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2012 OpenFOAM Foundation
+    Copyright (C) 2019 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -24,6 +27,9 @@ License
 Class
     Foam::PCG
 
+Group
+    grpLduMatrixSolvers
+
 Description
     Preconditioned conjugate gradient solver for symmetric lduMatrices
     using a run-time selectable preconditioner.
@@ -36,7 +42,7 @@ SourceFiles
 #ifndef PCG_H
 #define PCG_H
 
-#include "lduMatrix.H"
+#include "lduMatrix2.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -44,18 +50,20 @@ namespace Foam
 {
 
 /*---------------------------------------------------------------------------*\
-                           Class PCG Declaration
+                             Class PCG Declaration
 \*---------------------------------------------------------------------------*/
 
-class PCG :    public lduMatrix::solver
+class PCG
+:
+    public lduMatrix::solver
 {
     // Private Member Functions
 
-        //- Disallow default bitwise copy construct
-        PCG(const PCG&);
+        //- No copy construct
+        PCG(const PCG&) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const PCG&);
+        //- No copy assignment
+        void operator=(const PCG&) = delete;
 
 
 public:
@@ -79,11 +87,18 @@ public:
 
 
     //- Destructor
-    virtual ~PCG()
-    {}
+    virtual ~PCG() = default;
 
 
     // Member Functions
+
+        //- Solve the matrix with this solver
+        virtual solverPerformance scalarSolve
+        (
+            solveScalarField& psi,
+            const solveScalarField& source,
+            const direction cmpt=0
+        ) const;
 
         //- Solve the matrix with this solver
         virtual solverPerformance solve

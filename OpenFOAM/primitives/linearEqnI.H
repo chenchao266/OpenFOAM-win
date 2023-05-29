@@ -1,9 +1,12 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2017 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -24,12 +27,16 @@ License
 \*---------------------------------------------------------------------------*/
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
-namespace Foam {
+
+
+ namespace Foam{
 inline linearEqn::linearEqn()
 {}
 
 
-inline linearEqn::linearEqn(const zero) :    VectorSpace<linearEqn, scalar, 2>(zero())
+inline linearEqn::linearEqn(const zero)
+:
+    VectorSpace<linearEqn, scalar, 2>(zero{})
 {}
 
 
@@ -80,36 +87,28 @@ inline scalar linearEqn::derivative(const scalar x) const
 
 inline scalar linearEqn::error(const scalar x) const
 {
-    return mag(SMALL*x*a());
+    return SMALL*(mag(x*a()) + mag(b()));
 }
 
 
 inline Roots<1> linearEqn::roots() const
 {
-    /*
-
-    This function solves a linear equation of the following form:
-
-        a*x + b = 0
-          x + B = 0
-
-    */
-
     const scalar a = this->a();
     const scalar b = this->b();
 
-    if (a == 0)
+    if (mag(a) < VSMALL)
     {
         return Roots<1>(roots::nan, 0);
     }
-
-    if (mag(b/VGREAT) >= mag(a))
+    else if (mag(b/VGREAT) >= mag(a))
     {
         return Roots<1>(sign(a) == sign(b) ? roots::negInf : roots::posInf, 0);
     }
 
-    return Roots<1>(roots::real, - b/a);
+    return Roots<1>(roots::real, -b/a);
 }
 
-}
+
 // ************************************************************************* //
+
+ } // End namespace Foam

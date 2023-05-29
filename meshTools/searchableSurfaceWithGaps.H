@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -34,6 +36,28 @@ Description
     - extend the test vector slightly (with SMALL) to account for numerical
       inaccuracies.
 
+    \verbatim
+    sphere.stl
+    {
+        type triSurfaceMesh;
+    }
+
+    sphere
+    {
+        type    searchableSurfaceWithGaps;
+        surface sphere.stl;      // Underlying surface
+        gap     1e-3;            // Perturb distance
+    }
+    \endverbatim
+
+    \heading Dictionary parameters
+    \table
+        Property    | Description                       | Required | Default
+        type        | searchableSurfaceWithGaps         | selector |
+        surface     | Name of the underlying surface    | yes   |
+        gap         | Gap tolerance in meters           | yes   |
+    \endtable
+
 SourceFiles
     searchableSurfaceWithGaps.C
 
@@ -43,15 +67,13 @@ SourceFiles
 #define searchableSurfaceWithGaps_H
 
 #include "searchableSurface.H"
-#include "UPtrList.T.H"
-#include "Pair.T.H"
+#include "UPtrList.H"
+#include "Pair.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 namespace Foam
 {
-
-// Forward declaration of classes
 
 /*---------------------------------------------------------------------------*\
                  Class searchableSurfaceWithGaps Declaration
@@ -98,11 +120,11 @@ private:
         );
 
 
-        //- Disallow default bitwise copy construct
-        searchableSurfaceWithGaps(const searchableSurfaceWithGaps&);
+        //- No copy construct
+        searchableSurfaceWithGaps(const searchableSurfaceWithGaps&) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const searchableSurfaceWithGaps&);
+        //- No copy assignment
+        void operator=(const searchableSurfaceWithGaps&) = delete;
 
 
 public:
@@ -121,26 +143,33 @@ public:
         );
 
     //- Destructor
-    virtual ~searchableSurfaceWithGaps();
+    virtual ~searchableSurfaceWithGaps() = default;
 
 
     // Member Functions
 
+        //- The underlying searchableSurface
         const searchableSurface& surface() const
         {
             return subGeom_[0];
         }
 
-
+        //- Name of regions
         virtual const wordList& regions() const
         {
             return surface().regions();
         }
 
-        //- Whether supports volume type below
+        //- Whether supports volume type (below)
         virtual bool hasVolumeType() const
         {
             return surface().hasVolumeType();
+        }
+
+        //- What is type of points outside bounds
+        virtual volumeType outsideVolumeType() const
+        {
+            return surface().outsideVolumeType();
         }
 
         //- Range of local indices that can be returned.
@@ -243,8 +272,8 @@ public:
                 surface().getNormal(info, normal);
             }
 
-            //- Determine type (inside/outside/mixed) for point. unknown if
-            //  cannot be determined (e.g. non-manifold surface)
+            //- Determine type (inside/outside/mixed) for points.
+            //  Unknown if cannot be determined (e.g. non-manifold surface)
             virtual void getVolumeType
             (
                 const pointField& samples,

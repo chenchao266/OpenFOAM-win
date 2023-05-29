@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2019-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -69,7 +72,7 @@ SourceFiles
 #ifndef kEpsilon_H
 #define kEpsilon_H
 
-#include "RASModel.T.H"
+#include "RASModel.H"
 #include "eddyViscosity.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
@@ -90,9 +93,11 @@ class kEpsilon
 {
     // Private Member Functions
 
-        // Disallow default bitwise copy construct and assignment
-        kEpsilon(const kEpsilon&);
-        void operator=(const kEpsilon&);
+        //- No copy construct
+        kEpsilon(const kEpsilon&) = delete;
+
+        //- No copy assignment
+        void operator=(const kEpsilon&) = delete;
 
 
 protected:
@@ -149,8 +154,7 @@ public:
 
 
     //- Destructor
-    virtual ~kEpsilon()
-    {}
+    virtual ~kEpsilon() = default;
 
 
     // Member Functions

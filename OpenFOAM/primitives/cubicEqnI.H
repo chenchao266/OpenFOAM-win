@@ -1,9 +1,11 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2017 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -24,12 +26,16 @@ License
 \*---------------------------------------------------------------------------*/
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
-namespace Foam {
+
+
+ namespace Foam{
 inline cubicEqn::cubicEqn()
 {}
 
 
-inline cubicEqn::cubicEqn(const zero) :    VectorSpace<cubicEqn, scalar, 4>(zero())
+inline cubicEqn::cubicEqn(const zero)
+:
+    VectorSpace<cubicEqn, scalar, 4>(zero{})
 {}
 
 
@@ -112,8 +118,13 @@ inline scalar cubicEqn::derivative(const scalar x) const
 
 inline scalar cubicEqn::error(const scalar x) const
 {
-    return mag(SMALL*x*(x*(x*3*a() + 2*b()) + c()));
+    return
+        SMALL*magSqr(x)*(mag(x*a()) + mag(b()))
+      + SMALL*mag(x)*(mag(x*(x*a() + b())) + mag(c()))
+      + SMALL*(mag(x*(x*(x*a() + b()) + c())) + mag(d()));
 }
 
-}
+
 // ************************************************************************* //
+
+ } // End namespace Foam

@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2015 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2019-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -38,27 +41,28 @@ namespace surfaceFilmModels
 
 autoPtr<heatTransferModel> heatTransferModel::New
 (
-    surfaceFilmModel& model,
+    surfaceFilmRegionModel& model,
     const dictionary& dict
 )
 {
-    word modelType(dict.lookup("heatTransferModel"));
+    const word modelType(dict.get<word>("heatTransferModel"));
 
     Info<< "    Selecting heatTransferModel " << modelType << endl;
 
-    dictionaryConstructorTable::iterator cstrIter =
-        dictionaryConstructorTablePtr_->find(modelType);
+    auto* ctorPtr = dictionaryConstructorTable(modelType);
 
-    if (cstrIter == dictionaryConstructorTablePtr_->end())
+    if (!ctorPtr)
     {
-        FatalErrorInFunction
-            << "Unknown heatTransferModel type " << modelType << nl << nl
-            << "Valid heatTransferModel types are:" << nl
-            << dictionaryConstructorTablePtr_->toc()
-            << exit(FatalError);
+        FatalIOErrorInLookup
+        (
+            dict,
+            "heatTransferModel",
+            modelType,
+            *dictionaryConstructorTablePtr_
+        ) << exit(FatalIOError);
     }
 
-    return autoPtr<heatTransferModel>(cstrIter()(model, dict));
+    return autoPtr<heatTransferModel>(ctorPtr(model, dict));
 }
 
 

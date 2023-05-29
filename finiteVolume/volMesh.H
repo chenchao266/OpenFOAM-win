@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -27,18 +30,12 @@ Class
 Description
     Mesh data needed to do the Finite Volume discretisation.
 
-Class
-    Foam::isVolMesh
-
-Description
-    Supports static assertion that a template argument is of type volMesh.
-
 \*---------------------------------------------------------------------------*/
 
 #ifndef volMesh_H
 #define volMesh_H
 
-#include "GeoMesh.T.H"
+#include "GeoMesh.H"
 #include "fvMesh.H"
 #include "primitiveMesh.H"
 #include <type_traits>
@@ -56,7 +53,6 @@ class volMesh
 :
     public GeoMesh<fvMesh>
 {
-
 public:
 
     // Constructors
@@ -70,20 +66,20 @@ public:
 
     // Member Functions
 
-        //- Return size
-        label size() const
-        {
-            return size(mesh_);
-        }
-
-        //- Return size
+        //- Return size. Number of cells
         static label size(const Mesh& mesh)
         {
             return mesh.nCells();
         }
 
-        //- Return cell centres
-        const volVectorField& C()
+        //- Return size. Number of cells
+        label size() const
+        {
+            return size(mesh_);
+        }
+
+        //- Field of cell centres
+        const volVectorField& C() const
         {
             return mesh_.C();
         }
@@ -94,18 +90,10 @@ public:
                           Class isVolMesh Declaration
 \*---------------------------------------------------------------------------*/
 
-template<class T>
-class isVolMesh
-:
-    public std::false_type
-{};
+//- Template argument for type volMesh.
+template<class> struct isVolMesh : std::false_type {};
 
-
-template<>
-class isVolMesh<volMesh>
-:
-    public std::true_type
-{};
+template<> struct isVolMesh<volMesh> : std::true_type {};
 
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //

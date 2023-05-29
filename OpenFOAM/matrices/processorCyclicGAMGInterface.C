@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2013 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2013 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -25,10 +27,10 @@ License
 
 #include "processorCyclicGAMGInterface.H"
 #include "addToRunTimeSelectionTable.H"
-#include "Map.T.H"
+#include "Map.H"
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
-using namespace Foam;
+
 namespace Foam
 {
     defineTypeNameAndDebug(processorCyclicGAMGInterface, 0);
@@ -44,46 +46,44 @@ namespace Foam
         processorCyclicGAMGInterface,
         Istream
     );
-}
 
 
-// * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
-processorCyclicGAMGInterface::processorCyclicGAMGInterface
-(
-    const label index,
-    const lduInterfacePtrsList& coarseInterfaces,
-    const lduInterface& fineInterface,
-    const labelField& localRestrictAddressing,
-    const labelField& neighbourRestrictAddressing,
-    const label fineLevelIndex,
-    const label coarseComm
-) :    processorGAMGInterface
+    // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
+
+    processorCyclicGAMGInterface::processorCyclicGAMGInterface
     (
-        index,
-        coarseInterfaces,
-        fineInterface,
-        localRestrictAddressing,
-        neighbourRestrictAddressing,
-        fineLevelIndex,
-        coarseComm
+        const label index,
+        const lduInterfacePtrsList& coarseInterfaces,
+        const lduInterface& fineInterface,
+        const labelField& localRestrictAddressing,
+        const labelField& neighbourRestrictAddressing,
+        const label fineLevelIndex,
+        const label coarseComm
     )
-{}
+        :
+        processorGAMGInterface
+        (
+            index,
+            coarseInterfaces,
+            fineInterface,
+            localRestrictAddressing,
+            neighbourRestrictAddressing,
+            fineLevelIndex,
+            coarseComm
+        )
+    {}
 
 
-processorCyclicGAMGInterface::processorCyclicGAMGInterface
-(
-    const label index,
-    const lduInterfacePtrsList& coarseInterfaces,
-    Istream& is
-) :    processorGAMGInterface(index, coarseInterfaces, is)
-{}
+    processorCyclicGAMGInterface::processorCyclicGAMGInterface
+    (
+        const label index,
+        const lduInterfacePtrsList& coarseInterfaces,
+        Istream& is
+    )
+        :
+        processorGAMGInterface(index, coarseInterfaces, is)
+    {}
 
-
-// * * * * * * * * * * * * * * * * Desstructor * * * * * * * * * * * * * * * //
-
-processorCyclicGAMGInterface::~processorCyclicGAMGInterface()
-{}
-
-
+}
 // ************************************************************************* //

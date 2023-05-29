@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -23,6 +25,9 @@ License
 
 Class
     Foam::weighted
+
+Group
+    grpFvSurfaceInterpolationSchemes
 
 Description
     Interpolation scheme class using weights looked-up from the objectRegistry.
@@ -59,8 +64,8 @@ class weighted
 
     // Private Member Functions
 
-        //- Disallow default bitwise assignment
-        void operator=(const weighted&);
+        //- No copy assignment
+        void operator=(const weighted&) = delete;
 
 
 public:

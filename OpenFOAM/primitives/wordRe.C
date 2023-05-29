@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2018-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -24,94 +27,126 @@ License
 \*---------------------------------------------------------------------------*/
 
 #include "wordRe.H"
+#include "keyType.H"
+#include "token.H"
 #include "IOstreams.H"
-#include "InfoProxy.T.H"
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
-namespace Foam {
-    const wordRe wordRe::null;
 
 
-    // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
+ namespace Foam{
+const wordRe wordRe::null;
 
-    wordRe::wordRe(Istream& is) : word(),
-        re_(nullptr)
+
+// * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
+
+wordRe::wordRe(const keyType& str)
+:
+    word(str, false)  // No stripping
+{
+    if (str.isPattern())
     {
-        is >> *this;
+        compile();
+    }
+}
+
+
+wordRe::wordRe(Istream& is)
+{
+    is >> *this;
+}
+
+
+// * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
+
+ 
+bool wordRe::assign(const token& tok)
+{
+    if (tok.isWord())
+    {
+        // Assign from word - literal
+        assign(tok.wordToken());
+        uncompile();
+        return true;
+    }
+    else if (tok.isQuotedString())
+    {
+        // Assign from quoted string - auto-detect regex
+        assign(tok.stringToken());
+        compile(wordRe::DETECT);
+        return true;
     }
 
+    return false;
+}
+ 
 
-    // * * * * * * * * * * * * * * * IOstream Operators  * * * * * * * * * * * * //
+// * * * * * * * * * * * * * * * Member Operators  * * * * * * * * * * * * * //
 
-    Istream& operator>>(Istream& is, wordRe& w)
+void wordRe::operator=(const keyType& str)
+{
+    assign(str);
+    if (str.isPattern())
     {
-        token t(is);
+        compile();
+    }
+    else
+    {
+        uncompile();
+    }
+}
 
-        if (!t.good())
+
+// * * * * * * * * * * * * * * * IOstream Operators  * * * * * * * * * * * * //
+
+Istream& operator>>(Istream& is, wordRe& val)
+{
+    token tok(is);
+
+    if (val.assign(tok))
+    {
+        if (val.empty())
         {
+            // Empty strings are an error
+            FatalIOErrorInFunction(is)
+                << "Zero-length regex"
+                << exit(FatalIOError);
             is.setBad();
             return is;
         }
-
-        if (t.isWord())
+    }
+    else
+    {
+        FatalIOErrorInFunction(is);
+        if (tok.good())
         {
-            w = t.wordToken();
-        }
-        else if (t.isString())
-        {
-            // Auto-tests for regular expression
-            w = t.stringToken();
-
-            // flag empty strings as an error
-            if (w.empty())
-            {
-                is.setBad();
-                FatalIOErrorInFunction(is)
-                    << "empty word/expression "
-                    << exit(FatalIOError);
-                return is;
-            }
+            FatalIOError
+                << "Wrong token type - expected word or string, found "
+                << tok.info();
         }
         else
         {
-            is.setBad();
-            FatalIOErrorInFunction(is)
-                << "wrong token type - expected word or string, found "
-                << t.info()
-                << exit(FatalIOError);
-
-            return is;
+            FatalIOError
+                << "Bad token - could not get wordRe";
         }
-
-        // Check state of IOstream
-        is.check("Istream& operator>>(Istream&, wordRe&)");
-
+        FatalIOError << exit(FatalIOError);
+        is.setBad();
         return is;
     }
 
-
-    Ostream& operator<<(Ostream& os, const wordRe& w)
-    {
-        os.writeQuoted(w, w.isPattern());
-        os.check("Ostream& operator<<(Ostream&, const wordRe&)");
-        return os;
-    }
-
-
-    Ostream& wordRe::info(Ostream& os) const
-    {
-        if (isPattern())
-        {
-            os << "wordRe(regex) " << *this;
-        }
-        else
-        {
-            os << "wordRe(plain) \"" << *this << '"';
-        }
-        os.flush();
-
-        return os;
-    }
-
+    is.check(FUNCTION_NAME);
+    return is;
 }
+
+
+Ostream& operator<<(Ostream& os, const wordRe& val)
+{
+    os.writeQuoted(val, val.isPattern());
+    os.check(FUNCTION_NAME);
+    return os;
+}
+
+
 // ************************************************************************* //
+
+ } // End namespace Foam

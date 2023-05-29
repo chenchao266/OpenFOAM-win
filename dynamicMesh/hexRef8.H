@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2016-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -36,13 +39,13 @@ SourceFiles
 #define hexRef8_H
 
 #include "labelIOList.H"
-#include "face.T.H"
-#include "HashSet.T.H"
-#include "DynamicList.T.H"
-#include "primitivePatch.H"
+#include "face.H"
+#include "HashSet.H"
+#include "DynamicList.H"
+#include "primitivePatch2.H"
 #include "removeFaces.H"
 #include "refinementHistory.H"
-#include "PackedBoolList.H"
+#include "bitSet.H"
 #include "uniformDimensionedFields.H"
 #include "cellShapeList.H"
 
@@ -51,7 +54,7 @@ SourceFiles
 namespace Foam
 {
 
-// Forward declaration of classes
+// Forward Declarations
 class polyMesh;
 class polyPatch;
 class polyTopoChange;
@@ -64,7 +67,7 @@ class mapDistributePolyMesh;
 
 class hexRef8
 {
-    // Private data
+    // Private Data
 
         //- Reference to underlying mesh.
         const polyMesh& mesh_;
@@ -300,11 +303,16 @@ class hexRef8
         label faceConsistentRefinement
         (
             const bool maxSet,
-            PackedBoolList& refineCell
+            const labelUList& cellLevel,
+            bitSet& refineCell
         ) const;
 
         //- Check wanted refinement for 2:1 consistency
-        void checkWantedRefinementLevels(const labelList&) const;
+        void checkWantedRefinementLevels
+        (
+            const labelUList& cellLevel,
+            const labelList&
+        ) const;
 
 
         // Cellshape recognition
@@ -336,11 +344,11 @@ class hexRef8
             ) const;
 
 
-        //- Disallow default bitwise copy construct
-        hexRef8(const hexRef8&);
+        //- No copy construct
+        hexRef8(const hexRef8&) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const hexRef8&);
+        //- No copy assignment
+        void operator=(const hexRef8&) = delete;
 
 
 public:
@@ -354,7 +362,7 @@ public:
         //- Construct from mesh, read_if_present refinement data
         //  (from write below). If readHistory is true does read_if_present
         //  of refinement history. If false clears all history
-        hexRef8(const polyMesh& mesh, const bool readHistory = true);
+        explicit hexRef8(const polyMesh& mesh, const bool readHistory=true);
 
         //- Construct from mesh and un/refinement data and optional size of
         //  starting cells
@@ -420,9 +428,24 @@ public:
             //  removes cells to refine (maxSet = false)
             labelList consistentRefinement
             (
+                const labelUList& cellLevel,
                 const labelList& cellsToRefine,
                 const bool maxSet
             ) const;
+
+            //- Given valid mesh and current cell level and proposed
+            //  cells to refine calculate any clashes (due to 2:1) and return
+            //  ok list of cells to refine.
+            //  Either adds cells to refine to set (maxSet = true) or
+            //  removes cells to refine (maxSet = false)
+            labelList consistentRefinement
+            (
+                const labelList& cellsToRefine,
+                const bool maxSet
+            ) const
+            {
+                return consistentRefinement(cellLevel_, cellsToRefine, maxSet);
+            }
 
             //- Like consistentRefinement but slower:
             //
@@ -568,6 +591,8 @@ public:
             //- Force writing refinement+history to polyMesh directory.
             bool write(const bool valid = true) const;
 
+            //- Helper: remove all relevant files from mesh instance
+            static void removeFiles(const polyMesh&);
 };
 
 

@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2019-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -111,7 +114,7 @@ LienLeschziner::LienLeschziner
 
     Ceps1_
     (
-        dimensioned<scalar>::lookupOrAddToDict
+        dimensioned<scalar>::getOrAddToDict
         (
             "Ceps1",
             coeffDict_,
@@ -120,7 +123,7 @@ LienLeschziner::LienLeschziner
     ),
     Ceps2_
     (
-        dimensioned<scalar>::lookupOrAddToDict
+        dimensioned<scalar>::getOrAddToDict
         (
             "Ceps2",
             coeffDict_,
@@ -129,7 +132,7 @@ LienLeschziner::LienLeschziner
     ),
     sigmak_
     (
-        dimensioned<scalar>::lookupOrAddToDict
+        dimensioned<scalar>::getOrAddToDict
         (
             "sigmak",
             coeffDict_,
@@ -138,7 +141,7 @@ LienLeschziner::LienLeschziner
     ),
     sigmaEps_
     (
-        dimensioned<scalar>::lookupOrAddToDict
+        dimensioned<scalar>::getOrAddToDict
         (
             "sigmaEps",
             coeffDict_,
@@ -147,7 +150,7 @@ LienLeschziner::LienLeschziner
     ),
     Cmu_
     (
-        dimensioned<scalar>::lookupOrAddToDict
+        dimensioned<scalar>::getOrAddToDict
         (
             "Cmu",
             coeffDict_,
@@ -156,7 +159,7 @@ LienLeschziner::LienLeschziner
     ),
     kappa_
     (
-        dimensioned<scalar>::lookupOrAddToDict
+        dimensioned<scalar>::getOrAddToDict
         (
             "kappa",
             coeffDict_,
@@ -165,7 +168,7 @@ LienLeschziner::LienLeschziner
     ),
     Anu_
     (
-        dimensioned<scalar>::lookupOrAddToDict
+        dimensioned<scalar>::getOrAddToDict
         (
             "Anu",
             coeffDict_,
@@ -174,7 +177,7 @@ LienLeschziner::LienLeschziner
     ),
     Aeps_
     (
-        dimensioned<scalar>::lookupOrAddToDict
+        dimensioned<scalar>::getOrAddToDict
         (
             "Aeps",
             coeffDict_,
@@ -183,7 +186,7 @@ LienLeschziner::LienLeschziner
     ),
     AE_
     (
-        dimensioned<scalar>::lookupOrAddToDict
+        dimensioned<scalar>::getOrAddToDict
         (
             "AE",
             coeffDict_,
@@ -195,7 +198,7 @@ LienLeschziner::LienLeschziner
     (
         IOobject
         (
-            IOobject::groupName("k", U.group()),
+            IOobject::groupName("k", alphaRhoPhi.group()),
             runTime_.timeName(),
             mesh_,
             IOobject::MUST_READ,
@@ -208,7 +211,7 @@ LienLeschziner::LienLeschziner
     (
         IOobject
         (
-            IOobject::groupName("epsilon", U.group()),
+            IOobject::groupName("epsilon", alphaRhoPhi.group()),
             runTime_.timeName(),
             mesh_,
             IOobject::MUST_READ,
@@ -247,10 +250,8 @@ bool LienLeschziner::read()
 
         return true;
     }
-    else
-    {
-        return false;
-    }
+
+    return false;
 }
 
 

@@ -1,9 +1,12 @@
-﻿/*---------------------------------------------------------------------------*\
+/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -23,7 +26,7 @@ License
 
 \*---------------------------------------------------------------------------*/
 
-//#include "eConstThermo.H"
+#include "eConstThermo.H"
 #include "IOstreams.H"
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
@@ -32,8 +35,10 @@ template<class EquationOfState>
 Foam::eConstThermo<EquationOfState>::eConstThermo(const dictionary& dict)
 :
     EquationOfState(dict),
-    Cv_(readScalar(dict.subDict("thermodynamics").lookup("Cv"))),
-    Hf_(readScalar(dict.subDict("thermodynamics").lookup("Hf")))
+    Cv_(dict.subDict("thermodynamics").get<scalar>("Cv")),
+    Hf_(dict.subDict("thermodynamics").get<scalar>("Hf")),
+    Tref_(dict.subDict("thermodynamics").getOrDefault<scalar>("Tref", Tstd)),
+    Esref_(dict.subDict("thermodynamics").getOrDefault<scalar>("Eref", 0))
 {}
 
 
@@ -44,10 +49,15 @@ void Foam::eConstThermo<EquationOfState>::write(Ostream& os) const
 {
     EquationOfState::write(os);
 
-    dictionary dict("thermodynamics");
-    dict.add("Cv", Cv_);
-    dict.add("Hf", Hf_);
-    os  << indent << dict.dictName() << dict;
+    // Entries in dictionary format
+    {
+        os.beginBlock("thermodynamics");
+        os.writeEntry("Cv", Cv_);
+        os.writeEntry("Hf", Hf_);
+        os.writeEntryIfDifferent<scalar>("Tref", Tstd, Tref_);
+        os.writeEntryIfDifferent<scalar>("Eref", 0, Esref_);
+        os.endBlock();
+    }
 }
 
 

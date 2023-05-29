@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -25,77 +27,84 @@ License
 
 #include "procLduMatrix.H"
 #include "procLduInterface.H"
-#include "lduMatrix.H"
+#include "lduMatrix2.H"
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
-namespace Foam
+
+
+ namespace Foam{
+procLduMatrix::procLduMatrix
+(
+    const lduMatrix& ldum,
+    const FieldField<Field, scalar>& interfaceCoeffs,
+    const lduInterfaceFieldPtrsList& interfaces
+)
+:
+    upperAddr_(ldum.lduAddr().upperAddr()),
+    lowerAddr_(ldum.lduAddr().lowerAddr()),
+    diag_(ldum.diag()),
+    upper_(ldum.upper()),
+    lower_(ldum.lower())
 {
-    procLduMatrix::procLduMatrix
-    (
-        const lduMatrix& ldum,
-        const FieldField<Field, scalar>& interfaceCoeffs,
-        const lduInterfaceFieldPtrsList& interfaces
-    ) : upperAddr_(ldum.lduAddr().upperAddr()),
-        lowerAddr_(ldum.lduAddr().lowerAddr()),
-        diag_(ldum.diag()),
-        upper_(ldum.upper()),
-        lower_(ldum.lower())
+    label nInterfaces = 0;
+
+    forAll(interfaces, i)
     {
-        label nInterfaces = 0;
-
-        forAll(interfaces, i)
+        if (interfaces.set(i))
         {
-            if (interfaces.set(i))
-            {
-                nInterfaces++;
-            }
+            nInterfaces++;
         }
-
-        interfaces_.setSize(nInterfaces);
-
-        nInterfaces = 0;
-
-        forAll(interfaces, i)
-        {
-            if (interfaces.set(i))
-            {
-                interfaces_.set
-                (
-                    nInterfaces++,
-                    new procLduInterface
-                    (
-                        interfaces[i],
-                        interfaceCoeffs[i]
-                    )
-                );
-            }
-        }
-
     }
 
+    interfaces_.setSize(nInterfaces);
 
-    procLduMatrix::procLduMatrix(Istream& is) : upperAddr_(is),
-        lowerAddr_(is),
-        diag_(is),
-        upper_(is),
-        lower_(is),
-        interfaces_(is)
-    {}
+    nInterfaces = 0;
 
-
-    // * * * * * * * * * * * * * * * IOstream Operators  * * * * * * * * * * * * //
-
-    Ostream& operator<<(Ostream& os, const procLduMatrix& cldum)
+    forAll(interfaces, i)
     {
-        os << cldum.upperAddr_
-            << cldum.lowerAddr_
-            << cldum.diag_
-            << cldum.upper_
-            << cldum.lower_
-            << cldum.interfaces_;
-
-        return os;
+        if (interfaces.set(i))
+        {
+            interfaces_.set
+            (
+                nInterfaces++,
+                new procLduInterface
+                (
+                    interfaces[i],
+                    interfaceCoeffs[i]
+                )
+            );
+        }
     }
 
 }
+
+
+procLduMatrix::procLduMatrix(Istream& is)
+:
+    upperAddr_(is),
+    lowerAddr_(is),
+    diag_(is),
+    upper_(is),
+    lower_(is),
+    interfaces_(is)
+{}
+
+
+// * * * * * * * * * * * * * * * IOstream Operators  * * * * * * * * * * * * //
+
+Ostream& operator<<(Ostream& os, const procLduMatrix& cldum)
+{
+    os  << cldum.upperAddr_
+        << cldum.lowerAddr_
+        << cldum.diag_
+        << cldum.upper_
+        << cldum.lower_
+        << cldum.interfaces_;
+
+    return os;
+}
+
+
 // ************************************************************************* //
+
+ } // End namespace Foam

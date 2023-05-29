@@ -1,9 +1,12 @@
-﻿/*---------------------------------------------------------------------------*\
+/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2016-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -48,63 +51,64 @@ SourceFiles
 #include "dimensionedTypes.H"
 #include "zero.H"
 #include "className.H"
+#include "lduPrimitiveMeshAssembly.H"
+#include "lduMesh.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 namespace Foam
 {
 
-// Forward declaration of friend functions and operators
-
-template<class Type>
-class fvMatrix;
-
-template<class Type>
-tmp<volFieldType<Type>> operator&
-(
-    const fvMatrix<Type>&,
-    const DimensionedField<Type, volMesh>&
-);
-
-template<class Type>
-tmp<volFieldType<Type>> operator&
-(
-    const fvMatrix<Type>&,
-    const tmp<DimensionedField<Type, volMesh>>&
-);
-
-template<class Type>
-tmp<volFieldType<Type>> operator&
-(
-    const fvMatrix<Type>&,
-    const tmp<volFieldType<Type>>&
-);
-
-template<class Type>
-tmp<volFieldType<Type>> operator&
-(
-    const tmp<fvMatrix<Type>>&,
-    const DimensionedField<Type, volMesh>&
-);
-
-template<class Type>
-tmp<volFieldType<Type>> operator&
-(
-    const tmp<fvMatrix<Type>>&,
-    const tmp<DimensionedField<Type, volMesh>>&
-);
-
-template<class Type>
-tmp<volFieldType<Type>> operator&
-(
-    const tmp<fvMatrix<Type>>&,
-    const tmp<volFieldType<Type>>&
-);
+// Forward Declarations
+template<class Type> class fvMatrix;
+template<class T> class UIndirectList;
 
 template<class Type>
 Ostream& operator<<(Ostream&, const fvMatrix<Type>&);
 
-template<class T> class UIndirectList;
+
+template<class Type>
+tmp<GeometricField<Type, fvPatchField, volMesh>> operator&
+(
+    const fvMatrix<Type>&,
+    const DimensionedField<Type, volMesh>&
+);
+
+template<class Type>
+tmp<GeometricField<Type, fvPatchField, volMesh>> operator&
+(
+    const fvMatrix<Type>&,
+    const tmp<DimensionedField<Type, volMesh>>&
+);
+
+template<class Type>
+tmp<GeometricField<Type, fvPatchField, volMesh>> operator&
+(
+    const fvMatrix<Type>&,
+    const tmp<GeometricField<Type, fvPatchField, volMesh>>&
+);
+
+template<class Type>
+tmp<GeometricField<Type, fvPatchField, volMesh>> operator&
+(
+    const tmp<fvMatrix<Type>>&,
+    const DimensionedField<Type, volMesh>&
+);
+
+template<class Type>
+tmp<GeometricField<Type, fvPatchField, volMesh>> operator&
+(
+    const tmp<fvMatrix<Type>>&,
+    const tmp<DimensionedField<Type, volMesh>>&
+);
+
+template<class Type>
+tmp<GeometricField<Type, fvPatchField, volMesh>> operator&
+(
+    const tmp<fvMatrix<Type>>&,
+    const tmp<GeometricField<Type, fvPatchField, volMesh>>&
+);
+
 
 
 /*---------------------------------------------------------------------------*\
@@ -114,14 +118,42 @@ template<class T> class UIndirectList;
 template<class Type>
 class fvMatrix
 :
-    public tmp<fvMatrix<Type>>::refCount,
+    public refCount,
     public lduMatrix
 {
-    // Private data
+public:
 
-        //- Const reference to volFieldType<Type>
+    // Public Types
+
+        //- Field type for psi
+        typedef
+            GeometricField<Type, fvPatchField, volMesh>
+            psiFieldType;
+
+        //- Field type for face flux (for non-orthogonal correction)
+        typedef
+            GeometricField<Type, fvsPatchField, surfaceMesh>
+            faceFluxFieldType;
+
+private:
+
+    // Private Data
+
+        //- Const reference to field
         //  Converted into a non-const reference at the point of solution.
-        const volFieldType<Type>& psi_;
+        const psiFieldType& psi_;
+
+        //- Originating fvMatrices when assembling matrices. Empty if not used.
+        PtrList<fvMatrix<Type>> subMatrices_;
+
+        //- Is the fvMatrix using implicit formulation
+        bool useImplicit_;
+
+        //- Name of the lduAssembly
+        word lduAssemblyName_;
+
+        //- Number of fvMatrices added to this
+        label nMatrix_;
 
         //- Dimension set
         dimensionSet dimensions_;
@@ -130,23 +162,22 @@ class fvMatrix
         Field<Type> source_;
 
         //- Boundary scalar field containing pseudo-matrix coeffs
-        //  for internal cells
+        //- for internal cells
         FieldField<Field, Type> internalCoeffs_;
 
         //- Boundary scalar field containing pseudo-matrix coeffs
-        //  for boundary cells
+        //- for boundary cells
         FieldField<Field, Type> boundaryCoeffs_;
 
-
         //- Face flux field for non-orthogonal correction
-        mutable surfaceFieldType<Type>
-            *faceFluxCorrectionPtr_;
+        mutable faceFluxFieldType* faceFluxCorrectionPtr_;
 
 
 protected:
 
     //- Declare friendship with the fvSolver class
     friend class fvSolver;
+
 
     // Protected Member Functions
 
@@ -185,6 +216,12 @@ protected:
         ) const;
 
 
+        // Implicit helper functions
+
+            //- Name the implicit assembly addressing
+            label checkImplicit(const label fieldI = 0);
+
+
         // Matrix completion functionality
 
             void addBoundaryDiag
@@ -201,13 +238,14 @@ protected:
                 const bool couples=true
             ) const;
 
+
         // Matrix manipulation functionality
 
             //- Set solution in given cells to the specified values
             template<template<class> class ListType>
             void setValuesFromList
             (
-                const labelUList& cells,
+                const labelUList& cellLabels,
                 const ListType<Type>& values
             );
 
@@ -215,8 +253,8 @@ protected:
 public:
 
     //- Solver class returned by the solver function
-    //  used for systems in which it is useful to cache the solver for reuse
-    //  e.g. if the solver is potentially expensive to construct (AMG) and can
+    //- used for systems in which it is useful to cache the solver for reuse.
+    //  E.g. if the solver is potentially expensive to construct (AMG) and can
     //  be used several times (PISO)
     class fvSolver
     {
@@ -228,18 +266,18 @@ public:
 
         // Constructors
 
-            fvSolver(fvMatrix<Type>& fvMat, autoPtr<lduMatrix::solver> sol)
+            fvSolver(fvMatrix<Type>& fvMat, autoPtr<lduMatrix::solver>&& sol)
             :
                 fvMat_(fvMat),
-                solver_(sol)
+                solver_(std::move(sol))
             {}
 
 
-        // Member functions
+        // Member Functions
 
             //- Solve returning the solution statistics.
-            //  Use the given solver controls
-            SolverPerformance<Type> solve(const dictionary&);
+            //  Solver controls read from dictionary
+            SolverPerformance<Type> solve(const dictionary& solverControls);
 
             //- Solve returning the solution statistics.
             //  Solver controls read from fvSolution
@@ -255,20 +293,22 @@ public:
         //- Construct given a field to solve for
         fvMatrix
         (
-            const volFieldType<Type>&,
-            const dimensionSet&
+            const GeometricField<Type, fvPatchField, volMesh>& psi,
+            const dimensionSet& ds
         );
 
-        //- Construct as copy
+        //- Copy construct
         fvMatrix(const fvMatrix<Type>&);
 
-        //- Construct as copy of tmp<fvMatrix<Type>> deleting argument
-        #ifndef NoConstructFromTmp
+        //- Copy/move construct from tmp<fvMatrix<Type>>
         fvMatrix(const tmp<fvMatrix<Type>>&);
-        #endif
 
         //- Construct from Istream given field to solve for
-        fvMatrix(const volFieldType<Type>&, Istream&);
+        fvMatrix
+        (
+            const GeometricField<Type, fvPatchField, volMesh>& psi,
+            Istream& is
+        );
 
         //- Clone
         tmp<fvMatrix<Type>> clone() const;
@@ -278,14 +318,125 @@ public:
     virtual ~fvMatrix();
 
 
-    // Member functions
+    // Member Functions
 
         // Access
 
-            const volFieldType<Type>& psi() const
-            {
-                return psi_;
-            }
+            // Coupling
+
+                label nMatrices() const
+                {
+                    return (nMatrix_ == 0 ? 1 : nMatrix_);
+                }
+
+                const fvMatrix<Type>& matrix(const label i) const
+                {
+                    return (nMatrix_ == 0 ? *this : subMatrices_[i]);
+                }
+
+                fvMatrix<Type>& matrix(const label i)
+                {
+                    return (nMatrix_ == 0 ? *this : subMatrices_[i]);
+                }
+
+                label globalPatchID
+                (
+                    const label fieldi,
+                    const label patchi
+                ) const
+                {
+                    if (!lduMeshPtr())
+                    {
+                        return patchi;
+                    }
+                    else
+                    {
+                        return lduMeshPtr()->patchMap()[fieldi][patchi];
+                    }
+                }
+
+                //- Transfer lower, upper, diag and source to this fvMatrix
+                void transferFvMatrixCoeffs();
+
+                //- Create or update ldu assembly
+                void createOrUpdateLduPrimitiveAssembly();
+
+                //- Access to lduPrimitiveMeshAssembly
+                lduPrimitiveMeshAssembly* lduMeshPtr();
+
+                //- Const Access to lduPrimitiveMeshAssembly
+                const lduPrimitiveMeshAssembly* lduMeshPtr() const;
+
+                //- Manipulate matrix
+                void manipulateMatrix(direction cmp);
+
+                //- Manipulate boundary/internal coeffs for coupling
+                void setBounAndInterCoeffs();
+
+                //- Set interfaces
+                void setInterfaces
+                (
+                    lduInterfaceFieldPtrsList&,
+                    PtrDynList<lduInterfaceField>& newInterfaces
+                );
+
+                //- Add internal and boundary contribution to local patches
+                void mapContributions
+                (
+                    label fieldi,
+                    const FieldField<Field, Type>& fluxContrib,
+                    FieldField<Field, Type>& contrib,
+                    bool internal
+                ) const;
+
+                //- Return optional lduAdressing
+                const lduPrimitiveMeshAssembly& lduMeshAssembly()
+                {
+                    return *lduMeshPtr();
+                }
+
+                //- Return psi
+                const GeometricField<Type, fvPatchField, volMesh>& psi
+                (
+                    const label i = 0
+                ) const
+                {
+                    return
+                    (
+                        (i == 0 && nMatrix_ == 0) ? psi_ : matrix(i).psi()
+                    );
+                }
+
+
+                GeometricField<Type, fvPatchField, volMesh>& psi
+                (
+                    const label i = 0
+                )
+                {
+                    return
+                    (
+                        (i == 0 && nMatrix_ == 0)
+                      ? const_cast
+                        <
+                            GeometricField<Type, fvPatchField, volMesh>&
+                        >(psi_)
+                      : const_cast
+                        <
+                            GeometricField<Type, fvPatchField, volMesh>&
+                        >
+                        (
+                            matrix(i).psi()
+                        )
+                    );
+                }
+
+                //- Clear multiple fvMatrices
+                void clear()
+                {
+                    subMatrices_.clear();
+                    nMatrix_ = 0;
+                }
+
 
             const dimensionSet& dimensions() const
             {
@@ -303,46 +454,73 @@ public:
             }
 
             //- fvBoundary scalar field containing pseudo-matrix coeffs
-            //  for internal cells
+            //- for internal cells
+            const FieldField<Field, Type>& internalCoeffs() const
+            {
+                return internalCoeffs_;
+            }
+
+            //- fvBoundary scalar field containing pseudo-matrix coeffs
+            //- for internal cells
             FieldField<Field, Type>& internalCoeffs()
             {
                 return internalCoeffs_;
             }
 
             //- fvBoundary scalar field containing pseudo-matrix coeffs
-            //  for boundary cells
+            //- for boundary cells
+            const FieldField<Field, Type>& boundaryCoeffs() const
+            {
+                return boundaryCoeffs_;
+            }
+
+            //- fvBoundary scalar field containing pseudo-matrix coeffs
+            //- for boundary cells
             FieldField<Field, Type>& boundaryCoeffs()
             {
                 return boundaryCoeffs_;
             }
 
-
             //- Declare return type of the faceFluxCorrectionPtr() function
-            typedef surfaceFieldType<Type>
-                *surfaceTypeFieldPtr;
+            typedef GeometricField<Type, fvsPatchField, surfaceMesh>
+                *faceFluxFieldPtrType;
 
             //- Return pointer to face-flux non-orthogonal correction field
-            surfaceTypeFieldPtr& faceFluxCorrectionPtr()
+            faceFluxFieldPtrType& faceFluxCorrectionPtr()
             {
                 return faceFluxCorrectionPtr_;
+            }
+
+            //- True if face-flux non-orthogonal correction field exists
+            bool hasFaceFluxCorrection() const noexcept
+            {
+                return bool(faceFluxCorrectionPtr_);
             }
 
 
         // Operations
 
-            //- Set solution in given cells to the specified values
-            //  and eliminate the corresponding equations from the matrix.
+            //- Set solution in given cells to the specified value
+            //- and eliminate the corresponding equations from the matrix.
             void setValues
             (
-                const labelUList& cells,
+                const labelUList& cellLabels,
+                const Type& value
+            );
+
+            //- Set solution in given cells to the specified values
+            //- and eliminate the corresponding equations from the matrix.
+            void setValues
+            (
+                const labelUList& cellLabels,
                 const UList<Type>& values
             );
 
             //- Set solution in given cells to the specified values
-            //  and eliminate the corresponding equations from the matrix.
+            //- and eliminate the corresponding equations from the matrix.
             void setValues
             (
-                const labelUList& cells,
+                const labelUList& cellLabels,
                 const UIndirectList<Type>& values
             );
 
@@ -354,8 +532,24 @@ public:
                 const bool forceReference = false
             );
 
+            //- Set reference level for solution
+            void setReferences
+            (
+                const labelUList& cellLabels,
+                const Type& value,
+                const bool forceReference = false
+            );
+
+            //- Set reference level for solution
+            void setReferences
+            (
+                const labelUList& cellLabels,
+                const UList<Type>& values,
+                const bool forceReference = false
+            );
+
             //- Set reference level for a component of the solution
-            //  on a given patch face
+            //- on a given patch face
             void setComponentReference
             (
                 const label patchi,
@@ -363,6 +557,9 @@ public:
                 const direction cmpt,
                 const scalar value
             );
+
+            //- Add fvMatrix
+            void addFvMatrix(fvMatrix<Type>& matrix);
 
             //- Relax matrix (for steady-state solution).
             //  alpha = 1 : diagonally equal
@@ -378,7 +575,7 @@ public:
             //- Manipulate based on a boundary field
             void boundaryManipulate
             (
-                typename volFieldType<Type>::
+                typename GeometricField<Type, fvPatchField, volMesh>::
                     Boundary& values
             );
 
@@ -392,7 +589,7 @@ public:
 
             //- Solve segregated or coupled returning the solution statistics.
             //  Use the given solver controls
-            SolverPerformance<Type> solve(const dictionary&);
+            SolverPerformance<Type> solveSegregatedOrCoupled(const dictionary&);
 
             //- Solve segregated returning the solution statistics.
             //  Use the given solver controls
@@ -401,6 +598,10 @@ public:
             //- Solve coupled returning the solution statistics.
             //  Use the given solver controls
             SolverPerformance<Type> solveCoupled(const dictionary&);
+
+            //- Solve returning the solution statistics.
+            //  Use the given solver controls
+            SolverPerformance<Type> solve(const dictionary&);
 
             //- Solve returning the solution statistics.
             //  Solver controls read from fvSolution
@@ -419,17 +620,20 @@ public:
             tmp<volScalarField> A() const;
 
             //- Return the H operation source
-            tmp<volFieldType<Type>> H() const;
+            tmp<GeometricField<Type, fvPatchField, volMesh>> H() const;
 
             //- Return H(1)
             tmp<volScalarField> H1() const;
 
             //- Return the face-flux field from the matrix
-            tmp<surfaceFieldType<Type>>
+            tmp<GeometricField<Type, fvsPatchField, surfaceMesh>>
                 flux() const;
 
+            //- Return the solver dictionary taking into account finalIteration
+            const dictionary& solverDict() const;
 
-    // Member operators
+
+    // Member Operators
 
         void operator=(const fvMatrix<Type>&);
         void operator=(const tmp<fvMatrix<Type>>&);
@@ -452,7 +656,7 @@ public:
         );
         void operator+=
         (
-            const tmp<volFieldType<Type>>&
+            const tmp<GeometricField<Type, fvPatchField, volMesh>>&
         );
 
         void operator-=
@@ -465,7 +669,7 @@ public:
         );
         void operator-=
         (
-            const tmp<volFieldType<Type>>&
+            const tmp<GeometricField<Type, fvPatchField, volMesh>>&
         );
 
         void operator+=(const dimensioned<Type>&);
@@ -481,38 +685,38 @@ public:
         void operator*=(const dimensioned<scalar>&);
 
 
-    // Friend operators
+    // Friend Operators
 
-        friend tmp<volFieldType<Type>>
+        friend tmp<GeometricField<Type, fvPatchField, volMesh>>
         operator& <Type>
         (
             const fvMatrix<Type>&,
             const DimensionedField<Type, volMesh>&
         );
 
-        friend tmp<volFieldType<Type>>
+        friend tmp<GeometricField<Type, fvPatchField, volMesh>>
         operator& <Type>
         (
             const fvMatrix<Type>&,
-            const tmp<volFieldType<Type>>&
+            const tmp<GeometricField<Type, fvPatchField, volMesh>>&
         );
 
-        friend tmp<volFieldType<Type>>
+        friend tmp<GeometricField<Type, fvPatchField, volMesh>>
         operator& <Type>
         (
             const tmp<fvMatrix<Type>>&,
             const DimensionedField<Type, volMesh>&
         );
 
-        friend tmp<volFieldType<Type>>
+        friend tmp<GeometricField<Type, fvPatchField, volMesh>>
         operator& <Type>
         (
             const tmp<fvMatrix<Type>>&,
-            const tmp<volFieldType<Type>>&
+            const tmp<GeometricField<Type, fvPatchField, volMesh>>&
         );
 
 
-    // Ostream operator
+    // Ostream Operator
 
         friend Ostream& operator<< <Type>
         (
@@ -522,7 +726,7 @@ public:
 };
 
 
-// * * * * * * * * * * * * * * * Global functions  * * * * * * * * * * * * * //
+// * * * * * * * * * * * * * * * Global Functions  * * * * * * * * * * * * * //
 
 template<class Type>
 void checkMethod
@@ -556,7 +760,7 @@ SolverPerformance<Type> solve(fvMatrix<Type>&, const dictionary&);
 
 
 //- Solve returning the solution statistics given convergence tolerance,
-//  deleting temporary matrix after solution.
+//- deleting temporary matrix after solution.
 //  Use the given solver controls
 template<class Type>
 SolverPerformance<Type> solve
@@ -573,25 +777,25 @@ SolverPerformance<Type> solve(fvMatrix<Type>&);
 
 
 //- Solve returning the solution statistics given convergence tolerance,
-//  deleting temporary matrix after solution.
+//- deleting temporary matrix after solution.
 //  Solver controls read fvSolution
 template<class Type>
 SolverPerformance<Type> solve(const tmp<fvMatrix<Type>>&);
 
 
 //- Return the correction form of the given matrix
-//  by subtracting the matrix multiplied by the current field
+//- by subtracting the matrix multiplied by the current field
 template<class Type>
 tmp<fvMatrix<Type>> correction(const fvMatrix<Type>&);
 
 
 //- Return the correction form of the given temporary matrix
-//  by subtracting the matrix multiplied by the current field
+//- by subtracting the matrix multiplied by the current field
 template<class Type>
 tmp<fvMatrix<Type>> correction(const tmp<fvMatrix<Type>>&);
 
 
-// * * * * * * * * * * * * * * * Global operators  * * * * * * * * * * * * * //
+// * * * * * * * * * * * * * * * Global Operators  * * * * * * * * * * * * * //
 
 template<class Type>
 tmp<fvMatrix<Type>> operator==
@@ -640,7 +844,7 @@ template<class Type>
 tmp<fvMatrix<Type>> operator==
 (
     const fvMatrix<Type>&,
-    const tmp<volFieldType<Type>>&
+    const tmp<GeometricField<Type, fvPatchField, volMesh>>&
 );
 
 template<class Type>
@@ -661,7 +865,7 @@ template<class Type>
 tmp<fvMatrix<Type>> operator==
 (
     const tmp<fvMatrix<Type>>&,
-    const tmp<volFieldType<Type>>&
+    const tmp<GeometricField<Type, fvPatchField, volMesh>>&
 );
 
 template<class Type>
@@ -754,7 +958,7 @@ template<class Type>
 tmp<fvMatrix<Type>> operator+
 (
     const fvMatrix<Type>&,
-    const tmp<volFieldType<Type>>&
+    const tmp<GeometricField<Type, fvPatchField, volMesh>>&
 );
 
 template<class Type>
@@ -775,7 +979,7 @@ template<class Type>
 tmp<fvMatrix<Type>> operator+
 (
     const tmp<fvMatrix<Type>>&,
-    const tmp<volFieldType<Type>>&
+    const tmp<GeometricField<Type, fvPatchField, volMesh>>&
 );
 
 template<class Type>
@@ -795,7 +999,7 @@ tmp<fvMatrix<Type>> operator+
 template<class Type>
 tmp<fvMatrix<Type>> operator+
 (
-    const tmp<volFieldType<Type>>&,
+    const tmp<GeometricField<Type, fvPatchField, volMesh>>&,
     const fvMatrix<Type>&
 );
 
@@ -816,7 +1020,7 @@ tmp<fvMatrix<Type>> operator+
 template<class Type>
 tmp<fvMatrix<Type>> operator+
 (
-    const tmp<volFieldType<Type>>&,
+    const tmp<GeometricField<Type, fvPatchField, volMesh>>&,
     const tmp<fvMatrix<Type>>&
 );
 
@@ -897,7 +1101,7 @@ template<class Type>
 tmp<fvMatrix<Type>> operator-
 (
     const fvMatrix<Type>&,
-    const tmp<volFieldType<Type>>&
+    const tmp<GeometricField<Type, fvPatchField, volMesh>>&
 );
 
 template<class Type>
@@ -918,7 +1122,7 @@ template<class Type>
 tmp<fvMatrix<Type>> operator-
 (
     const tmp<fvMatrix<Type>>&,
-    const tmp<volFieldType<Type>>&
+    const tmp<GeometricField<Type, fvPatchField, volMesh>>&
 );
 
 template<class Type>
@@ -938,7 +1142,7 @@ tmp<fvMatrix<Type>> operator-
 template<class Type>
 tmp<fvMatrix<Type>> operator-
 (
-    const tmp<volFieldType<Type>>&,
+    const tmp<GeometricField<Type, fvPatchField, volMesh>>&,
     const fvMatrix<Type>&
 );
 
@@ -959,7 +1163,7 @@ tmp<fvMatrix<Type>> operator-
 template<class Type>
 tmp<fvMatrix<Type>> operator-
 (
-    const tmp<volFieldType<Type>>&,
+    const tmp<GeometricField<Type, fvPatchField, volMesh>>&,
     const tmp<fvMatrix<Type>>&
 );
 

@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2019 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -32,7 +35,7 @@ License
 
 namespace Foam
 {
-defineTypeNameAndDebug(treeDataPoint, 0);
+    defineTypeNameAndDebug(treeDataPoint, 0);
 }
 
 
@@ -48,12 +51,26 @@ Foam::treeDataPoint::treeDataPoint(const pointField& points)
 Foam::treeDataPoint::treeDataPoint
 (
     const pointField& points,
-    const labelList& pointLabels
+    const labelUList& pointLabels,
+    const bool useSubsetPoints
 )
 :
     points_(points),
     pointLabels_(pointLabels),
-    useSubset_(true)
+    useSubset_(useSubsetPoints)
+{}
+
+
+Foam::treeDataPoint::treeDataPoint
+(
+    const pointField& points,
+    labelList&& pointLabels,
+    const bool useSubsetPoints
+)
+:
+    points_(points),
+    pointLabels_(std::move(pointLabels)),
+    useSubset_(useSubsetPoints)
 {}
 
 
@@ -81,10 +98,8 @@ Foam::pointField Foam::treeDataPoint::shapePoints() const
     {
         return pointField(points_, pointLabels_);
     }
-    else
-    {
-        return points_;
-    }
+
+    return points_;
 }
 
 
@@ -104,8 +119,7 @@ bool Foam::treeDataPoint::overlaps
     const treeBoundBox& cubeBb
 ) const
 {
-    label pointi = (useSubset_ ? pointLabels_[index] : index);
-    return cubeBb.contains(points_[pointi]);
+    return cubeBb.contains(shapePoint(index));
 }
 
 
@@ -116,14 +130,7 @@ bool Foam::treeDataPoint::overlaps
     const scalar radiusSqr
 ) const
 {
-    label pointi = (useSubset_ ? pointLabels_[index] : index);
-
-    if (magSqr(points_[pointi] - centre) <= radiusSqr)
-    {
-        return true;
-    }
-
-    return false;
+    return (magSqr(shapePoint(index) - centre) <= radiusSqr);
 }
 
 
@@ -139,19 +146,11 @@ void Foam::treeDataPoint::findNearestOp::operator()
 {
     const treeDataPoint& shape = tree_.shapes();
 
-    forAll(indices, i)
+    for (const label index : indices)
     {
-        const label index = indices[i];
-        label pointi =
-        (
-            shape.useSubset()
-          ? shape.pointLabels()[index]
-          : index
-        );
+        const point& pt = shape.shapePoint(index);
 
-        const point& pt = shape.points()[pointi];
-
-        scalar distSqr = magSqr(pt - sample);
+        const scalar distSqr = magSqr(pt - sample);
 
         if (distSqr < nearestDistSqr)
         {
@@ -183,23 +182,15 @@ void Foam::treeDataPoint::findNearestOp::operator()
         nearestDistSqr = magSqr(linePoint - nearestPoint);
     }
 
-    forAll(indices, i)
+    for (const label index : indices)
     {
-        const label index = indices[i];
-        label pointi =
-        (
-            shape.useSubset()
-          ? shape.pointLabels()[index]
-          : index
-        );
-
-        const point& shapePt = shape.points()[pointi];
+        const point& shapePt = shape.shapePoint(index);
 
         if (tightest.contains(shapePt))
         {
             // Nearest point on line
             pointHit pHit = ln.nearestDist(shapePt);
-            scalar distSqr = sqr(pHit.distance());
+            const scalar distSqr = sqr(pHit.distance());
 
             if (distSqr < nearestDistSqr)
             {

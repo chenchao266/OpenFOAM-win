@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2017-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -24,112 +27,356 @@ License
 \*---------------------------------------------------------------------------*/
 
 #include "Switch.H"
+#include "scalar.H"
 #include "error.H"
-#include "dictionary.H"
+#include "dictionary2.H"
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
-using namespace Foam;
-const char* Switch::names[Switch::INVALID+1] =
+ namespace Foam{
+namespace
+{
+static_assert
+(
+
+
+    Switch::INVALID+1 == 9,
+    "Switch::switchType does not have 9 entries"
+);
+
+//- The names corresponding to the Switch::switchType enumeration.
+//  Includes extra entries for "invalid".
+static const char* names[9] =
 {
     "false", "true",
-    "off",   "on",
     "no",    "yes",
-    "n",     "y",
-    "f",     "t",
-    "none",  "true",  // Is there a reasonable counterpart to "none"?
-    "invalid"
+    "off",   "on",
+    "none",  "any",
+    "invalid"  //< Output representation only
 };
+
+} // End anonymous namespace
+
+
+// * * * * * * * * * * * * * * * Local Functions * * * * * * * * * * * * * * //
+
+
+ } // End namespace Foam
+namespace Foam
+{
+template<class OS>
+static OS& printTokenError(OS& os, const token& tok)
+{
+    if (!tok.good())
+    {
+        os  << "Bad token - could not get bool/switch" << nl;
+    }
+    else if (tok.isWord())
+    {
+        os  << "Expected true/false, on/off... found "
+            << tok.wordToken() << nl;
+    }
+    else
+    {
+        os  << "Wrong token - expected bool/switch, found "
+            << tok.info() << nl;
+    }
+
+    return os;
+}
+} // End namespace Foam
+
+
+// * * * * * * * * * * * * * Private Member Functions  * * * * * * * * * * * //
+
+
+ namespace Foam{
+Switch::switchType Switch::parse
+(
+    const std::string& str,
+    const bool failOnError
+)
+{
+    switch (str.size())
+    {
+        case 1: // (0|1|f|t|n|y)
+        {
+            switch (str[0])
+            {
+                case '0': case 'f': return switchType::FALSE;
+                case '1': case 't': return switchType::TRUE;
+                case 'n': return switchType::NO;
+                case 'y': return switchType::YES;
+            }
+            break;
+        }
+        case 2: // (no|on)
+        {
+            if (str == names[switchType::NO]) return switchType::NO;
+            if (str == names[switchType::ON]) return switchType::ON;
+            break;
+        }
+        case 3: // (off|yes|any)
+        {
+            if (str == names[switchType::OFF]) return switchType::OFF;
+            if (str == names[switchType::YES]) return switchType::YES;
+            if (str == names[switchType::ANY]) return switchType::ANY;
+            break;
+        }
+        case 4: // (none|true)
+        {
+            if (str == names[switchType::NONE]) return switchType::NONE;
+            if (str == names[switchType::TRUE]) return switchType::TRUE;
+            break;
+        }
+        case 5: // (false)
+        {
+            if (str == names[switchType::FALSE]) return switchType::FALSE;
+            break;
+        }
+    }
+
+    if (failOnError)
+    {
+        FatalErrorInFunction
+            << "Unknown switch " << str << nl
+            << abort(FatalError);
+    }
+
+    return switchType::INVALID;
+}
 
 
 // * * * * * * * * * * * * Static Member Functions * * * * * * * * * * * * * //
 
-Switch::switchType Switch::asEnum
-(
-    const std::string& str,
-    const bool allowInvalid
-)
+const char* Switch::name(const bool b) noexcept
 {
-    for (int sw = 0; sw < Switch::INVALID; ++sw)
-    {
-        if (str == names[sw])
-        {
-            // handle aliases
-            switch (sw)
-            {
-                case Switch::NO_1:
-                case Switch::NONE:
-                {
-                    return Switch::NO;
-                    break;
-                }
-
-                case Switch::YES_1:
-                {
-                    return Switch::YES;
-                    break;
-                }
-
-                case Switch::FALSE_1:
-                {
-                    return Switch::FALSE;
-                    break;
-                }
-
-                case Switch::TRUE_1:
-                {
-                    return Switch::TRUE;
-                    break;
-                }
-
-                default:
-                {
-                    return switchType(sw);
-                    break;
-                }
-            }
-        }
-    }
-
-    if (!allowInvalid)
-    {
-        FatalErrorInFunction
-            << "unknown switch word " << str << nl
-            << abort(FatalError);
-    }
-
-    return Switch::INVALID;
+    return names[(b ? 1 : 0)];
 }
 
 
-Switch Switch::lookupOrAddToDict
+Switch Switch::find(const std::string& str)
+{
+    return Switch(parse(str, false));  // failOnError=false
+}
+
+
+bool Switch::found(const std::string& str)
+{
+    return (switchType::INVALID != parse(str, false));  // failOnError=false
+}
+
+
+Switch Switch::getOrAddToDict
 (
-    const word& name,
+    const word& key,
     dictionary& dict,
-    const Switch& defaultValue
+    const Switch deflt
 )
 {
-    return dict.lookupOrAddDefault<Switch>(name, defaultValue);
+    return dict.getOrAdd<Switch>(key, deflt, keyType::LITERAL);
+}
+
+
+// * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
+
+Switch::Switch(const std::string& str)
+:
+    value_(parse(str, true))
+{}
+
+
+Switch::Switch(const char* str)
+:
+    value_(parse(str, true))
+{}
+
+
+Switch::Switch(const std::string& str, bool allowBad)
+:
+    value_(parse(str, !allowBad))
+{}
+
+
+Switch::Switch(const char* str, bool allowBad)
+:
+    value_(parse(str, !allowBad))
+{}
+
+
+Switch::Switch(const float val, const float tol)
+:
+    value_((mag(val) > tol) ? switchType::TRUE : switchType::FALSE)
+{}
+
+
+Switch::Switch(const double val, const double tol)
+:
+    value_((mag(val) > tol) ? switchType::TRUE : switchType::FALSE)
+{}
+
+
+Switch::Switch(const token& tok)
+:
+    value_(switchType::INVALID)
+{
+    if (tok.good())
+    {
+        if (tok.isBool())
+        {
+            (*this) = tok.boolToken();
+        }
+        else if (tok.isLabel())
+        {
+            (*this) = bool(tok.labelToken());
+        }
+        else if (tok.isWord())
+        {
+            value_ = parse(tok.wordToken(), false);  // failOnError=false
+        }
+    }
+}
+
+
+Switch::Switch
+(
+    const word& key,
+    const dictionary& dict
+)
+:
+    value_(switchType::INVALID)
+{
+    const token tok(dict.get<token>(key, keyType::LITERAL));
+
+    Switch sw(tok);
+
+    if (sw.good())
+    {
+        (*this) = sw;
+    }
+    else
+    {
+        printTokenError(FatalIOErrorInFunction(dict), tok)
+            << exit(FatalIOError);
+    }
+}
+
+
+Switch::Switch
+(
+    const word& key,
+    const dictionary& dict,
+    const Switch deflt,
+    const bool failsafe
+)
+:
+    value_(deflt.value_)
+{
+    token tok;
+
+    if (dict.readIfPresent<token>(key, tok, keyType::LITERAL))
+    {
+        Switch sw(tok);
+
+        if (sw.good())
+        {
+            (*this) = sw;
+        }
+        else if (failsafe)
+        {
+            printTokenError(IOWarningInFunction(dict), tok)
+                << "using failsafe " << deflt.c_str() << endl;
+        }
+        else
+        {
+            printTokenError(FatalIOErrorInFunction(dict), tok)
+                << exit(FatalIOError);
+        }
+    }
+}
+
+
+Switch::Switch(Istream& is)
+{
+    is >> *this;
 }
 
 
 // * * * * * * * * * * * * * * * Member Functions * * * * * * * * * * * * * * //
 
-bool Switch::valid() const
+bool Switch::good() const noexcept
 {
-    return switch_ <= Switch::NONE;
+    return (value_ < switchType::INVALID);
 }
 
 
-const char* Switch::asText() const
+Switch::switchType Switch::type() const noexcept
 {
-    return names[switch_];
+    return switchType(value_);
 }
 
 
-bool Switch::readIfPresent(const word& name, const dictionary& dict)
+void Switch::negate() noexcept
 {
-    return dict.readIfPresent<Switch>(name, *this);
+    if (value_ < switchType::INVALID)
+    {
+        // Toggle final bit. So NO <-> YES, OFF <-> ON ...
+        value_ ^= 0x1;
+    }
+}
+
+
+const char* Switch::c_str() const noexcept
+{
+    return names[(value_ & 0x0F)];
+}
+
+
+std::string Switch::str() const
+{
+    return names[(value_ & 0x0F)];
+}
+
+
+bool Switch::readIfPresent
+(
+    const word& key,
+    const dictionary& dict
+)
+{
+    return dict.readIfPresent<Switch>(key, *this, keyType::LITERAL);
+}
+
+
+// * * * * * * * * * * * * * * * IOstream Operators  * * * * * * * * * * * * //
+
+Istream& operator>>(Istream& is, Switch& sw)
+{
+    token tok(is);
+
+    sw = Switch(tok);
+
+    if (sw.good())
+    {
+        is.check(FUNCTION_NAME);
+    }
+    else
+    {
+        printTokenError(FatalIOErrorInFunction(is), tok)
+            << exit(FatalIOError);
+        is.setBad();
+    }
+
+    return is;
+}
+
+
+Ostream& operator<<(Ostream& os, const Switch& sw)
+{
+    os << sw.c_str();
+    return os;
 }
 
 
 // ************************************************************************* //
+
+ } // End namespace Foam

@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2020-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -28,15 +31,31 @@ Group
     grpLagrangianFunctionObjects
 
 Description
-    Calculate intensive fields:
+    This function object calculates and outputs the intensive fields:
     - UMean
     - translationalT
     - internalT
     - overallT
     from averaged extensive fields from a DSMC calculation.
 
-See also
-    Foam::functionObjects::fvMeshFunctionObject
+Usage
+    Example of function object specification to calculate DSMC fields:
+    \verbatim
+    dsmcFields1
+    {
+        type        dsmcFields;
+        libs        (lagrangianFunctionObjects);
+        ...
+    }
+    \endverbatim
+
+    Where the entries comprise:
+    \table
+        Property     | Description             | Required    | Default value
+        type         | Type name: dsmcFields   | yes         |
+        log          | Log to standard output  | no          | yes
+    \endtable
+
 
 SourceFiles
     dsmcFields.C
@@ -63,13 +82,14 @@ class dsmcFields
 :
     public fvMeshFunctionObject
 {
+
     // Private Member Functions
 
-        //- Disallow default bitwise copy construct
-        dsmcFields(const dsmcFields&);
+        //- No copy construct
+        dsmcFields(const dsmcFields&) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const dsmcFields&);
+        //- No copy assignment
+        void operator=(const dsmcFields&) = delete;
 
 
 public:
@@ -90,7 +110,7 @@ public:
 
 
     //- Destructor
-    virtual ~dsmcFields();
+    virtual ~dsmcFields() = default;
 
 
     // Member Functions

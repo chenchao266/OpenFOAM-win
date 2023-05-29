@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2016 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -35,7 +38,7 @@ SourceFiles
 #ifndef laminarModel_H
 #define laminarModel_H
 
-#include "TurbulenceModel.T.H"
+#include "TurbulenceModel.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -71,16 +74,11 @@ protected:
         //- Print model coefficients
         virtual void printCoeffs(const word& type);
 
+        //- No copy construct
+        laminarModel(const laminarModel&) = delete;
 
-private:
-
-    // Private Member Functions
-
-        //- Disallow default bitwise copy construct
-        laminarModel(const laminarModel&);
-
-        //- Disallow default bitwise assignment
-        void operator=(const laminarModel&);
+        //- No copy assignment
+        void operator=(const laminarModel&) = delete;
 
 
 public:
@@ -146,8 +144,7 @@ public:
 
 
     //- Destructor
-    virtual ~laminarModel()
-    {}
+    virtual ~laminarModel() = default;
 
 
     // Member Functions
@@ -182,6 +179,9 @@ public:
             //- Return the turbulence kinetic energy dissipation rate,
             //  i.e. 0 for laminar flow
             virtual tmp<volScalarField> epsilon() const;
+
+            //- Return the specific dissipation rate, i.e. 0 for laminar flow
+            virtual tmp<volScalarField> omega() const;
 
             //- Return the Reynolds stress tensor, i.e. 0 for laminar flow
             virtual tmp<volSymmTensorField> R() const;

@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2017-2018 OpenFOAM Foundation
+    Copyright (C) 2020-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -25,389 +28,589 @@ License
 
 #include "collatedFileOperation.H"
 #include "addToRunTimeSelectionTable.H"
-#include "Pstream.T.H"
-#include "Time.T.H"
+#include "Pstream.H"
+#include "Time1.h"
 #include "threadedCollatedOFstream.H"
 #include "decomposedBlockData.H"
 #include "registerSwitch.H"
 #include "masterOFstream.H"
 #include "OFstream.H"
+#include "foamVersion.H"
 
 /* * * * * * * * * * * * * * * Static Member Data  * * * * * * * * * * * * * */
-using namespace Foam;
+
 namespace Foam
 {
-namespace fileOperations
-{
-    defineTypeNameAndDebug(collatedFileOperation, 0);
-    addToRunTimeSelectionTable
-    (
-        fileOperation,
-        collatedFileOperation,
-        word
-    );
-
-    float collatedFileOperation::maxThreadFileBufferSize
-    (
-        debug::floatOptimisationSwitch("maxThreadFileBufferSize", 1e9)
-    );
-    registerOptSwitch
-    (
-        "maxThreadFileBufferSize",
-        float,
-        collatedFileOperation::maxThreadFileBufferSize
-    );
-}
-}
-
-
-// * * * * * * * * * * * * * Private Member Functions  * * * * * * * * * * * //
-
-bool fileOperations::collatedFileOperation::appendObject
-(
-    const regIOobject& io,
-    const fileName& pathName,
-    IOstream::streamFormat fmt,
-    IOstream::versionNumber ver,
-    IOstream::compressionType cmp
-) const
-{
-    // Append to processors/ file
-
-    fileName prefix;
-    fileName postfix;
-    label proci = splitProcessorPath(io.objectPath(), prefix, postfix);
-
-    if (debug)
+    namespace fileOperations
     {
-        Pout<< "writeObject:" << " : For local object : "
-            << io.name()
-            << " appending processor " << proci
-            << " data to " << pathName << endl;
-    }
+        defineTypeNameAndDebug(collatedFileOperation, 0);
+        addToRunTimeSelectionTable
+        (
+            fileOperation,
+            collatedFileOperation,
+            word
+        );
 
-    if (proci == -1)
-    {
-        FatalErrorInFunction
-            << "Not a valid processor path " << pathName
-            << exit(FatalError);
+        float collatedFileOperation::maxThreadFileBufferSize
+        (
+            debug::floatOptimisationSwitch("maxThreadFileBufferSize", 1e9)
+        );
+        registerOptSwitch
+        (
+            "maxThreadFileBufferSize",
+            float,
+            collatedFileOperation::maxThreadFileBufferSize
+        );
+
+        // Mark as needing threaded mpi
+        addNamedToRunTimeSelectionTable
+        (
+            fileOperationInitialise,
+            collatedFileOperationInitialise,
+            word,
+            collated
+        );
     }
 
 
-    // Create string from all data to write
-    string buf;
-    {
-        OStringStream os(fmt, ver);
-        if (proci == 0)
-        {
-            if (!io.writeHeader(os))
-            {
-                return false;
-            }
-        }
+    // * * * * * * * * * * * * Protected Member Functions  * * * * * * * * * * * //
 
-        // Write the data to the Ostream
-        if (!io.writeData(os))
-        {
-            return false;
-        }
-
-        if (proci == 0)
-        {
-            IOobject::writeEndDivider(os);
-        }
-
-        buf = os.str();
-    }
-
-
-    bool append = (proci > 0);
-
-    // Note: cannot do append + compression. This is a limitation
-    // of ogzstream (or rather most compressed formats)
-
-    OFstream os
+    void fileOperations::collatedFileOperation::printBanner
     (
-        pathName,
-        IOstream::BINARY,
-        ver,
-        IOstream::UNCOMPRESSED, // no compression
-        append
-    );
-
-    if (!os.good())
+        const bool printRanks
+    ) const
     {
-        FatalIOErrorInFunction(os)
-            << "Cannot open for appending"
-            << exit(FatalIOError);
-    }
-
-    if (proci == 0)
-    {
-        IOobject::writeBanner(os)
-            << "FoamFile\n{\n"
-            << "    version     " << os.version() << ";\n"
-            << "    format      " << os.format() << ";\n"
-            << "    class       " << decomposedBlockData::typeName
-            << ";\n"
-            << "    location    " << pathName << ";\n"
-            << "    object      " << pathName.name() << ";\n"
-            << "}" << nl;
-        IOobject::writeDivider(os) << nl;
-    }
-
-    // Write data
-    UList<char> slice
-    (
-        const_cast<char*>(buf.data()),
-        label(buf.size())
-    );
-    os << nl << "// Processor" << proci << nl << slice << nl;
-
-    return os.good();
-}
-
-
-// * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
-
-fileOperations::collatedFileOperation::collatedFileOperation
-(
-    const bool verbose
-) :    masterUncollatedFileOperation(false),
-    writer_(maxThreadFileBufferSize)
-{
-    if (verbose)
-    {
-        Info<< "I/O    : " << typeName
-            << " (maxThreadFileBufferSize " << maxThreadFileBufferSize
-            << ')' << endl;
+        DetailInfo
+            << "I/O    : " << this->type();
 
         if (maxThreadFileBufferSize == 0)
         {
-            Info<< "         Threading not activated "
-                   "since maxThreadFileBufferSize = 0." << nl
-                << "         Writing may run slowly for large file sizes."
+            DetailInfo
+                << " [unthreaded] (maxThreadFileBufferSize = 0)." << nl
+                << "         Writing may be slow for large file sizes."
                 << endl;
         }
         else
         {
-            Info<< "         Threading activated "
-                   "since maxThreadFileBufferSize > 0." << nl
-                << "         Requires thread support enabled in MPI, "
-                   "otherwise the simulation" << nl
-                << "         may \"hang\".  If thread support cannot be "
-                   "enabled, deactivate threading" << nl
-                << "         by setting maxThreadFileBufferSize to 0 in "
-                   "$FOAM_ETC/controlDict"
-                << endl;
+            DetailInfo
+                << " [threaded] (maxThreadFileBufferSize = "
+                << maxThreadFileBufferSize << ")." << nl
+                << "         Requires buffer large enough to collect all data"
+                " or thread support" << nl
+                << "         enabled in MPI. If MPI thread support cannot be"
+                " enabled, deactivate" << nl
+                << "         threading by setting maxThreadFileBufferSize"
+                " to 0 in" << nl
+                << "         OpenFOAM etc/controlDict" << endl;
         }
 
-        if
-        (
-            regIOobject::fileModificationChecking
-         == regIOobject::inotifyMaster
-        )
+        if (printRanks)
         {
-            WarningInFunction
-                << "Resetting fileModificationChecking to inotify" << endl;
+            // Information about the ranks
+            stringList hosts(Pstream::nProcs());
+            if (Pstream::master(comm_))
+            {
+                // Don't usually need the pid
+                // hosts[Pstream::myProcNo()] = hostName()+"."+name(pid());
+                hosts[Pstream::myProcNo()] = hostName();
+            }
+            Pstream::gatherList(hosts);
+
+            DynamicList<label> offsetMaster(Pstream::nProcs());
+
+            forAll(hosts, ranki)
+            {
+                if (!hosts[ranki].empty())
+                {
+                    offsetMaster.append(ranki);
+                }
+            }
+
+            if (offsetMaster.size() > 1)
+            {
+                DetailInfo
+                    << "IO nodes:" << nl << '(' << nl;
+
+                offsetMaster.append(Pstream::nProcs());
+
+                for (label group = 1; group < offsetMaster.size(); ++group)
+                {
+                    const label beg = offsetMaster[group - 1];
+                    const label end = offsetMaster[group];
+
+                    DetailInfo
+                        << "    (" << hosts[beg].c_str() << ' '
+                        << (end - beg) << ')' << nl;
+                }
+                DetailInfo
+                    << ')' << nl;
+            }
         }
 
-        if
-        (
-            regIOobject::fileModificationChecking
-         == regIOobject::timeStampMaster
-        )
+        // if (IOobject::fileModificationChecking == IOobject::timeStampMaster)
+        // {
+        //     WarningInFunction
+        //         << "Resetting fileModificationChecking to timeStamp" << endl;
+        // }
+        // else if (IOobject::fileModificationChecking == IOobject::inotifyMaster)
+        // {
+        //     WarningInFunction
+        //         << "Resetting fileModificationChecking to inotify" << endl;
+        // }
+    }
+
+
+    bool fileOperations::collatedFileOperation::isMasterRank
+    (
+        const label proci
+    )
+        const
+    {
+        if (Pstream::parRun())
         {
-            WarningInFunction
-                << "Resetting fileModificationChecking to timeStamp" << endl;
+            return Pstream::master(comm_);
+        }
+        else if (ioRanks_.size())
+        {
+            // Found myself in IO rank
+            return ioRanks_.found(proci);
+        }
+        else
+        {
+            // Assume all in single communicator
+            return proci == 0;
         }
     }
-}
 
 
-// * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
-
-fileOperations::collatedFileOperation::~collatedFileOperation()
-{}
-
-
-// * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
-
-fileName fileOperations::collatedFileOperation::objectPath
-(
-    const IOobject& io,
-    const word& typeName
-) const
-{
-    // Replacement for objectPath
-    if (io.time().processorCase())
+    bool fileOperations::collatedFileOperation::appendObject
+    (
+        const regIOobject& io,
+        const fileName& pathName,
+        IOstreamOption streamOpt
+    ) const
     {
-        return masterUncollatedFileOperation::objectPath
-        (
-            io,
-            fileOperation::PROCESSORSOBJECT,
-            io.instance()
-        );
-    }
-    else
-    {
-        return masterUncollatedFileOperation::objectPath
-        (
-            io,
-            fileOperation::OBJECT,
-            io.instance()
-        );
-    }
-}
+        // Append to processorsNN/ file
 
-
-bool fileOperations::collatedFileOperation::writeObject
-(
-    const regIOobject& io,
-    IOstream::streamFormat fmt,
-    IOstream::versionNumber ver,
-    IOstream::compressionType cmp,
-    const bool valid
-) const
-{
-    const Time& tm = io.time();
-    const fileName& inst = io.instance();
-
-    if (inst.isAbsolute() || !tm.processorCase())
-    {
-        mkDir(io.path());
-        fileName pathName(io.objectPath());
+        const label proci = detectProcessorPath(io.objectPath());
 
         if (debug)
         {
-            Pout<< "writeObject:"
-                << " : For object : " << io.name()
-                << " falling back to master-only output to " << io.path()
-                << endl;
+            Pout << "collatedFileOperation::writeObject :"
+                << " For local object : " << io.name()
+                << " appending processor " << proci
+                << " data to " << pathName << endl;
+        }
+        if (proci == -1)
+        {
+            FatalErrorInFunction
+                << "Invalid processor path: " << pathName
+                << exit(FatalError);
         }
 
-        masterOFstream os
+        const bool isMaster = isMasterRank(proci);
+
+        // Update meta-data for current state
+        if (isMaster)
+        {
+            const_cast<regIOobject&>(io).updateMetaData();
+        }
+
+        // Note: cannot do append + compression. This is a limitation
+        // of ogzstream (or rather most compressed formats)
+
+        OFstream os
         (
             pathName,
-            fmt,
-            ver,
-            cmp,
-            false,
-            valid
+            IOstreamOption(IOstream::BINARY, streamOpt.version()),  // UNCOMPRESSED
+            !isMaster  // append slaves
         );
 
-        // If any of these fail, return (leave error handling to Ostream class)
         if (!os.good())
         {
-            return false;
+            FatalIOErrorInFunction(os)
+                << "Cannot open for appending"
+                << exit(FatalIOError);
         }
-        if (!io.writeHeader(os))
-        {
-            return false;
-        }
-        // Write the data to the Ostream
-        if (!io.writeData(os))
-        {
-            return false;
-        }
-        IOobject::writeEndDivider(os);
 
-        return true;
+        if (isMaster)
+        {
+            decomposedBlockData::writeHeader(os, streamOpt, io);
+        }
+
+        std::streamoff blockOffset = decomposedBlockData::writeBlockEntry
+        (
+            os,
+            streamOpt,
+            io,
+            proci,
+            // With FoamFile header on master?
+            isMaster
+        );
+
+        return (blockOffset >= 0) && os.good();
     }
-    else
+
+
+    // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
+
+    fileOperations::collatedFileOperation::collatedFileOperation
+    (
+        bool verbose
+    )
+        :
+        masterUncollatedFileOperation
+        (
+        (
+            ioRanks().size()
+            ? UPstream::allocateCommunicator
+            (
+                UPstream::worldComm,
+                subRanks(Pstream::nProcs())
+            )
+            : UPstream::worldComm
+            ),
+            false
+        ),
+        myComm_(comm_),
+        writer_(mag(maxThreadFileBufferSize), comm_),
+        nProcs_(Pstream::nProcs()),
+        ioRanks_(ioRanks())
     {
-        // Construct the equivalent processors/ directory
-        fileName path(processorsPath(io, inst));
-
-        mkDir(path);
-        fileName pathName(path/io.name());
-
-        if (io.global())
+        if (verbose && infoDetailLevel > 0)
         {
+            this->printBanner(ioRanks_.size());
+        }
+    }
+
+
+    fileOperations::collatedFileOperation::collatedFileOperation
+    (
+        const label comm,
+        const labelList& ioRanks,
+        const word& typeName,
+        bool verbose
+    )
+        :
+        masterUncollatedFileOperation(comm, false),
+        myComm_(-1),
+        writer_(mag(maxThreadFileBufferSize), comm),
+        nProcs_(Pstream::nProcs()),
+        ioRanks_(ioRanks)
+    {
+        if (verbose && infoDetailLevel > 0)
+        {
+            this->printBanner(ioRanks_.size());
+        }
+    }
+
+
+    // * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
+
+    fileOperations::collatedFileOperation::~collatedFileOperation()
+    {
+        // Wait for any outstanding file operations
+        flush();
+
+        if (myComm_ != -1 && myComm_ != UPstream::worldComm)
+        {
+            UPstream::freeCommunicator(myComm_);
+        }
+    }
+
+
+    // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
+
+    fileName fileOperations::collatedFileOperation::objectPath
+    (
+        const IOobject& io,
+        const word& typeName
+    ) const
+    {
+        // Replacement for objectPath
+        if (io.time().processorCase())
+        {
+            return masterUncollatedFileOperation::localObjectPath
+            (
+                io,
+                fileOperation::PROCOBJECT,
+                "dummy",        // not used for processorsobject
+                io.instance()
+            );
+        }
+        else
+        {
+            return masterUncollatedFileOperation::localObjectPath
+            (
+                io,
+                fileOperation::OBJECT,
+                word::null,
+                io.instance()
+            );
+        }
+    }
+
+
+    bool fileOperations::collatedFileOperation::writeObject
+    (
+        const regIOobject& io,
+        IOstreamOption streamOpt,
+        const bool valid
+    ) const
+    {
+        const Time& tm = io.time();
+        const fileName& inst = io.instance();
+
+        // Update meta-data for current state
+        const_cast<regIOobject&>(io).updateMetaData();
+
+        if (inst.isAbsolute() || !tm.processorCase())
+        {
+            mkDir(io.path());
+            fileName pathName(io.objectPath());
+
             if (debug)
             {
-                Pout<< "writeObject:" << " : For global object : " << io.name()
-                    << " falling back to master-only output to " << pathName
+                Pout << "collatedFileOperation::writeObject :"
+                    << " For object : " << io.name()
+                    << " falling back to master-only output to " << io.path()
                     << endl;
             }
 
             masterOFstream os
             (
                 pathName,
-                fmt,
-                ver,
-                cmp,
-                false,
+                streamOpt,
+                false,  // append=false
                 valid
             );
 
-            // If any of these fail, return (leave error handling to Ostream
-            // class)
-            if (!os.good())
-            {
-                return false;
-            }
-            if (!io.writeHeader(os))
-            {
-                return false;
-            }
-            // Write the data to the Ostream
-            if (!io.writeData(os))
-            {
-                return false;
-            }
-            IOobject::writeEndDivider(os);
+            // If any of these fail, return
+            // (leave error handling to Ostream class)
 
-            return true;
-        }
-        else if (!Pstream::parRun())
-        {
-            // Special path for e.g. decomposePar. Append to
-            // processors/ file
-            if (debug)
-            {
-                Pout<< "writeObject:"
-                    << " : For object : " << io.name()
-                    << " appending to " << pathName << endl;
-            }
+            const bool ok =
+                (
+                    os.good()
+                    && io.writeHeader(os)
+                    && io.writeData(os)
+                    );
 
-            return appendObject(io, pathName, fmt, ver, cmp);
-        }
-        else
-        {
-            if (debug)
-            {
-                Pout<< "writeObject:"
-                    << " : For object : " << io.name()
-                    << " starting collating output to " << pathName << endl;
-            }
-
-            threadedCollatedOFstream os(writer_, pathName, fmt, ver, cmp);
-
-            // If any of these fail, return (leave error handling to Ostream
-            // class)
-            if (!os.good())
-            {
-                return false;
-            }
-            if (Pstream::master() && !io.writeHeader(os))
-            {
-                return false;
-            }
-            // Write the data to the Ostream
-            if (!io.writeData(os))
-            {
-                return false;
-            }
-            if (Pstream::master())
+            if (ok)
             {
                 IOobject::writeEndDivider(os);
             }
 
-            return true;
+            return ok;
+        }
+        else
+        {
+            // Construct the equivalent processors/ directory
+            fileName path(processorsPath(io, inst, processorsDir(io)));
+
+            mkDir(path);
+            fileName pathName(path / io.name());
+
+            if (io.global())
+            {
+                if (debug)
+                {
+                    Pout << "collatedFileOperation::writeObject :"
+                        << " For global object : " << io.name()
+                        << " falling back to master-only output to " << pathName
+                        << endl;
+                }
+
+                masterOFstream os
+                (
+                    pathName,
+                    streamOpt,
+                    false,  // append=false
+                    valid
+                );
+
+                // If any of these fail, return
+                // (leave error handling to Ostream class)
+
+                const bool ok =
+                    (
+                        os.good()
+                        && io.writeHeader(os)
+                        && io.writeData(os)
+                        );
+
+                if (ok)
+                {
+                    IOobject::writeEndDivider(os);
+                }
+
+                return ok;
+            }
+            else if (!Pstream::parRun())
+            {
+                // Special path for e.g. decomposePar. Append to
+                // processorsDDD/ file
+                if (debug)
+                {
+                    Pout << "collatedFileOperation::writeObject :"
+                        << " For object : " << io.name()
+                        << " appending to " << pathName << endl;
+                }
+
+                return appendObject(io, pathName, streamOpt);
+            }
+            else
+            {
+                // Re-check static maxThreadFileBufferSize variable to see
+                // if needs to use threading
+                const bool useThread = (maxThreadFileBufferSize != 0);
+
+                if (debug)
+                {
+                    Pout << "collatedFileOperation::writeObject :"
+                        << " For object : " << io.name()
+                        << " starting collating output to " << pathName
+                        << " useThread:" << useThread << endl;
+                }
+
+                if (!useThread)
+                {
+                    writer_.waitAll();
+                }
+
+                threadedCollatedOFstream os
+                (
+                    writer_,
+                    pathName,
+                    streamOpt,
+                    useThread
+                );
+
+                bool ok = os.good();
+
+                if (Pstream::master(comm_))
+                {
+                    // Suppress comment banner
+                    const bool old = IOobject::bannerEnabled(false);
+
+                    ok = ok && io.writeHeader(os);
+
+                    IOobject::bannerEnabled(old);
+
+                    // Additional header content
+                    dictionary dict;
+                    decomposedBlockData::writeExtraHeaderContent
+                    (
+                        dict,
+                        streamOpt,
+                        io
+                    );
+                    os.setHeaderEntries(dict);
+                }
+
+                ok = ok && io.writeData(os);
+                // No end divider for collated output
+
+                return ok;
+            }
         }
     }
+
+    void fileOperations::collatedFileOperation::flush() const
+    {
+        if (debug)
+        {
+            Pout << "collatedFileOperation::flush : clearing and waiting for thread"
+                << endl;
+        }
+        masterUncollatedFileOperation::flush();
+        // Wait for thread to finish (note: also removes thread)
+        writer_.waitAll();
+    }
+
+
+    word fileOperations::collatedFileOperation::processorsDir
+    (
+        const fileName& fName
+    ) const
+    {
+        if (Pstream::parRun())
+        {
+            const List<int>& procs(UPstream::procID(comm_));
+
+            word procDir(processorsBaseDir + name(Pstream::nProcs()));
+
+            if (procs.size() != Pstream::nProcs())
+            {
+                procDir +=
+                    +"_"
+                    + name(procs.first())
+                    + "-"
+                    + name(procs.last());
+            }
+            return procDir;
+        }
+        else
+        {
+            word procDir(processorsBaseDir + name(nProcs_));
+
+            if (ioRanks_.size())
+            {
+                // Detect current processor number
+                label proci = detectProcessorPath(fName);
+
+                if (proci != -1)
+                {
+                    // Find lowest io rank
+                    label minProc = 0;
+                    label maxProc = nProcs_ - 1;
+                    for (const label ranki : ioRanks_)
+                    {
+                        if (ranki >= nProcs_)
+                        {
+                            break;
+                        }
+                        else if (ranki <= proci)
+                        {
+                            minProc = ranki;
+                        }
+                        else
+                        {
+                            maxProc = ranki - 1;
+                            break;
+                        }
+                    }
+                    procDir +=
+                        +"_"
+                        + name(minProc)
+                        + "-"
+                        + name(maxProc);
+                }
+            }
+
+            return procDir;
+        }
+    }
+
+
+    word fileOperations::collatedFileOperation::processorsDir
+    (
+        const IOobject& io
+    ) const
+    {
+        return processorsDir(io.objectPath());
+    }
+
+
+    void fileOperations::collatedFileOperation::setNProcs(const label nProcs)
+    {
+        nProcs_ = nProcs;
+
+        if (debug)
+        {
+            Pout << "collatedFileOperation::setNProcs :"
+                << " Setting number of processors to " << nProcs_ << endl;
+        }
+    }
+
 }
-
-
 // ************************************************************************* //

@@ -1,9 +1,12 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2013-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2013-2016 OpenFOAM Foundation
+    Copyright (C) 2019 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -39,12 +42,12 @@ SourceFiles
 #define linearViscousStress_H
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
-
+#include "fvMatrices.H" 
 namespace Foam
 {
 
 /*---------------------------------------------------------------------------*\
-                           Class linearViscousStress Declaration
+                     Class linearViscousStress Declaration
 \*---------------------------------------------------------------------------*/
 
 template<class BasicTurbulenceModel>
@@ -77,8 +80,7 @@ public:
 
 
     //- Destructor
-    virtual ~linearViscousStress()
-    {}
+    virtual ~linearViscousStress() = default;
 
 
     // Member Functions
@@ -88,6 +90,12 @@ public:
 
         //- Return the effective stress tensor
         virtual tmp<volSymmTensorField> devRhoReff() const;
+
+        //- Return the effective stress tensor based on a given velocity field
+        virtual tmp<volSymmTensorField> devRhoReff
+        (
+            const volVectorField& U
+        ) const;
 
         //- Return the source term for the momentum equation
         virtual tmp<fvVectorMatrix> divDevRhoReff(volVectorField& U) const;

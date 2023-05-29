@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2019 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -45,7 +48,7 @@ SourceFiles
 #ifndef dynamicLagrangian_H
 #define dynamicLagrangian_H
 
-#include "LESeddyViscosity.T.H"
+#include "LESeddyViscosity.H"
 #include "simpleFilter.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
@@ -66,9 +69,11 @@ class dynamicLagrangian
 {
     // Private Member Functions
 
-        // Disallow default bitwise copy construct and assignment
-        dynamicLagrangian(const dynamicLagrangian&);
-        void operator=(const dynamicLagrangian&);
+        //- No copy construct
+        dynamicLagrangian(const dynamicLagrangian&) = delete;
+
+        //- No copy assignment
+        void operator=(const dynamicLagrangian&) = delete;
 
 
 protected:
@@ -123,8 +128,7 @@ public:
 
 
     //- Destructor
-    virtual ~dynamicLagrangian()
-    {}
+    virtual ~dynamicLagrangian() = default;
 
 
     // Member Functions

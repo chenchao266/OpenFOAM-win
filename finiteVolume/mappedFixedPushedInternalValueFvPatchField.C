@@ -1,9 +1,11 @@
-﻿/*---------------------------------------------------------------------------*\
+/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -24,99 +26,99 @@ License
 \*---------------------------------------------------------------------------*/
 
 //#include "mappedFixedPushedInternalValueFvPatchField.H"
-#include "UIndirectList.T.H"
+#include "UIndirectList.H"
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
-namespace Foam {
-    template<class Type>
-    mappedFixedPushedInternalValueFvPatchField<Type>::
-        mappedFixedPushedInternalValueFvPatchField
-        (
-            const fvPatch& p,
-            const DimensionedField<Type, volMesh>& iF
-        )
-        :
-        mappedFixedValueFvPatchField<Type>(p, iF)
-    {}
+
+template<class Type>
+Foam::mappedFixedPushedInternalValueFvPatchField<Type>::
+mappedFixedPushedInternalValueFvPatchField
+(
+    const fvPatch& p,
+    const DimensionedField<Type, volMesh>& iF
+)
+:
+    mappedFixedValueFvPatchField<Type>(p, iF)
+{}
 
 
-    template<class Type>
-    mappedFixedPushedInternalValueFvPatchField<Type>::
-        mappedFixedPushedInternalValueFvPatchField
-        (
-            const mappedFixedPushedInternalValueFvPatchField<Type>& ptf,
-            const fvPatch& p,
-            const DimensionedField<Type, volMesh>& iF,
-            const fvPatchFieldMapper& mapper
-        )
-        :
-        mappedFixedValueFvPatchField<Type>(ptf, p, iF, mapper)
-    {}
+template<class Type>
+Foam::mappedFixedPushedInternalValueFvPatchField<Type>::
+mappedFixedPushedInternalValueFvPatchField
+(
+    const mappedFixedPushedInternalValueFvPatchField<Type>& ptf,
+    const fvPatch& p,
+    const DimensionedField<Type, volMesh>& iF,
+    const fvPatchFieldMapper& mapper
+)
+:
+    mappedFixedValueFvPatchField<Type>(ptf, p, iF, mapper)
+{}
 
 
-    template<class Type>
-    mappedFixedPushedInternalValueFvPatchField<Type>::
-        mappedFixedPushedInternalValueFvPatchField
-        (
-            const fvPatch& p,
-            const DimensionedField<Type, volMesh>& iF,
-            const dictionary& dict
-        )
-        :
-        mappedFixedValueFvPatchField<Type>(p, iF, dict)
-    {}
+template<class Type>
+Foam::mappedFixedPushedInternalValueFvPatchField<Type>::
+mappedFixedPushedInternalValueFvPatchField
+(
+    const fvPatch& p,
+    const DimensionedField<Type, volMesh>& iF,
+    const dictionary& dict
+)
+:
+    mappedFixedValueFvPatchField<Type>(p, iF, dict)
+{}
 
 
-    template<class Type>
-    mappedFixedPushedInternalValueFvPatchField<Type>::
-        mappedFixedPushedInternalValueFvPatchField
-        (
-            const mappedFixedPushedInternalValueFvPatchField<Type>& ptf
-        )
-        :
-        mappedFixedValueFvPatchField<Type>(ptf)
-    {}
+template<class Type>
+Foam::mappedFixedPushedInternalValueFvPatchField<Type>::
+mappedFixedPushedInternalValueFvPatchField
+(
+    const mappedFixedPushedInternalValueFvPatchField<Type>& ptf
+)
+:
+    mappedFixedValueFvPatchField<Type>(ptf)
+{}
 
 
-    template<class Type>
-    mappedFixedPushedInternalValueFvPatchField<Type>::
-        mappedFixedPushedInternalValueFvPatchField
-        (
-            const mappedFixedPushedInternalValueFvPatchField<Type>& ptf,
-            const DimensionedField<Type, volMesh>& iF
-        )
-        :
-        mappedFixedValueFvPatchField<Type>(ptf, iF)
-    {}
+template<class Type>
+Foam::mappedFixedPushedInternalValueFvPatchField<Type>::
+mappedFixedPushedInternalValueFvPatchField
+(
+    const mappedFixedPushedInternalValueFvPatchField<Type>& ptf,
+    const DimensionedField<Type, volMesh>& iF
+)
+:
+    mappedFixedValueFvPatchField<Type>(ptf, iF)
+{}
 
 
-    // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
+// * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
 
-    template<class Type>
-    void mappedFixedPushedInternalValueFvPatchField<Type>::updateCoeffs()
+template<class Type>
+void Foam::mappedFixedPushedInternalValueFvPatchField<Type>::updateCoeffs()
+{
+    if (this->updated())
     {
-        if (this->updated())
-        {
-            return;
-        }
-
-        // Retrieve the neighbour values and assign to this patch boundary field
-        mappedFixedValueFvPatchField<Type>::updateCoeffs();
-
-        // Assign the patch internal field to its boundary value
-        Field<Type>& intFld = const_cast<Field<Type>&>(this->primitiveField());
-        UIndirectList<Type>(intFld, this->patch().faceCells()) = *this;
+        return;
     }
 
+    // Retrieve the neighbour values and assign to this patch boundary field
+    mappedFixedValueFvPatchField<Type>::updateCoeffs();
 
-    template<class Type>
-    void mappedFixedPushedInternalValueFvPatchField<Type>::write
-    (
-        Ostream& os
-    ) const
-    {
-        mappedFixedValueFvPatchField<Type>::write(os);
-    }
-
+    // Assign the patch internal field to its boundary value
+    Field<Type>& intFld = const_cast<Field<Type>&>(this->primitiveField());
+    UIndirectList<Type>(intFld, this->patch().faceCells()) = *this;
 }
+
+
+template<class Type>
+void Foam::mappedFixedPushedInternalValueFvPatchField<Type>::write
+(
+    Ostream& os
+) const
+{
+    mappedFixedValueFvPatchField<Type>::write(os);
+}
+
+
 // ************************************************************************* //

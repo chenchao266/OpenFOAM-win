@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2019-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -24,7 +27,7 @@ License
 \*---------------------------------------------------------------------------*/
 
 #include "polyMeshModifier.H"
-#include "dictionary.H"
+#include "dictionary2.H"
 
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
 
@@ -36,29 +39,24 @@ Foam::autoPtr<Foam::polyMeshModifier> Foam::polyMeshModifier::New
     const polyTopoChanger& mme
 )
 {
-    if (debug)
+    DebugInFunction << "Constructing polyMeshModifier" << endl;
+
+    const word modelType(dict.get<word>("type"));
+
+    auto* ctorPtr = dictionaryConstructorTable(modelType);
+
+    if (!ctorPtr)
     {
-        InfoInFunction << "Constructing polyMeshModifier" << endl;
-    }
-
-    const word modifierType(dict.lookup("type"));
-
-    dictionaryConstructorTable::iterator cstrIter =
-        dictionaryConstructorTablePtr_->find(modifierType);
-
-    if (cstrIter == dictionaryConstructorTablePtr_->end())
-    {
-        FatalIOErrorInFunction
+        FatalIOErrorInLookup
         (
-            dict
-        )   << "Unknown polyMeshModifier type "
-            << modifierType << nl << nl
-            << "Valid polyMeshModifier types are :" << endl
-            << dictionaryConstructorTablePtr_->sortedToc()
-            << exit(FatalIOError);
+            dict,
+            "polyMeshModifier",
+            modelType,
+            *dictionaryConstructorTablePtr_
+        ) << exit(FatalIOError);
     }
 
-    return autoPtr<polyMeshModifier>(cstrIter()(name, dict, index, mme));
+    return autoPtr<polyMeshModifier>(ctorPtr(name, dict, index, mme));
 }
 
 

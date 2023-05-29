@@ -1,9 +1,12 @@
-﻿/*---------------------------------------------------------------------------*\
+/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2019-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -23,7 +26,7 @@ License
 
 \*---------------------------------------------------------------------------*/
 
-//#include "dynamicLagrangian.H"
+#include "dynamicLagrangian.H"
 #include "fvOptions.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
@@ -87,7 +90,7 @@ dynamicLagrangian<BasicTurbulenceModel>::dynamicLagrangian
     (
         IOobject
         (
-            IOobject::groupName("flm", this->U_.group()),
+            IOobject::groupName("flm", this->alphaRhoPhi_.group()),
             this->runTime_.timeName(),
             this->mesh_,
             IOobject::MUST_READ,
@@ -99,7 +102,7 @@ dynamicLagrangian<BasicTurbulenceModel>::dynamicLagrangian
     (
         IOobject
         (
-            IOobject::groupName("fmm", this->U_.group()),
+            IOobject::groupName("fmm", this->alphaRhoPhi_.group()),
             this->runTime_.timeName(),
             this->mesh_,
             IOobject::MUST_READ,
@@ -109,7 +112,7 @@ dynamicLagrangian<BasicTurbulenceModel>::dynamicLagrangian
     ),
     theta_
     (
-        dimensioned<scalar>::lookupOrAddToDict
+        dimensioned<scalar>::getOrAddToDict
         (
             "theta",
             this->coeffDict_,
@@ -121,7 +124,7 @@ dynamicLagrangian<BasicTurbulenceModel>::dynamicLagrangian
     filterPtr_(LESfilter::New(U.mesh(), this->coeffDict())),
     filter_(filterPtr_()),
 
-    flm0_("flm0", flm_.dimensions(), 0.0),
+    flm0_("flm0", flm_.dimensions(), Zero),
     fmm0_("fmm0", fmm_.dimensions(), VSMALL)
 {
     if (type == typeName)
@@ -143,10 +146,8 @@ bool dynamicLagrangian<BasicTurbulenceModel>::read()
 
         return true;
     }
-    else
-    {
-        return false;
-    }
+
+    return false;
 }
 
 

@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2015-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2015-2016 OpenFOAM Foundation
+    Copyright (C) 2018 OpenCFD Ltd
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -24,7 +27,7 @@ License
 \*---------------------------------------------------------------------------*/
 
 #include "tabulated6DoFAcceleration.H"
-#include "Tuple2.T.H"
+#include "Tuple2.H"
 #include "IFstream.H"
 #include "interpolateSplineXY.H"
 
@@ -49,12 +52,6 @@ Foam::tabulated6DoFAcceleration::tabulated6DoFAcceleration
 {
     read(accelerationCoeffs);
 }
-
-
-// * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
-
-Foam::tabulated6DoFAcceleration::~tabulated6DoFAcceleration()
-{}
 
 
 // * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * * //
@@ -89,8 +86,7 @@ Foam::tabulated6DoFAcceleration::acceleration() const
         values_
     );
 
-    InfoInFunction
-        << "Time = " << t << " accelerations: " << avs << endl;
+    Info << "Time = " << t << " accelerations: " << avs << endl;
 
     return avs;
 }
@@ -107,7 +103,7 @@ bool Foam::tabulated6DoFAcceleration::read
 
     fileName newTimeDataFileName
     (
-        fileName(accelerationCoeffs_.lookup("timeDataFileName")).expand()
+        accelerationCoeffs_.get<fileName>("timeDataFileName").expand()
     );
 
     if (newTimeDataFileName != timeDataFileName_)

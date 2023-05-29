@@ -56,7 +56,7 @@ unsigned int __cdecl sleep (unsigned int);
 #pragma pop_macro("sleep")
 
 #if !defined __NO_ISOCEXT
-//#include <sys/types.h> /* For useconds_t. */
+#include <sys/types.h> /* For useconds_t. */
 
 int __cdecl usleep(useconds_t);
 #endif  /* Not __NO_ISOCEXT */

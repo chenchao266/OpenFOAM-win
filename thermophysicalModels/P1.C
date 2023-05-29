@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2019-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -69,11 +72,11 @@ Foam::radiation::P1::P1(const volScalarField& T)
             "qr",
             mesh_.time().timeName(),
             mesh_,
-            IOobject::NO_READ,
+            IOobject::READ_IF_PRESENT,
             IOobject::AUTO_WRITE
         ),
         mesh_,
-        dimensionedScalar("qr", dimMass/pow3(dimTime), 0.0)
+        dimensionedScalar(dimMass/pow3(dimTime), Zero)
     ),
     a_
     (
@@ -86,7 +89,7 @@ Foam::radiation::P1::P1(const volScalarField& T)
             IOobject::AUTO_WRITE
         ),
         mesh_,
-        dimensionedScalar("a", dimless/dimLength, 0.0)
+        dimensionedScalar(dimless/dimLength, Zero)
     ),
     e_
     (
@@ -99,7 +102,7 @@ Foam::radiation::P1::P1(const volScalarField& T)
             IOobject::NO_WRITE
         ),
         mesh_,
-        dimensionedScalar("a", dimless/dimLength, 0.0)
+        dimensionedScalar(dimless/dimLength, Zero)
     ),
     E_
     (
@@ -112,7 +115,7 @@ Foam::radiation::P1::P1(const volScalarField& T)
             IOobject::NO_WRITE
         ),
         mesh_,
-        dimensionedScalar("E", dimMass/dimLength/pow3(dimTime), 0.0)
+        dimensionedScalar(dimMass/dimLength/pow3(dimTime), Zero)
     )
 {}
 
@@ -139,11 +142,11 @@ Foam::radiation::P1::P1(const dictionary& dict, const volScalarField& T)
             "qr",
             mesh_.time().timeName(),
             mesh_,
-            IOobject::NO_READ,
+            IOobject::READ_IF_PRESENT,
             IOobject::AUTO_WRITE
         ),
         mesh_,
-        dimensionedScalar("qr", dimMass/pow3(dimTime), 0.0)
+        dimensionedScalar(dimMass/pow3(dimTime), Zero)
     ),
     a_
     (
@@ -156,7 +159,7 @@ Foam::radiation::P1::P1(const dictionary& dict, const volScalarField& T)
             IOobject::AUTO_WRITE
         ),
         mesh_,
-        dimensionedScalar("a", dimless/dimLength, 0.0)
+        dimensionedScalar(dimless/dimLength, Zero)
     ),
     e_
     (
@@ -169,7 +172,7 @@ Foam::radiation::P1::P1(const dictionary& dict, const volScalarField& T)
             IOobject::NO_WRITE
         ),
         mesh_,
-        dimensionedScalar("a", dimless/dimLength, 0.0)
+        dimensionedScalar(dimless/dimLength, Zero)
     ),
     E_
     (
@@ -182,14 +185,8 @@ Foam::radiation::P1::P1(const dictionary& dict, const volScalarField& T)
             IOobject::NO_WRITE
         ),
         mesh_,
-        dimensionedScalar("E", dimMass/dimLength/pow3(dimTime), 0.0)
+        dimensionedScalar(dimMass/dimLength/pow3(dimTime), Zero)
     )
-{}
-
-
-// * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
-
-Foam::radiation::P1::~P1()
 {}
 
 
@@ -203,10 +200,8 @@ bool Foam::radiation::P1::read()
 
         return true;
     }
-    else
-    {
-        return false;
-    }
+
+    return false;
 }
 
 
@@ -217,7 +212,7 @@ void Foam::radiation::P1::calculate()
     E_ = absorptionEmission_->E();
     const volScalarField sigmaEff(scatter_->sigmaEff());
 
-    const dimensionedScalar a0 ("a0", a_.dimensions(), ROOTVSMALL);
+    const dimensionedScalar a0("a0", a_.dimensions(), ROOTVSMALL);
 
     // Construct diffusion
     const volScalarField gamma
@@ -239,19 +234,19 @@ void Foam::radiation::P1::calculate()
         fvm::laplacian(gamma, G_)
       - fvm::Sp(a_, G_)
      ==
-      - 4.0*(e_*physicoChemical::sigma*pow4(T_) ) - E_
+      - 4.0*(e_*physicoChemical::sigma*pow4(T_)) - E_
     );
 
-    volScalarField::Boundary& qrBf = qr_.boundaryFieldRef();
-
     // Calculate radiative heat flux on boundaries.
+    volScalarField::Boundary& qrBf = qr_.boundaryFieldRef();
+    const volScalarField::Boundary& GBf = G_.boundaryField();
+    const volScalarField::Boundary& gammaBf = gamma.boundaryField();
+
     forAll(mesh_.boundaryMesh(), patchi)
     {
-        if (!G_.boundaryField()[patchi].coupled())
+        if (!GBf[patchi].coupled())
         {
-            qrBf[patchi] =
-                -gamma.boundaryField()[patchi]
-                *G_.boundaryField()[patchi].snGrad();
+            qrBf[patchi] = -gammaBf[patchi]*GBf[patchi].snGrad();
         }
     }
 }
@@ -281,14 +276,17 @@ Foam::tmp<Foam::volScalarField> Foam::radiation::P1::Rp() const
 Foam::tmp<Foam::DimensionedField<Foam::scalar, Foam::volMesh>>
 Foam::radiation::P1::Ru() const
 {
-    const volScalarField::Internal& G =
-        G_();
-    const volScalarField::Internal E =
-        absorptionEmission_->ECont()()();
-    const volScalarField::Internal a =
-        absorptionEmission_->aCont()()();
+    const volScalarField::Internal& G = G_();
+    const volScalarField::Internal E = absorptionEmission_->ECont()()();
+    const volScalarField::Internal a = absorptionEmission_->aCont()()();
 
     return a*G - E;
+}
+
+
+Foam::label Foam::radiation::P1::nBands() const
+{
+    return absorptionEmission_->nBands();
 }
 
 

@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -24,12 +26,15 @@ License
 Class
     Foam::fv::cellLimitedGrad
 
+Group
+    grpFvGradSchemes
+
 Description
     cellLimitedGrad gradient scheme applied to a runTime selected base gradient
     scheme.
 
     The scalar limiter based on limiting the extrapolated face values
-    between the maximum and minumum cell and cell neighbour values and is
+    between the maximum and minimum cell and cell neighbour values and is
     applied to all components of the gradient.
 
 SourceFiles
@@ -41,13 +46,12 @@ SourceFiles
 #define cellLimitedGrad_H
 
 #include "gradScheme.H"
+#include "Field.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 namespace Foam
 {
-
-// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 namespace fv
 {
@@ -56,10 +60,11 @@ namespace fv
                        Class cellLimitedGrad Declaration
 \*---------------------------------------------------------------------------*/
 
-template<class Type>
+template<class Type, class Limiter>
 class cellLimitedGrad
 :
-    public fv::gradScheme<Type>
+    public fv::gradScheme<Type>,
+    public Limiter
 {
     // Private Data
 
@@ -71,11 +76,23 @@ class cellLimitedGrad
 
     // Private Member Functions
 
-        //- Disallow default bitwise copy construct
-        cellLimitedGrad(const cellLimitedGrad&);
+        void limitGradient
+        (
+            const Field<scalar>& limiter,
+            Field<vector>& gIf
+        ) const;
 
-        //- Disallow default bitwise assignment
-        void operator=(const cellLimitedGrad&);
+        void limitGradient
+        (
+            const Field<vector>& limiter,
+            Field<tensor>& gIf
+        ) const;
+
+        //- No copy construct
+        cellLimitedGrad(const cellLimitedGrad&) = delete;
+
+        //- No copy assignment
+        void operator=(const cellLimitedGrad&) = delete;
 
 
 public:
@@ -90,15 +107,14 @@ public:
         cellLimitedGrad(const fvMesh& mesh, Istream& schemeData)
         :
             gradScheme<Type>(mesh),
+            Limiter(schemeData),
             basicGradScheme_(fv::gradScheme<Type>::New(mesh, schemeData)),
             k_(readScalar(schemeData))
         {
             if (k_ < 0 || k_ > 1)
             {
-                FatalIOErrorInFunction
-                (
-                    schemeData
-                )   << "coefficient = " << k_
+                FatalIOErrorInFunction(schemeData)
+                    << "coefficient = " << k_
                     << " should be >= 0 and <= 1"
                     << exit(FatalIOError);
             }
@@ -107,13 +123,21 @@ public:
 
     // Member Functions
 
-        static inline void limitFace
+        inline void limitFaceCmpt
+        (
+            scalar& limiter,
+            const scalar maxDelta,
+            const scalar minDelta,
+            const scalar extrapolate
+        ) const;
+
+        inline void limitFace
         (
             Type& limiter,
             const Type& maxDelta,
             const Type& minDelta,
             const Type& extrapolate
-        );
+        ) const;
 
         //- Return the gradient of the given field to the gradScheme::grad
         //  for optional caching
@@ -131,73 +155,67 @@ public:
 
 // * * * * * * * * * * * * Inline Member Function  * * * * * * * * * * * * * //
 
-template<>
-inline void cellLimitedGrad<scalar>::limitFace
+template<class Type, class Limiter>
+inline void cellLimitedGrad<Type, Limiter>::limitFaceCmpt
 (
     scalar& limiter,
-    const scalar& maxDelta,
-    const scalar& minDelta,
-    const scalar& extrapolate
-)
+    const scalar maxDelta,
+    const scalar minDelta,
+    const scalar extrapolate
+) const
 {
-    if (extrapolate > maxDelta + VSMALL)
+    scalar r = 1;
+
+    if (extrapolate > SMALL)
     {
-        limiter = min(limiter, maxDelta/extrapolate);
+        r = maxDelta/extrapolate;
     }
-    else if (extrapolate < minDelta - VSMALL)
+    else if (extrapolate < -SMALL)
     {
-        limiter = min(limiter, minDelta/extrapolate);
+        r = minDelta/extrapolate;
     }
+    else
+    {
+        return;
+    }
+
+    limiter = min(limiter, Limiter::limiter(r));
 }
 
 
-template<class Type>
-inline void cellLimitedGrad<Type>::limitFace
+template<class Type, class Limiter>
+inline void cellLimitedGrad<Type, Limiter>::limitFace
 (
     Type& limiter,
     const Type& maxDelta,
     const Type& minDelta,
     const Type& extrapolate
-)
+) const
 {
-    for (direction cmpt=0; cmpt<Type::nComponents; cmpt++)
+    for (direction cmpt=0; cmpt<pTraits<Type>::nComponents; ++cmpt)
     {
-        cellLimitedGrad<scalar>::limitFace
+        limitFaceCmpt
         (
-            limiter.component(cmpt),
-            maxDelta.component(cmpt),
-            minDelta.component(cmpt),
-            extrapolate.component(cmpt)
+            setComponent(limiter, cmpt),
+            component(maxDelta, cmpt),
+            component(minDelta, cmpt),
+            component(extrapolate, cmpt)
         );
     }
 }
-
-
-// * * * * * * * * Template Member Function Specialisations  * * * * * * * * //
-
-template<>
-tmp<volVectorField> cellLimitedGrad<scalar>::calcGrad
-(
-    const volScalarField& vsf,
-    const word& name
-) const;
-
-
-template<>
-tmp<volTensorField> cellLimitedGrad<vector>::calcGrad
-(
-    const volVectorField& vsf,
-    const word& name
-) const;
 
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 } // End namespace fv
 
+} // End namespace Foam
+
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
-} // End namespace Foam
+#ifdef NoRepository
+    #include "cellLimitedGrad.C"
+#endif
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 

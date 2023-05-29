@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011 OpenFOAM Foundation
+    Copyright (C) 2018-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -21,37 +24,39 @@ License
     You should have received a copy of the GNU General Public License
     along with OpenFOAM.  If not, see <http://www.gnu.org/licenses/>.
 
+Note
+    File included by global/global.Cver
+
 \*---------------------------------------------------------------------------*/
 
+#include "IOstreamOption.H"
 #include "IOstreams.H"
 #include "OFstream.H"
 
-// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
-using namespace Foam;
-namespace Foam
-{
+// * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
 
-// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
-// Define the default IOstream versions and precision
+// Default output precision
 
-const IOstream::versionNumber IOstream::originalVersion(0.5);
-const IOstream::versionNumber IOstream::currentVersion(2.0);
-unsigned int IOstream::precision_(debug::infoSwitch("writePrecision", 6));
+ namespace Foam{
+unsigned int IOstream::precision_
+(
+    debug::infoSwitch("writePrecision", 6)
+);
 
 
-// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+// * * * * * * * * * * * * * * Global Variables  * * * * * * * * * * * * * * //
+
 // Global IO streams
 
-ISstream Sin(cin, "Sin");
-OSstream Sout(cout, "Sout");
-OSstream Serr(cerr, "Serr");
-OFstream Snull("/dev/null");
+ISstream Sin(std::cin, "Sin");
+OSstream Sout(std::cout, "Sout");
+OSstream Serr(std::cerr, "Serr");
+OFstream Snull(nullptr);  // A "/dev/null" equivalent
 
-prefixOSstream Pout(cout, "Pout");
-prefixOSstream Perr(cerr, "Perr");
+prefixOSstream Pout(std::cout, "Pout");
+prefixOSstream Perr(std::cerr, "Perr");
 
-// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
-
-} // End namespace Foam
 
 // ************************************************************************* //
+
+ } // End namespace Foam

@@ -1,9 +1,11 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2015 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2015 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -50,7 +52,9 @@ namespace Foam
                       Class oldCyclicPolyPatch Declaration
 \*---------------------------------------------------------------------------*/
 
-class oldCyclicPolyPatch :    public coupledPolyPatch
+class oldCyclicPolyPatch
+:
+    public coupledPolyPatch
 {
     // Private data
 
@@ -97,7 +101,7 @@ class oldCyclicPolyPatch :    public coupledPolyPatch
         // Face ordering
 
             //- Find the two parts of the faces of pp using feature edges.
-            //  Returns true if successfull.
+            //  Returns true if successful.
             bool getGeometricHalves
             (
                 const primitivePatch&,

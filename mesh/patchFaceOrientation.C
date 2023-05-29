@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2013-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2013 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -25,25 +28,25 @@ License
 
 #include "patchFaceOrientation.H"
 
-// * * * * * * * * * * * * * * * Friend Operators  * * * * * * * * * * * * * //
+// * * * * * * * * * * * * * * * IOstream Operators  * * * * * * * * * * * * //
 
 Foam::Ostream& Foam::operator<<
 (
-    Foam::Ostream& os,
-    const Foam::patchFaceOrientation& wDist
+    Ostream& os,
+    const patchFaceOrientation& rhs
 )
 {
-    return os << wDist.flipStatus_;
+    return os << rhs.flipStatus_;
 }
 
 
 Foam::Istream& Foam::operator>>
 (
-    Foam::Istream& is,
-    Foam::patchFaceOrientation& wDist
+    Istream& is,
+    patchFaceOrientation& rhs
 )
 {
-    return is >> wDist.flipStatus_;
+    return is >> rhs.flipStatus_;
 }
 
 

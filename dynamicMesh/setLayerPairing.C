@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -81,11 +84,11 @@ bool Foam::layerAdditionRemoval::setLayerPairing() const
             << abort(FatalError);
     }
 
-    pointsPairingPtr_ = new labelList(meshPoints.size(), -1);
-    labelList& ptc = *pointsPairingPtr_;
+    pointsPairingPtr_.reset(new labelList(meshPoints.size(), -1));
+    facesPairingPtr_.reset(new labelList(mf.size(), -1));
 
-    facesPairingPtr_ = new labelList(mf.size(), -1);
-    labelList& ftc = *facesPairingPtr_;
+    auto& ptc = *pointsPairingPtr_;
+    auto& ftc = *facesPairingPtr_;
 
     if (debug > 1)
     {
@@ -175,11 +178,9 @@ bool Foam::layerAdditionRemoval::setLayerPairing() const
 
         return false;
     }
-    else
-    {
-        // Valid layer
-        return true;
-    }
+
+    // Valid layer
+    return true;
 }
 
 
@@ -194,6 +195,7 @@ const Foam::labelList& Foam::layerAdditionRemoval::pointsPairing() const
 
     return *pointsPairingPtr_;
 }
+
 
 const Foam::labelList& Foam::layerAdditionRemoval::facesPairing() const
 {

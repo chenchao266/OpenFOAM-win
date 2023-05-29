@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2017 OpenFOAM Foundation
+    Copyright (C) 2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -25,16 +28,32 @@ Class
     Foam::fv::radiation
 
 Description
-    Calculates and applies the radiation source to the energy equation.
+    Applies radiation sources (i.e. \c Sh)
+    to the energy equation for compressible flows.
 
 Usage
-    Example usage:
+    Minimal example by using \c constant/fvOptions:
     \verbatim
-    radiationCoeffs
+    radiation1
     {
-        fields          (h);                    // Name of energy field
+        // Mandatory entries (unmodifiable)
+        type             radiation;
+        fields           (h);
+
+        // Mandatory/Optional (inherited) entries
+        ...
     }
     \endverbatim
+
+    where the entries mean:
+    \table
+      Property  | Description                       | Type   | Reqd  | Dflt
+      type      | Type name: radiation              | word   | yes   | -
+      fields    | Name of operand energy field      | word   | yes   | -
+    \endtable
+
+    The inherited entries are elaborated in:
+     - \link fvOption.H \endlink
 
 SourceFiles
     radiation.C
@@ -56,14 +75,14 @@ namespace fv
 {
 
 /*---------------------------------------------------------------------------*\
-               Class radiation Declaration
+                          Class radiation Declaration
 \*---------------------------------------------------------------------------*/
 
 class radiation
 :
-    public option
+    public fv::option
 {
-    // Private data
+    // Private Data
 
         //- The radiation model pointer
         autoPtr<Foam::radiation::radiationModel> radiation_;
@@ -71,11 +90,11 @@ class radiation
 
     // Private Member Functions
 
-        //- Disallow default bitwise copy construct
-        radiation(const radiation&);
+        //- No copy construct
+        radiation(const radiation&) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const radiation&);
+        //- No copy assignment
+        void operator=(const radiation&) = delete;
 
 
 public:

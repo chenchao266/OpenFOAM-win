@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -45,37 +48,17 @@ Foam::sixDoFRigidBodyMotionState::sixDoFRigidBodyMotionState
 :
     centreOfRotation_
     (
-        dict.lookupOrDefault
+        dict.getOrDefault
         (
             "centreOfRotation",
-            dict.lookupOrDefault("centreOfMass", vector::_zero)
+            dict.getOrDefault("centreOfMass", vector::zero_)
         )
     ),
-    Q_(dict.lookupOrDefault("orientation", tensor::I)),
-    v_(dict.lookupOrDefault("velocity", vector::_zero)),
-    a_(dict.lookupOrDefault("acceleration", vector::_zero)),
-    pi_(dict.lookupOrDefault("angularMomentum", vector::_zero)),
-    tau_(dict.lookupOrDefault("torque", vector::_zero))
-{}
-
-
-Foam::sixDoFRigidBodyMotionState::sixDoFRigidBodyMotionState
-(
-    const sixDoFRigidBodyMotionState& sDoFRBMS
-)
-:
-    centreOfRotation_(sDoFRBMS.centreOfRotation()),
-    Q_(sDoFRBMS.Q()),
-    v_(sDoFRBMS.v()),
-    a_(sDoFRBMS.a()),
-    pi_(sDoFRBMS.pi()),
-    tau_(sDoFRBMS.tau())
-{}
-
-
-// * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
-
-Foam::sixDoFRigidBodyMotionState::~sixDoFRigidBodyMotionState()
+    Q_(dict.getOrDefault("orientation", tensor::I)),
+    v_(dict.getOrDefault("velocity", vector::zero_)),
+    a_(dict.getOrDefault("acceleration", vector::zero_)),
+    pi_(dict.getOrDefault("angularMomentum", vector::zero_)),
+    tau_(dict.getOrDefault("torque", vector::zero_))
 {}
 
 

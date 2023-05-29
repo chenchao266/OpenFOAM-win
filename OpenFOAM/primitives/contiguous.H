@@ -1,9 +1,12 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2018-2019 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -21,21 +24,47 @@ License
     You should have received a copy of the GNU General Public License
     along with OpenFOAM.  If not, see <http://www.gnu.org/licenses/>.
 
-InClass
-    Foam::contiguous
+Class
+    Foam::is_contiguous
 
 Description
-    Template function to specify if the data of a type are contiguous.
+    A template class to specify that a data type can be considered as being
+    contiguous in memory.
 
-    The default function specifies that data are not contiguous.
-    This is specialised for the types (eg, primitives) with contiguous data.
+    Normally only integral and floating-point types can be considered
+    contiguous, but some other types (eg, FixedList, Pair, Vector etc)
+    consisting purely of these fundamental types can be considered
+    as having a contiguous memory layout as well.
+
+Note
+    In OpenFOAM 1906 and earlier, the contiguous trait was handled
+    by templated \c contiguous global functions.
+
+    While possible to mark this as deleted, this does not detect or
+    prevent specializations. Thus omit the usual housekeeping.
+
+Class
+    Foam::is_contiguous_label
+
+Description
+    A template class to specify if a data type is composed solely of
+    Foam::label elements.
+
+Class
+    Foam::is_contiguous_scalar
+
+Description
+    A template class to specify if a data type is composed solely of
+    Foam::scalar elements.
 
 \*---------------------------------------------------------------------------*/
 
 #ifndef contiguous_H
 #define contiguous_H
 
-#include "int.H"
+#include "scalar.H"
+#include "label.H"
+#include <type_traits>
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -44,109 +73,28 @@ namespace Foam
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
-// Forward declaration of friend functions and operators
-template<class T, unsigned Size> class FixedList;
-template<class T> class Pair;
-
-
-//- Assume the data associated with type T are not contiguous
+// Base definition for (integral | floating-point) as contiguous
 template<class T>
-inline bool contiguous()                                   {return false;}
+struct is_contiguous
+:
+    std::is_arithmetic<T>
+{};
 
 
-// Data associated with primitive types (and simple fixed size containers
-//  - only size 2 defined here) are contiguous
+// Base definition for 'label'
+template<class T>
+struct is_contiguous_label
+:
+    std::is_same<T, label>
+{};
 
-template<>
-inline bool contiguous<bool>()                              {return true;}
-template<>
-inline bool contiguous<FixedList<bool, 2>>()               {return true;}
-template<>
-inline bool contiguous<Pair<bool>>()                       {return true;}
 
-template<>
-inline bool contiguous<char>()                              {return true;}
-template<>
-inline bool contiguous<FixedList<char, 2>>()               {return true;}
-template<>
-inline bool contiguous<Pair<char>>()                       {return true;}
-
-template<>
-inline bool contiguous<int8_t>()                            {return true;}
-template<>
-inline bool contiguous<FixedList<int8_t, 2>>()             {return true;}
-template<>
-inline bool contiguous<Pair<int8_t>>()                     {return true;}
-
-template<>
-inline bool contiguous<uint8_t>()                           {return true;}
-template<>
-inline bool contiguous<FixedList<uint8_t, 2>>()            {return true;}
-template<>
-inline bool contiguous<Pair<uint8_t>>()                    {return true;}
-
-template<>
-inline bool contiguous<int16_t>()                           {return true;}
-template<>
-inline bool contiguous<FixedList<int16_t, 2>>()            {return true;}
-template<>
-inline bool contiguous<Pair<int16_t>>()                    {return true;}
-
-template<>
-inline bool contiguous<uint16_t>()                          {return true;}
-template<>
-inline bool contiguous<FixedList<uint16_t, 2>>()           {return true;}
-template<>
-inline bool contiguous<Pair<uint16_t>>()                   {return true;}
-
-template<>
-inline bool contiguous<int32_t>()                           {return true;}
-template<>
-inline bool contiguous<FixedList<int32_t, 2>>()            {return true;}
-template<>
-inline bool contiguous<Pair<int32_t>>()                    {return true;}
-
-template<>
-inline bool contiguous<uint32_t>()                          {return true;}
-template<>
-inline bool contiguous<FixedList<uint32_t, 2>>()           {return true;}
-template<>
-inline bool contiguous<Pair<uint32_t>>()                   {return true;}
-
-template<>
-inline bool contiguous<int64_t>()                           {return true;}
-template<>
-inline bool contiguous<FixedList<int64_t, 2>>()            {return true;}
-template<>
-inline bool contiguous<Pair<int64_t>>()                    {return true;}
-
-template<>
-inline bool contiguous<uint64_t>()                          {return true;}
-template<>
-inline bool contiguous<FixedList<uint64_t, 2>>()           {return true;}
-template<>
-inline bool contiguous<Pair<uint64_t>>()                   {return true;}
-
-template<>
-inline bool contiguous<float>()                             {return true;}
-template<>
-inline bool contiguous<FixedList<float, 2>>()              {return true;}
-template<>
-inline bool contiguous<Pair<float>>()                      {return true;}
-
-template<>
-inline bool contiguous<double>()                            {return true;}
-template<>
-inline bool contiguous<FixedList<double, 2>>()             {return true;}
-template<>
-inline bool contiguous<Pair<double>>()                     {return true;}
-
-template<>
-inline bool contiguous<long double>()                       {return true;}
-template<>
-inline bool contiguous<FixedList<long double, 2>>()        {return true;}
-template<>
-inline bool contiguous<Pair<long double>>()                {return true;}
+// Base definition for 'scalar'
+template<class T>
+struct is_contiguous_scalar
+:
+    std::is_same<T, scalar>
+{};
 
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //

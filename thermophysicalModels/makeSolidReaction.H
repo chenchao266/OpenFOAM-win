@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -29,12 +32,12 @@ Description
 
 \*---------------------------------------------------------------------------*/
 
-#ifndef makeSolidReactionThermo_H
-#define makeSolidReactionThermo_H
+#ifndef makeSolidReaction_H
+#define makeSolidReaction_H
 
 #include "solidReaction.H"
-#include "IrreversibleReaction.T.H"
-#include "Reaction.T.H"
+#include "IrreversibleReaction.H"
+#include "Reaction.H"
 
 #include "addToRunTimeSelectionTable.H"
 
@@ -53,11 +56,6 @@ namespace Foam
                                                                                \
     typedef ReactionType<solidReaction, Thermo, ReactionRate>                  \
         ReactionType##Thermo##ReactionRate;                                    \
-                                                                               \
-    defineTemplateRunTimeSelectionTable(Reaction##Thermo, dictionary);         \
-                                                                               \
-    defineTemplateTypeNameAndDebug(solidReaction##Thermo, 0);                  \
-    defineTemplateTypeNameAndDebug(Reaction##Thermo, 0);                       \
                                                                                \
     template<>                                                                 \
     const word ReactionType##Thermo##ReactionRate::typeName                    \

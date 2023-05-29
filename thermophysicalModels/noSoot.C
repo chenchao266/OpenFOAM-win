@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2013-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2013-2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -55,18 +57,17 @@ Foam::radiation::noSoot::noSoot
     sootModel(dict, mesh, modelType)
 {}
 
-// * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
-Foam::radiation::noSoot::~noSoot()
-{}
 
+// * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
 
 void Foam::radiation::noSoot::correct()
 {}
 
+
 const Foam::volScalarField& Foam::radiation::noSoot::soot() const
 {
     NotImplemented;
-    return tmp<volScalarField>(nullptr);
+    return tmp<volScalarField>();   // Placeholder
 }
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //

@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2012 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2012 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -24,17 +26,17 @@ License
 \*---------------------------------------------------------------------------*/
 
 #include "surfaceRegistry.H"
-#include "Time.T.H"
+#include "Time1.H"
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
 
 namespace Foam
 {
-defineTypeNameAndDebug(surfaceRegistry, 0);
+    defineTypeNameAndDebug(surfaceRegistry, 0);
 }
 
-
 const Foam::word Foam::surfaceRegistry::prefix("surfaces");
+
 Foam::word Foam::surfaceRegistry::defaultName("default");
 
 
@@ -50,7 +52,7 @@ Foam::surfaceRegistry::surfaceRegistry
     (
         IOobject
         (
-            ( surfName.size() ? surfName : defaultName ),
+            (surfName.size() ? surfName : defaultName),
             obr.time().timeName(),
             prefix,
             obr,
@@ -58,12 +60,6 @@ Foam::surfaceRegistry::surfaceRegistry
             IOobject::NO_WRITE
         )
     )
-{}
-
-
-// * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
-
-Foam::surfaceRegistry::~surfaceRegistry()
 {}
 
 

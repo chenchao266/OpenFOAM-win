@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -26,211 +28,206 @@ License
 #include "transform.H"
 
 // * * * * * * * * * * * * * Private Member Functions  * * * * * * * * * * * //
-namespace Foam {
-    template<class TrackingData>
-    inline bool sweepData::update
-    (
-        const sweepData& svf,
-        const point& position,
-        const scalar tol,
-        TrackingData& td
-    )
+
+template<class TrackingData>
+inline bool Foam::sweepData::update
+(
+    const sweepData& svf,
+    const point& position,
+    const scalar tol,
+    TrackingData& td
+)
+{
+    if (!valid(td))
     {
-        if (!valid(td))
-        {
-            operator=(svf);
-            return true;
-        }
-
-        scalar myDist2 = magSqr(position - origin());
-
-        if (myDist2 < SMALL)
-        {
-            if (svf.value() > value())
-            {
-                operator=(svf);
-                return true;
-            }
-            else
-            {
-                return false;
-            }
-        }
-
-        scalar dist2 = magSqr(position - svf.origin());
-
-        if (dist2 < myDist2)
-        {
-            operator=(svf);
-            return true;
-        }
-
-        return false;
-    }
-
-
-    // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
-
-    inline sweepData::sweepData()
-        :
-        value_(-GREAT),
-        origin_(vector::max)
-    {}
-
-
-    inline sweepData::sweepData(const scalar value, const point& origin)
-        :
-        value_(value),
-        origin_(origin)
-    {}
-
-
-    // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
-
-    template<class TrackingData>
-    inline bool sweepData::valid(TrackingData& td) const
-    {
-        return value_ > -SMALL;
-    }
-
-
-    template<class TrackingData>
-    inline bool sweepData::sameGeometry
-    (
-        const polyMesh&,
-        const sweepData&,
-        const scalar,
-        TrackingData& td
-    ) const
-    {
+        operator=(svf);
         return true;
     }
 
+    const scalar myDist2 = magSqr(position - origin());
 
-    template<class TrackingData>
-    inline void sweepData::leaveDomain
-    (
-        const polyMesh&,
-        const polyPatch&,
-        const label,
-        const point& faceCentre,
-        TrackingData& td
-    )
+    if (myDist2 < SMALL)
     {
-        origin_ -= faceCentre;
+        if (svf.value() > value())
+        {
+            operator=(svf);
+            return true;
+        }
+        else
+        {
+            return false;
+        }
     }
 
+    scalar dist2 = magSqr(position - svf.origin());
 
-    template<class TrackingData>
-    inline void sweepData::transform
-    (
-        const polyMesh&,
-        const tensor& rotTensor,
-        TrackingData& td
-    )
+    if (dist2 < myDist2)
     {
-        origin_ = ::Foam::transform(rotTensor, origin_);
+        operator=(svf);
+        return true;
     }
 
-
-    template<class TrackingData>
-    inline void sweepData::enterDomain
-    (
-        const polyMesh&,
-        const polyPatch&,
-        const label,
-        const point& faceCentre,
-        TrackingData& td
-    )
-    {
-        // back to absolute form
-        origin_ += faceCentre;
-    }
-
-
-    template<class TrackingData>
-    inline bool sweepData::updateCell
-    (
-        const polyMesh& mesh,
-        const label thisCelli,
-        const label,
-        const sweepData& svf,
-        const scalar tol,
-        TrackingData& td
-    )
-    {
-        return update(svf, mesh.cellCentres()[thisCelli], tol, td);
-    }
-
-
-    template<class TrackingData>
-    inline bool sweepData::updateFace
-    (
-        const polyMesh& mesh,
-        const label thisFacei,
-        const label,
-        const sweepData& svf,
-        const scalar tol,
-        TrackingData& td
-    )
-    {
-        return update(svf, mesh.faceCentres()[thisFacei], tol, td);
-    }
-
-
-    // Update this (face) with coupled face information.
-    template<class TrackingData>
-    inline bool sweepData::updateFace
-    (
-        const polyMesh& mesh,
-        const label thisFacei,
-        const sweepData& svf,
-        const scalar tol,
-        TrackingData& td
-    )
-    {
-        return update(svf, mesh.faceCentres()[thisFacei], tol, td);
-    }
-
-
-    template<class TrackingData>
-    inline bool sweepData::equal
-    (
-        const sweepData& rhs,
-        TrackingData& td
-    ) const
-    {
-        return operator==(rhs);
-    }
-
-
-    // * * * * * * * * * * * * * * * Member Operators  * * * * * * * * * * * * * //
-
-    inline void sweepData::operator=
-        (
-            const scalar value
-            )
-    {
-        value_ = value;
-    }
-
-
-    inline bool sweepData::operator==
-        (
-            const sweepData& rhs
-            ) const
-    {
-        return origin() == rhs.origin();
-    }
-
-
-    inline bool sweepData::operator!=
-        (
-            const sweepData& rhs
-            ) const
-    {
-        return !(*this == rhs);
-    }
+    return false;
 }
+
+
+// * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
+
+inline Foam::sweepData::sweepData()
+:
+    value_(-GREAT),
+    origin_(point::max_)
+{}
+
+
+inline Foam::sweepData::sweepData
+(
+    const scalar value,
+    const point& origin
+)
+:
+    value_(value),
+    origin_(origin)
+{}
+
+
+// * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
+
+template<class TrackingData>
+inline bool Foam::sweepData::valid(TrackingData& td) const
+{
+    return value_ > -SMALL;
+}
+
+
+template<class TrackingData>
+inline bool Foam::sweepData::sameGeometry
+(
+    const polyMesh&,
+    const sweepData&,
+    const scalar,
+    TrackingData& td
+) const
+{
+    return true;
+}
+
+
+template<class TrackingData>
+inline void Foam::sweepData::leaveDomain
+(
+    const polyMesh&,
+    const polyPatch&,
+    const label,
+    const point& faceCentre,
+    TrackingData& td
+)
+{
+    origin_ -= faceCentre;
+}
+
+
+template<class TrackingData>
+inline void Foam::sweepData::transform
+(
+    const polyMesh&,
+    const tensor& rotTensor,
+    TrackingData& td
+)
+{
+    origin_ = Foam::transform(rotTensor, origin_);
+}
+
+
+template<class TrackingData>
+inline void Foam::sweepData::enterDomain
+(
+    const polyMesh&,
+    const polyPatch&,
+    const label,
+    const point& faceCentre,
+    TrackingData& td
+)
+{
+    // back to absolute form
+    origin_ += faceCentre;
+}
+
+
+template<class TrackingData>
+inline bool Foam::sweepData::updateCell
+(
+    const polyMesh& mesh,
+    const label thisCelli,
+    const label,
+    const sweepData& svf,
+    const scalar tol,
+    TrackingData& td
+)
+{
+    return update(svf, mesh.cellCentres()[thisCelli], tol, td);
+}
+
+
+template<class TrackingData>
+inline bool Foam::sweepData::updateFace
+(
+    const polyMesh& mesh,
+    const label thisFacei,
+    const label,
+    const sweepData& svf,
+    const scalar tol,
+    TrackingData& td
+)
+{
+    return update(svf, mesh.faceCentres()[thisFacei], tol, td);
+}
+
+
+// Update this (face) with coupled face information.
+template<class TrackingData>
+inline bool Foam::sweepData::updateFace
+(
+    const polyMesh& mesh,
+    const label thisFacei,
+    const sweepData& svf,
+    const scalar tol,
+    TrackingData& td
+)
+{
+    return update(svf, mesh.faceCentres()[thisFacei], tol, td);
+}
+
+
+template<class TrackingData>
+inline bool Foam::sweepData::equal
+(
+    const sweepData& rhs,
+    TrackingData& td
+) const
+{
+    return operator==(rhs);
+}
+
+
+// * * * * * * * * * * * * * * * Member Operators  * * * * * * * * * * * * * //
+
+inline bool Foam::sweepData::operator==
+(
+    const sweepData& rhs
+) const
+{
+    return origin_ == rhs.origin_;
+}
+
+
+inline bool Foam::sweepData::operator!=
+(
+    const sweepData& rhs
+) const
+{
+    return !(*this == rhs);
+}
+
 
 // ************************************************************************* //

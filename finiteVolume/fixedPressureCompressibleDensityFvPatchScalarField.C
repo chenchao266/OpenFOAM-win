@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011 OpenFOAM Foundation
+    Copyright (C) 2018-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -66,7 +69,7 @@ fixedPressureCompressibleDensityFvPatchScalarField
 )
 :
     fixedValueFvPatchField<scalar>(p, iF, dict),
-    pName_(dict.lookupOrDefault<word>("p", "p"))
+    pName_(dict.getOrDefault<word>("p", "p"))
 {}
 
 
@@ -108,13 +111,11 @@ void Foam::fixedPressureCompressibleDensityFvPatchScalarField::updateCoeffs()
     const dictionary& thermoProps =
         db().lookupObject<IOdictionary>("thermodynamicProperties");
 
-    const scalar rholSat =
-        dimensionedScalar(thermoProps.lookup("rholSat")).value();
+    const scalar rholSat = dimensionedScalar("rholSat", thermoProps).value();
 
-    const scalar pSat =
-        dimensionedScalar(thermoProps.lookup("pSat")).value();
+    const scalar pSat = dimensionedScalar("pSat", thermoProps).value();
 
-    const scalar psil = dimensionedScalar(thermoProps.lookup("psil")).value();
+    const scalar psil = dimensionedScalar("psil", thermoProps).value();
 
     operator==(rholSat + psil*(pp - pSat));
 
@@ -128,7 +129,7 @@ void Foam::fixedPressureCompressibleDensityFvPatchScalarField::write
 ) const
 {
     fvPatchField<scalar>::write(os);
-    writeEntryIfDifferent<word>(os, "p", "p", pName_);
+    os.writeEntryIfDifferent<word>("p", "p", pName_);
     writeEntry("value", os);
 }
 

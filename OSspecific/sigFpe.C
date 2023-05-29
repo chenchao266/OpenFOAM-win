@@ -2,15 +2,15 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
 -------------------------------------------------------------------------------
+    Copyright (C) 2011-2015 OpenFOAM Foundation
+    Copyright (C) 2011 Symscape
+    Copyright (C) 2016-2021 OpenCFD Ltd.
+-------------------------------------------------------------------------------
 License
-    This file is part of blueCAPE's unofficial mingw patches for OpenFOAM.
-    For more information about these patches, visit:
-         http://bluecfd.com/Core
-
-    This file is a derivative work of OpenFOAM.
+    This file is part of OpenFOAM.
 
     OpenFOAM is free software: you can redistribute it and/or modify it
     under the terms of the GNU General Public License as published by
@@ -25,85 +25,72 @@ License
     You should have received a copy of the GNU General Public License
     along with OpenFOAM.  If not, see <http://www.gnu.org/licenses/>.
 
-Modifications
-    This file is based on the original version for POSIX:
-        OpenFOAM/src/OSspecific/POSIX/
-
-    This file was developed for Windows by:
-        Copyright            : (C) 2011 Symscape
-        Website              : www.symscape.com
-
-    This copy of this file has been created by blueCAPE's unofficial mingw
-    patches for OpenFOAM.
-    For more information about these patches, visit:
-        http://bluecfd.com/Core
-
-    Modifications made:
-      - Derived from the patches for blueCFD 2.1 and 2.2.
-
-Class
-    sigFpe
-
 \*---------------------------------------------------------------------------*/
 
-#include "error.H"
 #include "sigFpe.H"
-
+#include "error.H"
 #include "JobInfo.H"
 #include "OSspecific.H"
 #include "IOstreams.H"
+#include "Switch.H"
+#include "UList.H"
 
-// We need to unset the strict ANSI marker, so that we can use the special
-// signal functions
-#ifdef __STRICT_ANSI__
-#undef __STRICT_ANSI__
-#endif
-
-#include <float.h> // *fp functions
+#include <float.h>  // For *fp functions
 #include <limits>
+
+// File-local functions
+#include "signalMacros.C"
 
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
 
-__p_sig_fn_t Foam::sigFpe::oldAction_ = SIG_DFL;
+bool Foam::sigFpe::switchFpe_(Foam::debug::optimisationSwitch("trapFpe", 0));
+bool Foam::sigFpe::switchNan_(Foam::debug::optimisationSwitch("setNaN", 0));
 
-static unsigned int fpOld_ = 0;
+bool Foam::sigFpe::sigActive_ = false;
+bool Foam::sigFpe::nanActive_ = false;
 
-void Foam::sigFpe::fillNan(UList<scalar>& lst)
-{
-    lst = std::numeric_limits<scalar>::signaling_NaN();
-}
+// Saved old FPE signal trapping setting (file-local variable)
+static unsigned int oldFpe_ = 0u;
+
 
 static void clearFpe()
 {
-    _clearfp ();
-    _controlfp (fpOld_, 0xFFFFFFFF);
+    #ifndef Foam_no_sigFpe
+    _clearfp();
+    _controlfp(oldFpe_, 0xFFFFFFFF);
+    #endif
 }
 
 
-void Foam::sigFpe::sigFpeHandler(int)
-{
-    const __p_sig_fn_t success = ::signal(SIGFPE, oldAction_);
+// * * * * * * * * * * * * * * * Local Functions * * * * * * * * * * * * * * //
 
-    // Reset old handling
-    if (SIG_ERR == success)
+// Can turn on/off via env variable containing a bool (true|false|on|off ...)
+// or by the specified flag
+static bool isTrue(const char* envName, bool deflt)
+{
+    Foam::Switch sw(Foam::Switch::find(Foam::getEnv(envName)));
+
+    if (sw.good())
     {
-        FatalErrorIn
-        (
-            "Foam::sigSegv::sigFpeHandler()"
-        )   << "Cannot reset SIGFPE trapping"
-            << abort(FatalError);    
+        return static_cast<bool>(sw);
     }
 
-    // Update jobInfo file
-    jobInfo.signalEnd();
+    // Env was not set or did not contain a valid bool value
+    return deflt;
+}
 
+
+// * * * * * * * * * * * * * Private Member Functions  * * * * * * * * * * * //
+
+void Foam::sigFpe::sigHandler(int)
+{
+    resetHandler("SIGFPE", SIGFPE);
+
+    JobInfo::shutdown();        // From running -> finished
     error::printStack(Perr);
-
     clearFpe();
-
-    // Throw signal (to old handler)
-    ::raise(SIGFPE);
+    ::raise(SIGFPE);            // Throw signal (to old handler)
 }
 
 
@@ -111,7 +98,18 @@ void Foam::sigFpe::sigFpeHandler(int)
 
 Foam::sigFpe::sigFpe()
 {
-    oldAction_ = SIG_DFL;
+    set(false);
+}
+
+
+Foam::sigFpe::ignore::ignore()
+:
+    wasActive_(sigFpe::active())
+{
+    if (wasActive_)
+    {
+        sigFpe::unset();
+    }
 }
 
 
@@ -119,83 +117,114 @@ Foam::sigFpe::sigFpe()
 
 Foam::sigFpe::~sigFpe()
 {
-    if (env("FOAM_SIGFPE"))
-    {
-        clearFpe();
+    unset(false);
+}
 
-        // Reset signal
-        const __p_sig_fn_t success = ::signal(SIGFPE, oldAction_);
-        oldAction_ = SIG_DFL;
 
-        if (SIG_ERR == success)
-        {
-            FatalErrorIn
-            (
-                "Foam::sigFpe::~sigFpe()"
-            )   << "Cannot reset SIGFPE trapping"
-                << abort(FatalError);    
-        }
-    }
-
-    if (env("FOAM_SETNAN"))
-    {
-        WarningIn("Foam::sigFpe::~sigFpe()")
-            << "FOAM_SETNAN not supported under MSwindows "
-            << endl;
-    }
+Foam::sigFpe::ignore::~ignore()
+{
+    restore();
 }
 
 
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
 
-void Foam::sigFpe::set(const bool verbose)
+void Foam::sigFpe::ignore::restore()
 {
-    if (SIG_DFL != oldAction_)
+    if (wasActive_)
     {
-        FatalErrorIn
+        sigFpe::set();
+    }
+    wasActive_ = false;
+}
+
+
+bool Foam::sigFpe::requested()
+{
+    return isTrue("FOAM_SIGFPE", switchFpe_);
+}
+
+
+void Foam::sigFpe::set(bool verbose)
+{
+    if (!sigActive_ && requested())
+    {
+        #ifdef Foam_no_sigFpe
+
+        if (verbose)
+        {
+            Info<< "trapFpe: Floating point exception trapping ";
+            Info<< "- disabled on this platform" << endl;
+        }
+
+        #else
+
+        oldFpe_ = _controlfp(0, 0);
+
+        const unsigned int newFpe =
         (
-            "Foam::sigFpe::set()"
-        )   << "Cannot call sigFpe::set() more than once"
-            << abort(FatalError);
+            oldFpe_ & ~(_EM_ZERODIVIDE | _EM_INVALID | _EM_OVERFLOW)
+        );
+
+        _controlfp(newFpe, _MCW_EM);
+
+        setHandler("SIGFPE", SIGFPE, sigHandler);
+
+        sigActive_ = true;
+
+        if (verbose)
+        {
+            Info<< "trapFpe: Floating point exception trapping ";
+
+            if (sigActive_)
+            {
+                Info<< "enabled (FOAM_SIGFPE)." << endl;
+            }
+            else
+            {
+                Info<< "- not supported on this platform" << endl;
+            }
+        }
+        #endif
     }
 
-    if (env("FOAM_SIGFPE"))
+
+    nanActive_ = false;
+    if (isTrue("FOAM_SETNAN", switchNan_))
     {
         if (verbose)
         {
-            Info<< "SigFpe : Enabling floating point exception trapping"
-                << " (FOAM_SIGFPE)." << endl;
-        }
-
-        fpOld_ = _controlfp(0, 0);
-        const unsigned int fpNew = 
-          fpOld_ & ~(_EM_ZERODIVIDE | _EM_INVALID | _EM_OVERFLOW);
-        _controlfp(fpNew, _MCW_EM);
-
-        oldAction_ = ::signal(SIGFPE, &Foam::sigFpe::sigFpeHandler);        
-
-        if (SIG_ERR == oldAction_)
-        {
-            oldAction_ = SIG_DFL;
-
-            FatalErrorIn
-            (
-                "Foam::sigFpe::set()"
-            )   << "Cannot set SIGFPE trapping"
-                << abort(FatalError);    
+            Info<< "setNaN : Initialise allocated memory to NaN "
+                << "- not supported on this platform" << endl;
         }
     }
+}
 
 
-    if (env("FOAM_SETNAN"))
+void Foam::sigFpe::unset(bool verbose)
+{
+    if (sigActive_)
     {
         if (verbose)
         {
-            WarningIn("Foam::sigFpe::set()")
-              << "FOAM_SETNAN not supported under MSwindows "
-              << endl;
+            Info<< "sigFpe : Disabling floating point exception trapping"
+                << endl;
         }
+
+        sigActive_ = false;
+
+        clearFpe();
+
+        resetHandler("SIGFPE", SIGFPE);
     }
+
+    nanActive_ = false;
+}
+
+
+void Foam::sigFpe::fillNan(UList<scalar>& list)
+{
+    list = std::numeric_limits<scalar>::signaling_NaN();
 }
 
 

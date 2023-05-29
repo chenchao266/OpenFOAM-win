@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011 OpenFOAM Foundation
+    Copyright (C) 2018-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -25,7 +28,73 @@ Class
     Foam::zoneToPoint
 
 Description
-    A topoSetSource to select points based on pointZone.
+    A \c topoSetPointSource to convert \c pointZone(s) to a \c pointSet.
+
+    Operands:
+    \table
+      Operand   | Type         | Location
+      input     | pointZone(s) | $FOAM_CASE/constant/polyMesh/pointZones
+      output    | pointSet     | $FOAM_CASE/constant/polyMesh/sets/\<set\>
+    \endtable
+
+Usage
+    Minimal example by using \c system/topoSetDict.actions:
+    \verbatim
+    {
+        // Mandatory (inherited) entries
+        name        <name>;
+        type        pointSet;
+        action      <action>;
+
+        // Mandatory entries
+        source      zoneToPoint;
+
+        // Conditional mandatory entries
+        // Select either of the below
+
+        // Option-1
+        zones
+        (
+            <pointZoneName0>
+            <pointZoneName1>
+            ...
+        );
+
+        // Option-2
+        zone     <pointZoneName>;
+    }
+    \endverbatim
+
+    where the entries mean:
+    \table
+      Property   | Description                           | Type | Req'd | Dflt
+      name       | Name of pointSet                      | word |  yes  | -
+      type       | Type name: pointSet                   | word |  yes  | -
+      action     | Action applied on points - see below  | word |  yes  | -
+      source     | Source name: zoneToPoint              | word |  yes  | -
+    \endtable
+
+    Options for the \c action entry:
+    \verbatim
+      new      | Create a new pointSet from selected points
+      add      | Add selected points into this pointSet
+      subtract | Remove selected points from this pointSet
+    \endverbatim
+
+    Options for the conditional mandatory entries:
+    \verbatim
+      Entry    | Description                | Type     | Req'd  | Dflt
+      zones    | Names of input pointZones  | wordRes  | cond'l | -
+      zone     | Name of input pointZone    | wordRe   | cond'l | -
+    \endverbatim
+
+Note
+    The order of precedence among the conditional mandatory entries from the
+    highest to the lowest is \c zones, and \c zone.
+
+See also
+    - Foam::topoSetSource
+    - Foam::topoSetPointSource
 
 SourceFiles
     zoneToPoint.C
@@ -35,8 +104,8 @@ SourceFiles
 #ifndef zoneToPoint_H
 #define zoneToPoint_H
 
-#include "topoSetSource.H"
-#include "wordRe.H"
+#include "topoSetPointSource.H"
+#include "wordRes.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -44,24 +113,34 @@ namespace Foam
 {
 
 /*---------------------------------------------------------------------------*\
-                        Class zoneToPoint Declaration
+                         Class zoneToPoint Declaration
 \*---------------------------------------------------------------------------*/
 
 class zoneToPoint
 :
-    public topoSetSource
+    public topoSetPointSource
 {
-
-    // Private data
+    // Private Data
 
         //- Add usage string
         static addToUsageTable usage_;
 
-        //- Name/regular expression of zone
-        wordRe zoneName_;
+        //- Matcher for zones
+        wordRes zoneMatcher_;
+
+        //- Explicitly specified zone ids
+        labelList zoneIDs_;
 
 
     // Private Member Functions
+
+        void combine
+        (
+            topoSet& set,
+            const labelUList& zoneIDs,
+            const bool add,
+            const bool verbosity
+        ) const;
 
         void combine(topoSet& set, const bool add) const;
 
@@ -71,47 +150,54 @@ public:
     //- Runtime type information
     TypeName("zoneToPoint");
 
+
     // Constructors
 
-        //- Construct from components
-        zoneToPoint
-        (
-            const polyMesh& mesh,
-            const word& zoneName
-        );
+        //- Construct from mesh and zones selector
+        zoneToPoint(const polyMesh& mesh, const wordRes& zoneSelector);
+
+        //- Construct from mesh and single zone selector
+        zoneToPoint(const polyMesh& mesh, const wordRe& zoneName);
+
+        //- Construct from mesh and specified zone IDs
+        zoneToPoint(const polyMesh& mesh, const labelUList& zoneIDs);
 
         //- Construct from dictionary
-        zoneToPoint
-        (
-            const polyMesh& mesh,
-            const dictionary& dict
-        );
+        zoneToPoint(const polyMesh& mesh, const dictionary& dict);
 
         //- Construct from Istream
-        zoneToPoint
-        (
-            const polyMesh& mesh,
-            Istream&
-        );
+        zoneToPoint(const polyMesh& mesh, Istream& is);
 
 
     //- Destructor
-    virtual ~zoneToPoint();
+    virtual ~zoneToPoint() = default;
 
 
     // Member Functions
 
-        virtual sourceType setType() const
-        {
-            return POINTSETSOURCE;
-        }
+        //- Return the current zones selector
+        const wordRes& zones() const noexcept;
+
+        //- Define the zones selector
+        void zones(const wordRes& zoneSelector);
+
+        //- Define the zones selector with a single zone selector
+        void zones(const wordRe& zoneName);
+
+        //- Define the pointZone IDs to use (must exist).
+        //  Clears the zone name matcher
+        void zones(const labelUList& zoneIDs);
+
+        //- Define the pointZone ID to use (must exist).
+        //  Clears the zone name matcher
+        void zones(const label zoneID);
+
 
         virtual void applyToSet
         (
             const topoSetSource::setAction action,
-            topoSet&
+            topoSet& set
         ) const;
-
 };
 
 

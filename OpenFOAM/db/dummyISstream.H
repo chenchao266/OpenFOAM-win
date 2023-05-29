@@ -1,9 +1,12 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2017 OpenFOAM Foundation
+    Copyright (C) 2019-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -25,16 +28,22 @@ Class
     Foam::dummyISstream
 
 Description
-    Dummy stream for input. Aborts at any attempt to read from it.
+    Dummy input stream, which can be used as a placeholder for interfaces
+    taking an Istream or ISstream. Aborts at any attempt to read from it.
+
+Note
+    The inheritance from an empty IStringStream is solely for convenience
+    of implementation and should not be relied upon.
 
 SourceFiles
+    dummyISstream.H
 
 \*---------------------------------------------------------------------------*/
 
 #ifndef dummyISstream_H
 #define dummyISstream_H
 
-#include "IStringStream.H"
+#include "StringStream.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -45,28 +54,24 @@ namespace Foam
                         Class dummyISstream Declaration
 \*---------------------------------------------------------------------------*/
 
-class dummyISstream :    public IStringStream
+class dummyISstream
+:
+    public IStringStream
 {
-
 public:
 
-    // Constructors
+    // Generated Methods
 
-        //- Construct null
-        dummyISstream()
-        :
-            IStringStream(string::null)
-        {}
+        //- Default construct
+        dummyISstream() = default;
 
-
-    //- Destructor
-    virtual ~dummyISstream()
-    {}
+        //- Destructor
+        virtual ~dummyISstream() = default;
 
 
-    // Member functions
+    // Member Functions
 
-        // Read functions
+        // Read Functions
 
             //- Return next token from stream
             virtual Istream& read(token&)
@@ -124,25 +129,39 @@ public:
                 return *this;
             }
 
-            //- Rewind and return the stream so that it may be read again
-            virtual Istream& rewind()
+            //- Low-level raw binary read
+            virtual Istream& readRaw(char*, std::streamsize)
             {
                 NotImplemented;
                 return *this;
             }
 
+            //- Start of low-level raw binary read
+            virtual bool beginRawRead()
+            {
+                return false;
+            }
+
+            //- End of low-level raw binary read
+            virtual bool endRawRead()
+            {
+                return false;
+            }
+
+            //- Rewind the stream so that it may be read again
+            virtual void rewind()
+            {}
+
             //- Return flags of stream
             virtual ios_base::fmtflags flags() const
             {
-                NotImplemented;
                 return ios_base::fmtflags(0);
             }
 
             //- Set flags of stream
-            virtual ios_base::fmtflags flags(const ios_base::fmtflags f)
+            virtual ios_base::fmtflags flags(const ios_base::fmtflags)
             {
-                NotImplemented;
-                return f;
+                return ios_base::fmtflags(0);
             }
 };
 

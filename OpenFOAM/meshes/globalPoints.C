@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2019 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -30,11 +33,11 @@ License
 #include "mapDistribute.H"
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
-using namespace Foam;
+
 namespace Foam
 {
     defineTypeNameAndDebug(globalPoints, 0);
-}
+ 
 
 
 // * * * * * * * * * * * * * Private Member Functions  * * * * * * * * * * * //
@@ -46,9 +49,8 @@ label globalPoints::countPatchPoints
 {
     label nTotPoints = 0;
 
-    forAll(patches, patchi)
+    for (const polyPatch& pp : patches)
     {
-        const polyPatch& pp = patches[patchi];
         if (pp.coupled())
         {
             nTotPoints += pp.nPoints();
@@ -138,20 +140,18 @@ void globalPoints::addToSend
     // information is the patch faces using the point and the relative position
     // of the point in the face)
 
-    label meshPointi = pp.meshPoints()[patchPointi];
+    const label meshPointi = pp.meshPoints()[patchPointi];
 
     // Add all faces using the point so we are sure we find it on the
     // other side.
     const labelList& pFaces = pp.pointFaces()[patchPointi];
 
-    forAll(pFaces, i)
+    for (const label patchFacei : pFaces)
     {
-        label patchFacei = pFaces[i];
-
         const face& f = pp[patchFacei];
 
         patchFaces.append(patchFacei);
-        indexInFace.append(findIndex(f, meshPointi));
+        indexInFace.append(f.find(meshPointi));
 
         // Add patch transformation
         allInfo.append(addSendTransform(pp.index(), knownInfo));
@@ -279,11 +279,11 @@ bool globalPoints::mergeInfo
     label infoChanged = false;
 
     // Get the index into the procPoints list.
-    Map<label>::iterator iter = meshToProcPoint_.find(localPointi);
+    const auto iter = meshToProcPoint_.cfind(localPointi);
 
-    if (iter != meshToProcPoint_.end())
+    if (iter.found())
     {
-        if (mergeInfo(nbrInfo, localPointi, procPoints_[iter()]))
+        if (mergeInfo(nbrInfo, localPointi, procPoints_[iter.val()]))
         {
             infoChanged = true;
         }
@@ -328,11 +328,11 @@ bool globalPoints::storeInitialInfo
     label infoChanged = false;
 
     // Get the index into the procPoints list.
-    Map<label>::iterator iter = meshToProcPoint_.find(localPointi);
+    const auto iter = meshToProcPoint_.find(localPointi);
 
-    if (iter != meshToProcPoint_.end())
+    if (iter.found())
     {
-        if (mergeInfo(nbrInfo, localPointi, procPoints_[iter()]))
+        if (mergeInfo(nbrInfo, localPointi, procPoints_[iter.val()]))
         {
             infoChanged = true;
         }
@@ -681,10 +681,9 @@ void globalPoints::receivePatchPoints
 
 
                     // Do we have information on pointA?
-                    Map<label>::iterator procPointA =
-                        meshToProcPoint_.find(localA);
+                    const auto procPointA = meshToProcPoint_.cfind(localA);
 
-                    if (procPointA != meshToProcPoint_.end())
+                    if (procPointA.found())
                     {
                         const labelPairList infoA = addSendTransform
                         (
@@ -699,10 +698,9 @@ void globalPoints::receivePatchPoints
                     }
 
                     // Same for info on pointB
-                    Map<label>::iterator procPointB =
-                        meshToProcPoint_.find(localB);
+                    const auto procPointB = meshToProcPoint_.cfind(localB);
 
-                    if (procPointB != meshToProcPoint_.end())
+                    if (procPointB.found())
                     {
                         const labelPairList infoB = addSendTransform
                         (
@@ -732,16 +730,16 @@ void globalPoints::remove
     // those points where the equivalence list is only me and my (face)neighbour
 
     // Save old ones.
-    Map<label> oldMeshToProcPoint(meshToProcPoint_.xfer());
+    Map<label> oldMeshToProcPoint(std::move(meshToProcPoint_));
     meshToProcPoint_.resize(oldMeshToProcPoint.size());
-    DynamicList<labelPairList> oldProcPoints(procPoints_.xfer());
+    DynamicList<labelPairList> oldProcPoints(std::move(procPoints_));
     procPoints_.setCapacity(oldProcPoints.size());
 
     // Go through all equivalences
-    forAllConstIter(Map<label>, oldMeshToProcPoint, iter)
+    forAllConstIters(oldMeshToProcPoint, iter)
     {
-        label localPointi = iter.key();
-        const labelPairList& pointInfo = oldProcPoints[iter()];
+        const label localPointi = iter.key();
+        const labelPairList& pointInfo = oldProcPoints[iter.val()];
 
         if (pointInfo.size() == 2)
         {
@@ -968,11 +966,11 @@ void globalPoints::calculateSharedPoints
 
 
     //Pout<< "**ALL** connected points:" << endl;
-    //forAllConstIter(Map<label>, meshToProcPoint_, iter)
+    //forAllConstIters(meshToProcPoint_, iter)
     //{
     //    label localI = iter.key();
-    //    const labelPairList& pointInfo = procPoints_[iter()];
-    //    Pout<< "pointi:" << localI << " index:" << iter()
+    //    const labelPairList& pointInfo = procPoints_[iter.val()];
+    //    Pout<< "pointi:" << localI << " index:" << iter.val()
     //        << " coord:"
     //        << mesh_.points()[localToMeshPoint(patchToMeshPoint, localI)]
     //        << endl;
@@ -992,9 +990,9 @@ void globalPoints::calculateSharedPoints
     // the master the first element on all processors.
     // Note: why not sort in decreasing order? Give more work to higher
     //       processors.
-    forAllConstIter(Map<label>, meshToProcPoint_, iter)
+    forAllConstIters(meshToProcPoint_, iter)
     {
-        labelPairList& pointInfo = procPoints_[iter()];
+        labelPairList& pointInfo = procPoints_[iter.val()];
         sort(pointInfo, globalIndexAndTransform::less(globalTransforms_));
     }
 
@@ -1005,9 +1003,10 @@ void globalPoints::calculateSharedPoints
 
     pointPoints_.setSize(globalIndices_.localSize());
     List<labelPairList> transformedPoints(globalIndices_.localSize());
-    forAllConstIter(Map<label>, meshToProcPoint_, iter)
+
+    forAllConstIters(meshToProcPoint_, iter)
     {
-        const labelPairList& pointInfo = procPoints_[iter()];
+        const labelPairList& pointInfo = procPoints_[iter.val()];
 
         if (pointInfo.size() >= 2)
         {
@@ -1094,7 +1093,9 @@ globalPoints::globalPoints
     const polyMesh& mesh,
     const bool keepAllPoints,
     const bool mergeSeparated
-) :    mesh_(mesh),
+)
+:
+    mesh_(mesh),
     globalIndices_(mesh_.nPoints()),
     globalTransforms_(mesh),
     nPatchPoints_(countPatchPoints(mesh.boundaryMesh())),
@@ -1121,7 +1122,9 @@ globalPoints::globalPoints
     const indirectPrimitivePatch& coupledPatch,
     const bool keepAllPoints,
     const bool mergeSeparated
-) :    mesh_(mesh),
+)
+:
+    mesh_(mesh),
     globalIndices_(coupledPatch.nPoints()),
     globalTransforms_(mesh),
     nPatchPoints_(coupledPatch.nPoints()),
@@ -1137,5 +1140,5 @@ globalPoints::globalPoints
     );
 }
 
-
+}
 // ************************************************************************* //

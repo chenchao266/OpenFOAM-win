@@ -1,9 +1,12 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2019-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -25,6 +28,7 @@ License
 
 #include "blockEdge.H"
 #include "blockVertex.H"
+#include "polyLine.H"
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
 
@@ -40,13 +44,12 @@ namespace Foam
 Foam::blockEdge::blockEdge
 (
     const pointField& points,
-    const label start,
-    const label end
+    const edge& fromTo
 )
 :
     points_(points),
-    start_(start),
-    end_(end)
+    start_(fromTo.first()),
+    end_(fromTo.last())
 {}
 
 
@@ -67,7 +70,7 @@ Foam::blockEdge::blockEdge
 Foam::autoPtr<Foam::blockEdge> Foam::blockEdge::clone() const
 {
     NotImplemented;
-    return autoPtr<blockEdge>(nullptr);
+    return nullptr;
 }
 
 
@@ -80,61 +83,48 @@ Foam::autoPtr<Foam::blockEdge> Foam::blockEdge::New
     Istream& is
 )
 {
-    if (debug)
-    {
-        InfoInFunction << "Constructing blockEdge" << endl;
-    }
+    DebugInFunction << "Constructing blockEdge" << endl;
 
     const word edgeType(is);
 
-    IstreamConstructorTable::iterator cstrIter =
-        IstreamConstructorTablePtr_->find(edgeType);
+    auto* ctorPtr = IstreamConstructorTable(edgeType);
 
-    if (cstrIter == IstreamConstructorTablePtr_->end())
+    if (!ctorPtr)
     {
-        FatalErrorInFunction
-            << "Unknown blockEdge type "
-            << edgeType << nl << nl
-            << "Valid blockEdge types are" << endl
-            << IstreamConstructorTablePtr_->sortedToc()
-            << abort(FatalError);
+        FatalIOErrorInLookup
+        (
+            dict,
+            "blockEdge",
+            edgeType,
+            *IstreamConstructorTablePtr_
+        ) << abort(FatalIOError);
     }
 
-    return autoPtr<blockEdge>(cstrIter()(dict, index, geometry, points, is));
+    return autoPtr<blockEdge>(ctorPtr(dict, index, geometry, points, is));
+}
+
+
+// * * * * * * * * * * * * * Static Member Functions * * * * * * * * * * * * //
+
+Foam::pointField Foam::blockEdge::appendEndPoints
+(
+    const pointField& p,
+    const label from,
+    const label to,
+    const pointField& intermediate
+)
+{
+    return  (polyLine::concat(p[from], intermediate, p[to]).points());
 }
 
 
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
 
-Foam::pointField Foam::blockEdge::appendEndPoints
-(
-    const pointField& points,
-    const label start,
-    const label end,
-    const pointField& otherKnots
-)
-{
-    pointField allKnots(otherKnots.size() + 2);
-
-    // Start/end knots
-    allKnots[0] = points[start];
-    allKnots[otherKnots.size() + 1] = points[end];
-
-    // Intermediate knots
-    forAll(otherKnots, knotI)
-    {
-        allKnots[knotI+1] = otherKnots[knotI];
-    }
-
-    return allKnots;
-}
-
-
 Foam::tmp<Foam::pointField>
 Foam::blockEdge::position(const scalarList& lambdas) const
 {
-    tmp<pointField> tpoints(new pointField(lambdas.size()));
-    pointField& points = tpoints.ref();
+    auto tpoints = tmp<pointField>::New(lambdas.size());
+    auto& points = tpoints.ref();
 
     forAll(lambdas, i)
     {
@@ -144,20 +134,20 @@ Foam::blockEdge::position(const scalarList& lambdas) const
 }
 
 
-void Foam::blockEdge::write(Ostream& os, const dictionary& d) const
+void Foam::blockEdge::write(Ostream& os, const dictionary& dict) const
 {
-    blockVertex::write(os, start_, d);
+    blockVertex::write(os, start_, dict);
     os << tab;
-    blockVertex::write(os, end_, d);
+    blockVertex::write(os, end_, dict);
     os << endl;
 }
 
 
 // * * * * * * * * * * * * * * * Member Operators  * * * * * * * * * * * * * //
 
-Foam::Ostream& Foam::operator<<(Ostream& os, const blockEdge& p)
+Foam::Ostream& Foam::operator<<(Ostream& os, const blockEdge& e)
 {
-    os << p.start_ << tab << p.end_ << endl;
+    os << e.start_ << tab << e.end_ << endl;
 
     return os;
 }

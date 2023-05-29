@@ -1,9 +1,12 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2020-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -45,31 +48,30 @@ SourceFiles
 #include "labelList.H"
 #include "cellModel.H"
 #include "autoPtr.H"
-#include "InfoProxy.T.H"
+#include "InfoProxy.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 namespace Foam
 {
 
-// Forward declaration of classes
+// Forward Declarations
 class cell;
-
-// Forward declaration of friend functions and operators
-
 class cellShape;
-bool operator==(const cellShape&, const cellShape&);
-Istream& operator>>(Istream&, cellShape&);
-Ostream& operator<<(Ostream&, const cellShape&);
+bool operator==(const cellShape& a, const cellShape& b);
+Istream& operator>>(Istream& is, cellShape& s);
+Ostream& operator<<(Ostream& os, const cellShape& s);
 
 
 /*---------------------------------------------------------------------------*\
                           Class cellShape Declaration
 \*---------------------------------------------------------------------------*/
 
-class cellShape :    public labelList
+class cellShape
+:
+    public labelList
 {
-    // Private data
+    // Private Data
 
         //- Access to the cellShape's model
         const cellModel *m;
@@ -79,27 +81,44 @@ public:
 
     // Constructors
 
-        //- Construct null
-        inline cellShape();
+        //- Default construct. Empty shape, no cell model.
+        inline constexpr cellShape() noexcept;
 
-        //- Construct from components
+        //- Copy construct from components
         inline cellShape
         (
-            const cellModel&,
-            const labelList&,
+            const cellModel& model,
+            const labelUList& labels,
             const bool doCollapse = false
         );
 
-        //- Construct from components
+        //- Copy construct from components
+        template<unsigned N>
         inline cellShape
         (
-            const word& model,
-            const labelList&,
+            const cellModel& model,
+            const FixedList<label, N>& labels,
+            const bool doCollapse = false
+        );
+
+        //- Move construct from components
+        inline cellShape
+        (
+            const cellModel& model,
+            labelList&& labels,
+            const bool doCollapse = false
+        );
+
+        //- Copy construct from components, lookup cellModel by name
+        inline cellShape
+        (
+            const word& modelName,
+            const labelUList& labels,
             const bool doCollapse = false
         );
 
         //- Construct from Istream
-        inline cellShape(Istream& is);
+        inline explicit cellShape(Istream& is);
 
         //- Clone
         inline autoPtr<cellShape> clone() const;
@@ -107,21 +126,37 @@ public:
 
     // Member Functions
 
-        //- Return the points corresponding to this cellShape
-        inline pointField points(const pointField& meshPoints) const;
-
         //- Model reference
         inline const cellModel& model() const;
 
+        //- Number of points
+        inline label nPoints() const noexcept;
+
+        //- Number of edges
+        inline label nEdges() const;
+
+        //- Number of faces
+        inline label nFaces() const;
+
+        //- The points corresponding to this shape
+        inline pointField points(const UList<point>& meshPoints) const;
+
         //- Mesh face labels of this cell (in order of model)
-        inline labelList meshFaces(const faceList& allFaces, const cell&) const;
+        inline labelList meshFaces
+        (
+            const faceList& allFaces,
+            const cell& cFaces
+        ) const;
 
         //- Mesh edge labels of this cell (in order of model)
         inline labelList meshEdges
         (
             const edgeList& allEdges,
-            const labelList&
+            const labelList& cEdges
         ) const;
+
+        //- The face for the specified model face
+        inline ::Foam::face face(const label modelFacei) const;
 
         //- Faces of this cell
         inline faceList faces() const;
@@ -129,44 +164,54 @@ public:
         //- Collapsed faces of this cell
         inline faceList collapsedFaces() const;
 
-        //- Number of faces
-        inline label nFaces() const;
+        //- The edge for the specified model edge
+        inline ::Foam::edge edge(const label modelEdgei) const;
 
-        //- Edges of this cellShape
+        //- Edges of this shape
         inline edgeList edges() const;
 
-        //- Number of edges
-        inline label nEdges() const;
-
-        //- Number of points
-        inline label nPoints() const;
-
         //- Centroid of the cell
-        inline point centre(const pointField&) const;
-
-        //- Return info proxy.
-        //  Used to print token information to a stream
-        Foam::InfoProxy<cellShape> info() const
-        {
-            return *this;
-        }
+        inline point centre(const UList<point>& points) const;
 
         //- Scalar magnitude
-        inline scalar mag(const pointField&) const;
+        inline scalar mag(const UList<point>& points) const;
+
+        //- Reset from components
+        inline void reset
+        (
+            const cellModel& model,
+            const labelUList& labels,
+            const bool doCollapse = false
+        );
+
+        //- Reset from components
+        template<unsigned N>
+        inline void reset
+        (
+            const cellModel& model,
+            const FixedList<label, N>& labels,
+            const bool doCollapse = false
+        );
 
         //- Collapse shape to correct one after removing duplicate vertices
         void collapse();
 
+        //- Return info proxy, to print information to a stream
+        InfoProxy<cellShape> info() const
+        {
+            return *this;
+        }
+
 
     // Friend Operators
 
-        friend bool operator==(const cellShape&, const cellShape&);
+        friend bool operator==(const cellShape& a, const cellShape& b);
 
 
     // IOstream operators
 
-        friend Istream& operator>>(Istream&, cellShape&);
-        friend Ostream& operator<<(Ostream&, const cellShape&);
+        friend Istream& operator>>(Istream& is, cellShape& s);
+        friend Ostream& operator<<(Ostream& os, const cellShape& s);
 };
 
 

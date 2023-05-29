@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2012 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2012 OpenFOAM Foundation
+    Copyright (C) 2017-2018 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -37,6 +40,7 @@ SourceFiles
 
 #include "pointField.H"
 #include "word.H"
+#include "Enum.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -44,20 +48,19 @@ namespace Foam
 {
 
 /*---------------------------------------------------------------------------*\
-                           Class coordSet Declaration
+                          Class coordSet Declaration
 \*---------------------------------------------------------------------------*/
 
 class coordSet
 :
     public pointField
 {
-
 public:
 
     // Public data types
 
         //- Enumeration defining the output format for coordinates
-        enum coordFormat
+        enum class coordFormat
         {
             XYZ,
             X,
@@ -66,11 +69,13 @@ public:
             DISTANCE
         };
 
+        //- String representation of coordFormat enum
+        static const Enum<coordFormat> coordFormatNames;
 
 private:
 
-        //- String representation of coordFormat enums
-        static const NamedEnum<coordFormat, 5> coordFormatNames_;
+        //- Check for consistent dimensions of points and curve distance
+        void checkDimensions() const;
 
 
 protected:
@@ -90,20 +95,29 @@ public:
     // Constructors
 
         //- Construct from components
-        coordSet
-        (
-            const word& name,
-            const word& axis
-        );
-
+        //  Note: curveDist will be empty
+        coordSet(const word& name, const coordFormat axisType);
 
         //- Construct from components
+        //  Note: curveDist will be empty
+        coordSet(const word& name, const word& axis);
+
+        //- Copy construct from components
         coordSet
         (
             const word& name,
             const word& axis,
             const List<point>& points,
             const scalarList& curveDist
+        );
+
+        //- Move construct from components
+        coordSet
+        (
+            const word& name,
+            const word& axis,
+            List<point>&& points,
+            scalarList&& curveDist
         );
 
 
@@ -116,13 +130,39 @@ public:
 
         word axis() const
         {
-            return coordFormatNames_[axis_];
+            return coordFormatNames[axis_];
         }
 
-        //- Cumulative distance
+        //- Set the points
+        void setPoints(const List<point>& newPoints)
+        {
+            static_cast<pointField&>(*this) = newPoints;
+        }
+
+        //- Set the points
+        void setPoints(List<point>&& newPoints)
+        {
+            static_cast<pointField&>(*this) = std::move(newPoints);
+        }
+
+        //- Return the cumulative distance
         const scalarList& curveDist() const
         {
             return curveDist_;
+        }
+
+        //- Set the cumulative distance
+        void setCurveDist(const scalarList& curveDist)
+        {
+            curveDist_ = curveDist;
+            checkDimensions();
+        }
+
+        //- Set the cumulative distance
+        void setCurveDist(scalarList&& curveDist)
+        {
+            curveDist_ = std::move(curveDist);
+            checkDimensions();
         }
 
         //- Is axis specification a vector
@@ -135,6 +175,7 @@ public:
         //- Get point according to axis="xyz" specification
         vector vectorCoord(const label index) const;
 
+        //- Write to stream
         Ostream& write(Ostream& os) const;
 };
 

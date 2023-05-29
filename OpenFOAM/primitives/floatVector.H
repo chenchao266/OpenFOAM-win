@@ -1,9 +1,12 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011 OpenFOAM Foundation
+    Copyright (C) 2019 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -25,7 +28,7 @@ Typedef
     Foam::floatVector
 
 Description
-    A float version of vector
+    A Vector of values with float precision.
 
 SourceFiles
     floatVector.C
@@ -35,8 +38,7 @@ SourceFiles
 #ifndef floatVector_H
 #define floatVector_H
 
-#include "Vector.T.H"
-#include "contiguous.H"
+#include "Vector.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -46,12 +48,6 @@ namespace Foam
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 typedef Vector<float> floatVector;
-
-//- Data associated with floatVector type are contiguous
-#if !defined(WM_SP)
-template<>
-inline bool contiguous<floatVector>() {return true;}
-#endif
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 

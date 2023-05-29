@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2020-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -38,45 +41,59 @@ const Foam::word Foam::combustionModel::combustionPropertiesName
 );
 
 
+// * * * * * * * * * * * * * Private Member Functions  * * * * * * * * * * * //
+
+Foam::IOobject Foam::combustionModel::createIOobject
+(
+    basicThermo& thermo,
+    const word& combustionProperties
+) const
+{
+    IOobject io
+    (
+        thermo.phasePropertyName(combustionProperties),
+        thermo.db().time().constant(),
+        thermo.db(),
+        IOobject::MUST_READ,
+        IOobject::NO_WRITE
+    );
+
+    if (io.typeHeaderOk<IOdictionary>(true))
+    {
+        io.readOpt(IOobject::MUST_READ_IF_MODIFIED);
+    }
+    else
+    {
+        io.readOpt(IOobject::NO_READ);
+    }
+
+    return io;
+}
+
+
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
 Foam::combustionModel::combustionModel
 (
     const word& modelType,
-    const fvMesh& mesh,
-    const word& combustionProperties,
-    const word& phaseName
+    basicThermo& thermo,
+    const compressibleTurbulenceModel& turb,
+    const word& combustionProperties
 )
 :
-    IOdictionary
-    (
-        IOobject
-        (
-            IOobject::groupName(combustionProperties, phaseName),
-            mesh.time().constant(),
-            mesh,
-            IOobject::MUST_READ_IF_MODIFIED,
-            IOobject::NO_WRITE
-        )
-    ),
-    turbulencePtr_(),
-    mesh_(mesh),
-    active_(lookupOrDefault<Switch>("active", true)),
+    IOdictionary(createIOobject(thermo, combustionProperties)),
+    mesh_(thermo.p().mesh()),
+    turb_(turb),
+    active_(getOrDefault<Switch>("active", true)),
     coeffs_(optionalSubDict(modelType + "Coeffs")),
-    modelType_(modelType),
-    phaseName_(phaseName)
+    modelType_(modelType)
 {}
 
 
 // * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
 
 Foam::combustionModel::~combustionModel()
-{
-    if (turbulencePtr_)
-    {
-        turbulencePtr_ = 0;
-    }
-}
+{}
 
 
 // * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * * //
@@ -85,14 +102,12 @@ bool Foam::combustionModel::read()
 {
     if (regIOobject::read())
     {
-        this->lookup("active") >> active_;
+        this->readEntry("active", active_);
         coeffs_ = optionalSubDict(modelType_ + "Coeffs");
         return true;
     }
-    else
-    {
-        return false;
-    }
+
+    return false;
 }
 
 

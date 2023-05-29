@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2013 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2014 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -43,9 +45,9 @@ SourceFiles
 #define localPointRegion_H
 
 #include "typeInfo.H"
-#include "Map.T.H"
+#include "Map.H"
 #include "labelList.H"
-#include "HashSet.T.H"
+#include "HashSet.H"
 #include "faceList.H"
 #include "boolList.H"
 #include "labelPair.H"
@@ -101,9 +103,9 @@ class localPointRegion
         void calcPointRegions
         (
             const polyMesh& mesh,
+            const labelPairList& baffles,
             boolList& candidatePoint
         );
-
 
         //- Check if two faces are equal. If forward = false checks f1 in
         //  reverse order.
@@ -130,6 +132,14 @@ public:
         localPointRegion
         (
             const polyMesh& mesh,
+            const labelList& candidatePoints
+        );
+
+        //- Construct from mesh and candidate points for duplication
+        localPointRegion
+        (
+            const polyMesh& mesh,
+            const labelPairList& baffles,
             const labelList& candidatePoints
         );
 
@@ -180,7 +190,7 @@ public:
                 return meshFaceMap_;
             }
 
-            //- Per face the region of its points
+            //- Per face (in local index) the region of its points
             const faceList& faceRegions() const
             {
                 return faceRegions_;

@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2015 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2015 OpenFOAM Foundation
+    Copyright (C) 2017-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -25,7 +28,7 @@ Class
     Foam::multiLevelDecomp
 
 Description
-    Decomposition given using consecutive application of decomposers.
+    Decompose given using consecutive application of decomposers.
 
 SourceFiles
     multiLevelDecomp.C
@@ -48,14 +51,25 @@ class multiLevelDecomp
 :
     public decompositionMethod
 {
-    // Private data
+    // Private Data
 
+        //- Original coefficients for this method
+        const dictionary& coeffsDict_;
+
+        //- Rewritten dictionary of individual methods
         dictionary methodsDict_;
 
         PtrList<decompositionMethod> methods_;
 
 
     // Private Member Functions
+
+        //- Fill the methodsDict_
+        void createMethodsDict();
+
+        //- Set methods based on the contents of the methodsDict_
+        void setMethods();
+
 
         //- Given connectivity across processors work out connectivity
         //  for a (consistent) subset
@@ -71,21 +85,25 @@ class multiLevelDecomp
             labelList& cutConnections
         ) const;
 
-        //- Decompose level methodI without addressing
+        //- Decompose at 'currLevel' without addressing
         void decompose
         (
             const labelListList& pointPoints,
             const pointField& points,
             const scalarField& pointWeights,
-            const labelList& pointMap,  // map back to original points
-            const label levelI,
+            const labelUList& pointMap,  // map back to original points
+            const label currLevel,
+            const label leafOffset,
 
-            labelField& finalDecomp
-        );
+            labelList& finalDecomp
+        ) const;
 
-        //- Disallow default bitwise copy construct and assignment
-        void operator=(const multiLevelDecomp&);
-        multiLevelDecomp(const multiLevelDecomp&);
+
+        //- No copy construct
+        multiLevelDecomp(const multiLevelDecomp&) = delete;
+
+        //- No copy assignment
+        void operator=(const multiLevelDecomp&) = delete;
 
 
 public:
@@ -96,41 +114,44 @@ public:
 
     // Constructors
 
-        //- Construct given the decomposition dictionary
-        multiLevelDecomp(const dictionary& decompositionDict);
+        //- Construct given decomposition dictionary and optional region name
+        explicit multiLevelDecomp
+        (
+            const dictionary& decompDict,
+            const word& regionName = ""
+        );
 
 
     //- Destructor
-    virtual ~multiLevelDecomp()
-    {}
+    virtual ~multiLevelDecomp() = default;
 
 
     // Member Functions
 
-        //- Is method parallel aware (i.e. does it synchronize domains across
-        //  proc boundaries)
+        //- Is method parallel aware?
+        //  i.e. does it synchronize domains across proc boundaries
         virtual bool parallelAware() const;
 
         //- Inherit decompose from decompositionMethod
         using decompositionMethod::decompose;
 
-        //- Return for every coordinate the wanted processor number. Use the
-        //  mesh connectivity (if needed)
+        //- Return for every coordinate the wanted processor number.
+        //  Use the mesh connectivity (if needed)
         virtual labelList decompose
         (
             const polyMesh& mesh,
             const pointField& points,
             const scalarField& pointWeights
-        );
+        ) const;
 
-        //- Return for every coordinate the wanted processor number. Explicitly
-        //  provided connectivity - does not use mesh_.
+        //- Return for every coordinate the wanted processor number.
+        //  Explicitly provided connectivity - does not use mesh_.
         virtual labelList decompose
         (
             const labelListList& globalCellCells,
             const pointField& cc,
             const scalarField& cWeights
-        );
+        ) const;
 };
 
 

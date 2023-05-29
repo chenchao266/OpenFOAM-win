@@ -1,9 +1,11 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -36,7 +38,7 @@ SourceFiles
 #define walkPatch_H
 
 #include "labelList.H"
-#include "primitivePatch.H"
+#include "primitivePatch2.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -94,11 +96,11 @@ class walkPatch
         );
 
 
-        //- Disallow default bitwise copy construct
-        walkPatch(const walkPatch&);
+        //- No copy construct
+        walkPatch(const walkPatch&) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const walkPatch&);
+        //- No copy assignment
+        void operator=(const walkPatch&) = delete;
 
 public:
 

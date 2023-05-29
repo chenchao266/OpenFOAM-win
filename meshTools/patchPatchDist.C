@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2018-2019 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -24,7 +27,7 @@ License
 \*---------------------------------------------------------------------------*/
 
 #include "patchPatchDist.H"
-#include "PatchEdgeFaceWave.T.H"
+#include "PatchEdgeFaceWave.H"
 #include "syncTools.H"
 #include "polyMesh.H"
 #include "patchEdgeFaceInfo.H"
@@ -45,21 +48,14 @@ Foam::patchPatchDist::patchPatchDist
 }
 
 
-// * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
-
-Foam::patchPatchDist::~patchPatchDist()
-{}
-
-
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
 
 void Foam::patchPatchDist::correct()
 {
     // Mark all edge connected to a nbrPatch.
     label nBnd = 0;
-    forAllConstIter(labelHashSet, nbrPatchIDs_, iter)
+    for (const label nbrPatchi : nbrPatchIDs_)
     {
-        label nbrPatchi = iter.key();
         const polyPatch& nbrPatch = patch_.boundaryMesh()[nbrPatchi];
         nBnd += nbrPatch.nEdges()-nbrPatch.nInternalEdges();
     }
@@ -68,9 +64,8 @@ void Foam::patchPatchDist::correct()
     // functionality for these.
     EdgeMap<label> nbrEdges(2*nBnd);
 
-    forAllConstIter(labelHashSet, nbrPatchIDs_, iter)
+    for (const label nbrPatchi : nbrPatchIDs_)
     {
-        label nbrPatchi = iter.key();
         const polyPatch& nbrPatch = patch_.boundaryMesh()[nbrPatchi];
         const labelList& nbrMp = nbrPatch.meshPoints();
 
@@ -78,7 +73,7 @@ void Foam::patchPatchDist::correct()
         (
             label edgeI = nbrPatch.nInternalEdges();
             edgeI < nbrPatch.nEdges();
-            edgeI++
+            ++edgeI
         )
         {
             const edge& e = nbrPatch.edges()[edgeI];
@@ -120,8 +115,8 @@ void Foam::patchPatchDist::correct()
     {
         const edge& e = patch_.edges()[edgeI];
         const edge meshE = edge(mp[e[0]], mp[e[1]]);
-        EdgeMap<label>::const_iterator edgeFnd = nbrEdges.find(meshE);
-        if (edgeFnd != nbrEdges.end())
+
+        if (nbrEdges.found(meshE))
         {
             initialEdges.append(edgeI);
             initialEdgesInfo.append

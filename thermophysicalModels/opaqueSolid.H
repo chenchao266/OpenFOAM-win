@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -23,6 +25,9 @@ License
 
 Class
     Foam::radiation::opaqueSolid
+
+Group
+    grpRadiationModels
 
 Description
     Radiation for solid opaque solids - does nothing to energy equation source
@@ -56,11 +61,11 @@ class opaqueSolid
 {
     // Private Member Functions
 
-        //- Disallow default bitwise copy construct
-        opaqueSolid(const opaqueSolid&);
+        //- No copy construct
+        opaqueSolid(const opaqueSolid&) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const opaqueSolid&);
+        //- No copy assignment
+        void operator=(const opaqueSolid&) = delete;
 
 
 public:
@@ -97,6 +102,9 @@ public:
 
             //- Source term component (constant)
             tmp<volScalarField::Internal> Ru() const;
+
+            //- Number of bands
+            label nBands() const;
 };
 
 

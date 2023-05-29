@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -26,61 +28,65 @@ License
 #include "labelSymmTensor.H"
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
-namespace Foam {
-    template<>
-    const char* const labelSymmTensor::vsType::typeName = "labelSymmTensor";
 
-    template<>
-    const char* const labelSymmTensor::vsType::componentNames[] =
-    {
-        "xx", "xy", "xz",
-              "yy", "yz",
-                    "zz"
-    };
 
-    template<>
-    const labelSymmTensor labelSymmTensor::vsType::vsType::_zero
-    (
-        labelSymmTensor::uniform(0)
-    );
+ namespace Foam{
+template<>
+const char* const labelSymmTensor::vsType::typeName = "labelSymmTensor";
 
-    template<>
-    const labelSymmTensor labelSymmTensor::vsType::one
-    (
-        labelSymmTensor::uniform(1)
-    );
+template<>
+const char* const labelSymmTensor::vsType::componentNames[] =
+{
+    "xx", "xy", "xz",
+          "yy", "yz",
+                "zz"
+};
 
-    template<>
-    const labelSymmTensor labelSymmTensor::vsType::max
-    (
-        labelSymmTensor::uniform(labelMax)
-    );
+template<>
+const labelSymmTensor labelSymmTensor::vsType::vsType::zero_
+(
+    labelSymmTensor::uniform(0)
+);
 
-    template<>
-    const labelSymmTensor labelSymmTensor::vsType::min
-    (
-        labelSymmTensor::uniform(-labelMax)
-    );
+template<>
+const labelSymmTensor labelSymmTensor::vsType::one_
+(
+    labelSymmTensor::uniform(1)
+);
 
-    template<>
-    const labelSymmTensor labelSymmTensor::vsType::rootMax
-    (
-        labelSymmTensor::uniform(sqrt(scalar(labelMax)))
-    );
+template<>
+const labelSymmTensor labelSymmTensor::vsType::max_
+(
+    labelSymmTensor::uniform(labelMax)
+);
 
-    template<>
-    const labelSymmTensor labelSymmTensor::vsType::rootMin
-    (
-        labelSymmTensor::uniform(-sqrt(scalar(labelMax)))
-    );
+template<>
+const labelSymmTensor labelSymmTensor::vsType::min_
+(
+    labelSymmTensor::uniform(-labelMax)
+);
 
-    template<>
-    const labelSymmTensor labelSymmTensor::I
-    (
-        1, 0, 0,
-        1, 0,
-        1
-    );
-}
+template<>
+const labelSymmTensor labelSymmTensor::vsType::rootMax_
+(
+    labelSymmTensor::uniform(sqrt(scalar(labelMax)))
+);
+
+template<>
+const labelSymmTensor labelSymmTensor::vsType::rootMin_
+(
+    labelSymmTensor::uniform(-sqrt(scalar(labelMax)))
+);
+
+template<>
+const labelSymmTensor labelSymmTensor::I
+(
+    1, 0, 0,
+       1, 0,
+          1
+);
+
 
 // ************************************************************************* //
+
+ } // End namespace Foam

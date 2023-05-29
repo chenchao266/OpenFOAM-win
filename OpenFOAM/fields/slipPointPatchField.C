@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2015 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2015 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -26,53 +28,56 @@ License
 #include "slipPointPatchField.H"
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
-namespace Foam
-{
-    template<class Type>
-    slipPointPatchField<Type>::slipPointPatchField
-    (
-        const pointPatch& p,
-        const DimensionedField<Type, pointMesh>& iF
-    )
-        :
-        basicSymmetryPointPatchField<Type>(p, iF)
-    {}
 
 
-    template<class Type>
-    slipPointPatchField<Type>::slipPointPatchField
-    (
-        const pointPatch& p,
-        const DimensionedField<Type, pointMesh>& iF,
-        const dictionary& dict
-    )
-        :
-        basicSymmetryPointPatchField<Type>(p, iF, dict)
-    {}
+ namespace Foam{
+template<class Type>
+slipPointPatchField<Type>::slipPointPatchField
+(
+    const pointPatch& p,
+    const DimensionedField<Type, pointMesh>& iF
+)
+:
+    basicSymmetryPointPatchField<Type>(p, iF)
+{}
 
 
-    template<class Type>
-    slipPointPatchField<Type>::slipPointPatchField
-    (
-        const slipPointPatchField<Type>& ptf,
-        const pointPatch& p,
-        const DimensionedField<Type, pointMesh>& iF,
-        const pointPatchFieldMapper& mapper
-    )
-        :
-        basicSymmetryPointPatchField<Type>(ptf, p, iF, mapper)
-    {}
+template<class Type>
+slipPointPatchField<Type>::slipPointPatchField
+(
+    const pointPatch& p,
+    const DimensionedField<Type, pointMesh>& iF,
+    const dictionary& dict
+)
+:
+    basicSymmetryPointPatchField<Type>(p, iF, dict)
+{}
 
 
-    template<class Type>
-    slipPointPatchField<Type>::slipPointPatchField
-    (
-        const slipPointPatchField<Type>& ptf,
-        const DimensionedField<Type, pointMesh>& iF
-    )
-        :
-        basicSymmetryPointPatchField<Type>(ptf, iF)
-    {}
+template<class Type>
+slipPointPatchField<Type>::slipPointPatchField
+(
+    const slipPointPatchField<Type>& ptf,
+    const pointPatch& p,
+    const DimensionedField<Type, pointMesh>& iF,
+    const pointPatchFieldMapper& mapper
+)
+:
+    basicSymmetryPointPatchField<Type>(ptf, p, iF, mapper)
+{}
 
-}
+
+template<class Type>
+slipPointPatchField<Type>::slipPointPatchField
+(
+    const slipPointPatchField<Type>& ptf,
+    const DimensionedField<Type, pointMesh>& iF
+)
+:
+    basicSymmetryPointPatchField<Type>(ptf, iF)
+{}
+
+
 // ************************************************************************* //
+
+ } // End namespace Foam

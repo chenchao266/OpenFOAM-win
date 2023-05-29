@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2014 OpenFOAM Foundation
+    Copyright (C) 2015-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -35,9 +38,11 @@ SourceFiles
 #ifndef refinementParameters_H
 #define refinementParameters_H
 
-#include "dictionary.H"
+#include "dictionary2.H"
 #include "pointField.H"
 #include "Switch.H"
+#include "wordPairHashTable.H"
+#include "surfaceZonesInfo.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -68,34 +73,58 @@ class refinementParameters
         scalar curvature_;
 
         //- Planarity criterion
-        scalar planarAngle_;
+        const scalar planarAngle_;
 
         //- Number of layers between different refinement levels
         const label nBufferLayers_;
 
-        //- Areas to keep
-        const pointField keepPoints_;
+
+        // Selection of areas
+
+            //- Areas not to keep
+            const pointField locationsOutsideMesh_;
+
+            //- Areas to keep
+            pointField locationsInMesh_;
+
+            //- Region for location
+            wordList zonesInMesh_;
+
+            //- Information on how to handle faces on faceZones
+            const dictionary faceZoneControls_;
+
 
         //- FaceZone faces allowed which have owner and neighbour in same
         //  cellZone?
-        Switch allowFreeStandingZoneFaces_;
+        const Switch allowFreeStandingZoneFaces_;
 
         //- Use old topology based problem-cell removal (cells with 8 points
         //  on surface)
-        Switch useTopologicalSnapDetection_;
+        const Switch useTopologicalSnapDetection_;
 
         //- Allowed load unbalance
-        scalar maxLoadUnbalance_;
+        const scalar maxLoadUnbalance_;
 
-        Switch handleSnapProblems_;
+        const Switch handleSnapProblems_;
+
+        const Switch interfaceRefine_;
+
+        const label nErodeCellZone_;
+
+        const label nFilterIter_;
+
+        const scalar minCellFraction_;
+
+        const bool dryRun_;
+
 
     // Private Member Functions
 
-        //- Disallow default bitwise copy construct
-        refinementParameters(const refinementParameters&);
+        //- No copy construct
+        refinementParameters(const refinementParameters&) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const refinementParameters&);
+        //- No copy assignment
+        void operator=(const refinementParameters&) = delete;
 
 
 public:
@@ -103,7 +132,7 @@ public:
     // Constructors
 
         //- Construct from dictionary - new syntax
-        refinementParameters(const dictionary& dict);
+        refinementParameters(const dictionary& dict, const bool dryRun = false);
 
 
     // Member Functions
@@ -147,9 +176,21 @@ public:
             }
 
             //- Areas to keep
-            const pointField& keepPoints() const
+            const pointField& locationsInMesh() const
             {
-                return keepPoints_;
+                return locationsInMesh_;
+            }
+
+            //- Per area the zone name
+            const wordList& zonesInMesh() const
+            {
+                return zonesInMesh_;
+            }
+
+            //- Optional points which are checked to be outside the mesh
+            const pointField& locationsOutsideMesh() const
+            {
+                return locationsOutsideMesh_;
             }
 
             //- Are zone faces allowed only inbetween different cell zones
@@ -177,11 +218,59 @@ public:
                 return handleSnapProblems_;
             }
 
+            //- Refine cell with opposite faces with different refinement level
+            bool interfaceRefine() const
+            {
+                return interfaceRefine_;
+            }
+
+            //- Number of iterations of erosion to get a consistent cellZone
+            label nErodeCellZone() const
+            {
+                return nErodeCellZone_;
+            }
+
+            //- Number of iterations of infill/erosion to get a smoother
+            //  blockage
+            label nFilterIter() const
+            {
+                return nFilterIter_;
+            }
+
+            //- When are disconnected regions small. Fraction of overall size
+            //  of a zone or background. Default 0.
+            scalar minCellFraction() const
+            {
+                return minCellFraction_;
+            }
+
 
         // Other
 
-            //- Checks that cells are in mesh. Returns cells they are in.
-            labelList findCells(const polyMesh&) const;
+            //- Get patchInfo and faceType for faceZone
+            dictionary getZoneInfo
+            (
+                const word& fzName,
+                surfaceZonesInfo::faceZoneType& faceType
+            ) const;
+
+            //- Add cellZones to mesh. Return indices of cellZones (or -1)
+            labelList addCellZonesToMesh(polyMesh&) const;
+
+            //- Checks that cells are in mesh. Returns cells (or -1) they
+            //  are in.
+            static labelList findCells
+            (
+                const bool checkInsideMesh,
+                const polyMesh&,
+                const pointField& locations
+            );
+
+            //- Extract indices of named locations (so excludes 'keepPoints')
+            static labelList zonedLocations(const wordList& zonesInMesh);
+
+            //- Extract indices of unnamed locations ('keepPoints')
+            static labelList unzonedLocations(const wordList& zonesInMesh);
 
 };
 

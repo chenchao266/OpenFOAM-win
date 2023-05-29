@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2018-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -24,57 +27,51 @@ License
 \*---------------------------------------------------------------------------*/
 
 #include "codeStream.H"
-#include "addToMemberFunctionSelectionTable.H"
-#include "IStringStream.H"
-#include "OStringStream.H"
 #include "dynamicCode.H"
 #include "dynamicCodeContext.H"
-#include "Time.T.H"
+#include "StringStream.H"
+#include "Time1.h"
+#include "addToMemberFunctionSelectionTable.H"
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
-using namespace Foam;
+
 namespace Foam
 {
 namespace functionEntries
 {
     defineTypeNameAndDebug(codeStream, 0);
 
-    addToMemberFunctionSelectionTable
+    addNamedToMemberFunctionSelectionTable
     (
         functionEntry,
         codeStream,
         execute,
-        dictionaryIstream
+        dictionaryIstream,
+        codeStream
     );
 
-    addToMemberFunctionSelectionTable
+    addNamedToMemberFunctionSelectionTable
     (
         functionEntry,
         codeStream,
         execute,
-        primitiveEntryIstream
+        primitiveEntryIstream,
+        codeStream
     );
-
-}
-}
-
-
-const word functionEntries::codeStream::codeTemplateC
-    = "codeStreamTemplate.C";
+} // End namespace functionEntries
+} // End namespace Foam
 
 
 // * * * * * * * * * * * * * Private Member Functions  * * * * * * * * * * * //
 
+
+ namespace Foam{
 dlLibraryTable& functionEntries::codeStream::libs
 (
     const dictionary& dict
 )
 {
-    const baseIOdictionary& d = static_cast<const baseIOdictionary&>
-    (
-        dict.topDict()
-    );
-    return const_cast<Time&>(d.time()).libs();
+    return static_cast<const baseIOdictionary&>(dict.topDict()).time().libs();
 }
 
 
@@ -83,36 +80,27 @@ bool functionEntries::codeStream::doingMasterOnlyReading
     const dictionary& dict
 )
 {
-    const dictionary& topDict = dict.topDict();
+    // Fallback value
+    bool masterOnly = regIOobject::masterOnlyReading;
 
-    if (isA<baseIOdictionary>(topDict))
+    const auto* iodictPtr = isA<baseIOdictionary>(dict.topDict());
+
+    if (iodictPtr)
     {
-        const baseIOdictionary& d = static_cast<const baseIOdictionary&>
-        (
-            topDict
-        );
+        masterOnly = iodictPtr->globalObject();
 
-        if (debug)
-        {
-            Pout<< "codeStream : baseIOdictionary:" << dict.name()
-                << " master-only-reading:" << d.globalObject()
-                << endl;
-        }
-
-        return d.globalObject();
+        DebugPout
+            << "codeStream : baseIOdictionary:" << dict.name()
+            << " master-only-reading:" << masterOnly << endl;
     }
     else
     {
-        if (debug)
-        {
-            Pout<< "codeStream : not a baseIOdictionary:" << dict.name()
-                << " master-only-reading:" << regIOobject::masterOnlyReading
-                << endl;
-        }
-
-        // Fall back to regIOobject::masterOnlyReading
-        return regIOobject::masterOnlyReading;
+        DebugPout
+            << "codeStream : not a baseIOdictionary:" << dict.name()
+            << " master-only-reading:" << masterOnly << endl;
     }
+
+    return masterOnly;
 }
 
 
@@ -139,30 +127,23 @@ functionEntries::codeStream::getFunction
     void* lib = nullptr;
 
     const dictionary& topDict = parentDict.topDict();
+
     if (isA<baseIOdictionary>(topDict))
     {
         lib = libs(parentDict).findLibrary(libPath);
     }
 
-    if (!lib)
-    {
-        Info<< "Using #codeStream with " << libPath << endl;
-    }
-
-
     // nothing loaded
     // avoid compilation if possible by loading an existing library
     if (!lib)
     {
+        DetailInfo
+            << "Using #codeStream with " << libPath << endl;
+
         if (isA<baseIOdictionary>(topDict))
         {
-            // Cached access to dl libs. Guarantees clean up upon destruction
-            // of Time.
-            dlLibraryTable& dlLibs = libs(parentDict);
-            if (dlLibs.open(libPath, false))
-            {
-                lib = dlLibs.findLibrary(libPath);
-            }
+            // Cached access to libs, with cleanup upon termination
+            lib = libs(parentDict).open(libPath, false);
         }
         else
         {
@@ -175,9 +156,9 @@ functionEntries::codeStream::getFunction
     // create library if required
     if (!lib)
     {
-        bool create =
+        const bool create =
             Pstream::master()
-         || (regIOobject::fileModificationSkew <= 0);   // not NFS
+         || (IOobject::fileModificationSkew <= 0);   // not NFS
 
         if (create)
         {
@@ -195,16 +176,14 @@ functionEntries::codeStream::getFunction
                     "EXE_INC = -g \\\n"
                   + context.options()
                   + "\n\nLIB_LIBS = \\\n"
-                  + "    -lOpenFOAM \\\n"
+                    "    -lOpenFOAM \\\n"
                   + context.libs()
                 );
 
                 if (!dynCode.copyOrCreateFiles(true))
                 {
-                    FatalIOErrorInFunction
-                    (
-                        parentDict
-                    )   << "Failed writing files for" << nl
+                    FatalIOErrorInFunction(parentDict)
+                        << "Failed writing files for" << nl
                         << dynCode.libRelPath() << nl
                         << exit(FatalIOError);
                 }
@@ -212,10 +191,8 @@ functionEntries::codeStream::getFunction
 
             if (!dynCode.wmakeLibso())
             {
-                FatalIOErrorInFunction
-                (
-                    parentDict
-                )   << "Failed wmake " << dynCode.libRelPath() << nl
+                FatalIOErrorInFunction(parentDict)
+                    << "Failed wmake " << dynCode.libRelPath() << nl
                     << exit(FatalIOError);
             }
         }
@@ -225,7 +202,7 @@ functionEntries::codeStream::getFunction
         if
         (
            !doingMasterOnlyReading(topDict)
-         && regIOobject::fileModificationSkew > 0
+         && IOobject::fileModificationSkew > 0
         )
         {
             //- Since the library has only been compiled on the master the
@@ -233,93 +210,108 @@ functionEntries::codeStream::getFunction
             //  We do this by just polling a few times using the
             //  fileModificationSkew.
 
-            offset_t mySize = fileSize(libPath);
-            offset_t masterSize = mySize;
+            size_t mySize = fileSize(libPath);
+            size_t masterSize = mySize;
             Pstream::scatter(masterSize);
 
-            if (debug)
+            for
+            (
+                label iter = 0;
+                iter < IOobject::maxFileModificationPolls;
+                ++iter
+            )
             {
-                Pout<< endl<< "on processor " << Pstream::myProcNo()
-                    << " have masterSize:" << masterSize
+                DebugPout
+                    << "on processor " << Pstream::myProcNo()
+                    << "masterSize:" << masterSize
                     << " and localSize:" << mySize
                     << endl;
-            }
 
-
-            if (mySize < masterSize)
-            {
-                if (debug)
+                if (mySize == masterSize)
                 {
-                    Pout<< "Local file " << libPath
-                        << " not of same size (" << mySize
-                        << ") as master ("
-                        << masterSize << "). Waiting for "
-                        << regIOobject::fileModificationSkew
-                        << " seconds." << endl;
+                    break;
                 }
-                sleep(regIOobject::fileModificationSkew);
-
-                // Recheck local size
-                mySize = fileSize(libPath);
-
-                if (mySize < masterSize)
+                else if (mySize > masterSize)
                 {
-                    FatalIOErrorInFunction
-                    (
-                        parentDict
-                    )   << "Cannot read (NFS mounted) library " << nl
-                        << libPath << nl
+                    FatalIOErrorInFunction(context.dict())
+                        << "Excessive size when reading (NFS mounted) library "
+                        << nl << libPath << nl
                         << "on processor " << Pstream::myProcNo()
                         << " detected size " << mySize
                         << " whereas master size is " << masterSize
                         << " bytes." << nl
-                        << "If your case is not NFS mounted"
+                        << "If your case is NFS mounted increase"
+                        << " fileModificationSkew or maxFileModificationPolls;"
+                        << nl << "If your case is not NFS mounted"
                         << " (so distributed) set fileModificationSkew"
                         << " to 0"
                         << exit(FatalIOError);
                 }
+                else
+                {
+                    DebugPout
+                        << "Local file " << libPath
+                        << " not of same size (" << mySize
+                        << ") as master ("
+                        << masterSize << "). Waiting for "
+                        << IOobject::fileModificationSkew
+                        << " seconds." << endl;
+
+                    sleep(IOobject::fileModificationSkew);
+
+                    // Recheck local size
+                    mySize = fileSize(libPath);
+                }
             }
 
-            if (debug)
+
+            // Finished doing iterations. Do final check
+            if (mySize != masterSize)
             {
-                Pout<< endl<< "on processor " << Pstream::myProcNo()
-                    << " after waiting: have masterSize:" << masterSize
-                    << " and localSize:" << mySize
-                    << endl;
+                FatalIOErrorInFunction(context.dict())
+                    << "Cannot read (NFS mounted) library " << nl
+                    << libPath << nl
+                    << "on processor " << Pstream::myProcNo()
+                    << " detected size " << mySize
+                    << " whereas master size is " << masterSize
+                    << " bytes." << nl
+                    << "If your case is NFS mounted increase"
+                    << " fileModificationSkew or maxFileModificationPolls;"
+                    << nl << "If your case is not NFS mounted"
+                    << " (so distributed) set fileModificationSkew"
+                    << " to 0"
+                    << exit(FatalIOError);
             }
+
+            DebugPout
+                << "on processor " << Pstream::myProcNo()
+                << " after waiting: have masterSize:" << masterSize
+                << " and localSize:" << mySize << endl;
         }
 
         if (isA<baseIOdictionary>(topDict))
         {
-            // Cached access to dl libs. Guarantees clean up upon destruction
-            // of Time.
-            dlLibraryTable& dlLibs = libs(parentDict);
+            // Cached access to libs, with cleanup upon termination
+            DebugPout
+                << "Opening cached dictionary:" << libPath << endl;
 
-            if (debug)
-            {
-                Pout<< "Opening cached dictionary:" << libPath << endl;
-            }
+            lib = libs(parentDict).open(libPath, false);
 
-            if (!dlLibs.open(libPath, false))
+            if (!lib)
             {
-                FatalIOErrorInFunction
-                (
-                    parentDict
-                )   << "Failed loading library " << libPath << nl
+                FatalIOErrorInFunction(parentDict)
+                    << "Failed loading library " << libPath << nl
                     << "Did you add all libraries to the 'libs' entry"
                     << " in system/controlDict?"
                     << exit(FatalIOError);
             }
-
-            lib = dlLibs.findLibrary(libPath);
         }
         else
         {
             // Uncached opening of libPath
-            if (debug)
-            {
-                Pout<< "Opening uncached dictionary:" << libPath << endl;
-            }
+            DebugPout
+                << "Opening uncached dictionary:" << libPath << endl;
+
             lib = dlOpen(libPath, true);
         }
     }
@@ -332,10 +324,8 @@ functionEntries::codeStream::getFunction
 
     if (!haveLib)
     {
-        FatalIOErrorInFunction
-        (
-            parentDict
-        )   << "Failed loading library " << libPath
+        FatalIOErrorInFunction(parentDict)
+            << "Failed loading library " << libPath
             << " on some processors."
             << exit(FatalIOError);
     }
@@ -351,14 +341,42 @@ functionEntries::codeStream::getFunction
 
     if (!function)
     {
-        FatalIOErrorInFunction
-        (
-            parentDict
-        )   << "Failed looking up symbol " << dynCode.codeName()
+        FatalIOErrorInFunction(parentDict)
+            << "Failed looking up symbol " << dynCode.codeName()
             << " in library " << lib << exit(FatalIOError);
     }
 
     return function;
+}
+
+
+string functionEntries::codeStream::evaluate
+(
+    const dictionary& parentDict,
+    Istream& is
+)
+{
+    DetailInfo
+        << "Using #codeStream at line " << is.lineNumber()
+        << " in file " <<  parentDict.relativeName() << endl;
+
+    dynamicCode::checkSecurity
+    (
+        "functionEntries::codeStream::evaluate(..)",
+        parentDict
+    );
+
+    // Get code dictionary
+    dictionary codeDict("#codeStream", parentDict, is);
+
+    // Use function to write stream
+    OStringStream os(is.format());
+
+    streamingFunctionType function = getFunction(parentDict, codeDict);
+    (*function)(os, parentDict);
+
+    // Return evaluated content as string
+    return os.str();
 }
 
 
@@ -371,28 +389,8 @@ bool functionEntries::codeStream::execute
     Istream& is
 )
 {
-    Info<< "Using #codeStream at line " << is.lineNumber()
-        << " in file " <<  parentDict.name() << endl;
-
-    dynamicCode::checkSecurity
-    (
-        "functionEntries::codeStream::execute(..)",
-        parentDict
-    );
-
-    // get code dictionary
-    // must reference parent for stringOps::expand to work nicely
-    dictionary codeDict("#codeStream", parentDict, is);
-
-    streamingFunctionType function = getFunction(parentDict, codeDict);
-
-    // use function to write stream
-    OStringStream os(is.format());
-    (*function)(os, parentDict);
-
-    // get the entry from this stream
-    IStringStream resultStream(os.str());
-    entry.read(parentDict, resultStream);
+    IStringStream result(evaluate(parentDict, is));
+    entry.read(parentDict, result);
 
     return true;
 }
@@ -404,31 +402,13 @@ bool functionEntries::codeStream::execute
     Istream& is
 )
 {
-    Info<< "Using #codeStream at line " << is.lineNumber()
-        << " in file " <<  parentDict.name() << endl;
-
-    dynamicCode::checkSecurity
-    (
-        "functionEntries::codeStream::execute(..)",
-        parentDict
-    );
-
-    // get code dictionary
-    // must reference parent for stringOps::expand to work nicely
-    dictionary codeDict("#codeStream", parentDict, is);
-
-    streamingFunctionType function = getFunction(parentDict, codeDict);
-
-    // use function to write stream
-    OStringStream os(is.format());
-    (*function)(os, parentDict);
-
-    // get the entry from this stream
-    IStringStream resultStream(os.str());
-    parentDict.read(resultStream);
+    IStringStream result(evaluate(parentDict, is));
+    parentDict.read(result);
 
     return true;
 }
 
 
 // ************************************************************************* //
+
+ } // End namespace Foam

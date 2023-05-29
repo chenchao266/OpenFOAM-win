@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2014-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2014-2017 OpenFOAM Foundation
+    Copyright (C) 2019 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -140,9 +143,11 @@ class kOmegaSSTSato
         gasTurbulence() const;
 
 
-        // Disallow default bitwise copy construct and assignment
-        kOmegaSSTSato(const kOmegaSSTSato&);
-        void operator=(const kOmegaSSTSato&);
+        //- No copy construct
+        kOmegaSSTSato(const kOmegaSSTSato&) = delete;
+
+        //- No copy assignment
+        void operator=(const kOmegaSSTSato&) = delete;
 
 
 protected:
@@ -156,11 +161,7 @@ protected:
 
     // Protected Member Functions
 
-        virtual void correctNut
-        (
-            const volScalarField& S2,
-            const volScalarField& F2
-        );
+        virtual void correctNut(const volScalarField& S2);
 
 
 public:
@@ -191,8 +192,7 @@ public:
 
 
     //- Destructor
-    virtual ~kOmegaSSTSato()
-    {}
+    virtual ~kOmegaSSTSato() = default;
 
 
     // Member Functions

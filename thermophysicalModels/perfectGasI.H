@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -24,6 +26,9 @@ License
 \*---------------------------------------------------------------------------*/
 
 #include "perfectGas.H"
+#include "thermodynamicConstants.H"
+
+using namespace Foam::constant::thermodynamic;
 
 // * * * * * * * * * * * * * Private Member Functions  * * * * * * * * * * * //
 
@@ -51,7 +56,7 @@ template<class Specie>
 inline Foam::autoPtr<Foam::perfectGas<Specie>>
 Foam::perfectGas<Specie>::clone() const
 {
-    return autoPtr<perfectGas<Specie>>(new perfectGas<Specie>(*this));
+    return autoPtr<perfectGas<Specie>>::New(*this);
 }
 
 
@@ -61,7 +66,7 @@ inline Foam::autoPtr<Foam::perfectGas<Specie>> Foam::perfectGas<Specie>::New
     const dictionary& dict
 )
 {
-    return autoPtr<perfectGas<Specie>>(new perfectGas<Specie>(dict));
+    return autoPtr<perfectGas<Specie>>::New(dict);
 }
 
 
@@ -83,6 +88,20 @@ inline Foam::scalar Foam::perfectGas<Specie>::H(scalar p, scalar T) const
 
 template<class Specie>
 inline Foam::scalar Foam::perfectGas<Specie>::Cp(scalar p, scalar T) const
+{
+    return 0;
+}
+
+
+template<class Specie>
+inline Foam::scalar Foam::perfectGas<Specie>::E(scalar p, scalar T) const
+{
+    return 0;
+}
+
+
+template<class Specie>
+inline Foam::scalar Foam::perfectGas<Specie>::Cv(scalar p, scalar T) const
 {
     return 0;
 }

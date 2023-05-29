@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2018 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -29,6 +32,7 @@ Description
 
 SourceFiles
     pointFieldReconstructor.C
+    pointFieldReconstructorFields.C
 
 \*---------------------------------------------------------------------------*/
 
@@ -38,7 +42,7 @@ SourceFiles
 #include "pointMesh.H"
 #include "pointFields.H"
 #include "pointPatchFieldMapperPatchRef.H"
-#include "IOobjectList.T.H"
+#include "IOobjectList.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -74,11 +78,11 @@ class pointFieldReconstructor
 
     // Private Member Functions
 
-        //- Disallow default bitwise copy construct
-        pointFieldReconstructor(const pointFieldReconstructor&);
+        //- No copy construct
+        pointFieldReconstructor(const pointFieldReconstructor&) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const pointFieldReconstructor&);
+        //- No copy assignment
+        void operator=(const pointFieldReconstructor&) = delete;
 
 
 public:
@@ -149,12 +153,31 @@ public:
         tmp<GeometricField<Type, pointPatchField, pointMesh>>
         reconstructField(const IOobject& fieldIoObject);
 
-        //- Reconstruct and write all fields
+        //- Reconstruct and write specified fields
         template<class Type>
-        void reconstructFields
+        label reconstructFields
         (
             const IOobjectList& objects,
-            const HashSet<word>& selectedFields
+            const UList<word>& fieldNames
+        );
+
+        //- Reconstruct and write all or selected fields
+        //  An empty wordRes corresponds to select ALL.
+        template<class Type>
+        label reconstructFields
+        (
+            const IOobjectList& objects,
+            const wordRes& selectedFields = wordRes()
+        );
+
+        //- Reconstruct and write all or selected fields
+        //  An empty wordHashSet corresponds to select ALL.
+        //  \note this may be removed in the future (2018-11)
+        template<class Type>
+        label reconstructFields
+        (
+            const IOobjectList& objects,
+            const wordHashSet& selectedFields
         );
 };
 
@@ -166,7 +189,7 @@ public:
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 #ifdef NoRepository
-    #include "pointFieldReconstructorReconstructFields.C"
+    #include "pointFieldReconstructorFields.C"
 #endif
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //

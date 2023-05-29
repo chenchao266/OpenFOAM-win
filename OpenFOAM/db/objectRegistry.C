@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2015-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -24,35 +27,67 @@ License
 \*---------------------------------------------------------------------------*/
 
 #include "objectRegistry.H"
-#include "Time.T.H"
+#include "Time1.h"
+#include "predicates.H"
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
-using namespace Foam;
+
 namespace Foam
 {
-defineTypeNameAndDebug(objectRegistry, 0);
+    defineTypeNameAndDebug(objectRegistry, 0);
 }
+
+
+// * * * * * * * * * * * * * * * Local Functions * * * * * * * * * * * * * * //
+
+namespace Foam
+{
+
+// Templated implementation for erase() with iterator range.
+// Prefer not to expose directly.
+template<class InputIter>
+static label eraseImpl(objectRegistry& obr, InputIter first, InputIter last)
+{
+    label changed = 0;
+
+    for
+    (
+        const label nTotal = obr.size();
+        changed < nTotal && first != last; // Terminate early
+        ++first
+    )
+    {
+        if (obr.erase(*first))
+        {
+            ++changed;
+        }
+    }
+
+    return changed;
+}
+
+} // End namespace Foam
 
 
 // * * * * * * * * * * * * * Private Member Functions  * * * * * * * * * * * //
 
-bool objectRegistry::parentNotTime() const
+
+ namespace Foam{
+bool objectRegistry::parentNotTime() const noexcept
 {
-    return (&parent_ != dynamic_cast<const objectRegistry*>(&time_));
+    return (&parent_ != static_cast<const objectRegistry*>(&time_));
 }
 
 
 // * * * * * * * * * * * * * * * * Constructors *  * * * * * * * * * * * * * //
 
-objectRegistry::objectRegistry
-(
-    const Time& t,
-    const label nIoObjects
-) :    regIOobject
+objectRegistry::objectRegistry(const Time& t, const label nObjects)
+:
+    regIOobject
     (
         IOobject
         (
-            string::validate<word>(t.caseName()),
+            word::validate(t.caseName()),
             t.path(),
             t,
             IOobject::NO_READ,
@@ -61,7 +96,7 @@ objectRegistry::objectRegistry
         ),
         true    // to flag that this is the top-level regIOobject
     ),
-    HashTable<regIOobject*>(nIoObjects),
+    HashTable<regIOobject*>(nObjects),
     time_(t),
     parent_(t),
     dbDir_(name()),
@@ -69,18 +104,16 @@ objectRegistry::objectRegistry
 {}
 
 
-objectRegistry::objectRegistry
-(
-    const IOobject& io,
-    const label nIoObjects
-) :    regIOobject(io),
-    HashTable<regIOobject*>(nIoObjects),
+objectRegistry::objectRegistry(const IOobject& io, const label nObjects)
+:
+    regIOobject(io),
+    HashTable<regIOobject*>(nObjects),
     time_(io.time()),
     parent_(io.db()),
     dbDir_(parent_.dbDir()/local()/name()),
     event_(1)
 {
-    writeOpt() = IOobject::AUTO_WRITE;
+    writeOpt(IOobject::AUTO_WRITE);
 }
 
 
@@ -88,25 +121,30 @@ objectRegistry::objectRegistry
 
 objectRegistry::~objectRegistry()
 {
-    List<regIOobject*> myObjects(size());
-    label nMyObjects = 0;
-
-    for (iterator iter = begin(); iter != end(); ++iter)
-    {
-        if (iter()->ownedByRegistry())
-        {
-            myObjects[nMyObjects++] = iter();
-        }
-    }
-
-    for (label i=0; i < nMyObjects; i++)
-    {
-        checkOut(*myObjects[i]);
-    }
+    objectRegistry::clear();
 }
 
 
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
+
+bool objectRegistry::isTimeDb() const noexcept
+{
+    return (this == &static_cast<const objectRegistry&>(time_));
+}
+
+
+HashTable<wordHashSet> objectRegistry::classes() const
+{
+    return classesImpl(*this, predicates::always());
+}
+
+
+label objectRegistry::count(const char* clsName) const
+{
+    // No nullptr check - only called with string literals
+    return count(static_cast<word>(clsName));
+}
+
 
 wordList objectRegistry::names() const
 {
@@ -120,43 +158,30 @@ wordList objectRegistry::sortedNames() const
 }
 
 
-wordList objectRegistry::names(const word& ClassName) const
+wordList objectRegistry::names(const char* clsName) const
 {
-    wordList objectNames(size());
-
-    label count=0;
-    for (const_iterator iter = cbegin(); iter != cend(); ++iter)
-    {
-        if (iter()->type() == ClassName)
-        {
-            objectNames[count++] = iter.key();
-        }
-    }
-
-    objectNames.setSize(count);
-
-    return objectNames;
+    // No nullptr check - only called with string literals
+    return names(static_cast<word>(clsName));
 }
 
 
-wordList objectRegistry::sortedNames(const word& ClassName) const
+wordList objectRegistry::sortedNames(const char* clsName) const
 {
-    wordList sortedLst = names(ClassName);
-    sort(sortedLst);
-
-    return sortedLst;
+    // No nullptr check - only called with string literals
+    return sortedNames(static_cast<word>(clsName));
 }
 
 
 const objectRegistry& objectRegistry::subRegistry
 (
     const word& name,
-    const bool forceCreate
+    const bool forceCreate,
+    const bool recursive
 ) const
 {
-    if (forceCreate && !foundObject<objectRegistry>(name))
+    if (forceCreate && !foundObject<objectRegistry>(name, recursive))
     {
-        objectRegistry* fieldsCachePtr = new objectRegistry
+        objectRegistry* subObr = new objectRegistry
         (
             IOobject
             (
@@ -167,9 +192,10 @@ const objectRegistry& objectRegistry::subRegistry
                 IOobject::NO_WRITE
             )
         );
-        fieldsCachePtr->store();
+        subObr->store();
     }
-    return lookupObject<objectRegistry>(name);
+
+    return lookupObject<objectRegistry>(name, recursive);
 }
 
 
@@ -191,92 +217,177 @@ label objectRegistry::getEvent() const
         curEvent = 1;
         event_ = 2;
 
-        for (const_iterator iter = begin(); iter != end(); ++iter)
-        {
-            const regIOobject& io = *iter();
-
-            if (objectRegistry::debug)
-            {
-                Pout<< "objectRegistry::getEvent() : "
-                    << "resetting count on " << iter.key() << endl;
-            }
-
-            if (io.eventNo() != 0)
-            {
-                const_cast<regIOobject&>(io).eventNo() = curEvent;
-            }
-        }
+        // No need to reset dependent objects; overflow is now handled
+        // in regIOobject::upToDate
     }
 
     return curEvent;
 }
 
 
-bool objectRegistry::checkIn(regIOobject& io) const
+bool objectRegistry::checkIn(regIOobject* io) const
 {
+    if (!io) return false;
+
     if (objectRegistry::debug)
     {
-        Pout<< "objectRegistry::checkIn(regIOobject&) : "
-            << name() << " : checking in " << io.name()
-            << " of type " << io.type()
+        Pout<< "objectRegistry::checkIn : "
+            << name() << " : checking in " << io->name()
+            << " of type " << io->type()
             << endl;
     }
 
-    return const_cast<objectRegistry&>(*this).insert(io.name(), &io);
+    objectRegistry& obr = const_cast<objectRegistry&>(*this);
+
+    bool ok = obr.insert(io->name(), io);
+
+    if (!ok && objectRegistry::debug)
+    {
+        WarningInFunction
+            << name() << " : Attempt to checkIn object with name "
+            << io->name() << " which was already checked in"
+            << endl;
+    }
+
+    return ok;
 }
 
 
-bool objectRegistry::checkOut(regIOobject& io) const
+bool objectRegistry::checkOut(regIOobject* io) const
 {
-    iterator iter = const_cast<objectRegistry&>(*this).find(io.name());
+    if (!io) return false;
 
-    if (iter != end())
+    objectRegistry& obr = const_cast<objectRegistry&>(*this);
+
+    iterator iter = obr.find(io->name());
+
+    if (iter.found())
     {
         if (objectRegistry::debug)
         {
-            Pout<< "objectRegistry::checkOut(regIOobject&) : "
-                << name() << " : checking out " << iter.key()
+            Pout<< "objectRegistry::checkOut : "
+                << name() << " : checking out " << io->name()
+                << " of type " << io->type()
                 << endl;
         }
 
-        if (iter() != &io)
+        if (iter.val() != io)
         {
             if (objectRegistry::debug)
             {
                 WarningInFunction
-                    << name() << " : attempt to checkOut copy of "
+                    << name() << " : Attempt to checkOut copy of "
                     << iter.key()
                     << endl;
             }
 
             return false;
         }
-        else
-        {
-            regIOobject* object = iter();
 
-            bool hasErased = const_cast<objectRegistry&>(*this).erase(iter);
-
-            if (io.ownedByRegistry())
-            {
-                delete object;
-            }
-
-            return hasErased;
-        }
+        return obr.erase(iter);
     }
-    else
+
+
+    if (objectRegistry::debug)
     {
-        if (objectRegistry::debug)
-        {
-            Pout<< "objectRegistry::checkOut(regIOobject&) : "
-                << name() << " : could not find " << io.name()
-                << " in registry " << name()
-                << endl;
-        }
+        Pout<< "objectRegistry::checkOut : "
+            << name() << " : could not find " << io->name() << " in registry"
+            << endl;
     }
 
     return false;
+}
+
+
+bool objectRegistry::checkIn(regIOobject& io) const
+{
+    return checkIn(&io);
+}
+
+
+bool objectRegistry::checkOut(regIOobject& io) const
+{
+    return checkOut(&io);
+}
+
+
+bool objectRegistry::checkOut(const word& key) const
+{
+    return const_cast<objectRegistry&>(*this).erase(key);
+}
+
+
+void objectRegistry::clear()
+{
+    // Free anything owned by the registry, but first unset both
+    // 'ownedByRegistry' and 'registered' flags to ensure that the
+    // regIOobject destructor will not affect the registry
+
+    for (iterator iter = begin(); iter != end(); ++iter)
+    {
+        regIOobject* ptr = iter.val();
+
+        if (ptr && ptr->ownedByRegistry())
+        {
+            if (objectRegistry::debug)
+            {
+                Pout<< "objectRegistry::clear : " << ptr->name() << nl;
+            }
+
+            ptr->release(true);     // Relinquish ownership and registration
+            delete ptr;             // Delete also clears fileHandler watches
+        }
+    }
+
+    HashTable<regIOobject*>::clear();
+}
+
+
+void objectRegistry::clearStorage()
+{
+    objectRegistry::clear();
+    HashTable<regIOobject*>::clearStorage();
+}
+
+
+bool objectRegistry::erase(const iterator& iter)
+{
+    // Remove from registry - see notes in objectRegistry::clear()
+
+    if (iter.found())
+    {
+        regIOobject* ptr = const_cast<iterator&>(iter).val();
+
+        const bool ok = HashTable<regIOobject*>::erase(iter);
+
+        if (ptr && ptr->ownedByRegistry())
+        {
+            ptr->release(true);     // Relinquish ownership and registration
+            delete ptr;             // Delete also clears fileHandler watches
+        }
+
+        return ok;
+    }
+
+    return false;
+}
+
+
+bool objectRegistry::erase(const word& key)
+{
+    return erase(find(key));
+}
+
+
+label objectRegistry::erase(std::initializer_list<word> keys)
+{
+    return eraseImpl(*this, keys.begin(), keys.end());
+}
+
+
+label objectRegistry::erase(const UList<word>& keys)
+{
+    return eraseImpl(*this, keys.begin(), keys.end());
 }
 
 
@@ -284,8 +395,8 @@ void objectRegistry::rename(const word& newName)
 {
     regIOobject::rename(newName);
 
-    // adjust dbDir_ as well
-    string::size_type i = dbDir_.rfind('/');
+    // Adjust dbDir_ as well
+    const auto i = dbDir_.rfind('/');
 
     if (i == string::npos)
     {
@@ -298,11 +409,42 @@ void objectRegistry::rename(const word& newName)
 }
 
 
+const regIOobject* objectRegistry::cfindIOobject
+(
+    const word& name,
+    const bool recursive
+) const
+{
+    const_iterator iter = cfind(name);
+
+    if (iter.found())
+    {
+        return iter.val();
+    }
+    else if (recursive && this->parentNotTime())
+    {
+        return parent_.cfindIOobject(name, recursive);
+    }
+
+    return nullptr;
+}
+
+
+bool objectRegistry::found
+(
+    const word& name,
+    const bool recursive
+) const
+{
+    return cfindIOobject(name, recursive);
+}
+
+
 bool objectRegistry::modified() const
 {
-    forAllConstIter(HashTable<regIOobject*>, *this, iter)
+    for (const_iterator iter = cbegin(); iter != cend(); ++iter)
     {
-        if (iter()->modified())
+        if ((*iter)->modified())
         {
             return true;
         }
@@ -323,7 +465,7 @@ void objectRegistry::readModifiedObjects()
                 << iter.key() << endl;
         }
 
-        iter()->readIfModified();
+        (*iter)->readIfModified();
     }
 }
 
@@ -337,30 +479,28 @@ bool objectRegistry::readIfModified()
 
 bool objectRegistry::writeObject
 (
-    IOstream::streamFormat fmt,
-    IOstream::versionNumber ver,
-    IOstream::compressionType cmp,
+    IOstreamOption streamOpt,
     const bool valid
 ) const
 {
     bool ok = true;
 
-    forAllConstIter(HashTable<regIOobject*>, *this, iter)
+    for (const_iterator iter = cbegin(); iter != cend(); ++iter)
     {
         if (objectRegistry::debug)
         {
             Pout<< "objectRegistry::write() : "
                 << name() << " : Considering writing object "
                 << iter.key()
-                << " of type " << iter()->type()
-                << " with writeOpt " << iter()->writeOpt()
-                << " to file " << iter()->objectPath()
+                << " of type " << (*iter)->type()
+                << " with writeOpt " << static_cast<int>((*iter)->writeOpt())
+                << " to file " << (*iter)->objectPath()
                 << endl;
         }
 
-        if (iter()->writeOpt() != NO_WRITE)
+        if ((*iter)->writeOpt() != NO_WRITE)
         {
-            ok = iter()->writeObject(fmt, ver, cmp, valid) && ok;
+            ok = (*iter)->writeObject(streamOpt, valid) && ok;
         }
     }
 
@@ -369,3 +509,5 @@ bool objectRegistry::writeObject
 
 
 // ************************************************************************* //
+
+ } // End namespace Foam

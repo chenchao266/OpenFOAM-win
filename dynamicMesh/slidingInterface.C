@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -45,22 +48,18 @@ namespace Foam
         slidingInterface,
         dictionary
     );
-
-    template<>
-    const char* Foam::NamedEnum
-    <
-        Foam::slidingInterface::typeOfMatch,
-        2
-    >::names[] =
-    {
-        "integral",
-        "partial"
-    };
 }
 
 
-const Foam::NamedEnum<Foam::slidingInterface::typeOfMatch, 2>
-Foam::slidingInterface::typeOfMatchNames_;
+const Foam::Enum
+<
+    Foam::slidingInterface::typeOfMatch
+>
+Foam::slidingInterface::typeOfMatchNames
+({
+    { typeOfMatch::INTEGRAL, "integral" },
+    { typeOfMatch::PARTIAL, "partial" },
+});
 
 
 // * * * * * * * * * * * * * Private Member Functions  * * * * * * * * * * * //
@@ -116,8 +115,6 @@ void Foam::slidingInterface::clearOut() const
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
-
-// Construct from components
 Foam::slidingInterface::slidingInterface
 (
     const word& name,
@@ -208,7 +205,6 @@ Foam::slidingInterface::slidingInterface
 }
 
 
-// Construct from components
 Foam::slidingInterface::slidingInterface
 (
     const word& name,
@@ -217,43 +213,43 @@ Foam::slidingInterface::slidingInterface
     const polyTopoChanger& mme
 )
 :
-    polyMeshModifier(name, index, mme, Switch(dict.lookup("active"))),
+    polyMeshModifier(name, index, mme, dict.get<bool>("active")),
     masterFaceZoneID_
     (
-        dict.lookup("masterFaceZoneName"),
+        dict.get<keyType>("masterFaceZoneName"),
         mme.mesh().faceZones()
     ),
     slaveFaceZoneID_
     (
-        dict.lookup("slaveFaceZoneName"),
+        dict.get<keyType>("slaveFaceZoneName"),
         mme.mesh().faceZones()
     ),
     cutPointZoneID_
     (
-        dict.lookup("cutPointZoneName"),
+        dict.get<keyType>("cutPointZoneName"),
         mme.mesh().pointZones()
     ),
     cutFaceZoneID_
     (
-        dict.lookup("cutFaceZoneName"),
+        dict.get<keyType>("cutFaceZoneName"),
         mme.mesh().faceZones()
     ),
     masterPatchID_
     (
-        dict.lookup("masterPatchName"),
+        dict.get<keyType>("masterPatchName"),
         mme.mesh().boundaryMesh()
     ),
     slavePatchID_
     (
-        dict.lookup("slavePatchName"),
+        dict.get<keyType>("slavePatchName"),
         mme.mesh().boundaryMesh()
     ),
-    matchType_(typeOfMatchNames_.read((dict.lookup("typeOfMatch")))),
-    coupleDecouple_(dict.lookup("coupleDecouple")),
-    attached_(dict.lookup("attached")),
+    matchType_(typeOfMatchNames.get("typeOfMatch", dict)),
+    coupleDecouple_(dict.get<bool>("coupleDecouple")),
+    attached_(dict.get<bool>("attached")),
     projectionAlgo_
     (
-        intersection::algorithmNames_.read(dict.lookup("projection"))
+        intersection::algorithmNames_.get("projection", dict)
     ),
     trigger_(false),
     cutFaceMasterPtr_(nullptr),
@@ -288,17 +284,19 @@ Foam::slidingInterface::slidingInterface
         }
 
         // The face zone addressing is written out in the definition dictionary
-        masterFaceCellsPtr_ = new labelList(dict.lookup("masterFaceCells"));
-        slaveFaceCellsPtr_ = new labelList(dict.lookup("slaveFaceCells"));
+        masterFaceCellsPtr_.reset(new labelList());
+        slaveFaceCellsPtr_.reset(new labelList());
+        masterStickOutFacesPtr_.reset(new labelList());
+        slaveStickOutFacesPtr_.reset(new labelList());
+        retiredPointMapPtr_.reset(new Map<label>());
+        cutPointEdgePairMapPtr_.reset(new Map<Pair<edge>>());
 
-        masterStickOutFacesPtr_ =
-            new labelList(dict.lookup("masterStickOutFaces"));
-        slaveStickOutFacesPtr_ =
-            new labelList(dict.lookup("slaveStickOutFaces"));
-
-        retiredPointMapPtr_ = new Map<label>(dict.lookup("retiredPointMap"));
-        cutPointEdgePairMapPtr_ =
-            new Map<Pair<edge>>(dict.lookup("cutPointEdgePairMap"));
+        dict.readEntry("masterFaceCells", *masterFaceCellsPtr_);
+        dict.readEntry("slaveFaceCells", *slaveFaceCellsPtr_);
+        dict.readEntry("masterStickOutFaces", *masterStickOutFacesPtr_);
+        dict.readEntry("slaveStickOutFaces", *slaveStickOutFacesPtr_);
+        dict.readEntry("retiredPointMap", *retiredPointMapPtr_);
+        dict.readEntry("cutPointEdgePairMap", *cutPointEdgePairMapPtr_);
     }
     else
     {
@@ -307,22 +305,14 @@ Foam::slidingInterface::slidingInterface
 }
 
 
-// * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
-
-Foam::slidingInterface::~slidingInterface()
-{
-    clearOut();
-}
-
+// * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
 
 void Foam::slidingInterface::clearAddressing() const
 {
-    deleteDemandDrivenData(cutFaceMasterPtr_);
-    deleteDemandDrivenData(cutFaceSlavePtr_);
+    cutFaceMasterPtr_.reset(nullptr);
+    cutFaceSlavePtr_.reset(nullptr);
 }
 
-
-// * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
 
 const Foam::faceZoneID& Foam::slidingInterface::masterFaceZoneID() const
 {
@@ -450,12 +440,12 @@ void Foam::slidingInterface::modifyMotionPoints(pointField& motionPoints) const
         const pointField& slaveLocalPoints = slavePatch.localPoints();
         const vectorField& slavePointNormals = slavePatch.pointNormals();
 
-        forAll(cutPoints, pointi)
+        for (const label pointi : cutPoints)
         {
             // Try to find the cut point in retired points
-            Map<label>::const_iterator rpmIter = rpm.find(cutPoints[pointi]);
+            const auto rpmIter = rpm.cfind(pointi);
 
-            if (rpmIter != rpm.end())
+            if (rpmIter.found())
             {
                 if (debug)
                 {
@@ -471,10 +461,9 @@ void Foam::slidingInterface::modifyMotionPoints(pointField& motionPoints) const
                 // A cut point is not a projected slave point.  Therefore, it
                 // must be an edge-to-edge intersection.
 
-                Map<Pair<edge>>::const_iterator cpepmIter =
-                    cpepm.find(cutPoints[pointi]);
+                const auto cpepmIter = cpepm.cfind(pointi);
 
-                if (cpepmIter != cpepm.end())
+                if (cpepmIter.found())
                 {
                     // Pout<< "Need to re-create hit for point "
                     //     << cutPoints[pointi]
@@ -597,8 +586,7 @@ void Foam::slidingInterface::modifyMotionPoints(pointField& motionPoints) const
                             )
                             {
                                 // Cut both master and slave.
-                                motionPoints[cutPoints[pointi]] =
-                                    masterCutPoint;
+                                motionPoints[pointi] = masterCutPoint;
                             }
                         }
                         else
@@ -685,44 +673,45 @@ const Foam::pointField& Foam::slidingInterface::pointProjection() const
     return *projectedSlavePointsPtr_;
 }
 
+
 void Foam::slidingInterface::setTolerances(const dictionary&dict, bool report)
 {
-    pointMergeTol_ = dict.lookupOrDefault<scalar>
+    pointMergeTol_ = dict.getOrDefault<scalar>
     (
         "pointMergeTol",
         pointMergeTol_
     );
-    edgeMergeTol_ = dict.lookupOrDefault<scalar>
+    edgeMergeTol_ = dict.getOrDefault<scalar>
     (
         "edgeMergeTol",
         edgeMergeTol_
     );
-    nFacesPerSlaveEdge_ = dict.lookupOrDefault<label>
+    nFacesPerSlaveEdge_ = dict.getOrDefault<label>
     (
         "nFacesPerSlaveEdge",
         nFacesPerSlaveEdge_
     );
-    edgeFaceEscapeLimit_ = dict.lookupOrDefault<label>
+    edgeFaceEscapeLimit_ = dict.getOrDefault<label>
     (
         "edgeFaceEscapeLimit",
         edgeFaceEscapeLimit_
     );
-    integralAdjTol_ = dict.lookupOrDefault<scalar>
+    integralAdjTol_ = dict.getOrDefault<scalar>
     (
         "integralAdjTol",
         integralAdjTol_
     );
-    edgeMasterCatchFraction_ = dict.lookupOrDefault<scalar>
+    edgeMasterCatchFraction_ = dict.getOrDefault<scalar>
     (
         "edgeMasterCatchFraction",
         edgeMasterCatchFraction_
     );
-    edgeCoPlanarTol_ = dict.lookupOrDefault<scalar>
+    edgeCoPlanarTol_ = dict.getOrDefault<scalar>
     (
         "edgeCoPlanarTol",
         edgeCoPlanarTol_
     );
-    edgeEndCutoffTol_ = dict.lookupOrDefault<scalar>
+    edgeEndCutoffTol_ = dict.getOrDefault<scalar>
     (
         "edgeEndCutoffTol",
         edgeEndCutoffTol_
@@ -753,7 +742,7 @@ void Foam::slidingInterface::write(Ostream& os) const
         << cutFaceZoneID_.name() << nl
         << masterPatchID_.name() << nl
         << slavePatchID_.name() << nl
-        << typeOfMatchNames_[matchType_] << nl
+        << typeOfMatchNames[matchType_] << nl
         << coupleDecouple_ << nl
         << attached_ << endl;
 }
@@ -769,30 +758,22 @@ void Foam::slidingInterface::write(Ostream& os) const
 
 void Foam::slidingInterface::writeDict(Ostream& os) const
 {
-    os  << nl << name() << nl << token::BEGIN_BLOCK << nl
-        << "    type " << type() << token::END_STATEMENT << nl
-        << "    masterFaceZoneName " << masterFaceZoneID_.name()
-        << token::END_STATEMENT << nl
-        << "    slaveFaceZoneName " << slaveFaceZoneID_.name()
-        << token::END_STATEMENT << nl
-        << "    cutPointZoneName " << cutPointZoneID_.name()
-        << token::END_STATEMENT << nl
-        << "    cutFaceZoneName " << cutFaceZoneID_.name()
-        << token::END_STATEMENT << nl
-        << "    masterPatchName " << masterPatchID_.name()
-        << token::END_STATEMENT << nl
-        << "    slavePatchName " << slavePatchID_.name()
-        << token::END_STATEMENT << nl
-        << "    typeOfMatch " << typeOfMatchNames_[matchType_]
-        << token::END_STATEMENT << nl
-        << "    coupleDecouple " << coupleDecouple_
-        << token::END_STATEMENT << nl
-        << "    projection " << intersection::algorithmNames_[projectionAlgo_]
-        << token::END_STATEMENT << nl
-        << "    attached " << attached_
-        << token::END_STATEMENT << nl
-        << "    active " << active()
-        << token::END_STATEMENT << nl;
+    os  << nl;
+
+    os.beginBlock(name());
+
+    os.writeEntry("type", type());
+    os.writeEntry("masterFaceZoneName", masterFaceZoneID_.name());
+    os.writeEntry("slaveFaceZoneName", slaveFaceZoneID_.name());
+    os.writeEntry("cutPointZoneName", cutPointZoneID_.name());
+    os.writeEntry("cutFaceZoneName", cutFaceZoneID_.name());
+    os.writeEntry("masterPatchName", masterPatchID_.name());
+    os.writeEntry("slavePatchName", slavePatchID_.name());
+    os.writeEntry("typeOfMatch", typeOfMatchNames[matchType_]);
+    os.writeEntry("coupleDecouple", coupleDecouple_);
+    os.writeEntry("projection", intersection::algorithmNames_[projectionAlgo_]);
+    os.writeEntry("attached", attached_);
+    os.writeEntry("active", active());
 
     if (attached_)
     {
@@ -801,10 +782,8 @@ void Foam::slidingInterface::writeDict(Ostream& os) const
         masterStickOutFacesPtr_->writeEntry("masterStickOutFaces", os);
         slaveStickOutFacesPtr_->writeEntry("slaveStickOutFaces", os);
 
-         os << "    retiredPointMap " << retiredPointMap()
-            << token::END_STATEMENT << nl
-            << "    cutPointEdgePairMap " << cutPointEdgePairMap()
-            << token::END_STATEMENT << nl;
+        os.writeEntry("retiredPointMap", retiredPointMap());
+        os.writeEntry("cutPointEdgePairMap", cutPointEdgePairMap());
     }
 
     WRITE_NON_DEFAULT(pointMergeTol)
@@ -816,7 +795,7 @@ void Foam::slidingInterface::writeDict(Ostream& os) const
     WRITE_NON_DEFAULT(edgeCoPlanarTol)
     WRITE_NON_DEFAULT(edgeEndCutoffTol)
 
-    os  << token::END_BLOCK << endl;
+    os.endBlock();
 }
 
 

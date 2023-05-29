@@ -1,9 +1,12 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2016-2017 OpenFOAM Foundation
+    Copyright (C) 2019 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -21,39 +24,138 @@ License
     You should have received a copy of the GNU General Public License
     along with OpenFOAM.  If not, see <http://www.gnu.org/licenses/>.
 
-Typedef
-    Foam::compactSpatialTensor
+Class
+    Foam::CompactSpatialTensor
 
 Description
-    CompactSpatialTensor of scalars.
+    Templated 3D compact spatial tensor derived from MatrixSpace used to
+    represent transformations of spatial vectors and the angular and linear
+    inertia of rigid bodies.
+
+    Reference:
+    \verbatim
+        Featherstone, R. (2008).
+        Rigid body dynamics algorithms.
+        Springer.
+    \endverbatim
 
 SourceFiles
-    CompactSpatialTensor.C
+    CompactSpatialTensorI.H
+
+See also
+    Foam::MatrixSpace
+    Foam::SpatialTensor
 
 \*---------------------------------------------------------------------------*/
 
-#ifndef compactSpatialTensor_H
-#define compactSpatialTensor_H
+#ifndef CompactSpatialTensor_H
+#define CompactSpatialTensor_H
 
-#include "CompactSpatialTensor.T.H"
+#include "SpatialTensor.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 namespace Foam
 {
 
-// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+/*---------------------------------------------------------------------------*\
+                     Class CompactSpatialTensor Declaration
+\*---------------------------------------------------------------------------*/
 
-typedef CompactSpatialTensor<scalar> compactSpatialTensor;
+template<class Cmpt>
+class CompactSpatialTensor
+:
+    public MatrixSpace<CompactSpatialTensor<Cmpt>, Cmpt, 6, 3>
+{
 
-//- Data associated with compactSpatialTensor type are contiguous
-template<>
-inline bool contiguous<compactSpatialTensor>() {return true;}
+public:
+
+    // Constructors
+
+        //- Construct null
+        inline CompactSpatialTensor();
+
+        inline CompactSpatialTensor(const zero);
+
+        //- Construct given MatrixSpace of the same rank
+        inline CompactSpatialTensor
+        (
+            const typename CompactSpatialTensor::msType&
+        );
+
+        //- Construct given 18 components
+        inline CompactSpatialTensor
+        (
+            const Cmpt& t00, const Cmpt& t01, const Cmpt& t02,
+            const Cmpt& t10, const Cmpt& t11, const Cmpt& t12,
+            const Cmpt& t20, const Cmpt& t21, const Cmpt& t22,
+            const Cmpt& t30, const Cmpt& t31, const Cmpt& t32,
+            const Cmpt& t40, const Cmpt& t41, const Cmpt& t42,
+            const Cmpt& t50, const Cmpt& t51, const Cmpt& t52
+        );
+
+        //- Construct from Istream
+        inline CompactSpatialTensor(Istream&);
+};
+
+
+// * * * * * * * * * * * * * * * * * Traits  * * * * * * * * * * * * * * * * //
+
+//- Data are contiguous if component type is contiguous
+template<class Cmpt>
+struct is_contiguous<CompactSpatialTensor<Cmpt>> : is_contiguous<Cmpt> {};
+
+//- Data are contiguous label if component type is label
+template<class Cmpt>
+struct is_contiguous_label<CompactSpatialTensor<Cmpt>>
+:
+    is_contiguous_label<Cmpt>
+{};
+
+//- Data are contiguous scalar if component type is scalar
+template<class Cmpt>
+struct is_contiguous_scalar<CompactSpatialTensor<Cmpt>>
+:
+    is_contiguous_scalar<Cmpt>
+{};
+
+
+template<class Cmpt>
+class typeOfInnerProduct<Cmpt, CompactSpatialTensor<Cmpt>, Tensor<Cmpt>>
+{
+public:
+
+    typedef CompactSpatialTensor<Cmpt> type;
+};
+
+
+template<class Cmpt>
+class typeOfInnerProduct<Cmpt, CompactSpatialTensor<Cmpt>, Vector<Cmpt>>
+{
+public:
+
+    typedef SpatialVector<Cmpt> type;
+};
+
+
+template<class Cmpt>
+class typeOfInnerProduct<Cmpt, SpatialTensor<Cmpt>, CompactSpatialTensor<Cmpt>>
+{
+public:
+
+    typedef CompactSpatialTensor<Cmpt> type;
+};
 
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 } // End namespace Foam
+
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+// Include inline implementations
+#include "CompactSpatialTensorT.H"
+#include "CompactSpatialTensorI.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 

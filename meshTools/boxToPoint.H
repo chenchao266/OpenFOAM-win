@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2015 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2015 OpenFOAM Foundation
+    Copyright (C) 2018-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -25,7 +28,85 @@ Class
     Foam::boxToPoint
 
 Description
-    A topoSetSource to select points based on whether they are inside box.
+    A \c topoSetPointSource to select all points based
+    on whether they are inside given bounding box(es).
+
+    Operands:
+    \table
+      Operand   | Type     | Location
+      output    | pointSet | $FOAM_CASE/constant/polyMesh/sets/\<set\>
+    \endtable
+
+Usage
+    Minimal example by using \c system/topoSetDict.actions:
+    \verbatim
+    {
+        // Mandatory (inherited) entries
+        name        <name>;
+        type        pointSet;
+        action      <action>;
+
+        // Mandatory entries
+        source      boxToPoint;
+
+        // Conditional mandatory entries
+        // Select either of the below
+
+        // Option-1
+        boxes
+        (
+            (<minX> <minY> <minZ>) (<maxX> <maxY> <maxZ>) // box-1
+            (<minX> <minY> <minZ>) (<maxX> <maxY> <maxZ>) // box-2
+            ...
+        );
+
+        // Option-2
+        box (<minX> <minY> <minZ>) (<maxX> <maxY> <maxZ>);
+
+        // Option-3
+        min (<minX> <minY> <minZ>);
+        max (<maxX> <maxY> <maxZ>);
+
+        // Option-4
+        min  (<minX> <minY> <minZ>);
+        span (<sizeX> <sizeY> <sizeZ>);
+    }
+    \endverbatim
+
+    where the entries mean:
+    \table
+      Property   | Description                          | Type | Req'd | Dflt
+      name       | Name of pointSet                     | word |  yes  | -
+      type       | Type name: pointSet                  | word |  yes  | -
+      action     | Action applied on points - see below | word |  yes  | -
+      source     | Source name: boxToPoint              | word |  yes  | -
+    \endtable
+
+    Options for the \c action entry:
+    \verbatim
+      new      | Create a new pointSet from selected points
+      add      | Add selected points into this pointSet
+      subtract | Remove selected points from this pointSet
+    \endverbatim
+
+    Options for the conditional mandatory entries:
+    \verbatim
+      Entry    | Description                    | Type       | Req'd  | Dflt
+      boxes    | Multiple bounding boxes        | vectorList | cond'l | -
+      box      | A single bounding box          | vectors    | cond'l | -
+      min      | Minimum point (single box)     | vector     | cond'l | -
+      max      | Maximum point (single box)     | vector     | cond'l | -
+      span     | Box width (single box)         | vector     | cond'l | -
+    \endverbatim
+
+Note
+    The order of precedence among the conditional mandatory entries from the
+    highest to the lowest is \c boxes, \c box, \c min-max or \c min-span pair
+    (compatibility with \c searchableBox).
+
+See also
+    - Foam::topoSetSource
+    - Foam::topoSetPointSource
 
 SourceFiles
     boxToPoint.C
@@ -35,7 +116,7 @@ SourceFiles
 #ifndef boxToPoint_H
 #define boxToPoint_H
 
-#include "topoSetSource.H"
+#include "topoSetPointSource.H"
 #include "treeBoundBoxList.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
@@ -49,15 +130,14 @@ namespace Foam
 
 class boxToPoint
 :
-    public topoSetSource
+    public topoSetPointSource
 {
-
-    // Private data
+    // Private Data
 
         //- Add usage string
         static addToUsageTable usage_;
 
-        //- Bounding box.
+        //- Bounding boxes
         treeBoundBoxList bbs_;
 
 
@@ -71,47 +151,33 @@ public:
     //- Runtime type information
     TypeName("boxToPoint");
 
+
     // Constructors
 
-        //- Construct from components
-        boxToPoint
-        (
-            const polyMesh& mesh,
-            const treeBoundBoxList& bb
-        );
+        //- Construct from components, copying bounding boxes
+        boxToPoint(const polyMesh& mesh, const treeBoundBoxList& bbs);
+
+        //- Construct from components, moving bounding boxes
+        boxToPoint(const polyMesh& mesh, treeBoundBoxList&& bbs);
 
         //- Construct from dictionary
-        boxToPoint
-        (
-            const polyMesh& mesh,
-            const dictionary& dict
-        );
+        boxToPoint(const polyMesh& mesh, const dictionary& dict);
 
-        //- Construct from Istream
-        boxToPoint
-        (
-            const polyMesh& mesh,
-            Istream&
-        );
+        //- Construct from stream - a single box.
+        boxToPoint(const polyMesh& mesh, Istream& is);
 
 
     //- Destructor
-    virtual ~boxToPoint();
+    virtual ~boxToPoint() = default;
 
 
     // Member Functions
 
-        virtual sourceType setType() const
-        {
-            return POINTSETSOURCE;
-        }
-
         virtual void applyToSet
         (
             const topoSetSource::setAction action,
-            topoSet&
+            topoSet& set
         ) const;
-
 };
 
 

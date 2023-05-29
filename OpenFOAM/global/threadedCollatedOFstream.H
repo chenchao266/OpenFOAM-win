@@ -1,9 +1,12 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2017-2018 OpenFOAM Foundation
+    Copyright (C) 2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -35,28 +38,38 @@ SourceFiles
 #ifndef threadedCollatedOFstream_H
 #define threadedCollatedOFstream_H
 
-#include "OStringStream.H"
+#include "dictionary2.H"
+#include "StringStream.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 namespace Foam
 {
 
+// Forward Declarations
 class OFstreamCollator;
 
 /*---------------------------------------------------------------------------*\
                   Class threadedCollatedOFstream Declaration
 \*---------------------------------------------------------------------------*/
 
-class threadedCollatedOFstream :    public OStringStream
+class threadedCollatedOFstream
+:
+    public OStringStream
 {
-    // Private data
+    // Private Data
 
+        //- The backend writer
         OFstreamCollator& writer_;
 
         const fileName pathName_;
 
-        const IOstream::compressionType compression_;
+        const IOstreamOption::compressionType compression_;
+
+        const bool useThread_;
+
+        //- Additional FoamFile entries for decomposed data
+        dictionary headerEntries_;
 
 
 public:
@@ -66,16 +79,47 @@ public:
         //- Construct and set stream status
         threadedCollatedOFstream
         (
-            OFstreamCollator&,
+            OFstreamCollator& writer,
             const fileName& pathname,
-            streamFormat format=ASCII,
-            versionNumber version=currentVersion,
-            compressionType compression=UNCOMPRESSED
+            IOstreamOption streamOpt = IOstreamOption(),
+            const bool useThread = true
         );
 
 
     //- Destructor
     ~threadedCollatedOFstream();
+
+
+    // Member Functions
+
+        //- Define the header entries for the data block(s)
+        void setHeaderEntries(const dictionary& dict);
+
+
+    // Additional constructors and methods (as per v2012 and earlier)
+    #ifdef Foam_IOstream_extras
+
+        //- Construct and set stream status
+        threadedCollatedOFstream
+        (
+            OFstreamCollator& writer,
+            const fileName& pathname,
+            IOstreamOption::streamFormat fmt,
+            IOstreamOption::versionNumber ver = IOstreamOption::currentVersion,
+            IOstreamOption::compressionType cmp = IOstreamOption::UNCOMPRESSED,
+            const bool useThread = true
+        )
+        :
+            threadedCollatedOFstream
+            (
+                writer,
+                pathname,
+                IOstreamOption(fmt, ver, cmp),
+                useThread
+            )
+        {}
+
+    #endif /* Foam_IOstream_extras */
 };
 
 

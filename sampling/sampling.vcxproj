@@ -21,18 +21,18 @@
   <PropertyGroup Label="Globals">
     <VCProjectVersion>15.0</VCProjectVersion>
     <ProjectGuid>{9878874B-3060-498C-978F-96A98789AEA1}</ProjectGuid>
-    <WindowsTargetPlatformVersion>8.1</WindowsTargetPlatformVersion>
+    <WindowsTargetPlatformVersion>10.0.17763.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
-    <PlatformToolset>v141</PlatformToolset>
+    <PlatformToolset>v143</PlatformToolset>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
-    <PlatformToolset>v141</PlatformToolset>
+    <PlatformToolset>v143</PlatformToolset>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
     <ConfigurationType>StaticLibrary</ConfigurationType>
@@ -69,7 +69,6 @@
       <PreprocessorDefinitions>WM_LABEL_SIZE=64;WM_DP;NoRepository;WIN32;WIN64;_WINDOWS;NOMINMAX;_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <CompileAs>CompileAsCpp</CompileAs>
       <LanguageStandard>stdcpp17</LanguageStandard>
-      <WarningLevel>Level4</WarningLevel>
     </ClCompile>
   </ItemDefinitionGroup>
   <ItemGroup>
@@ -82,12 +81,7 @@
     <ClCompile Include="cuttingPlane.C" />
     <ClCompile Include="directMethod.C" />
     <ClCompile Include="distanceSurface.C" />
-    <ClCompile Include="dxSurfaceWriter.C" />
-    <ClCompile Include="ensightPTraits.C" />
-    <ClCompile Include="ensightSurfaceWriter.C" />
     <ClCompile Include="faceOnlySet.C" />
-    <ClCompile Include="foamSurfaceWriter.C" />
-    <ClCompile Include="isoSurface.C" />
     <ClCompile Include="isoSurfaceCell.C" />
     <ClCompile Include="makeGraph.C" />
     <ClCompile Include="mapNearestMethod.C" />
@@ -98,15 +92,12 @@
     <ClCompile Include="meshToMeshParallelOps.C" />
     <ClCompile Include="midPointAndFaceSet.C" />
     <ClCompile Include="midPointSet.C" />
-    <ClCompile Include="nastranSurfaceWriter.C" />
     <ClCompile Include="patchCloudSet.C" />
     <ClCompile Include="patchProbes.C" />
     <ClCompile Include="patchSeedSet.C" />
     <ClCompile Include="polyLineSet.C" />
     <ClCompile Include="probes.C" />
     <ClCompile Include="probesGrouping.C" />
-    <ClCompile Include="proxySurfaceWriter.C" />
-    <ClCompile Include="rawSurfaceWriter.C" />
     <ClCompile Include="sampledCuttingPlane.C" />
     <ClCompile Include="sampledIsoSurface.C" />
     <ClCompile Include="sampledIsoSurfaceCell.C" />
@@ -118,15 +109,10 @@
     <ClCompile Include="sampledSetsGrouping.C" />
     <ClCompile Include="sampledSurface.C" />
     <ClCompile Include="sampledSurfaces.C" />
-    <ClCompile Include="sampledSurfacesGrouping.C" />
     <ClCompile Include="sampledThresholdCellFaces.C" />
-    <ClCompile Include="sampledTriSurfaceMesh.C" />
-    <ClCompile Include="starcdSurfaceWriter.C" />
-    <ClCompile Include="surfaceWriter.C" />
     <ClCompile Include="thresholdCellFaces.C" />
     <ClCompile Include="triSurfaceMeshPointSet.C" />
     <ClCompile Include="uniformSet.C" />
-    <ClCompile Include="vtkSurfaceWriter.C" />
     <ClCompile Include="writeCellGraph.C" />
     <ClCompile Include="writePatchGraph.C" />
   </ItemGroup>

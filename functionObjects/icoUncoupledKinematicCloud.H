@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2016 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -33,9 +36,9 @@ Description
 
     It may be used in conjunction with any transient single-phase incompressible
     flow solver such as pisoFoam or pimpleFoam and tracks the particles or
-    parcels without affecting the the flow-field.
+    parcels without affecting the flow-field.
 
-    The kinematicCloud requires the the density of the fluid which is looked-up
+    The kinematicCloud requires the density of the fluid which is looked-up
     from constant/transportProperties dictionary and the acceleration due to
     gravity which is read from the constant/g file if present or defaults to
     zero.
@@ -43,16 +46,17 @@ Description
     The kinematicCloud properties are read from the
     constant/kinematicCloudProperties dictionary in the usual manner.
 
+Usage
     Example of function object specification:
     \verbatim
         tracks
         {
-            libs        ("liblagrangianFunctionObjects.so");
-            type        icoUncoupledKinematicCloud;
+            type    icoUncoupledKinematicCloud;
+            libs    (lagrangianFunctionObjects);
         }
     \endverbatim
 
-Usage
+    Where the entries comprise:
     \table
         Property | Description                     | Required   | Default value
         type     | Type name: icoUncoupledKinematicCloud | yes  |
@@ -123,11 +127,11 @@ class icoUncoupledKinematicCloud
 
     // Private member functions
 
-        //- Disallow default bitwise copy construct
-        icoUncoupledKinematicCloud(const icoUncoupledKinematicCloud&);
+        //- No copy construct
+        icoUncoupledKinematicCloud(const icoUncoupledKinematicCloud&) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator==(const icoUncoupledKinematicCloud&);
+        //- No copy assignment
+        void operator==(const icoUncoupledKinematicCloud&) = delete;
 
 
 public:

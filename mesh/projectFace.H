@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2016 OpenFOAM Foundation
+    Copyright (C) 2019 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -53,7 +56,7 @@ class projectFace
 :
     public blockFace
 {
-    // Private data
+    // Private Data
 
         //- The surface onto which the points are projected
         const searchableSurface& surface_;
@@ -68,13 +71,9 @@ class projectFace
         ) const;
 
         //- Convert i,j to single index
-        label index
-        (
-            const labelPair& n,
-            const labelPair& coord
-        ) const;
+        static label index(const labelPair& n, const labelPair& coord);
 
-        //- Calulate lambdas (but unnormalised)
+        //- Calculate lambdas (but unnormalised)
         void calcLambdas
         (
             const labelPair& n,
@@ -83,11 +82,11 @@ class projectFace
             scalarField& lambdaJ
         ) const;
 
-        //- Disallow default bitwise copy construct
-        projectFace(const projectFace&);
+        //- No copy construct
+        projectFace(const projectFace&) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const projectFace&);
+        //- No copy assignment
+        void operator=(const projectFace&) = delete;
 
 
 public:
@@ -104,13 +103,12 @@ public:
             const dictionary& dict,
             const label index,
             const searchableSurfaces& geometry,
-            Istream&
+            Istream& is
         );
 
 
     //- Destructor
-    virtual ~projectFace()
-    {}
+    virtual ~projectFace() = default;
 
 
     // Member Functions

@@ -1,9 +1,11 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2013 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2013 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -41,7 +43,7 @@ SourceFiles
 #define procFacesGAMGProcAgglomeration_H
 
 #include "GAMGProcAgglomeration.H"
-#include "DynamicList.T.H"
+#include "DynamicList.H"
 #include "labelField.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
@@ -57,7 +59,9 @@ class lduPrimitiveMesh;
                     Class procFacesGAMGProcAgglomeration Declaration
 \*---------------------------------------------------------------------------*/
 
-class procFacesGAMGProcAgglomeration :    public GAMGProcAgglomeration
+class procFacesGAMGProcAgglomeration
+:
+    public GAMGProcAgglomeration
 {
     // Private data
 
@@ -85,14 +89,14 @@ class procFacesGAMGProcAgglomeration :    public GAMGProcAgglomeration
         //- Do we need to agglomerate across processors?
         bool doProcessorAgglomeration(const lduMesh&) const;
 
-        //- Disallow default bitwise copy construct
+        //- No copy construct
         procFacesGAMGProcAgglomeration
         (
             const procFacesGAMGProcAgglomeration&
-        );
+        ) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const procFacesGAMGProcAgglomeration&);
+        //- No copy assignment
+        void operator=(const procFacesGAMGProcAgglomeration&) = delete;
 
 
 public:

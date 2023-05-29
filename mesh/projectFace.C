@@ -1,9 +1,12 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2016 OpenFOAM Foundation
+    Copyright (C) 2019-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -50,13 +53,13 @@ const Foam::searchableSurface& Foam::blockFaces::projectFace::lookupSurface
     Istream& is
 ) const
 {
-    word name(is);
+    const word name(is);
 
-    forAll(geometry, i)
+    for (const searchableSurface& geom : geometry)
     {
-        if (geometry[i].name() == name)
+        if (geom.name() == name)
         {
-            return geometry[i];
+            return geom;
         }
     }
 
@@ -72,7 +75,7 @@ Foam::label Foam::blockFaces::projectFace::index
 (
     const labelPair& n,
     const labelPair& coord
-) const
+)
 {
     return coord.first() + coord.second()*n.first();
 }
@@ -173,32 +176,32 @@ void Foam::blockFaces::projectFace::project
         case 0:
         case 1:
         {
-            n.first() = desc.density()[1] + 1;
-            n.second() = desc.density()[2] + 1;
+            n.first() = desc.density().y() + 1;
+            n.second() = desc.density().z() + 1;
         }
         break;
 
         case 2:
         case 3:
         {
-            n.first() = desc.density()[0] + 1;
-            n.second() = desc.density()[2] + 1;
+            n.first() = desc.density().x() + 1;
+            n.second() = desc.density().z() + 1;
         }
         break;
 
         case 4:
         case 5:
         {
-            n.first() = desc.density()[0] + 1;
-            n.second() = desc.density()[1] + 1;
+            n.first() = desc.density().x() + 1;
+            n.second() = desc.density().y() + 1;
         }
         break;
     }
 
 
     // Calculate initial normalised edge lengths (= u,v coordinates)
-    scalarField lambdaI(points.size(), 0.0);
-    scalarField lambdaJ(points.size(), 0.0);
+    scalarField lambdaI(points.size(), Zero);
+    scalarField lambdaJ(points.size(), Zero);
     calcLambdas(n, points, lambdaI, lambdaJ);
 
 
@@ -228,7 +231,7 @@ void Foam::blockFaces::projectFace::project
                 if (hits[i].hit())
                 {
                     const point& hitPt = hits[i].hitPoint();
-                    if (debugStr.valid())
+                    if (debugStr)
                     {
                         debugStr().write(linePointRef(points[i], hitPt));
                     }
@@ -244,14 +247,21 @@ void Foam::blockFaces::projectFace::project
         }
 
 
-        if (iter > 0 && (iResidual+jResidual)/initialResidual < relTol)
+        if
+        (
+            iter > 0
+         && (
+                initialResidual < ROOTVSMALL
+             || ((iResidual+jResidual)/initialResidual < relTol)
+            )
+        )
         {
             break;
         }
 
 
         // Predict along i
-        vectorField residual(points.size(), vector::_zero);
+        vectorField residual(points.size(), Zero);
 
         // Work arrays for interpolation
         labelList indices;
@@ -279,7 +289,7 @@ void Foam::blockFaces::projectFace::project
 
                 interpolator.valueWeights(lambdaI[ij], indices, weights);
 
-                point predicted = vector::_zero;
+                point predicted(Zero);
                 forAll(indices, indexi)
                 {
                     label ptIndex = index(n, labelPair(indices[indexi], j));
@@ -289,7 +299,7 @@ void Foam::blockFaces::projectFace::project
             }
         }
 
-        if (debugStr.valid())
+        if (debugStr)
         {
             forAll(points, i)
             {
@@ -306,7 +316,7 @@ void Foam::blockFaces::projectFace::project
 
 
         // Predict along j
-        residual = vector::_zero;
+        residual = vector::zero_;
         for (label i = 1; i < n.first()-1; i++)
         {
             // Calculate actual lamdba along constant i line
@@ -331,7 +341,7 @@ void Foam::blockFaces::projectFace::project
 
                 interpolator.valueWeights(lambdaJ[ij], indices, weights);
 
-                point predicted = vector::_zero;
+                point predicted(Zero);
                 forAll(indices, indexi)
                 {
                     label ptIndex = index(n, labelPair(i, indices[indexi]));
@@ -341,7 +351,7 @@ void Foam::blockFaces::projectFace::project
             }
         }
 
-        if (debugStr.valid())
+        if (debugStr)
         {
             forAll(points, i)
             {

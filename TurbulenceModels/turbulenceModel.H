@@ -1,9 +1,11 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2013-2015 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2013-2017 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -22,201 +24,161 @@ License
     along with OpenFOAM.  If not, see <http://www.gnu.org/licenses/>.
 
 Class
-    Foam::turbulenceModel
-
-Group
-    grpTurbulence
+    Foam::TurbulenceModel
 
 Description
-    Abstract base class for turbulence models (RAS, LES and laminar).
+    Templated abstract base class for turbulence models
 
 SourceFiles
-    turbulenceModel.C
+    TurbulenceModel.C
 
 \*---------------------------------------------------------------------------*/
 
-#ifndef turbulenceModel_H
-#define turbulenceModel_H
+#ifndef TurbulenceModel_H
+#define TurbulenceModel_H
 
-#include "IOdictionary.H"
-#include "primitiveFieldsFwd.H"
-#include "volFieldsFwd.H"
-#include "surfaceFieldsFwd.H"
-#include "fvMatricesFwd.H"
-#include "nearWallDist.H"
-#include "geometricOneField.H"
+#include "turbulenceModel2.H"
+#include "autoPtr.H"
+#include "runTimeSelectionTables.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 namespace Foam
 {
 
-// Forward declarations
-class fvMesh;
-
 /*---------------------------------------------------------------------------*\
-                           Class turbulenceModel Declaration
+                       Class TurbulenceModel Declaration
 \*---------------------------------------------------------------------------*/
 
-class turbulenceModel
+template
+<
+    class Alpha,
+    class Rho,
+    class BasicTurbulenceModel,
+    class TransportModel
+>
+class TurbulenceModel
 :
-    public IOdictionary
+    public BasicTurbulenceModel
 {
+
+public:
+
+    typedef Alpha alphaField;
+    typedef Rho rhoField;
+    typedef TransportModel transportModel;
+
 
 protected:
 
     // Protected data
 
-        const Time& runTime_;
-        const fvMesh& mesh_;
-
-        const volVectorField& U_;
-        const surfaceScalarField& alphaRhoPhi_;
-        const surfaceScalarField& phi_;
-
-        //- Near wall distance boundary field
-        nearWallDist y_;
+        const alphaField& alpha_;
+        const transportModel& transport_;
 
 
-private:
+    // Protected Member Functions
 
-    // Private Member Functions
+        //- No copy construct
+        TurbulenceModel(const TurbulenceModel&) = delete;
 
-        //- Disallow default bitwise copy construct
-        turbulenceModel(const turbulenceModel&);
-
-        //- Disallow default bitwise assignment
-        void operator=(const turbulenceModel&);
+        //- No copy assignment
+        void operator=(const TurbulenceModel&) = delete;
 
 
 public:
 
-    //- Runtime type information
-    TypeName("turbulenceModel");
+    // Declare run-time constructor selection table
 
-    //- Default name of the turbulence properties dictionary
-    static const word propertiesName;
+        declareRunTimeNewSelectionTable
+        (
+            autoPtr,
+            TurbulenceModel,
+            dictionary,
+            (
+                const alphaField& alpha,
+                const rhoField& rho,
+                const volVectorField& U,
+                const surfaceScalarField& alphaRhoPhi,
+                const surfaceScalarField& phi,
+                const transportModel& transport,
+                const word& propertiesName
+            ),
+            (alpha, rho, U, alphaRhoPhi, phi, transport, propertiesName)
+        );
 
 
     // Constructors
 
-        //- Construct from components
-        turbulenceModel
+        //- Construct
+        TurbulenceModel
         (
+            const alphaField& alpha,
+            const rhoField& rho,
             const volVectorField& U,
             const surfaceScalarField& alphaRhoPhi,
             const surfaceScalarField& phi,
+            const transportModel& transport,
             const word& propertiesName
         );
 
 
+    // Selectors
+
+        //- Return a reference to the selected turbulence model
+        static autoPtr<TurbulenceModel> New
+        (
+            const alphaField& alpha,
+            const rhoField& rho,
+            const volVectorField& U,
+            const surfaceScalarField& alphaRhoPhi,
+            const surfaceScalarField& phi,
+            const transportModel& transport,
+            const word& propertiesName = turbulenceModel::propertiesName
+        );
+
+
     //- Destructor
-    virtual ~turbulenceModel()
-    {}
+    virtual ~TurbulenceModel() = default;
 
 
     // Member Functions
 
-        //- Read model coefficients if they have changed
-        virtual bool read() = 0;
-
-        const Time& time() const
+        //- Access function to phase fraction
+        const alphaField& alpha() const
         {
-            return runTime_;
+            return alpha_;
         }
 
-        const fvMesh& mesh() const
+        //- Access function to incompressible transport model
+        const transportModel& transport() const
         {
-            return mesh_;
-        }
-
-        //- Const access to the coefficients dictionary
-        virtual const dictionary& coeffDict() const = 0;
-
-        //- Helper function to return the name of the turbulence G field
-        inline word GName() const
-        {
-            return word(type() + ":G");
-        }
-
-        //- Access function to velocity field
-        inline const volVectorField& U() const
-        {
-            return U_;
-        }
-
-        //- Access function to phase flux field
-        inline const surfaceScalarField& alphaRhoPhi() const
-        {
-            return alphaRhoPhi_;
-        }
-
-        //- Return the volumetric flux field
-        virtual tmp<surfaceScalarField> phi() const;
-
-        //- Return the near wall distances
-        const nearWallDist& y() const
-        {
-            return y_;
+            return transport_;
         }
 
         //- Return the laminar viscosity
-        virtual tmp<volScalarField> nu() const = 0;
+        virtual tmp<volScalarField> nu() const
+        {
+            return transport_.nu();
+        }
 
-        //- Return the laminar viscosity on patch
-        virtual tmp<scalarField> nu(const label patchi) const = 0;
-
-        //- Return the turbulence viscosity
-        virtual tmp<volScalarField> nut() const = 0;
-
-        //- Return the turbulence viscosity on patch
-        virtual tmp<scalarField> nut(const label patchi) const = 0;
-
-        //- Return the effective viscosity
-        virtual tmp<volScalarField> nuEff() const = 0;
-
-        //- Return the effective viscosity on patch
-        virtual tmp<scalarField> nuEff(const label patchi) const = 0;
-
-        //- Return the laminar dynamic viscosity
-        virtual tmp<volScalarField> mu() const = 0;
-
-        //- Return the laminar dynamic viscosity on patch
-        virtual tmp<scalarField> mu(const label patchi) const = 0;
-
-        //- Return the turbulence dynamic viscosity
-        virtual tmp<volScalarField> mut() const = 0;
-
-        //- Return the turbulence dynamic viscosity on patch
-        virtual tmp<scalarField> mut(const label patchi) const = 0;
-
-        //- Return the effective dynamic viscosity
-        virtual tmp<volScalarField> muEff() const = 0;
-
-        //- Return the effective dynamic viscosity on patch
-        virtual tmp<scalarField> muEff(const label patchi) const = 0;
-
-        //- Return the turbulence kinetic energy
-        virtual tmp<volScalarField> k() const = 0;
-
-        //- Return the turbulence kinetic energy dissipation rate
-        virtual tmp<volScalarField> epsilon() const = 0;
-
-        //- Return the Reynolds stress tensor
-        virtual tmp<volSymmTensorField> R() const = 0;
-
-        //- Validate the turbulence fields after construction
-        //  Update derived fields as required
-        virtual void validate();
-
-        //- Solve the turbulence equations and correct the turbulence viscosity
-        virtual void correct() = 0;
+        //- Return the laminar viscosity on patchi
+        virtual tmp<scalarField> nu(const label patchi) const
+        {
+            return transport_.nu(patchi);
+        }
 };
 
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 } // End namespace Foam
+
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+#ifdef NoRepository
+    #include "TurbulenceModel.C"
+#endif
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 

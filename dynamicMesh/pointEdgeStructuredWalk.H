@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2019-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -36,34 +39,29 @@ SourceFiles
 #ifndef pointEdgeStructuredWalk_H
 #define pointEdgeStructuredWalk_H
 
-#include "point.T.H"
-#include "tensor.H"
+#include "point.H"
+#include "tensor2.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 namespace Foam
 {
 
-// Forward declaration of classes
+// Forward Declarations
 class polyPatch;
 class polyMesh;
-
-
-// Forward declaration of friend functions and operators
-
 class pointEdgeStructuredWalk;
 
 Istream& operator>>(Istream&, pointEdgeStructuredWalk&);
 Ostream& operator<<(Ostream&, const pointEdgeStructuredWalk&);
 
-
 /*---------------------------------------------------------------------------*\
-                           Class pointEdgeStructuredWalk Declaration
+                   Class pointEdgeStructuredWalk Declaration
 \*---------------------------------------------------------------------------*/
 
 class pointEdgeStructuredWalk
 {
-    // Private data
+    // Private Data
 
         //- Starting location
         point point0_;
@@ -76,6 +74,10 @@ class pointEdgeStructuredWalk
 
         //- Passive data
         vector data_;
+
+        //- Index of passive data (optional)
+        label index_;
+
 
     // Private Member Functions
 
@@ -92,38 +94,53 @@ public:
 
     // Constructors
 
-        //- Construct null
+        //- Default construct
         inline pointEdgeStructuredWalk();
 
         //- Construct from components
         inline pointEdgeStructuredWalk
         (
-            const point&,
-            const point&,
-            const scalar,
-            const vector&
+            const point& point0,
+            const point& previousPoint,
+            const scalar dist,
+            const vector& data,
+            const label index = -1
         );
 
 
     // Member Functions
 
-        // Access
+    // Access
 
-            inline bool inZone() const;
+        //- The distance information
+        scalar dist() const
+        {
+            return dist_;
+        }
 
-            inline scalar dist() const;
+        //- Tracking data
+        const vector& data() const
+        {
+            return data_;
+        }
 
-            inline const vector& data() const;
+        //- Index (if any) associated with data
+        label index() const
+        {
+            return index_;
+        }
+
+        //- True if starting point is valid (ie, not point::max)
+        inline bool inZone() const;
 
 
-        // Needed by meshWave
+        // Needed by MeshWave
 
-            //- Check whether origin has been changed at all or
-            //  still contains original (invalid) value.
+            //- Changed or contains original (invalid) value
             template<class TrackingData>
             inline bool valid(TrackingData& td) const;
 
-            //- Check for identical geometrical data. Used for cyclics checking.
+            //- Check for identical geometrical data (eg, cyclics checking)
             template<class TrackingData>
             inline bool sameGeometry
             (
@@ -207,16 +224,21 @@ public:
                 TrackingData& td
             );
 
-            //- Same (like operator==)
+            //- Test for equality, with TrackingData
             template<class TrackingData>
-            inline bool equal(const pointEdgeStructuredWalk&, TrackingData&)
-            const;
+            inline bool equal
+            (
+                const pointEdgeStructuredWalk&,
+                TrackingData&
+            ) const;
 
 
     // Member Operators
 
-        //Note: Used to determine whether to call update.
+        //- Test for equality
         inline bool operator==(const pointEdgeStructuredWalk&) const;
+
+        //- Test for inequality
         inline bool operator!=(const pointEdgeStructuredWalk&) const;
 
 
@@ -227,12 +249,10 @@ public:
 };
 
 
-//- Data associated with pointEdgeStructuredWalk type are contiguous
-template<>
-inline bool contiguous<pointEdgeStructuredWalk>()
-{
-    return true;
-}
+// * * * * * * * * * * * * * * * * * Traits  * * * * * * * * * * * * * * * * //
+
+//- Contiguous data for pointEdgeStructuredWalk
+template<> struct is_contiguous<pointEdgeStructuredWalk> : std::true_type {};
 
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //

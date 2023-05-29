@@ -1,9 +1,12 @@
-﻿/*---------------------------------------------------------------------------*\
+/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2019-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -32,7 +35,7 @@ Description
     zero-gradient, fixed-gradient, fixed-value and mixed conditions.
 
     The next level of derivation covers all the specialised types with
-    specific evaluation proceedures, particularly with respect to specific
+    specific evaluation procedures, particularly with respect to specific
     fields.
 
 SourceFiles
@@ -45,32 +48,26 @@ SourceFiles
 #define fvPatchField_H
 
 #include "fvPatch.H"
-#include "DimensionedField.T.H"
+#include "DimensionedField.H"
 #include "fieldTypes.H"
+#include "scalarField.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 namespace Foam
 {
 
-// Forward declaration of classes
+// Forward Declarations
 
 class objectRegistry;
 class dictionary;
 class fvPatchFieldMapper;
 class volMesh;
 
+template<class Type> class fvPatchField;
+template<class Type> class calculatedFvPatchField;
+template<class Type> class fvMatrix;
 
-// Forward declaration of friend functions and operators
-
-template<class Type>
-class fvPatchField;
-
-template<class Type>
-class calculatedFvPatchField;
-
-template<class Type>
-class fvMatrix;
 
 template<class Type>
 Ostream& operator<<(Ostream&, const fvPatchField<Type>&);
@@ -81,9 +78,11 @@ Ostream& operator<<(Ostream&, const fvPatchField<Type>&);
 \*---------------------------------------------------------------------------*/
 
 template<class Type>
-class fvPatchField :    public Field<Type>
+class fvPatchField
+:
+    public Field<Type>
 {
-    // Private data
+    // Private Data
 
         //- Reference to patch
         const fvPatch& patch_;
@@ -92,12 +91,15 @@ class fvPatchField :    public Field<Type>
         const DimensionedField<Type, volMesh>& internalField_;
 
         //- Update index used so that updateCoeffs is called only once during
-        //  the construction of the matrix
+        //- the construction of the matrix
         bool updated_;
 
         //- Update index used so that manipulateMatrix is called only once
-        //  during the construction of the matrix
+        //- during the construction of the matrix
         bool manipulatedMatrix_;
+
+        //- Use implicit formulation
+        bool useImplicit_;
 
         //- Optional patch type, used to allow specified boundary conditions
         //  to be applied to constraint patches by providing the constraint
@@ -217,7 +219,7 @@ public:
         //- Construct and return a clone
         virtual tmp<fvPatchField<Type>> clone() const
         {
-            return tmp<fvPatchField<Type>>(new fvPatchField<Type>(*this));
+            return tmp<fvPatchField<Type>>::New(*this);
         }
 
         //- Construct as copy setting internal field reference
@@ -233,7 +235,7 @@ public:
             const DimensionedField<Type, volMesh>& iF
         ) const
         {
-            return tmp<fvPatchField<Type>>(new fvPatchField<Type>(*this, iF));
+            return tmp<fvPatchField<Type>>::New(*this, iF);
         }
 
 
@@ -297,11 +299,28 @@ public:
 
 
     //- Destructor
-    virtual ~fvPatchField<Type>()
-    {}
+    virtual ~fvPatchField<Type>() = default;
 
 
-    // Member functions
+    // Member Functions
+
+        // Implicit Functions
+
+            //- Use implicit formulation for coupled patches only
+            bool useImplicit() const noexcept
+            {
+                return useImplicit_;
+            }
+
+            //- Set useImplicit on/off
+            //  \return old value
+            bool useImplicit(bool on) noexcept
+            {
+                bool old(useImplicit_);
+                useImplicit_ = on;
+                return old;
+            }
+
 
         // Attributes
 
@@ -342,8 +361,7 @@ public:
             }
 
             //- Return dimensioned internal field reference
-            const DimensionedField<Type, volMesh>&
-            internalField() const
+            const DimensionedField<Type, volMesh>& internalField() const
             {
                 return internalField_;
             }
@@ -379,7 +397,7 @@ public:
             }
 
 
-        // Mapping functions
+        // Mapping Functions
 
             //- Map (and resize as needed) from self given a mapping object
             virtual void autoMap
@@ -395,7 +413,7 @@ public:
             );
 
 
-        // Evaluation functions
+        // Evaluation Functions
 
             //- Return patch-normal gradient
             virtual tmp<Field<Type>> snGrad() const;
@@ -416,7 +434,7 @@ public:
             virtual void updateCoeffs();
 
             //- Update the coefficients associated with the patch field
-            //  with a weight field (0..1). This weight field is ususally
+            //  with a weight field (0..1). This weight field is usually
             //  provided as the amount of geometric overlap for 'duplicate'
             //  patches. Sets Updated to true
             virtual void updateWeightedCoeffs(const scalarField& weights);
@@ -523,22 +541,19 @@ public:
                 const scalarField& weights
             );
 
+            //- Manipulate fvMatrix
+            virtual void manipulateMatrix
+            (
+                fvMatrix<Type>& matrix,
+                const label iMatrix,
+                const direction cmp
+            );
+
 
         // I-O
 
             //- Write
             virtual void write(Ostream&) const;
-
-            //- Helper function to write the keyword and entry only if the
-            //  values are not equal. The value is then output as value2
-            template<class EntryType>
-            void writeEntryIfDifferent
-            (
-                Ostream& os,
-                const word& entryName,
-                const EntryType& value1,
-                const EntryType& value2
-            ) const;
 
 
         // Check
@@ -547,7 +562,7 @@ public:
             void check(const fvPatchField<Type>&) const;
 
 
-    // Member operators
+    // Member Operators
 
         virtual void operator=(const UList<Type>&);
 
@@ -590,7 +605,8 @@ public:
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 #ifdef NoRepository
-#include "fvPatchField.C" 
+    #include "fvPatchField.C"
+    #include "calculatedFvPatchField.H"
 #endif
 
 
@@ -699,7 +715,4 @@ defineTemplateRunTimeSelectionTable(fvPatchTypeField, dictionary);
 
 #endif
 
-#ifdef NoRepository 
-#include "calculatedFvPatchField.H"
-#endif
 // ************************************************************************* //

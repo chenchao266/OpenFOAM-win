@@ -1,9 +1,12 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2019 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -36,7 +39,7 @@ Description
 #include "lduAddressing.H"
 #include "lduInterfacePtrsList.H"
 #include "typeInfo.H"
-#include "InfoProxy.T.H"
+#include "InfoProxy.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -69,13 +72,15 @@ public:
     // Constructors
 
     //- Destructor
-    virtual ~lduMesh()
-    {}
+    virtual ~lduMesh() = default;
 
 
     // Member Functions
 
         // Access
+
+            //- Return true if thisDb() is a valid DB
+            virtual bool hasDb() const = 0;
 
             //- Return the object registry
             virtual const objectRegistry& thisDb() const;
@@ -84,7 +89,7 @@ public:
             virtual const lduAddressing& lduAddr() const = 0;
 
             //- Return a list of pointers for each patch
-            //  with only those pointing to interfaces being set
+            //- with only those pointing to interfaces being set
             virtual lduInterfacePtrsList interfaces() const = 0;
 
             //- Return communicator used for parallel communication

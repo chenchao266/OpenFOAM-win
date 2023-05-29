@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -23,61 +25,50 @@ License
 
 \*---------------------------------------------------------------------------*/
 
-#include "noInteraction.H"
-#include "addToRunTimeSelectionTable.H"
-
-// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
-
-namespace Foam
-{
-namespace pairPotentials
-{
-
-// * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
-
-defineTypeNameAndDebug(noInteraction, 0);
-
-addToRunTimeSelectionTable
-(
-    pairPotential,
-    noInteraction,
-    dictionary
-);
-
+#include "NoInteraction.H"
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
-noInteraction::noInteraction
+template<class CloudType>
+Foam::NoInteraction<CloudType>::NoInteraction
 (
-    const word& name,
-    const dictionary& pairPotentialProperties
+    const dictionary&,
+    CloudType& owner
 )
 :
-    pairPotential(name, pairPotentialProperties)
+    PatchInteractionModel<CloudType>(owner)
+{}
+
+
+template<class CloudType>
+Foam::NoInteraction<CloudType>::NoInteraction
+(
+    const NoInteraction<CloudType>& pim
+)
+:
+    PatchInteractionModel<CloudType>(pim)
+{}
+
+
+// * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
+
+template<class CloudType>
+bool Foam::NoInteraction<CloudType>::active() const
 {
-    setLookupTables();
+    return false;
 }
 
 
-// * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * * //
-
-scalar noInteraction::unscaledEnergy(const scalar r) const
+template<class CloudType>
+bool Foam::NoInteraction<CloudType>::correct
+(
+    typename CloudType::parcelType& p,
+    const polyPatch&,
+    bool&
+)
 {
-    return 0.0;
+    return false;
 }
 
-
-bool noInteraction::read(const dictionary& pairPotentialProperties)
-{
-    pairPotential::read(pairPotentialProperties);
-
-    return true;
-}
-
-
-// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
-
-} // End namespace pairPotentials
-} // End namespace Foam
 
 // ************************************************************************* //

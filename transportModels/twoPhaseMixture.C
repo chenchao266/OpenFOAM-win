@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2013 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2013 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -34,8 +36,8 @@ Foam::twoPhaseMixture::twoPhaseMixture
     const dictionary& dict
 )
 :
-    phase1Name_(wordList(dict.lookup("phases"))[0]),
-    phase2Name_(wordList(dict.lookup("phases"))[1]),
+    phase1Name_(dict.get<wordList>("phases")[0]),
+    phase2Name_(dict.get<wordList>("phases")[1]),
 
     alpha1_
     (

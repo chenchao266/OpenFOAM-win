@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2012-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2012-2016 OpenFOAM Foundation
+    Copyright (C) 2018-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -36,18 +39,13 @@ void Foam::functionObjects::turbulenceFields::processField
 {
     typedef GeometricField<Type, fvPatchField, volMesh> FieldType;
 
-    const word scopedName = modelName + ':' + fieldName;
+    const word localName(IOobject::scopedName(prefix_, fieldName));
 
-    if (obr_.foundObject<FieldType>(scopedName))
+    FieldType* fldPtr = obr_.getObjectPtr<FieldType>(localName);
+
+    if (fldPtr)
     {
-        obr_.lookupObjectRef<FieldType>(scopedName) == tvalue();
-    }
-    else if (obr_.found(scopedName))
-    {
-        WarningInFunction
-            << "Cannot store turbulence field " << scopedName
-            << " since an object with that name already exists"
-            << nl << endl;
+        (*fldPtr) == tvalue();
     }
     else
     {
@@ -57,7 +55,7 @@ void Foam::functionObjects::turbulenceFields::processField
             (
                 IOobject
                 (
-                    scopedName,
+                    localName,
                     obr_.time().timeName(),
                     obr_,
                     IOobject::READ_IF_PRESENT,
@@ -72,30 +70,56 @@ void Foam::functionObjects::turbulenceFields::processField
 
 template<class Model>
 Foam::tmp<Foam::volScalarField>
-Foam::functionObjects::turbulenceFields::omega
+Foam::functionObjects::turbulenceFields::nuTilda
 (
     const Model& model
 ) const
 {
-    const scalar Cmu = 0.09;
+    const dimensionedScalar omega0(dimless/dimTime, SMALL);
 
-    // Assume k and epsilon are available
-    const volScalarField k(model.k());
-    const volScalarField epsilon(model.epsilon());
-
-    return tmp<volScalarField>
+    return tmp<volScalarField>::New
     (
-        new volScalarField
-        (
-            IOobject
-            (
-                "omega",
-                k.mesh().time().timeName(),
-                k.mesh()
-            ),
-            epsilon/(Cmu*k),
-            epsilon.boundaryField().types()
-        )
+        "nuTilda.tmp",
+        model.k()/(model.omega() + omega0)
+    );
+}
+
+
+template<class Model>
+Foam::tmp<Foam::volScalarField>
+Foam::functionObjects::turbulenceFields::L
+(
+    const Model& model
+) const
+{
+    // (P:Eq. 10.37)
+    const scalar Cmu = 0.09;
+    const dimensionedScalar eps0(sqr(dimVelocity)/dimTime, SMALL);
+
+    return tmp<volScalarField>::New
+    (
+        "L.tmp",
+        pow(Cmu, 0.75)*pow(model.k(), 1.5)/(model.epsilon() + eps0)
+    );
+}
+
+
+template<class Model>
+Foam::tmp<Foam::volScalarField>
+Foam::functionObjects::turbulenceFields::I
+(
+    const Model& model
+) const
+{
+    // (P:p. 183)
+    // root-mean-square of velocity fluctuations - isotropic turbulence
+    const volScalarField uPrime(sqrt((2.0/3.0)*model.k()));
+    const dimensionedScalar U0(dimVelocity, SMALL);
+
+    return tmp<volScalarField>::New
+    (
+        "I.tmp",
+        uPrime/max(max(uPrime, mag(model.U())), U0)
     );
 }
 

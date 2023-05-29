@@ -1,9 +1,11 @@
-﻿/*---------------------------------------------------------------------------*\
+/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -23,7 +25,7 @@ License
 
 \*---------------------------------------------------------------------------*/
 
-//#include "correlationFunction.H"
+#include "correlationFunction.H"
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
 
@@ -80,19 +82,16 @@ template<class Type>
 Foam::correlationFunction<Type>::correlationFunction
 (
     const polyMesh& mesh,
-    const dictionary& cfDict,
+    const dictionary& dict,
     const label tZeroBufferSize
 )
 :
     bufferedAccumulator<scalar>(),
-    mesh_(mesh)
+    mesh_(mesh),
+    duration_(dict.get<scalar>("duration")),
+    sampleInterval_(dict.get<scalar>("sampleInterval")),
+    averagingInterval_(dict.get<scalar>("averagingInterval"))
 {
-    duration_ = readScalar(cfDict.lookup("duration"));
-
-    sampleInterval_ = readScalar(cfDict.lookup("sampleInterval"));
-
-    averagingInterval_ = readScalar(cfDict.lookup("averagingInterval"));
-
     setTimesAndSizes(tZeroBufferSize);
 }
 
@@ -143,7 +142,7 @@ void Foam::correlationFunction<Type>::calculateCorrelationFunction
             << abort(FatalError);
     }
 
-    List<scalar> cFSums(nBuffers(),0.0);
+    List<scalar> cFSums(nBuffers(), Zero);
 
     forAll(tZeroBuffers_, tZB)
     {

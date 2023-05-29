@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2016-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -22,21 +25,52 @@ License
     along with OpenFOAM.  If not, see <http://www.gnu.org/licenses/>.
 
 Class
-    Foam::fieldValue
+    Foam::functionObjects::fieldValue
 
 Group
     grpFieldFunctionObjects
 
 Description
-    Base class for field value -based function objects.
+    Intermediate class for handling field value-based function objects.
+
+Usage
+    Minimal example by using \c system/controlDict.functions:
+    \verbatim
+    <userDefinedSubDictName1>
+    {
+        // Mandatory and other optional entries
+        ...
+
+        // Mandatory (inherited) entries (runtime modifiable)
+        fields            (<field1> <field2> ... <fieldN>);
+
+        // Optional (inherited) entries (runtime modifiable)
+        writeFields       false;
+        scaleFactor       1.0;
+    }
+    \endverbatim
+
+    where the entries mean:
+    \table
+      Property    | Description                 | Type     | Req'd | Dflt
+      fields      | Names of operand fields     | wordList |  yes  | -
+      writeFields | Flag to output field values | bool     |  no   | false
+      scaleFactor | Scaling factor              | scalar   |  no   | 1.0
+    \endtable
+
+    The inherited entries are elaborated in:
+     - \link functionObject.H \endlink
+     - \link writeFile.H \endlink
 
 See also
-    Foam::functionObject
-    Foam::functionObjects::fvMeshFunctionObject
-    Foam::functionObjects::logFiles
+    - Foam::functionObject
+    - Foam::functionObjects::fvMeshFunctionObject
+    - Foam::functionObjects::writeFile
+    - ExtendedCodeGuide::functionObjects::field::fieldValue
 
 SourceFiles
     fieldValue.C
+    fieldValueTemplates.C
 
 \*---------------------------------------------------------------------------*/
 
@@ -44,49 +78,44 @@ SourceFiles
 #define functionObjects_fieldValue_H
 
 #include "fvMeshFunctionObject.H"
-#include "logFiles.H"
-#include "Switch.H"
-#include "Field.T.H"
+#include "writeFile.H"
+#include "Field.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 namespace Foam
 {
 
-// Forward declaration of classes
-class fvMesh;
-
 namespace functionObjects
 {
 
 /*---------------------------------------------------------------------------*\
-                       Class fieldValue Declaration
+                         Class fieldValue Declaration
 \*---------------------------------------------------------------------------*/
 
 class fieldValue
 :
     public fvMeshFunctionObject,
-    public logFiles
+    public writeFile
 {
-
 protected:
 
-    // Protected data
+    // Protected Data
 
-        //- Construction dictionary
-        dictionary dict_;
+        //- Flag to output field values
+        bool writeFields_;
 
         //- Name of region (patch, zone, etc.)
         word regionName_;
 
-        //- List of field names to operate on
+        //- Scaling factor
+        scalar scaleFactor_;
+
+        //- Construction dictionary
+        dictionary dict_;
+
+        //- Names of operand fields
         wordList fields_;
-
-        //- Output field values flag
-        Switch writeFields_;
-
-        //- Results dictionary for external access of results
-        dictionary resultDict_;
 
 
     // Protected Member Functions
@@ -111,15 +140,14 @@ public:
         (
             autoPtr,
             fieldValue,
-            dictionary,
+            runTime,
             (
                 const word& name,
-                const objectRegistry& obr,
+                const Time& runTime,
                 const dictionary& dict
             ),
-            (name, obr, dict)
+            (name, runTime, dict)
         );
-
 
     // Constructors
 
@@ -145,32 +173,29 @@ public:
         static autoPtr<fieldValue> New
         (
             const word& name,
-            const objectRegistry& obr,
+            const Time& runTime,
             const dictionary& dict,
             const bool output = true
         );
 
 
     //- Destructor
-    virtual ~fieldValue();
+    virtual ~fieldValue() = default;
 
 
     // Member Functions
 
         //- Return the reference to the construction dictionary
-        inline const dictionary& dict() const;
+        inline const dictionary& dict() const noexcept;
 
         //- Return the region name
-        inline const word& regionName() const;
+        inline const word& regionName() const noexcept;
 
         //- Return the list of field names
-        inline const wordList& fields() const;
+        inline const wordList& fields() const noexcept;
 
         //- Return the output field values flag
-        inline const Switch& writeFields() const;
-
-        //- Return access to the latest set of results
-        inline const dictionary& resultDict() const;
+        inline bool writeFields() const noexcept;
 
         //- Read from dictionary
         virtual bool read(const dictionary& dict);

@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2015 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -112,7 +115,7 @@ SourceFiles
 namespace Foam
 {
 
-// Forward declaration of classes
+// Forward Declarations
 class polyMesh;
 class polyTopoChange;
 class mapPolyMesh;
@@ -125,41 +128,7 @@ class globalIndex;
 
 class addPatchCellLayer
 {
-    // Private classes
-
-        // To combineReduce a labelList. Filters out duplicates.
-        class uniqueEqOp
-        {
-
-        public:
-
-            void operator()(labelList& x, const labelList& y) const
-            {
-                if (x.empty())
-                {
-                    if (y.size())
-                    {
-                        x = y;
-                    }
-                }
-                else
-                {
-                    forAll(y, yi)
-                    {
-                        if (findIndex(x, y[yi]) == -1)
-                        {
-                            label sz = x.size();
-                            x.setSize(sz+1);
-                            x[sz] = y[yi];
-                        }
-                    }
-                }
-            }
-        };
-
-
-
-    // Private data
+    // Private Data
 
         //- Reference to mesh
         const polyMesh& mesh_;
@@ -186,7 +155,7 @@ class addPatchCellLayer
         (
             const labelListList& edgeFaces,
             const label edgeI,
-            const label facei
+            const label faceI
         );
 
         //- Add vertex to face if unique.
@@ -197,8 +166,8 @@ class addPatchCellLayer
             const indirectPrimitivePatch& pp,
             const labelListList& globalEdgeFaces,
             const boolList& doneEdge,
-            const label thisGlobalFacei,
-            const label nbrGlobalFacei,
+            const label thisGlobalFaceI,
+            const label nbrGlobalFaceI,
             const label edgeI
         ) const;
 
@@ -207,8 +176,8 @@ class addPatchCellLayer
             const indirectPrimitivePatch& pp,
             const labelListList& globalEdgeFaces,
             const boolList& doneEdge,
-            const label patchFacei,
-            const label globalFacei
+            const label patchFaceI,
+            const label globalFaceI
         ) const;
 
 
@@ -220,9 +189,12 @@ class addPatchCellLayer
 
             const face& newFace,
             const label newPatchID,
+            const label newZoneI,
+            const bool newFlip,
+            const label inflateFaceI,
 
-            const label ownFacei,
-            const label nbrFacei,
+            const label ownFaceI,
+            const label nbrFaceI,
             const label meshEdgeI,
             const label layerI,
             const label numEdgeFaces,
@@ -243,11 +215,77 @@ class addPatchCellLayer
             bool&
         );
 
-        //- Disallow default bitwise copy construct
-        addPatchCellLayer(const addPatchCellLayer&);
+        //- Extract properties from mesh face in pp edge ordering
+        static void setFaceProps
+        (
+            const polyMesh& mesh,
+            const indirectPrimitivePatch& pp,
+            const label ppEdgeI,
+            const label faceI,
 
-        //- Disallow default bitwise assignment
-        void operator=(const addPatchCellLayer&);
+            label& patchI,
+            label& zoneI,
+            bool& zoneFlip,
+            label& inflateFaceI
+        );
+
+        //- Find internal or boundary face to get extrude properties
+        //  from. zoneFlip consistent with ppEdge ordering
+        static void findZoneFace
+        (
+            const bool useInternalFaces,
+            const bool useBoundaryFaces,
+
+            const polyMesh& mesh,
+            const indirectPrimitivePatch& pp,
+            const label ppEdgeI,
+            const labelUIndList& excludeFaces,
+            const labelList& meshFaces,
+
+            label& inflateFaceI,
+            label& patchI,
+            label& zoneI,
+            bool& zoneFlip
+        );
+
+        //- Mark internal and boundary edges of patch. In mesh edges
+        //- since processor might not have pp but does have edge.
+        static void markPatchEdges
+        (
+            const polyMesh& mesh,
+            const indirectPrimitivePatch& pp,
+            const labelListList& edgeGlobalFaces,
+            const labelList& meshEdges,
+
+            bitSet& isPatchEdge,
+            bitSet& isPatchBoundaryEdge
+        );
+
+        //- For every edge on pp return
+        //  - patchEdgeToFace : face (in global indexing) to inflate from
+        //  - patchEdgeToPatch : patch (only for boundary edges of pp)
+        //  - patchEdgeToZone,flip : zone info
+        static void globalEdgeInfo
+        (
+            const bool zoneFromAnyFace,
+
+            const polyMesh& mesh,
+            const globalIndex& globalFaces,
+            const labelListList& edgeGlobalFaces,
+            const indirectPrimitivePatch& pp,
+            const labelList& meshEdges,
+
+            labelList& patchEdgeToFace,  // face (in globalFaces index)
+            labelList& patchEdgeToPatch, // patch on face (or -1 for int faces)
+            labelList& patchEdgeToZone,  // zone on face
+            bitSet& patchEdgeToFlip      // flip orientation on face
+        );
+
+        //- No copy construct
+        addPatchCellLayer(const addPatchCellLayer&) = delete;
+
+        //- No copy assignment
+        void operator=(const addPatchCellLayer&) = delete;
 
 
 public:
@@ -259,11 +297,10 @@ public:
     // Constructors
 
         //- Construct from mesh.
-        addPatchCellLayer(const polyMesh&, const bool addToMesh = true);
+        explicit addPatchCellLayer(const polyMesh&, const bool addToMesh=true);
 
 
     // Member Functions
-
 
         // Access
 
@@ -294,8 +331,8 @@ public:
 
         // Edit
 
-            //- Per patch edge the pp faces (in global indices) using it. Uses
-            //  uniqueEqOp() to remove duplicates.
+            //- Per patch edge the pp faces (in global indices) using it.
+            //  Uses ListOps::uniqueEqOp to remove duplicates.
             static labelListList globalEdgeFaces
             (
                 const polyMesh&,
@@ -303,22 +340,37 @@ public:
                 const indirectPrimitivePatch& pp
             );
 
-            //- Boundary edges get extruded into boundary faces. Determine patch
-            //  for these faces. This might be a to-be-created processor patch
-            //  (patchi >= mesh.boundaryMesh().size()) in which case the
-            //  nbrProcToPatch, patchToNbrProc give the correspondence. nPatches
-            //  is the new number of patches.
-            static void calcSidePatch
+            //- Determine extrude information per patch edge:
+            //  - zoneID, zoneFlip :
+            //      picks one of the faces that connects to
+            //      the edge. For boundary edge only looks
+            //      at boundary faces. For internal edge it looks at internal
+            //      faces only (zoneFromAnyFace = false) or at any face
+            //      (zoneFromAnyFace = true). zoneFlip is consistent with
+            //      ordering of pp edge.
+            //      Face selected gets stored in inflateFaceID
+            //  - patchID :
+            //      get patch from any boundary face connected to the
+            //      edge. The patch might be a to-be-created processor patch
+            //      (patchI >= mesh.boundaryMesh().size()) in which case the
+            //      nbrProcToPatch, patchToNbrProc give the correspondence.
+            //      nPatches is the new number of patches.
+            static void calcExtrudeInfo
             (
+                const bool zoneFromAnyFace,
+
                 const polyMesh&,
                 const globalIndex& globalFaces,
                 const labelListList& globalEdgeFaces,
                 const indirectPrimitivePatch& pp,
 
-                labelList& sidePatchID,
+                labelList& edgePatchID,     // if extruding a patch edge
                 label& nPatches,
                 Map<label>& nbrProcToPatch,
-                Map<label>& patchToNbrProc
+                Map<label>& patchToNbrProc,
+                labelList& edgeZoneID,
+                boolList& edgeFlip,
+                labelList& inflateFaceID
             );
 
             //- Play commands into polyTopoChange to create layers on top
@@ -347,7 +399,12 @@ public:
                 const labelListList& globalEdgeFaces,
                 const scalarField& expansionRatio,
                 const indirectPrimitivePatch& pp,
+
                 const labelList& sidePatchID,
+                const labelList& sideZoneID,
+                const boolList& sideFlip,
+                const labelList& inflateFaceID,
+
                 const labelList& exposedPatchID,
                 const labelList& nFaceLayers,
                 const labelList& nPointLayers,
@@ -374,7 +431,12 @@ public:
                     globalEdgeFaces,
                     scalarField(pp.nPoints(), 1.0),     // expansion ration
                     pp,
+
                     sidePatchID,
+                    labelList(pp.nEdges(), -1),         // zoneID
+                    boolList(pp.nEdges(), false),       // zoneFlip
+                    labelList(pp.nEdges(), -1),         // inflateFaceID
+
                     labelList(0),
                     labelList(pp.size(), nLayers),      // nFaceLayers
                     labelList(pp.nPoints(), nLayers),   // nPointLayers

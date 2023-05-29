@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2013-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2013-2015 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -25,8 +27,8 @@ Class
     Foam::displacementMeshMoverMotionSolver
 
 Description
-    Mesh motion solver for an fvMesh.  Based on solving the cell-centre
-    Laplacian for the motion displacement.
+    Mesh motion solver for an fvMesh. Uses externalDisplacementMeshMover
+    to do the mesh motion.
 
 SourceFiles
     displacementMeshMoverMotionSolver.C
@@ -59,14 +61,14 @@ class displacementMeshMoverMotionSolver
 
     // Private Member Functions
 
-        //- Disallow default bitwise copy construct
+        //- No copy construct
         displacementMeshMoverMotionSolver
         (
             const displacementMeshMoverMotionSolver&
-        );
+        ) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const displacementMeshMoverMotionSolver&);
+        //- No copy assignment
+        void operator=(const displacementMeshMoverMotionSolver&) = delete;
 
 
 public:

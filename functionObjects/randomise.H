@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2016 OpenFOAM Foundation
+    Copyright (C) 2020-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -28,12 +31,64 @@ Group
     grpFieldFunctionObjects
 
 Description
-    Adds a random component to a field, with a specified perturbation magnitude.
+    Adds a random component to an input field,
+    with a specified perturbation magnitude.
 
-    The operation can be applied to any volume field.
+    Operands:
+    \table
+      Operand        | Type             | Location
+      input          | vol\<Type\>Field | $FOAM_CASE/\<time\>/\<inpField\>
+      output file    | -                | -
+      output field   | vol\<Type\>Field | $FOAM_CASE/\<time\>/\<outField\>
+    \endtable
+
+    where \c \<Type\>=Scalar/Vector/SphericalTensor/SymmTensor/Tensor.
+
+Usage
+    Minimal example by using \c system/controlDict.functions:
+    \verbatim
+    randomise1
+    {
+        // Mandatory entries (unmodifiable)
+        type            randomise;
+        libs            (fieldFunctionObjects);
+
+        // Mandatory entries (runtime modifiable)
+        magPerturbation 0.1;
+
+        // Mandatory (inherited) entries (runtime modifiable)
+        field           <field>;
+
+        // Optional (inherited) entries
+        ...
+    }
+    \endverbatim
+
+    where the entries mean:
+    \table
+      Property     | Description                          | Type | Req'd | Dflt
+      type         | Type name: randomise                 | word |  yes  | -
+      libs         | Library name: fieldFunctionObjects   | word |  yes  | -
+      regionType   | Selection type: all/cellSet/cellZone | word |  no  | all
+      magPerturbation | The magnitude of the perturbation | scalar |  yes  | -
+      field  | Name of the operand field            | word | yes  | -
+      name   | Name of cellSet/cellZone if required | word | conditional  | -
+    \endtable
+
+    The inherited entries are elaborated in:
+     - \link functionObject.H \endlink
+     - \link fieldExpression.H \endlink
+
+    Minimal example by using the \c postProcess utility:
+    \verbatim
+        postProcess -func "randomise(<field>)"
+    \endverbatim
 
 See also
-    Foam::functionObjects::fvMeshFunctionObject
+    - Foam::functionObject
+    - Foam::functionObjects::fieldExpression
+    - Foam::functionObjects::fvMeshFunctionObject
+    - ExtendedCodeGuide::functionObjects::field::randomise
 
 SourceFiles
     randomise.C
@@ -44,6 +99,7 @@ SourceFiles
 #define functionObjects_randomise_H
 
 #include "fieldExpression.H"
+#include "volRegion.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -58,25 +114,39 @@ namespace functionObjects
 
 class randomise
 :
-    public fieldExpression
+    public fieldExpression,
+    public volRegion
 {
-    // Private member data
+    // Private Data
 
-        //- The magnitude of the purturbation
+        //- The magnitude of the perturbation
         scalar magPerturbation_;
 
 
     // Private Member Functions
 
-        //- Calculate the randomisenitude of the field and register the result
+        //- Calculate randomised field and register result
+        //  Defined as file-local template implementation
         template<class Type>
-        bool calcRandomised();
+        bool calcTemplate();
+
+
+protected:
+
+    // Protected Member Functions
 
         //- Calculate the randomised field and return true if successful
         virtual bool calc();
 
+        //- No copy construct
+        randomise(const randomise&) = delete;
+
+        //- No copy assignment
+        void operator=(const randomise&) = delete;
+
 
 public:
+
 
     //- Runtime type information
     TypeName("randomise");
@@ -94,13 +164,13 @@ public:
 
 
     //- Destructor
-    virtual ~randomise();
+    virtual ~randomise() = default;
 
 
     // Member Functions
 
         //- Read the randomise data
-        virtual bool read(const dictionary&);
+        virtual bool read(const dictionary& dict);
 };
 
 
@@ -108,12 +178,6 @@ public:
 
 } // End namespace functionObjects
 } // End namespace Foam
-
-// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
-
-#ifdef NoRepository
-    #include "randomiseTemplates.C"
-#endif
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 

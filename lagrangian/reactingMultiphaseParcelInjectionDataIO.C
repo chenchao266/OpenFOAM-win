@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -41,7 +43,7 @@ reactingMultiphaseParcelInjectionData(Istream& is)
     is.check("reading YSolid's");
     is >> YSolid_;
 
-    is.check("reactingMultiphaseParcelInjectionData(Istream& is)");
+    is.check(FUNCTION_NAME);
 }
 
 
@@ -78,7 +80,7 @@ Foam::Istream& Foam::operator>>
     is.check("reading YSolid's");
     is >> data.YSolid_;
 
-    is.check("operator(Istream&, reactingMultiphaseParcelInjectionData&)");
+    is.check(FUNCTION_NAME);
 
     return is;
 }

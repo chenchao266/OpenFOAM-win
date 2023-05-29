@@ -1,9 +1,12 @@
-﻿/*---------------------------------------------------------------------------*\
+/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2019-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -23,12 +26,12 @@ License
 
 \*---------------------------------------------------------------------------*/
 
-//#include "writer.H"
+#include "writer.H"
 #include "coordSet.H"
 #include "OFstream.H"
 #include "OSspecific.H"
 
-// * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
+// * * * * * * * * * * * * * * * * Selectors * * * * * * * * * * * * * * * * //
 
 template<class Type>
 Foam::autoPtr<Foam::writer<Type>> Foam::writer<Type>::New
@@ -36,20 +39,42 @@ Foam::autoPtr<Foam::writer<Type>> Foam::writer<Type>::New
     const word& writeType
 )
 {
-    typename wordConstructorTable::iterator cstrIter =
-        wordConstructorTablePtr_->find(writeType);
+    auto* ctorPtr = wordConstructorTable(writeType);
 
-    if (cstrIter == wordConstructorTablePtr_->end())
+    if (!ctorPtr)
     {
-        FatalErrorInFunction
-            << "Unknown write type "
-            << writeType << nl << nl
-            << "Valid write types : " << endl
-            << wordConstructorTablePtr_->sortedToc()
-            << exit(FatalError);
+        FatalErrorInLookup
+        (
+            "writer",
+            writeType,
+            *wordConstructorTablePtr_
+        ) << exit(FatalError);
     }
 
-    return autoPtr<writer<Type>>(cstrIter()());
+    return autoPtr<writer<Type>>(ctorPtr());
+}
+
+
+template<class Type>
+Foam::autoPtr<Foam::writer<Type>> Foam::writer<Type>::New
+(
+    const word& writeType,
+    const dictionary& formatOptions
+)
+{
+    auto* ctorPtr = dictConstructorTable(writeType);
+
+    if (!ctorPtr)
+    {
+        FatalErrorInLookup
+        (
+            "writer",
+            writeType,
+            *dictConstructorTablePtr_
+        ) << exit(FatalError);
+    }
+
+    return autoPtr<writer<Type>>(ctorPtr(formatOptions));
 }
 
 
@@ -141,10 +166,8 @@ Foam::writer<Type>::writer()
 {}
 
 
-// * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
-
 template<class Type>
-Foam::writer<Type>::~writer()
+Foam::writer<Type>::writer(const dictionary& dict)
 {}
 
 

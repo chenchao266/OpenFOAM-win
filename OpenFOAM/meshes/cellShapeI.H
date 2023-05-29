@@ -1,9 +1,12 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2020-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -23,23 +26,49 @@ License
 
 \*---------------------------------------------------------------------------*/
 
-#include "Istream.T.H"
+#include "_Istream.H"
 #include "cell.H"
-#include "cellModeller.H"
+#include "cellModel.H"
+#include "UIndirectList.H"
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
-namespace Foam {
-inline cellShape::cellShape() :    m(nullptr)
+
+
+ namespace Foam{
+inline constexpr cellShape::cellShape() noexcept
+:
+    labelList(),
+    m(nullptr)
 {}
 
 
 inline cellShape::cellShape
 (
-    const cellModel& M,
-    const labelList& l,
+    const cellModel& model,
+    const labelUList& labels,
     const bool doCollapse
-) :    labelList(l),
-    m(&M)
+)
+:
+    labelList(labels),
+    m(&model)
+{
+    if (doCollapse)
+    {
+        collapse();
+    }
+}
+
+
+template<unsigned N>
+inline cellShape::cellShape
+(
+    const cellModel& model,
+    const FixedList<label, N>& labels,
+    const bool doCollapse
+)
+:
+    labelList(labels),
+    m(&model)
 {
     if (doCollapse)
     {
@@ -50,11 +79,30 @@ inline cellShape::cellShape
 
 inline cellShape::cellShape
 (
-    const word& model,
-    const labelList& l,
+    const cellModel& model,
+    labelList&& labels,
     const bool doCollapse
-) :    labelList(l),
-    m(cellModeller::lookup(model))
+)
+:
+    labelList(std::move(labels)),
+    m(&model)
+{
+    if (doCollapse)
+    {
+        collapse();
+    }
+}
+
+
+inline cellShape::cellShape
+(
+    const word& modelName,
+    const labelUList& labels,
+    const bool doCollapse
+)
+:
+    labelList(labels),
+    m(cellModel::ptr(modelName))
 {
     if (doCollapse)
     {
@@ -71,35 +119,42 @@ inline cellShape::cellShape(Istream& is)
 
 inline autoPtr<cellShape> cellShape::clone() const
 {
-    return autoPtr<cellShape>(new cellShape(*this));
+    return autoPtr<cellShape>::New(*this);
 }
 
 
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
 
-inline pointField cellShape::points
-(
-    const pointField& meshPoints
-) const
-{
-    // There are as many points as there labels for them
-    pointField p(size());
-
-    // For each point in list, set it to the point in 'pnts' addressed
-    // by 'labs'
-    forAll(p, i)
-    {
-        p[i] = meshPoints[operator[](i)];
-    }
-
-    // Return list
-    return p;
-}
-
-
 inline const cellModel& cellShape::model() const
 {
     return *m;
+}
+
+
+inline label cellShape::nPoints() const noexcept
+{
+    return labelList::size();
+}
+
+
+inline label cellShape::nEdges() const
+{
+    return m->nEdges();
+}
+
+
+inline label cellShape::nFaces() const
+{
+    return m->nFaces();
+}
+
+
+inline pointField cellShape::points
+(
+    const UList<point>& meshPoints
+) const
+{
+    return pointField(UIndirectList<point>(meshPoints, *this));
 }
 
 
@@ -118,16 +173,13 @@ inline labelList cellShape::meshFaces
 
     forAll(localFaces, i)
     {
-        const face& localF = localFaces[i];
+        const ::Foam::face& localF = localFaces[i];
 
-        forAll(cFaces, j)
+        for (const label meshFacei : cFaces)
         {
-            label meshFacei = cFaces[j];
-
             if (allFaces[meshFacei] == localF)
             {
                 modelToMesh[i] = meshFacei;
-
                 break;
             }
         }
@@ -152,22 +204,25 @@ inline labelList cellShape::meshEdges
 
     forAll(localEdges, i)
     {
-        const edge& e = localEdges[i];
+        const ::Foam::edge& e = localEdges[i];
 
-        forAll(cEdges, j)
+        for (const label edgei : cEdges)
         {
-            label edgeI = cEdges[j];
-
-            if (allEdges[edgeI] == e)
+            if (allEdges[edgei] == e)
             {
-                modelToMesh[i] = edgeI;
-
+                modelToMesh[i] = edgei;
                 break;
             }
         }
     }
 
     return modelToMesh;
+}
+
+
+inline ::Foam::face cellShape::face(const label modelFacei) const
+{
+    return m->face(modelFacei, *this);
 }
 
 
@@ -179,31 +234,25 @@ inline faceList cellShape::faces() const
 
 inline faceList cellShape::collapsedFaces() const
 {
-    faceList oldFaces(faces());
+    const faceList oldFaces(faces());
 
     faceList newFaces(oldFaces.size());
     label newFacei = 0;
 
-    forAll(oldFaces, oldFacei)
+    for (const ::Foam::face& f : oldFaces)
     {
-        const face& f = oldFaces[oldFacei];
-
-        face& newF = newFaces[newFacei];
-
-        newF.setSize(f.size());
+        ::Foam::face& newF = newFaces[newFacei];
+        newF.resize(f.size());
 
         label newFp = 0;
-        label prevVertI = -1;
+        label prevVerti = -1;
 
-        forAll(f, fp)
+        for (const label verti : f)
         {
-            label vertI = f[fp];
-
-            if (vertI != prevVertI)
+            if (verti != prevVerti)
             {
-                newF[newFp++] = vertI;
-
-                prevVertI = vertI;
+                newF[newFp++] = verti;
+                prevVerti = verti;
             }
         }
 
@@ -215,20 +264,19 @@ inline faceList cellShape::collapsedFaces() const
         if (newFp > 2)
         {
             // Size face and go to next one
-            newF.setSize(newFp);
-
-            newFacei++;
+            newF.resize(newFp);
+            ++newFacei;
         }
     }
-    newFaces.setSize(newFacei);
+    newFaces.resize(newFacei);
 
     return newFaces;
 }
 
 
-inline label cellShape::nFaces() const
+inline ::Foam::edge cellShape::edge(const label modelEdgei) const
 {
-    return m->nFaces();
+    return m->edge(modelEdgei, *this);
 }
 
 
@@ -238,28 +286,53 @@ inline edgeList cellShape::edges() const
 }
 
 
-inline label cellShape::nEdges() const
-{
-    return m->nEdges();
-}
-
-
-inline label cellShape::nPoints() const
-{
-    return size();
-}
-
-
-inline point cellShape::centre(const pointField& points) const
+inline point cellShape::centre(const UList<point>& points) const
 {
     return m->centre(*this, points);
 }
 
 
-inline scalar cellShape::mag(const pointField& points) const
+inline scalar cellShape::mag(const UList<point>& points) const
 {
     return m->mag(*this, points);
 }
 
+
+inline void cellShape::reset
+(
+    const cellModel& model,
+    const labelUList& labels,
+    const bool doCollapse
+)
+{
+    static_cast<labelList&>(*this) = labels;
+    m = &model;
+
+    if (doCollapse)
+    {
+        collapse();
+    }
 }
+
+
+template<unsigned N>
+inline void cellShape::reset
+(
+    const cellModel& model,
+    const FixedList<label, N>& labels,
+    const bool doCollapse
+)
+{
+    static_cast<labelList&>(*this) = labels;
+    m = &model;
+
+    if (doCollapse)
+    {
+        collapse();
+    }
+}
+
+
 // ************************************************************************* //
+
+ } // End namespace Foam

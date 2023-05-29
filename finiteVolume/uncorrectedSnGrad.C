@@ -1,9 +1,12 @@
-﻿/*---------------------------------------------------------------------------*\
+/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -21,12 +24,9 @@ License
     You should have received a copy of the GNU General Public License
     along with OpenFOAM.  If not, see <http://www.gnu.org/licenses/>.
 
-Description
-    Simple central-difference snGrad scheme without non-orthogonal correction.
-
 \*---------------------------------------------------------------------------*/
 
-//#include "uncorrectedSnGrad.H"
+#include "uncorrectedSnGrad.H"
 #include "volFields.H"
 #include "surfaceFields.H"
 
@@ -40,24 +40,17 @@ namespace Foam
 namespace fv
 {
 
-// * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
-
-template<class Type>
-uncorrectedSnGrad<Type>::~uncorrectedSnGrad()
-{}
-
-
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
 
 template<class Type>
-tmp<surfaceFieldType<Type>>
+tmp<GeometricField<Type, fvsPatchField, surfaceMesh>>
 uncorrectedSnGrad<Type>::correction
 (
-    const volFieldType<Type>&
+    const GeometricField<Type, fvPatchField, volMesh>&
 ) const
 {
     NotImplemented;
-    return tmp<surfaceFieldType<Type>>(nullptr);
+    return tmp<GeometricField<Type, fvsPatchField, surfaceMesh>>(nullptr);
 }
 
 

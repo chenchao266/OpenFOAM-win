@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2016 OpenCFD Ltd
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -35,7 +38,6 @@ Usage
     \table
         Property     | Description             | Required    | Default value
         qro          | external radiative heat flux | yes    |
-        emissivityMode | emissivity mode: solidRadiation or lookup | yes |
     \endtable
 
     Example of the boundary condition specification:
@@ -44,15 +46,13 @@ Usage
     {
         type            greyDiffusiveRadiationViewFactor;
         qro             uniform 0;
-        emissivityMode  solidRadiation;
-        value           uniform 0;
     }
     \endverbatim
 
 See also
-    Foam::radiationCoupledBase
     Foam::radiation::radiationModel
     Foam::radiation::viewFactor
+    Foam::radiationCoupledBase
     Foam::fixedValueFvPatchField
 
 SourceFiles
@@ -63,7 +63,6 @@ SourceFiles
 #ifndef greyDiffusiveViewFactorFixedValueFvPatchScalarField_H
 #define greyDiffusiveViewFactorFixedValueFvPatchScalarField_H
 
-#include "radiationCoupledBase.H"
 #include "fixedValueFvPatchFields.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
@@ -79,8 +78,7 @@ namespace radiation
 
 class greyDiffusiveViewFactorFixedValueFvPatchScalarField
 :
-    public fixedValueFvPatchScalarField,
-    public radiationCoupledBase
+    public fixedValueFvPatchScalarField
 {
     // Private data
 
@@ -164,17 +162,30 @@ public:
 
         // Access
 
-            //- Return external radiative heat flux
-            const scalarList& qro()
-            {
-                return qro_;
-            }
+            //- Return external + solar load radiative heat flux
+            tmp<scalarField> qro(label bandI = 0) const;
 
 
         // Evaluation functions
 
             //- Update the coefficients associated with the patch field
             virtual void updateCoeffs();
+
+
+        // Mapping functions
+
+            //- Map (and resize as needed) from self given a mapping object
+            virtual void autoMap
+            (
+                const fvPatchFieldMapper&
+            );
+
+            //- Reverse map the given fvPatchField onto this fvPatchField
+            virtual void rmap
+            (
+                const fvPatchScalarField&,
+                const labelList&
+            );
 
 
         // I-O

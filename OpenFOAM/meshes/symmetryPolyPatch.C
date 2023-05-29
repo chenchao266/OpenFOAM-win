@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2012 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2012 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -27,68 +29,78 @@ License
 #include "addToRunTimeSelectionTable.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
-using namespace Foam;
+
 namespace Foam
 {
     defineTypeNameAndDebug(symmetryPolyPatch, 0);
 
     addToRunTimeSelectionTable(polyPatch, symmetryPolyPatch, word);
     addToRunTimeSelectionTable(polyPatch, symmetryPolyPatch, dictionary);
+
+
+    // * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * * * * * //
+
+    symmetryPolyPatch::symmetryPolyPatch
+    (
+        const word& name,
+        const label size,
+        const label start,
+        const label index,
+        const polyBoundaryMesh& bm,
+        const word& patchType
+    )
+        :
+        polyPatch(name, size, start, index, bm, patchType)
+    {}
+
+
+    symmetryPolyPatch::symmetryPolyPatch
+    (
+        const word& name,
+        const dictionary& dict,
+        const label index,
+        const polyBoundaryMesh& bm,
+        const word& patchType
+    )
+        :
+        polyPatch(name, dict, index, bm, patchType)
+    {}
+
+
+    symmetryPolyPatch::symmetryPolyPatch
+    (
+        const symmetryPolyPatch& pp,
+        const polyBoundaryMesh& bm
+    )
+        :
+        polyPatch(pp, bm)
+    {}
+
+
+    symmetryPolyPatch::symmetryPolyPatch
+    (
+        const symmetryPolyPatch& pp,
+        const polyBoundaryMesh& bm,
+        const label index,
+        const label newSize,
+        const label newStart
+    )
+        :
+        polyPatch(pp, bm, index, newSize, newStart)
+    {}
+
+
+    symmetryPolyPatch::symmetryPolyPatch
+    (
+        const symmetryPolyPatch& pp,
+        const polyBoundaryMesh& bm,
+        const label index,
+        const labelUList& mapAddressing,
+        const label newStart
+    )
+        :
+        polyPatch(pp, bm, index, mapAddressing, newStart)
+    {}
+
 }
-
-// * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * * * * * //
-
-symmetryPolyPatch::symmetryPolyPatch
-(
-    const word& name,
-    const label size,
-    const label start,
-    const label index,
-    const polyBoundaryMesh& bm,
-    const word& patchType
-) :    polyPatch(name, size, start, index, bm, patchType)
-{}
-
-
-symmetryPolyPatch::symmetryPolyPatch
-(
-    const word& name,
-    const dictionary& dict,
-    const label index,
-    const polyBoundaryMesh& bm,
-    const word& patchType
-) :    polyPatch(name, dict, index, bm, patchType)
-{}
-
-
-symmetryPolyPatch::symmetryPolyPatch
-(
-    const symmetryPolyPatch& pp,
-    const polyBoundaryMesh& bm
-) :    polyPatch(pp, bm)
-{}
-
-
-symmetryPolyPatch::symmetryPolyPatch
-(
-    const symmetryPolyPatch& pp,
-    const polyBoundaryMesh& bm,
-    const label index,
-    const label newSize,
-    const label newStart
-) :    polyPatch(pp, bm, index, newSize, newStart)
-{}
-
-
-symmetryPolyPatch::symmetryPolyPatch
-(
-    const symmetryPolyPatch& pp,
-    const polyBoundaryMesh& bm,
-    const label index,
-    const labelUList& mapAddressing,
-    const label newStart
-) :    polyPatch(pp, bm, index, mapAddressing, newStart)
-{}
-
-
 // ************************************************************************* //

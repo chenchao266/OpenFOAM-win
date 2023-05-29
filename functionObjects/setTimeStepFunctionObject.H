@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2013-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2013-2017 OpenFOAM Foundation
+    Copyright (C) 2019-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -28,11 +31,38 @@ Group
     grpUtilitiesFunctionObjects
 
 Description
-    Overrides the timeStep. Can only be used with
-    solvers with adjustTimeStep control (e.g. pimpleFoam). Makes no attempt
-    to cooperate with other timeStep 'controllers' (maxCo, other
-    functionObjects). Supports 'enabled' flag but none of the other ones
-    'timeStart', 'timeEnd', 'writeControl' etc.
+    This function object overrides the calculation time step.
+
+    Can only be used with solvers with adjustTimeStep control (e.g.
+    pimpleFoam).  It makes no attempt to co-operate with other time step
+    'controllers', e.g. maxCo, other functionObjects. Supports 'enabled'
+    flag but none of the other options 'timeStart', 'timeEnd', 'writeControl'
+    etc.
+
+Usage
+    Example of function object specification to manipulate the time step:
+    \verbatim
+    setTimeStep1
+    {
+        type        setTimeStep;
+        libs        (utilityFunctionObjects);
+
+        deltaT      table ((0 5e-4)(0.01 1e-3));
+
+        ...
+    }
+    \endverbatim
+
+    Where the entries comprise:
+    \table
+        Property     | Description             | Required    | Default value
+        type         | Type name: setTimeStep  | yes         |
+        enabled      | On/off switch           | no          | yes
+        deltaT       | Time step value         | yes         |
+        timeStart    | Start time              | no          | 0
+        timeEnd      | End time                | no          | GREAT
+        deltaTCoeff  | Time step change limit  | no          | GREAT
+    \endtable
 
 SourceFiles
     setTimeStepFunctionObject.C
@@ -42,8 +72,8 @@ SourceFiles
 #ifndef functionObjects_setTimeStepFunctionObject_H
 #define functionObjects_setTimeStepFunctionObject_H
 
-#include "functionObject.H"
-#include "Function1.T.H"
+#include "timeFunctionObject.H"
+#include "Function1.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -53,29 +83,26 @@ namespace functionObjects
 {
 
 /*---------------------------------------------------------------------------*\
-                    Class setTimeStepFunctionObject Declaration
+                  Class setTimeStepFunctionObject Declaration
 \*---------------------------------------------------------------------------*/
 
 class setTimeStepFunctionObject
 :
-    public functionObject
+    public functionObjects::timeFunctionObject
 {
-    // Private data
-
-        //- Reference to the time database
-        const Time& time_;
+    // Private Member Data
 
         //- Time step function/table
         autoPtr<Function1<scalar>> timeStepPtr_;
 
 
-    // Private member functions
+    // Private Member Functions
 
-        //- Disallow default bitwise copy construct
-        setTimeStepFunctionObject(const setTimeStepFunctionObject&);
+        //- No copy construct
+        setTimeStepFunctionObject(const setTimeStepFunctionObject&) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const setTimeStepFunctionObject&);
+        //- No copy assignment
+        void operator=(const setTimeStepFunctionObject&) = delete;
 
 
 public:
@@ -96,28 +123,21 @@ public:
 
 
     // Destructor
-    virtual ~setTimeStepFunctionObject();
+    virtual ~setTimeStepFunctionObject() = default;
 
 
     // Member Functions
-
-        //- Return time database
-        const Time& time() const;
 
         //- Called at the end of Time::adjustDeltaT() if adjustTime is true
         virtual bool adjustTimeStep();
 
         //- Read and set the function object if its data have changed
-        virtual bool read(const dictionary&);
+        virtual bool read(const dictionary& dict);
 
-        //- Called at each ++ or += of the time-loop.
-        //  postProcess overrides the usual executeControl behaviour and
-        //  forces execution (used in post-processing mode)
+        //- Execute does nothing
         virtual bool execute();
 
-        //- Called at each ++ or += of the time-loop.
-        //  postProcess overrides the usual writeControl behaviour and
-        //  forces writing always (used in post-processing mode)
+        //- Write does nothing
         virtual bool write();
 };
 

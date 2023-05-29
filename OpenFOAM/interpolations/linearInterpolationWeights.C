@@ -1,9 +1,12 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2012-2015 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2012-2015 OpenFOAM Foundation
+    Copyright (C) 2019-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -25,27 +28,27 @@ License
 
 #include "linearInterpolationWeights.H"
 #include "addToRunTimeSelectionTable.H"
-#include "ListOps.T.H"
-#include "Pair.T.H"
-
-// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
-
-namespace Foam
-{
+#include "ListOps.H"
+#include "Pair.H"
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
 
-defineTypeNameAndDebug(linearInterpolationWeights, 0);
-addToRunTimeSelectionTable
-(
-    interpolationWeights,
-    linearInterpolationWeights,
-    word
-);
+namespace Foam
+{
+    defineTypeNameAndDebug(linearInterpolationWeights, 0);
+    addToRunTimeSelectionTable
+    (
+        interpolationWeights,
+        linearInterpolationWeights,
+        word
+    );
+} // End namespace Foam
 
 
 // * * * * * * * * * * * * * Private Member Functions  * * * * * * * * * * * //
 
+
+ namespace Foam{
 Pair<scalar> linearInterpolationWeights::integrationWeights
 (
     const label i,
@@ -54,7 +57,7 @@ Pair<scalar> linearInterpolationWeights::integrationWeights
 {
     // t is in range samples_[i] .. samples_[i+1]
 
-    scalar s = (t-samples_[i])/(samples_[i+1]-samples_[i]);
+    const scalar s = (t-samples_[i])/(samples_[i+1]-samples_[i]);
 
     if (s < -SMALL || s > 1+SMALL)
     {
@@ -64,7 +67,7 @@ Pair<scalar> linearInterpolationWeights::integrationWeights
             << exit(FatalError);
     }
 
-    scalar d = samples_[i+1]-t;
+    const scalar d = samples_[i+1]-t;
 
     return Pair<scalar>(d*0.5*(1-s), d*0.5*(1+s));
 }
@@ -75,7 +78,9 @@ Pair<scalar> linearInterpolationWeights::integrationWeights
 linearInterpolationWeights::linearInterpolationWeights
 (
     const scalarField& samples
-) :    interpolationWeights(samples),
+)
+:
+    interpolationWeights(samples),
     index_(-1)
 {}
 
@@ -157,7 +162,7 @@ bool linearInterpolationWeights::integrationWeights
     scalarField& weights
 ) const
 {
-    if (t2 < t1-VSMALL)
+    if (t2 < t1 - ROOTVSMALL)
     {
         FatalErrorInFunction
             << "Integration should be in positive direction."
@@ -168,9 +173,24 @@ bool linearInterpolationWeights::integrationWeights
     // Currently no fancy logic on cached index like in value
 
     //- Find lower or equal index
-    label i1 = findLower(samples_, t1, 0, lessEqOp<scalar>());
+    const label i1 = findLower(samples_, t1, 0, lessEqOp<scalar>());
+
+    if (t2 <= t1 + ROOTVSMALL)
+    {
+        // Early exit if 1 and t2 are approximately equal
+
+        bool anyChanged = (indices.size() != 1 || indices[0] != i1);
+
+        indices.setSize(1);
+        weights.setSize(1);
+        indices[0] = i1;
+        weights[0] = scalar(0);
+
+        return anyChanged;
+    }
+
     //- Find lower index
-    label i2 = findLower(samples_, t2);
+    const label i2 = findLower(samples_, t2);
 
     // For now just fail if any outside table
     if (i1 == -1 || i2 == samples_.size()-1)
@@ -181,7 +201,7 @@ bool linearInterpolationWeights::integrationWeights
             << " t1:" << t1 << " t2:" << t2 << exit(FatalError);
     }
 
-    label nIndices = i2-i1+2;
+    const label nIndices = i2-i1+2;
 
 
     // Determine if indices already correct
@@ -214,7 +234,7 @@ bool linearInterpolationWeights::integrationWeights
     // Sum from i1+1 to i2+1
     for (label i = i1+1; i <= i2; i++)
     {
-        scalar d = samples_[i+1]-samples_[i];
+        const scalar d = samples_[i+1]-samples_[i];
         indices[i-i1] = i;
         weights[i-i1] += 0.5*d;
         indices[i+1-i1] = i+1;
@@ -223,19 +243,19 @@ bool linearInterpolationWeights::integrationWeights
 
     // Add from i1 to t1
     {
-        Pair<scalar> i1Tot1 = integrationWeights(i1, t1);
+        const Pair<scalar> i1Tot1 = integrationWeights(i1, t1);
         indices[0] = i1;
-        weights[0] += i1Tot1.first();
         indices[1] = i1+1;
+        weights[0] += i1Tot1.first();
         weights[1] += i1Tot1.second();
     }
 
     // Subtract from t2 to i2+1
     {
-        Pair<scalar> wghts = integrationWeights(i2, t2);
+        const Pair<scalar> wghts = integrationWeights(i2, t2);
         indices[i2-i1] = i2;
-        weights[i2-i1] += -wghts.first();
         indices[i2-i1+1] = i2+1;
+        weights[i2-i1] += -wghts.first();
         weights[i2-i1+1] += -wghts.second();
     }
 
@@ -243,8 +263,6 @@ bool linearInterpolationWeights::integrationWeights
 }
 
 
-// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
-
-} // End namespace Foam
-
 // ************************************************************************* //
+
+ } // End namespace Foam

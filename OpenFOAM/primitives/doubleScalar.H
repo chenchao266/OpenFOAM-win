@@ -1,9 +1,12 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2015 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2015 OpenFOAM Foundation
+    Copyright (C) 2017-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -25,7 +28,7 @@ Typedef
     Foam::doubleScalar
 
 Description
-    Double precision floating point scalar type.
+    Floating-point double precision scalar type.
 
 SourceFiles
     doubleScalar.C
@@ -35,71 +38,44 @@ SourceFiles
 #ifndef doubleScalar_H
 #define doubleScalar_H
 
+#include "scalarFwd.H"
 #include "doubleFloat.H"
 #include "direction.H"
 #include "word.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
+// Typedef (doubleScalar) in scalarFwd.H
+
 namespace Foam
 {
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
-typedef double doubleScalar;
-
 // Largest and smallest scalar values allowed in certain parts of the code.
-// (15 is the number of significant figures in an
-//  IEEE double precision number.  See limits.h or float.h)
-static const doubleScalar doubleScalarGREAT = 1.0e+15;
-static const doubleScalar doubleScalarVGREAT = 1.0e+300;
-static const doubleScalar doubleScalarROOTVGREAT = 1.0e+150;
-static const doubleScalar doubleScalarSMALL = 1.0e-15;
-static const doubleScalar doubleScalarROOTSMALL = 3.0e-8;
-static const doubleScalar doubleScalarVSMALL = 1.0e-300;
-static const doubleScalar doubleScalarROOTVSMALL = 1.0e-150;
+// See std::numeric_limits max(), min(), epsilon()
+constexpr doubleScalar doubleScalarGREAT = 1.0e+15;
+constexpr doubleScalar doubleScalarROOTGREAT = 3.0e+8;
+constexpr doubleScalar doubleScalarVGREAT = 1.0e+300;
+constexpr doubleScalar doubleScalarROOTVGREAT = 1.0e+150;
+constexpr doubleScalar doubleScalarSMALL = 1.0e-15;
+constexpr doubleScalar doubleScalarROOTSMALL = 3.0e-8;
+constexpr doubleScalar doubleScalarVSMALL = 1.0e-300;
+constexpr doubleScalar doubleScalarROOTVSMALL = 1.0e-150;
 
-//- Read whole of buf as a scalar. Return true if succesful.
-inline bool readScalar(const char* buf, doubleScalar& s)
-{
-    char* endPtr;
-    s = strtod(buf, &endPtr);
-
-    return (*endPtr == '\0');
-}
 
 #define Scalar doubleScalar
 #define ScalarVGREAT doubleScalarVGREAT
 #define ScalarVSMALL doubleScalarVSMALL
 #define ScalarROOTVGREAT doubleScalarROOTVGREAT
 #define ScalarROOTVSMALL doubleScalarROOTVSMALL
-#define readScalar readDoubleScalar
+#define ScalarRead readDouble
+
 
 inline Scalar mag(const Scalar s)
 {
     return ::fabs(s);
 }
-
-#define transFunc(func)            \
-inline Scalar func(const Scalar s) \
-{                                  \
-    return ::func(s);              \
-}
-
-// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
-
-} // End namespace Foam
-
-// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
-
-#include "Scalar.T.H"
-
-// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
-
-namespace Foam
-{
-
-// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 inline Scalar hypot(const Scalar x, const Scalar y)
 {
@@ -111,28 +87,74 @@ inline Scalar atan2(const Scalar y, const Scalar x)
     return ::atan2(y, x);
 }
 
-inline Scalar jn(const int n, const Scalar s)
-{
-    return ::jn(n, s);
+
+// Normal (double-precision) transcendental functions
+#define transFunc(func)                                         \
+inline Scalar func(const Scalar s)                              \
+{                                                               \
+    return ::func(s);                                           \
 }
 
-inline Scalar yn(const int n, const Scalar s)
-{
-    return ::yn(n, s);
-}
+// Normal (double-precision) bessel functions.
+// May not be available on all systems
+#ifdef Foam_no_besselFunc
+    // Not available
+    #define besselFunc(func)                                    \
+    inline Scalar func(const Scalar s)                          \
+    {                                                           \
+        std::cerr<< "No '" << #func << "' function\n";          \
+        return 0;                                               \
+    }
+    #define besselFunc2(func)                                   \
+    inline Scalar func(const int n, const Scalar s)             \
+    {                                                           \
+        std::cerr<< "No '" << #func << "' function\n";          \
+        return 0;                                               \
+    }
+#elif defined(__MINGW32__)
+    // Mingw: with '_' prefix
+    #define besselFunc(func)                                    \
+    inline Scalar func(const Scalar s)                          \
+    {                                                           \
+        return _##func(s);                                      \
+    }
+    #define besselFunc2(func)                                   \
+    inline Scalar func(const int n, const Scalar s)             \
+    {                                                           \
+        return _##func(n, s);                                   \
+    }
+#else
+    #define besselFunc(func)                                    \
+    inline Scalar func(const Scalar s)                          \
+    {                                                           \
+        return ::func(s);                                       \
+    }
+    #define besselFunc2(func)                                   \
+    inline Scalar func(const int n, const Scalar s)             \
+    {                                                           \
+        return ::func(n, s);                                    \
+    }
+#endif
+
+
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+} // End namespace Foam
+
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+#include "Scalar2.H"
 
 #undef Scalar
 #undef ScalarVGREAT
 #undef ScalarVSMALL
 #undef ScalarROOTVGREAT
 #undef ScalarROOTVSMALL
-#undef readScalar
+#undef ScalarRead
 #undef transFunc
+#undef besselFunc
+#undef besselFunc2
 
-
-// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
-
-} // End namespace Foam
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 

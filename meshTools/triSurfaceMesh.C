@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2015-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -26,10 +29,10 @@ License
 #include "triSurfaceMesh.H"
 #include "Random.H"
 #include "addToRunTimeSelectionTable.H"
-#include "EdgeMap.T.H"
+#include "edgeHashes.H"
 #include "triSurfaceFields.H"
-#include "Time.T.H"
-#include "PatchTools.T.H"
+#include "Time1.H"
+#include "PatchTools.H"
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
 
@@ -39,95 +42,10 @@ namespace Foam
     addToRunTimeSelectionTable(searchableSurface, triSurfaceMesh, dict);
 }
 
+Foam::word Foam::triSurfaceMesh::meshSubDir = "triSurface";
+
+
 // * * * * * * * * * * * * * Private Member Functions  * * * * * * * * * * * //
-
-Foam::fileName Foam::triSurfaceMesh::checkFile
-(
-    const regIOobject& io,
-    const bool isGlobal
-)
-{
-    const fileName fName
-    (
-        isGlobal
-      ? io.globalFilePath(typeName)
-      : io.localFilePath(typeName)
-    );
-    if (fName.empty())
-    {
-        FatalErrorInFunction
-            << "Cannot find triSurfaceMesh starting from "
-            << io.objectPath() << exit(FatalError);
-    }
-
-    return fName;
-}
-
-
-Foam::fileName Foam::triSurfaceMesh::relativeFilePath
-(
-    const regIOobject& io,
-    const fileName& f,
-    const bool isGlobal
-)
-{
-    fileName fName(f);
-    fName.expand();
-    if (!fName.isAbsolute())
-    {
-        // Is the specified file:
-        // - local to the cwd?
-        // - local to the case dir?
-        // - or just another name?
-        fName = fileHandler().filePath
-        (
-            isGlobal,
-            IOobject(io, fName),
-            word::null
-        );
-    }
-    return fName;
-}
-
-Foam::fileName Foam::triSurfaceMesh::checkFile
-(
-    const regIOobject& io,
-    const dictionary& dict,
-    const bool isGlobal
-)
-{
-    fileName fName;
-    if (dict.readIfPresent("file", fName, false, false))
-    {
-        fName = relativeFilePath(io, fName, isGlobal);
-
-        if (!exists(fName))
-        {
-            FatalErrorInFunction
-                << "Cannot find triSurfaceMesh at " << fName
-                << exit(FatalError);
-        }
-    }
-    else
-    {
-        fName =
-        (
-            isGlobal
-          ? io.globalFilePath(typeName)
-          : io.localFilePath(typeName)
-        );
-
-        if (!exists(fName))
-        {
-            FatalErrorInFunction
-                << "Cannot find triSurfaceMesh starting from "
-                << io.objectPath() << exit(FatalError);
-        }
-    }
-
-    return fName;
-}
-
 
 bool Foam::triSurfaceMesh::addFaceToEdge
 (
@@ -135,25 +53,26 @@ bool Foam::triSurfaceMesh::addFaceToEdge
     EdgeMap<label>& facesPerEdge
 )
 {
-    EdgeMap<label>::iterator eFnd = facesPerEdge.find(e);
-    if (eFnd != facesPerEdge.end())
+    label& count = facesPerEdge(e, 0);  // lookup or new entry
+    if (count == 2)
     {
-        if (eFnd() == 2)
-        {
-            return false;
-        }
-        eFnd()++;
+        return false;
     }
-    else
-    {
-        facesPerEdge.insert(e, 1);
-    }
+
+    ++count;
     return true;
 }
 
 
 bool Foam::triSurfaceMesh::isSurfaceClosed() const
 {
+    if (debug)
+    {
+        Pout<< "triSurfaceMesh::isSurfaceClosed:"
+            << " determining closedness for surface with "
+            << triSurface::size() << " triangles" << endl;
+    }
+
     const pointField& pts = triSurface::points();
 
     // Construct pointFaces. Let's hope surface has compact point
@@ -165,16 +84,16 @@ bool Foam::triSurfaceMesh::isSurfaceClosed() const
     // Every edge should be used by two faces exactly.
     // To prevent doing work twice per edge only look at edges to higher
     // point
-    EdgeMap<label> facesPerEdge(100);
+    EdgeMap<label> facesPerEdge(128);
     forAll(pointFaces, pointi)
     {
         const labelList& pFaces = pointFaces[pointi];
 
         facesPerEdge.clear();
-        forAll(pFaces, i)
+        for (const label facei : pFaces)
         {
-            const triSurface::FaceType& f = triSurface::operator[](pFaces[i]);
-            label fp = findIndex(f, pointi);
+            const triSurface::face_type& f = triSurface::operator[](facei);
+            const label fp = f.find(pointi);
 
             // Something weird: if I expand the code of addFaceToEdge in both
             // below instances it gives a segmentation violation on some
@@ -182,7 +101,7 @@ bool Foam::triSurfaceMesh::isSurfaceClosed() const
 
 
             // Forward edge
-            label nextPointi = f[f.fcIndex(fp)];
+            const label nextPointi = f[f.fcIndex(fp)];
 
             if (nextPointi > pointi)
             {
@@ -194,11 +113,17 @@ bool Foam::triSurfaceMesh::isSurfaceClosed() const
 
                 if (!okFace)
                 {
+                    if (debug)
+                    {
+                        Pout<< "triSurfaceMesh::isSurfaceClosed :"
+                            << " surface is open" << endl;
+                    }
                     return false;
                 }
             }
+
             // Reverse edge
-            label prevPointi = f[f.rcIndex(fp)];
+            const label prevPointi = f[f.rcIndex(fp)];
 
             if (prevPointi > pointi)
             {
@@ -210,21 +135,36 @@ bool Foam::triSurfaceMesh::isSurfaceClosed() const
 
                 if (!okFace)
                 {
+                    if (debug)
+                    {
+                        Pout<< "triSurfaceMesh::isSurfaceClosed :"
+                            << " surface is open" << endl;
+                    }
                     return false;
                 }
             }
         }
 
         // Check for any edges used only once.
-        forAllConstIter(EdgeMap<label>, facesPerEdge, iter)
+        forAllConstIters(facesPerEdge, iter)
         {
-            if (iter() != 2)
+            if (iter.val() != 2)
             {
+                if (debug)
+                {
+                    Pout<< "triSurfaceMesh::isSurfaceClosed :"
+                        << " surface is open" << endl;
+                }
                 return false;
             }
         }
     }
 
+    if (debug)
+    {
+        Pout<< "triSurfaceMesh::isSurfaceClosed :"
+            << " surface is closed" << endl;
+    }
     return true;
 }
 
@@ -248,13 +188,14 @@ Foam::triSurfaceMesh::triSurfaceMesh(const IOobject& io, const triSurface& s)
         )
     ),
     triSurface(s),
-    triSurfaceRegionSearch(s),
+    triSurfaceRegionSearch(static_cast<const triSurface&>(*this)),
     minQuality_(-1),
-    surfaceClosed_(-1)
+    surfaceClosed_(-1),
+    outsideVolType_(volumeType::UNKNOWN)
 {
     const pointField& pts = triSurface::points();
 
-    bounds() = boundBox(pts);
+    bounds() = boundBox(pts, false);
 }
 
 
@@ -276,14 +217,15 @@ Foam::triSurfaceMesh::triSurfaceMesh(const IOobject& io)
             false       // searchableSurface already registered under name
         )
     ),
-    triSurface(checkFile(static_cast<const searchableSurface&>(*this), true)),
+    triSurface(static_cast<const searchableSurface&>(*this), dictionary::null),
     triSurfaceRegionSearch(static_cast<const triSurface&>(*this)),
     minQuality_(-1),
-    surfaceClosed_(-1)
+    surfaceClosed_(-1),
+    outsideVolType_(volumeType::UNKNOWN)
 {
     const pointField& pts = triSurface::points();
 
-    bounds() = boundBox(pts);
+    bounds() = boundBox(pts, false);
 }
 
 
@@ -308,18 +250,16 @@ Foam::triSurfaceMesh::triSurfaceMesh
             false       // searchableSurface already registered under name
         )
     ),
-    triSurface
-    (
-        checkFile(static_cast<const searchableSurface&>(*this), dict, true)
-    ),
+    triSurface(static_cast<const searchableSurface&>(*this), dict),
     triSurfaceRegionSearch(static_cast<const triSurface&>(*this), dict),
     minQuality_(-1),
-    surfaceClosed_(-1)
+    surfaceClosed_(-1),
+    outsideVolType_(volumeType::UNKNOWN)
 {
-    // Reading from supplied file name instead of objectPath/filePath
-    if (dict.readIfPresent("file", fName_, false, false))
+    // Read with supplied file name instead of objectPath/filePath
+    if (dict.readIfPresent("file", fName_, keyType::LITERAL))
     {
-        fName_ = relativeFilePath
+        fName_ = triSurface::relativeFilePath
         (
             static_cast<const searchableSurface&>(*this),
             fName_,
@@ -327,20 +267,18 @@ Foam::triSurfaceMesh::triSurfaceMesh
         );
     }
 
-    scalar scaleFactor = 0;
-
-    // Allow rescaling of the surface points
-    // eg, CAD geometries are often done in millimeters
-    if (dict.readIfPresent("scale", scaleFactor) && scaleFactor > 0)
+    // Report optional scale factor (eg, mm to m),
+    // which was already applied during triSurface construction
+    scalar scaleFactor{0};
+    if (dict.getOrDefault("scale", scaleFactor) && scaleFactor > 0)
     {
-        Info<< searchableSurface::name() << " : using scale " << scaleFactor
-            << endl;
-        triSurface::scalePoints(scaleFactor);
+        Info<< searchableSurface::name()
+            << " : using scale " << scaleFactor << endl;
     }
 
     const pointField& pts = triSurface::points();
 
-    bounds() = boundBox(pts);
+    bounds() = boundBox(pts, false);
 
     // Have optional minimum quality for normal calculation
     if (dict.readIfPresent("minQuality", minQuality_) && minQuality_ > 0)
@@ -352,7 +290,7 @@ Foam::triSurfaceMesh::triSurfaceMesh
 }
 
 
-Foam::triSurfaceMesh::triSurfaceMesh(const IOobject& io, const bool isGlobal)
+Foam::triSurfaceMesh::triSurfaceMesh(const IOobject& io, const readAction r)
 :
     // Find instance for triSurfaceMesh
     searchableSurface(io),
@@ -370,17 +308,79 @@ Foam::triSurfaceMesh::triSurfaceMesh(const IOobject& io, const bool isGlobal)
             false       // searchableSurface already registered under name
         )
     ),
-    triSurface
-    (
-        checkFile(static_cast<const searchableSurface&>(*this), isGlobal)
-    ),
+    triSurface(),
     triSurfaceRegionSearch(static_cast<const triSurface&>(*this)),
     minQuality_(-1),
-    surfaceClosed_(-1)
+    surfaceClosed_(-1),
+    outsideVolType_(volumeType::UNKNOWN)
 {
-    const pointField& pts = triSurface::points();
+    // Check IO flags
+    if (io.readOpt() != IOobject::NO_READ)
+    {
+        const bool searchGlobal(r == localOrGlobal || r == masterOnly);
 
-    bounds() = boundBox(pts);
+        const fileName actualFile
+        (
+            searchGlobal
+          ? io.globalFilePath(typeName)
+          : io.localFilePath(typeName)
+        );
+
+        if (debug)
+        {
+            Pout<< "triSurfaceMesh(const IOobject& io) :"
+                << " loading surface " << io.objectPath()
+                << " local filePath:" << io.localFilePath(typeName)
+                << " from:" << actualFile << endl;
+        }
+
+        if (searchGlobal && Pstream::parRun())
+        {
+            // Check where surface was found
+            const fileName localFile(io.localFilePath(typeName));
+
+            if (r == masterOnly && (actualFile != localFile))
+            {
+                // Found undecomposed surface. Load on master only
+                if (Pstream::master())
+                {
+                    triSurface s2(actualFile);
+                    triSurface::transfer(s2);
+                }
+                Pstream::scatter(triSurface::patches());
+                if (debug)
+                {
+                    Pout<< "triSurfaceMesh(const IOobject& io) :"
+                        << " loaded triangles:" << triSurface::size() << endl;
+                }
+            }
+            else
+            {
+                // Read on all processors
+                triSurface s2(actualFile);
+                triSurface::transfer(s2);
+                if (debug)
+                {
+                    Pout<< "triSurfaceMesh(const IOobject& io) :"
+                        << " loaded triangles:" << triSurface::size() << endl;
+                }
+            }
+        }
+        else
+        {
+            // Read on all processors
+            triSurface s2(actualFile);
+            triSurface::transfer(s2);
+            if (debug)
+            {
+                Pout<< "triSurfaceMesh(const IOobject& io) :"
+                    << " loaded triangles:" << triSurface::size() << endl;
+            }
+        }
+    }
+
+    const pointField& pts = triSurface::points();
+    bounds() = boundBox(pts, false);
 }
 
 
@@ -388,7 +388,7 @@ Foam::triSurfaceMesh::triSurfaceMesh
 (
     const IOobject& io,
     const dictionary& dict,
-    const bool isGlobal
+    const readAction r
 )
 :
     searchableSurface(io),
@@ -406,39 +406,108 @@ Foam::triSurfaceMesh::triSurfaceMesh
             false       // searchableSurface already registered under name
         )
     ),
-    triSurface
-    (
-        checkFile(static_cast<const searchableSurface&>(*this), dict, isGlobal)
-    ),
+    triSurface(),
     triSurfaceRegionSearch(static_cast<const triSurface&>(*this), dict),
     minQuality_(-1),
-    surfaceClosed_(-1)
+    surfaceClosed_(-1),
+    outsideVolType_(volumeType::UNKNOWN)
 {
-    // Reading from supplied file name instead of objectPath/filePath
-    if (dict.readIfPresent("file", fName_, false, false))
+    if (io.readOpt() != IOobject::NO_READ)
     {
-        fName_ = relativeFilePath
+        // Surface type (optional)
+        const word surfType(dict.getOrDefault<word>("fileType", word::null));
+
+        // Scale factor (optional)
+        const scalar scaleFactor(dict.getOrDefault<scalar>("scale", 0));
+
+        const bool searchGlobal(r == localOrGlobal || r == masterOnly);
+
+        fileName actualFile
         (
-            static_cast<const searchableSurface&>(*this),
-            fName_,
-            isGlobal
+            searchGlobal
+          ? io.globalFilePath(typeName)
+          : io.localFilePath(typeName)
         );
+
+        // Reading from supplied file name instead of objectPath/filePath
+        if (dict.readIfPresent("file", fName_, keyType::LITERAL))
+        {
+            fName_ = relativeFilePath
+            (
+                static_cast<const searchableSurface&>(*this),
+                fName_,
+                searchGlobal
+            );
+            actualFile = fName_;
+        }
+
+        if (debug)
+        {
+            Pout<< "triSurfaceMesh(const IOobject& io, const dictionary&) :"
+                << " loading surface " << io.objectPath()
+                << " local filePath:" << io.localFilePath(typeName)
+                << " from:" << actualFile << endl;
+        }
+
+
+        if (searchGlobal && Pstream::parRun())
+        {
+            // Check where surface was found
+            const fileName localFile(io.localFilePath(typeName));
+
+            if (r == masterOnly && (actualFile != localFile))
+            {
+                // Surface not loaded from processor directories -> undecomposed
+                // surface. Load on master only
+                if (Pstream::master())
+                {
+                    triSurface s2(actualFile, surfType, scaleFactor);
+                    triSurface::transfer(s2);
+                }
+                Pstream::scatter(triSurface::patches());
+                if (debug)
+                {
+                    Pout<< "triSurfaceMesh(const IOobject& io) :"
+                        << " loaded triangles:" << triSurface::size() << endl;
+                }
+            }
+            else
+            {
+                // Read on all processors
+                triSurface s2(actualFile, surfType, scaleFactor);
+                triSurface::transfer(s2);
+                if (debug)
+                {
+                    Pout<< "triSurfaceMesh(const IOobject& io) :"
+                        << " loaded triangles:" << triSurface::size() << endl;
+                }
+            }
+        }
+        else
+        {
+            // Read on all processors
+            triSurface s2(actualFile, surfType, scaleFactor);
+            triSurface::transfer(s2);
+            if (debug)
+            {
+                Pout<< "triSurfaceMesh(const IOobject& io) :"
+                    << " loaded triangles:" << triSurface::size() << endl;
+            }
+        }
+
+
+        // Report optional scale factor (eg, mm to m),
+        // which was already applied during triSurface reading
+        if (scaleFactor > 0)
+        {
+            Info<< searchableSurface::name()
+                << " : using scale " << scaleFactor << endl;
+        }
     }
 
-    scalar scaleFactor = 0;
-
-    // Allow rescaling of the surface points
-    // eg, CAD geometries are often done in millimeters
-    if (dict.readIfPresent("scale", scaleFactor) && scaleFactor > 0)
-    {
-        Info<< searchableSurface::name() << " : using scale " << scaleFactor
-            << endl;
-        triSurface::scalePoints(scaleFactor);
-    }
 
     const pointField& pts = triSurface::points();
-
-    bounds() = boundBox(pts);
+    bounds() = boundBox(pts, false);
 
     // Have optional minimum quality for normal calculation
     if (dict.readIfPresent("minQuality", minQuality_) && minQuality_ > 0)
@@ -448,6 +517,7 @@ Foam::triSurfaceMesh::triSurfaceMesh
             << minQuality_ << " for normals calculation." << endl;
     }
 }
+
 
 // * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
 
@@ -459,6 +529,7 @@ Foam::triSurfaceMesh::~triSurfaceMesh()
 
 void Foam::triSurfaceMesh::clearOut()
 {
+    // Do not clear closedness status
     triSurfaceRegionSearch::clearOut();
     edgeTree_.clear();
     triSurface::clearOut();
@@ -469,17 +540,28 @@ void Foam::triSurfaceMesh::clearOut()
 
 Foam::tmp<Foam::pointField> Foam::triSurfaceMesh::coordinates() const
 {
-    tmp<pointField> tPts(new pointField(8));
-    pointField& pt = tPts.ref();
+    auto tpts = tmp<pointField>::New();
+    auto& pts = tpts.ref();
 
-    // Use copy to calculate face centres so they don't get stored
-    pt = PrimitivePatch<triSurface::FaceType, SubList, const pointField&>
-    (
-        SubList<triSurface::FaceType>(*this, triSurface::size()),
-        triSurface::points()
-    ).faceCentres();
+    if (triSurface::hasFaceCentres())
+    {
+        // Can reuse existing values
+        pts = triSurface::faceCentres();
+    }
+    else
+    {
+        typedef SubList<labelledTri> FaceListType;
 
-    return tPts;
+        // Calculate face centres from a copy to avoid incurring
+        // additional storage
+        pts = PrimitivePatch<FaceListType, const pointField&>
+        (
+            FaceListType(*this, triSurface::size()),
+            triSurface::points()
+        ).faceCentres();
+    }
+
+    return tpts;
 }
 
 
@@ -499,9 +581,9 @@ void Foam::triSurfaceMesh::boundingSpheres
     {
         const labelledTri& f = triSurface::operator[](facei);
         const point& fc = centres[facei];
-        forAll(f, fp)
+        for (const label pointi : f)
         {
-            const point& pt = pts[f[fp]];
+            const point& pt = pts[pointi];
             radiusSqr[facei] = max(radiusSqr[facei], Foam::magSqr(fc-pt));
         }
     }
@@ -529,26 +611,52 @@ bool Foam::triSurfaceMesh::overlaps(const boundBox& bb) const
 
 void Foam::triSurfaceMesh::movePoints(const pointField& newPoints)
 {
+    if (debug)
+    {
+        Pout<< "triSurfaceMesh::movePoints :"
+            << " moving at time " << objectRegistry::time().timeName()
+            << endl;
+    }
+
+    // Preserve topological point status (surfaceClosed_, outsideVolType_)
+
+    // Update local information (instance, event number)
+    searchableSurface::instance() = objectRegistry::time().timeName();
+    objectRegistry::instance() = searchableSurface::instance();
+
+    const label event = getEvent();
+    searchableSurface::eventNo() = event;
+    objectRegistry::eventNo() = searchableSurface::eventNo();
+
+    // Clear additional addressing
     triSurfaceRegionSearch::clearOut();
     edgeTree_.clear();
     triSurface::movePoints(newPoints);
+
+    bounds() = boundBox(triSurface::points(), false);
+    if (debug)
+    {
+        Pout<< "triSurfaceMesh::movePoints: finished moving points" << endl;
+    }
 }
 
 
 const Foam::indexedOctree<Foam::treeDataEdge>&
 Foam::triSurfaceMesh::edgeTree() const
 {
-    if (edgeTree_.empty())
+    if (!edgeTree_)
     {
+        if (debug)
+        {
+            Pout<< "triSurfaceMesh::edgeTree :"
+                << " constructing tree for " << nEdges() - nInternalEdges()
+                << " boundary edges" << endl;
+        }
+
         // Boundary edges
         labelList bEdges
         (
-            identity
-            (
-                nEdges()
-               -nInternalEdges()
-            )
-          + nInternalEdges()
+            identity(nEdges() - nInternalEdges(), nInternalEdges())
         );
 
         treeBoundBox bb(Zero, Zero);
@@ -570,8 +678,15 @@ Foam::triSurfaceMesh::edgeTree() const
             // geometry there are less face/edge aligned items.
 
             bb = bb.extend(rndGen, 1e-4);
-            bb.min() -= point(ROOTVSMALL, ROOTVSMALL, ROOTVSMALL);
-            bb.max() += point(ROOTVSMALL, ROOTVSMALL, ROOTVSMALL);
+            bb.min() -= point::uniform(ROOTVSMALL);
+            bb.max() += point::uniform(ROOTVSMALL);
+        }
+
+
+        if (debug)
+        {
+            Pout<< "triSurfaceMesh::edgeTree : "
+                << "calculating edge tree for bb:" << bb << endl;
         }
 
         scalar oldTol = indexedOctree<treeDataEdge>::perturbTol();
@@ -596,8 +711,17 @@ Foam::triSurfaceMesh::edgeTree() const
         );
 
         indexedOctree<treeDataEdge>::perturbTol() = oldTol;
+
+        if (debug)
+        {
+            Pout<< "triSurfaceMesh::edgeTree :"
+                << " finished constructing tree for "
+                << nEdges() - nInternalEdges()
+                << " boundary edges" << endl;
+        }
     }
-    return edgeTree_();
+
+    return *edgeTree_;
 }
 
 
@@ -606,9 +730,9 @@ const Foam::wordList& Foam::triSurfaceMesh::regions() const
     if (regions_.empty())
     {
         regions_.setSize(patches().size());
-        forAll(regions_, regionI)
+        forAll(regions_, regioni)
         {
-            regions_[regionI] = patches()[regionI].name();
+            regions_[regioni] = patches()[regioni].name();
         }
     }
     return regions_;
@@ -633,6 +757,40 @@ bool Foam::triSurfaceMesh::hasVolumeType() const
 }
 
 
+Foam::volumeType Foam::triSurfaceMesh::outsideVolumeType() const
+{
+    if (outsideVolType_ == volumeType::UNKNOWN)
+    {
+        // Get point outside bounds()
+        const point outsidePt(bounds().max() + 0.5*bounds().span());
+
+        if (debug)
+        {
+            Pout<< "triSurfaceMesh::outsideVolumeType :"
+                << " triggering outsidePoint:" << outsidePt
+                << " orientation" << endl;
+        }
+
+        //outsideVolType_ = tree().shapes().getVolumeType(tree(), outsidePt);
+        // Note: do not use tree directly so e.g. distributedTriSurfaceMesh
+        //       has opportunity to intercept
+        List<volumeType> outsideVolTypes;
+        getVolumeType(pointField(1, outsidePt), outsideVolTypes);
+        outsideVolType_ = outsideVolTypes[0];
+
+        if (debug)
+        {
+            Pout<< "triSurfaceMesh::outsideVolumeType :"
+                << " finished outsidePoint:" << outsidePt
+                << " orientation:" << volumeType::names[outsideVolType_]
+                << endl;
+        }
+    }
+
+    return outsideVolType_;
+}
+
+
 void Foam::triSurfaceMesh::findNearest
 (
     const pointField& samples,
@@ -640,7 +798,21 @@ void Foam::triSurfaceMesh::findNearest
     List<pointIndexHit>& info
 ) const
 {
+    if (debug)
+    {
+        Pout<< "triSurfaceMesh::findNearest :"
+            << " trying to find nearest for " << samples.size()
+            << " samples with max sphere "
+            << (samples.size() ? Foam::sqrt(max(nearestDistSqr)) : Zero)
+            << endl;
+    }
     triSurfaceSearch::findNearest(samples, nearestDistSqr, info);
+    if (debug)
+    {
+        Pout<< "triSurfaceMesh::findNearest :"
+            << " finished trying to find nearest for " << samples.size()
+            << " samples" << endl;
+    }
 }
 
 
@@ -652,6 +824,14 @@ void Foam::triSurfaceMesh::findNearest
     List<pointIndexHit>& info
 ) const
 {
+    if (debug)
+    {
+        Pout<< "triSurfaceMesh::findNearest :"
+            << " trying to find nearest and region for " << samples.size()
+            << " samples with max sphere "
+            << (samples.size() ? Foam::sqrt(max(nearestDistSqr)) : Zero)
+            << endl;
+    }
     triSurfaceRegionSearch::findNearest
     (
         samples,
@@ -659,6 +839,12 @@ void Foam::triSurfaceMesh::findNearest
         regionIndices,
         info
     );
+    if (debug)
+    {
+        Pout<< "triSurfaceMesh::findNearest :"
+            << " finished trying to find nearest and region for "
+            << samples.size() << " samples" << endl;
+    }
 }
 
 
@@ -669,7 +855,19 @@ void Foam::triSurfaceMesh::findLine
     List<pointIndexHit>& info
 ) const
 {
+    if (debug)
+    {
+        Pout<< "triSurfaceMesh::findLine :"
+            << " intersecting with "
+            << start.size() << " rays" << endl;
+    }
     triSurfaceSearch::findLine(start, end, info);
+    if (debug)
+    {
+        Pout<< "triSurfaceMesh::findLine :"
+            << " finished intersecting with "
+            << start.size() << " rays" << endl;
+    }
 }
 
 
@@ -680,7 +878,19 @@ void Foam::triSurfaceMesh::findLineAny
     List<pointIndexHit>& info
 ) const
 {
+    if (debug)
+    {
+        Pout<< "triSurfaceMesh::findLineAny :"
+            << " intersecting with "
+            << start.size() << " rays" << endl;
+    }
     triSurfaceSearch::findLineAny(start, end, info);
+    if (debug)
+    {
+        Pout<< "triSurfaceMesh::findLineAny :"
+            << " finished intersecting with "
+            << start.size() << " rays" << endl;
+    }
 }
 
 
@@ -691,7 +901,19 @@ void Foam::triSurfaceMesh::findLineAll
     List<List<pointIndexHit>>& info
 ) const
 {
+    if (debug)
+    {
+        Pout<< "triSurfaceMesh::findLineAll :"
+            << " intersecting with "
+            << start.size() << " rays" << endl;
+    }
     triSurfaceSearch::findLineAll(start, end, info);
+    if (debug)
+    {
+        Pout<< "triSurfaceMesh::findLineAll :"
+            << " finished intersecting with "
+            << start.size() << " rays" << endl;
+    }
 }
 
 
@@ -701,6 +923,12 @@ void Foam::triSurfaceMesh::getRegion
     labelList& region
 ) const
 {
+    if (debug)
+    {
+        Pout<< "triSurfaceMesh::getRegion :"
+            << " getting region for "
+            << info.size() << " triangles" << endl;
+    }
     region.setSize(info.size());
     forAll(info, i)
     {
@@ -713,6 +941,12 @@ void Foam::triSurfaceMesh::getRegion
             region[i] = -1;
         }
     }
+    if (debug)
+    {
+        Pout<< "triSurfaceMesh::getRegion :"
+            << " finished getting region for "
+            << info.size() << " triangles" << endl;
+    }
 }
 
 
@@ -722,6 +956,13 @@ void Foam::triSurfaceMesh::getNormal
     vectorField& normal
 ) const
 {
+    if (debug)
+    {
+        Pout<< "triSurfaceMesh::getNormal :"
+            << " getting normal for "
+            << info.size() << " triangles" << endl;
+    }
+
     const triSurface& s = *this;
     const pointField& pts = s.points();
 
@@ -738,8 +979,8 @@ void Foam::triSurfaceMesh::getNormal
         {
             if (info[i].hit())
             {
-                label facei = info[i].index();
-                normal[i] = s[facei].normal(pts);
+                const label facei = info[i].index();
+                normal[i] = s[facei].unitNormal(pts);
 
                 scalar qual = s[facei].tri(pts).quality();
 
@@ -748,19 +989,16 @@ void Foam::triSurfaceMesh::getNormal
                     // Search neighbouring triangles
                     const labelList& fFaces = faceFaces[facei];
 
-                    forAll(fFaces, j)
+                    for (const label nbri : fFaces)
                     {
-                        label nbrI = fFaces[j];
-                        scalar nbrQual = s[nbrI].tri(pts).quality();
+                        scalar nbrQual = s[nbri].tri(pts).quality();
                         if (nbrQual > qual)
                         {
                             qual = nbrQual;
-                            normal[i] = s[nbrI].normal(pts);
+                            normal[i] = s[nbri].unitNormal(pts);
                         }
                     }
                 }
-
-                normal[i] /= mag(normal[i]) + VSMALL;
             }
             else
             {
@@ -775,13 +1013,10 @@ void Foam::triSurfaceMesh::getNormal
         {
             if (info[i].hit())
             {
-                label facei = info[i].index();
-                // Cached:
-                //normal[i] = faceNormals()[facei];
+                const label facei = info[i].index();
 
                 // Uncached
-                normal[i] = s[facei].normal(pts);
-                normal[i] /= mag(normal[i]) + VSMALL;
+                normal[i] = s[facei].unitNormal(pts);
             }
             else
             {
@@ -790,20 +1025,32 @@ void Foam::triSurfaceMesh::getNormal
             }
         }
     }
+    if (debug)
+    {
+        Pout<< "triSurfaceMesh::getNormal :"
+            << " finished getting normal for "
+            << info.size() << " triangles" << endl;
+    }
 }
 
 
 void Foam::triSurfaceMesh::setField(const labelList& values)
 {
-    autoPtr<triSurfaceLabelField> fldPtr
-    (
-        new triSurfaceLabelField
+    auto* fldPtr = getObjectPtr<triSurfaceLabelField>("values");
+
+    if (fldPtr)
+    {
+        (*fldPtr).field() = values;
+    }
+    else
+    {
+        fldPtr = new triSurfaceLabelField
         (
             IOobject
             (
                 "values",
                 objectRegistry::time().timeName(),  // instance
-                "triSurface",                       // local
+                meshSubDir,                         // local
                 *this,
                 IOobject::NO_READ,
                 IOobject::AUTO_WRITE
@@ -811,11 +1058,17 @@ void Foam::triSurfaceMesh::setField(const labelList& values)
             *this,
             dimless,
             labelField(values)
-        )
-    );
+        );
 
-    // Store field on triMesh
-    fldPtr.ptr()->store();
+        // Store field on triMesh
+        fldPtr->store();
+    }
+    if (debug)
+    {
+        Pout<< "triSurfaceMesh::setField :"
+            << " finished setting field for "
+            << values.size() << " triangles" << endl;
+    }
 }
 
 
@@ -825,14 +1078,13 @@ void Foam::triSurfaceMesh::getField
     labelList& values
 ) const
 {
-    if (foundObject<triSurfaceLabelField>("values"))
-    {
-        values.setSize(info.size());
+    const auto* fldPtr = getObjectPtr<triSurfaceLabelField>("values");
 
-        const triSurfaceLabelField& fld = lookupObject<triSurfaceLabelField>
-        (
-            "values"
-        );
+    if (fldPtr)
+    {
+        const auto& fld = *fldPtr;
+
+        values.setSize(info.size());
 
         forAll(info, i)
         {
@@ -841,6 +1093,12 @@ void Foam::triSurfaceMesh::getField
                 values[i] = fld[info[i].index()];
             }
         }
+    }
+    if (debug)
+    {
+        Pout<< "triSurfaceMesh::setField :"
+            << " finished getting field for "
+            << info.size() << " triangles" << endl;
     }
 }
 
@@ -851,39 +1109,77 @@ void Foam::triSurfaceMesh::getVolumeType
     List<volumeType>& volType
 ) const
 {
-    volType.setSize(points.size());
-
-    scalar oldTol = indexedOctree<treeDataTriSurface>::perturbTol();
+    const scalar oldTol = indexedOctree<treeDataTriSurface>::perturbTol();
     indexedOctree<treeDataTriSurface>::perturbTol() = tolerance();
+
+    if (debug)
+    {
+        Pout<< "triSurfaceMesh::getVolumeType :"
+            << " finding orientation for " << points.size()
+            << " samples" << endl;
+    }
+
+    volType.setSize(points.size());
 
     forAll(points, pointi)
     {
         const point& pt = points[pointi];
 
-        if (!tree().bb().contains(pt))
+        if (tree().bb().contains(pt))
+        {
+            // Use cached volume type per each tree node
+            volType[pointi] = tree().getVolumeType(pt);
+        }
+        else if (hasVolumeType())
+        {
+            // Precalculate and cache value for this outside point
+            if (outsideVolType_ == volumeType::UNKNOWN)
+            {
+                outsideVolType_ = tree().shapes().getVolumeType(tree(), pt);
+            }
+            volType[pointi] = outsideVolType_;
+        }
+        else
         {
             // Have to calculate directly as outside the octree
             volType[pointi] = tree().shapes().getVolumeType(tree(), pt);
         }
-        else
-        {
-            // - use cached volume type per each tree node
-            volType[pointi] = tree().getVolumeType(pt);
-        }
     }
 
     indexedOctree<treeDataTriSurface>::perturbTol() = oldTol;
+    if (debug)
+    {
+        Pout<< "triSurfaceMesh::getVolumeType :"
+            << " finished finding orientation for " << points.size()
+            << " samples" << endl;
+    }
 }
 
 
 bool Foam::triSurfaceMesh::writeObject
 (
-    IOstream::streamFormat fmt,
-    IOstream::versionNumber ver,
-    IOstream::compressionType cmp,
+    IOstreamOption,
     const bool valid
 ) const
 {
+    const Time& runTime = searchableSurface::time();
+    const fileName& instance = searchableSurface::instance();
+
+    if
+    (
+        instance != runTime.timeName()
+     && instance != runTime.system()
+     && instance != runTime.caseSystem()
+     && instance != runTime.constant()
+     && instance != runTime.caseConstant()
+    )
+    {
+        const_cast<triSurfaceMesh&>(*this).searchableSurface::instance() =
+            runTime.timeName();
+        const_cast<triSurfaceMesh&>(*this).objectRegistry::instance() =
+            runTime.timeName();
+    }
+
     fileName fullPath;
     if (fName_.size())
     {

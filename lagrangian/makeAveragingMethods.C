@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2013-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2013-2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -23,13 +25,13 @@ License
 
 \*---------------------------------------------------------------------------*/
 
-#include "Field.T.H"
+#include "Field.H"
 #include "fvcGrad.H"
 #include "polyMeshTetDecomposition.H"
 
-#include "Basic.T.H"
-#include "Dual.T.H"
-#include "Moment.T.H"
+#include "Basic.H"
+#include "Dual.H"
+#include "Moment.H"
 
 // Scalar interpolation
 defineNamedTemplateTypeNameAndDebug(Foam::AveragingMethod<Foam::scalar>, 0);

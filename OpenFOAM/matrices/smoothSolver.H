@@ -1,9 +1,11 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2013 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -22,25 +24,23 @@ License
     along with OpenFOAM.  If not, see <http://www.gnu.org/licenses/>.
 
 Class
-    Foam::smoothSolver
+    Foam::SmoothSolver
 
 Description
-    Iterative solver for symmetric and asymetric matrices which uses a
+    Iterative solver for symmetric and asymmetric matrices which uses a
     run-time selected smoother e.g. GaussSeidel to converge the solution to
-    the required tolerance.
-
-    To improve efficiency, the residual is evaluated after every nSweeps
-    smoothing iterations.
+    the required tolerance.  To improve efficiency, the residual is evaluated
+    after every nSweeps smoothing iterations.
 
 SourceFiles
-    smoothSolver.C
+    SmoothSolver.C
 
 \*---------------------------------------------------------------------------*/
 
-#ifndef smoothSolver_H
-#define smoothSolver_H
+#ifndef SmoothSolver_H
+#define SmoothSolver_H
 
-#include "lduMatrix.H"
+#include "lduMatrix2.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -48,11 +48,15 @@ namespace Foam
 {
 
 /*---------------------------------------------------------------------------*\
-                           Class smoothSolver Declaration
+                           Class SmoothSolver Declaration
 \*---------------------------------------------------------------------------*/
 
-class smoothSolver :    public lduMatrix::solver
+template<class Type, class DType, class LUType>
+class SmoothSolver
+:
+    public LduMatrix<Type, DType, LUType>::solver
 {
+
 protected:
 
     // Protected data
@@ -63,45 +67,40 @@ protected:
         //- Read the control parameters from the controlDict_
         virtual void readControls();
 
+
 public:
 
     //- Runtime type information
-    TypeName("smoothSolver");
+    TypeName("SmoothSolver");
 
 
     // Constructors
 
-        //- Construct from matrix components and solver controls
-        smoothSolver
+        //- Construct from matrix components and solver data dictionary
+        SmoothSolver
         (
             const word& fieldName,
-            const lduMatrix& matrix,
-            const FieldField<Field, scalar>& interfaceBouCoeffs,
-            const FieldField<Field, scalar>& interfaceIntCoeffs,
-            const lduInterfaceFieldPtrsList& interfaces,
-            const dictionary& solverControls
+            const LduMatrix<Type, DType, LUType>& matrix,
+            const dictionary& solverDict
         );
 
-
-    //- Destructor
-    virtual ~smoothSolver()
-    {}
 
     // Member Functions
 
         //- Solve the matrix with this solver
-        virtual solverPerformance solve
-        (
-            scalarField& psi,
-            const scalarField& source,
-            const direction cmpt=0
-        ) const;
+        virtual SolverPerformance<Type> solve(Field<Type>& psi) const;
 };
 
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 } // End namespace Foam
+
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+#ifdef NoRepository
+    #include "SmoothSolver.C"
+#endif
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 

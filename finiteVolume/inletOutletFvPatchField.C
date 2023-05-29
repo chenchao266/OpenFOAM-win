@@ -1,9 +1,12 @@
-﻿/*---------------------------------------------------------------------------*\
+/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2017-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -26,139 +29,138 @@ License
 //#include "inletOutletFvPatchField.H"
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
-namespace Foam {
-    template<class Type>
-    inletOutletFvPatchField<Type>::inletOutletFvPatchField
-    (
-        const fvPatch& p,
-        const DimensionedField<Type, volMesh>& iF
-    )
-        :
-        mixedFvPatchField<Type>(p, iF),
-        phiName_("phi")
-    {
-        this->refValue() = Zero;
-        this->refGrad() = Zero;
-        this->valueFraction() = 0.0;
-    }
+
+template<class Type>
+Foam::inletOutletFvPatchField<Type>::inletOutletFvPatchField
+(
+    const fvPatch& p,
+    const DimensionedField<Type, volMesh>& iF
+)
+:
+    mixedFvPatchField<Type>(p, iF),
+    phiName_("phi")
+{
+    this->refValue() = Zero;
+    this->refGrad() = Zero;
+    this->valueFraction() = 0.0;
+}
 
 
-    template<class Type>
-    inletOutletFvPatchField<Type>::inletOutletFvPatchField
-    (
-        const inletOutletFvPatchField<Type>& ptf,
-        const fvPatch& p,
-        const DimensionedField<Type, volMesh>& iF,
-        const fvPatchFieldMapper& mapper
-    )
-        :
-        mixedFvPatchField<Type>(ptf, p, iF, mapper),
-        phiName_(ptf.phiName_)
-    {}
+template<class Type>
+Foam::inletOutletFvPatchField<Type>::inletOutletFvPatchField
+(
+    const inletOutletFvPatchField<Type>& ptf,
+    const fvPatch& p,
+    const DimensionedField<Type, volMesh>& iF,
+    const fvPatchFieldMapper& mapper
+)
+:
+    mixedFvPatchField<Type>(ptf, p, iF, mapper),
+    phiName_(ptf.phiName_)
+{}
 
 
-    template<class Type>
-    inletOutletFvPatchField<Type>::inletOutletFvPatchField
-    (
-        const fvPatch& p,
-        const DimensionedField<Type, volMesh>& iF,
-        const dictionary& dict
-    )
-        :
-        mixedFvPatchField<Type>(p, iF),
-        phiName_(dict.lookupOrDefault<word>("phi", "phi"))
-    {
-        this->refValue() = Field<Type>("inletValue", dict, p.size());
+template<class Type>
+Foam::inletOutletFvPatchField<Type>::inletOutletFvPatchField
+(
+    const fvPatch& p,
+    const DimensionedField<Type, volMesh>& iF,
+    const dictionary& dict
+)
+:
+    mixedFvPatchField<Type>(p, iF),
+    phiName_(dict.getOrDefault<word>("phi", "phi"))
+{
+    this->patchType() = dict.getOrDefault<word>("patchType", word::null);
 
-        if (dict.found("value"))
-        {
-            fvPatchField<Type>::operator=
-                (
-                    Field<Type>("value", dict, p.size())
-                    );
-        }
-        else
-        {
-            fvPatchField<Type>::operator=(this->refValue());
-        }
+    this->refValue() = Field<Type>("inletValue", dict, p.size());
 
-        this->refGrad() = Zero;
-        this->valueFraction() = 0.0;
-    }
-
-
-    template<class Type>
-    inletOutletFvPatchField<Type>::inletOutletFvPatchField
-    (
-        const inletOutletFvPatchField<Type>& ptf
-    )
-        :
-        mixedFvPatchField<Type>(ptf),
-        phiName_(ptf.phiName_)
-    {}
-
-
-    template<class Type>
-    inletOutletFvPatchField<Type>::inletOutletFvPatchField
-    (
-        const inletOutletFvPatchField<Type>& ptf,
-        const DimensionedField<Type, volMesh>& iF
-    )
-        :
-        mixedFvPatchField<Type>(ptf, iF),
-        phiName_(ptf.phiName_)
-    {}
-
-
-    // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
-
-    template<class Type>
-    void inletOutletFvPatchField<Type>::updateCoeffs()
-    {
-        if (this->updated())
-        {
-            return;
-        }
-
-        const Field<scalar>& phip =
-            this->patch().template lookupPatchField<surfaceScalarField, scalar>
-            (
-                phiName_
-                );
-
-        this->valueFraction() = 1.0 - pos0(phip);
-
-        mixedFvPatchField<Type>::updateCoeffs();
-    }
-
-
-    template<class Type>
-    void inletOutletFvPatchField<Type>::write(Ostream& os) const
-    {
-        fvPatchField<Type>::write(os);
-        if (phiName_ != "phi")
-        {
-            os.writeKeyword("phi") << phiName_ << token::END_STATEMENT << nl;
-        }
-        this->refValue().writeEntry("inletValue", os);
-        this->writeEntry("value", os);
-    }
-
-
-    // * * * * * * * * * * * * * * * Member Operators  * * * * * * * * * * * * * //
-
-    template<class Type>
-    void inletOutletFvPatchField<Type>::operator=
-        (
-            const fvPatchField<Type>& ptf
-            )
+    if (dict.found("value"))
     {
         fvPatchField<Type>::operator=
-            (
-                this->valueFraction()*this->refValue()
-                + (1 - this->valueFraction())*ptf
-                );
+        (
+            Field<Type>("value", dict, p.size())
+        );
+    }
+    else
+    {
+        fvPatchField<Type>::operator=(this->refValue());
     }
 
+    this->refGrad() = Zero;
+    this->valueFraction() = 0.0;
 }
+
+
+template<class Type>
+Foam::inletOutletFvPatchField<Type>::inletOutletFvPatchField
+(
+    const inletOutletFvPatchField<Type>& ptf
+)
+:
+    mixedFvPatchField<Type>(ptf),
+    phiName_(ptf.phiName_)
+{}
+
+
+template<class Type>
+Foam::inletOutletFvPatchField<Type>::inletOutletFvPatchField
+(
+    const inletOutletFvPatchField<Type>& ptf,
+    const DimensionedField<Type, volMesh>& iF
+)
+:
+    mixedFvPatchField<Type>(ptf, iF),
+    phiName_(ptf.phiName_)
+{}
+
+
+// * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
+
+template<class Type>
+void Foam::inletOutletFvPatchField<Type>::updateCoeffs()
+{
+    if (this->updated())
+    {
+        return;
+    }
+
+    const Field<scalar>& phip =
+        this->patch().template lookupPatchField<surfaceScalarField, scalar>
+        (
+            phiName_
+        );
+
+    this->valueFraction() = 1.0 - pos0(phip);
+
+    mixedFvPatchField<Type>::updateCoeffs();
+}
+
+
+template<class Type>
+void Foam::inletOutletFvPatchField<Type>::write(Ostream& os) const
+{
+    fvPatchField<Type>::write(os);
+    os.writeEntryIfDifferent<word>("phi", "phi", phiName_);
+    this->refValue().writeEntry("inletValue", os);
+    this->writeEntry("value", os);
+}
+
+
+// * * * * * * * * * * * * * * * Member Operators  * * * * * * * * * * * * * //
+
+template<class Type>
+void Foam::inletOutletFvPatchField<Type>::operator=
+(
+    const fvPatchField<Type>& ptf
+)
+{
+    fvPatchField<Type>::operator=
+    (
+        this->valueFraction()*this->refValue()
+        + (1 - this->valueFraction())*ptf
+    );
+}
+
+
 // ************************************************************************* //

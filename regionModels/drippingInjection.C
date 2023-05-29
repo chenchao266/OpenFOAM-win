@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -26,7 +28,7 @@ License
 #include "drippingInjection.H"
 #include "addToRunTimeSelectionTable.H"
 #include "fvMesh.H"
-#include "Time.T.H"
+#include "Time1.H"
 #include "mathematicalConstants.H"
 #include "Random.H"
 #include "volFields.H"
@@ -50,14 +52,14 @@ addToRunTimeSelectionTable(injectionModel, drippingInjection, dictionary);
 
 drippingInjection::drippingInjection
 (
-    surfaceFilmModel& film,
+    surfaceFilmRegionModel& film,
     const dictionary& dict
 )
 :
     injectionModel(type(), film, dict),
-    deltaStable_(readScalar(coeffDict_.lookup("deltaStable"))),
-    particlesPerParcel_(readScalar(coeffDict_.lookup("particlesPerParcel"))),
-    rndGen_(label(0), -1),
+    deltaStable_(coeffDict_.get<scalar>("deltaStable")),
+    particlesPerParcel_(coeffDict_.get<scalar>("particlesPerParcel")),
+    rndGen_(),
     parcelDistribution_
     (
         distributionModel::New
@@ -98,7 +100,7 @@ void drippingInjection::correct
     const scalarField& delta = film.delta();
     const scalarField& rho = film.rho();
 
-    scalarField massDrip(film.regionMesh().nCells(), 0.0);
+    scalarField massDrip(film.regionMesh().nCells(), Zero);
 
     forAll(gNorm, i)
     {

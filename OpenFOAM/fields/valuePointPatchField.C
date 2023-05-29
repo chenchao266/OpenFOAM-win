@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2019 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -23,247 +26,232 @@ License
 
 \*---------------------------------------------------------------------------*/
 
-#include "valuePointPatchField.H"
+//#include "valuePointPatchField.H"
 #include "pointPatchFieldMapper.H"
 
-// * * * * * * * * * * * * * Private Member Functions  * * * * * * * * * * * //
-namespace Foam
+// * * * * * * * * * * * * * * * * Constructors * * * * * * * * * * * * * * * //
+
+
+ namespace Foam{
+template<class Type>
+valuePointPatchField<Type>::valuePointPatchField
+(
+    const pointPatch& p,
+    const DimensionedField<Type, pointMesh>& iF
+)
+:
+    pointPatchField<Type>(p, iF),
+    Field<Type>(p.size())
+{}
+
+
+template<class Type>
+valuePointPatchField<Type>::valuePointPatchField
+(
+    const pointPatch& p,
+    const DimensionedField<Type, pointMesh>& iF,
+    const dictionary& dict,
+    const bool valueRequired
+)
+:
+    pointPatchField<Type>(p, iF, dict),
+    Field<Type>(p.size())
 {
-    template<class Type>
-    void valuePointPatchField<Type>::checkFieldSize() const
+    if (dict.found("value"))
     {
-        if (this->size() != this->patch().size())
-        {
-            FatalErrorInFunction
-                << "field does not correspond to patch. " << endl
-                << "Field size: " << size() << " patch size: "
-                << this->patch().size()
-                << abort(FatalError);
-        }
-    }
-
-
-    // * * * * * * * * * * * * * * * * Constructors * * * * * * * * * * * * * * * //
-
-    template<class Type>
-    valuePointPatchField<Type>::valuePointPatchField
-    (
-        const pointPatch& p,
-        const DimensionedField<Type, pointMesh>& iF
-    )
-        :
-        pointPatchField<Type>(p, iF),
-        Field<Type>(p.size())
-    {}
-
-
-    template<class Type>
-    valuePointPatchField<Type>::valuePointPatchField
-    (
-        const pointPatch& p,
-        const DimensionedField<Type, pointMesh>& iF,
-        const dictionary& dict,
-        const bool valueRequired
-    )
-        :
-        pointPatchField<Type>(p, iF, dict),
-        Field<Type>(p.size())
-    {
-        if (dict.found("value"))
-        {
-            Field<Type>::operator=
-                (
-                    Field<Type>("value", dict, p.size())
-                    );
-        }
-        else if (!valueRequired)
-        {
-            Field<Type>::operator=(Zero);
-        }
-        else
-        {
-            FatalIOErrorInFunction
-            (
-                dict
-            ) << "Essential entry 'value' missing"
-                << exit(FatalIOError);
-        }
-    }
-
-
-    template<class Type>
-    valuePointPatchField<Type>::valuePointPatchField
-    (
-        const valuePointPatchField<Type>& ptf,
-        const pointPatch& p,
-        const DimensionedField<Type, pointMesh>& iF,
-        const pointPatchFieldMapper& mapper
-    )
-        :
-        pointPatchField<Type>(ptf, p, iF, mapper),
-        Field<Type>(ptf, mapper)
-    {}
-
-
-    template<class Type>
-    valuePointPatchField<Type>::valuePointPatchField
-    (
-        const valuePointPatchField<Type>& ptf,
-        const DimensionedField<Type, pointMesh>& iF
-    )
-        :
-        pointPatchField<Type>(ptf, iF),
-        Field<Type>(ptf)
-    {}
-
-
-    // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
-
-    template<class Type>
-    void valuePointPatchField<Type>::autoMap
-    (
-        const pointPatchFieldMapper& m
-    )
-    {
-        Field<Type>::autoMap(m);
-    }
-
-
-    template<class Type>
-    void valuePointPatchField<Type>::rmap
-    (
-        const pointPatchField<Type>& ptf,
-        const labelList& addr
-    )
-    {
-        Field<Type>::rmap
+        Field<Type>::operator=
         (
-            refCast<const valuePointPatchField<Type>>
-            (
-                ptf
-                ),
-            addr
+            Field<Type>("value", dict, p.size())
         );
     }
-
-
-    template<class Type>
-    void valuePointPatchField<Type>::updateCoeffs()
+    else if (!valueRequired)
     {
-        if (this->updated())
-        {
-            return;
-        }
-
-        // Get internal field to insert values into
-        Field<Type>& iF = const_cast<Field<Type>&>(this->primitiveField());
-
-        this->setInInternalField(iF, *this);
-
-        pointPatchField<Type>::updateCoeffs();
+        Field<Type>::operator=(Zero);
     }
-
-
-    template<class Type>
-    void valuePointPatchField<Type>::evaluate(const Pstream::commsTypes)
+    else
     {
-        // Get internal field to insert values into
-        Field<Type>& iF = const_cast<Field<Type>&>(this->primitiveField());
-
-        this->setInInternalField(iF, *this);
-
-        pointPatchField<Type>::evaluate();
-    }
-
-
-    template<class Type>
-    void valuePointPatchField<Type>::write(Ostream& os) const
-    {
-        pointPatchField<Type>::write(os);
-        this->writeEntry("value", os);
-    }
-
-
-    // * * * * * * * * * * * * * * * Member Operators  * * * * * * * * * * * * * //
-
-    template<class Type>
-    void valuePointPatchField<Type>::operator=
-        (
-            const valuePointPatchField<Type>& ptf
-            )
-    {
-        Field<Type>::operator=(ptf);
-    }
-
-
-    template<class Type>
-    void valuePointPatchField<Type>::operator=
-        (
-            const pointPatchField<Type>& ptf
-            )
-    {
-        Field<Type>::operator=(this->patchInternalField());
-    }
-
-
-    template<class Type>
-    void valuePointPatchField<Type>::operator=
-        (
-            const Field<Type>& tf
-            )
-    {
-        Field<Type>::operator=(tf);
-    }
-
-
-    template<class Type>
-    void valuePointPatchField<Type>::operator=
-        (
-            const Type& t
-            )
-    {
-        Field<Type>::operator=(t);
-    }
-
-
-    template<class Type>
-    void valuePointPatchField<Type>::operator==
-        (
-            const valuePointPatchField<Type>& ptf
-            )
-    {
-        Field<Type>::operator=(ptf);
-    }
-
-
-    template<class Type>
-    void valuePointPatchField<Type>::operator==
-        (
-            const pointPatchField<Type>& ptf
-            )
-    {
-        Field<Type>::operator=(this->patchInternalField());
-    }
-
-
-    template<class Type>
-    void valuePointPatchField<Type>::operator==
-        (
-            const Field<Type>& tf
-            )
-    {
-        Field<Type>::operator=(tf);
-    }
-
-
-    template<class Type>
-    void valuePointPatchField<Type>::operator==
-        (
-            const Type& t
-            )
-    {
-        Field<Type>::operator=(t);
+        FatalIOErrorInFunction(dict)
+            << "Essential entry 'value' missing on patch " << p.name()
+            << exit(FatalIOError);
     }
 }
 
+
+template<class Type>
+valuePointPatchField<Type>::valuePointPatchField
+(
+    const valuePointPatchField<Type>& ptf,
+    const pointPatch& p,
+    const DimensionedField<Type, pointMesh>& iF,
+    const pointPatchFieldMapper& mapper
+)
+:
+    pointPatchField<Type>(ptf, p, iF, mapper),
+    Field<Type>(ptf, mapper)
+{}
+
+
+template<class Type>
+valuePointPatchField<Type>::valuePointPatchField
+(
+    const valuePointPatchField<Type>& ptf,
+    const DimensionedField<Type, pointMesh>& iF
+)
+:
+    pointPatchField<Type>(ptf, iF),
+    Field<Type>(ptf)
+{}
+
+
+// * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
+
+template<class Type>
+void valuePointPatchField<Type>::autoMap
+(
+    const pointPatchFieldMapper& m
+)
+{
+    Field<Type>::autoMap(m);
+}
+
+
+template<class Type>
+void valuePointPatchField<Type>::rmap
+(
+    const pointPatchField<Type>& ptf,
+    const labelList& addr
+)
+{
+    Field<Type>::rmap
+    (
+        refCast<const valuePointPatchField<Type>>
+        (
+            ptf
+        ),
+        addr
+    );
+}
+
+
+template<class Type>
+void valuePointPatchField<Type>::updateCoeffs()
+{
+    if (this->updated())
+    {
+        return;
+    }
+
+    // Get internal field to insert values into
+    Field<Type>& iF = const_cast<Field<Type>&>(this->primitiveField());
+
+    this->setInInternalField(iF, *this);
+
+    pointPatchField<Type>::updateCoeffs();
+}
+
+
+template<class Type>
+void valuePointPatchField<Type>::evaluate(const Pstream::commsTypes)
+{
+    // Get internal field to insert values into
+    Field<Type>& iF = const_cast<Field<Type>&>(this->primitiveField());
+
+    this->setInInternalField(iF, *this);
+
+    pointPatchField<Type>::evaluate();
+}
+
+
+template<class Type>
+void valuePointPatchField<Type>::write(Ostream& os) const
+{
+    pointPatchField<Type>::write(os);
+    this->writeEntry("value", os);
+}
+
+
+// * * * * * * * * * * * * * * * Member Operators  * * * * * * * * * * * * * //
+
+template<class Type>
+void valuePointPatchField<Type>::operator=
+(
+    const valuePointPatchField<Type>& ptf
+)
+{
+    Field<Type>::operator=(ptf);
+}
+
+
+template<class Type>
+void valuePointPatchField<Type>::operator=
+(
+    const pointPatchField<Type>& ptf
+)
+{
+    Field<Type>::operator=(this->patchInternalField());
+}
+
+
+template<class Type>
+void valuePointPatchField<Type>::operator=
+(
+    const Field<Type>& tf
+)
+{
+    Field<Type>::operator=(tf);
+}
+
+
+template<class Type>
+void valuePointPatchField<Type>::operator=
+(
+    const Type& t
+)
+{
+    Field<Type>::operator=(t);
+}
+
+
+template<class Type>
+void valuePointPatchField<Type>::operator==
+(
+    const valuePointPatchField<Type>& ptf
+)
+{
+    Field<Type>::operator=(ptf);
+}
+
+
+template<class Type>
+void valuePointPatchField<Type>::operator==
+(
+    const pointPatchField<Type>& ptf
+)
+{
+    Field<Type>::operator=(this->patchInternalField());
+}
+
+
+template<class Type>
+void valuePointPatchField<Type>::operator==
+(
+    const Field<Type>& tf
+)
+{
+    Field<Type>::operator=(tf);
+}
+
+
+template<class Type>
+void valuePointPatchField<Type>::operator==
+(
+    const Type& t
+)
+{
+    Field<Type>::operator=(t);
+}
+
+
 // ************************************************************************* //
+
+ } // End namespace Foam

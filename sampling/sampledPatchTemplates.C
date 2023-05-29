@@ -1,9 +1,12 @@
-﻿/*---------------------------------------------------------------------------*\
+/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2018-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -23,25 +26,29 @@ License
 
 \*---------------------------------------------------------------------------*/
 
-//#include "sampledPatch.H"
+#include "sampledPatch.H"
 
 // * * * * * * * * * * * * * Private Member Functions  * * * * * * * * * * * //
 
 template<class Type>
 Foam::tmp<Foam::Field<Type>>
-Foam::sampledPatch::sampleField
+Foam::sampledPatch::sampleOnFaces
 (
-    const GeometricField<Type, fvPatchField, volMesh>& vField
+    const interpolation<Type>& sampler
 ) const
 {
+    const auto& vField = sampler.psi();
+
     // One value per face
-    tmp<Field<Type>> tvalues(new Field<Type>(patchFaceLabels_.size()));
-    Field<Type>& values = tvalues.ref();
+    auto tvalues = tmp<Field<Type>>::New(patchFaceLabels_.size());
+    auto& values = tvalues.ref();
+
     forAll(patchFaceLabels_, i)
     {
-        label patchi = patchIDs_[patchIndex_[i]];
-        const Field<Type>& bField = vField.boundaryField()[patchi];
-        values[i] = bField[patchFaceLabels_[i]];
+        const label patchi = patchIDs_[patchIndex_[i]];
+        const label patchFacei = patchFaceLabels_[i];
+
+        values[i] = vField.boundaryField()[patchi][patchFacei];
     }
 
     return tvalues;
@@ -50,19 +57,21 @@ Foam::sampledPatch::sampleField
 
 template<class Type>
 Foam::tmp<Foam::Field<Type>>
-Foam::sampledPatch::sampleField
+Foam::sampledPatch::sampleOnFaces
 (
     const GeometricField<Type, fvsPatchField, surfaceMesh>& sField
 ) const
 {
     // One value per face
-    tmp<Field<Type>> tvalues(new Field<Type>(patchFaceLabels_.size()));
-    Field<Type>& values = tvalues.ref();
+    auto tvalues = tmp<Field<Type>>::New(patchFaceLabels_.size());
+    auto& values = tvalues.ref();
 
     forAll(patchFaceLabels_, i)
     {
-        label patchi = patchIDs_[patchIndex_[i]];
-        values[i] = sField.boundaryField()[patchi][patchFaceLabels_[i]];
+        const label patchi = patchIDs_[patchIndex_[i]];
+        const label patchFacei = patchFaceLabels_[i];
+
+        values[i] = sField.boundaryField()[patchi][patchFacei];
     }
 
     return tvalues;
@@ -71,42 +80,40 @@ Foam::sampledPatch::sampleField
 
 template<class Type>
 Foam::tmp<Foam::Field<Type>>
-Foam::sampledPatch::interpolateField
+Foam::sampledPatch::sampleOnPoints
 (
     const interpolation<Type>& interpolator
 ) const
 {
     // One value per vertex
-    tmp<Field<Type>> tvalues(new Field<Type>(points().size()));
-    Field<Type>& values = tvalues.ref();
+    auto tvalues = tmp<Field<Type>>::New(points().size());
+    auto& values = tvalues.ref();
 
     const labelList& own = mesh().faceOwner();
 
-    boolList pointDone(points().size(), false);
+    bitSet pointDone(points().size());
 
-    forAll(faces(), cutFacei)
+    forAll(faces(), i)
     {
-        label patchi = patchIDs_[patchIndex_[cutFacei]];
+        const face& f = faces()[i];
+        const label patchi = patchIDs_[patchIndex_[i]];
+        const label patchFacei = patchFaceLabels_[i];
+
         const polyPatch& pp = mesh().boundaryMesh()[patchi];
-        label patchFacei = patchFaceLabels()[cutFacei];
-        const face& f = faces()[cutFacei];
 
-        forAll(f, faceVertI)
+        const label facei = patchFacei + pp.start();
+        const label celli = own[facei];
+
+        for (const label pointi : f)
         {
-            label pointi = f[faceVertI];
-
-            if (!pointDone[pointi])
+            if (pointDone.set(pointi))
             {
-                label facei = patchFacei + pp.start();
-                label celli = own[facei];
-
                 values[pointi] = interpolator.interpolate
                 (
                     points()[pointi],
                     celli,
                     facei
                 );
-                pointDone[pointi] = true;
             }
         }
     }

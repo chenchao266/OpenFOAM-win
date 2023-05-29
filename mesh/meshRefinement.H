@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2015-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -34,6 +37,7 @@ Description
 SourceFiles
     meshRefinement.C
     meshRefinementBaffles.C
+    meshRefinementGapRefine.C
     meshRefinementMerge.C
     meshRefinementProblemCells.C
     meshRefinementRefine.C
@@ -46,18 +50,23 @@ SourceFiles
 #include "hexRef8.H"
 #include "mapPolyMesh.H"
 #include "autoPtr.H"
-#include "labelPair.H"
+#include "labelPairHashes.H"
 #include "indirectPrimitivePatch.H"
 #include "pointFieldsFwd.H"
-#include "Tuple2.T.H"
-#include "pointIndexHit.H"
+#include "Tuple2.H"
+#include "pointIndexHit2.H"
+#include "wordPairHashes.H"
+#include "surfaceZonesInfo.H"
+#include "volumeType.H"
+#include "DynamicField.H"
+#include "writer.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 namespace Foam
 {
 
-// Class forward declarations
+// Forward Declarations
 class fvMesh;
 class mapDistributePolyMesh;
 class decompositionMethod;
@@ -66,78 +75,53 @@ class refinementFeatures;
 class shellSurfaces;
 class removeCells;
 class fvMeshDistribute;
-class searchableSurface;
-class regionSplit;
-class globalIndex;
 class removePoints;
 class localPointRegion;
-
 class snapParameters;
 
 /*---------------------------------------------------------------------------*\
-                           Class meshRefinement Declaration
+                       Class meshRefinement Declaration
 \*---------------------------------------------------------------------------*/
 
 class meshRefinement
 {
-
 public:
 
-    // Public data types
+    // Public Data Types
 
-        //- Enumeration for what to debug
-        enum IOdebugType
-        {
-            IOMESH,
-            IOOBJINTERSECTIONS,
-            IOFEATURESEEDS,
-            IOATTRACTION,
-            IOLAYERINFO
-        };
-
-        static const NamedEnum<IOdebugType, 5> IOdebugTypeNames;
+        //- Enumeration for what to debug. Used as a bit-pattern.
         enum debugType
         {
-            MESH = 1<<IOMESH,
-            OBJINTERSECTIONS = 1<<IOOBJINTERSECTIONS,
-            FEATURESEEDS = 1<<IOFEATURESEEDS,
-            ATTRACTION = 1<< IOATTRACTION,
-            LAYERINFO = 1<<IOLAYERINFO
+            MESH = (1 << 0),
+            OBJINTERSECTIONS = (1 << 1),
+            FEATURESEEDS = (1 << 2),
+            ATTRACTION = (1 << 3),
+            LAYERINFO = (1 << 4)
         };
 
-        //- Enumeration for what to output
-        enum IOoutputType
-        {
-            IOOUTPUTLAYERINFO
-        };
+        static const Enum<debugType> debugTypeNames;
 
-        static const NamedEnum<IOoutputType, 1> IOoutputTypeNames;
-        enum outputType
-        {
-            OUTPUTLAYERINFO = 1<<IOOUTPUTLAYERINFO
-        };
+        ////- Enumeration for what to output. Used as a bit-pattern.
+        //enum outputType
+        //{
+        //    OUTPUTLAYERINFO = (1 << 0)
+        //};
+        //
+        //static const Enum<outputType> outputTypeNames;
 
-        //- Enumeration for what to write
-        enum IOwriteType
-        {
-            IOWRITEMESH,
-            IONOWRITEREFINEMENT,
-            IOWRITELEVELS,
-            IOWRITELAYERSETS,
-            IOWRITELAYERFIELDS
-        };
-
-        static const NamedEnum<IOwriteType, 5> IOwriteTypeNames;
+        //- Enumeration for what to write. Used as a bit-pattern.
         enum writeType
         {
-            WRITEMESH = 1<<IOWRITEMESH,
-            NOWRITEREFINEMENT = 1<<IONOWRITEREFINEMENT,
-            WRITELEVELS = 1<<IOWRITELEVELS,
-            WRITELAYERSETS = 1<<IOWRITELAYERSETS,
-            WRITELAYERFIELDS = 1<<IOWRITELAYERFIELDS
+            WRITEMESH = (1 << 0),
+            NOWRITEREFINEMENT = (1 << 1),
+            WRITELEVELS = (1 << 2),
+            WRITELAYERSETS = (1 << 3),
+            WRITELAYERFIELDS = (1 << 4)
         };
 
-        //- Enumeration for how the userdata is to be mapped upon refinement.
+        static const Enum<writeType> writeTypeNames;
+
+        //- Enumeration for how userdata is to be mapped upon refinement.
         enum mapType
         {
             MASTERONLY = 1, //!< maintain master only
@@ -145,19 +129,29 @@ public:
             REMOVE = 4      //!< set value to -1 any face that was refined
         };
 
+        //- Enumeration for what to do with co-planar patch faces on a single
+        //  cell
+        enum FaceMergeType
+        {
+            NONE,           // no merging
+            GEOMETRIC,      // use feature angle
+            IGNOREPATCH     // use feature angle, allow merging of different
+                            // patches
+        };
+
 
 private:
 
-    // Static data members
+    // Static Data Members
 
         //- Control of writing level
         static writeType writeLevel_;
 
-        //- Control of output/log level
-        static outputType outputLevel_;
+        ////- Control of output/log level
+        //static outputType outputLevel_;
 
 
-    // Private data
+    // Private Data
 
         //- Reference to mesh
         fvMesh& mesh_;
@@ -180,11 +174,25 @@ private:
         //- All shell-refinement interaction
         const shellSurfaces& shells_;
 
+        //- All limit-refinement interaction
+        const shellSurfaces& limitShells_;
+
+        //- Are we operating in test mode?
+        const bool dryRun_;
+
         //- Refinement engine
         hexRef8 meshCutter_;
 
         //- Per cc-cc vector the index of the surface hit
         labelIOList surfaceIndex_;
+
+
+        // For baffle merging
+
+            //- Original patch for baffle faces that used to be on
+            //  coupled patches
+            Map<label> faceToCoupledPatch_;
+
 
         //- User supplied face based data.
         List<Tuple2<mapType, labelList>> userFaceData_;
@@ -192,6 +200,15 @@ private:
         //- Meshed patches - are treated differently. Stored as wordList since
         //  order changes.
         wordList meshedPatches_;
+
+        //- FaceZone to master patch name
+        HashTable<word> faceZoneToMasterPatch_;
+
+        //- FaceZone to slave patch name
+        HashTable<word> faceZoneToSlavePatch_;
+
+        //- FaceZone to method to handle faces
+        HashTable<surfaceZonesInfo::faceZoneType> faceZoneToType_;
 
 
     // Private Member Functions
@@ -213,30 +230,26 @@ private:
         );
 
         //- Calculate coupled boundary end vector and refinement level
-        void calcNeighbourData
+        void calcNeighbourData(labelList& neiLevel, pointField& neiCc) const;
+
+        //- Calculate rays from cell-centre to cell-centre and corresponding
+        //  min cell refinement level
+        void calcCellCellRays
         (
-            labelList& neiLevel,
-            pointField& neiCc
+            const pointField& neiCc,
+            const labelList& neiLevel,
+            const labelList& testFaces,
+            pointField& start,
+            pointField& end,
+            labelList& minLevel
         ) const;
 
-        //- Find any intersection of surface. Store in surfaceIndex_.
-        void updateIntersections(const labelList& changedFaces);
-
-        //- Remove cells. Put exposedFaces into exposedPatchIDs.
-        autoPtr<mapPolyMesh> doRemoveCells
-        (
-            const labelList& cellsToRemove,
-            const labelList& exposedFaces,
-            const labelList& exposedPatchIDs,
-            removeCells& cellRemover
-        );
-
-        // Get cells which are inside any closed surface. Note that
-        // all closed surfaces
-        // will have already been oriented to have keepPoint outside.
+        //- Get cells which are inside any closed surface. Note that
+        //  all closed surfaces
+        //  will have already been oriented to have keepPoint outside.
         labelList getInsideCells(const word&) const;
 
-        // Do all to remove inside cells
+        //- Do all to remove inside cells
         autoPtr<mapPolyMesh> removeInsideCells
         (
             const string& msg,
@@ -292,8 +305,16 @@ private:
                 label& nRefine
             ) const;
 
+            //- Unmark cells for refinement based on limit-shells. Return number
+            //  of limited cells.
+            label unmarkInternalRefinement
+            (
+                labelList& refineCell,
+                label& nRefine
+            ) const;
+
             //- Collect faces that are intersected and whose neighbours aren't
-            //  yet marked  for refinement.
+            //  yet marked for refinement.
             labelList getRefineCandidateFaces
             (
                 const labelList& refineCell
@@ -305,6 +326,142 @@ private:
                 const label nAllowRefine,
                 const labelList& neiLevel,
                 const pointField& neiCc,
+                labelList& refineCell,
+                label& nRefine
+            ) const;
+
+            //- Collect cells intersected by the surface that are candidates
+            //  for gap checking. Used inside markSurfaceGapRefinement
+            void collectGapCandidates
+            (
+                const shellSurfaces& shells,
+                const labelList& testFaces,
+                const labelList& neiLevel,
+                const pointField& neiCc,
+                labelList& cellToCompact,
+                labelList& bFaceToCompact,
+                List<FixedList<label, 3>>& shellGapInfo,
+                List<volumeType>& shellGapMode
+            ) const;
+            void collectGapCells
+            (
+                const scalar planarCos,
+
+                const List<FixedList<label, 3>>& extendedGapLevel,
+                const List<volumeType>& extendedGapMode,
+                const labelList& testFaces,
+                const pointField& start,
+                const pointField& end,
+
+                const labelList& cellToCompact,
+                const labelList& bFaceToCompact,
+                const List<FixedList<label, 3>>& shellGapInfo,
+                const List<volumeType>& shellGapMode,
+
+                const label nAllowRefine,
+                const labelList& neiLevel,
+                const pointField& neiCc,
+
+                labelList& refineCell,
+                label& nRefine
+            ) const;
+
+
+            //- Mark cells intersected by the surface if they are inside
+            //  close gaps
+            label markSurfaceGapRefinement
+            (
+                const scalar planarCos,
+                const label nAllowRefine,
+                const labelList& neiLevel,
+                const pointField& neiCc,
+
+                labelList& refineCell,
+                label& nRefine
+            ) const;
+
+            //- Generate single ray from nearPoint in direction of nearNormal
+            label generateRays
+            (
+                const point& nearPoint,
+                const vector& nearNormal,
+                const FixedList<label, 3>& gapInfo,
+                const volumeType& mode,
+
+                const label cLevel,
+
+                DynamicField<point>& start,
+                DynamicField<point>& end
+            ) const;
+
+            //- Generate pairs of rays through cell centre
+            //  Each ray pair has start, end, and expected gap size
+            label generateRays
+            (
+                const bool useSurfaceNormal,
+
+                const point& nearPoint,
+                const vector& nearNormal,
+                const FixedList<label, 3>& gapInfo,
+                const volumeType& mode,
+
+                const point& cc,
+                const label cLevel,
+
+                DynamicField<point>& start,
+                DynamicField<point>& end,
+                DynamicField<scalar>& gapSize,
+
+                DynamicField<point>& start2,
+                DynamicField<point>& end2,
+                DynamicField<scalar>& gapSize2
+            ) const;
+
+            //- Select candidate cells (cells inside a shell with gapLevel
+            //  specified)
+            void selectGapCandidates
+            (
+                const labelList& refineCell,
+                const label nRefine,
+
+                labelList& cellMap,
+                labelList& gapShell,
+                List<FixedList<label, 3>>& shellGapInfo,
+                List<volumeType>& shellGapMode
+            ) const;
+
+            //- Merge gap information coming from shell and from surface
+            //  (surface wins)
+            void mergeGapInfo
+            (
+                const FixedList<label, 3>& shellGapInfo,
+                const volumeType shellGapMode,
+                const FixedList<label, 3>& surfGapInfo,
+                const volumeType surfGapMode,
+                FixedList<label, 3>& gapInfo,
+                volumeType& gapMode
+            ) const;
+
+            //- Mark cells for non-surface intersection based gap refinement
+            label markInternalGapRefinement
+            (
+                const scalar planarCos,
+                const bool spreadGapSize,
+                const label nAllowRefine,
+                labelList& refineCell,
+                label& nRefine,
+                labelList& numGapCells,
+                scalarField& gapSize
+            ) const;
+
+            //- Refine cells containing small gaps
+            label markSmallFeatureRefinement
+            (
+                const scalar planarCos,
+                const label nAllowRefine,
+                const labelList& neiLevel,
+                const pointField& neiCc,
+
                 labelList& refineCell,
                 label& nRefine
             ) const;
@@ -354,6 +511,11 @@ private:
             label markProximityRefinement
             (
                 const scalar curvature,
+
+                // Per region the min and max cell level
+                const labelList& surfaceMinLevel,
+                const labelList& surfaceMaxLevel,
+
                 const label nAllowRefine,
                 const labelList& neiLevel,
                 const pointField& neiCc,
@@ -361,6 +523,47 @@ private:
                 labelList& refineCell,
                 label& nRefine
             ) const;
+
+            void markMultiRegionCell
+            (
+                const label celli,
+                //const label globalRegion,
+                //const label zonei,
+                const FixedList<label, 3>& surface,
+
+                Map<FixedList<label, 3>>& cellToRegions,
+                bitSet& isMultiRegion
+            ) const;
+
+            void detectMultiRegionCells
+            (
+                const labelListList& faceZones,
+                const labelList& testFaces,
+
+                const labelList& surface1,
+                const List<pointIndexHit>& hit1,
+                const labelList& region1,
+
+                const labelList& surface2,
+                const List<pointIndexHit>& hit2,
+                const labelList& region2,
+
+                bitSet& isMultiRegion
+            ) const;
+
+            //- Mark cells for surface proximity based refinement.
+            label markProximityRefinementWave
+            (
+                const scalar planarCos,
+                const labelList& blockedSurfaces,
+                const label nAllowRefine,
+                const labelList& neiLevel,
+                const pointField& neiCc,
+
+                labelList& refineCell,
+                label& nRefine
+            ) const;
+
 
         // Baffle handling
 
@@ -372,15 +575,54 @@ private:
                 const labelList& globalToSlavePatch
             ) const;
 
-            //- Determine patches for baffles on all intersected unnamed faces
+            //- Calculate intersections. Return per face -1 or the global
+            //  surface region
+            void getIntersections
+            (
+                const labelList& surfacesToTest,
+                const pointField& neiCc,
+                const labelList& testFaces,
+
+                labelList& globalRegion1,
+                labelList& globalRegion2
+            ) const;
+
+            //- Calculate intersections on zoned faces. Return per face -1
+            //  or the global region of the surface and the orientation
+            //  w.r.t. surface
+            void getIntersections
+            (
+                const labelList& surfacesToTest,
+                const pointField& neiCc,
+                const labelList& testFaces,
+
+                labelList& namedSurfaceRegion,
+                bitSet& posOrientation
+            ) const;
+
+            //- Determine patches for baffles
             void getBafflePatches
             (
+                const label nErodeCellZones,
                 const labelList& globalToMasterPatch,
+                const pointField& locationsInMesh,
+                const wordList& regionsInMesh,
+
                 const labelList& neiLevel,
                 const pointField& neiCc,
                 labelList& ownPatch,
                 labelList& neiPatch
             ) const;
+
+            autoPtr<mapPolyMesh> splitMesh
+            (
+                const label nBufferLayers,
+                const labelList& globalToMasterPatch,
+                const labelList& globalToSlavePatch,
+                labelList& cellRegion,
+                labelList& ownPatch,
+                labelList& neiPatch
+            );
 
             //- Repatches external face or creates baffle for internal face
             //  with user specified patches (might be different for both sides).
@@ -452,12 +694,23 @@ private:
             //  adaptPatchIDs[0]
             labelList nearestPatch(const labelList& adaptPatchIDs) const;
 
+            //- Returns list with for every face the label of the nearest
+            //  (global) region. Any unreached face (disconnected mesh?) becomes
+            //  defaultRegion
+            labelList nearestIntersection
+            (
+                const labelList& surfacesToTest,
+                const label defaultRegion
+            ) const;
+
             //- Returns list with for every internal face -1 or the patch
             //  they should be baffled into.
             labelList markFacesOnProblemCellsGeometric
             (
                 const snapParameters& snapParams,
-                const dictionary& motionDict
+                const dictionary& motionDict,
+                const labelList& globalToMasterPatch,
+                const labelList& globalToSlavePatch
             ) const;
 
 
@@ -476,30 +729,41 @@ private:
 
             //- Finds zone per cell for cells inside closed named surfaces.
             //  (uses geometric test for insideness)
-            //  Adapts namedSurfaceIndex so all faces on boundary of cellZone
+            //  Adapts namedSurfaceRegion so all faces on boundary of cellZone
             //  have corresponding faceZone.
             void findCellZoneGeometric
             (
                 const pointField& neiCc,
                 const labelList& closedNamedSurfaces,
-                labelList& namedSurfaceIndex,
+                labelList& namedSurfaceRegion,
                 const labelList& surfaceToCellZone,
                 labelList& cellToZone
             ) const;
 
-            //- Finds zone per cell for cells inside named surfaces that have
-            //  an inside point specified.
+            //- Finds zone per cell for cells inside region for which name
+            //  is specified.
             void findCellZoneInsideWalk
             (
-                const labelList& locationSurfaces,
-                const labelList& namedSurfaceIndex,
-                const labelList& surfaceToCellZone,
+                const pointField& locationsInMesh,
+                const labelList& zonesInMesh,
+                const labelList& blockedFace, // per face -1 or some index >= 0
+                labelList& cellToZone
+            ) const;
+
+            //- Finds zone per cell for cells inside region for which name
+            //  is specified.
+            void findCellZoneInsideWalk
+            (
+                const pointField& locationsInMesh,
+                const wordList& zoneNamesInMesh,
+                const labelList& faceToZone, // per face -1 or some index >= 0
                 labelList& cellToZone
             ) const;
 
             //- Determines cell zone from cell region information.
             bool calcRegionToZone
             (
+                const label backgroundZoneID,
                 const label surfZoneI,
                 const label ownRegion,
                 const label neiRegion,
@@ -508,21 +772,85 @@ private:
             ) const;
 
             //- Finds zone per cell. Uses topological walk with all faces
-            //  marked in namedSurfaceIndex regarded as blocked.
+            //  marked in unnamedSurfaceRegion (intersections with unnamed
+            //  surfaces) and namedSurfaceRegion (intersections with named
+            //  surfaces) regarded as blocked.
             void findCellZoneTopo
             (
-                const point& keepPoint,
-                const labelList& namedSurfaceIndex,
+                const label backgroundZoneID,
+                const pointField& locationsInMesh,
+                const labelList& unnamedSurfaceRegion,
+                const labelList& namedSurfaceRegion,
                 const labelList& surfaceToCellZone,
                 labelList& cellToZone
             ) const;
 
-            //- Make namedSurfaceIndex consistent with cellToZone
+            //- Opposite of findCellTopo: finds assigned cell connected to
+            //  an unassigned one and puts it in the background zone.
+            void erodeCellZone
+            (
+                const label nErodeCellZones,
+                const label backgroundZoneID,
+                const labelList& unnamedSurfaceRegion,
+                const labelList& namedSurfaceRegion,
+                labelList& cellToZone
+            ) const;
+
+            //- Variation of findCellZoneTopo: walks from cellZones but ignores
+            //  face intersections (unnamedSurfaceRegion). WIP
+            void growCellZone
+            (
+                const label nGrowCellZones,
+                const label backgroundZoneID,
+                labelList& unnamedSurfaceRegion1,
+                labelList& unnamedSurfaceRegion2,
+                labelList& namedSurfaceRegion,
+                labelList& cellToZone
+            ) const;
+
+            //- Make namedSurfaceRegion consistent with cellToZone
             //  - clear out any blocked faces inbetween same cell zone.
             void makeConsistentFaceIndex
             (
+                const labelList& zoneToNamedSurface,
                 const labelList& cellToZone,
-                labelList& namedSurfaceIndex
+                labelList& namedSurfaceRegion
+            ) const;
+
+            //- Calculate cellZone allocation
+            void zonify
+            (
+                const bool allowFreeStandingZoneFaces,
+                const label nErodeCellZones,
+                const label backgroundZoneID,
+                const pointField& locationsInMesh,
+                const wordList& zonesInMesh,
+
+                labelList& cellToZone,
+                labelList& unnamedRegion1,
+                labelList& unnamedRegion2,
+                labelList& namedSurfaceRegion,
+                bitSet& posOrientation
+            ) const;
+
+            //- Put cells into cellZone, faces into faceZone
+            void zonify
+            (
+                const bitSet& isMasterFace,
+                const labelList& cellToZone,
+                const labelList& neiCellZone,
+                const labelList& faceToZone,
+                const bitSet& meshFlipMap,
+                polyTopoChange& meshMod
+            ) const;
+
+            //- Allocate faceZoneName
+            void allocateInterRegionFaceZone
+            (
+                const label ownZone,
+                const label neiZone,
+                wordPairHashTable& zonesToFaceZone,
+                LabelPairMap<word>& zoneIDsToFaceZone
             ) const;
 
             //- Remove any loose standing cells
@@ -554,7 +882,7 @@ private:
             //  to detect non-manifold situations.
             void calcPatchNumMasterFaces
             (
-                const PackedBoolList& isMasterFace,
+                const bitSet& isMasterFace,
                 const indirectPrimitivePatch& patch,
                 labelList& nMasterFaces
             ) const;
@@ -571,20 +899,20 @@ private:
             //- Make faces consistent.
             void consistentOrientation
             (
-                const PackedBoolList& isMasterFace,
+                const bitSet& isMasterFace,
                 const indirectPrimitivePatch& patch,
                 const labelList& nMasterFaces,
                 const labelList& faceToZone,
                 const Map<label>& zoneToOrientation,
-                boolList& meshFlipMap
+                bitSet& meshFlipMap
             ) const;
 
 
-        //- Disallow default bitwise copy construct
-        meshRefinement(const meshRefinement&);
+        //- No copy construct
+        meshRefinement(const meshRefinement&) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const meshRefinement&);
+        //- No copy assignment
+        void operator=(const meshRefinement&) = delete;
 
 public:
 
@@ -602,7 +930,10 @@ public:
             const bool overwrite,
             const refinementSurfaces&,
             const refinementFeatures&,
-            const shellSurfaces&
+            const shellSurfaces&,   // omnidirectional refinement
+            const shellSurfaces&,   // limit refinement
+            const labelUList& checkFaces,   // initial faces to check
+            const bool dryRun
         );
 
 
@@ -655,6 +986,12 @@ public:
                 return shells_;
             }
 
+            //- Reference to limit shells (regions)
+            const shellSurfaces& limitShells() const
+            {
+                return limitShells_;
+            }
+
             //- Reference to meshcutting engine
             const hexRef8& meshCutter() const
             {
@@ -662,14 +999,15 @@ public:
             }
 
             //- Per start-end edge the index of the surface hit
-            const labelList& surfaceIndex() const
-            {
-                return surfaceIndex_;
-            }
+            const labelList& surfaceIndex() const;
 
-            labelList& surfaceIndex()
+            labelList& surfaceIndex();
+
+            //- For faces originating from processor faces store the original
+            //  patch
+            const Map<label>& faceToCoupledPatch() const
             {
-                return surfaceIndex_;
+                return faceToCoupledPatch_;
             }
 
             //- Additional face data that is maintained across
@@ -737,7 +1075,7 @@ public:
             static void calculateEdgeWeights
             (
                 const polyMesh& mesh,
-                const PackedBoolList& isMasterEdge,
+                const bitSet& isMasterEdge,
                 const labelList& meshPoints,
                 const edgeList& edges,
                 scalarField& edgeWeights,
@@ -750,7 +1088,7 @@ public:
             static void weightedSum
             (
                 const polyMesh& mesh,
-                const PackedBoolList& isMasterEdge,
+                const bitSet& isMasterEdge,
                 const labelList& meshPoints,
                 const edgeList& edges,
                 const scalarField& edgeWeights,
@@ -774,11 +1112,13 @@ public:
             //- Is local topology a small gap normal to the test vector
             bool isNormalGap
             (
-                const scalar,
-                const vector&,
-                const vector&,
-                const vector&,
-                const vector&
+                const scalar planarCos,
+                const label level0,
+                const vector& point0,
+                const vector& normal0,
+                const label level1,
+                const vector& point1,
+                const vector& normal1
             ) const;
 
             //- Calculate list of cells to refine.
@@ -793,10 +1133,51 @@ public:
                 const bool internalRefinement,
                 const bool surfaceRefinement,
                 const bool curvatureRefinement,
+                const bool smallFeatureRefinement,
                 const bool gapRefinement,
+                const bool bigGapRefinement,
+                const bool spreadGapSize,
                 const label maxGlobalCells,
                 const label maxLocalCells
             ) const;
+
+
+            // Blocking cells
+
+                //- Mark faces on interface between set and rest
+                //  (and same cell level)
+                void markOutsideFaces
+                (
+                    const labelList& cellLevel,
+                    const labelList& neiLevel,
+                    const labelList& refineCell,
+                    bitSet& isOutsideFace
+                ) const;
+
+                //- Count number of faces on cell that are in set
+                label countFaceDirs
+                (
+                    const bitSet& isOutsideFace,
+                    const label celli
+                ) const;
+
+                //- Add one layer of cells to set
+                void growSet
+                (
+                    const labelList& neiLevel,
+                    const bitSet& isOutsideFace,
+                    labelList& refineCell,
+                    label& nRefine
+                ) const;
+
+                //- Detect gapRefinement cells and remove them
+                autoPtr<mapPolyMesh> removeGapCells
+                (
+                    const scalar planarAngle,
+                    const labelList& minSurfaceLevel,
+                    const labelList& globalToMasterPatch,
+                    const label growIter
+                );
 
             //- Refine some cells
             autoPtr<mapPolyMesh> refine(const labelList& cellsToRefine);
@@ -821,6 +1202,23 @@ public:
                 const scalar maxLoadUnbalance
             );
 
+            //- Calculate list of cells to directionally refine
+            labelList directionalRefineCandidates
+            (
+                const label maxGlobalCells,
+                const label maxLocalCells,
+                const labelList& currentLevel,
+                const direction dir
+            ) const;
+
+            //- Directionally refine in direction cmpt
+            autoPtr<mapPolyMesh> directionalRefine
+            (
+                const string& msg,
+                const direction cmpt,
+                const labelList& cellsToRefine
+            );
+
 
         // Baffle handling
 
@@ -834,16 +1232,32 @@ public:
                 const bool useTopologicalSnapDetection,
                 const bool removeEdgeConnectedCells,
                 const scalarField& perpendicularAngle,
-
-                // How to handle free-standing baffles
-                const bool mergeFreeStanding,
-                const scalar freeStandingAngle,
-
+                const label nErodeCellZones,
                 const dictionary& motionDict,
                 Time& runTime,
                 const labelList& globalToMasterPatch,
                 const labelList& globalToSlavePatch,
-                const point& keepPoint
+                const pointField& locationsInMesh,
+                const wordList& regionsInMesh,
+                const pointField& locationsOutsideMesh,
+                const writer<scalar>& leakPathFormatter
+            );
+
+            //- Merge free-standing baffles
+            void mergeFreeStandingBaffles
+            (
+                const snapParameters& snapParams,
+                const bool useTopologicalSnapDetection,
+                const bool removeEdgeConnectedCells,
+                const scalarField& perpendicularAngle,
+                const scalar planarAngle,
+                const dictionary& motionDict,
+                Time& runTime,
+                const labelList& globalToMasterPatch,
+                const labelList& globalToSlavePatch,
+                const pointField& locationsInMesh,
+                const pointField& locationsOutsideMesh,
+                const writer<scalar>& leakPathFormatter
             );
 
             //- Split off (with optional buffer layers) unreachable areas
@@ -851,9 +1265,25 @@ public:
             autoPtr<mapPolyMesh> splitMesh
             (
                 const label nBufferLayers,
+                const label nErodeCellZones,
                 const labelList& globalToMasterPatch,
                 const labelList& globalToSlavePatch,
-                const point& keepPoint
+
+                const pointField& locationsInMesh,
+                const wordList& regionsInMesh,
+                const pointField& locationsOutsideMesh,
+                const writer<scalar>& leakPathFormatter
+            );
+
+            //- Remove cells from limitRegions if level -1
+            autoPtr<mapPolyMesh> removeLimitShells
+            (
+                const label nBufferLayers,
+                const label nErodeCellZones,
+                const labelList& globalToMasterPatch,
+                const labelList& globalToSlavePatch,
+                const pointField& locationsInMesh,
+                const wordList& regionsInMesh
             );
 
             //- Find boundary points that connect to more than one cell
@@ -864,6 +1294,16 @@ public:
             //  region and split them.
             autoPtr<mapPolyMesh> dupNonManifoldPoints();
 
+            //- Find boundary points that are on faceZones of type boundary
+            //  and duplicate them
+            autoPtr<mapPolyMesh> dupNonManifoldBoundaryPoints();
+
+            //- Merge duplicate points
+            autoPtr<mapPolyMesh> mergePoints
+            (
+                const labelList& pointToDuplicate
+            );
+
             //- Create baffle for every internal face where ownPatch != -1.
             //  External faces get repatched according to ownPatch (neiPatch
             //  should be -1 for these)
@@ -873,28 +1313,66 @@ public:
                 const labelList& neiPatch
             );
 
-            //- Debug helper: check faceZones are not on processor patches
-            void checkZoneFaces() const;
-
-            //- Create baffles for faces straddling zoned surfaces. Return
-            //  baffles.
-            autoPtr<mapPolyMesh> createZoneBaffles
+            //- Get zones of given type
+            labelList getZones
             (
-                const labelList& globalToMasterPatch,
-                const labelList& globalToSlavePatch,
-                List<labelPair>&
+                const List<surfaceZonesInfo::faceZoneType>& fzTypes
+            ) const;
+
+            //- Subset baffles according to zones
+            static List<labelPair> subsetBaffles
+            (
+                const polyMesh& mesh,
+                const labelList& zoneIDs,
+                const List<labelPair>& baffles
             );
 
-            //- Merge baffles. Gets pairs of faces.
-            autoPtr<mapPolyMesh> mergeBaffles(const List<labelPair>&);
+            //- Get per-face information (faceZone, master/slave patch)
+            void getZoneFaces
+            (
+                const labelList& zoneIDs,
+                labelList& faceZoneID,
+                labelList& ownPatch,
+                labelList& neiPatch,
+                labelList& nBaffles
+            ) const;
+
+            //- Create baffles for faces on faceZones. Return created baffles
+            //  (= pairs of faces) and corresponding faceZone
+            autoPtr<mapPolyMesh> createZoneBaffles
+            (
+                const labelList& zoneIDs,
+                List<labelPair>& baffles,
+                labelList& originatingFaceZone
+            );
+
+            //- Merge baffles. Gets pairs of faces and boundary faces to move
+            //  onto (coupled) patches
+            autoPtr<mapPolyMesh> mergeBaffles
+            (
+                const List<labelPair>&,
+                const Map<label>& faceToPatch
+            );
+
+            //- Merge all baffles on faceZones
+            autoPtr<mapPolyMesh> mergeZoneBaffles
+            (
+                const bool doInternalZones,
+                const bool doBaffleZones
+            );
 
             //- Put faces/cells into zones according to surface specification.
-            //  Returns null if no zone surfaces present. Region containing
-            //  the keepPoint will not be put into a cellZone.
+            //  Returns null if no zone surfaces present. Regions containing
+            //  locationsInMesh/regionsInMesh will be put in corresponding
+            //  cellZone. keepPoints is for backwards compatibility and sets
+            //  all yet unassigned cells to be non-zoned (zone = -1)
             autoPtr<mapPolyMesh> zonify
             (
-                const point& keepPoint,
-                const bool allowFreeStandingZoneFaces
+                const bool allowFreeStandingZoneFaces,
+                const label nErodeCellZones,
+                const pointField& locationsInMesh,
+                const wordList& regionsInMesh,
+                wordPairHashTable& zonesToFaceZone
             );
 
 
@@ -919,8 +1397,31 @@ public:
             //- Get patchIDs for patches added in addMeshedPatch.
             labelList meshedPatches() const;
 
+            //- Add/lookup faceZone and update information. Return index of
+            //  faceZone
+            label addFaceZone
+            (
+                const word& fzName,
+                const word& masterPatch,
+                const word& slavePatch,
+                const surfaceZonesInfo::faceZoneType& fzType
+            );
+
+            //- Lookup faceZone information. Return false if no information
+            //  for faceZone
+            bool getFaceZoneInfo
+            (
+                const word& fzName,
+                label& masterPatchID,
+                label& slavePatchID,
+                surfaceZonesInfo::faceZoneType& fzType
+            ) const;
+
             //- Select coupled faces that are not collocated
             void selectSeparatedCoupledFaces(boolList&) const;
+
+            //- Find any intersection of surface. Store in surfaceIndex_.
+            void updateIntersections(const labelList& changedFaces);
 
             //- Find region point is in. Uses optional perturbation to re-test.
             static label findRegion
@@ -931,19 +1432,60 @@ public:
                 const point& p
             );
 
-            //- Split mesh. Keep part containing point.
+            //- Find regions points are in.
+            //  \return number of cells to be removed
+            static label findRegions
+            (
+                const polyMesh&,
+                const vector& perturbVec,
+                const pointField& locationsInMesh,
+                const pointField& locationsOutsideMesh,
+                const bool exitIfLeakPath,
+                const writer<scalar>& leakPathFormatter,
+                const label nRegions,
+                labelList& cellRegion,
+                const boolList& blockedFace
+            );
+
+            //- Split mesh. Keep part containing point. Return empty map if
+            //  no cells removed.
             autoPtr<mapPolyMesh> splitMeshRegions
             (
                 const labelList& globalToMasterPatch,
                 const labelList& globalToSlavePatch,
-                const point& keepPoint
+                const pointField& locationsInMesh,
+                const pointField& locationsOutsideMesh,
+                const bool exitIfLeakPath,
+                const writer<scalar>& leakPathFormatter
+            );
+
+            //- Remove cells. Put exposedFaces into exposedPatchIDs.
+            autoPtr<mapPolyMesh> doRemoveCells
+            (
+                const labelList& cellsToRemove,
+                const labelList& exposedFaces,
+                const labelList& exposedPatchIDs,
+                removeCells& cellRemover
             );
 
             //- Split faces into two
-            autoPtr<mapPolyMesh> splitFaces
+            void doSplitFaces
             (
                 const labelList& splitFaces,
-                const labelPairList& splits
+                const labelPairList& splits,
+                polyTopoChange& meshMod
+            ) const;
+
+            //- Split faces along diagonal. Maintain mesh quality. Return
+            //  total number of faces split.
+            label splitFacesUndo
+            (
+                const labelList& splitFaces,
+                const labelPairList& splits,
+                const dictionary& motionDict,
+
+                labelList& duplicateFace,
+                List<labelPair>& baffles
             );
 
             //- Update local numbering for mesh redistribution
@@ -991,6 +1533,17 @@ public:
 
             // Merging coplanar faces and edges
 
+                //- Merge coplanar faces if sets are of size mergeSize
+                //  (usually 4)
+                label mergePatchFaces
+                (
+                    const scalar minCos,
+                    const scalar concaveCos,
+                    const label mergeSize,
+                    const labelList& patchIDs,
+                    const meshRefinement::FaceMergeType mergeType
+                );
+
                 //- Merge coplanar faces. preserveFaces is != -1 for faces
                 //  to be preserved
                 label mergePatchFacesUndo
@@ -999,7 +1552,8 @@ public:
                     const scalar concaveCos,
                     const labelList& patchIDs,
                     const dictionary& motionDict,
-                    const labelList& preserveFaces
+                    const labelList& preserveFaces,
+                    const meshRefinement::FaceMergeType mergeType
                 );
 
                 autoPtr<mapPolyMesh> doRemovePoints
@@ -1018,6 +1572,12 @@ public:
                 (
                     const labelList& candidateFaces,
                     const labelHashSet& set
+                ) const;
+
+                // Pick up faces of cells of faces in set.
+                labelList growFaceCellFace
+                (
+                    const labelUList& set
                 ) const;
 
                 // Pick up faces of cells of faces in set.
@@ -1074,7 +1634,7 @@ public:
 
             //- Determine master point for subset of points. If coupled
             //  chooses only one
-            static PackedBoolList getMasterPoints
+            static bitSet getMasterPoints
             (
                 const polyMesh& mesh,
                 const labelList& meshPoints
@@ -1082,7 +1642,7 @@ public:
 
             //- Determine master edge for subset of edges. If coupled
             //  chooses only one
-            static PackedBoolList getMasterEdges
+            static bitSet getMasterEdges
             (
                 const polyMesh& mesh,
                 const labelList& meshEdges
@@ -1091,8 +1651,8 @@ public:
             //- Print some mesh stats.
             void printMeshInfo(const bool, const string&) const;
 
-            //- Replacement for Time::timeName() : return oldInstance (if
-            //  overwrite_)
+            //- Replacement for Time::timeName() that returns oldInstance
+            //- (if overwrite_)
             word timeName() const;
 
             //- Set instance of all local IOobjects
@@ -1115,11 +1675,14 @@ public:
                 const fileName&
             ) const;
 
+            //- Helper: remove all relevant files from mesh instance
+            static void removeFiles(const polyMesh&);
+
             //- Helper: calculate average
             template<class T>
             static T gAverage
             (
-                const PackedBoolList& isMasterElem,
+                const bitSet& isMasterElem,
                 const UList<T>& values
             );
 
@@ -1127,16 +1690,47 @@ public:
             static writeType writeLevel();
             static void writeLevel(const writeType);
 
-            //- Get/set output level
-            static outputType outputLevel();
-            static void outputLevel(const outputType);
+            ////- Get/set output level
+            //static outputType outputLevel();
+            //static void outputLevel(const outputType);
 
 
-            //- Helper: convert wordList into bit pattern using provided
-            //  NamedEnum
-            template<class Enum>
-            static int readFlags(const Enum& namedEnum, const wordList&);
+            //- Helper: convert wordList into bit pattern using provided Enum
+            template<class EnumContainer>
+            static int readFlags
+            (
+                const EnumContainer& namedEnum,
+                const wordList& words
+            );
 
+            //- Wrapper around dictionary::get which does not exit
+            template<class Type>
+            static Type get
+            (
+                const dictionary& dict,
+                const word& keyword,
+                const bool noExit,
+                enum keyType::option matchOpt = keyType::REGEX,
+                const Type& deflt = Zero
+            );
+
+            //- Wrapper around dictionary::subDict which does not exit
+            static const dictionary& subDict
+            (
+                const dictionary& dict,
+                const word& keyword,
+                const bool noExit,
+                enum keyType::option matchOpt = keyType::REGEX
+            );
+
+            //- Wrapper around dictionary::lookup which does not exit
+            static ITstream& lookup
+            (
+                const dictionary& dict,
+                const word& keyword,
+                const bool noExit,
+                enum keyType::option matchOpt = keyType::REGEX
+            );
 };
 
 

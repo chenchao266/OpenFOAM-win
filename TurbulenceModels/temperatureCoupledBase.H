@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2019,2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -36,13 +39,18 @@ Description
       - 'directionalSolidThermo': uses look up for volSymmTensorField for
         transformed kappa vector. Field name definable in 'alphaAni',
         named 'Anialpha' in solid solver by default
+      - 'function' : kappa, alpha directly specified as Function1
+      - 'phaseSystem' : used for multiphase thermos
 
     \par Keywords provided by this class:
       \table
-        Property     | Description                | Required    | Default value
-        kappaMethod  | Thermal conductivity method        | yes |
-        kappa        | Name of thermal conductivity field | no  | none
-        alphaAni     | Name of the non-isotropic alpha    | no  | Anialpha
+        Property     | Description                          | Required | Default
+        kappaMethod  | Thermal conductivity method          | yes |
+        kappa        | Name of thermal conductivity field   | no  |
+        alpha        | Name of thermal diffusivity field    | no  |
+        alphaAni     | Name of non-isotropic alpha          | no  |
+        kappaValue   | Function1 supplying kappa            | no  |
+        alphaValue   | Function1 supplying alpha            | no  |
       \endtable
 
 Usage
@@ -51,8 +59,18 @@ Usage
     {
         ...
         kappaMethod     directionalSolidThermo;
-        kappa           none;
         alphaAni        Anialpha;
+        ...
+    }
+    \endverbatim
+
+    \verbatim
+    specifiedWall
+    {
+        ...
+        kappaMethod     function;
+        kappaFunction   constant 1.0;
+        alphaFunction   constant 100.0;
         ...
     }
     \endverbatim
@@ -66,8 +84,10 @@ SourceFiles
 #define temperatureCoupledBase_H
 
 #include "scalarField.H"
-#include "NamedEnum.T.H"
+#include "Enum.H"
 #include "fvPatch.H"
+#include "PatchFunction1.H"
+#include "fvPatchFieldMapper.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -82,7 +102,7 @@ class temperatureCoupledBase
 {
 public:
 
-    // Public enumerations
+    // Public Enumerations
 
         //- Type of supplied Kappa
         enum KMethodType
@@ -90,15 +110,16 @@ public:
             mtFluidThermo,
             mtSolidThermo,
             mtDirectionalSolidThermo,
-            mtLookup
+            mtLookup,
+            mtFunction
         };
 
 
 protected:
 
-    // Protected data
+    // Protected Data
 
-        static const NamedEnum<KMethodType, 4> KMethodTypeNames_;
+        static const Enum<KMethodType> KMethodTypeNames_;
 
         //- Underlying patch
         const fvPatch& patch_;
@@ -112,6 +133,15 @@ protected:
         //- Name of the non-Isotropic alpha (default: Anialpha)
         const word alphaAniName_;
 
+        //- Name of thermal diffusivity
+        const word alphaName_;
+
+        //- Function1 for kappa
+        autoPtr<PatchFunction1<scalar>> kappaFunction1_;
+
+        //- Function1 for alpha
+        autoPtr<PatchFunction1<scalar>> alphaFunction1_;
+
 
 public:
 
@@ -123,7 +153,8 @@ public:
             const fvPatch& patch,
             const word& calculationMethod,
             const word& kappaName,
-            const word& alphaAniName
+            const word& alphaAniName,
+            const word& alphaName
         );
 
         //- Construct from patch and dictionary
@@ -133,12 +164,22 @@ public:
             const dictionary& dict
         );
 
-         //- Construct from patch and temperatureCoupledBase
+        //- Construct from patch and temperatureCoupledBase
         temperatureCoupledBase
         (
             const fvPatch& patch,
             const temperatureCoupledBase& base
         );
+
+        //- Construct as copy
+        temperatureCoupledBase
+        (
+            const temperatureCoupledBase&
+        );
+
+
+    //- Destructor
+    virtual ~temperatureCoupledBase() = default;
 
 
     // Member functions
@@ -155,11 +196,33 @@ public:
             return kappaName_;
         }
 
+        //- Name of thermal diffusivity field
+        const word& alphaName() const
+        {
+            return alphaName_;
+        }
+
+        //- Map (and resize as needed) from self given a mapping object
+        virtual void autoMap
+        (
+            const fvPatchFieldMapper&
+        ) = 0;
+
+        //- Reverse map the given fvPatchField onto this fvPatchField
+        virtual void rmap
+        (
+            const fvPatchField<scalar>&,
+            const labelList&
+        ) = 0;
+
         //- Given patch temperature calculate corresponding K field
-        tmp<scalarField> kappa(const scalarField& Tp) const;
+        virtual tmp<scalarField> kappa(const scalarField& Tp) const;
+
+        //- Given patch temperature calculate corresponding alphaEff field
+        virtual tmp<scalarField> alpha(const scalarField& Tp) const;
 
         //- Write
-        void write(Ostream&) const;
+        void write(Ostream& os) const;
 };
 
 

@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2013-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2013-2016 OpenFOAM Foundation
+    Copyright (C) 2019 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -23,6 +26,9 @@ License
 
 Class
     Foam::adaptiveSolver
+
+Group
+    grpODESolvers
 
 Description
 
@@ -55,7 +61,7 @@ class adaptiveSolver
         //- Cache for dydx at the initial time
         mutable scalarField dydx0_;
 
-        //- Temprorary for the test-step solution
+        //- Temporary for the test-step solution
         mutable scalarField yTemp_;
 
 
@@ -68,8 +74,7 @@ public:
 
 
     //- Destructor
-    virtual ~adaptiveSolver()
-    {}
+    virtual ~adaptiveSolver() = default;
 
 
     // Member Functions

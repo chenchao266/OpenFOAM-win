@@ -1,9 +1,12 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2015-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -28,6 +31,44 @@ Description
     List of function objects with start(), execute() and end() functions
     that is called for each object.
 
+    \verbatim
+    functions   // sub-dictionary name under the system/controlDict file
+    {
+        ..optional entries..
+
+        <userDict1>
+        {
+            // Mandatory entries
+            type    <typeName>;
+            libs    (<libName> .. <libName>);
+            ...
+        }
+
+        <userDict2>
+        {
+            ...
+        }
+
+        ...
+    }
+    \endverbatim
+
+    with optional entries:
+    \table
+        Property | Description                            | Type | Reqd | Deflt
+        libs     | Preloaded library names                | words | no  | -
+        errors   | Error handling (default/warn/ignore/strict) | word | no | inherits
+        useNamePrefix | Default enable/disable scoping prefix | bool | no | no-op
+    \endtable
+
+    The optional \c errors entry controls how FatalError is caught
+    during construction and execute/write. FatalIOError is unaffected.
+    - \c default : warn on construction errors, fatal on runtime errors
+    - \c warn : warn on construction and runtime errors
+    - \c ignore : ignore construction and runtime errors
+    - \c strict : fatal on construction and runtime errors
+    .
+
 See also
     Foam::functionObject
     Foam::functionObjects::timeControl
@@ -40,40 +81,76 @@ SourceFiles
 #ifndef functionObjectList_H
 #define functionObjectList_H
 
-#include "PtrList.T.H"
+#include "PtrList.H"
+#include "Enum.H"
 #include "functionObject.H"
 #include "SHA1Digest.H"
-#include "HashTable.T.H"
-#include "HashSet.T.H"
+#include "HashTable.H"
+#include "IOdictionary.H"
+#include "HashSet.H"
+#include "functionObjectProperties.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 namespace Foam
 {
 
-class mapPolyMesh;
+// Forward Declarations
 class argList;
+class mapPolyMesh;
+class wordRe;
 
 /*---------------------------------------------------------------------------*\
                      Class functionObjectList Declaration
 \*---------------------------------------------------------------------------*/
 
-class functionObjectList :    private PtrList<functionObject>
+class functionObjectList
+:
+    private PtrList<functionObject>
 {
-    // Private data
+    // Data Types
+
+        //- Handling of construction or execution errors
+        enum class errorHandlingType : uint8_t
+        {
+            DEFAULT = 0,  //!< Warn on construct, Fatal on runtime
+            WARN,         //!< Warn on construct, Warn on runtime
+            IGNORE,       //!< Ignore on construct, Ignore on runtime
+            STRICT,       //!< Fatal on construct, Fatal on runtime
+        };
+
+        //- Names for error handling types
+        static const Enum<errorHandlingType> errorHandlingNames_;
+
+
+    // Private Data
+
+        //- A list of error/warning handling
+        List<errorHandlingType> errorHandling_;
 
         //- A list of SHA1 digests for the function object dictionaries
         List<SHA1Digest> digests_;
 
-        //- Quick lookup of the index into functions/digests
+        //- Quick lookup of the index into functions/digests/errorHandling
         HashTable<label> indices_;
 
+        //- Track the number of warnings per function object and limit
+        //  to a predefined number to avoid flooding the display.
+        //  Clear on re-read of functions.
+        HashTable<uint32_t> warnings_;
+
+        //- Reference to Time
         const Time& time_;
 
-        //- The parent dictionary containing a "functions" entry
-        //  This entry can either be a list or a dictionary of
-        //  functionObject specifications
+        //- The parent dictionary containing a "functions" sub-dictionary
+        //- of functionObject specifications
         const dictionary& parentDict_;
+
+        //- Function object properties - stores state information
+        mutable autoPtr<functionObjects::properties> propsDictPtr_;
+
+        //- Function objects output registry
+        mutable autoPtr<objectRegistry> objectsRegistryPtr_;
 
         //- Switch for the execution of the functionObjects
         bool execution_;
@@ -84,28 +161,53 @@ class functionObjectList :    private PtrList<functionObject>
 
     // Private Member Functions
 
+        //- List of functions
+        const PtrList<functionObject>& functions() const { return *this; }
+
+        //- List of functions
+        PtrList<functionObject>& functions() { return *this; }
+
+        //- Create properties dictionary - attached to Time.
+        void createPropertiesDict() const;
+
+        //- Create registry for output objects - attached to Time.
+        void createOutputRegistry() const;
+
         //- Remove and return the function object pointer by name,
-        //  and returns the old index via the parameter.
-        //  Returns a nullptr (and index -1) if it didn't exist
-        functionObject* remove(const word&, label& oldIndex);
+        //- and returns the old index (into digest) via the parameter.
+        //  Returns nullptr (and index -1) if it didn't exist
+        autoPtr<functionObject> remove(const word& key, label& oldIndex);
 
         //- Search the specified directory for functionObject
-        //  configuration files, add to the given map and recurse
-        static void listDir(const fileName& dir, HashSet<word>& foMap);
+        //- configuration files, add to the given map and recurse
+        static void listDir(const fileName& dir, wordHashSet& available);
 
-        //- Disallow default bitwise copy construct
-        functionObjectList(const functionObjectList&);
+        //- Like Enum::getOrDefault, but with additional code to warn if
+        //- the 'key' is not a primitive entry.
+        //
+        //  This additional treatment is to ensure that potentially existing
+        //  code with an "errors" functionObject will continue to run.
+        errorHandlingType getOrDefaultErrorHandling
+        (
+            const word& key,
+            const dictionary& dict,
+            const errorHandlingType deflt
+        ) const;
 
-        //- Disallow default bitwise assignment
-        void operator=(const functionObjectList&);
+
+        //- No copy construct
+        functionObjectList(const functionObjectList&) = delete;
+
+        //- No copy assignment
+        void operator=(const functionObjectList&) = delete;
 
 
 public:
 
     // Static data members
 
-        //- Default relative path to the directory structure
-        //  containing the functionObject dictionary files
+        //- Default relative path ("caseDicts/postProcessing") to the
+        //- directory structure containing functionObject dictionary files.
         static fileName functionObjectDictPath;
 
 
@@ -119,12 +221,11 @@ public:
             const bool execution=true
         );
 
-        //- Construct from Time, a dictionary with "functions" entry
-        //  and the execution setting.
-        //  \param[in]  t - the other Time instance to construct from
+        //- Construct from Time, a dictionary with a "functions" entry
+        //- and the execution setting.
+        //  \param[in]  runTime - the other Time instance to construct from
         //  \param[in]  parentDict - the parent dictionary containing
-        //    a "functions" entry, which can either be a list or a dictionary
-        //    of functionObject specifications.
+        //    a "functions" sub-dictionary of functionObject specifications.
         //  \param[in]  execution - whether the function objects should execute
         //    or not. Default: true.
         functionObjectList
@@ -144,12 +245,12 @@ public:
             const argList& args,
             const Time& runTime,
             dictionary& controlDict,
-            HashSet<word>& requiredFields
+            HashSet<wordRe>& requiredFields
         );
 
 
     //- Destructor
-    ~functionObjectList();
+    ~functionObjectList() = default;
 
 
     // Member Functions
@@ -163,60 +264,72 @@ public:
         //- Access to the functionObjects
         using PtrList<functionObject>::operator[];
 
+        //- Return the current trigger index (read from the propsDict)
+        label triggerIndex() const;
+
+        //- Reset/read properties dictionary for current time
+        void resetPropertiesDict();
+
+        //- Write access to the properties dictionary
+        //- ("functionObjectProperties") registered on Time
+        functionObjects::properties& propsDict();
+
+        //- Const access to the properties dictionary
+        //- ("functionObjectProperties") registered on Time
+        const functionObjects::properties& propsDict() const;
+
+        //- Write access to the output objects ("functionObjectObjects")
+        //- registered on Time
+        objectRegistry& storedObjects();
+
+        //- Const access to the output objects ("functionObjectObjects")
+        //- registered on Time
+        const objectRegistry& storedObjects() const;
+
         //- Clear the list of function objects
         void clear();
 
-        //- Find the ID of a given function object by name
-        label findObjectID(const word& name) const;
+        //- Find the ID of a given function object by name, -1 if not found.
+        label findObjectID(const word& objName) const;
 
-        //- Print a list of functionObject configuration files in
-        //  user/group/shipped directories.
-        //  The search scheme allows for version-specific and
-        //  version-independent files using the following hierarchy:
-        //  - \b user settings:
-        //    - ~/.OpenFOAM/\<VERSION\>/caseDicts/postProcessing
-        //    - ~/.OpenFOAM/caseDicts/postProcessing
-        //  - \b group (site) settings (when $WM_PROJECT_SITE is set):
-        //    - $WM_PROJECT_SITE/\<VERSION\>/caseDicts/postProcessing
-        //    - $WM_PROJECT_SITE/caseDicts/postProcessing
-        //  - \b group (site) settings (when $WM_PROJECT_SITE is not set):
-        //    - $WM_PROJECT_INST_DIR/site/\<VERSION\>/caseDicts/postProcessing
-        //    - $WM_PROJECT_INST_DIR/site/caseDicts/postProcessing
-        //  - \b other (shipped) settings:
-        //    - $WM_PROJECT_DIR/etc/caseDicts/postProcessing
+        //- Print a list of functionObject configuration files in the
+        //- directories located using
+        //- Foam::findEtcDirs("caseDicts/postProcessing")
+        //
+        //  -# \b user settings
+        //    - ~/.OpenFOAM/{PROJECT_API}/"caseDicts/postProcessing"
+        //    - ~/.OpenFOAM/"caseDicts/postProcessing"
+        //  -# \b group settings
+        //    - $WM_PROJECT_SITE/{PROJECT_API}/"etc/caseDicts/postProcessing"
+        //    - $WM_PROJECT_SITE/"etc/caseDicts/postProcessing"
+        //  -# \b other (shipped) settings
+        //    - $WM_PROJECT_DIR/etc/"caseDicts/postProcessing"
+        //
+        // Where {PROJECT_API} is the value of the OPENFOAM define.
+        // See further notes in Foam::findEtcEntries()
         static void list();
 
-        //- Search for functionObject dictionary file in
-        //  user/group/shipped directories.
-        //  The search scheme allows for version-specific and
-        //  version-independent files using the following hierarchy:
-        //  - \b user settings:
-        //    - ~/.OpenFOAM/\<VERSION\>/caseDicts/postProcessing
-        //    - ~/.OpenFOAM/caseDicts/postProcessing
-        //  - \b group (site) settings (when $WM_PROJECT_SITE is set):
-        //    - $WM_PROJECT_SITE/\<VERSION\>/caseDicts/postProcessing
-        //    - $WM_PROJECT_SITE/caseDicts/postProcessing
-        //  - \b group (site) settings (when $WM_PROJECT_SITE is not set):
-        //    - $WM_PROJECT_INST_DIR/site/\<VERSION\>/caseDicts/postProcessing
-        //    - $WM_PROJECT_INST_DIR/site/caseDicts/postProcessing
-        //  - \b other (shipped) settings:
-        //    - $WM_PROJECT_DIR/etc/caseDicts/postProcessing
+        //- Find a functionObject dictionary file in the case
+        //- \<system\> directory or any directory located using
+        //- Foam::findEtcDirs("caseDicts/postProcessing")
         //
-        //  \return The path of the functionObject dictionary file if found
-        //  otherwise null
+        //  \return The path of the functionObject dictionary file found
+        //     or an empty path
         static fileName findDict(const word& funcName);
 
         //- Read the specified functionObject configuration dictionary parsing
-        //  the optional arguments included in the name 'funcNameArgs0',
-        //  inserting 'field' or 'fields' entries as required and merging the
-        //  resulting functionObject dictionary into 'functionsDict'.  Any
-        //  fields required to execute the functionObject are added to
-        //  'requiredFields'
+        //- the optional arguments included in the name 'funcNameArgs0',
+        //- inserting 'field' or 'fields' entries as required and merging the
+        //- resulting functionObject dictionary into 'functionsDict'.  Any
+        //- fields required to execute the functionObject are added to
+        //- 'requiredFields'
+        //
+        //  Uses functionObjectList::findDict() for searching
         static bool readFunctionObject
         (
             const string& funcNameArgs0,
             dictionary& functionsDict,
-            HashSet<word>& requiredFields,
+            HashSet<wordRe>& requiredFields,
             const word& region = word::null
         );
 
@@ -240,11 +353,26 @@ public:
         //  forces execution (used in post-processing mode)
         bool execute();
 
+        //- Execute function objects using the specified subIndex.
+        //  \param subIndex an execution sub-index corresponding to a
+        //      sub-cycle or something similar
+        bool execute(const label subIndex);
+
+        //- Execute a subset of function objects using the specified subIndex.
+        //  \param functionNames names or regex of existing functions to
+        //      execute
+        //  \param subIndex an execution sub-index corresponding to a
+        //      sub-cycle or something similar
+        bool execute(const UList<wordRe>& functionNames, const label subIndex);
+
         //- Called when Time::run() determines that the time-loop exits
         bool end();
 
         //- Called at the end of Time::adjustDeltaT() if adjustTime is true
         bool adjustTimeStep();
+
+        //- Did any file get changed during execution?
+        bool filesModified() const;
 
         //- Update for changes of mesh
         void updateMesh(const mapPolyMesh& mpm);

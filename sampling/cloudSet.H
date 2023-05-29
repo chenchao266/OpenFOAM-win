@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2012 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2012 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -25,6 +27,15 @@ Class
     Foam::cloudSet
 
 Description
+    Samples at arbitrary locations with a volume mesh.
+
+    For a dictionary specification:
+    \table
+        Property | Description                             | Required | Default
+        type     | cloud                                   | yes      |
+        axis     | x, y, z, xyz, distance                  | yes      |
+        points   | The locations                           | yes      |
+    \endtable
 
 SourceFiles
     cloudSet.C
@@ -35,19 +46,19 @@ SourceFiles
 #define cloudSet_H
 
 #include "sampledSet.H"
-#include "DynamicList.T.H"
+#include "DynamicList.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 namespace Foam
 {
 
-// Forward declaration of classes
+// Forward declarations
 class passiveParticle;
 template<class Type> class particle;
 
 /*---------------------------------------------------------------------------*\
-                           Class cloudSet Declaration
+                          Class cloudSet Declaration
 \*---------------------------------------------------------------------------*/
 
 class cloudSet
@@ -57,7 +68,7 @@ class cloudSet
     // Private data
 
         //- Sampling points
-        List<point> sampleCoords_;
+        pointField sampleCoords_;
 
 
     // Private Member Functions
@@ -105,7 +116,7 @@ public:
 
 
     //- Destructor
-    virtual ~cloudSet();
+    virtual ~cloudSet() = default;
 };
 
 

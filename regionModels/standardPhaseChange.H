@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -22,7 +24,7 @@ License
     along with OpenFOAM.  If not, see <http://www.gnu.org/licenses/>.
 
 Class
-    Foam::standardPhaseChange
+    Foam::regionModels::surfaceFilmModels::standardPhaseChange
 
 Description
     Standard phase change model with modification for boiling
@@ -54,17 +56,6 @@ class standardPhaseChange
 :
     public phaseChangeModel
 {
-private:
-
-    // Private member functions
-
-        //- Disallow default bitwise copy construct
-        standardPhaseChange(const standardPhaseChange&);
-
-        //- Disallow default bitwise assignment
-        void operator=(const standardPhaseChange&);
-
-
 protected:
 
     // Protected data
@@ -79,11 +70,30 @@ protected:
         //  Used to set max limit on temperature to Tb*TbFactor
         const scalar TbFactor_;
 
+        //- Switch to treat YInf as zero
+        Switch YInfZero_;
+
 
     // Protected member functions
 
         //- Return Sherwood number as a function of Reynolds and Schmidt numbers
         scalar Sh(const scalar Re, const scalar Sc) const;
+
+        template<class YInfType>
+        void correctModel
+        (
+            const scalar dt,
+            scalarField& availableMass,
+            scalarField& dMass,
+            scalarField& dEnergy,
+            YInfType YInf
+        );
+
+        //- No copy construct
+        standardPhaseChange(const standardPhaseChange&) = delete;
+
+        //- No copy assignment
+        void operator=(const standardPhaseChange&) = delete;
 
 
 public:
@@ -97,13 +107,13 @@ public:
         //- Construct from surface film model
         standardPhaseChange
         (
-            surfaceFilmModel& film,
+            surfaceFilmRegionModel& film,
             const dictionary& dict
         );
 
 
     //- Destructor
-    virtual ~standardPhaseChange();
+    virtual ~standardPhaseChange() = default;
 
 
     // Member Functions

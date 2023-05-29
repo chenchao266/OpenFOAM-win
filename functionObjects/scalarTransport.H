@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2012-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2012-2017 OpenFOAM Foundation
+    Copyright (C) 2016-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -33,8 +36,8 @@ Description
     - To specify the field name set the \c field entry
     - To employ the same numerical schemes as another field set
       the \c schemesField entry,
-    - A constant diffusivity may be specified with the \c D entry,
-
+    - The diffusivity can be set manually using the 'D' entry, retrieved
+      from the turbulence model or specified nut
     - Alternatively if a turbulence model is available a turbulent diffusivity
       may be constructed from the laminar and turbulent viscosities using the
       optional diffusivity coefficients \c alphaD and \c alphaDt (which default
@@ -42,6 +45,95 @@ Description
       \verbatim
           D = alphaD*nu + alphaDt*nut
       \endverbatim
+    - To specify a transport quantity within a phase enter phase.
+    - bounded01 bounds the transported scalar within 0 and 1.
+
+Usage
+    Example of function object specification to solve a scalar transport
+    equation:
+    \verbatim
+    functions
+    {
+        scalar1
+        {
+            type            scalarTransport;
+            libs            (solverFunctionObjects);
+
+            resetOnStartUp  no;
+            region          cabin;
+            field           H2O;
+
+
+            fvOptions
+            {
+                ...
+            }
+        }
+    }
+    \endverbatim
+
+    Example of function object specification to solve a residence time
+    in a two phase flow:
+    equation:
+    \verbatim
+    functions
+    {
+        sTransport
+        {
+            type            scalarTransport;
+            libs            (solverFunctionObjects);
+
+            enabled         true;
+            writeControl    outputTime;
+            writeInterval   1;
+
+            field           s;
+            bounded01       false;
+            phase           alpha.water;
+
+            write           true;
+
+            fvOptions
+            {
+                unitySource
+                {
+                    type            scalarSemiImplicitSource;
+                    enabled         true;
+
+                    scalarSemiImplicitSourceCoeffs
+                    {
+                        selectionMode   all;
+                        volumeMode      specific;
+                        injectionRateSuSp
+                        {
+                            s           (1 0);
+                        }
+                    }
+                }
+            }
+
+            resetOnStartUp  false;
+        }
+    }
+    \endverbatim
+
+    Where the entries comprise:
+    \table
+        Property     | Description             | Required    | Default value
+        type         | Type name: scalarTransport | yes      |
+        field        | Name of the scalar field | no         | s
+        phi          | Name of flux field      | no          | phi
+        rho          | Name of density field   | no          | rho
+        phase        | Name of the phase       | no          | none
+        nut          | Name of the turbulence viscosity | no | none
+        D            | Diffusion coefficient   | no          | auto generated
+        nCorr        | Number of correctors    | no          | 0
+        resetOnStartUp | Reset scalar to zero on start-up | no | no
+        schemesField | Name of field to specify schemes | no | field name
+        fvOptions    | List of scalar sources  | no          |
+        bounded01    | Bounds scalar between 0-1 for multiphase | no | true
+        phasePhiCompressed | Compressed flux for VOF | no | alphaPhiUn
+    \endtable
 
 See also
     Foam::functionObjects::fvMeshFunctionObject
@@ -75,7 +167,7 @@ class scalarTransport
 {
     // Private data
 
-        //- Name of field to process
+        //- Name of the transport field.
         word fieldName_;
 
         //- Name of flux field (optional)
@@ -83,6 +175,15 @@ class scalarTransport
 
         //- Name of density field (optional)
         word rhoName_;
+
+        //- Name of turbulent viscosity field (optional)
+        word nutName_;
+
+        //- Name of phase field (optional)
+        word phaseName_;
+
+        //- Name of phase field compressed flux (optional)
+        word phasePhiCompressedName_;
 
         //- Diffusion coefficient (optional)
         scalar D_;
@@ -99,26 +200,36 @@ class scalarTransport
         //- Number of corrector iterations (optional)
         label nCorr_;
 
+        //- Flag to reset the scalar to zero on start-up
+        bool resetOnStartUp_;
+
         //- Name of field whose schemes are used (optional)
         word schemesField_;
 
         //- Run-time selectable finite volume options, e.g. sources, constraints
         fv::optionList fvOptions_;
 
-        //- The scalar field
-        volScalarField s_;
+        //- Bound scalar between 0-1 using MULES for multiphase case
+        bool bounded01_;
 
 
     // Private Member Functions
 
+        //- Return reference to registered transported field
+        volScalarField& transportedField();
+
         //- Return the diffusivity field
-        tmp<volScalarField> D(const surfaceScalarField& phi) const;
+        tmp<volScalarField> D
+        (
+            const volScalarField& s,
+            const surfaceScalarField& phi
+        ) const;
 
-        //- Disallow default bitwise copy construct
-        scalarTransport(const scalarTransport&);
+        //- No copy construct
+        scalarTransport(const scalarTransport&) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const scalarTransport&);
+        //- No copy assignment
+        void operator=(const scalarTransport&) = delete;
 
 
 public:

@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2013 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2013 OpenFOAM Foundation
+    Copyright (C) 2019 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -27,7 +30,7 @@ License
 #include "addToRunTimeSelectionTable.H"
 #include "fvPatchFieldMapper.H"
 #include "volMesh.H"
-#include "Time.T.H"
+#include "Time1.H"
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
@@ -38,7 +41,7 @@ timeVaryingAlphaContactAngleFvPatchScalarField
     const DimensionedField<scalar, volMesh>& iF
 )
 :
-    alphaContactAngleFvPatchScalarField(p, iF),
+    alphaContactAngleTwoPhaseFvPatchScalarField(p, iF),
     t0_(0.0),
     thetaT0_(0.0),
     te_(0.0),
@@ -55,7 +58,7 @@ timeVaryingAlphaContactAngleFvPatchScalarField
     const fvPatchFieldMapper& mapper
 )
 :
-    alphaContactAngleFvPatchScalarField(gcpsf, p, iF, mapper),
+    alphaContactAngleTwoPhaseFvPatchScalarField(gcpsf, p, iF, mapper),
     t0_(gcpsf.t0_),
     thetaT0_(gcpsf.thetaT0_),
     te_(gcpsf.te_),
@@ -71,11 +74,11 @@ timeVaryingAlphaContactAngleFvPatchScalarField
     const dictionary& dict
 )
 :
-    alphaContactAngleFvPatchScalarField(p, iF, dict),
-    t0_(readScalar(dict.lookup("t0"))),
-    thetaT0_(readScalar(dict.lookup("thetaT0"))),
-    te_(readScalar(dict.lookup("te"))),
-    thetaTe_(readScalar(dict.lookup("thetaTe")))
+    alphaContactAngleTwoPhaseFvPatchScalarField(p, iF, dict),
+    t0_(dict.get<scalar>("t0")),
+    thetaT0_(dict.get<scalar>("thetaT0")),
+    te_(dict.get<scalar>("te")),
+    thetaTe_(dict.get<scalar>("thetaTe"))
 {
     evaluate();
 }
@@ -88,7 +91,7 @@ timeVaryingAlphaContactAngleFvPatchScalarField
     const DimensionedField<scalar, volMesh>& iF
 )
 :
-    alphaContactAngleFvPatchScalarField(gcpsf, iF),
+    alphaContactAngleTwoPhaseFvPatchScalarField(gcpsf, iF),
     t0_(gcpsf.t0_),
     thetaT0_(gcpsf.thetaT0_),
     te_(gcpsf.te_),
@@ -121,7 +124,7 @@ Foam::timeVaryingAlphaContactAngleFvPatchScalarField::theta
         theta0 = thetaT0_ + (t - t0_)*(thetaTe_ - thetaT0_)/(te_ - t0_);
     }
 
-    return tmp<scalarField>(new scalarField(size(), theta0));
+    return tmp<scalarField>::New(size(), theta0);
 }
 
 
@@ -130,11 +133,11 @@ void Foam::timeVaryingAlphaContactAngleFvPatchScalarField::write
     Ostream& os
 ) const
 {
-    alphaContactAngleFvPatchScalarField::write(os);
-    os.writeKeyword("t0") << t0_ << token::END_STATEMENT << nl;
-    os.writeKeyword("thetaT0") << thetaT0_ << token::END_STATEMENT << nl;
-    os.writeKeyword("te") << te_ << token::END_STATEMENT << nl;
-    os.writeKeyword("thetaTe") << thetaTe_ << token::END_STATEMENT << nl;
+    alphaContactAngleTwoPhaseFvPatchScalarField::write(os);
+    os.writeEntry("t0", t0_);
+    os.writeEntry("thetaT0", thetaT0_);
+    os.writeEntry("te", te_);
+    os.writeEntry("thetaTe", thetaTe_);
     writeEntry("value", os);
 }
 

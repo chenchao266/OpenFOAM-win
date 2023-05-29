@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -62,11 +64,14 @@ class multivariateSelectionScheme
 
     // Private Member Functions
 
-        //- Disallow default bitwise copy construct
-        multivariateSelectionScheme(const multivariateSelectionScheme&);
+        //- No copy construct
+        multivariateSelectionScheme
+        (
+            const multivariateSelectionScheme&
+        ) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const multivariateSelectionScheme&);
+        //- No copy assignment
+        void operator=(const multivariateSelectionScheme&) = delete;
 
 
 public:

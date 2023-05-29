@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2014 OpenFOAM Foundation
+    Copyright (C) 2016 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -35,16 +38,15 @@ SourceFiles
 #ifndef processorMeshes_H
 #define processorMeshes_H
 
-#include "PtrList.T.H"
+#include "PtrList.H"
 #include "fvMesh.H"
-#include "IOobjectList.T.H"
+#include "IOobjectList.H"
 #include "labelIOList.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 namespace Foam
 {
-
 
 /*---------------------------------------------------------------------------*\
                      Class processorMeshes Declaration
@@ -80,14 +82,18 @@ class processorMeshes
         //- Read all meshes
         void read();
 
-        //- Disallow default bitwise copy construct
-        processorMeshes(const processorMeshes&);
+        //- No copy construct
+        processorMeshes(const processorMeshes&) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const processorMeshes&);
+        //- No copy assignment
+        void operator=(const processorMeshes&) = delete;
 
 
 public:
+
+    //- Runtime type information
+    ClassName("processorMeshes");
+
 
     // Constructors
 
@@ -102,6 +108,11 @@ public:
 
         //- Reconstruct point position after motion in parallel
         void reconstructPoints(fvMesh&);
+
+        const PtrList<fvMesh>& meshes() const
+        {
+            return meshes_;
+        }
 
         PtrList<fvMesh>& meshes()
         {
@@ -128,7 +139,8 @@ public:
             return boundaryProcAddressing_;
         }
 
-
+        //- Helper: remove all procAddressing files from mesh instance
+        static void removeFiles(const polyMesh& mesh);
 };
 
 

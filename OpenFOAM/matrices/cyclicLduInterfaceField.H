@@ -1,9 +1,12 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2012 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2012 OpenFOAM Foundation
+    Copyright (C) 2019 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -58,13 +61,12 @@ public:
 
     // Constructors
 
-        //- Construct given coupled patch
-        cyclicLduInterfaceField()
-        {}
+        //- Construct null
+        cyclicLduInterfaceField() = default;
 
 
     //- Destructor
-    virtual ~cyclicLduInterfaceField();
+    virtual ~cyclicLduInterfaceField() = default;
 
 
     // Member Functions
@@ -91,7 +93,7 @@ public:
         //- Transform given patch component field
         void transformCoupleField
         (
-            scalarField& f,
+            solveScalarField& f,
             const direction cmpt
         ) const;
 };
@@ -105,8 +107,10 @@ public:
 
 #include "tensorField.H"
 
+
+ namespace Foam{
 template<class Type>
-void Foam::cyclicLduInterfaceField::transformCoupleField
+void cyclicLduInterfaceField::transformCoupleField
 (
     Field<Type>& f
 ) const
@@ -130,3 +134,5 @@ void Foam::cyclicLduInterfaceField::transformCoupleField
 #endif
 
 // ************************************************************************* //
+
+ } // End namespace Foam

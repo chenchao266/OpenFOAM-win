@@ -1,9 +1,11 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -46,7 +48,9 @@ namespace Foam
                            Class tolerances Declaration
 \*---------------------------------------------------------------------------*/
 
-class tolerances :    public IOdictionary
+class tolerances
+:
+    public IOdictionary
 {
     // Private data
 
@@ -57,9 +61,11 @@ class tolerances :    public IOdictionary
 
     // Private Member Functions
 
-        //- Disallow default bitwise copy construct and assignment
-        tolerances(const tolerances&);
-        void operator=(const tolerances&);
+        //- No copy construct
+        tolerances(const tolerances&) = delete;
+
+        //- No copy assignment
+        void operator=(const tolerances&) = delete;
 
 
 public:

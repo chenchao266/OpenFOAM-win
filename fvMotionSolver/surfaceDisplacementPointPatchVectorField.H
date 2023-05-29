@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2015 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2015 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -60,6 +62,7 @@ SourceFiles
 #include "pointPatchFields.H"
 #include "fixedValuePointPatchFields.H"
 #include "searchableSurfaces.H"
+#include "Enum.H"
 #include "Switch.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
@@ -92,7 +95,7 @@ private:
     // Private data
 
         //- Project mode names
-        static const NamedEnum<projectMode, 3> projectModeNames_;
+        static const Enum<projectMode> projectModeNames_;
 
         //- Maximum velocity
         const vector velocity_;
@@ -109,7 +112,7 @@ private:
         //- Plane for 2D wedge case or -1.
         const label wedgePlane_;
 
-        //- pointZone with frozen points
+        //- Name of pointZone with frozen points
         const word frozenPointsZone_;
 
         //- Demand driven: surface to project
@@ -121,9 +124,12 @@ private:
         //- Calculate displacement (w.r.t. points0()) to project onto surface
         void calcProjection(vectorField& displacement) const;
 
+        //- No copy assignment
+        void operator=
+        (
+            const surfaceDisplacementPointPatchVectorField&
+        ) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const surfaceDisplacementPointPatchVectorField&);
 
 public:
 

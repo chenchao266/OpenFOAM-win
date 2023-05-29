@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2012-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2012-2016 OpenFOAM Foundation
+    Copyright (C) 2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -51,7 +54,7 @@ Foam::variableHeightFlowRateInletVelocityFvPatchVectorField
 )
 :
     fixedValueFvPatchField<vector>(p, iF, dict),
-    flowRate_(Function1<scalar>::New("flowRate", dict)),
+    flowRate_(Function1<scalar>::New("flowRate", dict, &db())),
     alphaName_(dict.lookup("alpha"))
 {}
 
@@ -66,7 +69,7 @@ Foam::variableHeightFlowRateInletVelocityFvPatchVectorField
 )
 :
     fixedValueFvPatchField<vector>(ptf, p, iF, mapper),
-    flowRate_(ptf.flowRate_, false),
+    flowRate_(ptf.flowRate_.clone()),
     alphaName_(ptf.alphaName_)
 {}
 
@@ -78,7 +81,7 @@ Foam::variableHeightFlowRateInletVelocityFvPatchVectorField
 )
 :
     fixedValueFvPatchField<vector>(ptf),
-    flowRate_(ptf.flowRate_, false),
+    flowRate_(ptf.flowRate_.clone()),
     alphaName_(ptf.alphaName_)
 {}
 
@@ -91,7 +94,7 @@ Foam::variableHeightFlowRateInletVelocityFvPatchVectorField
 )
 :
     fixedValueFvPatchField<vector>(ptf, iF),
-    flowRate_(ptf.flowRate_, false),
+    flowRate_(ptf.flowRate_.clone()),
     alphaName_(ptf.alphaName_)
 {}
 
@@ -133,7 +136,7 @@ void Foam::variableHeightFlowRateInletVelocityFvPatchVectorField::write
 {
     fvPatchField<vector>::write(os);
     flowRate_->writeData(os);
-    os.writeKeyword("alpha") << alphaName_ << token::END_STATEMENT << nl;
+    os.writeEntry("alpha", alphaName_);
     writeEntry("value", os);
 }
 

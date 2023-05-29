@@ -2,9 +2,14 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
 -------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2019-2020 OpenCFD Ltd.
+    Copyright (C) 2020 PCOpt/NTUA
+    Copyright (C) 2020 FOSS GP
+------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
 
@@ -25,15 +30,37 @@ Class
     Foam::fv::option
 
 Description
-    Finite volume options abstract base class.  Provides a base set of
-    controls, e.g.:
+    Base abstract class for handling finite volume options (i.e. \c fvOption).
+
+Usage
+    Minimal example by using \c constant/fvOptions:
     \verbatim
-        type            scalarExplicitSource    // source type
-        active          on;                     // on/off switch
+    <userDefinedName1>
+    {
+        // Mandatory entries (unmodifiable)
+        type              <fvOptionName>;
+
+        // Optional entries (unmodifiable/runtime modifiable)
+        <fvOption>Coeffs
+        {
+            // subdictionary entries
+        }
+
+        // Optional entries (runtime modifiable)
+        active            true;
+        log               true;
+    }
     \endverbatim
 
-Note
-    On evaluation, source/sink options are to be added to the equation R.H.S.
+    where the entries mean:
+    \table
+      Property         | Description                   | Type  | Reqd | Dflt
+      type             | Name of operand fvOption      | word  | yes  | -
+      \<fvOption\>Coeffs | Dictionary containing settings of <!--
+                    --> the selected fvOption settings | dictionary | no | -
+      active   | Flag to (de)activate fvOption         | bool  | no   | true
+      log      | Flag to log fvOption-related info     | bool  | no   | true
+    \endtable
 
 SourceFiles
     fvOption.C
@@ -45,8 +72,9 @@ SourceFiles
 #define fvOption_H
 
 #include "fvMatricesFwd.H"
+#include "primitiveFieldsFwd.H"
 #include "volFieldsFwd.H"
-#include "dictionary.H"
+#include "dictionary2.H"
 #include "Switch.H"
 #include "runTimeSelectionTables.H"
 
@@ -68,7 +96,7 @@ class option
 {
 protected:
 
-    // Protected data
+    // Protected Data
 
         //- Source name
         const word name_;
@@ -85,23 +113,33 @@ protected:
         //- Dictionary containing source coefficients
         dictionary coeffs_;
 
-        //- Source active flag
-        Switch active_;
-
         //- Field names to apply source to - populated by derived models
         wordList fieldNames_;
 
         //- Applied flag list - corresponds to each fieldNames_ entry
         List<bool> applied_;
 
+        //- Source active flag
+        bool active_;
+
+
+    // Protected Member Functions
+
+        //- Resize/reset applied flag list for all fieldNames_ entries
+        void resetApplied();
+
 
 public:
+
+    //- Switch write log to Info
+    bool log;
+
 
     //- Runtime type information
     TypeName("option");
 
 
-     // Declare run-time constructor selection table
+    // Declare run-time constructor selection table
 
         declareRunTimeSelectionTable
         (
@@ -133,7 +171,7 @@ public:
         autoPtr<option> clone() const
         {
             NotImplemented;
-            return autoPtr<option>(nullptr);
+            return nullptr;
         }
 
         //- Return pointer to new fvOption object created
@@ -159,7 +197,6 @@ public:
 
             autoPtr<option> operator()(Istream& is) const
             {
-                //const word name(is);
                 const dictionary dict(is);
 
                 return autoPtr<option>
@@ -182,7 +219,7 @@ public:
 
 
     //- Destructor
-    virtual ~option();
+    virtual ~option() = default;
 
 
     // Member Functions
@@ -190,16 +227,16 @@ public:
         // Access
 
             //- Return const access to the source name
-            inline const word& name() const;
+            inline const word& name() const noexcept;
 
             //- Return const access to the mesh database
-            inline const fvMesh& mesh() const;
+            inline const fvMesh& mesh() const noexcept;
 
             //- Return dictionary
-            inline const dictionary& coeffs() const;
+            inline const dictionary& coeffs() const noexcept;
 
-            //- Return const access to the source active flag
-            inline bool active() const;
+            //- True if source is active
+            inline bool active() const noexcept;
 
             //- Set the applied flag to true for field index fieldi
             inline void setApplied(const label fieldi);
@@ -207,8 +244,8 @@ public:
 
         // Edit
 
-            //- Return access to the source active flag
-            inline Switch& active();
+            //- Change source active flag, return previous value
+            inline bool active(const bool on) noexcept;
 
 
         // Checks
@@ -379,6 +416,28 @@ public:
                 virtual void correct(volSphericalTensorField& field);
                 virtual void correct(volSymmTensorField& field);
                 virtual void correct(volTensorField& field);
+
+
+            // Post process sensitivity field related to the fvOption
+
+                virtual void postProcessSens
+                (
+                    scalarField& sensField,
+                    const word& fieldName = word::null,
+                    const word& designVariablesName = word::null
+                );
+                virtual void postProcessSens
+                (
+                    vectorField& sensField,
+                    const word& fieldName = word::null,
+                    const word& designVariablesName = word::null
+                );
+                virtual void postProcessSens
+                (
+                    tensorField& sensField,
+                    const word& fieldName = word::null,
+                    const word& designVariablesName = word::null
+                );
 
 
         // IO

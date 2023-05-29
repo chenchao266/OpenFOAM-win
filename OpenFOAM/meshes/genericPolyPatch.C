@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2012 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2012 OpenFOAM Foundation
+    Copyright (C) 2016 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -27,107 +30,128 @@ License
 #include "addToRunTimeSelectionTable.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
-using namespace Foam;
+
 namespace Foam
 {
     defineTypeNameAndDebug(genericPolyPatch, 0);
 
     addToRunTimeSelectionTable(polyPatch, genericPolyPatch, word);
     addToRunTimeSelectionTable(polyPatch, genericPolyPatch, dictionary);
-}
 
 
-// * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * * * * * //
 
-genericPolyPatch::genericPolyPatch
-(
-    const word& name,
-    const label size,
-    const label start,
-    const label index,
-    const polyBoundaryMesh& bm,
-    const word& patchType
-) :    polyPatch(name, size, start, index, bm, patchType)
-{}
+    // * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * * * * * //
 
-
-genericPolyPatch::genericPolyPatch
-(
-    const word& name,
-    const dictionary& dict,
-    const label index,
-    const polyBoundaryMesh& bm,
-    const word& patchType
-) :    polyPatch(name, dict, index, bm, patchType),
-    actualTypeName_(dict.lookup("type")),
-    dict_(dict)
-{}
+    genericPolyPatch::genericPolyPatch
+    (
+        const word& name,
+        const label size,
+        const label start,
+        const label index,
+        const polyBoundaryMesh& bm,
+        const word& patchType
+    )
+        :
+        polyPatch(name, size, start, index, bm, patchType)
+    {}
 
 
-genericPolyPatch::genericPolyPatch
-(
-    const genericPolyPatch& pp,
-    const polyBoundaryMesh& bm
-) :    polyPatch(pp, bm),
-    actualTypeName_(pp.actualTypeName_),
-    dict_(pp.dict_)
-{}
+    genericPolyPatch::genericPolyPatch
+    (
+        const word& name,
+        const dictionary& dict,
+        const label index,
+        const polyBoundaryMesh& bm,
+        const word& patchType
+    )
+        :
+        polyPatch(name, dict, index, bm, patchType),
+        actualTypeName_(dict.get<word>("type")),
+        dict_(dict)
+    {}
 
 
-genericPolyPatch::genericPolyPatch
-(
-    const genericPolyPatch& pp,
-    const polyBoundaryMesh& bm,
-    const label index,
-    const label newSize,
-    const label newStart
-) :    polyPatch(pp, bm, index, newSize, newStart),
-    actualTypeName_(pp.actualTypeName_),
-    dict_(pp.dict_)
-{}
+    genericPolyPatch::genericPolyPatch
+    (
+        const genericPolyPatch& pp,
+        const polyBoundaryMesh& bm
+    )
+        :
+        polyPatch(pp, bm),
+        actualTypeName_(pp.actualTypeName_),
+        dict_(pp.dict_)
+    {}
 
 
-genericPolyPatch::genericPolyPatch
-(
-    const genericPolyPatch& pp,
-    const polyBoundaryMesh& bm,
-    const label index,
-    const labelUList& mapAddressing,
-    const label newStart
-) :    polyPatch(pp, bm, index, mapAddressing, newStart),
-    actualTypeName_(pp.actualTypeName_),
-    dict_(pp.dict_)
-{}
+    genericPolyPatch::genericPolyPatch
+    (
+        const genericPolyPatch& pp,
+        const polyBoundaryMesh& bm,
+        const label index,
+        const label newSize,
+        const label newStart
+    )
+        :
+        polyPatch(pp, bm, index, newSize, newStart),
+        actualTypeName_(pp.actualTypeName_),
+        dict_(pp.dict_)
+    {}
 
 
-// * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
+    genericPolyPatch::genericPolyPatch
+    (
+        const genericPolyPatch& pp,
+        const polyBoundaryMesh& bm,
+        const label index,
+        const labelUList& mapAddressing,
+        const label newStart
+    )
+        :
+        polyPatch(pp, bm, index, mapAddressing, newStart),
+        actualTypeName_(pp.actualTypeName_),
+        dict_(pp.dict_)
+    {}
 
-genericPolyPatch::~genericPolyPatch()
-{}
+
+    // * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
+
+    genericPolyPatch::~genericPolyPatch()
+    {}
 
 
-// * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
+    // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
 
-void genericPolyPatch::write(Ostream& os) const
-{
-    os.writeKeyword("type") << actualTypeName_ << token::END_STATEMENT << nl;
-    patchIdentifier::write(os);
-    os.writeKeyword("nFaces") << size() << token::END_STATEMENT << nl;
-    os.writeKeyword("startFace") << start() << token::END_STATEMENT << nl;
-
-    forAllConstIter(dictionary, dict_, iter)
+    const word& genericPolyPatch::actualType() const
     {
-        if
-        (
-            iter().keyword() != "type"
-         && iter().keyword() != "nFaces"
-         && iter().keyword() != "startFace"
-        )
+        return actualTypeName_;
+    }
+
+
+    void genericPolyPatch::write(Ostream& os) const
+    {
+        os.writeEntry("type", actualTypeName_);
+        patchIdentifier::write(os);
+        os.writeEntry("nFaces", size());
+        os.writeEntry("startFace", start());
+
+        for (const entry& e : dict_)
         {
-            iter().write(os);
+            const word& key = e.keyword();
+
+            // Filter out any keywords already written by above
+            if
+                (
+                    key != "type"
+                    && key != "nFaces"
+                    && key != "startFace"
+                    && key != "physicalType"
+                    && key != "inGroups"
+                    )
+            {
+                e.write(os);
+            }
         }
     }
+
 }
-
-
 // ************************************************************************* //

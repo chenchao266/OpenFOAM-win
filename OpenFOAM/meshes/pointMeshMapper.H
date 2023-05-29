@@ -1,9 +1,11 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -68,11 +70,11 @@ class pointMeshMapper
 
     // Private Member Functions
 
-        //- Disallow default bitwise copy construct
-        pointMeshMapper(const pointMeshMapper&);
+        //- No copy construct
+        pointMeshMapper(const pointMeshMapper&) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const pointMeshMapper&);
+        //- No copy assignment
+        void operator=(const pointMeshMapper&) = delete;
 
 
 public:

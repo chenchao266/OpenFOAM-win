@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -36,13 +39,12 @@ SourceFiles
 #ifndef cellDistFuncs_H
 #define cellDistFuncs_H
 
+#include "HashSet.H"
+#include "Map.H"
+#include "wordRe.H"
 #include "scalarField.H"
-#include "HashSet.T.H"
-#include "Map.T.H"
-#include "wordReList.H"
-#include "scalarField.H"
-#include "point.T.H"
-#include "primitivePatch.H"
+#include "point.H"
+#include "primitivePatch2.H"
 #include "className.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
@@ -69,16 +71,11 @@ class cellDistFuncs
 
     // Private Member Functions
 
-        //- Search for element in first n elements of labelList. Return index
-        //  or -1.
-        static label findIndex(const label n, const labelList&, const label);
+        //- No copy construct
+        cellDistFuncs(const cellDistFuncs&) = delete;
 
-
-        //- Disallow default bitwise copy construct
-        cellDistFuncs(const cellDistFuncs&);
-
-        //- Disallow default bitwise assignment
-        void operator=(const cellDistFuncs&);
+        //- No copy assignment
+        void operator=(const cellDistFuncs&) = delete;
 
 public:
 
@@ -99,7 +96,7 @@ public:
         }
 
         //- Return the set of patch IDs corresponding to the given names
-        labelHashSet getPatchIDs(const wordReList& patchNames) const;
+        labelHashSet getPatchIDs(const UList<wordRe>& patchNames) const;
 
         //- Get patchIDs of/derived off certain type (e.g. 'processorPolyPatch')
         //  Uses isA, not isType
@@ -114,17 +111,16 @@ public:
         (
             const point& p,
             const polyPatch& patch,
-            const label nWallFaces,
-            const labelList& wallFaces,
+            const labelUList& wallFaces,
             label& meshFacei
         ) const;
 
         //- Get faces sharing point with face on patch
-        label getPointNeighbours
+        void getPointNeighbours
         (
             const primitivePatch&,
             const label patchFacei,
-            labelList&
+            DynamicList<label>&
         ) const;
 
         //- Size of largest patch (out of supplied subset of patches)
@@ -142,7 +138,6 @@ public:
             scalarField& wallDistCorrected,
             Map<label>& nearestFace
         ) const;
-
 
         //- Correct all cells connected to wall (via point). Sets values in
         //  wallDistCorrected. Uses/sets nearest wallFace in nearestFace.

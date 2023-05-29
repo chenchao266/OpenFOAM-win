@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -28,8 +31,9 @@ License
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
-#include "NoSurfaceFilm.T.H"
-#include "ThermoSurfaceFilm.T.H"
+#include "NoSurfaceFilm.H"
+#include "ThermoSurfaceFilm.H"
+#include "KinematicSurfaceFilm.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -38,7 +42,8 @@ License
     makeSurfaceFilmModel(CloudType);                                           \
                                                                                \
     makeSurfaceFilmModelType(NoSurfaceFilm, CloudType);                        \
-    makeSurfaceFilmModelType(ThermoSurfaceFilm, CloudType);
+    makeSurfaceFilmModelType(ThermoSurfaceFilm, CloudType);                    \
+    makeSurfaceFilmModelType(KinematicSurfaceFilm, CloudType);
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 

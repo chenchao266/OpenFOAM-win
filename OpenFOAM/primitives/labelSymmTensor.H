@@ -1,9 +1,12 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011 OpenFOAM Foundation
+    Copyright (C) 2019-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -25,7 +28,10 @@ Typedef
     Foam::labelSymmTensor
 
 Description
-    SymmTensor of labels.
+    SymmTensor of labels, i.e. SymmTensor<label>.
+
+See also
+    Test-SymmTensor.C
 
 SourceFiles
     labelSymmTensor.C
@@ -35,8 +41,7 @@ SourceFiles
 #ifndef labelSymmTensor_H
 #define labelSymmTensor_H
 
-#include "SymmTensor.T.H"
-#include "contiguous.H"
+#include "SymmTensor.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -46,11 +51,6 @@ namespace Foam
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 typedef SymmTensor<label> labelSymmTensor;
-
-//- Data associated with labelSymmTensor type are contiguous
-template<>
-inline bool contiguous<labelSymmTensor>() {return true;}
-
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 

@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -23,62 +25,66 @@ License
 
 \*---------------------------------------------------------------------------*/
 
-#include "compactSpatialTensor.H"
-#include "CompactSpatialTensorT.T.H"
+#include "compactSpatialTensor2.H"
+#include "CompactSpatialTensorT.H"
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
-namespace Foam {
-    template<>
-    const char* const compactSpatialTensor::vsType::typeName =
-        "compactSpatialTensor";
 
-    template<>
-    const char* const compactSpatialTensor::vsType::componentNames[] =
-    {
-        "Exx",  "Exy",  "Exz",
-        "Eyx",  "Eyy",  "Eyz",
-        "Ezx",  "Ezy",  "Ezz",
 
-        "Erxx", "Erxy", "Erxz",
-        "Eryx", "Eryy", "Eryz",
-        "Erzx", "Erzy", "Erzz",
-    };
+ namespace Foam{
+template<>
+const char* const compactSpatialTensor::vsType::typeName =
+    "compactSpatialTensor";
 
-    template<>
-    const compactSpatialTensor compactSpatialTensor::vsType::_zero
-    (
-        compactSpatialTensor::uniform(0)
-    );
+template<>
+const char* const compactSpatialTensor::vsType::componentNames[] =
+{
+    "Exx",  "Exy",  "Exz",
+    "Eyx",  "Eyy",  "Eyz",
+    "Ezx",  "Ezy",  "Ezz",
 
-    template<>
-    const compactSpatialTensor compactSpatialTensor::vsType::one
-    (
-        compactSpatialTensor::uniform(1)
-    );
+    "Erxx", "Erxy", "Erxz",
+    "Eryx", "Eryy", "Eryz",
+    "Erzx", "Erzy", "Erzz",
+};
 
-    template<>
-    const compactSpatialTensor compactSpatialTensor::vsType::max
-    (
-        compactSpatialTensor::uniform(VGREAT)
-    );
+template<>
+const compactSpatialTensor compactSpatialTensor::vsType::zero_
+(
+    compactSpatialTensor::uniform(0)
+);
 
-    template<>
-    const compactSpatialTensor compactSpatialTensor::vsType::min
-    (
-        compactSpatialTensor::uniform(-VGREAT)
-    );
+template<>
+const compactSpatialTensor compactSpatialTensor::vsType::one_
+(
+    compactSpatialTensor::uniform(1)
+);
 
-    template<>
-    const compactSpatialTensor compactSpatialTensor::vsType::rootMax
-    (
-        compactSpatialTensor::uniform(ROOTVGREAT)
-    );
+template<>
+const compactSpatialTensor compactSpatialTensor::vsType::max_
+(
+    compactSpatialTensor::uniform(VGREAT)
+);
 
-    template<>
-    const compactSpatialTensor compactSpatialTensor::vsType::rootMin
-    (
-        compactSpatialTensor::uniform(-ROOTVGREAT)
-    );
+template<>
+const compactSpatialTensor compactSpatialTensor::vsType::min_
+(
+    compactSpatialTensor::uniform(-VGREAT)
+);
 
-}
+template<>
+const compactSpatialTensor compactSpatialTensor::vsType::rootMax_
+(
+    compactSpatialTensor::uniform(ROOTVGREAT)
+);
+
+template<>
+const compactSpatialTensor compactSpatialTensor::vsType::rootMin_
+(
+    compactSpatialTensor::uniform(-ROOTVGREAT)
+);
+
+
 // ************************************************************************* //
+
+ } // End namespace Foam

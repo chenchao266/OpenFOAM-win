@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2017 OpenFOAM Foundation
+    Copyright (C) 2020-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -26,67 +29,68 @@ License
 #include "masterOFstream.H"
 #include "OFstream.H"
 #include "OSspecific.H"
-#include "PstreamBuffers.T.H"
+#include "PstreamBuffers.H"
 #include "masterUncollatedFileOperation.H"
 #include "boolList.H"
+#include <algorithm>
 
 // * * * * * * * * * * * * * Private Member Functions  * * * * * * * * * * * //
-using namespace Foam;
+
+
+ namespace Foam{
 void masterOFstream::checkWrite
 (
     const fileName& fName,
-    const string& str
+    const char* str,
+    std::streamsize len
 )
 {
+    if (!len)
+    {
+        // Can probably skip all of this if there is nothing to write
+        return;
+    }
+
     mkDir(fName.path());
 
     OFstream os
     (
         fName,
-        IOstream::BINARY,
-        version(),
-        compression_,
+        IOstreamOption(IOstreamOption::BINARY, version(), compression_),
         append_
     );
-
     if (!os.good())
     {
         FatalIOErrorInFunction(os)
-            << "Could not open file " << fName
+            << "Could not open file " << fName << nl
             << exit(FatalIOError);
     }
 
-    os.writeQuoted(str, false);
+    // Use writeRaw() instead of writeQuoted(string,false) to output
+    // characters directly.
+
+    os.writeRaw(str, len);
+
     if (!os.good())
     {
         FatalIOErrorInFunction(os)
-            << "Failed writing to " << fName
+            << "Failed writing to " << fName << nl
             << exit(FatalIOError);
     }
 }
 
 
-// * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
-
-masterOFstream::masterOFstream
+void masterOFstream::checkWrite
 (
-    const fileName& pathName,
-    streamFormat format,
-    versionNumber version,
-    compressionType compression,
-    const bool append,
-    const bool valid
-) :    OStringStream(format, version),
-    pathName_(pathName),
-    compression_(compression),
-    append_(append),
-    valid_(valid)
-{}
+    const fileName& fName,
+    const std::string& s
+)
+{
+    checkWrite(fName, &s[0], s.length());
+}
 
 
-// * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
-
-masterOFstream::~masterOFstream()
+void masterOFstream::commit()
 {
     if (Pstream::parRun())
     {
@@ -106,10 +110,13 @@ masterOFstream::~masterOFstream()
         {
             if (Pstream::master() && valid_)
             {
-                checkWrite(pathName_, str());
+                checkWrite(pathName_, this->str());
             }
+
+            this->reset();
             return;
         }
+
         boolList valid(Pstream::nProcs());
         valid[Pstream::myProcNo()] = valid_;
         Pstream::gatherList(valid);
@@ -123,7 +130,9 @@ masterOFstream::~masterOFstream()
         {
             UOPstream os(Pstream::masterNo(), pBufs);
             string s(this->str());
-            os.write(&s[0], s.size());
+            this->reset();
+
+            os.write(&s[0], s.length());
         }
 
         labelList recvSizes;
@@ -131,37 +140,71 @@ masterOFstream::~masterOFstream()
 
         if (Pstream::master())
         {
-            // Write my own data
+            // Write master data
+            if (valid[Pstream::masterNo()])
             {
-                if (valid[Pstream::myProcNo()])
-                {
-                    checkWrite(filePaths[Pstream::myProcNo()], str());
-                }
+                checkWrite(filePaths[Pstream::masterNo()], this->str());
             }
+            this->reset();
 
-            for (label proci = 1; proci < Pstream::nProcs(); proci++)
+            // Find the max slave size
+            recvSizes[Pstream::masterNo()] = 0;
+            List<char> buf
+            (
+                *std::max_element(recvSizes.cbegin(), recvSizes.cend())
+            );
+
+            for (const int proci : Pstream::subProcs())
             {
                 UIPstream is(proci, pBufs);
-                List<char> buf(recvSizes[proci]);
 
-                is.read(buf.begin(), buf.size());
+                const std::streamsize count(recvSizes[proci]);
+                is.read(buf.data(), count);
 
                 if (valid[proci])
                 {
-                    checkWrite
-                    (
-                        filePaths[proci],
-                        string(buf.begin(), buf.size())
-                    );
+                    checkWrite(filePaths[proci], buf.cdata(), count);
                 }
             }
         }
     }
     else
     {
-        checkWrite(pathName_, str());
+        checkWrite(pathName_, this->str());
+        this->reset();
     }
+
+    // This method is only called once (internally)
+    // so no need to clear/flush old buffered data
+}
+
+
+// * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
+
+masterOFstream::masterOFstream
+(
+    const fileName& pathName,
+    IOstreamOption streamOpt,
+    const bool append,
+    const bool valid
+)
+:
+    OStringStream(streamOpt),
+    pathName_(pathName),
+    compression_(streamOpt.compression()),
+    append_(append),
+    valid_(valid)
+{}
+
+
+// * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
+
+masterOFstream::~masterOFstream()
+{
+    commit();
 }
 
 
 // ************************************************************************* //
+
+ } // End namespace Foam

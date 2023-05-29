@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2013-2015 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2013-2015 OpenFOAM Foundation
+    Copyright (C) 2019 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -74,11 +77,14 @@ private:
 
     // Private Member Functions
 
-        //- Disallow default bitwise copy construct
-        incompressibleTurbulenceModel(const incompressibleTurbulenceModel&);
+        //- No copy construct
+        incompressibleTurbulenceModel
+        (
+            const incompressibleTurbulenceModel&
+        ) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const incompressibleTurbulenceModel&);
+        //- No copy assignment
+        void operator=(const incompressibleTurbulenceModel&) = delete;
 
 
 public:
@@ -101,11 +107,15 @@ public:
 
 
     //- Destructor
-    virtual ~incompressibleTurbulenceModel()
-    {}
+    virtual ~incompressibleTurbulenceModel() = default;
 
 
     // Member Functions
+
+        // Access functipons
+
+            //- Return rho
+
 
         //- Return the laminar dynamic viscosity
         virtual tmp<volScalarField> mu() const;
@@ -127,6 +137,13 @@ public:
 
         //- Return the effective stress tensor including the laminar stress
         virtual tmp<volSymmTensorField> devReff() const = 0;
+
+        //- Return the effective stress tensor including
+        //- the laminar stress based on a given velocity field
+        virtual tmp<volSymmTensorField> devReff
+        (
+            const volVectorField& U
+        ) const = 0;
 
         //- Return the source term for the momentum equation
         virtual tmp<fvVectorMatrix> divDevReff(volVectorField& U) const = 0;

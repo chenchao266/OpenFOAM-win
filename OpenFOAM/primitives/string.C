@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2016-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -23,47 +26,96 @@ License
 
 \*---------------------------------------------------------------------------*/
 
-#include "string.T.H"
+#include "_string.H"
 #include "stringOps.H"
-
+#include "word.H"
+#include "wordRe.H"
 
 /* * * * * * * * * * * * * * * Static Member Data  * * * * * * * * * * * * * */
-using namespace Foam;
+
+
+ namespace Foam{
 const char* const string::typeName = "string";
+
 int string::debug(debug::debugSwitch(string::typeName, 0));
+
 const string string::null;
+
+
+// * * * * * * * * * * * * Protected Member Functions  * * * * * * * * * * * //
+
+word string::ext() const
+{
+    const auto i = find_ext();
+
+    if (i == npos)
+    {
+        return word::null;
+    }
+
+    return substr(i+1);
+}
+
+
+bool string::ext(const word& ending)
+{
+    if (ending.empty() || empty() || back() == '/')
+    {
+        return false;
+    }
+    else if (ending[0] == '.')
+    {
+        if (ending.size() == 1)
+        {
+            return false;
+        }
+    }
+    else
+    {
+        append(1u, '.');
+    }
+    append(ending);
+
+    return true;
+}
+
+
+bool string::hasExt(const wordRe& ending) const
+{
+    if (ending.isLiteral() || ending.empty())
+    {
+        return hasExt(static_cast<const std::string&>(ending));
+    }
+
+    const auto i = find_ext();
+    if (i == npos)
+    {
+        return false;
+    }
+
+    // Regex match - compare *after* the dot
+    return ending.match(substr(i+1));
+}
 
 
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
 
 string::size_type string::count(const char c) const
 {
-    size_type cCount = 0;
-
-    for (const_iterator iter = begin(); iter != end(); ++iter)
-    {
-        if (*iter == c)
-        {
-            ++cCount;
-        }
-    }
-
-    return cCount;
+    return stringOps::count(*this, c);
 }
 
 
 string& string::replace
 (
-    const string& oldStr,
-    const string& newStr,
-    size_type start
+    const std::string& s1,
+    const std::string& s2,
+    size_type pos
 )
 {
-    size_type newStart = start;
-
-    if ((newStart = find(oldStr, newStart)) != npos)
+    if ((pos = find(s1, pos)) != npos)
     {
-        std::string::replace(newStart, oldStr.size(), newStr);
+        std::string::replace(pos, s1.size(), s2);
     }
 
     return *this;
@@ -72,19 +124,47 @@ string& string::replace
 
 string& string::replaceAll
 (
-    const string& oldStr,
-    const string& newStr,
-    size_type start
+    const std::string& s1,
+    const std::string& s2,
+    size_type pos
 )
 {
-    if (oldStr.size())
-    {
-        size_type newStart = start;
+    const auto n1 = s1.length();
+    const auto n2 = s2.length();
 
-        while ((newStart = find(oldStr, newStart)) != npos)
+    if (n1)
+    {
+        while ((pos = find(s1, pos)) != npos)
         {
-            std::string::replace(newStart, oldStr.size(), newStr);
-            newStart += newStr.size();
+            std::string::replace(pos, n1, s2);
+            pos += n2;
+        }
+    }
+
+    return *this;
+}
+
+
+string& string::replaceAny
+(
+    const std::string& s1,
+    const char c2,
+    size_type pos
+)
+{
+    if (s1.length())
+    {
+        while ((pos = find_first_of(s1, pos)) != npos)
+        {
+            if (c2)
+            {
+                operator[](pos) = c2;
+                ++pos;
+            }
+            else
+            {
+                erase(pos, 1);
+            }
         }
     }
 
@@ -105,19 +185,14 @@ bool string::removeRepeated(const char character)
 
     if (character && find(character) != npos)
     {
-        string::size_type nChar=0;
-        iterator iter2 = begin();
+        string::size_type nChar = 0;
+        iterator outIter = begin();
 
         char prev = 0;
 
-        for
-        (
-            string::const_iterator iter1 = iter2;
-            iter1 != end();
-            iter1++
-        )
+        for (auto iter = cbegin(); iter != cend(); ++iter)
         {
-            char c = *iter1;
+            const char c = *iter;
 
             if (prev == c && c == character)
             {
@@ -125,47 +200,74 @@ bool string::removeRepeated(const char character)
             }
             else
             {
-                *iter2 = prev = c;
-                ++iter2;
+                *outIter = prev = c;
+                ++outIter;
                 ++nChar;
             }
         }
-        resize(nChar);
+
+        erase(nChar);
     }
 
     return changed;
 }
 
 
-string string::removeRepeated(const char character) const
+bool string::removeStart(const std::string& text)
 {
-    string str(*this);
-    str.removeRepeated(character);
-    return str;
-}
+    const auto txtLen = text.length();
+    const auto strLen = length();
 
-
-bool string::removeTrailing(const char character)
-{
-    bool changed = false;
-
-    string::size_type nChar = size();
-    if (character && nChar > 1 && operator[](nChar-1) == character)
+    if (txtLen && strLen >= txtLen && !compare(0, txtLen, text))
     {
-        resize(nChar-1);
-        changed = true;
+        erase(0, txtLen);
+        return true;
     }
 
-    return changed;
+    return false;
 }
 
 
-string string::removeTrailing(const char character) const
+bool string::removeEnd(const std::string& text)
 {
-    string str(*this);
-    str.removeTrailing(character);
-    return str;
+    const auto txtLen = text.length();
+    const auto strLen = length();
+
+    if (txtLen && strLen >= txtLen && !compare(strLen - txtLen, npos, text))
+    {
+        erase(strLen - txtLen);
+        return true;
+    }
+
+    return false;
+}
+
+
+bool string::removeStart(const char c)
+{
+    if (length() > 1 && front() == c)
+    {
+        erase(0, 1);
+        return true;
+    }
+
+    return false;
+}
+
+
+bool string::removeEnd(const char c)
+{
+    const auto n = length();
+    if (n > 1 && back() == c)
+    {
+        erase(n-1);
+        return true;
+    }
+
+    return false;
 }
 
 
 // ************************************************************************* //
+
+ } // End namespace Foam

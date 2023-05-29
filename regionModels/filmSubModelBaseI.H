@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -34,13 +36,13 @@ namespace surfaceFilmModels
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
-inline const surfaceFilmModel& filmSubModelBase::film() const
+inline const surfaceFilmRegionModel& filmSubModelBase::film() const
 {
     return filmModel_;
 }
 
 
-inline surfaceFilmModel& filmSubModelBase::film()
+inline surfaceFilmRegionModel& filmSubModelBase::film()
 {
     return filmModel_;
 }

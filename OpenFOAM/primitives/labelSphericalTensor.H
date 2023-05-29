@@ -1,9 +1,12 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011 OpenFOAM Foundation
+    Copyright (C) 2019-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -25,7 +28,10 @@ Typedef
     Foam::labelSphericalTensor
 
 Description
-    SphericalTensor of labels.
+    SphericalTensor of labels, i.e. SphericalTensor<label>.
+
+See also
+    Test-SphericalTensor.C
 
 SourceFiles
     labelSphericalTensor.C
@@ -35,8 +41,7 @@ SourceFiles
 #ifndef labelSphericalTensor_H
 #define labelSphericalTensor_H
 
-#include "SphericalTensor.T.H"
-#include "contiguous.H"
+#include "SphericalTensor.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -49,11 +54,6 @@ typedef SphericalTensor<label> labelSphericalTensor;
 
 //- Identity labelTensor
 static const labelSphericalTensor labelI(1);
-
-//- Data associated with labelSphericalTensor type are contiguous
-template<>
-inline bool contiguous<labelSphericalTensor>() {return true;}
-
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 

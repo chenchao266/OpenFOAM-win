@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2012 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -23,56 +25,55 @@ License
 
 \*---------------------------------------------------------------------------*/
 
-#include "diagonalSolver.H"
-
-// * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
-using namespace Foam;
-namespace Foam
-{
-defineTypeNameAndDebug(diagonalSolver, 0);
-}
-
+//#include "DiagonalSolver.H"
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
-diagonalSolver::diagonalSolver
+
+ namespace Foam{
+template<class Type, class DType, class LUType>
+DiagonalSolver<Type, DType, LUType>::DiagonalSolver
 (
     const word& fieldName,
-    const lduMatrix& matrix,
-    const FieldField<Field, scalar>& interfaceBouCoeffs,
-    const FieldField<Field, scalar>& interfaceIntCoeffs,
-    const lduInterfaceFieldPtrsList& interfaces,
-    const dictionary& solverControls
-) :    lduMatrix::solver
+    const LduMatrix<Type, DType, LUType>& matrix,
+    const dictionary& solverDict
+)
+:
+    LduMatrix<Type, DType, LUType>::solver
     (
         fieldName,
         matrix,
-        interfaceBouCoeffs,
-        interfaceIntCoeffs,
-        interfaces,
-        solverControls
+        solverDict
     )
 {}
 
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
-solverPerformance diagonalSolver::solve
+template<class Type, class DType, class LUType>
+void DiagonalSolver<Type, DType, LUType>::read
 (
-    scalarField& psi,
-    const scalarField& source,
-    const direction cmpt
+    const dictionary&
+)
+{}
+
+
+template<class Type, class DType, class LUType>
+SolverPerformance<Type>
+DiagonalSolver<Type, DType, LUType>::solve
+(
+    Field<Type>& psi
 ) const
 {
-    psi = source/matrix_.diag();
+    psi = this->matrix_.source()/this->matrix_.diag();
 
-    return solverPerformance
+    return SolverPerformance<Type>
     (
         typeName,
-        fieldName_,
-        0,
-        0,
-        0,
+        this->fieldName_,
+        Zero,
+        Zero,
+        Zero,
         true,
         false
     );
@@ -80,3 +81,5 @@ solverPerformance diagonalSolver::solve
 
 
 // ************************************************************************* //
+
+ } // End namespace Foam

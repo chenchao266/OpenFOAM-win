@@ -1,9 +1,12 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2013 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2013 OpenFOAM Foundation
+    Copyright (C) 2019 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -43,7 +46,9 @@ namespace Foam
                        Class directPointPatchFieldMapper Declaration
 \*---------------------------------------------------------------------------*/
 
-class directPointPatchFieldMapper :    public pointPatchFieldMapper
+class directPointPatchFieldMapper
+:
+    public pointPatchFieldMapper
 {
 
     //- Addressing from new back to old
@@ -61,17 +66,12 @@ public:
         directPointPatchFieldMapper(const labelUList& directAddressing)
         :
             directAddressing_(directAddressing),
-            hasUnmapped_(false)
-        {
-            if (directAddressing_.size() && min(directAddressing_) < 0)
-            {
-                hasUnmapped_ = true;
-            }
-        }
+            hasUnmapped_(directAddressing_.size() && min(directAddressing_) < 0)
+        {}
+
 
     //- Destructor
-    virtual ~directPointPatchFieldMapper()
-    {}
+    virtual ~directPointPatchFieldMapper() = default;
 
 
     // Member Functions

@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2017-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -26,6 +29,13 @@ Class
 
 Description
     Nastran edge reader.
+
+    - Interprets "CBEAM", "CROD" and "PLOTEL" entries as edges.
+    - Handles Nastran short, long formats and comma-separated free format.
+    - Properly handles the Nastran compact floating point notation: \n
+    \verbatim
+        GRID          28        10.20269-.030265-2.358-8
+    \endverbatim
 
 SourceFiles
     NASedgeFormat.C
@@ -56,18 +66,18 @@ class NASedgeFormat
 {
     // Private Member Functions
 
-        //- Disallow default bitwise copy construct
-        NASedgeFormat(const NASedgeFormat&);
+        //- No copy construct
+        NASedgeFormat(const NASedgeFormat&) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const NASedgeFormat&);
+        //- No copy assignment
+        void operator=(const NASedgeFormat&) = delete;
 
 public:
 
     // Constructors
 
         //- Construct from file name
-        NASedgeFormat(const fileName&);
+        explicit NASedgeFormat(const fileName& filename);
 
 
     // Selectors
@@ -75,22 +85,18 @@ public:
         //- Read file and return edge mesh
         static autoPtr<edgeMesh> New(const fileName& name)
         {
-            return autoPtr<edgeMesh>
-            (
-                new NASedgeFormat(name)
-            );
+            return autoPtr<edgeMesh>::NewFrom<NASedgeFormat>(name);
         }
 
 
     //- Destructor
-    virtual ~NASedgeFormat()
-    {}
+    virtual ~NASedgeFormat() = default;
 
 
     // Member Functions
 
         //- Read from a file
-        virtual bool read(const fileName&);
+        virtual bool read(const fileName& filename);
 };
 
 

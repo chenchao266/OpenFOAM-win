@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2013 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2013 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -23,23 +25,19 @@ License
 
 \*---------------------------------------------------------------------------*/
 
+#include "fundamentalConstants.H"
 #include "mathematicalConstants.H"
 #include "universalConstants.H"
 #include "electromagneticConstants.H"
 #include "atomicConstants.H"
-
 #include "dimensionedConstants.H"
-#include "fundamentalConstants.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
- 
+
 namespace Foam
 {
 namespace constant
 {
-
-const char* const electromagnetic::group = "electromagnetic";
-
 
 defineDimensionedConstantWithDefault
 (
@@ -67,7 +65,7 @@ defineDimensionedConstantWithDefault
         word("epsilon0"),
         dimensionedScalar
         (
-            "C",
+            word("C"),
             dimensionSet(0, 0, 0, 0, 0),
             1.0
         )

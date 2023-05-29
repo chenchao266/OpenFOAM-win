@@ -1,9 +1,12 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2017 OpenFOAM Foundation
+    Copyright (C) 2019-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -21,51 +24,121 @@ License
     You should have received a copy of the GNU General Public License
     along with OpenFOAM.  If not, see <http://www.gnu.org/licenses/>.
 
-Typedef
-    Foam::barycentric2D
+Class
+    Foam::Barycentric2D
 
 Description
-    A scalar version of the templated Barycentric2D
+    Templated 2D Barycentric derived from VectorSpace.
+    Has 3 components, one of which is redundant.
+
+SourceFiles
+    Barycentric2DI.H
 
 \*---------------------------------------------------------------------------*/
 
-#ifndef barycentric2D_H
-#define barycentric2D_H
+#ifndef Barycentric2D_H
+#define Barycentric2D_H
 
-#include "scalar.H"
-#include "Barycentric2D.T.H"
 #include "contiguous.H"
+#include "VectorSpace.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 namespace Foam
 {
 
-// Forward declaration of classes
-class Random;
-class cachedRandom;
+/*---------------------------------------------------------------------------*\
+                         Class Barycentric2D Declaration
+\*---------------------------------------------------------------------------*/
 
-
-// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
-
-typedef Barycentric2D<scalar> barycentric2D;
-
-
-//- Generate a random barycentric coordinate within the unit triangle
-barycentric2D barycentric2D01(Random& rndGen);
-barycentric2D barycentric2D01(cachedRandom& rndGen);
-
-
-template<>
-inline bool contiguous<barycentric2D>()
+template<class Cmpt>
+class Barycentric2D
+:
+    public VectorSpace<Barycentric2D<Cmpt>, Cmpt, 3>
 {
-    return true;
-}
+public:
+
+    // Typedefs
+
+        //- Equivalent type of labels used for valid component indexing
+        typedef Barycentric2D<label> labelType;
+
+
+    // Member Constants
+
+        //- Rank of Barycentric2D is 1
+        static constexpr direction rank = 1;
+
+
+    //- Component labeling enumeration
+    enum components { A, B, C };
+
+
+    // Generated Methods: copy construct/assignment
+
+        //- Default construct
+        Barycentric2D() = default;
+
+
+    // Constructors
+
+        //- Construct initialized to zero
+        inline Barycentric2D(const zero);
+
+        //- Construct from components
+        inline Barycentric2D
+        (
+            const Cmpt& va,
+            const Cmpt& vb,
+            const Cmpt& vc
+        );
+
+
+    // Member Functions
+
+    // Access
+
+        inline const Cmpt& a() const;
+        inline const Cmpt& b() const;
+        inline const Cmpt& c() const;
+
+
+    // Edit
+
+        inline Cmpt& a();
+        inline Cmpt& b();
+        inline Cmpt& c();
+
+
+    // Tests
+
+        //- True if any coordinates are negative
+        inline bool outside() const;
+};
+
+
+// * * * * * * * * * * * * * * * * * Traits  * * * * * * * * * * * * * * * * //
+
+//- Data are contiguous if component type is contiguous
+template<class Cmpt>
+struct is_contiguous<Barycentric2D<Cmpt>> : is_contiguous<Cmpt> {};
+
+//- Data are contiguous label if component type is label
+template<class Cmpt>
+struct is_contiguous_label<Barycentric2D<Cmpt>> : is_contiguous_label<Cmpt> {};
+
+//- Data are contiguous scalar if component type is scalar
+template<class Cmpt>
+struct is_contiguous_scalar<Barycentric2D<Cmpt>> : is_contiguous_scalar<Cmpt>{};
 
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 } // End namespace Foam
+
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+#include "Barycentric2DI.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 

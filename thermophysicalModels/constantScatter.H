@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2015 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2015 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -24,6 +26,9 @@ License
 Class
     Foam::radiation::constantScatter
 
+Group
+    grpRadiationScatterSubModels
+
 Description
     Constant radiation scatter coefficient
 
@@ -32,8 +37,8 @@ SourceFiles
 
 \*---------------------------------------------------------------------------*/
 
-#ifndef radiationConstantScatter_H
-#define radiationConstantScatter_H
+#ifndef radiation_constantScatter_H
+#define radiation_constantScatter_H
 
 #include "scatterModel.H"
 
@@ -82,7 +87,7 @@ public:
 
 
     //- Destructor
-    virtual ~constantScatter();
+    virtual ~constantScatter() = default;
 
 
     // Member Functions

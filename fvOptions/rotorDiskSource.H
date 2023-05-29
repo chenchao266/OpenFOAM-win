@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2018-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -24,34 +27,48 @@ License
 Class
     Foam::fv::rotorDiskSource
 
-Description
-    Rotor disk source
+Group
+    grpFvOptionsSources
 
-    Cell based momemtum source which approximates the mean effects of
-    rotor forces on a cylindrical region within the domain.
+Description
+    Applies cell-based momentum sources on velocity (i.e. \c U)
+    within a specified cylindrical region to approximate the mean
+    effects of rotor forces.
+
+    Sources applied to:
+    \verbatim
+      U         | Velocity    [m/s]
+    \endverbatim
+
+    Required fields:
+    \verbatim
+      U         | Velocity    [m/s]
+    \endverbatim
 
 Usage
-    Example usage:
-    \verbatim
-        fields          (U);    // names of fields on which to apply source
-        nBlades         3;      // number of blades
-        tipEffect       0.96;   // normalised radius above which lift = 0
+    Minimal example by using \c constant/fvOptions:
+    rotorDiskSource1
+    {
+        // Mandatory entries (unmodifiable)
+        type            rotorDiskSource;
 
-        inletFlowType   local;  // inlet flow type specification
-
-        geometryMode    auto;   // geometry specification
-
-        refDirection    (-1 0 0); // reference direction
-                                  // - used as reference for psi angle
-
-        trimModel       fixed;  // fixed || targetForce
-
+        // Mandatory entries (runtime modifiable)
+        fields          (\<field1\> \<field2\> ... \<fieldN\>);
+        rhoRef          1.0;
+        rpm             5.5;
+        nBlades         3;
+        inletFlowType   local;
+        geometryMode    auto;
+        tipEffect       0.96; // [0, 1]
+        refDirection    (-1 0 0 );
         flapCoeffs
         {
-            beta0           0;  // coning angle [deg]
-            beta1c          0;  // lateral flapping coeff (cos coeff)
-            beta2s          0;  // longitudinal flapping coeff (sin coeff)
+            beta0       0.0;
+            beta1c      0.0;
+            beta2s      0.0;
         }
+
+        trimModel       fixed;
 
         blade
         {
@@ -71,22 +88,88 @@ Usage
                 ...
             }
         }
+
+        // Conditional mandatory entries (runtime modifiable)
+
+            // when inletFlowType=fixed
+            inletVelocity    (1 0 0);
+
+            // when inletFlowType=surfaceNormal
+            inletNormalVelocity  5.0;
+
+            // when geometryMode=auto
+            pointAbove       (1 0 0);
+
+            // when geometryMode=specified
+            origin           (0 0 0);
+            axis             (1 0 0);
+
+        // Mandatory/Optional (inherited) entries
+        ...
+    }
+
+    where the entries mean:
+    \table
+      Property   | Description                          | Type  | Reqd | Dflt
+      type       | Type name: rotorDiskSource           | word  | yes  | -
+      fields     | Names of operand fields              | wordList | yes | -
+      rhoRef     | Reference density for incompressible case | scalar | yes | -
+      rpm        | Rotational speed [rad/s]             | scalar | yes | -
+      nBlades    | Number of rotor blades               | label | yes  | -
+      tipEffect  | Ratio of blade radius beyond which lift=0 | scalar | yes | -
+      refDirection | Reference direction used as reference <!--
+                 --> for psi angle                      | vector | yes | -
+      beta0      | Coning angle [deg]                   | scalar | yes | -
+      beta1c  | Lateral flapping coeff (cos coeff) [deg]      | scalar | yes | -
+      beta2s  | Longitudinal flapping coeff (sin coeff) [deg] | scalar | yes | -
+      inletFlowType | Inlet flow type specification     | word  | yes  | -
+      inletVelocity | Inlet velocity [m/s]              | vector | cndtnl | -
+      inletNormalVelocity | Inlet normal velocity magnitude <!--
+                                                    --> | scalar | cndtnl | -
+      geometryMode  | Geometry mode specification       | word  | yes  | -
+      pointAbove  | Correct the axis direction using a point <!--
+                  --> above the rotor                    | vector | cndtnl | -
+      origin | Origin of the specified coordinate system | vector | cndtnl | -
+      axis   | Axis of the specified coordinate system   | vector | cndtnl | -
+      trimModel  | Trim model specification             | word  | yes  | -
+      blade      | Blade properties                | dictionary | yes  | -
+    \endtable
+
+    The inherited entries are elaborated in:
+     - \link fvOption.H \endlink
+     - \link cellSetOption.H \endlink
+     - \link trimModel.H \endlink
+     - \link bladeModel.H \endlink
+     - \link profileModel.H \endlink
+
+    Options for the \c inletFlowType entry:
+    \verbatim
+      fixed    | Use a specified velocity
+      local    | Use local flow conditions
+      surfaceNormal | Use a specified normal velocity (positive towards rotor)
     \endverbatim
 
-    Where:
-    Valid options for the \c geometryMode entry include:
-    - auto          : determine rototor co-ord system from cells
-    - specified     : specified co-ord system
+    Options for the \c geometryMode entry:
+    \verbatim
+      auto      | Determine rotor coordinate system from selected cells
+      specified | Use a specified coordinate system
+    \endverbatim
 
-    Valid options for the \c inletFlowType entry include:
-    - fixed         : specified velocity
-    - local         : use local flow conditions
-    - surfaceNormal : specified normal velocity (positive towards rotor)
+    Options for the \c trimModel entry:
+    \verbatim
+      fixed       | Fixed blade/angle characteristics
+      targetForce | Target thrust/torque by using time-variant blade characs.
+    \endverbatim
+
+Note
+  - The entry \c rpm is positive anti-clockwise
+    when looking along -ve lift direction.
 
 See also
-    Foam::bladeModel
-    Foam::lookupProfile
-    Foam::seriesProfile
+  - Foam::trimModel
+  - Foam::bladeModel
+  - Foam::lookupProfile
+  - Foam::seriesProfile
 
 SourceFiles
     rotorDiskSource.C
@@ -99,8 +182,7 @@ SourceFiles
 
 #include "cellSetOption.H"
 #include "cylindricalCS.H"
-#include "cylindrical.H"
-#include "NamedEnum.T.H"
+#include "Enum.H"
 #include "bladeModel.H"
 #include "profileModelList.H"
 #include "volFieldsFwd.H"
@@ -110,7 +192,7 @@ SourceFiles
 namespace Foam
 {
 
-// Forward declaration of classes
+// Forward declarations
 class trimModel;
 
 namespace fv
@@ -122,24 +204,32 @@ namespace fv
 
 class rotorDiskSource
 :
-    public cellSetOption
+    public fv::cellSetOption
 {
 public:
 
-    enum geometryModeType
-    {
-        gmAuto,
-        gmSpecified
-    };
-    static const NamedEnum<geometryModeType, 2> geometryModeTypeNames_;
+    // Public Enumerations
 
-    enum inletFlowType
-    {
-        ifFixed,
-        ifSurfaceNormal,
-        ifLocal
-    };
-    static const NamedEnum<inletFlowType, 3> inletFlowTypeNames_;
+        //- Options for the geometry type specification
+        enum geometryModeType
+        {
+            gmAuto,
+            gmSpecified
+        };
+
+        //- Names for geometryModeType
+        static const Enum<geometryModeType> geometryModeTypeNames_;
+
+        //- Options for the inlet flow type specification
+        enum inletFlowType
+        {
+            ifFixed,
+            ifSurfaceNormal,
+            ifLocal
+        };
+
+        //- Names for inletFlowType
+        static const Enum<inletFlowType> inletFlowTypeNames_;
 
 
 protected:
@@ -155,7 +245,7 @@ protected:
         };
 
 
-    // Protected data
+    // Protected Data
 
         //- Reference density for incompressible case
         scalar rhoRef_;
@@ -170,7 +260,7 @@ protected:
         //- Inlet flow type
         inletFlowType inletFlow_;
 
-        //- Inlet velocity for specified iinflow
+        //- Inlet velocity for specified inflow
         vector inletVelocity_;
 
         //- Tip effect [0-1]
@@ -181,23 +271,20 @@ protected:
         flapData flap_;
 
         //- Cell centre positions in local rotor frame
-        //  (Cylindrical r, theta, z)
+        //  (Cylindrical r-theta-z)
         List<point> x_;
 
         //- Rotation tensor for flap angle
-        List<tensor> R_;
-
-        //- Inverse rotation tensor for flap angle
-        List<tensor> invR_;
+        List<tensor> Rcone_;
 
         //- Area [m2]
         List<scalar> area_;
 
-        //- Rotor local cylindrical co-ordinate system (r, theta, z)
-        cylindricalCS coordSys_;
+        //- Rotor local cylindrical coordinate system (r-theta-z)
+        coordSystem::cylindrical coordSys_;
 
-         //- Rotor transformation co-ordinate system
-        autoPtr<cylindrical> cylindrical_;
+        //- Cached rotation tensors for cylindrical coordinates
+        autoPtr<tensorField> Rcyl_;
 
         //- Maximum radius
         scalar rMax_;
@@ -220,7 +307,7 @@ protected:
         //- Set the face areas per cell, and optionally correct the rotor axis
         void setFaceArea(vector& axis, const bool correct);
 
-        //- Create the co-ordinate system
+        //- Create the coordinate system
         void createCoordinateSystem();
 
         //- Construct geometry
@@ -247,7 +334,6 @@ public:
 
     // Constructors
 
-
         //- Construct from components
         rotorDiskSource
         (
@@ -257,9 +343,15 @@ public:
             const fvMesh& mesh
         );
 
+        //- No copy construct
+        rotorDiskSource(const rotorDiskSource&) = delete;
+
+        //- No copy assignment
+        void operator=(const rotorDiskSource&) = delete;
+
 
     //- Destructor
-    virtual ~rotorDiskSource();
+    virtual ~rotorDiskSource() = default;
 
 
     // Member Functions
@@ -274,11 +366,11 @@ public:
             inline scalar omega() const;
 
             //- Return the cell centre positions in local rotor frame
-            // (Cylindrical r, theta, z)
+            //  (Cylindrical r-theta-z)
             inline const List<point>& x() const;
 
-            //- Return the rotor co-ordinate system (r, theta, z)
-            inline const cylindricalCS& coordSys() const;
+            //- Return the rotor coordinate system (r-theta-z)
+            inline const coordSystem::cylindrical& coordSys() const;
 
 
         // Evaluation
@@ -298,14 +390,14 @@ public:
 
         // Source term addition
 
-            //- Source term to momentum equation
+            //- Add explicit contribution to momentum equation
             virtual void addSup
             (
                 fvMatrix<vector>& eqn,
                 const label fieldi
             );
 
-            //- Source term to compressible momentum equation
+            //- Add explicit contribution to compressible momentum equation
             virtual void addSup
             (
                 const volScalarField& rho,

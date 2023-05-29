@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011 OpenFOAM Foundation
+    Copyright (C) 2017-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -24,77 +27,165 @@ License
 \*---------------------------------------------------------------------------*/
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
-namespace Foam {
-    template<class Matcher, class StringType>
-    labelList findMatchingStrings
-    (
-        const Matcher& matcher,
-        const UList<StringType>& lst,
-        const bool invert
-    )
+
+
+ namespace Foam{
+template<class UnaryMatchPredicate, class StringType>
+label firstMatchingString
+(
+    const UnaryMatchPredicate& matcher,
+    const UList<StringType>& input,
+    const bool invert
+)
+{
+    const label len = input.size();
+
+    for (label i=0; i < len; ++i)
     {
-        labelList indices(lst.size());
-
-        label nElem = 0;
-        forAll(lst, elemI)
+        if (matcher(input[i]) ? !invert : invert)
         {
-            if (matcher.match(lst[elemI]) ? !invert : invert)
-            {
-                indices[nElem++] = elemI;
-            }
+            return i;
         }
-        indices.setSize(nElem);
-
-        return indices;
     }
 
-
-    template<class Matcher, class StringListType>
-    StringListType subsetMatchingStrings
-    (
-        const Matcher& matcher,
-        const StringListType& lst,
-        const bool invert
-    )
-    {
-        // Create copy
-        StringListType newLst(lst.size());
-
-        // ensure consistent addressable size (eg, DynamicList)
-        newLst.setSize(lst.size());
-
-        label nElem = 0;
-        forAll(lst, elemI)
-        {
-            if (matcher.match(lst[elemI]) ? !invert : invert)
-            {
-                newLst[nElem++] = lst[elemI];
-            }
-        }
-        newLst.setSize(nElem);
-
-        return newLst;
-    }
-
-
-    template<class Matcher, class StringListType>
-    void inplaceSubsetMatchingStrings
-    (
-        const Matcher& matcher,
-        StringListType& lst,
-        const bool invert
-    )
-    {
-        label nElem = 0;
-        forAll(lst, elemI)
-        {
-            if (matcher.match(lst[elemI]) ? !invert : invert)
-            {
-                lst[nElem++] = lst[elemI];
-            }
-        }
-        lst.setSize(nElem);
-    }
+    return -1;
 }
 
+
+template<class UnaryMatchPredicate, class StringType>
+labelList findMatchingStrings
+(
+    const UnaryMatchPredicate& matcher,
+    const UList<StringType>& input,
+    const bool invert
+)
+{
+    const label len = input.size();
+
+    labelList indices(len);
+
+    label count = 0;
+    for (label i=0; i < len; ++i)
+    {
+        if (matcher(input[i]) ? !invert : invert)
+        {
+            indices[count] = i;
+            ++count;
+        }
+    }
+    indices.resize(count);
+
+    return indices;
+}
+
+
+template<class UnaryMatchPredicate, class StringListType>
+StringListType subsetMatchingStrings
+(
+    const UnaryMatchPredicate& matcher,
+    const StringListType& input,
+    const bool invert
+)
+{
+    const label len = input.size();
+
+    StringListType output(len);
+    output.resize(len);   // Consistent sizing (eg, DynamicList)
+
+    label count = 0;
+    for (label i=0; i < len; ++i)
+    {
+        if (matcher(input[i]) ? !invert : invert)
+        {
+            output[count] = input[i];
+            ++count;
+        }
+    }
+    output.resize(count);
+
+    return output;
+}
+
+
+template<class UnaryMatchPredicate, class StringListType>
+void inplaceSubsetMatchingStrings
+(
+    const UnaryMatchPredicate& matcher,
+    StringListType& input,
+    const bool invert
+)
+{
+    const label len = input.size();
+
+    label count = 0;
+    for (label i=0; i < len; ++i)
+    {
+        if (matcher(input[i]) ? !invert : invert)
+        {
+            if (count != i)
+            {
+                input[count] = std::move(input[i]);
+            }
+            ++count;
+        }
+    }
+    input.resize(count);
+}
+
+
+template<class StringListType, class AccessOp>
+labelList stringListOps::findMatching
+(
+    const StringListType& input,
+    const wordRes& allow,
+    const wordRes& deny,
+    AccessOp aop
+)
+{
+    const label len = input.size();
+
+    if (allow.empty() && deny.empty())
+    {
+        return identity(len);
+    }
+
+    labelList indices(len);
+
+    label count = 0;
+    for (label i=0; i < len; ++i)
+    {
+        const std::string& text = aop(input[i]);
+
+        bool accept = false;
+
+        if (allow.size())
+        {
+            const auto result = allow.matched(text);
+
+            accept =
+            (
+                result == wordRe::LITERAL
+              ? true
+              : (result == wordRe::REGEX && !deny.match(text))
+            );
+        }
+        else
+        {
+            accept = !deny.match(text);
+        }
+
+        if (accept)
+        {
+            indices[count] = i;
+            ++count;
+        }
+    }
+    indices.resize(count);
+
+    return indices;
+}
+
+
 // ************************************************************************* //
+
+ } // End namespace Foam

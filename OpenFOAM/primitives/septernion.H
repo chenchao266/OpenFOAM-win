@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2019-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -41,19 +44,17 @@ SourceFiles
 #ifndef septernion_H
 #define septernion_H
 
-#include "vector.H"
+#include "vector2.H"
 #include "quaternion.H"
 #include "spatialTransform.H"
 #include "word.H"
-#include "contiguous.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 namespace Foam
 {
 
-// Forward declaration of friend functions and operators
-
+// Forward Declarations
 class septernion;
 Istream& operator>>(Istream& is, septernion&);
 Ostream& operator<<(Ostream& os, const septernion& C);
@@ -65,7 +66,7 @@ Ostream& operator<<(Ostream& os, const septernion& C);
 
 class septernion
 {
-    // private data
+    // Private Data
 
         //- Translation vector
         vector t_;
@@ -76,18 +77,30 @@ class septernion
 
 public:
 
-    // Static data members
+    // Static Data
 
         static const char* const typeName;
 
-        static const septernion _zero;
+        static const septernion zero;
         static const septernion I;
+
+
+    // Generated Methods
+
+        //- Default construct
+        septernion() = default;
+
+        //- Copy construct
+        septernion(const septernion&) = default;
+
+        //- Copy assignment
+        septernion& operator=(const septernion&) = default;
 
 
     // Constructors
 
-        //- Construct null
-        inline septernion();
+        //- Construct zero initialized
+        inline septernion(const ::Foam::zero);
 
         //- Construct given a translation vector and rotation quaternion
         inline septernion(const vector& t, const quaternion& r);
@@ -102,24 +115,24 @@ public:
         inline explicit septernion(const spatialTransform& st);
 
         //- Construct from Istream
-        septernion(Istream&);
+        explicit septernion(Istream& is);
 
 
-    // Member functions
+    // Member Functions
 
-           // Access
+        // Access
 
                inline const vector& t() const;
                inline const quaternion& r() const;
 
 
-           // Edit
+        // Edit
 
                inline vector& t();
                inline quaternion& r();
 
 
-           // Transform
+        // Transform
 
                //- Transform the given coordinate point
                inline vector transformPoint(const vector& v) const;
@@ -128,9 +141,8 @@ public:
                inline vector invTransformPoint(const vector& v) const;
 
 
-    // Member operators
+    // Member Operators
 
-        inline void operator=(const septernion&);
         inline void operator*=(const septernion&);
 
         inline void operator=(const vector&);
@@ -145,11 +157,20 @@ public:
         inline void operator/=(const scalar);
 
 
-    // IOstream operators
+    // IOstream Operators
 
         friend Istream& operator>>(Istream& is, septernion&);
         friend Ostream& operator<<(Ostream& os, const septernion& C);
 };
+
+
+// * * * * * * * * * * * * * * * * * Traits  * * * * * * * * * * * * * * * * //
+
+//- Contiguous data for septernion
+template<> struct is_contiguous<septernion> : std::true_type {};
+
+//- Contiguous scalar data for septernion
+template<> struct is_contiguous_scalar<septernion> : std::true_type {};
 
 
 // * * * * * * * * * * * * * * * Global Functions  * * * * * * * * * * * * * //
@@ -174,10 +195,6 @@ septernion average
     const UList<septernion>& ss,
     const UList<scalar> w
 );
-
-//- Data associated with septernion type are contiguous
-template<>
-inline bool contiguous<septernion>() {return true;}
 
 
 // * * * * * * * * * * * * * * * Global Operators  * * * * * * * * * * * * * //

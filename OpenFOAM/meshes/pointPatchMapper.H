@@ -1,9 +1,11 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2013 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2013 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -53,7 +55,9 @@ class mapPolyMesh;
                        Class pointPatchMapper Declaration
 \*---------------------------------------------------------------------------*/
 
-class pointPatchMapper :    public pointPatchFieldMapper
+class pointPatchMapper
+:
+    public pointPatchFieldMapper
 {
     // Private data
 
@@ -86,14 +90,11 @@ class pointPatchMapper :    public pointPatchFieldMapper
 
     // Private Member Functions
 
-        //- Disallow default bitwise copy construct
-        pointPatchMapper
-        (
-            const pointPatchMapper&
-        );
+        //- No copy construct
+        pointPatchMapper(const pointPatchMapper&) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const pointPatchMapper&);
+        //- No copy assignment
+        void operator=(const pointPatchMapper&) = delete;
 
 
         //- Calculate addressing for mapping with inserted cells

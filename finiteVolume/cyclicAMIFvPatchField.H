@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2019 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -57,6 +60,7 @@ SourceFiles
 #ifndef cyclicAMIFvPatchField_H
 #define cyclicAMIFvPatchField_H
 
+
 #include "coupledFvPatchField.H"
 #include "cyclicAMILduInterfaceField.H"
 #include "cyclicAMIFvPatch.H"
@@ -90,6 +94,25 @@ class cyclicAMIFvPatchField
         (
             const Field<Type2>&
         ) const;
+
+
+        //- Return new matrix coeffs
+        tmp<Field<scalar>> coeffs
+        (
+            fvMatrix<Type>& matrix,
+            const Field<scalar>&,
+            const label
+        ) const;
+
+
+        template<class Type2>
+        void collectStencilData
+        (
+            const refPtr<mapDistribute>& mapPtr,
+            const labelListList& stencil,
+            const Type2& data,
+            List<Type2>& expandedData
+        );
 
 
 public:
@@ -182,8 +205,11 @@ public:
             //- Update result field based on interface functionality
             virtual void updateInterfaceMatrix
             (
-                scalarField& result,
-                const scalarField& psiInternal,
+                solveScalarField& result,
+                const bool add,
+                const lduAddressing& lduAddr,
+                const label patchId,
+                const solveScalarField& psiInternal,
                 const scalarField& coeffs,
                 const direction cmpt,
                 const Pstream::commsTypes commsType
@@ -193,10 +219,22 @@ public:
             virtual void updateInterfaceMatrix
             (
                 Field<Type>&,
+                const bool add,
+                const lduAddressing& lduAddr,
+                const label patchId,
                 const Field<Type>&,
                 const scalarField&,
                 const Pstream::commsTypes commsType
             ) const;
+
+
+            //- Manipulate matrix
+            virtual void manipulateMatrix
+            (
+                fvMatrix<Type>& m,
+                const label iMatrix,
+                const direction cmpt
+            );
 
 
         // Cyclic AMI coupled interface functions

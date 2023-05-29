@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2019-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -26,6 +29,10 @@ Class
 
 Description
     A blockEdge interface for Catmull-Rom splines.
+
+See also
+    BSpline
+    CatmullRomSpline
 
 SourceFiles
     splineEdge.C
@@ -56,11 +63,11 @@ class splineEdge
 {
     // Private Member Functions
 
-        //- Disallow default bitwise copy construct
-        splineEdge(const splineEdge&);
+        //- No copy construct
+        splineEdge(const splineEdge&) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const splineEdge&);
+        //- No copy assignment
+        void operator=(const splineEdge&) = delete;
 
 
 public:
@@ -74,41 +81,50 @@ public:
         //- Construct from components
         splineEdge
         (
-            const pointField&,
-            const label start,
-            const label end,
+            const pointField& points,   //!< Referenced point field
+            const edge& fromTo,         //!< Start/end in point field
             const pointField& internalPoints
         );
 
-        //- Construct from Istream, setting pointsList
+        //- Construct from components
+        splineEdge
+        (
+            const pointField& points,   //!< Referenced point field
+            const label from,           //!< Start point in point field
+            const label to,             //!< End point in point field
+            const pointField& internalPoints
+        );
+
+        //- Construct from Istream and point field.
         splineEdge
         (
             const dictionary& dict,
             const label index,
-            const searchableSurfaces& geometry,
-            const pointField&,
+            const searchableSurfaces&  /*unused*/,
+            const pointField& points,  //!< Referenced point field
             Istream&
         );
 
 
     //- Destructor
-    virtual ~splineEdge();
+    virtual ~splineEdge() = default;
 
 
     // Member Functions
 
-        //- Return the point position corresponding to the curve parameter
+        //- The point position corresponding to the curve parameter
         //  0 <= lambda <= 1
         virtual point position(const scalar) const;
 
-        //- Return the length of the spline curve (not implemented)
+        //- The length of the spline curve
+        //  \note NotImplemented
         virtual scalar length() const;
 };
 
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
-} // End of namespace blockEdges
+} // End namespace blockEdges
 } // End namespace Foam
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //

@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2019 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -33,8 +36,9 @@ Description
 
 Usage
     \table
-        Property     | Description             | Required    | Default value
-        refValue     | reference value         | yes         |
+        Property     | Description                          | Required | Default
+        refValue     | reference value                      | yes |
+        ramp         | time-based ramping                   | no  |
     \endtable
 
     Example of the boundary condition specification:
@@ -63,6 +67,7 @@ SourceFiles
 
 #include "fvPatchFields.H"
 #include "fixedValueFvPatchFields.H"
+#include "Function1.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -77,9 +82,12 @@ class surfaceNormalFixedValueFvPatchVectorField
 :
     public fixedValueFvPatchVectorField
 {
-    // Private data
+    // Private Data
 
         scalarField refValue_;
+
+        //- Optional time ramping
+        autoPtr<Function1<scalar>> ramp_;
 
 
 public:

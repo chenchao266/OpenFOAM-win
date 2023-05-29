@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2015-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2015-2016 OpenFOAM Foundation
+    Copyright (C) 2018 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -22,10 +25,16 @@ License
     along with OpenFOAM.  If not, see <http://www.gnu.org/licenses/>.
 
 Class
-    Foam::preserveBafflesConstraint
+    Foam::decompositionConstraints::preserveBaffles
 
 Description
     Detects baffles and keeps owner and neighbour on same processor.
+
+    \heading Dictionary parameters
+    \table
+        Property    | Description                       | Required  | Default
+        type        | preserveBaffles                   | yes   |
+    \endtable
 
 SourceFiles
     preserveBafflesConstraint.C
@@ -41,20 +50,17 @@ SourceFiles
 
 namespace Foam
 {
-
 namespace decompositionConstraints
 {
 
 /*---------------------------------------------------------------------------*\
-                Class preserveBafflesConstraint Declaration
+                       Class preserveBaffles Declaration
 \*---------------------------------------------------------------------------*/
 
-class preserveBafflesConstraint
+class preserveBaffles
 :
     public decompositionConstraint
 {
-    // Private data
-
 public:
 
     //- Runtime type information
@@ -63,20 +69,15 @@ public:
 
     // Constructors
 
-        //- Construct with generic dictionary with optional entry for type
-        preserveBafflesConstraint
-        (
-            const dictionary& constraintsDict,
-            const word& type
-        );
+        //- Construct with constraint dictionary
+        explicit preserveBaffles(const dictionary& dict);
 
         //- Construct from components
-        preserveBafflesConstraint();
+        preserveBaffles();
 
 
     //- Destructor
-    virtual ~preserveBafflesConstraint()
-    {}
+    virtual ~preserveBaffles() = default;
 
 
     // Member Functions

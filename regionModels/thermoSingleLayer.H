@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -22,7 +24,7 @@ License
     along with OpenFOAM.  If not, see <http://www.gnu.org/licenses/>.
 
 Class
-    Foam::thermoSingleLayer
+    Foam::regionModels::surfaceFilmModels::thermoSingleLayer
 
 Description
     Thermodynamic form of single-cell layer surface film model
@@ -69,11 +71,11 @@ class thermoSingleLayer
 {
     // Private member functions
 
-        //- Disallow default bitwise copy construct
-        thermoSingleLayer(const thermoSingleLayer&);
+        //- No copy construct
+        thermoSingleLayer(const thermoSingleLayer&) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const thermoSingleLayer&);
+        //- No copy assignment
+        void operator=(const thermoSingleLayer&) = delete;
 
         //- Return boundary types for sensible enthalpy field
         wordList hsBoundaryTypes();
@@ -120,7 +122,7 @@ protected:
         scalar deltaWet_;
 
 
-        // Hyprophilic/phobic properties
+        // Hydrophilic/phobic properties
 
             //- Activation flag
             bool hydrophilic_;
@@ -166,11 +168,11 @@ protected:
             //- Viscosity model
             autoPtr<filmViscosityModel> viscosity_;
 
-            //- Heat transfer coefficient bewteen film surface and primary
+            //- Heat transfer coefficient between film surface and primary
             //  region [W/m2/K]
             autoPtr<heatTransferModel> htcs_;
 
-            //- Heat transfer coefficient bewteen wall and film [W/m2/K]
+            //- Heat transfer coefficient between wall and film [W/m2/K]
             autoPtr<heatTransferModel> htcw_;
 
             //- Phase change
@@ -359,10 +361,10 @@ public:
         // Derived fields (calculated on-the-fly)
 
             //- Return the convective heat energy from film to wall
-            inline tmp<scalarField> Qconvw(const label patchi) const;
+            inline tmp<scalarField> qconvw(const label patchi) const;
 
             //- Return the convective heat energy from primary region to film
-            inline tmp<scalarField> Qconvp(const label patchi) const;
+            inline tmp<scalarField> qconvp(const label patchi) const;
 
 
         // Evolution

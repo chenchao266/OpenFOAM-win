@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2015 OpenFOAM Foundation
+    Copyright (C) 2015-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -37,7 +40,9 @@ SourceFiles
 #define shellSurfaces_H
 
 #include "searchableSurface.H"
-#include "Tuple2.T.H"
+#include "Enum.H"
+#include "Tuple2.H"
+#include "labelVector.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -72,6 +77,9 @@ private:
         //- Reference to all geometry.
         const searchableSurfaces& allGeometry_;
 
+        //- Dry-run mode?
+        const bool dryRun_;
+
         //- Indices of surfaces that are shells
         labelList shells_;
 
@@ -85,15 +93,42 @@ private:
         labelListList levels_;
 
 
+        // Directional
+
+            //- Per shell any additional directional refinement
+            List<Tuple2<labelPair,labelVector>> dirLevels_;
+
+            //- Per shell the smoothing direction
+            vectorField smoothDirection_;
+
+            //- Per shell the directional smoothing iterations
+            labelList nSmoothExpansion_;
+
+            //- Per shell the positional smoothing iterations
+            labelList nSmoothPosition_;
+
+
+        // Gap level refinement
+
+            //- Per shell, per region the small-gap level specification
+            List<List<FixedList<label, 3>>> extendedGapLevel_;
+
+            //- Per shell, per region the small-gap level specification
+            List<List<volumeType>> extendedGapMode_;
+
+            //- Per shell, per region whether to allow selfProximity refinement
+            boolListList selfProximity_;
+
+
     // Private data
 
         //- refineMode names
-        static const NamedEnum<refineMode, 3> refineModeNames_;
+        static const Enum<refineMode> refineModeNames_;
 
 
     // Private Member Functions
 
-        //- Helper function for initialisation.
+        //- Helper function for initialisation of levels
         void setAndCheckLevels
         (
             const label shellI,
@@ -102,11 +137,33 @@ private:
 
         void orient();
 
+        //- Find first shell with a level higher than maxLevel
         void findHigherLevel
         (
             const pointField& pt,
             const label shellI,
             labelList& maxLevel
+        ) const;
+
+        //- Update highest min gap level
+        void findHigherGapLevel
+        (
+            const pointField& pt,
+            const labelList& ptLevel,
+            const label shellI,
+            labelList& gapShell,
+            List<FixedList<label, 3>>& gapInfo,
+            List<volumeType>& gapMode
+        ) const;
+
+        //- Find first shell with a level lower or equal to minLevel. Update
+        //  minLevel and shell.
+        void findLevel
+        (
+            const pointField& pt,
+            const label shellI,
+            labelList& minLevel,
+            labelList& shell
         ) const;
 
 public:
@@ -117,7 +174,8 @@ public:
         shellSurfaces
         (
             const searchableSurfaces& allGeometry,
-            const dictionary& shellsDict
+            const dictionary& shellsDict,
+            const bool dryRun = false
         );
 
 
@@ -125,22 +183,41 @@ public:
 
         // Access
 
-            //const List<scalarField>& distances() const
-            //{
-            //    return distances_;
-            //}
-            //
-            ////- Per shell per distance the refinement level
-            //const labelListList& levels() const
-            //{
-            //    return levels_;
-            //}
+            //- Indices of surfaces that are shells
+            const labelList& shells() const
+            {
+                return shells_;
+            }
+
+            //- Per shell, per region the small-gap level specification
+            const List<List<FixedList<label, 3>>>& extendedGapLevel() const
+            {
+                return extendedGapLevel_;
+            }
+
+            //- Per shell, per region the small-gap level specification
+            const List<List<volumeType>>& extendedGapMode() const
+            {
+                return extendedGapMode_;
+            }
+
+            //- Per shell, per region whether to test for gap with same surface
+            const boolListList& gapSelf() const
+            {
+                return selfProximity_;
+            }
 
 
         // Query
 
             //- Highest shell level
             label maxLevel() const;
+
+            //- Highest shell gap level
+            labelList maxGapLevel() const;
+
+            //- Min and max cell level for directional refinement
+            labelPairList directionalSelectLevel() const;
 
             //- Find shell level higher than ptLevel
             void findHigherLevel
@@ -150,6 +227,52 @@ public:
                 labelList& maxLevel
             ) const;
 
+            //- Find a shell whose minimum gap level is >= ptLevel
+            void findHigherGapLevel
+            (
+                const pointField& pt,
+                const labelList& ptLevel,
+                labelList& gapShell,
+                List<FixedList<label, 3>>& gapInfo,
+                List<volumeType>& gapMode
+            ) const;
+
+            //- Find a shell whose minimum gap level is >= ptLevel. gapInfo
+            //  is (0 0 0) if no shell found
+            void findHigherGapLevel
+            (
+                const pointField& pt,
+                const labelList& ptLevel,
+                List<FixedList<label, 3>>& gapInfo,
+                List<volumeType>& gapMode
+            ) const;
+
+            //- Find first shell (or -1) with level equal or lower than ptLevel.
+            void findLevel
+            (
+                const pointField& pt,
+                const labelList& ptLevel,
+                labelList& shell
+            ) const;
+
+            //- Find any shell (or -1) with higher wanted directional level
+            void findDirectionalLevel
+            (
+                const pointField& pt,
+                const labelList& ptLevel,   // omnidirectional level
+                const labelList& dirLevel,  // directional level
+                const direction dir,
+                labelList& shell
+            ) const;
+
+            //- Per shell the smoothing direction
+            const vectorField& smoothDirection() const;
+
+            //- Per shell the directional smoothing iterations
+            const labelList& nSmoothExpansion() const;
+
+            //- Per shell the positional smoothing iterations
+            const labelList& nSmoothPosition() const;
 };
 
 

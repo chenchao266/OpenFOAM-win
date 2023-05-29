@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2012-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2012-2016 OpenFOAM Foundation
+    Copyright (C) 2016-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -25,6 +28,8 @@ License
 
 #include "pressure.H"
 #include "volFields.H"
+#include "basicThermo.H"
+#include "uniformDimensionedFields.H"
 #include "addToRunTimeSelectionTable.H"
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
@@ -39,22 +44,78 @@ namespace functionObjects
 }
 
 
+const Foam::Enum
+<
+    Foam::functionObjects::pressure::mode
+>
+Foam::functionObjects::pressure::modeNames
+({
+    { STATIC, "static" },
+    { TOTAL, "total" },
+    { ISENTROPIC, "isentropic" },
+    { STATIC_COEFF, "staticCoeff" },
+    { TOTAL_COEFF, "totalCoeff" },
+});
+
+
+const Foam::Enum
+<
+    Foam::functionObjects::pressure::hydrostaticMode
+>
+Foam::functionObjects::pressure::hydrostaticModeNames
+({
+    { NONE, "none" },
+    { ADD, "add" },
+    { SUBTRACT, "subtract" },
+});
+
+
 // * * * * * * * * * * * * * Private Member Functions  * * * * * * * * * * * //
 
 Foam::word Foam::functionObjects::pressure::resultName() const
 {
     word rName;
 
-    if (calcTotal_)
-    {
-        rName = "total(" + fieldName_ + ")";
-    }
-    else
+    if (mode_ & STATIC)
     {
         rName = "static(" + fieldName_ + ")";
     }
+    else if (mode_ & TOTAL)
+    {
+        rName = "total(" + fieldName_ + ")";
+    }
+    else if (mode_ & ISENTROPIC)
+    {
+        rName = "isentropic(" + fieldName_ + ")";
+    }
+    else
+    {
+        FatalErrorInFunction
+            << "Unhandled calculation mode " << modeNames[mode_]
+            << abort(FatalError);
+    }
 
-    if (calcCoeff_)
+    switch (hydrostaticMode_)
+    {
+        case NONE:
+        {
+            break;
+        }
+        case ADD:
+        {
+            rName = rName + "+rgh";
+
+            break;
+        }
+        case SUBTRACT:
+        {
+            rName = rName + "-rgh";
+
+            break;
+        }
+    }
+
+    if (mode_ & COEFF)
     {
         rName += "_coeff";
     }
@@ -70,12 +131,33 @@ Foam::tmp<Foam::volScalarField> Foam::functionObjects::pressure::rhoScale
 {
     if (p.dimensions() == dimPressure)
     {
-        return p;
+        return tmp<volScalarField>::New
+        (
+            IOobject
+            (
+                "rhoScale",
+                p.mesh().time().timeName(),
+                p.mesh(),
+                IOobject::NO_READ,
+                IOobject::NO_WRITE,
+                false
+            ),
+            p,
+            fvPatchField<scalar>::calculatedType()
+        );
     }
-    else
+
+    if (!rhoInfInitialised_)
     {
-        return dimensionedScalar("rhoInf", dimDensity, rhoInf_)*p;
+        FatalErrorInFunction
+            << type() << " " << name() << ": "
+            << "pressure identified as incompressible, but reference "
+            << "density is not set.  Please set 'rho' to 'rhoInf', and "
+            << "set an appropriate value for 'rhoInf'"
+            << exit(FatalError);
     }
+
+    return dimensionedScalar("rhoInf", dimDensity, rhoInf_)*p;
 }
 
 
@@ -89,55 +171,132 @@ Foam::tmp<Foam::volScalarField> Foam::functionObjects::pressure::rhoScale
     {
         return lookupObject<volScalarField>(rhoName_)*tsf;
     }
-    else
-    {
-        return dimensionedScalar("rhoInf", dimDensity, rhoInf_)*tsf;
-    }
+
+    return dimensionedScalar("rhoInf", dimDensity, rhoInf_)*tsf;
 }
 
 
-Foam::tmp<Foam::volScalarField> Foam::functionObjects::pressure::pRef
+void Foam::functionObjects::pressure::addHydrostaticContribution
 (
-    const tmp<volScalarField>& tp
+    const volScalarField& p,
+    volScalarField& prgh
 ) const
 {
-    if (calcTotal_)
+    // Add/subtract hydrostatic contribution
+
+    if (hydrostaticMode_ == NONE)
     {
-        return tp + dimensionedScalar("pRef", dimPressure, pRef_);
+        return;
     }
-    else
+
+    if (!gInitialised_)
     {
-        return std::move(tp);
+        g_ = mesh_.time().lookupObject<uniformDimensionedVectorField>("g");
+    }
+
+    if (!hRefInitialised_)
+    {
+        hRef_ = mesh_.lookupObject<uniformDimensionedScalarField>("hRef");
+    }
+
+    const dimensionedScalar ghRef
+    (
+        (g_ & (cmptMag(g_.value())/mag(g_.value())))*hRef_
+    );
+
+    tmp<volScalarField> rgh = rhoScale(p, (g_ & mesh_.C()) - ghRef);
+
+    switch (hydrostaticMode_)
+    {
+        case ADD:
+        {
+            prgh += rgh;
+            break;
+        }
+        case SUBTRACT:
+        {
+            prgh -= rgh;
+            break;
+        }
+        default:
+        {}
     }
 }
 
 
-Foam::tmp<Foam::volScalarField> Foam::functionObjects::pressure::pDyn
+Foam::tmp<Foam::volScalarField> Foam::functionObjects::pressure::calcPressure
 (
     const volScalarField& p,
     const tmp<volScalarField>& tp
 ) const
 {
-    if (calcTotal_)
+    // Initialise to the pressure reference level
+    auto tresult =
+        tmp<volScalarField>::New
+        (
+            IOobject
+            (
+                scopedName("p"),
+                mesh_.time().timeName(),
+                mesh_,
+                IOobject::NO_READ
+            ),
+            mesh_,
+            dimensionedScalar("p", dimPressure, pRef_)
+        );
+
+    volScalarField& result = tresult.ref();
+
+    addHydrostaticContribution(p, result);
+
+    if (mode_ & STATIC)
     {
-        return
+        result += tp;
+        return tresult;
+    }
+
+    if (mode_ & TOTAL)
+    {
+        result +=
             tp
           + rhoScale(p, 0.5*magSqr(lookupObject<volVectorField>(UName_)));
+        return tresult;
     }
-    else
+
+    if (mode_ & ISENTROPIC)
     {
-        return std::move(tp);
+        const basicThermo* thermoPtr =
+            p.mesh().cfindObject<basicThermo>(basicThermo::dictName);
+
+        if (!thermoPtr)
+        {
+            FatalErrorInFunction
+                << "Isentropic pressure calculation requires a "
+                << "thermodynamics package"
+                << exit(FatalError);
+        }
+
+        const volScalarField gamma(thermoPtr->gamma());
+        const volScalarField Mb
+        (
+            mag(lookupObject<volVectorField>(UName_))
+           /sqrt(gamma*tp.ref()/thermoPtr->rho())
+        );
+
+        result += tp*(pow(1 + (gamma - 1)/2*sqr(Mb), gamma/(gamma - 1)));
+        return tresult;
     }
+
+    return tresult;
 }
 
 
-Foam::tmp<Foam::volScalarField>
-Foam::functionObjects::pressure::coeff
+Foam::tmp<Foam::volScalarField> Foam::functionObjects::pressure::coeff
 (
     const tmp<volScalarField>& tp
 ) const
 {
-    if (calcCoeff_)
+    if (mode_ & COEFF)
     {
         tmp<volScalarField> tpCoeff(tp.ptr());
         volScalarField& pCoeff = tpCoeff.ref();
@@ -152,10 +311,8 @@ Foam::functionObjects::pressure::coeff
 
         return tpCoeff;
     }
-    else
-    {
-        return std::move(tp);
-    }
+
+    return std::move(tp);
 }
 
 
@@ -167,16 +324,23 @@ bool Foam::functionObjects::pressure::calc()
     {
         const volScalarField& p = lookupObject<volScalarField>(fieldName_);
 
-        return store
+        auto tp = tmp<volScalarField>::New
         (
-            resultName_,
-            coeff(pRef(pDyn(p, rhoScale(p))))
+            IOobject
+            (
+                resultName_,
+                p.mesh().time().timeName(),
+                p.mesh(),
+                IOobject::NO_READ,
+                IOobject::NO_WRITE
+            ),
+            coeff(calcPressure(p, rhoScale(p)))
         );
+
+        return store(resultName_, tp);
     }
-    else
-    {
-        return false;
-    }
+
+    return false;
 }
 
 
@@ -190,58 +354,100 @@ Foam::functionObjects::pressure::pressure
 )
 :
     fieldExpression(name, runTime, dict, "p"),
+    mode_(STATIC),
+    hydrostaticMode_(NONE),
     UName_("U"),
     rhoName_("rho"),
-    calcTotal_(false),
     pRef_(0),
-    calcCoeff_(false),
     pInf_(0),
     UInf_(Zero),
-    rhoInf_(1)
+    rhoInf_(1),
+    rhoInfInitialised_(false),
+    g_(dimAcceleration),
+    gInitialised_(false),
+    hRef_(dimLength),
+    hRefInitialised_(false)
 {
     read(dict);
-
-    dimensionSet pDims(dimPressure);
-
-    if (calcCoeff_)
-    {
-        pDims /= dimPressure;
-    }
 }
-
-
-// * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
-
-Foam::functionObjects::pressure::~pressure()
-{}
 
 
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
 
 bool Foam::functionObjects::pressure::read(const dictionary& dict)
 {
-    dict.readIfPresent("U", UName_);
-    dict.readIfPresent("rho", rhoName_);
+    Info<< type() << " " << name() << ":" << nl;
+
+    fieldExpression::read(dict);
+
+    UName_   = dict.getOrDefault<word>("U", "U");
+    rhoName_ = dict.getOrDefault<word>("rho", "rho");
 
     if (rhoName_ == "rhoInf")
     {
-        dict.lookup("rhoInf") >> rhoInf_;
+        dict.readEntry("rhoInf", rhoInf_);
+        rhoInfInitialised_ = true;
     }
 
-    dict.lookup("calcTotal") >> calcTotal_;
-    if (calcTotal_)
+    if (!modeNames.readIfPresent("mode", dict, mode_))
     {
-        dict.lookup("pRef") >> pRef_;
+        // Backwards compatibility
+        // - check for the presence of 'calcTotal' and 'calcCoeff'
+
+        bool calcTotal =
+            dict.getOrDefaultCompat<bool>("mode", {{"calcTotal", 1812}}, false);
+        bool calcCoeff =
+            dict.getOrDefaultCompat<bool>("mode", {{"calcCoeff", 1812}}, false);
+
+        if (calcTotal)
+        {
+            mode_ = TOTAL;
+        }
+        else
+        {
+            mode_ = STATIC;
+        }
+
+        if (calcCoeff)
+        {
+            mode_ = static_cast<mode>(COEFF | mode_);
+        }
     }
 
-    dict.lookup("calcCoeff") >> calcCoeff_;
-    if (calcCoeff_)
-    {
-        dict.lookup("pInf") >> pInf_;
-        dict.lookup("UInf") >> UInf_;
-        dict.lookup("rhoInf") >> rhoInf_;
+    Info<< "    Operating mode: " << modeNames[mode_] << nl;
 
-        scalar zeroCheck = 0.5*rhoInf_*magSqr(UInf_) + pInf_;
+    pRef_ = dict.getOrDefault<scalar>("pRef", 0);
+
+    if
+    (
+        hydrostaticModeNames.readIfPresent
+        (
+            "hydrostaticMode",
+            dict,
+            hydrostaticMode_
+        )
+     && hydrostaticMode_
+    )
+    {
+        Info<< "    Hydrostatic mode: "
+            << hydrostaticModeNames[hydrostaticMode_]
+            << nl;
+        gInitialised_ = dict.readIfPresent("g", g_);
+        hRefInitialised_ = dict.readIfPresent("hRef", hRef_);
+    }
+    else
+    {
+        Info<< "    Not including hydrostatic effects" << nl;
+    }
+
+
+    if (mode_ & COEFF)
+    {
+        dict.readEntry("pInf", pInf_);
+        dict.readEntry("UInf", UInf_);
+        dict.readEntry("rhoInf", rhoInf_);
+
+        const scalar zeroCheck = 0.5*rhoInf_*magSqr(UInf_) + pInf_;
 
         if (mag(zeroCheck) < ROOTVSMALL)
         {
@@ -251,9 +457,13 @@ bool Foam::functionObjects::pressure::read(const dictionary& dict)
                 << "pressure level is zero.  Please check the supplied "
                 << "values of pInf, UInf and rhoInf" << endl;
         }
+
+        rhoInfInitialised_ = true;
     }
 
-    resultName_ = dict.lookupOrDefault<word>("result", resultName());
+    resultName_ = dict.getOrDefault<word>("result", resultName());
+
+    Info<< endl;
 
     return true;
 }

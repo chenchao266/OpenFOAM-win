@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2013 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2013 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -44,8 +47,7 @@ Foam::polyMeshFilterSettings::meshQualityCoeffDict() const
 }
 
 
-inline const Foam::Switch&
-Foam::polyMeshFilterSettings::controlMeshQuality() const
+inline Foam::Switch Foam::polyMeshFilterSettings::controlMeshQuality() const
 {
     return controlMeshQuality_;
 }

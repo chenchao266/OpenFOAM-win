@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2017-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -28,7 +31,7 @@ License
 #include "fvPatchFieldMapper.H"
 #include "volFields.H"
 #include "surfaceFields.H"
-#include "uniformDimensionedFields.H"
+#include "gravityMeshObject.H"
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
@@ -60,11 +63,13 @@ phaseHydrostaticPressureFvPatchScalarField
 )
 :
     mixedFvPatchScalarField(p, iF),
-    phaseFraction_(dict.lookupOrDefault<word>("phaseFraction", "alpha")),
-    rho_(readScalar(dict.lookup("rho"))),
-    pRefValue_(readScalar(dict.lookup("pRefValue"))),
+    phaseFraction_(dict.getOrDefault<word>("phaseFraction", "alpha")),
+    rho_(dict.get<scalar>("rho")),
+    pRefValue_(dict.get<scalar>("pRefValue")),
     pRefPoint_(dict.lookup("pRefPoint"))
 {
+    this->patchType() = dict.getOrDefault<word>("patchType", word::null);
+
     this->refValue() = pRefValue_;
 
     if (dict.found("value"))
@@ -143,10 +148,10 @@ void Foam::phaseHydrostaticPressureFvPatchScalarField::updateCoeffs()
         );
 
     const uniformDimensionedVectorField& g =
-        db().lookupObject<uniformDimensionedVectorField>("g");
+        meshObjects::gravity::New(db().time());
 
     // scalar rhor = 1000;
-    // scalarField alphap1 = max(min(alphap, 1.0), 0.0);
+    // scalarField alphap1 = max(min(alphap, scalar(1)), scalar(0));
     // valueFraction() = alphap1/(alphap1 + rhor*(1.0 - alphap1));
     valueFraction() = max(min(alphap, scalar(1)), scalar(0));
 
@@ -161,14 +166,10 @@ void Foam::phaseHydrostaticPressureFvPatchScalarField::updateCoeffs()
 void Foam::phaseHydrostaticPressureFvPatchScalarField::write(Ostream& os) const
 {
     fvPatchScalarField::write(os);
-    if (phaseFraction_ != "alpha")
-    {
-        os.writeKeyword("phaseFraction")
-            << phaseFraction_ << token::END_STATEMENT << nl;
-    }
-    os.writeKeyword("rho") << rho_ << token::END_STATEMENT << nl;
-    os.writeKeyword("pRefValue") << pRefValue_ << token::END_STATEMENT << nl;
-    os.writeKeyword("pRefPoint") << pRefPoint_ << token::END_STATEMENT << nl;
+    os.writeEntryIfDifferent<word>("phaseFraction", "alpha", phaseFraction_);
+    os.writeEntry("rho", rho_);
+    os.writeEntry("pRefValue", pRefValue_);
+    os.writeEntry("pRefPoint", pRefPoint_);
     writeEntry("value", os);
 }
 

@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2012-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2012-2016, 2019 OpenFOAM Foundation
+    Copyright (C) 2019-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -28,31 +31,66 @@ Group
     grpWallFunctions
 
 Description
-    This boundary condition provides a turbulence kinetic energy wall function
-    condition for low- and high-Reynolds number turbulent flow cases.
-
-    The model operates in two modes, based on the computed laminar-to-turbulent
-    switch-over y+ value derived from kappa and E.
+    This boundary condition provides a wall constraint on the turbulent kinetic
+    energy, i.e. \c k, for low- and high-Reynolds number turbulence models.
 
 Usage
-    \table
-        Property     | Description             | Required    | Default value
-        Cmu          | model coefficient       | no          | 0.09
-        kappa        | Von Karman constant     | no          | 0.41
-        E            | model coefficient       | no          | 9.8
-        Ceps2        | model coefficient       | no          | 1.9
-    \endtable
-
     Example of the boundary condition specification:
     \verbatim
     <patchName>
     {
+        // Mandatory entries (unmodifiable)
         type            kLowReWallFunction;
+
+        // Optional entries (unmodifiable)
+        Ceps2           1.9;
+        Ck              -0.416;
+        Bk              8.366;
+        C               11.0;
+
+        // Optional (inherited) entries
+        ...
     }
     \endverbatim
 
+    where the entries mean:
+    \table
+      Property  | Description                     | Type   | Req'd | Dflt
+      type      | Type name: kLowReWallFunction   | word   | yes   | -
+      Ceps2     | Model coefficient               | scalar | no    |  1.9
+      Ck        | Model coefficient               | scalar | no    | -0.416
+      Bk        | Model coefficient               | scalar | no    |  8.366
+      C         | Model coefficient               | scalar | no    |  11.0
+    \endtable
+
+    The inherited entries are elaborated in:
+      - \link fixedValueFvPatchField.H \endlink
+
+    Viscous and inertial sublayer predictions for \c k are blended in
+    a stepwise manner:
+
+    \f[
+        k = k_{log} \qquad if \quad y^+ > y^+_{lam}
+    \f]
+    \f[
+        k = k_{vis} \qquad if \quad y^+ <= y^+_{lam}
+    \f]
+    where
+    \vartable
+      k_{vis}   | k prediction in the viscous sublayer
+      k_{log}   | k prediction in the inertial sublayer
+      y^+       | estimated wall-normal height of the cell centre in wall units
+      y^+_{lam} | estimated intersection of the viscous and inertial sublayers
+    \endvartable
+
+Note
+    The coefficients \c Cmu, \c kappa, and \c E are obtained from
+    the specified \c nutWallFunction in order to ensure that each patch
+    possesses the same set of values for these coefficients.
+
 See also
-    Foam::fixedValueFvPatchField
+    - Foam::fixedValueFvPatchField
+    - Foam::kqRWallFunctionFvPatchScalarField
 
 SourceFiles
     kLowReWallFunctionFvPatchScalarField.C
@@ -79,31 +117,19 @@ class kLowReWallFunctionFvPatchScalarField
 {
 protected:
 
-    // Protected data
-
-        //- Cmu coefficient
-        scalar Cmu_;
-
-        //- Von Karman constant
-        scalar kappa_;
-
-        //- E coefficient
-        scalar E_;
+    // Protected Data
 
         //- Ceps2 coefficient
         scalar Ceps2_;
 
-        //- Y+ at the edge of the laminar sublayer
-        scalar yPlusLam_;
+        //- Ck coefficient
+        scalar Ck_;
 
+        //- Bk coefficient
+        scalar Bk_;
 
-    // Protected Member Functions
-
-        //- Check the type of the patch
-        virtual void checkType();
-
-        //- Calculate the Y+ at the edge of the laminar sublayer
-        scalar yPlusLam(const scalar kappa, const scalar E);
+        //- C coefficient
+        scalar C_;
 
 
 public:
@@ -130,7 +156,7 @@ public:
         );
 
         //- Construct by mapping given kLowReWallFunctionFvPatchScalarField
-        //  onto a new patch
+        //- onto a new patch
         kLowReWallFunctionFvPatchScalarField
         (
             const kLowReWallFunctionFvPatchScalarField&,
@@ -174,15 +200,12 @@ public:
         }
 
 
-    // Member functions
+    // Member Functions
 
         // Evaluation functions
 
             //- Update the coefficients associated with the patch field
             virtual void updateCoeffs();
-
-            //- Evaluate the patchField
-            virtual void evaluate(const Pstream::commsTypes);
 
 
         // I-O

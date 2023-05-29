@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2019 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -26,162 +29,164 @@ License
 //#include "simpleMatrix.H"
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
-namespace Foam {
-    template<class Type>
-    simpleMatrix<Type>::simpleMatrix(const label mSize)
-        :
-        scalarSquareMatrix(mSize),
-        source_(mSize)
-    {}
 
 
-    template<class Type>
-    simpleMatrix<Type>::simpleMatrix
-    (
-        const label mSize,
-        const scalar coeffVal,
-        const Type& sourceVal
-    )
-        :
-        scalarSquareMatrix(mSize, coeffVal),
-        source_(mSize, sourceVal)
-    {}
+ namespace Foam{
+template<class Type>
+simpleMatrix<Type>::simpleMatrix(const label mSize)
+:
+    scalarSquareMatrix(mSize),
+    source_(mSize)
+{}
 
 
-    template<class Type>
-    simpleMatrix<Type>::simpleMatrix
-    (
-        const scalarSquareMatrix& matrix,
-        const Field<Type>& source
-    )
-        :
-        scalarSquareMatrix(matrix),
-        source_(source)
-    {}
+template<class Type>
+simpleMatrix<Type>::simpleMatrix
+(
+    const label mSize,
+    const scalar coeffVal,
+    const Type& sourceVal
+)
+:
+    scalarSquareMatrix(mSize, coeffVal),
+    source_(mSize, sourceVal)
+{}
 
 
-    template<class Type>
-    simpleMatrix<Type>::simpleMatrix(Istream& is)
-        :
-        scalarSquareMatrix(is),
-        source_(is)
-    {}
+template<class Type>
+simpleMatrix<Type>::simpleMatrix
+(
+    const scalarSquareMatrix& matrix,
+    const Field<Type>& source
+)
+:
+    scalarSquareMatrix(matrix),
+    source_(source)
+{}
 
 
-    // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
-
-    template<class Type>
-    Field<Type> simpleMatrix<Type>::solve() const
-    {
-        scalarSquareMatrix tmpMatrix = *this;
-        Field<Type> sourceSol = source_;
-
-        solve(tmpMatrix, sourceSol);
-
-        return sourceSol;
-    }
+template<class Type>
+simpleMatrix<Type>::simpleMatrix(Istream& is)
+:
+    scalarSquareMatrix(is),
+    source_(is)
+{}
 
 
-    template<class Type>
-    Field<Type> simpleMatrix<Type>::LUsolve() const
-    {
-        scalarSquareMatrix luMatrix = *this;
-        Field<Type> sourceSol = source_;
+// * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
 
-        ::Foam::LUsolve(luMatrix, sourceSol);
+template<class Type>
+Field<Type> simpleMatrix<Type>::solve() const
+{
+    scalarSquareMatrix tmpMatrix = *this;
+    Field<Type> sourceSol = source_;
 
-        return sourceSol;
-    }
+    solve(tmpMatrix, sourceSol);
 
-
-    // * * * * * * * * * * * * * * * Member Operators  * * * * * * * * * * * * * //
-
-    template<class Type>
-    void simpleMatrix<Type>::operator=(const simpleMatrix<Type>& m)
-    {
-        if (this == &m)
-        {
-            FatalErrorInFunction
-                << "Attempted assignment to self"
-                << abort(FatalError);
-        }
-
-        if (m() != m.m())
-        {
-            FatalErrorInFunction
-                << "Different size matrices"
-                << abort(FatalError);
-        }
-
-        if (source_.size() != m.source_.size())
-        {
-            FatalErrorInFunction
-                << "Different size source vectors"
-                << abort(FatalError);
-        }
-
-        scalarSquareMatrix::operator=(m);
-        source_ = m.source_;
-    }
-
-
-    // * * * * * * * * * * * * * * * Friend Operators  * * * * * * * * * * * * * //
-
-    template<class Type>
-    simpleMatrix<Type> operator+
-        (
-            const simpleMatrix<Type>& m1,
-            const simpleMatrix<Type>& m2
-            )
-    {
-        return simpleMatrix<Type>
-            (
-                static_cast<const scalarSquareMatrix&>(m1)
-                + static_cast<const scalarSquareMatrix&>(m2),
-                m1.source_ + m2.source_
-                );
-    }
-
-
-    template<class Type>
-    simpleMatrix<Type> operator-
-        (
-            const simpleMatrix<Type>& m1,
-            const simpleMatrix<Type>& m2
-            )
-    {
-        return simpleMatrix<Type>
-            (
-                static_cast<const scalarSquareMatrix&>(m1)
-                - static_cast<const scalarSquareMatrix&>(m2),
-                m1.source_ - m2.source_
-                );
-    }
-
-
-    template<class Type>
-    simpleMatrix<Type> operator*
-        (
-            const scalar s,
-            const simpleMatrix<Type>& m
-            )
-    {
-        return simpleMatrix<Type>(s*m.matrix_, s*m.source_);
-    }
-
-
-    // * * * * * * * * * * * * * * * IOstream Operators  * * * * * * * * * * * * //
-
-    template<class Type>
-    Ostream& operator<<
-        (
-            Ostream& os,
-            const simpleMatrix<Type>& m
-            )
-    {
-        os << static_cast<const scalarSquareMatrix&>(m) << nl << m.source_;
-        return os;
-    }
-
+    return sourceSol;
 }
+
+
+template<class Type>
+Field<Type> simpleMatrix<Type>::LUsolve() const
+{
+    scalarSquareMatrix luMatrix = *this;
+    Field<Type> sourceSol = source_;
+
+    ::Foam::LUsolve(luMatrix, sourceSol);
+
+    return sourceSol;
+}
+
+
+// * * * * * * * * * * * * * * * Member Operators  * * * * * * * * * * * * * //
+
+template<class Type>
+void simpleMatrix<Type>::operator=(const simpleMatrix<Type>& m)
+{
+    if (this == &m)
+    {
+        return;  // Self-assignment is a no-op
+    }
+
+    if (m() != m.m())
+    {
+        FatalErrorInFunction
+            << "Different size matrices"
+            << abort(FatalError);
+    }
+
+    if (source_.size() != m.source_.size())
+    {
+        FatalErrorInFunction
+            << "Different size source vectors"
+            << abort(FatalError);
+    }
+
+    scalarSquareMatrix::operator=(m);
+    source_ = m.source_;
+}
+
+
+// * * * * * * * * * * * * * * * Friend Operators  * * * * * * * * * * * * * //
+
+template<class Type>
+simpleMatrix<Type> operator+
+(
+    const simpleMatrix<Type>& m1,
+    const simpleMatrix<Type>& m2
+)
+{
+    return simpleMatrix<Type>
+    (
+        static_cast<const scalarSquareMatrix&>(m1)
+      + static_cast<const scalarSquareMatrix&>(m2),
+        m1.source_ + m2.source_
+    );
+}
+
+
+template<class Type>
+simpleMatrix<Type> operator-
+(
+    const simpleMatrix<Type>& m1,
+    const simpleMatrix<Type>& m2
+)
+{
+    return simpleMatrix<Type>
+    (
+        static_cast<const scalarSquareMatrix&>(m1)
+      - static_cast<const scalarSquareMatrix&>(m2),
+        m1.source_ - m2.source_
+    );
+}
+
+
+template<class Type>
+simpleMatrix<Type> operator*
+(
+    const scalar s,
+    const simpleMatrix<Type>& m
+)
+{
+    return simpleMatrix<Type>(s*m.matrix_, s*m.source_);
+}
+
+
+// * * * * * * * * * * * * * * * IOstream Operators  * * * * * * * * * * * * //
+
+template<class Type>
+Ostream& operator<<
+(
+    Ostream& os,
+    const simpleMatrix<Type>& m
+)
+{
+    os << static_cast<const scalarSquareMatrix&>(m) << nl << m.source_;
+    return os;
+}
+
+
 // ************************************************************************* //
+
+ } // End namespace Foam

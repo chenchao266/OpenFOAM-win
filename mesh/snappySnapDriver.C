@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2015 OpenFOAM Foundation
+    Copyright (C) 2015-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -31,33 +34,42 @@ Description
 #include "polyTopoChange.H"
 #include "syncTools.H"
 #include "fvMesh.H"
-#include "Time.T.H"
+#include "Time1.H"
 #include "OFstream.H"
 #include "OBJstream.H"
 #include "mapPolyMesh.H"
 #include "pointEdgePoint.H"
-#include "PointEdgeWave.T.H"
+#include "PointEdgeWave.H"
 #include "mergePoints.H"
 #include "snapParameters.H"
 #include "refinementSurfaces.H"
+#include "searchableSurfaces.H"
 #include "unitConversion.H"
 #include "localPointRegion.H"
-#include "PatchTools.T.H"
+#include "PatchTools.H"
+#include "refinementFeatures.H"
+#include "weightedPosition.H"
+#include "profiling.H"
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
 
 namespace Foam
 {
-    defineTypeNameAndDebug(snappySnapDriver, 0);
-}
+
+defineTypeNameAndDebug(snappySnapDriver, 0);
+
+} // End namespace Foam
+
 
 // * * * * * * * * * * * * * Private Member Functions  * * * * * * * * * * * //
 
+// Calculate geometrically collocated points, Requires bitSet to be
+// sized and initialised!
 Foam::label Foam::snappySnapDriver::getCollocatedPoints
 (
     const scalar tol,
     const pointField& points,
-    PackedBoolList& isCollocatedPoint
+    bitSet& isCollocatedPoint
 )
 {
     labelList pointMap;
@@ -93,16 +105,16 @@ Foam::label Foam::snappySnapDriver::getCollocatedPoints
         else if (firstOldPoint[newPointi] == -2)
         {
             // Third or more reference of oldPointi -> non-manifold
-            isCollocatedPoint.set(oldPointi, 1u);
+            isCollocatedPoint.set(oldPointi);
             nCollocated++;
         }
         else
         {
             // Second reference of oldPointi -> non-manifold
-            isCollocatedPoint.set(firstOldPoint[newPointi], 1u);
+            isCollocatedPoint.set(firstOldPoint[newPointi]);
             nCollocated++;
 
-            isCollocatedPoint.set(oldPointi, 1u);
+            isCollocatedPoint.set(oldPointi);
             nCollocated++;
 
             // Mark with special value to save checking next time round
@@ -113,7 +125,166 @@ Foam::label Foam::snappySnapDriver::getCollocatedPoints
 }
 
 
-Foam::pointField Foam::snappySnapDriver::smoothPatchDisplacement
+Foam::tmp<Foam::pointField> Foam::snappySnapDriver::smoothInternalDisplacement
+(
+    const meshRefinement& meshRefiner,
+    const motionSmoother& meshMover
+)
+{
+    const indirectPrimitivePatch& pp = meshMover.patch();
+    const polyMesh& mesh = meshMover.mesh();
+
+    // Get neighbour refinement
+    const hexRef8& cutter = meshRefiner.meshCutter();
+    const labelList& cellLevel = cutter.cellLevel();
+
+
+    // Get the faces on the boundary
+    bitSet isFront(mesh.nFaces(), pp.addressing());
+
+    // Walk out from the surface a bit. Poor man's FaceCellWave.
+    // Commented out for now - not sure if needed and if so how much
+    //for (label iter = 0; iter < 2; iter++)
+    //{
+    //    bitSet newIsFront(mesh.nFaces());
+    //
+    //    forAll(isFront, facei)
+    //    {
+    //        if (isFront.test(facei))
+    //        {
+    //            label own = mesh.faceOwner()[facei];
+    //            const cell& ownFaces = mesh.cells()[own];
+    //            newIsFront.set(ownFaces);
+    //
+    //            if (mesh.isInternalFace(facei))
+    //            {
+    //                label nei = mesh.faceNeighbour()[facei];
+    //                const cell& neiFaces = mesh.cells()[nei];
+    //                newIsFront.set(neiFaces);
+    //            }
+    //        }
+    //    }
+    //
+    //    syncTools::syncFaceList
+    //    (
+    //        mesh,
+    //        newIsFront,
+    //        orEqOp<unsigned int>()
+    //    );
+    //
+    //    isFront = newIsFront;
+    //}
+
+    // Mark all points on faces
+    //  - not on the boundary
+    //  - inbetween differing refinement levels
+    bitSet isMovingPoint(mesh.nPoints());
+
+    label nInterface = 0;
+
+    for (label facei = 0; facei < mesh.nInternalFaces(); facei++)
+    {
+        label ownLevel = cellLevel[mesh.faceOwner()[facei]];
+        label neiLevel = cellLevel[mesh.faceNeighbour()[facei]];
+
+        if (!isFront.test(facei) && ownLevel != neiLevel)
+        {
+            const face& f = mesh.faces()[facei];
+            isMovingPoint.set(f);
+
+            ++nInterface;
+        }
+    }
+
+    labelList neiCellLevel;
+    syncTools::swapBoundaryCellList(mesh, cellLevel, neiCellLevel);
+
+    for (label facei = mesh.nInternalFaces(); facei < mesh.nFaces(); facei++)
+    {
+        label ownLevel = cellLevel[mesh.faceOwner()[facei]];
+        label neiLevel = neiCellLevel[facei-mesh.nInternalFaces()];
+
+        if (!isFront.test(facei) && ownLevel != neiLevel)
+        {
+            const face& f = mesh.faces()[facei];
+            isMovingPoint.set(f);
+
+            ++nInterface;
+        }
+    }
+
+    if (debug)
+    {
+        reduce(nInterface, sumOp<label>());
+        Info<< "Found " << nInterface << " faces out of "
+            << mesh.globalData().nTotalFaces()
+            << " inbetween refinement regions." << endl;
+    }
+
+    // Make sure that points that are coupled to a moving point are marked
+    // as well
+    syncTools::syncPointList(mesh, isMovingPoint, maxEqOp<unsigned int>(), 0);
+
+    // Unmark any point on the boundary. If we're doing zero iterations of
+    // face-cell wave we might have coupled points not being unmarked.
+    isMovingPoint.unset(pp.meshPoints());
+
+    // Make sure that points that are coupled to meshPoints but not on a patch
+    // are unmarked as well
+    syncTools::syncPointList(mesh, isMovingPoint, minEqOp<unsigned int>(), 1);
+
+
+    // Calculate average of connected cells
+    Field<weightedPosition> sumLocation
+    (
+        mesh.nPoints(),
+        pTraits<weightedPosition>::zero_
+    );
+
+    forAll(isMovingPoint, pointi)
+    {
+        if (isMovingPoint.test(pointi))
+        {
+            const labelList& pCells = mesh.pointCells(pointi);
+
+            sumLocation[pointi].first() = pCells.size();
+            for (const label celli : pCells)
+            {
+                sumLocation[pointi].second() += mesh.cellCentres()[celli];
+            }
+        }
+    }
+
+    // Add coupled contributions
+    weightedPosition::syncPoints(mesh, sumLocation);
+
+    tmp<pointField> tdisplacement(new pointField(mesh.nPoints(), Zero));
+    pointField& displacement = tdisplacement.ref();
+
+    label nAdapted = 0;
+
+    forAll(displacement, pointi)
+    {
+        const weightedPosition& wp = sumLocation[pointi];
+        if (mag(wp.first()) > VSMALL)
+        {
+            displacement[pointi] =
+                wp.second()/wp.first()
+              - mesh.points()[pointi];
+            nAdapted++;
+        }
+    }
+
+    reduce(nAdapted, sumOp<label>());
+    Info<< "Smoothing " << nAdapted << " points inbetween refinement regions."
+        << endl;
+
+    return tdisplacement;
+}
+
+
+// Calculate displacement as average of patch points.
+Foam::tmp<Foam::pointField> Foam::snappySnapDriver::smoothPatchDisplacement
 (
     const motionSmoother& meshMover,
     const List<labelPair>& baffles
@@ -122,7 +293,7 @@ Foam::pointField Foam::snappySnapDriver::smoothPatchDisplacement
     const indirectPrimitivePatch& pp = meshMover.patch();
 
     // Calculate geometrically non-manifold points on the patch to be moved.
-    PackedBoolList nonManifoldPoint(pp.nPoints());
+    bitSet nonManifoldPoint(pp.nPoints());
     label nNonManifoldPoints = getCollocatedPoints
     (
         SMALL,
@@ -152,7 +323,7 @@ Foam::pointField Foam::snappySnapDriver::smoothPatchDisplacement
     const polyMesh& mesh = meshMover.mesh();
 
     // Get labels of faces to count (master of coupled faces and baffle pairs)
-    PackedBoolList isMasterFace(syncTools::getMasterFaces(mesh));
+    bitSet isMasterFace(syncTools::getMasterFaces(mesh));
 
     {
         forAll(baffles, i)
@@ -160,12 +331,12 @@ Foam::pointField Foam::snappySnapDriver::smoothPatchDisplacement
             label f0 = baffles[i].first();
             label f1 = baffles[i].second();
 
-            if (isMasterFace.get(f0))
+            if (isMasterFace.test(f0))
             {
                 // Make f1 a slave
                 isMasterFace.unset(f1);
             }
-            else if (isMasterFace.get(f1))
+            else if (isMasterFace.test(f1))
             {
                 isMasterFace.unset(f0);
             }
@@ -183,56 +354,54 @@ Foam::pointField Foam::snappySnapDriver::smoothPatchDisplacement
     // Get average position of boundary face centres
     // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-    vectorField avgBoundary(pointFaces.size(), Zero);
-    labelList nBoundary(pointFaces.size(), 0);
-
-    forAll(pointFaces, patchPointi)
+    Field<weightedPosition> avgBoundary
+    (
+        pointFaces.size(),
+        pTraits<weightedPosition>::zero_
+    );
     {
-        const labelList& pFaces = pointFaces[patchPointi];
-
-        forAll(pFaces, pfI)
+        forAll(pointFaces, patchPointi)
         {
-            label facei = pFaces[pfI];
+            const labelList& pFaces = pointFaces[patchPointi];
 
-            if (isMasterFace.get(pp.addressing()[facei]))
+            forAll(pFaces, pfi)
             {
-                avgBoundary[patchPointi] += pp[facei].centre(points);
-                nBoundary[patchPointi]++;
+                label facei = pFaces[pfi];
+
+                if (isMasterFace.test(pp.addressing()[facei]))
+                {
+                    avgBoundary[patchPointi].first() += 1.0;
+                    avgBoundary[patchPointi].second() +=
+                        pp[facei].centre(points);
+                }
             }
         }
-    }
 
-    syncTools::syncPointList
-    (
-        mesh,
-        pp.meshPoints(),
-        avgBoundary,
-        plusEqOp<point>(),  // combine op
-        vector::_zero        // null value
-    );
-    syncTools::syncPointList
-    (
-        mesh,
-        pp.meshPoints(),
-        nBoundary,
-        plusEqOp<label>(),  // combine op
-        label(0)            // null value
-    );
+        // Add coupled contributions
+        weightedPosition::syncPoints(mesh, pp.meshPoints(), avgBoundary);
 
-    forAll(avgBoundary, i)
-    {
-        avgBoundary[i] /= nBoundary[i];
+        // Normalise
+        forAll(avgBoundary, i)
+        {
+            // Note: what if there is no master boundary face?
+            if (mag(avgBoundary[i].first()) > VSMALL)
+            {
+                avgBoundary[i].second() /= avgBoundary[i].first();
+            }
+        }
     }
 
 
     // Get average position of internal face centres
     // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-    vectorField avgInternal;
-    labelList nInternal;
+    Field<weightedPosition> avgInternal;
     {
-        vectorField globalSum(mesh.nPoints(), Zero);
-        labelList globalNum(mesh.nPoints(), 0);
+        Field<weightedPosition> globalSum
+        (
+            mesh.nPoints(),
+            pTraits<weightedPosition>::zero_
+        );
 
         // Note: no use of pointFaces
         const faceList& faces = mesh.faces();
@@ -244,8 +413,9 @@ Foam::pointField Foam::snappySnapDriver::smoothPatchDisplacement
 
             forAll(f, fp)
             {
-                globalSum[f[fp]] += fc;
-                globalNum[f[fp]]++;
+                weightedPosition& wp = globalSum[f[fp]];
+                wp.first() += 1.0;
+                wp.second() += fc;
             }
         }
 
@@ -272,46 +442,33 @@ Foam::pointField Foam::snappySnapDriver::smoothPatchDisplacement
 
                     forAll(f, fp)
                     {
-                        globalSum[f[fp]] += fc;
-                        globalNum[f[fp]]++;
+                        weightedPosition& wp = globalSum[f[fp]];
+                        wp.first() += 1.0;
+                        wp.second() += fc;
                     }
                 }
             }
         }
 
-        syncTools::syncPointList
-        (
-            mesh,
-            globalSum,
-            plusEqOp<vector>(), // combine op
-            vector::_zero        // null value
-        );
-        syncTools::syncPointList
-        (
-            mesh,
-            globalNum,
-            plusEqOp<label>(),  // combine op
-            label(0)            // null value
-        );
+        // Add coupled contributions
+        weightedPosition::syncPoints(mesh, globalSum);
 
         avgInternal.setSize(meshPoints.size());
-        nInternal.setSize(meshPoints.size());
 
         forAll(avgInternal, patchPointi)
         {
             label meshPointi = meshPoints[patchPointi];
+            const weightedPosition& wp = globalSum[meshPointi];
 
-            nInternal[patchPointi] = globalNum[meshPointi];
-
-            if (nInternal[patchPointi] == 0)
+            avgInternal[patchPointi].first() = wp.first();
+            if (mag(wp.first()) < VSMALL)
             {
-                avgInternal[patchPointi] = globalSum[meshPointi];
+                // Set to zero?
+                avgInternal[patchPointi].second() = wp.second();
             }
             else
             {
-                avgInternal[patchPointi] =
-                    globalSum[meshPointi]
-                  / nInternal[patchPointi];
+                avgInternal[patchPointi].second() = wp.second()/wp.first();
             }
         }
     }
@@ -321,20 +478,9 @@ Foam::pointField Foam::snappySnapDriver::smoothPatchDisplacement
     // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
     labelList anyCell(mesh.nPoints(), -1);
-    forAll(mesh.faceNeighbour(), facei)
+    forAll(mesh.faceOwner(), facei)
     {
         label own = mesh.faceOwner()[facei];
-        const face& f = mesh.faces()[facei];
-
-        forAll(f, fp)
-        {
-            anyCell[f[fp]] = own;
-        }
-    }
-    for (label facei = mesh.nInternalFaces(); facei < mesh.nFaces(); facei++)
-    {
-        label own = mesh.faceOwner()[facei];
-
         const face& f = mesh.faces()[facei];
 
         forAll(f, fp)
@@ -345,23 +491,26 @@ Foam::pointField Foam::snappySnapDriver::smoothPatchDisplacement
 
 
     // Displacement to calculate.
-    pointField patchDisp(meshPoints.size(), Zero);
+    tmp<pointField> tpatchDisp(new pointField(meshPoints.size(), Zero));
+    pointField& patchDisp = tpatchDisp.ref();
 
     forAll(pointFaces, i)
     {
         label meshPointi = meshPoints[i];
         const point& currentPos = pp.points()[meshPointi];
 
-        // Now we have the two average points: avgBoundary and avgInternal
-        // and how many boundary/internal faces connect to the point
-        // (nBoundary, nInternal)
+        // Now we have the two average points and their counts:
+        //  avgBoundary and avgInternal
         // Do some blending between the two.
         // Note: the following section has some reasoning behind it but the
         // blending factors can be experimented with.
 
+        const weightedPosition& internal = avgInternal[i];
+        const weightedPosition& boundary = avgBoundary[i];
+
         point newPos;
 
-        if (!nonManifoldPoint.get(i))
+        if (!nonManifoldPoint.test(i))
         {
             // Points that are manifold. Weight the internal and boundary
             // by their number of faces and blend with
@@ -370,14 +519,17 @@ Foam::pointField Foam::snappySnapDriver::smoothPatchDisplacement
 
             point avgPos =
                 (
-                   internalBlend*nInternal[i]*avgInternal[i]
-                  +(1-internalBlend)*nBoundary[i]*avgBoundary[i]
+                   internalBlend*internal.first()*internal.second()
+                  +(1-internalBlend)*boundary.first()*boundary.second()
                 )
-              / (internalBlend*nInternal[i]+(1-internalBlend)*nBoundary[i]);
+              / (
+                    internalBlend*internal.first()
+                   +(1-internalBlend)*boundary.first()
+                );
 
             newPos = (1-blend)*avgPos + blend*currentPos;
         }
-        else if (nInternal[i] == 0)
+        else if (internal.first() == 0)
         {
             // Non-manifold without internal faces. Use any connected cell
             // as internal point instead. Use precalculated any cell to avoid
@@ -388,7 +540,7 @@ Foam::pointField Foam::snappySnapDriver::smoothPatchDisplacement
             scalar cellCBlend = 0.8;
             scalar blend = 0.1;
 
-            point avgPos = (1-cellCBlend)*avgBoundary[i] + cellCBlend*cc;
+            point avgPos = (1-cellCBlend)*boundary.second() + cellCBlend*cc;
 
             newPos = (1-blend)*avgPos + blend*currentPos;
         }
@@ -399,8 +551,8 @@ Foam::pointField Foam::snappySnapDriver::smoothPatchDisplacement
             scalar blend = 0.1;
 
             point avgPos =
-                internalBlend*avgInternal[i]
-              + (1-internalBlend)*avgBoundary[i];
+                internalBlend*internal.second()
+              + (1-internalBlend)*boundary.second();
 
             newPos = (1-blend)*avgPos + blend*currentPos;
         }
@@ -408,8 +560,69 @@ Foam::pointField Foam::snappySnapDriver::smoothPatchDisplacement
         patchDisp[i] = newPos - currentPos;
     }
 
-    return patchDisp;
+    return tpatchDisp;
 }
+//XXXXXXX
+//Foam::tmp<Foam::pointField> Foam::snappySnapDriver::avg
+//(
+//    const indirectPrimitivePatch& pp,
+//    const pointField& localPoints
+//)
+//{
+//    const labelListList& pointEdges = pp.pointEdges();
+//    const edgeList& edges = pp.edges();
+//
+//    tmp<pointField> tavg(new pointField(pointEdges.size(), Zero));
+//    pointField& avg = tavg();
+//
+//    forAll(pointEdges, verti)
+//    {
+//        vector& avgPos = avg[verti];
+//
+//        const labelList& pEdges = pointEdges[verti];
+//
+//        forAll(pEdges, myEdgei)
+//        {
+//            const edge& e = edges[pEdges[myEdgei]];
+//
+//            label otherVerti = e.otherVertex(verti);
+//
+//            avgPos += localPoints[otherVerti];
+//        }
+//
+//        avgPos /= pEdges.size();
+//    }
+//    return tavg;
+//}
+//Foam::tmp<Foam::pointField>
+//Foam::snappySnapDriver::smoothLambdaMuPatchDisplacement
+//(
+//    const motionSmoother& meshMover,
+//    const List<labelPair>& baffles
+//)
+//{
+//    const indirectPrimitivePatch& pp = meshMover.patch();
+//    pointField newLocalPoints(pp.localPoints());
+//
+//    const label iters = 90;
+//    const scalar lambda = 0.33;
+//    const scalar mu = 0.34;
+//
+//    for (label iter = 0; iter < iters; iter++)
+//    {
+//        // Lambda
+//        newLocalPoints =
+//            (1 - lambda)*newLocalPoints
+//          + lambda*avg(pp, newLocalPoints);
+//
+//        // Mu
+//        newLocalPoints =
+//            (1 + mu)*newLocalPoints
+//          - mu*avg(pp, newLocalPoints);
+//    }
+//    return newLocalPoints-pp.localPoints();
+//}
+//XXXXXXX
 
 
 Foam::tmp<Foam::scalarField> Foam::snappySnapDriver::edgePatchDist
@@ -423,9 +636,9 @@ Foam::tmp<Foam::scalarField> Foam::snappySnapDriver::edgePatchDist
     // Set initial changed points to all the patch points
     List<pointEdgePoint> wallInfo(pp.nPoints());
 
-    forAll(pp.localPoints(), ppI)
+    forAll(pp.localPoints(), ppi)
     {
-        wallInfo[ppI] = pointEdgePoint(pp.localPoints()[ppI], 0.0);
+        wallInfo[ppi] = pointEdgePoint(pp.localPoints()[ppi], 0.0);
     }
 
     // Current info on points
@@ -449,46 +662,10 @@ Foam::tmp<Foam::scalarField> Foam::snappySnapDriver::edgePatchDist
     tmp<scalarField> tedgeDist(new scalarField(mesh.nEdges()));
     scalarField& edgeDist = tedgeDist.ref();
 
-    forAll(allEdgeInfo, edgeI)
+    forAll(allEdgeInfo, edgei)
     {
-        edgeDist[edgeI] = Foam::sqrt(allEdgeInfo[edgeI].distSqr());
+        edgeDist[edgei] = Foam::sqrt(allEdgeInfo[edgei].distSqr());
     }
-
-
-    //{
-    //    // For debugging: dump to file
-    //    pointScalarField pointDist
-    //    (
-    //        IOobject
-    //        (
-    //            "pointDist",
-    //            meshRefiner_.timeName(),
-    //            mesh.DB(),
-    //            IOobject::NO_READ,
-    //            IOobject::AUTO_WRITE
-    //        ),
-    //        pMesh,
-    //        dimensionedScalar("pointDist", dimless, 0.0)
-    //    );
-    //
-    //    forAll(allEdgeInfo, edgeI)
-    //    {
-    //        scalar d = Foam::sqrt(allEdgeInfo[edgeI].distSqr());
-    //
-    //        const edge& e = mesh.edges()[edgeI];
-    //
-    //        pointDist[e[0]] += d;
-    //        pointDist[e[1]] += d;
-    //    }
-    //    forAll(pointDist, pointi)
-    //    {
-    //        pointDist[pointi] /= mesh.pointEdges()[pointi].size();
-    //    }
-    //    Info<< "Writing patch distance to " << pointDist.name()
-    //        << " at time " << meshRefiner_.timeName() << endl;
-    //
-    //    pointDist.write();
-    //}
 
     return tedgeDist;
 }
@@ -506,21 +683,23 @@ void Foam::snappySnapDriver::dumpMove
 
     OFstream nearestStream(fName);
 
-    label vertI = 0;
+    label verti = 0;
 
-    forAll(meshPts, ptI)
+    forAll(meshPts, pti)
     {
-        meshTools::writeOBJ(nearestStream, meshPts[ptI]);
-        vertI++;
+        meshTools::writeOBJ(nearestStream, meshPts[pti]);
+        verti++;
 
-        meshTools::writeOBJ(nearestStream, surfPts[ptI]);
-        vertI++;
+        meshTools::writeOBJ(nearestStream, surfPts[pti]);
+        verti++;
 
-        nearestStream<< "l " << vertI-1 << ' ' << vertI << nl;
+        nearestStream<< "l " << verti-1 << ' ' << verti << nl;
     }
 }
 
 
+// Check whether all displacement vectors point outwards of patch. Return true
+// if so.
 bool Foam::snappySnapDriver::outwardsDisplacement
 (
     const indirectPrimitivePatch& pp,
@@ -568,45 +747,18 @@ Foam::snappySnapDriver::snappySnapDriver
 (
     meshRefinement& meshRefiner,
     const labelList& globalToMasterPatch,
-    const labelList& globalToSlavePatch
+    const labelList& globalToSlavePatch,
+    const bool dryRun
 )
 :
     meshRefiner_(meshRefiner),
     globalToMasterPatch_(globalToMasterPatch),
-    globalToSlavePatch_(globalToSlavePatch)
+    globalToSlavePatch_(globalToSlavePatch),
+    dryRun_(dryRun)
 {}
 
 
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
-
-Foam::autoPtr<Foam::mapPolyMesh> Foam::snappySnapDriver::mergeZoneBaffles
-(
-    const List<labelPair>& baffles
-)
-{
-    labelList zonedSurfaces =
-        surfaceZonesInfo::getNamedSurfaces(meshRefiner_.surfaces().surfZones());
-
-    autoPtr<mapPolyMesh> map;
-
-    // No need to sync; all processors will have all same zonedSurfaces.
-    label nBaffles = returnReduce(baffles.size(), sumOp<label>());
-    if (zonedSurfaces.size() && nBaffles > 0)
-    {
-        // Merge any baffles
-        Info<< "Converting " << nBaffles << " baffles back into zoned faces ..."
-            << endl;
-
-        map = meshRefiner_.mergeBaffles(baffles);
-
-        Info<< "Converted baffles in = "
-            << meshRefiner_.mesh().time().cpuTimeIncrement()
-            << " s\n" << nl << endl;
-    }
-
-    return map;
-}
-
 
 Foam::scalarField Foam::snappySnapDriver::calcSnapDistance
 (
@@ -625,9 +777,9 @@ Foam::scalarField Foam::snappySnapDriver::calcSnapDistance
     {
         const labelList& pEdges = pointEdges[pointi];
 
-        forAll(pEdges, pEdgeI)
+        forAll(pEdges, pEdgei)
         {
-            const edge& e = edges[pEdges[pEdgeI]];
+            const edge& e = edges[pEdges[pEdgei]];
 
             scalar len = e.mag(localPoints);
 
@@ -657,11 +809,22 @@ void Foam::snappySnapDriver::preSmoothPatch
     motionSmoother& meshMover
 )
 {
+    addProfiling(smooth, "snappyHexMesh::snap::smoothing");
     const fvMesh& mesh = meshRefiner.mesh();
 
     labelList checkFaces;
 
-    Info<< "Smoothing patch points ..." << endl;
+    if (snapParams.nSmoothInternal() > 0)
+    {
+        Info<< "Smoothing patch and internal points ..." << endl;
+    }
+    else
+    {
+        Info<< "Smoothing patch points ..." << endl;
+    }
+
+    vectorField& pointDisp = meshMover.pointDisplacement().primitiveFieldRef();
+
     for
     (
         label smoothIter = 0;
@@ -676,15 +839,25 @@ void Foam::snappySnapDriver::preSmoothPatch
             checkFaces[facei] = facei;
         }
 
+        // If enabled smooth the internal points
+        if (snapParams.nSmoothInternal() > smoothIter)
+        {
+            // Override values on internal points on refinement interfaces
+            pointDisp = smoothInternalDisplacement(meshRefiner, meshMover);
+        }
+
+        // Smooth the patch points
         pointField patchDisp(smoothPatchDisplacement(meshMover, baffles));
         //pointField patchDisp
         //(
         //  smoothLambdaMuPatchDisplacement(meshMover, baffles)
         //);
 
-        // The current mesh is the starting mesh to smooth from.
+        // Take over patch displacement as boundary condition on
+        // pointDisplacement
         meshMover.setDisplacement(patchDisp);
 
+        // Start off from current mesh.points()
         meshMover.correct();
 
         scalar oldErrorReduction = -1;
@@ -744,29 +917,30 @@ void Foam::snappySnapDriver::preSmoothPatch
 }
 
 
-Foam::labelList Foam::snappySnapDriver::getZoneSurfacePoints
+// Get (pp-local) indices of points that are both on zone and on patched surface
+void Foam::snappySnapDriver::getZoneSurfacePoints
 (
     const fvMesh& mesh,
     const indirectPrimitivePatch& pp,
-    const word& zoneName
+    const word& zoneName,
+
+    bitSet& pointOnZone
 )
 {
-    label zoneI = mesh.faceZones().findZoneID(zoneName);
+    label zonei = mesh.faceZones().findZoneID(zoneName);
 
-    if (zoneI == -1)
+    if (zonei == -1)
     {
         FatalErrorInFunction
             << "Cannot find zone " << zoneName
             << exit(FatalError);
     }
 
-    const faceZone& fZone = mesh.faceZones()[zoneI];
+    const faceZone& fZone = mesh.faceZones()[zonei];
 
 
     // Could use PrimitivePatch & localFaces to extract points but might just
     // as well do it ourselves.
-
-    boolList pointOnZone(pp.nPoints(), false);
 
     forAll(fZone, i)
     {
@@ -776,18 +950,15 @@ Foam::labelList Foam::snappySnapDriver::getZoneSurfacePoints
         {
             label meshPointi = f[fp];
 
-            Map<label>::const_iterator iter =
-                pp.meshPointMap().find(meshPointi);
+            const auto iter = pp.meshPointMap().cfind(meshPointi);
 
-            if (iter != pp.meshPointMap().end())
+            if (iter.found())
             {
-                label pointi = iter();
+                const label pointi = iter.val();
                 pointOnZone[pointi] = true;
             }
         }
     }
-
-    return findIndices(pointOnZone, true);
 }
 
 
@@ -799,52 +970,81 @@ Foam::tmp<Foam::pointField> Foam::snappySnapDriver::avgCellCentres
 {
     const labelListList& pointFaces = pp.pointFaces();
 
-
-    tmp<pointField> tavgBoundary
+    Field<weightedPosition> avgBoundary
     (
-        new pointField(pointFaces.size(), Zero)
+        pointFaces.size(),
+        pTraits<weightedPosition>::zero_
     );
-    pointField& avgBoundary = tavgBoundary.ref();
-    labelList nBoundary(pointFaces.size(), 0);
 
     forAll(pointFaces, pointi)
     {
         const labelList& pFaces = pointFaces[pointi];
 
-        forAll(pFaces, pfI)
+        avgBoundary[pointi].first() = pFaces.size();
+        forAll(pFaces, pfi)
         {
-            label facei = pFaces[pfI];
-            label meshFacei = pp.addressing()[facei];
-
-            label own = mesh.faceOwner()[meshFacei];
-            avgBoundary[pointi] += mesh.cellCentres()[own];
-            nBoundary[pointi]++;
+            label facei = pFaces[pfi];
+            label own = mesh.faceOwner()[pp.addressing()[facei]];
+            avgBoundary[pointi].second() += mesh.cellCentres()[own];
         }
     }
 
-    syncTools::syncPointList
-    (
-        mesh,
-        pp.meshPoints(),
-        avgBoundary,
-        plusEqOp<point>(),  // combine op
-        vector::_zero        // null value
-    );
-    syncTools::syncPointList
-    (
-        mesh,
-        pp.meshPoints(),
-        nBoundary,
-        plusEqOp<label>(),  // combine op
-        label(0)            // null value
-    );
+    // Add coupled contributions
+    weightedPosition::syncPoints(mesh, pp.meshPoints(), avgBoundary);
 
-    forAll(avgBoundary, i)
-    {
-        avgBoundary[i] /= nBoundary[i];
-    }
+    tmp<pointField> tavgBoundary(new pointField(avgBoundary.size()));
+    weightedPosition::getPoints(avgBoundary, tavgBoundary.ref());
+
     return tavgBoundary;
 }
+
+
+//Foam::tmp<Foam::scalarField> Foam::snappySnapDriver::calcEdgeLen
+//(
+//    const indirectPrimitivePatch& pp
+//) const
+//{
+//    // Get local edge length based on refinement level
+//    // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+//    // (Ripped from snappyLayerDriver)
+//
+//    tmp<scalarField> tedgeLen(new scalarField(pp.nPoints()));
+//    scalarField& edgeLen = tedgeLen();
+//    {
+//        const fvMesh& mesh = meshRefiner_.mesh();
+//        const scalar edge0Len = meshRefiner_.meshCutter().level0EdgeLength();
+//        const labelList& cellLevel = meshRefiner_.meshCutter().cellLevel();
+//
+//        labelList maxPointLevel(pp.nPoints(), labelMin);
+//
+//        forAll(pp, i)
+//        {
+//            label ownLevel = cellLevel[mesh.faceOwner()[pp.addressing()[i]]];
+//            const face& f = pp.localFaces()[i];
+//            forAll(f, fp)
+//            {
+//                maxPointLevel[f[fp]] = max(maxPointLevel[f[fp]], ownLevel);
+//            }
+//        }
+//
+//        syncTools::syncPointList
+//        (
+//            mesh,
+//            pp.meshPoints(),
+//            maxPointLevel,
+//            maxEqOp<label>(),
+//            labelMin            // null value
+//        );
+//
+//
+//        forAll(maxPointLevel, pointi)
+//        {
+//            // Find undistorted edge size for this level.
+//            edgeLen[pointi] = edge0Len/(1<<maxPointLevel[pointi]);
+//        }
+//    }
+//    return tedgeLen;
+//}
 
 
 void Foam::snappySnapDriver::detectNearSurfaces
@@ -871,14 +1071,12 @@ void Foam::snappySnapDriver::detectNearSurfaces
     //// ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
     //
     //{
-    //    const scalar cos45 = Foam::cos(degToRad(45));
-    //    vector n(cos45, cos45, cos45);
-    //    n /= mag(n);
+    //    const vector n = normalised(vector::one_);
     //
     //    pointField start(14*pp.nPoints());
     //    pointField end(start.size());
     //
-    //    label rayI = 0;
+    //    label rayi = 0;
     //    forAll(localPoints, pointi)
     //    {
     //        const point& pt = localPoints[pointi];
@@ -886,38 +1084,38 @@ void Foam::snappySnapDriver::detectNearSurfaces
     //        // Along coordinate axes
     //
     //        {
-    //            start[rayI] = pt;
-    //            point& endPt = end[rayI++];
+    //            start[rayi] = pt;
+    //            point& endPt = end[rayi++];
     //            endPt = pt;
     //            endPt.x() -= edgeLen[pointi];
     //        }
     //        {
-    //            start[rayI] = pt;
-    //            point& endPt = end[rayI++];
+    //            start[rayi] = pt;
+    //            point& endPt = end[rayi++];
     //            endPt = pt;
     //            endPt.x() += edgeLen[pointi];
     //        }
     //        {
-    //            start[rayI] = pt;
-    //            point& endPt = end[rayI++];
+    //            start[rayi] = pt;
+    //            point& endPt = end[rayi++];
     //            endPt = pt;
     //            endPt.y() -= edgeLen[pointi];
     //        }
     //        {
-    //            start[rayI] = pt;
-    //            point& endPt = end[rayI++];
+    //            start[rayi] = pt;
+    //            point& endPt = end[rayi++];
     //            endPt = pt;
     //            endPt.y() += edgeLen[pointi];
     //        }
     //        {
-    //            start[rayI] = pt;
-    //            point& endPt = end[rayI++];
+    //            start[rayi] = pt;
+    //            point& endPt = end[rayi++];
     //            endPt = pt;
     //            endPt.z() -= edgeLen[pointi];
     //        }
     //        {
-    //            start[rayI] = pt;
-    //            point& endPt = end[rayI++];
+    //            start[rayi] = pt;
+    //            point& endPt = end[rayi++];
     //            endPt = pt;
     //            endPt.z() += edgeLen[pointi];
     //        }
@@ -927,64 +1125,64 @@ void Foam::snappySnapDriver::detectNearSurfaces
     //        const vector vec(edgeLen[pointi]*n);
     //
     //        {
-    //            start[rayI] = pt;
-    //            point& endPt = end[rayI++];
+    //            start[rayi] = pt;
+    //            point& endPt = end[rayi++];
     //            endPt = pt;
     //            endPt.x() += vec.x();
     //            endPt.y() += vec.y();
     //            endPt.z() += vec.z();
     //        }
     //        {
-    //            start[rayI] = pt;
-    //            point& endPt = end[rayI++];
+    //            start[rayi] = pt;
+    //            point& endPt = end[rayi++];
     //            endPt = pt;
     //            endPt.x() -= vec.x();
     //            endPt.y() += vec.y();
     //            endPt.z() += vec.z();
     //        }
     //        {
-    //            start[rayI] = pt;
-    //            point& endPt = end[rayI++];
+    //            start[rayi] = pt;
+    //            point& endPt = end[rayi++];
     //            endPt = pt;
     //            endPt.x() += vec.x();
     //            endPt.y() -= vec.y();
     //            endPt.z() += vec.z();
     //        }
     //        {
-    //            start[rayI] = pt;
-    //            point& endPt = end[rayI++];
+    //            start[rayi] = pt;
+    //            point& endPt = end[rayi++];
     //            endPt = pt;
     //            endPt.x() -= vec.x();
     //            endPt.y() -= vec.y();
     //            endPt.z() += vec.z();
     //        }
     //        {
-    //            start[rayI] = pt;
-    //            point& endPt = end[rayI++];
+    //            start[rayi] = pt;
+    //            point& endPt = end[rayi++];
     //            endPt = pt;
     //            endPt.x() += vec.x();
     //            endPt.y() += vec.y();
     //            endPt.z() -= vec.z();
     //        }
     //        {
-    //            start[rayI] = pt;
-    //            point& endPt = end[rayI++];
+    //            start[rayi] = pt;
+    //            point& endPt = end[rayi++];
     //            endPt = pt;
     //            endPt.x() -= vec.x();
     //            endPt.y() += vec.y();
     //            endPt.z() -= vec.z();
     //        }
     //        {
-    //            start[rayI] = pt;
-    //            point& endPt = end[rayI++];
+    //            start[rayi] = pt;
+    //            point& endPt = end[rayi++];
     //            endPt = pt;
     //            endPt.x() += vec.x();
     //            endPt.y() -= vec.y();
     //            endPt.z() -= vec.z();
     //        }
     //        {
-    //            start[rayI] = pt;
-    //            point& endPt = end[rayI++];
+    //            start[rayi] = pt;
+    //            point& endPt = end[rayi++];
     //            endPt = pt;
     //            endPt.x() -= vec.x();
     //            endPt.y() -= vec.y();
@@ -1063,13 +1261,13 @@ void Foam::snappySnapDriver::detectNearSurfaces
     //
     //            bool isCoplanar = false;
     //
-    //            label rayI = 14*pointi;
+    //            label rayi = 14*pointi;
     //            for (label i = 0; i < 14; i++)
     //            {
-    //                if (hit1[rayI].hit())
+    //                if (hit1[rayi].hit())
     //                {
-    //                    const point& pt = hit1[rayI].hitPoint();
-    //                    const vector& n = normal1[rayI];
+    //                    const point& pt = hit1[rayi].hitPoint();
+    //                    const vector& n = normal1[rayi];
     //
     //                    if (!hasNormal)
     //                    {
@@ -1098,10 +1296,10 @@ void Foam::snappySnapDriver::detectNearSurfaces
     //                        }
     //                    }
     //                }
-    //                if (hit2[rayI].hit())
+    //                if (hit2[rayi].hit())
     //                {
-    //                    const point& pt = hit2[rayI].hitPoint();
-    //                    const vector& n = normal2[rayI];
+    //                    const point& pt = hit2[rayi].hitPoint();
+    //                    const vector& n = normal2[rayi];
     //
     //                    if (!hasNormal)
     //                    {
@@ -1131,7 +1329,7 @@ void Foam::snappySnapDriver::detectNearSurfaces
     //                    }
     //                }
     //
-    //                rayI++;
+    //                rayi++;
     //            }
     //
     //            if (isCoplanar)
@@ -1171,7 +1369,7 @@ void Foam::snappySnapDriver::detectNearSurfaces
     }
 
 
-    const PackedBoolList isPatchMasterPoint
+    const bitSet isPatchMasterPoint
     (
         meshRefinement::getMasterPoints
         (
@@ -1280,7 +1478,7 @@ void Foam::snappySnapDriver::detectNearSurfaces
                     // TBD: check if the attraction (to nearest) would attract
                     // good enough and not override attraction
 
-                    if (gapStr.valid())
+                    if (gapStr)
                     {
                         const point& intPt = hit2[pointi].hitPoint();
                         gapStr().write(linePointRef(pt, intPt));
@@ -1314,125 +1512,129 @@ void Foam::snappySnapDriver::detectNearSurfaces
 
         forAll(zonedSurfaces, i)
         {
-            label zoneSurfI = zonedSurfaces[i];
+            label zoneSurfi = zonedSurfaces[i];
+            const labelList surfacesToTest(1, zoneSurfi);
 
-            const word& faceZoneName = surfZones[zoneSurfI].faceZoneName();
+            const wordList& faceZoneNames =
+                surfZones[zoneSurfi].faceZoneNames();
+            forAll(faceZoneNames, namei)
+            {
+                const word& faceZoneName = faceZoneNames[namei];
 
-            const labelList surfacesToTest(1, zoneSurfI);
-
-            // Get indices of points both on faceZone and on pp.
-            labelList zonePointIndices
-            (
+                // Get indices of points both on faceZone and on pp.
+                bitSet pointOnZone(pp.nPoints());
                 getZoneSurfacePoints
                 (
                     mesh,
                     pp,
-                    faceZoneName
-                )
-            );
+                    faceZoneName,
+                    pointOnZone
+                );
+                const labelList zonePointIndices(pointOnZone.toc());
 
-            // Do intersection test
-            labelList surface1;
-            List<pointIndexHit> hit1;
-            labelList region1;
-            vectorField normal1;
+                // Do intersection test
+                labelList surface1;
+                List<pointIndexHit> hit1;
+                labelList region1;
+                vectorField normal1;
 
-            labelList surface2;
-            List<pointIndexHit> hit2;
-            labelList region2;
-            vectorField normal2;
-            surfaces.findNearestIntersection
-            (
-                surfacesToTest,
-                pointField(start, zonePointIndices),
-                pointField(end, zonePointIndices),
+                labelList surface2;
+                List<pointIndexHit> hit2;
+                labelList region2;
+                vectorField normal2;
+                surfaces.findNearestIntersection
+                (
+                    surfacesToTest,
+                    pointField(start, zonePointIndices),
+                    pointField(end, zonePointIndices),
 
-                surface1,
-                hit1,
-                region1,
-                normal1,
+                    surface1,
+                    hit1,
+                    region1,
+                    normal1,
 
-                surface2,
-                hit2,
-                region2,
-                normal2
-            );
+                    surface2,
+                    hit2,
+                    region2,
+                    normal2
+                );
 
 
-            forAll(hit1, i)
-            {
-                label pointi = zonePointIndices[i];
-
-                // Current location
-                const point& pt = localPoints[pointi];
-
-                bool override = false;
-
-                //if (hit1[i].hit())
-                //{
-                //    if
-                //    (
-                //        meshRefiner_.isGap
-                //        (
-                //            planarCos,
-                //            nearestPoint[pointi],
-                //            nearestNormal[pointi],
-                //            hit1[i].hitPoint(),
-                //            normal1[i]
-                //        )
-                //    )
-                //    {
-                //        disp[pointi] = hit1[i].hitPoint()-pt;
-                //        override = true;
-                //    }
-                //}
-                //if (hit2[i].hit())
-                //{
-                //    if
-                //    (
-                //        meshRefiner_.isGap
-                //        (
-                //            planarCos,
-                //            nearestPoint[pointi],
-                //            nearestNormal[pointi],
-                //            hit2[i].hitPoint(),
-                //            normal2[i]
-                //        )
-                //    )
-                //    {
-                //        disp[pointi] = hit2[i].hitPoint()-pt;
-                //        override = true;
-                //    }
-                //}
-
-                if (hit1[i].hit() && hit2[i].hit())
+                forAll(hit1, i)
                 {
-                    if
-                    (
-                        meshRefiner_.isGap
-                        (
-                            planarCos,
-                            hit1[i].hitPoint(),
-                            normal1[i],
-                            hit2[i].hitPoint(),
-                            normal2[i]
-                        )
-                    )
+                    label pointi = zonePointIndices[i];
+
+                    // Current location
+                    const point& pt = localPoints[pointi];
+
+                    bool override = false;
+
+                    //if (hit1[i].hit())
+                    //{
+                    //    if
+                    //    (
+                    //        meshRefiner_.isGap
+                    //        (
+                    //            planarCos,
+                    //            nearestPoint[pointi],
+                    //            nearestNormal[pointi],
+                    //            hit1[i].hitPoint(),
+                    //            normal1[i]
+                    //        )
+                    //    )
+                    //    {
+                    //        disp[pointi] = hit1[i].hitPoint()-pt;
+                    //        override = true;
+                    //    }
+                    //}
+                    //if (hit2[i].hit())
+                    //{
+                    //    if
+                    //    (
+                    //        meshRefiner_.isGap
+                    //        (
+                    //            planarCos,
+                    //            nearestPoint[pointi],
+                    //            nearestNormal[pointi],
+                    //            hit2[i].hitPoint(),
+                    //            normal2[i]
+                    //        )
+                    //    )
+                    //    {
+                    //        disp[pointi] = hit2[i].hitPoint()-pt;
+                    //        override = true;
+                    //    }
+                    //}
+
+                    if (hit1[i].hit() && hit2[i].hit())
                     {
-                        if (gapStr.valid())
+                        if
+                        (
+                            meshRefiner_.isGap
+                            (
+                                planarCos,
+                                hit1[i].hitPoint(),
+                                normal1[i],
+                                hit2[i].hitPoint(),
+                                normal2[i]
+                            )
+                        )
                         {
-                            const point& intPt = hit2[i].hitPoint();
-                            gapStr().write(linePointRef(pt, intPt));
+                            if (gapStr)
+                            {
+                                const point& intPt = hit2[i].hitPoint();
+                                gapStr().write(linePointRef(pt, intPt));
+                            }
+
+                            disp[pointi] = hit2[i].hitPoint()-pt;
+                            override = true;
                         }
-
-                        disp[pointi] = hit2[i].hitPoint()-pt;
-                        override = true;
                     }
-                }
 
-                if (override && isPatchMasterPoint[pointi])
-                {
-                    nOverride++;
+                    if (override && isPatchMasterPoint[pointi])
+                    {
+                        nOverride++;
+                    }
                 }
             }
         }
@@ -1445,9 +1647,92 @@ void Foam::snappySnapDriver::detectNearSurfaces
 }
 
 
+void Foam::snappySnapDriver::calcNearestSurface
+(
+    const refinementSurfaces& surfaces,
+
+    const labelList& surfacesToTest,
+    const labelListList& regionsToTest,
+
+    const pointField& localPoints,
+    const labelList& zonePointIndices,
+
+    scalarField& minSnapDist,
+    labelList& snapSurf,
+    vectorField& patchDisp,
+
+    // Optional: nearest point, normal
+    pointField& nearestPoint,
+    vectorField& nearestNormal
+)
+{
+    // Find nearest for points both on faceZone and pp.
+    List<pointIndexHit> hitInfo;
+    labelList hitSurface;
+
+    if (nearestNormal.size() == localPoints.size())
+    {
+        labelList hitRegion;
+        vectorField hitNormal;
+        surfaces.findNearestRegion
+        (
+            surfacesToTest,
+            regionsToTest,
+
+            pointField(localPoints, zonePointIndices),
+            sqr(scalarField(minSnapDist, zonePointIndices)),
+
+            hitSurface,
+            hitInfo,
+            hitRegion,
+            hitNormal
+        );
+
+        forAll(hitInfo, i)
+        {
+            if (hitInfo[i].hit())
+            {
+                label pointi = zonePointIndices[i];
+                nearestPoint[pointi] = hitInfo[i].hitPoint();
+                nearestNormal[pointi] = hitNormal[i];
+            }
+        }
+    }
+    else
+    {
+        surfaces.findNearest
+        (
+            surfacesToTest,
+            regionsToTest,
+
+            pointField(localPoints, zonePointIndices),
+            sqr(scalarField(minSnapDist, zonePointIndices)),
+
+            hitSurface,
+            hitInfo
+        );
+    }
+
+    forAll(hitInfo, i)
+    {
+        if (hitInfo[i].hit())
+        {
+            label pointi = zonePointIndices[i];
+
+            patchDisp[pointi] = hitInfo[i].hitPoint() - localPoints[pointi];
+            minSnapDist[pointi] = mag(patchDisp[pointi]);
+            snapSurf[pointi] = hitSurface[i];
+        }
+    }
+}
+
+
 Foam::vectorField Foam::snappySnapDriver::calcNearestSurface
 (
+    const bool strictRegionSnap,
     const meshRefinement& meshRefiner,
+    const labelList& globalToMasterPatch,
+    const labelList& globalToSlavePatch,
     const scalarField& snapDist,
     const indirectPrimitivePatch& pp,
     pointField& nearestPoint,
@@ -1456,6 +1741,23 @@ Foam::vectorField Foam::snappySnapDriver::calcNearestSurface
 {
     Info<< "Calculating patchDisplacement as distance to nearest surface"
         << " point ..." << endl;
+    if (strictRegionSnap)
+    {
+        Info<< "    non-zone points : attract to local region on surface only"
+            << nl
+            << "    zone points     : attract to local region on surface only"
+            << nl
+            << endl;
+    }
+    else
+    {
+        Info<< "    non-zone points :"
+            << " attract to nearest of all non-zone surfaces"
+            << nl
+            << "    zone points     : attract to zone surface only" << nl
+            << endl;
+    }
+
 
     const pointField& localPoints = pp.localPoints();
     const refinementSurfaces& surfaces = meshRefiner.surfaces();
@@ -1466,26 +1768,109 @@ Foam::vectorField Foam::snappySnapDriver::calcNearestSurface
 
     if (returnReduce(localPoints.size(), sumOp<label>()) > 0)
     {
-        // Current surface snapped to
+        // Current surface snapped to. Used to check whether points have been
+        // snapped at all
         labelList snapSurf(localPoints.size(), -1);
 
-        // Divide surfaces into zoned and unzoned
-        const labelList zonedSurfaces =
-            surfaceZonesInfo::getNamedSurfaces
-            (
-                meshRefiner.surfaces().surfZones()
-            );
-        const labelList unzonedSurfaces =
-            surfaceZonesInfo::getUnnamedSurfaces
-            (
-                meshRefiner.surfaces().surfZones()
-            );
+        // Current best snap distance (since point might be on multiple
+        // regions)
+        scalarField minSnapDist(snapDist);
 
 
-        // 1. All points to non-interface surfaces
-        // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
+        if (strictRegionSnap)
         {
+            // Attract patch points to same region only
+
+            forAll(surfaces.surfaces(), surfi)
+            {
+                label geomi = surfaces.surfaces()[surfi];
+                label nRegions = surfaces.geometry()[geomi].regions().size();
+
+                const labelList surfacesToTest(1, surfi);
+
+                for (label regioni = 0; regioni < nRegions; regioni++)
+                {
+                    label globali = surfaces.globalRegion(surfi, regioni);
+                    label masterPatchi = globalToMasterPatch[globali];
+
+                    // Get indices of points both on patch and on pp
+                    labelList zonePointIndices
+                    (
+                        getFacePoints
+                        (
+                            pp,
+                            mesh.boundaryMesh()[masterPatchi]
+                        )
+                    );
+
+                    calcNearestSurface
+                    (
+                        surfaces,
+
+                        surfacesToTest,
+                        labelListList(1, labelList(1, regioni)), //regionsToTest
+
+                        localPoints,
+                        zonePointIndices,
+
+                        minSnapDist,
+                        snapSurf,
+                        patchDisp,
+
+                        // Optional: nearest point, normal
+                        nearestPoint,
+                        nearestNormal
+                    );
+
+                    if (globalToSlavePatch[globali] != masterPatchi)
+                    {
+                        label slavePatchi = globalToSlavePatch[globali];
+
+                        // Get indices of points both on patch and on pp
+                        labelList zonePointIndices
+                        (
+                            getFacePoints
+                            (
+                                pp,
+                                mesh.boundaryMesh()[slavePatchi]
+                            )
+                        );
+
+                        calcNearestSurface
+                        (
+                            surfaces,
+
+                            surfacesToTest,
+                            labelListList(1, labelList(1, regioni)),
+
+                            localPoints,
+                            zonePointIndices,
+
+                            minSnapDist,
+                            snapSurf,
+                            patchDisp,
+
+                            // Optional: nearest point, normal
+                            nearestPoint,
+                            nearestNormal
+                        );
+                    }
+                }
+            }
+        }
+        else
+        {
+            // Divide surfaces into zoned and unzoned
+            const labelList unzonedSurfaces =
+                surfaceZonesInfo::getUnnamedSurfaces
+                (
+                    meshRefiner.surfaces().surfZones()
+                );
+
+
+            // 1. All points to non-interface surfaces
+            // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
             List<pointIndexHit> hitInfo;
             labelList hitSurface;
 
@@ -1536,116 +1921,95 @@ Foam::vectorField Foam::snappySnapDriver::calcNearestSurface
                     snapSurf[pointi] = hitSurface[pointi];
                 }
             }
-        }
 
 
-
-        // 2. All points on zones to their respective surface
-        // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-        // Surfaces with zone information
-        const PtrList<surfaceZonesInfo>& surfZones = surfaces.surfZones();
-
-        // Current best snap distance
-        scalarField minSnapDist(snapDist);
-
-        forAll(zonedSurfaces, i)
-        {
-            label zoneSurfI = zonedSurfaces[i];
-
-            const word& faceZoneName = surfZones[zoneSurfI].faceZoneName();
-
-            const labelList surfacesToTest(1, zoneSurfI);
-
-            // Get indices of points both on faceZone and on pp.
-            labelList zonePointIndices
+            const labelList zonedSurfaces = surfaceZonesInfo::getNamedSurfaces
             (
-                getZoneSurfacePoints
-                (
-                    mesh,
-                    pp,
-                    faceZoneName
-                )
+                meshRefiner.surfaces().surfZones()
             );
 
-            // Find nearest for points both on faceZone and pp.
-            List<pointIndexHit> hitInfo;
-            labelList hitSurface;
 
-            if (nearestNormal.size() == localPoints.size())
+            // 2. All points on zones to their respective surface
+            // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+            // (ignoring faceZone subdivision)
+
+            // Surfaces with zone information
+            const PtrList<surfaceZonesInfo>& surfZones = surfaces.surfZones();
+
+            forAll(zonedSurfaces, i)
             {
-                labelList hitRegion;
-                vectorField hitNormal;
-                surfaces.findNearestRegion
-                (
-                    surfacesToTest,
-                    pointField(localPoints, zonePointIndices),
-                    sqr(scalarField(minSnapDist, zonePointIndices)),
-                    hitSurface,
-                    hitInfo,
-                    hitRegion,
-                    hitNormal
-                );
+                label surfi = zonedSurfaces[i];
+                const labelList surfacesToTest(1, surfi);
+                const label geomi = surfaces.surfaces()[surfi];
+                const label nRegions =
+                    surfaces.geometry()[geomi].regions().size();
 
-                forAll(hitInfo, i)
+                const wordList& faceZoneNames =
+                    surfZones[surfi].faceZoneNames();
+
+                // Get indices of points both on any faceZone and on pp.
+                bitSet pointOnZone(pp.nPoints());
+                forAll(faceZoneNames, locali)
                 {
-                    if (hitInfo[i].hit())
-                    {
-                        label pointi = zonePointIndices[i];
-                        nearestPoint[pointi] = hitInfo[i].hitPoint();
-                        nearestNormal[pointi] = hitNormal[i];
-                    }
-                }
-            }
-            else
-            {
-                surfaces.findNearest
-                (
-                    surfacesToTest,
-                    pointField(localPoints, zonePointIndices),
-                    sqr(scalarField(minSnapDist, zonePointIndices)),
-                    hitSurface,
-                    hitInfo
-                );
-            }
-
-            forAll(hitInfo, i)
-            {
-                label pointi = zonePointIndices[i];
-
-                if (hitInfo[i].hit())
-                {
-                    patchDisp[pointi] =
-                        hitInfo[i].hitPoint()
-                      - localPoints[pointi];
-
-                    minSnapDist[pointi] = min
+                    getZoneSurfacePoints
                     (
-                        minSnapDist[pointi],
-                        mag(patchDisp[pointi])
+                        mesh,
+                        pp,
+                        faceZoneNames[locali],
+                        pointOnZone
                     );
-
-                    snapSurf[pointi] = zoneSurfI;
                 }
+                const labelList zonePointIndices(pointOnZone.toc());
+
+                calcNearestSurface
+                (
+                    surfaces,
+
+                    surfacesToTest,
+                    labelListList(1, identity(nRegions)),
+
+                    localPoints,
+                    zonePointIndices,
+
+                    minSnapDist,
+                    snapSurf,
+                    patchDisp,
+
+                    // Optional: nearest point, normal
+                    nearestPoint,
+                    nearestNormal
+                );
             }
         }
+
 
         // Check if all points are being snapped
         forAll(snapSurf, pointi)
         {
             if (snapSurf[pointi] == -1)
             {
-                WarningInFunction
-                    << "For point:" << pointi
-                    << " coordinate:" << localPoints[pointi]
-                    << " did not find any surface within:"
-                    << minSnapDist[pointi]
-                    << " metre." << endl;
+                static label nWarn = 0;
+
+                if (nWarn < 100)
+                {
+                    WarningInFunction
+                        << "For point:" << pointi
+                        << " coordinate:" << localPoints[pointi]
+                        << " did not find any surface within:"
+                        << minSnapDist[pointi] << " metre." << endl;
+                    nWarn++;
+                    if (nWarn == 100)
+                    {
+                        WarningInFunction
+                            << "Reached warning limit " << nWarn
+                            << ". Suppressing further warnings." << endl;
+                    }
+                }
             }
         }
 
         {
-            const PackedBoolList isPatchMasterPoint
+            const bitSet isPatchMasterPoint
             (
                 meshRefinement::getMasterPoints
                 (
@@ -1667,7 +2031,8 @@ Foam::vectorField Foam::snappySnapDriver::calcNearestSurface
         << mesh.time().cpuTimeIncrement() << " s\n" << nl << endl;
 
 
-    // Limit amount of movement.
+    // Limit amount of movement. Can not happen for triSurfaceMesh but
+    // can happen for some analytical shapes?
     forAll(patchDisp, patchPointi)
     {
         scalar magDisp = mag(patchDisp[patchPointi]);
@@ -1703,6 +2068,11 @@ void Foam::snappySnapDriver::smoothDisplacement
     motionSmoother& meshMover
 ) const
 {
+    if (dryRun_)
+    {
+        return;
+    }
+
     const fvMesh& mesh = meshRefiner_.mesh();
     const indirectPrimitivePatch& pp = meshMover.patch();
 
@@ -1774,6 +2144,7 @@ bool Foam::snappySnapDriver::scaleMesh
     motionSmoother& meshMover
 )
 {
+    addProfiling(scale, "snappyHexMesh::snap::scale");
     const fvMesh& mesh = meshRefiner_.mesh();
 
     // Relax displacement until correct mesh
@@ -1827,6 +2198,11 @@ bool Foam::snappySnapDriver::scaleMesh
 }
 
 
+// After snapping: correct patching according to nearest surface.
+// Code is very similar to calcNearestSurface.
+// - calculate face-wise snap distance as max of point-wise
+// - calculate face-wise nearest surface point
+// - repatch face according to patch for surface point.
 Foam::autoPtr<Foam::mapPolyMesh> Foam::snappySnapDriver::repatchToSurface
 (
     const snapParameters& snapParams,
@@ -1858,14 +2234,14 @@ Foam::autoPtr<Foam::mapPolyMesh> Foam::snappySnapDriver::repatchToSurface
 
 
     // Faces that do not move
-    PackedBoolList isZonedFace(mesh.nFaces());
+    bitSet isZonedFace(mesh.nFaces());
     {
         // 1. Preserve faces in preserveFaces list
         forAll(preserveFaces, facei)
         {
             if (preserveFaces[facei] != -1)
             {
-                isZonedFace.set(facei, 1);
+                isZonedFace.set(facei);
             }
         }
 
@@ -1875,12 +2251,12 @@ Foam::autoPtr<Foam::mapPolyMesh> Foam::snappySnapDriver::repatchToSurface
 
         forAll(zonedSurfaces, i)
         {
-            const label zoneSurfI = zonedSurfaces[i];
-            const faceZone& fZone = fZones[surfZones[zoneSurfI].faceZoneName()];
-
-            forAll(fZone, i)
+            const label zoneSurfi = zonedSurfaces[i];
+            const wordList& fZoneNames = surfZones[zoneSurfi].faceZoneNames();
+            forAll(fZoneNames, i)
             {
-                isZonedFace.set(fZone[i], 1);
+                const faceZone& fZone = fZones[fZoneNames[i]];
+                isZonedFace.set(fZone);
             }
         }
     }
@@ -1942,7 +2318,7 @@ Foam::autoPtr<Foam::mapPolyMesh> Foam::snappySnapDriver::repatchToSurface
         {
             label facei = pp.addressing()[i];
 
-            if (hitSurface[i] != -1 && !isZonedFace.get(facei))
+            if (hitSurface[i] != -1 && !isZonedFace.test(facei))
             {
                 closestPatch[i] = globalToMasterPatch_
                 [
@@ -2063,10 +2439,11 @@ void Foam::snappySnapDriver::detectWarpedFaces
                     //Info<< "Splitting face:" << f << " into f0:" << f0
                     //    << " f1:" << f1 << endl;
 
-                    vector n0 = f0.normal(localPoints);
-                    scalar n0Mag = mag(n0);
-                    vector n1 = f1.normal(localPoints);
-                    scalar n1Mag = mag(n1);
+                    const vector n0 = f0.areaNormal(localPoints);
+                    const scalar n0Mag = mag(n0);
+
+                    const vector n1 = f1.areaNormal(localPoints);
+                    const scalar n1Mag = mag(n1);
 
                     if (n0Mag > ROOTVSMALL && n1Mag > ROOTVSMALL)
                     {
@@ -2091,25 +2468,57 @@ void Foam::snappySnapDriver::detectWarpedFaces
 }
 
 
+Foam::labelList Foam::snappySnapDriver::getInternalOrBaffleDuplicateFace() const
+{
+    const fvMesh& mesh = meshRefiner_.mesh();
+
+    labelList internalOrBaffleFaceZones;
+    {
+        List<surfaceZonesInfo::faceZoneType> fzTypes(2);
+        fzTypes[0] = surfaceZonesInfo::INTERNAL;
+        fzTypes[1] = surfaceZonesInfo::BAFFLE;
+        internalOrBaffleFaceZones = meshRefiner_.getZones(fzTypes);
+    }
+
+    List<labelPair> baffles
+    (
+        meshRefiner_.subsetBaffles
+        (
+            mesh,
+            internalOrBaffleFaceZones,
+            localPointRegion::findDuplicateFacePairs(mesh)
+        )
+    );
+
+    labelList faceToDuplicate(mesh.nFaces(), -1);
+    forAll(baffles, i)
+    {
+        const labelPair& p = baffles[i];
+        faceToDuplicate[p[0]] = p[1];
+        faceToDuplicate[p[1]] = p[0];
+    }
+
+    return faceToDuplicate;
+}
+
+
 void Foam::snappySnapDriver::doSnap
 (
     const dictionary& snapDict,
     const dictionary& motionDict,
+    const meshRefinement::FaceMergeType mergeType,
     const scalar featureCos,
     const scalar planarAngle,
     const snapParameters& snapParams
 )
 {
+    addProfiling(snap, "snappyHexMesh::snap");
     fvMesh& mesh = meshRefiner_.mesh();
 
     Info<< nl
         << "Morphing phase" << nl
         << "--------------" << nl
         << endl;
-
-    // Get the labels of added patches.
-    labelList adaptPatchIDs(meshRefiner_.meshedPatches());
-
 
     // faceZone handling
     // ~~~~~~~~~~~~~~~~~
@@ -2125,232 +2534,54 @@ void Foam::snappySnapDriver::doSnap
     //
     // internal
     // --------
-    // - baffles: contains all faces on faceZone so
-    //      - mesh checks check across baffles
-    //      - they get back merged into internal faces
+    // - baffles: need to be checked across
     // - duplicateFace: from face to duplicate face. Contains
     //   all faces on faceZone to prevents merging patch faces.
     //
     // baffle
     // ------
-    // - baffles: contains no faces on faceZone since need not be merged/checked
-    //   across
+    // - baffles: no need to be checked across
     // - duplicateFace: contains all faces on faceZone to prevent
     //   merging patch faces.
     //
     // boundary
     // --------
-    // - baffles: contains no faces on faceZone since need not be merged/checked
-    //   across
+    // - baffles: no need to be checked across. Also points get duplicated
+    //            so will no longer be baffles
     // - duplicateFace: contains no faces on faceZone since both sides can
     //   merge faces independently.
 
 
-    // Create baffles (pairs of faces that share the same points)
-    // Baffles stored as owner and neighbour face that have been created.
-    List<labelPair> baffles;
-    meshRefiner_.createZoneBaffles
+
+    // faceZones of type internal
+    const labelList internalFaceZones
     (
-        globalToMasterPatch_,
-        globalToSlavePatch_,
-        baffles
+        meshRefiner_.getZones
+        (
+            List<surfaceZonesInfo::faceZoneType>
+            (
+                1,
+                surfaceZonesInfo::INTERNAL
+            )
+        )
     );
 
-    // Maintain map from face to baffle face (-1 for non-baffle faces). Used
-    // later on to prevent patchface merging if faceType=baffle
-    labelList duplicateFace(mesh.nFaces(), -1);
 
-    forAll(baffles, i)
+    // Create baffles (pairs of faces that share the same points)
+    // Baffles stored as owner and neighbour face that have been created.
     {
-        const labelPair& baffle = baffles[i];
-        duplicateFace[baffle.first()] = baffle.second();
-        duplicateFace[baffle.second()] = baffle.first();
-    }
-
-    // Selectively 'forget' about the baffles, i.e. not check across them
-    // or merge across them.
-    {
-        const faceZoneMesh& fZones = mesh.faceZones();
-        const refinementSurfaces& surfaces = meshRefiner_.surfaces();
-        const PtrList<surfaceZonesInfo>& surfZones = surfaces.surfZones();
-
-        // Determine which
-        //  - faces to remove from list of baffles (so not merge)
-        //  - points to duplicate
-
-        // Per face if is on faceType 'baffle' or 'boundary'
-        labelList filterFace(mesh.nFaces(), -1);
-        label nFilterFaces = 0;
-        // Per point whether it need to be duplicated
-        PackedBoolList duplicatePoint(mesh.nPoints());
-        label nDuplicatePoints = 0;
-        forAll(surfZones, surfI)
-        {
-            const word& faceZoneName = surfZones[surfI].faceZoneName();
-
-            if (faceZoneName.size())
-            {
-                const surfaceZonesInfo::faceZoneType& faceType =
-                    surfZones[surfI].faceType();
-
-                if
-                (
-                    faceType == surfaceZonesInfo::BAFFLE
-                 || faceType == surfaceZonesInfo::BOUNDARY
-                )
-                {
-                    // Filter out all faces for this zone.
-                    label zoneI = fZones.findZoneID(faceZoneName);
-                    const faceZone& fZone = fZones[zoneI];
-                    forAll(fZone, i)
-                    {
-                        label facei = fZone[i];
-                        filterFace[facei] = zoneI;
-                        nFilterFaces++;
-                    }
-
-                    if (faceType == surfaceZonesInfo::BOUNDARY)
-                    {
-                        forAll(fZone, i)
-                        {
-                            label facei = fZone[i];
-
-                            // Allow combining patch faces across this face
-                            duplicateFace[facei] = -1;
-
-                            const face& f = mesh.faces()[facei];
-                            forAll(f, fp)
-                            {
-                                if (!duplicatePoint[f[fp]])
-                                {
-                                    duplicatePoint[f[fp]] = 1;
-                                    nDuplicatePoints++;
-                                }
-                            }
-                        }
-                    }
-
-                    Info<< "Surface : " << surfaces.names()[surfI] << nl
-                        << "    faces to become baffle : "
-                        << returnReduce(nFilterFaces, sumOp<label>()) << nl
-                        << "    points to duplicate    : "
-                        << returnReduce(nDuplicatePoints, sumOp<label>())
-                        << endl;
-                }
-            }
-        }
-
-        // Duplicate points if any processor says it needs duplication
-        syncTools::syncPointList
+        List<labelPair> baffles;
+        labelList originatingFaceZone;
+        meshRefiner_.createZoneBaffles
         (
-            mesh,
-            duplicatePoint,
-            orEqOp<unsigned int>(),     // combine op
-            0u                          // null value
+            identity(mesh.faceZones().size()),
+            baffles,
+            originatingFaceZone
         );
-        // Mark as duplicate (avoids combining patch faces) if one or both
-        syncTools::syncFaceList(mesh, duplicateFace, maxEqOp<label>());
-        // Mark as resulting from baffle/boundary face zone only if both agree
-        syncTools::syncFaceList(mesh, filterFace, minEqOp<label>());
-
-        // Duplicate points
-        if (returnReduce(nDuplicatePoints, sumOp<label>()) > 0)
-        {
-            // Collect all points (recount since syncPointList might have
-            // increased set)
-            nDuplicatePoints = 0;
-            forAll(duplicatePoint, pointi)
-            {
-                if (duplicatePoint[pointi])
-                {
-                    nDuplicatePoints++;
-                }
-            }
-            labelList candidatePoints(nDuplicatePoints);
-            nDuplicatePoints = 0;
-            forAll(duplicatePoint, pointi)
-            {
-                if (duplicatePoint[pointi])
-                {
-                    candidatePoints[nDuplicatePoints++] = pointi;
-                }
-            }
-
-
-            localPointRegion regionSide(mesh, candidatePoints);
-            autoPtr<mapPolyMesh> mapPtr = meshRefiner_.dupNonManifoldPoints
-            (
-                regionSide
-            );
-            meshRefinement::updateList
-            (
-                mapPtr().faceMap(),
-                label(-1),
-                filterFace
-            );
-            meshRefinement::updateList
-            (
-                mapPtr().faceMap(),
-                label(-1),
-                duplicateFace
-            );
-
-            // Update baffles and baffle-to-baffle addressing
-
-            const labelList& reverseFaceMap = mapPtr().reverseFaceMap();
-
-            forAll(baffles, i)
-            {
-                labelPair& baffle = baffles[i];
-                baffle.first() = reverseFaceMap[baffle.first()];
-                baffle.second() = reverseFaceMap[baffle.second()];
-            }
-
-            if (debug&meshRefinement::MESH)
-            {
-                const_cast<Time&>(mesh.time())++;
-                Pout<< "Writing duplicatedPoints mesh to time "
-                    << meshRefiner_.timeName()
-                    << endl;
-                meshRefiner_.write
-                (
-                    meshRefinement::debugType(debug),
-                    meshRefinement::writeType
-                    (
-                        meshRefinement::writeLevel()
-                      | meshRefinement::WRITEMESH
-                    ),
-                    mesh.time().path()/"duplicatedPoints"
-                );
-            }
-        }
-
-
-        // Forget about baffles in a BAFFLE/BOUNDARY type zone
-        DynamicList<labelPair> newBaffles(baffles.size());
-        forAll(baffles, i)
-        {
-            const labelPair& baffle = baffles[i];
-            if
-            (
-                filterFace[baffle.first()] == -1
-             && filterFace[baffles[i].second()] == -1
-            )
-            {
-                newBaffles.append(baffle);
-            }
-        }
-
-        if (newBaffles.size() < baffles.size())
-        {
-            //Info<< "Splitting baffles into" << nl
-            //    << "    internal : " << newBaffles.size() << nl
-            //    << "    baffle   : " << baffles.size()-newBaffles.size()
-            //    << nl << endl;
-            baffles.transfer(newBaffles);
-        }
-        Info<< endl;
     }
+
+    // Duplicate points on faceZones of type boundary
+    meshRefiner_.dupNonManifoldBoundaryPoints();
 
 
     bool doFeatures = false;
@@ -2358,7 +2589,11 @@ void Foam::snappySnapDriver::doSnap
     if (snapParams.nFeatureSnap() > 0)
     {
         doFeatures = true;
-        nFeatIter = snapParams.nFeatureSnap();
+
+        if (!dryRun_)
+        {
+            nFeatIter = snapParams.nFeatureSnap();
+        }
 
         Info<< "Snapping to features in " << nFeatIter
             << " iterations ..." << endl;
@@ -2366,6 +2601,12 @@ void Foam::snappySnapDriver::doSnap
 
 
     bool meshOk = false;
+
+
+    // Get the labels of added patches.
+    labelList adaptPatchIDs(meshRefiner_.meshedPatches());
+
+
 
     {
         autoPtr<indirectPrimitivePatch> ppPtr
@@ -2379,7 +2620,7 @@ void Foam::snappySnapDriver::doSnap
 
 
         // Distance to attract to nearest feature on surface
-        const scalarField snapDist(calcSnapDistance(mesh, snapParams, ppPtr()));
+        scalarField snapDist(calcSnapDistance(mesh, snapParams, ppPtr()));
 
 
         // Construct iterative mesh mover.
@@ -2398,7 +2639,8 @@ void Foam::snappySnapDriver::doSnap
                     pointMesh::New(mesh),
                     adaptPatchIDs
                 ),
-                motionDict
+                motionDict,
+                dryRun_
             )
         );
 
@@ -2406,7 +2648,7 @@ void Foam::snappySnapDriver::doSnap
         // Check initial mesh
         Info<< "Checking initial mesh ..." << endl;
         labelHashSet wrongFaces(mesh.nFaces()/100);
-        motionSmoother::checkMesh(false, mesh, motionDict, wrongFaces);
+        motionSmoother::checkMesh(false, mesh, motionDict, wrongFaces, dryRun_);
         const label nInitErrors = returnReduce
         (
             wrongFaces.size(),
@@ -2421,16 +2663,31 @@ void Foam::snappySnapDriver::doSnap
         Info<< "Checked initial mesh in = "
             << mesh.time().cpuTimeIncrement() << " s\n" << nl << endl;
 
+        // Extract baffles across internal faceZones (for checking mesh quality
+        // across
+        labelPairList internalBaffles
+        (
+            meshRefiner_.subsetBaffles
+            (
+                mesh,
+                internalFaceZones,
+                localPointRegion::findDuplicateFacePairs(mesh)
+            )
+        );
+
+
+
         // Pre-smooth patch vertices (so before determining nearest)
         preSmoothPatch
         (
             meshRefiner_,
             snapParams,
             nInitErrors,
-            baffles,
+            internalBaffles,
             meshMoverPtr()
         );
 
+        // TBD. Include re-patching?
 
 
         //- Only if in feature attraction mode:
@@ -2440,256 +2697,60 @@ void Foam::snappySnapDriver::doSnap
         List<pointConstraint> patchConstraints;
 
 
+        //- Any faces to split
+        DynamicList<label> splitFaces;
+        //- Indices in face to split across
+        DynamicList<labelPair> splits;
+
+
         for (label iter = 0; iter < nFeatIter; iter++)
         {
-            //if (doFeatures && (iter == 0 || iter == nFeatIter/2))
-            //{
-            //    Info<< "Splitting diagonal attractions" << endl;
-            //
-            //    indirectPrimitivePatch& pp = ppPtr();
-            //    motionSmoother& meshMover = meshMoverPtr();
-            //
-            //    // Calculate displacement at every patch point. Insert into
-            //    // meshMover.
-            //    // Calculate displacement at every patch point
-            //    pointField nearestPoint;
-            //    vectorField nearestNormal;
-            //
-            //    if (snapParams.detectNearSurfacesSnap())
-            //    {
-            //        nearestPoint.setSize(pp.nPoints(), vector::max);
-            //        nearestNormal.setSize(pp.nPoints(), Zero);
-            //    }
-            //
-            //    vectorField disp = calcNearestSurface
-            //    (
-            //        meshRefiner_,
-            //        snapDist,
-            //        pp,
-            //        nearestPoint,
-            //        nearestNormal
-            //    );
-            //
-            //
-            //    // Override displacement at thin gaps
-            //    if (snapParams.detectNearSurfacesSnap())
-            //    {
-            //        detectNearSurfaces
-            //        (
-            //            Foam::cos(degToRad(planarAngle)),// planar gaps
-            //            pp,
-            //            nearestPoint,   // surfacepoint from nearest test
-            //            nearestNormal,  // surfacenormal from nearest test
-            //
-            //            disp
-            //        );
-            //    }
-            //
-            //    // Override displacement with feature edge attempt
-            //    const label iter = 0;
-            //    calcNearestSurfaceFeature
-            //    (
-            //        snapParams,
-            //        false,   // avoidSnapProblems
-            //        iter,
-            //        featureCos,
-            //        scalar(iter+1)/nFeatIter,
-            //        snapDist,
-            //        disp,
-            //        meshMover,
-            //        patchAttraction,
-            //        patchConstraints
-            //    );
-            //
-            //
-            //    const labelList& bFaces = ppPtr().addressing();
-            //    DynamicList<label> splitFaces(bFaces.size());
-            //    DynamicList<labelPair> splits(bFaces.size());
-            //
-            //    forAll(bFaces, facei)
-            //    {
-            //        const labelPair split
-            //        (
-            //            findDiagonalAttraction
-            //            (
-            //                ppPtr(),
-            //                patchAttraction,
-            //                patchConstraints,
-            //                facei
-            //            )
-            //        );
-            //
-            //        if (split != labelPair(-1, -1))
-            //        {
-            //            splitFaces.append(bFaces[facei]);
-            //            splits.append(split);
-            //        }
-            //    }
-            //
-            //    Info<< "Splitting "
-            //        << returnReduce(splitFaces.size(), sumOp<label>())
-            //        << " faces along diagonal attractions" << endl;
-            //
-            //    autoPtr<mapPolyMesh> mapPtr = meshRefiner_.splitFaces
-            //    (
-            //        splitFaces,
-            //        splits
-            //    );
-            //
-            //    const labelList& faceMap = mapPtr().faceMap();
-            //    meshRefinement::updateList(faceMap, -1, duplicateFace);
-            //    const labelList& reverseFaceMap = mapPtr().reverseFaceMap();
-            //    forAll(baffles, i)
-            //    {
-            //        labelPair& baffle = baffles[i];
-            //        baffle.first() = reverseFaceMap[baffle.first()];
-            //        baffle.second() = reverseFaceMap[baffle.second()];
-            //    }
-            //
-            //    meshMoverPtr.clear();
-            //    ppPtr.clear();
-            //
-            //    ppPtr = meshRefinement::makePatch(mesh, adaptPatchIDs);
-            //    meshMoverPtr.reset
-            //    (
-            //        new motionSmoother
-            //        (
-            //            mesh,
-            //            ppPtr(),
-            //            adaptPatchIDs,
-            //            meshRefinement::makeDisplacementField
-            //            (
-            //                pointMesh::New(mesh),
-            //                adaptPatchIDs
-            //            ),
-            //            motionDict
-            //        )
-            //    );
-            //
-            //    if (debug&meshRefinement::MESH)
-            //    {
-            //        const_cast<Time&>(mesh.time())++;
-            //        Info<< "Writing split diagonal mesh to time "
-            //            << meshRefiner_.timeName() << endl;
-            //        meshRefiner_.write
-            //        (
-            //            meshRefinement::debugType(debug),
-            //            meshRefinement::writeType
-            //            (
-            //                meshRefinement::writeLevel()
-            //              | meshRefinement::WRITEMESH
-            //            ),
-            //            mesh.time().path()/meshRefiner_.timeName()
-            //        );
-            //    }
-            //}
-            //else
-            //if
-            //(
-            //    doFeatures
-            // && (iter == 1 || iter == nFeatIter/2+1 || iter == nFeatIter-1)
-            //)
-            //{
-            //    Info<< "Splitting warped faces" << endl;
-            //
-            //    const labelList& bFaces = ppPtr().addressing();
-            //    DynamicList<label> splitFaces(bFaces.size());
-            //    DynamicList<labelPair> splits(bFaces.size());
-            //
-            //    detectWarpedFaces
-            //    (
-            //        featureCos,
-            //        ppPtr(),
-            //
-            //        splitFaces,
-            //        splits
-            //    );
-            //
-            //    Info<< "Splitting "
-            //        << returnReduce(splitFaces.size(), sumOp<label>())
-            //        << " faces along diagonal to avoid warpage" << endl;
-            //
-            //    autoPtr<mapPolyMesh> mapPtr = meshRefiner_.splitFaces
-            //    (
-            //        splitFaces,
-            //        splits
-            //    );
-            //
-            //    const labelList& faceMap = mapPtr().faceMap();
-            //    meshRefinement::updateList(faceMap, -1, duplicateFace);
-            //    const labelList& reverseFaceMap = mapPtr().reverseFaceMap();
-            //    forAll(baffles, i)
-            //    {
-            //        labelPair& baffle = baffles[i];
-            //        baffle.first() = reverseFaceMap[baffle.first()];
-            //        baffle.second() = reverseFaceMap[baffle.second()];
-            //    }
-            //
-            //    meshMoverPtr.clear();
-            //    ppPtr.clear();
-            //
-            //    ppPtr = meshRefinement::makePatch(mesh, adaptPatchIDs);
-            //    meshMoverPtr.reset
-            //    (
-            //        new motionSmoother
-            //        (
-            //            mesh,
-            //            ppPtr(),
-            //            adaptPatchIDs,
-            //            meshRefinement::makeDisplacementField
-            //            (
-            //                pointMesh::New(mesh),
-            //                adaptPatchIDs
-            //            ),
-            //            motionDict
-            //        )
-            //    );
-            //
-            //    if (debug&meshRefinement::MESH)
-            //    {
-            //        const_cast<Time&>(mesh.time())++;
-            //        Info<< "Writing split warped mesh to time "
-            //            << meshRefiner_.timeName() << endl;
-            //        meshRefiner_.write
-            //        (
-            //            meshRefinement::debugType(debug),
-            //            meshRefinement::writeType
-            //            (
-            //                meshRefinement::writeLevel()
-            //              | meshRefinement::WRITEMESH
-            //            ),
-            //            mesh.time().path()/meshRefiner_.timeName()
-            //        );
-            //    }
-            //}
-
-
-
             Info<< nl
                 << "Morph iteration " << iter << nl
                 << "-----------------" << endl;
+
+            // Splitting iteration?
+            bool doSplit = false;
+            if
+            (
+                doFeatures
+             && snapParams.nFaceSplitInterval() > 0
+             && (
+                    (iter == nFeatIter-1)
+                 || (iter > 0 && (iter%snapParams.nFaceSplitInterval()) == 0)
+                )
+            )
+            {
+                doSplit = true;
+            }
+
+
 
             indirectPrimitivePatch& pp = ppPtr();
             motionSmoother& meshMover = meshMoverPtr();
 
 
-            // Calculate displacement at every patch point. Insert into
-            // meshMover.
-            // Calculate displacement at every patch point
+            // Calculate displacement at every patch point if we need it:
+            // - if automatic near-surface detection
+            // - if face splitting active
             pointField nearestPoint;
             vectorField nearestNormal;
 
-            if (snapParams.detectNearSurfacesSnap())
+            if (snapParams.detectNearSurfacesSnap() || doSplit)
             {
-                nearestPoint.setSize(pp.nPoints(), vector::max);
+                nearestPoint.setSize(pp.nPoints(), vector::max_);
                 nearestNormal.setSize(pp.nPoints(), Zero);
             }
 
             vectorField disp = calcNearestSurface
             (
+                snapParams.strictRegionSnap(),  // attract points to region only
                 meshRefiner_,
+                globalToMasterPatch_,           // for if strictRegionSnap
+                globalToSlavePatch_,            // for if strictRegionSnap
                 snapDist,
                 pp,
+
                 nearestPoint,
                 nearestNormal
             );
@@ -2712,18 +2773,26 @@ void Foam::snappySnapDriver::doSnap
             // Override displacement with feature edge attempt
             if (doFeatures)
             {
+                splitFaces.clear();
+                splits.clear();
                 disp = calcNearestSurfaceFeature
                 (
                     snapParams,
-                    true,   // avoidSnapProblems
+                    !doSplit,       // alignMeshEdges
                     iter,
                     featureCos,
                     scalar(iter+1)/nFeatIter,
+
                     snapDist,
                     disp,
+                    nearestNormal,
                     meshMover,
+
                     patchAttraction,
-                    patchConstraints
+                    patchConstraints,
+
+                    splitFaces,
+                    splits
                 );
             }
 
@@ -2755,14 +2824,14 @@ void Foam::snappySnapDriver::doSnap
             (
                 snapParams,
                 nInitErrors,
-                baffles,
+                internalBaffles,
                 meshMover
             );
 
             if (!meshOk)
             {
                 WarningInFunction
-                    << "Did not succesfully snap mesh."
+                    << "Did not successfully snap mesh."
                     << " Continuing to snap to resolve easy" << nl
                     << "    surfaces but the"
                     << " resulting mesh will not satisfy your quality"
@@ -2795,71 +2864,196 @@ void Foam::snappySnapDriver::doSnap
 
             // Use current mesh as base mesh
             meshMover.correct();
+
+
+
+            // See if any faces need splitting
+            label nTotalSplit = returnReduce(splitFaces.size(), sumOp<label>());
+            if (nTotalSplit && doSplit)
+            {
+                // Filter out baffle faces from faceZones of type
+                // internal/baffle
+
+                labelList duplicateFace(getInternalOrBaffleDuplicateFace());
+
+                {
+                    labelList oldSplitFaces(std::move(splitFaces));
+                    List<labelPair> oldSplits(std::move(splits));
+                    forAll(oldSplitFaces, i)
+                    {
+                        if (duplicateFace[oldSplitFaces[i]] == -1)
+                        {
+                            splitFaces.append(oldSplitFaces[i]);
+                            splits.append(oldSplits[i]);
+                        }
+                    }
+                    nTotalSplit = returnReduce
+                    (
+                        splitFaces.size(),
+                        sumOp<label>()
+                    );
+                }
+
+                // Update mesh
+                meshRefiner_.splitFacesUndo
+                (
+                    splitFaces,
+                    splits,
+                    motionDict,
+
+                    duplicateFace,
+                    internalBaffles
+                );
+
+                // Redo meshMover
+                meshMoverPtr.clear();
+                ppPtr.clear();
+
+                // Update mesh mover
+                ppPtr = meshRefinement::makePatch(mesh, adaptPatchIDs);
+                meshMoverPtr.reset
+                (
+                    new motionSmoother
+                    (
+                        mesh,
+                        ppPtr(),
+                        adaptPatchIDs,
+                        meshRefinement::makeDisplacementField
+                        (
+                            pointMesh::New(mesh),
+                            adaptPatchIDs
+                        ),
+                        motionDict,
+                        dryRun_
+                    )
+                );
+
+                // Update snapping distance
+                snapDist = calcSnapDistance(mesh, snapParams, ppPtr());
+
+
+                if (debug&meshRefinement::MESH)
+                {
+                    const_cast<Time&>(mesh.time())++;
+                    Info<< "Writing split-faces mesh to time "
+                        << meshRefiner_.timeName() << endl;
+                    meshRefiner_.write
+                    (
+                        meshRefinement::debugType(debug),
+                        meshRefinement::writeType
+                        (
+                            meshRefinement::writeLevel()
+                          | meshRefinement::WRITEMESH
+                        ),
+                        mesh.time().path()/meshRefiner_.timeName()
+                    );
+                }
+            }
+
+
+            if (debug&meshRefinement::MESH)
+            {
+                forAll(internalBaffles, i)
+                {
+                    const labelPair& p = internalBaffles[i];
+                    const point& fc0 = mesh.faceCentres()[p[0]];
+                    const point& fc1 = mesh.faceCentres()[p[1]];
+
+                    if (mag(fc0-fc1) > meshRefiner_.mergeDistance())
+                    {
+                        FatalErrorInFunction
+                            << "Separated baffles : f0:" << p[0]
+                            << " centre:" << fc0
+                            << " f1:" << p[1] << " centre:" << fc1
+                            << " distance:" << mag(fc0-fc1)
+                            << exit(FatalError);
+                    }
+                }
+            }
         }
     }
 
 
     // Merge any introduced baffles (from faceZones of faceType 'internal')
     {
-        autoPtr<mapPolyMesh> mapPtr = mergeZoneBaffles(baffles);
+        autoPtr<mapPolyMesh> mapPtr = meshRefiner_.mergeZoneBaffles
+        (
+            true,   // internal zones
+            false   // baffle zones
+        );
 
-        if (mapPtr.valid())
+        if (mapPtr)
         {
-            forAll(duplicateFace, facei)
+            if (debug & meshRefinement::MESH)
             {
-                if (duplicateFace[facei] != -1)
-                {
-                    duplicateFace[facei] = mapPtr().reverseFaceMap()[facei];
-                }
+                const_cast<Time&>(mesh.time())++;
+                Info<< "Writing baffle-merged mesh to time "
+                    << meshRefiner_.timeName() << endl;
+                meshRefiner_.write
+                (
+                    meshRefinement::debugType(debug),
+                    meshRefinement::writeType
+                    (
+                        meshRefinement::writeLevel()
+                      | meshRefinement::WRITEMESH
+                    ),
+                    meshRefiner_.timeName()
+                );
             }
         }
     }
 
     // Repatch faces according to nearest. Do not repatch baffle faces.
     {
-        autoPtr<mapPolyMesh> mapPtr = repatchToSurface
-        (
-            snapParams,
-            adaptPatchIDs,
-            duplicateFace
-        );
-        meshRefinement::updateList
-        (
-            mapPtr().faceMap(),
-            label(-1),
-            duplicateFace
-        );
+        labelList duplicateFace(getInternalOrBaffleDuplicateFace());
+
+        repatchToSurface(snapParams, adaptPatchIDs, duplicateFace);
     }
 
-    // Repatching might have caused faces to be on same patch and hence
-    // mergeable so try again to merge coplanar faces. Do not merge baffle
-    // faces to ensure they both stay the same.
-    label nChanged = meshRefiner_.mergePatchFacesUndo
+    if
     (
-        featureCos,     // minCos
-        featureCos,     // concaveCos
-        meshRefiner_.meshedPatches(),
-        motionDict,
-        duplicateFace   // faces not to merge
-    );
+        mergeType == meshRefinement::FaceMergeType::GEOMETRIC
+     || mergeType == meshRefinement::FaceMergeType::IGNOREPATCH
+    )
+    {
+        labelList duplicateFace(getInternalOrBaffleDuplicateFace());
 
-    nChanged += meshRefiner_.mergeEdgesUndo(featureCos, motionDict);
+        // Repatching might have caused faces to be on same patch and hence
+        // mergeable so try again to merge coplanar faces. Do not merge baffle
+        // faces to ensure they both stay the same.
+        label nChanged = meshRefiner_.mergePatchFacesUndo
+        (
+            featureCos,     // minCos
+            featureCos,     // concaveCos
+            meshRefiner_.meshedPatches(),
+            motionDict,
+            duplicateFace,  // faces not to merge
+            mergeType
+        );
 
-    if (nChanged > 0 && debug & meshRefinement::MESH)
+        nChanged += meshRefiner_.mergeEdgesUndo(featureCos, motionDict);
+
+        if (nChanged > 0 && debug & meshRefinement::MESH)
+        {
+            const_cast<Time&>(mesh.time())++;
+            Info<< "Writing patchFace merged mesh to time "
+                << meshRefiner_.timeName() << endl;
+            meshRefiner_.write
+            (
+                meshRefinement::debugType(debug),
+                meshRefinement::writeType
+                (
+                    meshRefinement::writeLevel()
+                  | meshRefinement::WRITEMESH
+                ),
+                meshRefiner_.timeName()
+            );
+        }
+    }
+
+    if (debug & meshRefinement::MESH)
     {
         const_cast<Time&>(mesh.time())++;
-        Info<< "Writing patchFace merged mesh to time "
-            << meshRefiner_.timeName() << endl;
-        meshRefiner_.write
-        (
-            meshRefinement::debugType(debug),
-            meshRefinement::writeType
-            (
-                meshRefinement::writeLevel()
-              | meshRefinement::WRITEMESH
-            ),
-            meshRefiner_.timeName()
-        );
     }
 }
 

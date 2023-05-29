@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -26,33 +28,37 @@ Description
 
 \*---------------------------------------------------------------------------*/
 
-#include "vector.H"
+#include "vector2.H"
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
-namespace Foam {
-    template<>
-    const char* const vector::vsType::typeName = "vector";
 
-    template<>
-    const char* const vector::vsType::componentNames[] = { "x", "y", "z" };
 
-    template<>
-    const vector vector::vsType::vsType::_zero(vector::uniform(0));
+ namespace Foam{
+template<>
+const char* const vector::vsType::typeName = "vector";
 
-    template<>
-    const vector vector::vsType::one(vector::uniform(1));
+template<>
+const char* const vector::vsType::componentNames[] = {"x", "y", "z"};
 
-    template<>
-    const vector vector::vsType::max(vector::uniform(VGREAT));
+template<>
+const vector vector::vsType::zero_(vector::uniform(0));
 
-    template<>
-    const vector vector::vsType::min(vector::uniform(-VGREAT));
+template<>
+const vector vector::vsType::one_(vector::uniform(1));
 
-    template<>
-    const vector vector::vsType::rootMax(vector::uniform(ROOTVGREAT));
+template<>
+const vector vector::vsType::max_(vector::uniform(VGREAT));
 
-    template<>
-    const vector vector::vsType::rootMin(vector::uniform(-ROOTVGREAT));
+template<>
+const vector vector::vsType::min_(vector::uniform(-VGREAT));
 
-}
+template<>
+const vector vector::vsType::rootMax_(vector::uniform(ROOTVGREAT));
+
+template<>
+const vector vector::vsType::rootMin_(vector::uniform(-ROOTVGREAT));
+
+
 // ************************************************************************* //
+
+ } // End namespace Foam

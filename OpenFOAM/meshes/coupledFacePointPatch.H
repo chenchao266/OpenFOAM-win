@@ -1,9 +1,11 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -51,7 +53,9 @@ class pointBoundaryMesh;
                       Class coupledFacePointPatch Declaration
 \*---------------------------------------------------------------------------*/
 
-class coupledFacePointPatch :    public facePointPatch,
+class coupledFacePointPatch
+:
+    public facePointPatch,
     public coupledPointPatch
 {
     // Private data
@@ -61,11 +65,11 @@ class coupledFacePointPatch :    public facePointPatch,
 
     // Private Member Functions
 
-        //- Disallow default construct as copy
-        coupledFacePointPatch(const coupledFacePointPatch&);
+        //- No copy construct
+        coupledFacePointPatch(const coupledFacePointPatch&) = delete;
 
-        //- Disallow default assignment
-        void operator=(const coupledFacePointPatch&);
+        //- No copy assignment
+        void operator=(const coupledFacePointPatch&) = delete;
 
 
 protected:

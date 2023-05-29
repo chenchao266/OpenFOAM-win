@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -21,17 +24,12 @@ License
     You should have received a copy of the GNU General Public License
     along with OpenFOAM.  If not, see <http://www.gnu.org/licenses/>.
 
-Description
-    Attach/detach boundary mesh modifier.  This modifier takes a set of
-    internal faces and converts them into boundary faces and vice versa
-    based on the given activation switch.
-
 \*---------------------------------------------------------------------------*/
 
 #include "attachDetach.H"
 #include "polyTopoChanger.H"
 #include "polyMesh.H"
-#include "Time.T.H"
+#include "Time1.H"
 #include "primitiveMesh.H"
 #include "polyTopoChange.H"
 #include "addToRunTimeSelectionTable.H"
@@ -210,7 +208,7 @@ void Foam::attachDetach::checkDefinition()
     if
     (
         !triggersOK
-     || (triggerTimes_.empty() && !manualTrigger())
+     || (triggerTimes_.empty() && !manualTrigger_)
     )
     {
         FatalErrorInFunction
@@ -223,13 +221,12 @@ void Foam::attachDetach::checkDefinition()
 
 void Foam::attachDetach::clearAddressing() const
 {
-    deleteDemandDrivenData(pointMatchMapPtr_);
+    pointMatchMapPtr_.reset(nullptr);
 }
 
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
-// Construct from components
 Foam::attachDetach::attachDetach
 (
     const word& name,
@@ -247,9 +244,9 @@ Foam::attachDetach::attachDetach
     masterPatchID_(masterPatchName, mme.mesh().boundaryMesh()),
     slavePatchID_(slavePatchName, mme.mesh().boundaryMesh()),
     triggerTimes_(triggerTimes),
-    manualTrigger_(manualTrigger),
     triggerIndex_(0),
     state_(UNKNOWN),
+    manualTrigger_(manualTrigger),
     trigger_(false),
     pointMatchMapPtr_(nullptr)
 {
@@ -257,7 +254,6 @@ Foam::attachDetach::attachDetach
 }
 
 
-// Construct from components
 Foam::attachDetach::attachDetach
 (
     const word& name,
@@ -266,7 +262,7 @@ Foam::attachDetach::attachDetach
     const polyTopoChanger& mme
 )
 :
-    polyMeshModifier(name, index, mme, Switch(dict.lookup("active"))),
+    polyMeshModifier(name, index, mme, dict.get<bool>("active")),
     faceZoneID_
     (
         dict.lookup("faceZoneName"),
@@ -283,9 +279,9 @@ Foam::attachDetach::attachDetach
         mme.mesh().boundaryMesh()
     ),
     triggerTimes_(dict.lookup("triggerTimes")),
-    manualTrigger_(dict.lookup("manualTrigger")),
     triggerIndex_(0),
     state_(UNKNOWN),
+    manualTrigger_(dict.get<bool>("manualTrigger")),
     trigger_(false),
     pointMatchMapPtr_(nullptr)
 {
@@ -293,26 +289,11 @@ Foam::attachDetach::attachDetach
 }
 
 
-// * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
-
-Foam::attachDetach::~attachDetach()
-{
-    clearAddressing();
-}
-
-
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
 
 bool Foam::attachDetach::setAttach() const
 {
-    if (!attached())
-    {
-        trigger_ = true;
-    }
-    else
-    {
-        trigger_ = false;
-    }
+    trigger_ = (!attached());
 
     return trigger_;
 }
@@ -320,14 +301,7 @@ bool Foam::attachDetach::setAttach() const
 
 bool Foam::attachDetach::setDetach() const
 {
-    if (attached())
-    {
-        trigger_ = true;
-    }
-    else
-    {
-        trigger_ = false;
-    }
+    trigger_ = (attached());
 
     return trigger_;
 }
@@ -335,7 +309,7 @@ bool Foam::attachDetach::setDetach() const
 
 bool Foam::attachDetach::changeTopology() const
 {
-    if (manualTrigger())
+    if (manualTrigger_)
     {
         if (debug)
         {
@@ -427,8 +401,7 @@ void Foam::attachDetach::setRefinement(polyTopoChange& ref) const
         else
         {
             FatalErrorInFunction
-                << "Requested attach/detach event and currect state "
-                << "is not known."
+                << "Requested attach/detach event. Current state is unknown."
                 << abort(FatalError);
         }
 
@@ -463,22 +436,18 @@ void Foam::attachDetach::write(Ostream& os) const
 
 void Foam::attachDetach::writeDict(Ostream& os) const
 {
-    os  << nl << name() << nl << token::BEGIN_BLOCK << nl
-        << "    type " << type()
-        << token::END_STATEMENT << nl
-        << "    faceZoneName " << faceZoneID_.name()
-        << token::END_STATEMENT << nl
-        << "    masterPatchName " << masterPatchID_.name()
-        << token::END_STATEMENT << nl
-        << "    slavePatchName " << slavePatchID_.name()
-        << token::END_STATEMENT << nl
-        << "    triggerTimes " << triggerTimes_
-        << token::END_STATEMENT << nl
-        << "    manualTrigger " << manualTrigger()
-        << token::END_STATEMENT << nl
-        << "    active " << active()
-        << token::END_STATEMENT << nl
-        << token::END_BLOCK << endl;
+    os  << nl;
+    os.beginBlock(name());
+
+    os.writeEntry("type", type());
+    os.writeEntry("faceZoneName", faceZoneID_.name());
+    os.writeEntry("masterPatchName", masterPatchID_.name());
+    os.writeEntry("slavePatchName", slavePatchID_.name());
+    os.writeEntry("triggerTimes", triggerTimes_);
+    os.writeEntry("manualTrigger", Switch::name(manualTrigger_));
+    os.writeEntry("active", active());
+
+    os.endBlock();
 }
 
 

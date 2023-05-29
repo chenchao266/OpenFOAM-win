@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2019-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -39,7 +42,7 @@ namespace Foam
 
 bool Foam::profileModel::readFromFile() const
 {
-    return fName_ != fileName::null;
+    return !fName_.empty();
 }
 
 
@@ -49,14 +52,7 @@ Foam::profileModel::profileModel(const dictionary& dict, const word& name)
 :
     dict_(dict),
     name_(name),
-    fName_(fileName::null)
-{
-    dict.readIfPresent("file", fName_);
-}
-
-// * * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * //
-
-Foam::profileModel::~profileModel()
+    fName_(dict.getOrDefault<fileName>("file", fileName::null))
 {}
 
 
@@ -73,26 +69,26 @@ Foam::autoPtr<Foam::profileModel> Foam::profileModel::New
     const dictionary& dict
 )
 {
-    const word& modelName(dict.dictName());
+    const word& modelName = dict.dictName();
 
-    const word modelType(dict.lookup("type"));
+    const word modelType(dict.get<word>("type"));
 
     Info<< "    - creating " << modelType << " profile " << modelName << endl;
 
-    dictionaryConstructorTable::iterator cstrIter =
-        dictionaryConstructorTablePtr_->find(modelType);
+    auto* ctorPtr = dictionaryConstructorTable(modelType);
 
-    if (cstrIter == dictionaryConstructorTablePtr_->end())
+    if (!ctorPtr)
     {
-        FatalErrorInFunction
-            << "Unknown profile model type " << modelType
-            << nl << nl
-            << "Valid model types are :" << nl
-            << dictionaryConstructorTablePtr_->sortedToc()
-            << exit(FatalError);
+        FatalIOErrorInLookup
+        (
+            dict,
+            "profileModel",
+            modelType,
+            *dictionaryConstructorTablePtr_
+        ) << exit(FatalIOError);
     }
 
-    return autoPtr<profileModel>(cstrIter()(dict, modelName));
+    return autoPtr<profileModel>(ctorPtr(dict, modelName));
 }
 
 

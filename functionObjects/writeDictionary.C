@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2013-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2013-2017 OpenFOAM Foundation
+    Copyright (C) 2016-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -24,7 +27,7 @@ License
 \*---------------------------------------------------------------------------*/
 
 #include "writeDictionary.H"
-#include "Time.T.H"
+#include "Time1.H"
 #include "polyMesh.H"
 #include "addToRunTimeSelectionTable.H"
 #include "IOdictionary.H"
@@ -49,16 +52,48 @@ namespace functionObjects
 
 // * * * * * * * * * * * * * Private Member Functions  * * * * * * * * * * * //
 
+void Foam::functionObjects::writeDictionary::writeHeader()
+{
+    if (firstChange_)
+    {
+        Info<< type() << " " << name() << " write:" << nl << endl;
+
+        IOobject::writeDivider(Info);
+        Info<< endl;
+        firstChange_ = false;
+    }
+}
+
+
+void Foam::functionObjects::writeDictionary::checkDictionary
+(
+    const dictionary& dict,
+    const label dicti
+)
+{
+    if (dict.digest() != digests_[dicti])
+    {
+        writeHeader();
+
+        digests_[dicti] = dict.digest();
+
+        Info<< dict.dictName() << dict << nl;
+
+        IOobject::writeDivider(Info);
+        Info<< endl;
+    }
+}
+
+
 bool Foam::functionObjects::writeDictionary::tryDirectory
 (
-    const label dictI,
     const word& location,
-    bool& firstDict
+    const label dicti
 )
 {
     IOobject dictIO
     (
-        dictNames_[dictI],
+        dictNames_[dicti],
         location,
         obr_,
         IOobject::MUST_READ,
@@ -68,25 +103,7 @@ bool Foam::functionObjects::writeDictionary::tryDirectory
 
     if (dictIO.typeHeaderOk<IOdictionary>(true))
     {
-        IOdictionary dict(dictIO);
-
-        if (dict.digest() != digests_[dictI])
-        {
-            if (firstDict)
-            {
-                Info<< type() << " " << name() << " write:" << nl << endl;
-
-                IOobject::writeDivider(Info);
-                Info<< endl;
-                firstDict = false;
-            }
-
-            Info<< dict.dictName() << dict << nl;
-
-            IOobject::writeDivider(Info);
-
-            digests_[dictI] = dict.digest();
-        }
+        checkDictionary(IOdictionary(dictIO), dicti);
 
         return true;
     }
@@ -104,34 +121,24 @@ Foam::functionObjects::writeDictionary::writeDictionary
     const dictionary& dict
 )
 :
-    functionObject(name),
-    obr_
-    (
-        runTime.lookupObject<objectRegistry>
-        (
-            dict.lookupOrDefault("region", polyMesh::defaultRegion)
-        )
-    ),
+    regionFunctionObject(name, runTime, dict),
     dictNames_(),
-    digests_()
+    digests_(),
+    firstChange_(true)
 {
     read(dict);
     execute();
 }
 
 
-// * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
-
-Foam::functionObjects::writeDictionary::~writeDictionary()
-{}
-
-
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
 
 bool Foam::functionObjects::writeDictionary::read(const dictionary& dict)
 {
-    wordList dictNames(dict.lookup("dictNames"));
-    HashSet<word> uniqueNames(dictNames);
+    regionFunctionObject::read(dict);
+
+    wordList dictNames(dict.get<wordList>("dictNames"));
+    wordHashSet uniqueNames(dictNames);
     dictNames_ = uniqueNames.toc();
 
     digests_.setSize(dictNames_.size(), SHA1Digest());
@@ -139,9 +146,9 @@ bool Foam::functionObjects::writeDictionary::read(const dictionary& dict)
     Info<< type() << " " << name() << ": monitoring dictionaries:" << nl;
     if (dictNames_.size())
     {
-        forAll(dictNames_, i)
+        for (const word & dictName : dictNames_)
         {
-            Info<< "    " << dictNames_[i] << endl;
+            Info<< "    " << dictName << endl;
         }
     }
     else
@@ -162,53 +169,39 @@ bool Foam::functionObjects::writeDictionary::execute()
 
 bool Foam::functionObjects::writeDictionary::write()
 {
-    bool firstDict = true;
-    forAll(dictNames_, i)
+    firstChange_ = true;
+
+    forAll(dictNames_, dicti)
     {
-        if (obr_.foundObject<dictionary>(dictNames_[i]))
+        const IOdictionary* dictptr =
+            obr_.cfindObject<IOdictionary>(dictNames_[dicti]);
+
+        if (dictptr)
         {
-            const dictionary& dict =
-                obr_.lookupObject<dictionary>(dictNames_[i]);
-
-            if (dict.digest() != digests_[i])
-            {
-                if (firstDict)
-                {
-                    Info<< type() << " " << name() << " write:" << nl << endl;
-
-                    IOobject::writeDivider(Info);
-                    Info<< endl;
-                    firstDict = false;
-                }
-
-                digests_[i] = dict.digest();
-
-                Info<< dict.dictName() << dict << nl;
-                IOobject::writeDivider(Info);
-                Info<< endl;
-            }
+            checkDictionary(*dictptr, dicti);
         }
         else
         {
-            bool processed = tryDirectory(i, obr_.time().timeName(), firstDict);
+            bool processed = tryDirectory(obr_.time().timeName(), dicti);
 
             if (!processed)
             {
-                processed = tryDirectory(i, obr_.time().constant(), firstDict);
+                processed = tryDirectory(obr_.time().constant(), dicti);
             }
 
             if (!processed)
             {
-                processed = tryDirectory(i, obr_.time().system(), firstDict);
+                processed = tryDirectory(obr_.time().system(), dicti);
             }
 
             if (!processed)
             {
-                Info<< "    Unable to locate dictionary " << dictNames_[i]
+                writeHeader();
+
+                Info<< "    Unable to locate dictionary " << dictNames_[dicti]
                     << nl << endl;
-            }
-            else
-            {
+
+                IOobject::writeDivider(Info);
                 Info<< endl;
             }
         }

@@ -1,9 +1,11 @@
-﻿/*---------------------------------------------------------------------------*\
+/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2015 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2015 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -26,67 +28,67 @@ License
 //#include "nonuniformTransformCyclicFvPatchField.H"
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
-namespace Foam {
-    template<class Type>
-    nonuniformTransformCyclicFvPatchField<Type>::
-        nonuniformTransformCyclicFvPatchField
-        (
-            const fvPatch& p,
-            const DimensionedField<Type, volMesh>& iF
-        )
-        :
-        cyclicFvPatchField<Type>(p, iF)
-    {}
+
+template<class Type>
+Foam::nonuniformTransformCyclicFvPatchField<Type>::
+nonuniformTransformCyclicFvPatchField
+(
+    const fvPatch& p,
+    const DimensionedField<Type, volMesh>& iF
+)
+:
+    cyclicFvPatchField<Type>(p, iF)
+{}
 
 
-    template<class Type>
-    nonuniformTransformCyclicFvPatchField<Type>::
-        nonuniformTransformCyclicFvPatchField
-        (
-            const fvPatch& p,
-            const DimensionedField<Type, volMesh>& iF,
-            const dictionary& dict
-        )
-        :
-        cyclicFvPatchField<Type>(p, iF, dict)
-    {}
+template<class Type>
+Foam::nonuniformTransformCyclicFvPatchField<Type>::
+nonuniformTransformCyclicFvPatchField
+(
+    const fvPatch& p,
+    const DimensionedField<Type, volMesh>& iF,
+    const dictionary& dict
+)
+:
+    cyclicFvPatchField<Type>(p, iF, dict)
+{}
 
 
-    template<class Type>
-    nonuniformTransformCyclicFvPatchField<Type>::
-        nonuniformTransformCyclicFvPatchField
-        (
-            const nonuniformTransformCyclicFvPatchField<Type>& ptf,
-            const fvPatch& p,
-            const DimensionedField<Type, volMesh>& iF,
-            const fvPatchFieldMapper& mapper
-        )
-        :
-        cyclicFvPatchField<Type>(ptf, p, iF, mapper)
-    {}
+template<class Type>
+Foam::nonuniformTransformCyclicFvPatchField<Type>::
+nonuniformTransformCyclicFvPatchField
+(
+    const nonuniformTransformCyclicFvPatchField<Type>& ptf,
+    const fvPatch& p,
+    const DimensionedField<Type, volMesh>& iF,
+    const fvPatchFieldMapper& mapper
+)
+:
+    cyclicFvPatchField<Type>(ptf, p, iF, mapper)
+{}
 
 
-    template<class Type>
-    nonuniformTransformCyclicFvPatchField<Type>::
-        nonuniformTransformCyclicFvPatchField
-        (
-            const nonuniformTransformCyclicFvPatchField<Type>& ptf
-        )
-        :
-        cyclicFvPatchField<Type>(ptf)
-    {}
+template<class Type>
+Foam::nonuniformTransformCyclicFvPatchField<Type>::
+nonuniformTransformCyclicFvPatchField
+(
+    const nonuniformTransformCyclicFvPatchField<Type>& ptf
+)
+:
+    cyclicFvPatchField<Type>(ptf)
+{}
 
 
-    template<class Type>
-    nonuniformTransformCyclicFvPatchField<Type>::
-        nonuniformTransformCyclicFvPatchField
-        (
-            const nonuniformTransformCyclicFvPatchField<Type>& ptf,
-            const DimensionedField<Type, volMesh>& iF
-        )
-        :
-        cyclicFvPatchField<Type>(ptf, iF)
-    {}
+template<class Type>
+Foam::nonuniformTransformCyclicFvPatchField<Type>::
+nonuniformTransformCyclicFvPatchField
+(
+    const nonuniformTransformCyclicFvPatchField<Type>& ptf,
+    const DimensionedField<Type, volMesh>& iF
+)
+:
+    cyclicFvPatchField<Type>(ptf, iF)
+{}
 
-}
+
 // ************************************************************************* //

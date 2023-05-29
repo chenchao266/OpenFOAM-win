@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -26,84 +28,86 @@ License
 #include "fixedNormalSlipPointPatchField.H"
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
-namespace Foam
+
+
+ namespace Foam{
+template<class Type>
+fixedNormalSlipPointPatchField<Type>::fixedNormalSlipPointPatchField
+(
+    const pointPatch& p,
+    const DimensionedField<Type, pointMesh>& iF
+)
+:
+    slipPointPatchField<Type>(p, iF),
+    n_(vector::max)
+{}
+
+
+template<class Type>
+fixedNormalSlipPointPatchField<Type>::fixedNormalSlipPointPatchField
+(
+    const pointPatch& p,
+    const DimensionedField<Type, pointMesh>& iF,
+    const dictionary& dict
+)
+:
+    slipPointPatchField<Type>(p, iF, dict),
+    n_(dict.get<vector>("n"))
+{}
+
+
+template<class Type>
+fixedNormalSlipPointPatchField<Type>::fixedNormalSlipPointPatchField
+(
+    const fixedNormalSlipPointPatchField<Type>& ptf,
+    const pointPatch& p,
+    const DimensionedField<Type, pointMesh>& iF,
+    const pointPatchFieldMapper& mapper
+)
+:
+    slipPointPatchField<Type>(ptf, p, iF, mapper),
+    n_(ptf.n_)
+{}
+
+
+template<class Type>
+fixedNormalSlipPointPatchField<Type>::fixedNormalSlipPointPatchField
+(
+    const fixedNormalSlipPointPatchField<Type>& ptf,
+    const DimensionedField<Type, pointMesh>& iF
+)
+:
+    slipPointPatchField<Type>(ptf, iF),
+    n_(ptf.n_)
+{}
+
+
+// * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
+
+template<class Type>
+void fixedNormalSlipPointPatchField<Type>::evaluate
+(
+    const Pstream::commsTypes
+)
 {
-    template<class Type>
-    fixedNormalSlipPointPatchField<Type>::fixedNormalSlipPointPatchField
-    (
-        const pointPatch& p,
-        const DimensionedField<Type, pointMesh>& iF
-    )
-        :
-        slipPointPatchField<Type>(p, iF),
-        n_(vector::max)
-    {}
+    tmp<Field<Type>> tvalues =
+        transform(I - n_*n_, this->patchInternalField());
 
+    // Get internal field to insert values into
+    Field<Type>& iF = const_cast<Field<Type>&>(this->primitiveField());
 
-    template<class Type>
-    fixedNormalSlipPointPatchField<Type>::fixedNormalSlipPointPatchField
-    (
-        const pointPatch& p,
-        const DimensionedField<Type, pointMesh>& iF,
-        const dictionary& dict
-    )
-        :
-        slipPointPatchField<Type>(p, iF, dict),
-        n_(dict.lookup("n"))
-    {}
-
-
-    template<class Type>
-    fixedNormalSlipPointPatchField<Type>::fixedNormalSlipPointPatchField
-    (
-        const fixedNormalSlipPointPatchField<Type>& ptf,
-        const pointPatch& p,
-        const DimensionedField<Type, pointMesh>& iF,
-        const pointPatchFieldMapper& mapper
-    )
-        :
-        slipPointPatchField<Type>(ptf, p, iF, mapper),
-        n_(ptf.n_)
-    {}
-
-
-    template<class Type>
-    fixedNormalSlipPointPatchField<Type>::fixedNormalSlipPointPatchField
-    (
-        const fixedNormalSlipPointPatchField<Type>& ptf,
-        const DimensionedField<Type, pointMesh>& iF
-    )
-        :
-        slipPointPatchField<Type>(ptf, iF),
-        n_(ptf.n_)
-    {}
-
-
-    // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
-
-    template<class Type>
-    void fixedNormalSlipPointPatchField<Type>::evaluate
-    (
-        const Pstream::commsTypes
-    )
-    {
-        tmp<Field<Type>> tvalues =
-            transform(I - n_ * n_, this->patchInternalField());
-
-        // Get internal field to insert values into
-        Field<Type>& iF = const_cast<Field<Type>&>(this->primitiveField());
-
-        this->setInInternalField(iF, tvalues());
-    }
-
-
-    template<class Type>
-    void fixedNormalSlipPointPatchField<Type>::write(Ostream& os) const
-    {
-        slipPointPatchField<Type>::write(os);
-        os.writeKeyword("n")
-            << n_ << token::END_STATEMENT << nl;
-    }
+    this->setInInternalField(iF, tvalues());
 }
 
+
+template<class Type>
+void fixedNormalSlipPointPatchField<Type>::write(Ostream& os) const
+{
+    slipPointPatchField<Type>::write(os);
+    os.writeEntry("n", n_);
+}
+
+
 // ************************************************************************* //
+
+ } // End namespace Foam

@@ -2,8 +2,13 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2012 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2012 OpenFOAM Foundation
+    Copyright (C) 2019 OpenCFD Ltd.
+    Copyright (C) 2020 PCOpt/NTUA
+    Copyright (C) 2020 FOSS GP
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -53,7 +58,7 @@ SourceFiles
 #define IOMRFZoneList_H
 
 #include "IOdictionary.H"
-#include "MRFZoneList.T.H"
+#include "MRFZoneList.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -74,13 +79,17 @@ private:
     // Private Member Functions
 
         //- Create IO object if dictionary is present
-        IOobject createIOobject(const fvMesh& mesh) const;
+        IOobject createIOobject
+        (
+            const fvMesh& mesh,
+            const word& solverName
+        ) const;
 
-        //- Disallow default bitwise copy construct
-        IOMRFZoneList(const IOMRFZoneList&);
+        //- No copy construct
+        IOMRFZoneList(const IOMRFZoneList&) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const IOMRFZoneList&);
+        //- No copy assignment
+        void operator=(const IOMRFZoneList&) = delete;
 
 
 public:
@@ -88,12 +97,15 @@ public:
     // Constructors
 
         //- Construct from mesh
-        IOMRFZoneList(const fvMesh& mesh);
+        IOMRFZoneList
+        (
+            const fvMesh& mesh,
+            const word& solverName = word::null
+        );
 
 
         //- Destructor
-        virtual ~IOMRFZoneList()
-        {}
+        virtual ~IOMRFZoneList() = default;
 
 
     // Member Functions

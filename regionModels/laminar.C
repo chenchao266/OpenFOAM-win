@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -27,7 +29,7 @@ License
 #include "addToRunTimeSelectionTable.H"
 #include "fvMesh.H"
 #include "fvMatrices.H"
-#include "Time.T.H"
+#include "Time1.H"
 #include "volFields.H"
 #include "fvmSup.H"
 #include "kinematicSingleLayer.H"
@@ -51,12 +53,12 @@ addToRunTimeSelectionTable(filmTurbulenceModel, laminar, dictionary);
 
 laminar::laminar
 (
-    surfaceFilmModel& film,
+    surfaceFilmRegionModel& film,
     const dictionary& dict
 )
 :
     filmTurbulenceModel(type(), film, dict),
-    Cf_(readScalar(coeffDict_.lookup("Cf")))
+    Cf_(coeffDict_.get<scalar>("Cf"))
 {}
 
 
@@ -83,7 +85,7 @@ tmp<volVectorField> laminar::Us() const
                 IOobject::NO_WRITE
             ),
             filmModel_.regionMesh(),
-            dimensionedVector("zero", dimVelocity, Zero),
+            dimensionedVector(dimVelocity, Zero),
             extrapolatedCalculatedFvPatchVectorField::typeName
         )
     );
@@ -98,21 +100,18 @@ tmp<volVectorField> laminar::Us() const
 
 tmp<volScalarField> laminar::mut() const
 {
-    return tmp<volScalarField>
+    return tmp<volScalarField>::New
     (
-        new volScalarField
+        IOobject
         (
-            IOobject
-            (
-                typeName + ":mut",
-                filmModel_.regionMesh().time().timeName(),
-                filmModel_.regionMesh(),
-                IOobject::NO_READ,
-                IOobject::NO_WRITE
-            ),
+            typeName + ":mut",
+            filmModel_.regionMesh().time().timeName(),
             filmModel_.regionMesh(),
-            dimensionedScalar("zero", dimMass/dimLength/dimTime, 0.0)
-        )
+            IOobject::NO_READ,
+            IOobject::NO_WRITE
+        ),
+        filmModel_.regionMesh(),
+        dimensionedScalar(dimMass/dimLength/dimTime, Zero)
     );
 }
 

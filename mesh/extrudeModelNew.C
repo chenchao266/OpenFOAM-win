@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2015 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2015 OpenFOAM Foundation
+    Copyright (C) 2019-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -32,24 +35,24 @@ Foam::autoPtr<Foam::extrudeModel> Foam::extrudeModel::New
     const dictionary& dict
 )
 {
-    const word modelType(dict.lookup("extrudeModel"));
+    const word modelType(dict.get<word>("extrudeModel"));
 
     Info<< "Selecting extrudeModel " << modelType << endl;
 
-    dictionaryConstructorTable::iterator cstrIter =
-        dictionaryConstructorTablePtr_->find(modelType);
+    auto* ctorPtr = dictionaryConstructorTable(modelType);
 
-    if (cstrIter == dictionaryConstructorTablePtr_->end())
+    if (!ctorPtr)
     {
-        FatalErrorInFunction
-            << "Unknown extrudeModel type "
-            << modelType << nl << nl
-            << "Valid extrudeModel types are :" << nl
-            << dictionaryConstructorTablePtr_->sortedToc() << nl
-            << exit(FatalError);
+        FatalIOErrorInLookup
+        (
+            dict,
+            "extrudeModel",
+            modelType,
+            *dictionaryConstructorTablePtr_
+        ) << exit(FatalIOError);
     }
 
-    return autoPtr<extrudeModel>(cstrIter()(dict));
+    return autoPtr<extrudeModel>(ctorPtr(dict));
 }
 
 

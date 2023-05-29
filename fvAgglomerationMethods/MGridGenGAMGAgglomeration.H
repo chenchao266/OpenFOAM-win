@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -37,7 +39,7 @@ SourceFiles
 #define MGridGenGAMGAgglomeration_H
 
 #include "fvMesh.H"
-#include "GAMGAgglomeration.T.H"
+#include "GAMGAgglomeration.H"
 
 extern "C"
 {
@@ -113,11 +115,11 @@ class MGridGenGAMGAgglomeration
         );
 
 
-        //- Disallow default bitwise copy construct
-        MGridGenGAMGAgglomeration(const MGridGenGAMGAgglomeration&);
+        //- No copy construct
+        MGridGenGAMGAgglomeration(const MGridGenGAMGAgglomeration&) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const MGridGenGAMGAgglomeration&);
+        //- No copy assignment
+        void operator=(const MGridGenGAMGAgglomeration&) = delete;
 
 
 public:

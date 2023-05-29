@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -27,45 +29,42 @@ License
 #include "fileOperation.H"
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
-namespace Foam {
-    template<class Type>
-    openFoamTableReader<Type>::openFoamTableReader(const dictionary& dict)
-        :
-        tableReader<Type>(dict)
-    {}
 
 
-    // * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
-
-    template<class Type>
-    openFoamTableReader<Type>::~openFoamTableReader()
-    {}
-
-
-    // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
-
-    template<class Type>
-    void openFoamTableReader<Type>::operator()
-        (
-            const fileName& fName,
-            List<Tuple2<scalar, Type>>& data
-            )
-    {
-        // Read data from file
-        fileHandler().NewIFstream(fName)()() >> data;
-    }
+ namespace Foam{
+template<class Type>
+openFoamTableReader<Type>::openFoamTableReader(const dictionary& dict)
+:
+    tableReader<Type>(dict)
+{}
 
 
-    template<class Type>
-    void openFoamTableReader<Type>::operator()
-        (
-            const fileName& fName,
-            List<Tuple2<scalar, List<Tuple2<scalar, Type>>>>& data
-            )
-    {
-        // Read data from file
-        fileHandler().NewIFstream(fName)()() >> data;
-    }
+// * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
 
+template<class Type>
+void openFoamTableReader<Type>::operator()
+(
+    const fileName& fName,
+    List<Tuple2<scalar, Type>>& data
+)
+{
+    // Read data from file
+    fileHandler().NewIFstream(fName)()() >> data;
 }
+
+
+template<class Type>
+void openFoamTableReader<Type>::operator()
+(
+    const fileName& fName,
+    List<Tuple2<scalar, List<Tuple2<scalar, Type>>>>& data
+)
+{
+    // Read data from file
+    fileHandler().NewIFstream(fName)()() >> data;
+}
+
+
 // ************************************************************************* //
+
+ } // End namespace Foam

@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2012-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2012-2017 OpenFOAM Foundation
+    Copyright (C) 2016-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -39,12 +42,13 @@ namespace Foam
 
 void Foam::porosityModel::adjustNegativeResistance(dimensionedVector& resist)
 {
-    scalar maxCmpt = max(0, cmptMax(resist.value()));
+    scalar maxCmpt = cmptMax(resist.value());
 
     if (maxCmpt < 0)
     {
         FatalErrorInFunction
-            << "Negative resistances are invalid, resistance = " << resist
+            << "Cannot have all resistances set to negative, resistance = "
+            << resist
             << exit(FatalError);
     }
     else
@@ -58,17 +62,6 @@ void Foam::porosityModel::adjustNegativeResistance(dimensionedVector& resist)
             }
         }
     }
-}
-
-
-Foam::label Foam::porosityModel::fieldIndex(const label i) const
-{
-    label index = 0;
-    if (!coordSys_.R().uniform())
-    {
-        index = i;
-    }
-    return index;
 }
 
 
@@ -101,15 +94,18 @@ Foam::porosityModel::porosityModel
     active_(true),
     zoneName_(cellZoneName),
     cellZoneIDs_(),
-    coordSys_(coordinateSystem::New(mesh, coeffs_))
+    csysPtr_
+    (
+        coordinateSystem::New(mesh, coeffs_, coordinateSystem::typeName_())
+    )
 {
-    if (zoneName_ == word::null)
+    if (zoneName_.empty())
     {
         dict.readIfPresent("active", active_);
-        dict_.lookup("cellZone") >> zoneName_;
+        dict_.readEntry("cellZone", zoneName_);
     }
 
-    cellZoneIDs_ = mesh_.cellZones().findIndices(zoneName_);
+    cellZoneIDs_ = mesh_.cellZones().indices(zoneName_);
 
     Info<< "    creating porous zone: " << zoneName_ << endl;
 
@@ -122,13 +118,35 @@ Foam::porosityModel::porosityModel
             << "cannot find porous cellZone " << zoneName_
             << exit(FatalError);
     }
+
+    Info<< incrIndent << indent << csys() << decrIndent << endl;
+
+    const pointField& points = mesh_.points();
+    const cellList& cells = mesh_.cells();
+    const faceList& faces = mesh_.faces();
+
+    for (const label zonei : cellZoneIDs_)
+    {
+        const cellZone& cZone = mesh_.cellZones()[zonei];
+
+        boundBox bb;
+
+        for (const label celli : cZone)
+        {
+            const cell& c = cells[celli];
+            const pointField cellPoints(c.points(faces, points));
+
+            for (const point& pt : cellPoints)
+            {
+                bb.add(csys().localPosition(pt));
+            }
+        }
+
+        bb.reduce();
+
+        Info<< "    local bounds: " << bb.span() << nl << endl;
+    }
 }
-
-
-// * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
-
-Foam::porosityModel::~porosityModel()
-{}
 
 
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
@@ -231,8 +249,8 @@ bool Foam::porosityModel::read(const dictionary& dict)
 
     coeffs_ = dict.optionalSubDict(type() + "Coeffs");
 
-    dict.lookup("cellZone") >> zoneName_;
-    cellZoneIDs_ = mesh_.cellZones().findIndices(zoneName_);
+    dict.readEntry("cellZone", zoneName_);
+    cellZoneIDs_ = mesh_.cellZones().indices(zoneName_);
 
     return true;
 }

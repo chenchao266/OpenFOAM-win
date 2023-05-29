@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2017-2021 OpenCFD Ltd
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -31,13 +34,35 @@ Description
     This boundary condition can be applied to assign either a pressure inlet
     or outlet total pressure condition for a fan.
 
+    The switch nonDimensional can be used for a non-dimensional fan curve.
+    It needs inputs rpm and dm of the fan.
+
+    The nonDimensional flux is calculate as :
+
+        phi = 4.0*mDot/(rho*sqr(PI)*dm^3*omega)
+        where:
+            dm is the mean diameter.
+            omega is rad/sec.
+
+    The nonDimensinal pressure :
+
+        Psi = 2 deltaP/(rho*(sqr(PI*omega*dm)))
+        where:
+            deltaP is the pressure drop
+
+    The non-dimensional table should be given as Psi = F(phi).
+
 Usage
     \table
-        Property     | Description             | Required    | Default value
-        fileName     | fan curve file name     | yes         |
-        outOfBounds  | out of bounds handling  | yes         |
+        Property     | Description                       | Required | Default
+        fanCurve     | Pressure vs flow-rate             | yes |
         direction    | direction of flow through fan [in/out] | yes |
-        p0           | environmental total pressure | yes    |
+        p0           | environmental total pressure      | yes |
+        nonDimensional | uses non-dimensional table      | no  | false
+        rpm          | fan rpm for non-dimensional table | no  |
+        dm           | mean diameter for non-dimensional table | no |
+        file         | fan curve file name               | legacy |
+        outOfBounds  | out of bounds handling            | legacy |
     \endtable
 
     Example of the boundary condition specification:
@@ -45,31 +70,41 @@ Usage
     inlet
     {
         type            fanPressure;
-        fileName        "fanCurve";
-        outOfBounds     clamp;
         direction       in;
+        fanCurve
+        {
+            type table;
+            file "<constant>/fanCurve";
+            outOfBounds clamp;  // Optional out-of-bounds handling
+        }
         p0              uniform 0;
         value           uniform 0;
     }
 
+    // Legacy specification
     outlet
     {
         type            fanPressure;
-        fileName        "fanCurve";
-        outOfBounds     clamp;
         direction       out;
+        file            "<constant>/fanCurve";
+        outOfBounds     clamp;
         p0              uniform 0;
         value           uniform 0;
     }
     \endverbatim
 
+Note
+    For compatibility with older versions (OpenFOAM-v2006 and earlier),
+    a missing \c fanCurve keyword is treated as a tableFile and makes
+    the \c file keyword mandatory.
+
 See also
     Foam::fanFvPatchField
     Foam::totalPressureFvPatchScalarField
-    Foam::interpolationTable
+    Foam::Function1
 
 SourceFiles
-   fanPressureFvPatchScalarField.C
+    fanPressureFvPatchScalarField.C
 
 \*---------------------------------------------------------------------------*/
 
@@ -77,7 +112,7 @@ SourceFiles
 #define fanPressureFvPatchScalarField_H
 
 #include "totalPressureFvPatchScalarField.H"
-#include "interpolationTable.H"
+#include "Function1.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -92,29 +127,37 @@ class fanPressureFvPatchScalarField
 :
     public totalPressureFvPatchScalarField
 {
-
 public:
 
         //- Fan flow direction
-        enum fanFlowDirection
+        enum fanFlowDirection : uint8_t
         {
             ffdIn,
             ffdOut
         };
 
-        //- Fan flow directions names
-        static const NamedEnum<fanFlowDirection, 2> fanFlowDirectionNames_;
+        //- Fan flow direction names
+        static const Enum<fanFlowDirection> fanFlowDirectionNames_;
 
 
 private:
 
-    // Private data
+    // Private Data
 
-        //- Tabulated fan curve
-        interpolationTable<scalar> fanCurve_;
+        //- Run-time selectable fan curve
+        autoPtr<Function1<scalar>> fanCurve_;
 
         //- Direction of flow through the fan relative to patch
         fanFlowDirection direction_;
+
+        //- Use non-dimensional curve
+        bool nonDimensional_;
+
+        //- Fan rpm (for non-dimensional curve)
+        autoPtr<Function1<scalar>> rpm_;
+
+        //- Fan mean diameter (for non-dimensional curve)
+        autoPtr<Function1<scalar>> dm_;
 
 
 public:
@@ -196,7 +239,7 @@ public:
         virtual void updateCoeffs();
 
         //- Write
-        virtual void write(Ostream&) const;
+        virtual void write(Ostream& os) const;
 };
 
 

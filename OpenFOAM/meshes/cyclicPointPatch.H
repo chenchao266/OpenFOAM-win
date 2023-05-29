@@ -1,9 +1,11 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -48,7 +50,9 @@ namespace Foam
                       Class cyclicPointPatch Declaration
 \*---------------------------------------------------------------------------*/
 
-class cyclicPointPatch :    public coupledFacePointPatch
+class cyclicPointPatch
+:
+    public coupledFacePointPatch
 {
     // Private data
 
@@ -58,11 +62,11 @@ class cyclicPointPatch :    public coupledFacePointPatch
 
     // Private Member Functions
 
-        //- Disallow default construct as copy
-        cyclicPointPatch(const cyclicPointPatch&);
+        //- No copy construct
+        cyclicPointPatch(const cyclicPointPatch&) = delete;
 
-        //- Disallow default assignment
-        void operator=(const cyclicPointPatch&);
+        //- No copy assignment
+        void operator=(const cyclicPointPatch&) = delete;
 
 
     // Demand driven private data

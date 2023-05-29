@@ -19,23 +19,15 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
-    <ClCompile Include="alphatJayatillekeWallFunctionFvPatchScalarField_ic.C" />
     <ClCompile Include="alphatJayatillekeWallFunctionFvPatchScalarField.C" />
-    <ClCompile Include="alphatPhaseChangeWallFunctionFvPatchScalarField.C" />
     <ClCompile Include="alphatWallFunctionFvPatchScalarField.C" />
     <ClCompile Include="anisotropicFilter.C" />
-    <ClCompile Include="atmBoundaryLayer.C" />
-    <ClCompile Include="atmBoundaryLayerInletEpsilonFvPatchScalarField.C" />
-    <ClCompile Include="atmBoundaryLayerInletKFvPatchScalarField.C" />
-    <ClCompile Include="atmBoundaryLayerInletVelocityFvPatchVectorField.C" />
     <ClCompile Include="compressibleTurbulenceModel.C" />
     <ClCompile Include="convectiveHeatTransferFvPatchScalarField.C" />
     <ClCompile Include="cubeRootVolDelta.C" />
     <ClCompile Include="epsilonWallFunctionFvPatchScalarField.C" />
-    <ClCompile Include="externalCoupledTemperatureMixedFvPatchScalarField.C" />
     <ClCompile Include="externalWallHeatFluxTemperatureFvPatchScalarField.C" />
     <ClCompile Include="fixedShearStressFvPatchVectorField.C" />
-    <ClCompile Include="fWallFunctionFvPatchScalarField.C" />
     <ClCompile Include="IDDESDelta.C" />
     <ClCompile Include="incompressibleTurbulenceModel.C" />
     <ClCompile Include="kkLOmega.C" />
@@ -48,7 +40,6 @@
     <ClCompile Include="LienCubicKE.C" />
     <ClCompile Include="LienLeschziner.C" />
     <ClCompile Include="maxDeltaxyz.C" />
-    <ClCompile Include="nutkAtmRoughWallFunctionFvPatchScalarField.C" />
     <ClCompile Include="nutkRoughWallFunctionFvPatchScalarField.C" />
     <ClCompile Include="nutkWallFunctionFvPatchScalarField.C" />
     <ClCompile Include="nutLowReWallFunctionFvPatchScalarField.C" />
@@ -67,33 +58,31 @@
     <ClCompile Include="temperatureCoupledBase.C" />
     <ClCompile Include="thermalBaffle1DFvPatchScalarFields.C" />
     <ClCompile Include="totalFlowRateAdvectiveDiffusiveFvPatchScalarField.C" />
-    <ClCompile Include="turbulenceModel.C" />
+    <ClCompile Include="turbulenceModel2.C" />
     <ClCompile Include="turbulentFluidThermoModels.C" />
     <ClCompile Include="turbulentMixingLengthDissipationRateInletFvPatchScalarField.C" />
     <ClCompile Include="turbulentMixingLengthFrequencyInletFvPatchScalarField.C" />
     <ClCompile Include="turbulentTemperatureCoupledBaffleMixedFvPatchScalarField.C" />
     <ClCompile Include="turbulentTemperatureRadCoupledMixedFvPatchScalarField.C" />
     <ClCompile Include="turbulentTransportModels.C" />
-    <ClCompile Include="v2fBase.C" />
-    <ClCompile Include="v2WallFunctionFvPatchScalarField.C" />
     <ClCompile Include="vanDriestDelta.C" />
     <ClCompile Include="wallHeatTransferFvPatchScalarField.C" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>15.0</VCProjectVersion>
     <ProjectGuid>{4377912B-3031-4685-937F-931597993194}</ProjectGuid>
-    <WindowsTargetPlatformVersion>8.1</WindowsTargetPlatformVersion>
+    <WindowsTargetPlatformVersion>10.0.17763.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
-    <PlatformToolset>v141</PlatformToolset>
+    <PlatformToolset>v143</PlatformToolset>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
-    <PlatformToolset>v141</PlatformToolset>
+    <PlatformToolset>v143</PlatformToolset>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
     <ConfigurationType>StaticLibrary</ConfigurationType>
@@ -130,7 +119,6 @@
       <PreprocessorDefinitions>WM_LABEL_SIZE=64;WM_DP;NoRepository;WIN32;WIN64;_WINDOWS;NOMINMAX;_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <CompileAs>CompileAsCpp</CompileAs>
       <LanguageStandard>stdcpp17</LanguageStandard>
-      <WarningLevel>Level4</WarningLevel>
     </ClCompile>
   </ItemDefinitionGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

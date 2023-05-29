@@ -1,9 +1,12 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -21,48 +24,76 @@ License
     You should have received a copy of the GNU General Public License
     along with OpenFOAM.  If not, see <http://www.gnu.org/licenses/>.
 
-Description
-
 \*---------------------------------------------------------------------------*/
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
-namespace Foam {
-// Construct null
-inline cell::cell()
+
+
+ namespace Foam{
+inline cell::cell(const label sz)
+:
+    labelList(sz, -1)
 {}
 
 
-// Construct given size
-inline cell::cell(label s) :    labelList(s, -1)
+inline cell::cell(const labelUList& list)
+:
+    labelList(list)
 {}
 
 
-// Construct from components
-inline cell::cell(const labelUList& lst) :    labelList(lst)
+template<unsigned N>
+inline cell::cell(const FixedList<label, N>& list)
+:
+    labelList(list)
 {}
 
 
-inline cell::cell(const Xfer<labelList>& lst) :    labelList(lst)
+inline cell::cell(labelList&& list)
+:
+    labelList(std::move(list))
 {}
 
 
-// Construct from Istream
-inline cell::cell(Istream& is) :    labelList(is)
+inline cell::cell(const labelUList& list, const labelUList& indices)
+:
+    labelList(list, indices)
+{}
+
+
+template<unsigned N>
+inline cell::cell
+(
+    const labelUList& list,
+    const FixedList<label, N>& indices
+)
+:
+    labelList(list, indices)
+{}
+
+
+inline cell::cell(Istream& is)
+:
+    labelList(is)
 {}
 
 
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
 
-// Number of faces
-inline label cell::nFaces() const
+inline label cell::nFaces() const noexcept
 {
     return size();
 }
 
 
+// * * * * * * * * * * * * * * Global Operators  * * * * * * * * * * * * * * //
+
 inline bool operator!=(const cell& a, const cell& b)
 {
-    return (!(a == b));
+    return !(a == b);
 }
-}
+
+
 // ************************************************************************* //
+
+ } // End namespace Foam

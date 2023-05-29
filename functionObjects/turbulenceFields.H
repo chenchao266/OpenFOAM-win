@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2013-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2013-2016 OpenFOAM Foundation
+    Copyright (C) 2015-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -28,59 +31,112 @@ Group
     grpFieldFunctionObjects
 
 Description
-    Stores turbulence fields on the mesh database for further manipulation.
+    Computes various turbulence-related quantities that are not typically
+    output during calculations, and stores/writes them on the mesh database
+    for further manipulation.
 
-    Fields are stored as copies of the original, with the prefix
-    "tubulenceModel:", e.g.:
+    Fields are stored as copies of the original with a user-defined prefix
+    e.g. a prefix of \c turbulenceModel yields the following for field \c R:
 
     \verbatim
-    turbulenceModel:R
+      turbulenceModel:R
     \endverbatim
 
-    Example of function object specification:
+    Operands:
+    \table
+      Operand           | Type             | Location
+      input             | -                | -
+      output file       | -                | -
+      output field      | vol\<Type\>Field | $FOAM_CASE/\<time\>/\<outField\>
+    \endtable
+
+    where \c \<Type\>=Scalar/SymmTensor.
+
+    References:
     \verbatim
-    turbulenceFields1
-    {
-        type        turbulenceFields;
-        libs        ("libfieldFunctionObjects.so");
-        ...
-        fields
-        (
-            R
-            devRhoReff
-        );
-    }
+        Estimation expressions for L (tag:P), Eq. 10.37:
+            Pope, S. B. (2000).
+            Turbulent flows.
+            Cambridge, UK: Cambridge Univ. Press
+            DOI:10.1017/CBO9780511840531
     \endverbatim
 
 Usage
+    Minimal example by using \c system/controlDict.functions:
+    \verbatim
+    turbulenceFields1
+    {
+        // Mandatory entries (unmodifiable)
+        type        turbulenceFields;
+        libs        (fieldFunctionObjects);
+
+        // Mandatory entries (runtime modifiable)
+
+            // Either of the below
+            // Option-1
+            fields      (R devRhoReff);
+
+            // Option-2
+            field       R;
+
+        // Optional entries (runtime modifiable)
+        prefix          <word>;
+
+        // Inherited entries
+        ...
+    }
+    \endverbatim
+
+    where the entries mean:
     \table
-        Property     | Description                 | Required | Default value
-        type         | type name: processorField   | yes      |
-        fields       | fields to store (see below) | yes      |
+      Property     | Description                           | Type | Reqd | Deflt
+      type         | Type name: turbulenceFields           | word | yes  | -
+      libs         | Library name: fieldFunctionObjects    | word | yes  | -
+      fields       | Names of fields to store (see below)  | wordList | yes | -
+      field        | Name of a field to store (see below)  | word | yes  | -
+      prefix  | Name of output-field prefix | word | no | turbulenceProperties
     \endtable
 
-    Where \c fields can include:
-    \plaintable
-        k           | turbulence kinetic energy
-        epsilon     | turbulence kinetic energy dissipation rate
-        omega       | turbulence specific dissipation rate
-        nut         | turbulence viscosity (incompressible)
-        nuEff       | effective turbulence viscosity (incompressible)
-        mut         | turbulence viscosity (compressible)
-        muEff       | effective turbulence viscosity (compressible)
-        alphat      | turbulence thermal diffusivity (compressible)
-        alphaEff    | effective turbulence thermal diffusivity (compressible)
-        R           | Reynolds stress tensor
-        devReff     | Deviatoric part of the effective Reynolds stress
-        devRhoReff  | Divergence of the Reynolds stress
-    \endplaintable
+    where \c fields can include:
+    \verbatim
+      k           | turbulent kinetic energy
+      epsilon     | turbulent kinetic energy dissipation rate
+      omega       | specific dissipation rate
+      nuTilda     | modified turbulent viscosity
+      nut         | turbulent viscosity (incompressible)
+      nuEff       | effective turbulent viscosity (incompressible)
+      mut         | turbulent viscosity (compressible)
+      muEff       | effective turbulent viscosity (compressible)
+      alphat      | turbulence thermal diffusivity (compressible)
+      alphaEff    | effective turbulence thermal diffusivity (compressible)
+      R           | Reynolds stress tensor
+      devReff     | deviatoric part of the effective Reynolds stress
+      devRhoReff  | divergence of the Reynolds stress
+      L           | integral-length scale / mixing-length scale
+      I           | turbulence intensity
+    \endverbatim
+
+    The inherited entries are elaborated in:
+     - \link functionObject.H \endlink
+
+    Minimal example by using the \c postProcess utility:
+    \verbatim
+        <solver> -postProcess -func turbulenceFields
+    \endverbatim
+
+Note
+  - Multiphase applications are not supported.
+  - The governing expression of \c nuTilda is
+    an approximation based on a dimensional analysis.
 
 See also
-    Foam::functionObjects::fvMeshFunctionObject
-    Foam::functionObjects::timeControl
+  - Foam::functionObject
+  - Foam::functionObjects::fvMeshFunctionObject
+  - ExtendedCodeGuide::functionObjects::field::turbulenceFields
 
 SourceFiles
     turbulenceFields.C
+    turbulenceFieldsTemplates.C
 
 \*---------------------------------------------------------------------------*/
 
@@ -88,9 +144,10 @@ SourceFiles
 #define functionObjects_turbulenceFields_H
 
 #include "fvMeshFunctionObject.H"
-#include "HashSet.T.H"
-#include "NamedEnum.T.H"
+#include "HashSet.H"
+#include "Enum.H"
 #include "volFieldsFwd.H"
+#include "Switch.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -109,44 +166,68 @@ class turbulenceFields
 {
 public:
 
-    enum compressibleField
-    {
-        cfK,
-        cfEpsilon,
-        cfOmega,
-        cfMut,
-        cfMuEff,
-        cfAlphat,
-        cfAlphaEff,
-        cfR,
-        cfDevRhoReff
-    };
-    static const NamedEnum<compressibleField, 9> compressibleFieldNames_;
+    // Public Enumerations
 
-    enum incompressibleField
-    {
-        ifK,
-        ifEpsilon,
-        ifOmega,
-        ifNut,
-        ifNuEff,
-        ifR,
-        ifDevReff
-    };
-    static const NamedEnum<incompressibleField, 7> incompressibleFieldNames_;
+        //- Options for the turbulence fields (compressible)
+        enum compressibleField
+        {
+            cfK,            //!< "Turbulent kinetic energy"
+            cfEpsilon,      //!< "Turbulent kinetic energy dissipation rate"
+            cfOmega,        //!< "Specific dissipation rate"
+            cfNuTilda,      //!< "Modified turbulent viscosity"
+            cfMut,          //!< "Turbulent dynamic viscosity"
+            cfMuEff,        //!< "Effective turbulent dynamic viscosity"
+            cfAlphat,       //!< "Turbulence thermal diffusivity"
+            cfAlphaEff,     //!< "Effective turbulence thermal diffusivity"
+            cfR,            //!< "Reynolds stress tensor"
+            cfDevRhoReff,   //!< "Divergence of the Reynolds stress"
+            cfL,            //!< "Integral-length/Mixing-length scale"
+            cfI             //!< "Turbulence intensity"
+        };
 
-    static const word modelName;
+        //- Names for compressibleField turbulence fields
+        static const Enum<compressibleField> compressibleFieldNames_;
+
+        //- Options for the turbulence fields (incompressible)
+        enum incompressibleField
+        {
+            ifK,            //!< "Turbulent kinetic energy"
+            ifEpsilon,      //!< "Turbulent kinetic energy dissipation rate"
+            ifOmega,        //!< "Specific dissipation rate"
+            ifNuTilda,      //!< "Modified turbulent viscosity"
+            ifNut,          //!< "Turbulent viscosity"
+            ifNuEff,        //!< "Effective turbulent viscosity"
+            ifR,            //!< "Reynolds stress tensor"
+            ifDevReff,   //!< "Deviatoric part of the effective Reynolds stress"
+            ifL,            //!< "Integral-length/Mixing-length scale"
+            ifI             //!< "Turbulence intensity"
+        };
+
+        //- Names for incompressibleField turbulence fields
+        static const Enum<incompressibleField> incompressibleFieldNames_;
+
+        //- Name of the turbulence properties dictionary
+        static const word modelName_;
 
 
 protected:
 
-    // Protected data
+    // Protected Data
+
+        //- Flag to track initialisation
+        bool initialised_;
+
+        //- Name of output-field prefix
+        word prefix_;
 
         //- Fields to load
         wordHashSet fieldSet_;
 
 
     // Protected Member Functions
+
+        //- Unset duplicate fields already registered by other function objects
+        void initialise();
 
         //- Return true if compressible turbulence model is identified
         bool compressible();
@@ -159,20 +240,17 @@ protected:
             const tmp<GeometricField<Type, fvPatchField, volMesh>>& tvalue
         );
 
-        //- Return omega calculated from k and epsilon
+        //- Return nuTilda calculated from k and omega
         template<class Model>
-        tmp<volScalarField> omega(const Model& model) const;
+        tmp<volScalarField> nuTilda(const Model& model) const;
 
+        //- Return integral length scale, L, calculated from k and epsilon
+        template<class Model>
+        tmp<volScalarField> L(const Model& model) const;
 
-private:
-
-    // Private member functions
-
-        //- Disallow default bitwise copy construct
-        turbulenceFields(const turbulenceFields&);
-
-        //- Disallow default bitwise assignment
-        void operator=(const turbulenceFields&);
+        //- Return turbulence intensity, I, calculated from k and U
+        template<class Model>
+        tmp<volScalarField> I(const Model& model) const;
 
 
 public:
@@ -191,9 +269,15 @@ public:
             const dictionary& dict
         );
 
+        //- No copy construct
+        turbulenceFields(const turbulenceFields&) = delete;
+
+        //- No copy assignment
+        void operator=(const turbulenceFields&) = delete;
+
 
     //- Destructor
-    virtual ~turbulenceFields();
+    virtual ~turbulenceFields() = default;
 
 
     // Member Functions

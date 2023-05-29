@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2015 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2015 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -37,7 +39,7 @@ SourceFiles
 
 #include "polyMesh.H"
 #include "pointField.H"
-#include "CompactListList.T.H"
+#include "CompactListList.H"
 
 namespace Foam
 {
@@ -59,9 +61,11 @@ private:
 
     // Private Member Functions
 
-        //- Disallow default bitwise copy construct and assignment
-        renumberMethod(const renumberMethod&);
-        void operator=(const renumberMethod&);
+        //- No copy construct
+        renumberMethod(const renumberMethod&) = delete;
+
+        //- No copy assignment
+        void operator=(const renumberMethod&) = delete;
 
 
 public:
@@ -103,8 +107,7 @@ public:
 
 
     //- Destructor
-    virtual ~renumberMethod()
-    {}
+    virtual ~renumberMethod() = default;
 
 
     // Member Functions
@@ -125,7 +128,7 @@ public:
 
         //- Return the order in which cells need to be visited, i.e.
         //  from ordered back to original cell label.
-        //  Addresing in losort addressing (= neighbour + offsets into
+        //  Addressing in losort addressing (= neighbour + offsets into
         //  neighbour)
         virtual labelList renumber
         (

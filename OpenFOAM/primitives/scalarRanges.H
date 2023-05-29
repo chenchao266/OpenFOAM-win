@@ -1,9 +1,11 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2018-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -25,10 +27,14 @@ Class
     Foam::scalarRanges
 
 Description
-    A List of scalarRange.
+    A collection of scalar bounds to be used as a unary predicate.
+
+SeeAlso
+    Foam::predicates::scalars
 
 SourceFiles
     scalarRanges.C
+    scalarRangesI.H
 
 \*---------------------------------------------------------------------------*/
 
@@ -36,7 +42,7 @@ SourceFiles
 #define scalarRanges_H
 
 #include "scalarRange.H"
-#include "List.T.H"
+#include "List.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -44,36 +50,53 @@ namespace Foam
 {
 
 /*---------------------------------------------------------------------------*\
-                       Class scalarRanges Declaration
+                        Class scalarRanges Declaration
 \*---------------------------------------------------------------------------*/
 
-class scalarRanges :    public List<scalarRange>
+class scalarRanges
+:
+    public List<scalarRange>
 {
 public:
 
     // Constructors
 
-        //- Construct Null
-        scalarRanges();
+        //- Inherit constructors from List of scalarRange
+        using List<scalarRange>::List;
 
-        //- Construct from Istream.
-        //  The list items are comma-delimited.
-        scalarRanges(Istream&);
+        //- Default construct
+        constexpr scalarRanges() noexcept = default;
+
+        //- Construct by parsing string using the parse() static method
+        inline explicit scalarRanges
+        (
+            const std::string& str,
+            bool report = true  //!< Report when any range fails to parse
+        );
+
+
+    // Static Constructors
+
+        //- Construct by parsing string for scalar ranges
+        //  The individual items are space, comma or semicolon delimited.
+        static scalarRanges parse
+        (
+            const std::string& str,
+            bool report = true  //!< Report when any range fails to parse
+        );
+
 
     // Member Functions
 
-        //- Return true if the given value is within the ranges
-        bool selected(const scalar) const;
+        //- Match any condition in the list.
+        //  \return True if the value matches any condition in the list.
+        inline bool match(const scalar& value) const;
 
-        //- Return the set of selected entries in the given list
-        //  that are within the ranges
-        List<bool> selected(const List<scalar>&) const;
 
-        //- Select a list of values that are within the ranges
-        List<scalar> select(const List<scalar>&) const;
+    // Member Operators
 
-        //- Select a list of values that are within the ranges
-        void inplaceSelect(List<scalar>&) const;
+        //- Use match() as a predicate.
+        inline bool operator()(const scalar& value) const;
 };
 
 
@@ -82,6 +105,8 @@ public:
 } // End namespace Foam
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+#include "scalarRangesI.H"
 
 #endif
 

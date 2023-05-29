@@ -1,9 +1,11 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -23,6 +25,9 @@ License
 
 Namespace
     Foam::RBD::joints
+
+Group
+    grpRigidBodyDynamicsJoints
 
 Description
     Namespace for rigid-body joints
@@ -50,10 +55,10 @@ SourceFiles
 #ifndef RBD_joint_H
 #define RBD_joint_H
 
-#include "List.T.H"
-#include "spatialVector.H"
-#include "compactSpatialTensor.H"
-#include "CompactSpatialTensorT.T.H"
+#include "List.H"
+#include "spatialVector2.H"
+#include "compactSpatialTensor2.H"
+#include "CompactSpatialTensorT.H"
 #include "spatialTransform.H"
 #include "quaternion.H"
 #include "scalarField.H"

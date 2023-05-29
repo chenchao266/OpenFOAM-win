@@ -1,9 +1,12 @@
-﻿/*---------------------------------------------------------------------------*\
+/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2019-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -23,7 +26,7 @@ License
 
 \*---------------------------------------------------------------------------*/
 
-//#include "limitedSurfaceInterpolationScheme.H"
+#include "limitedSurfaceInterpolationScheme.H"
 #include "volFields.H"
 #include "surfaceFields.H"
 #include "coupledFvPatchField.H"
@@ -46,10 +49,8 @@ Foam::limitedSurfaceInterpolationScheme<Type>::New
 
     if (schemeData.eof())
     {
-        FatalIOErrorInFunction
-        (
-            schemeData
-        )   << "Discretisation scheme not specified"
+        FatalIOErrorInFunction(schemeData)
+            << "Discretisation scheme not specified"
             << endl << endl
             << "Valid schemes are :" << endl
             << MeshConstructorTablePtr_->sortedToc()
@@ -58,22 +59,20 @@ Foam::limitedSurfaceInterpolationScheme<Type>::New
 
     const word schemeName(schemeData);
 
-    typename MeshConstructorTable::iterator constructorIter =
-        MeshConstructorTablePtr_->find(schemeName);
+    auto* ctorPtr = MeshConstructorTable(schemeName);
 
-    if (constructorIter == MeshConstructorTablePtr_->end())
+    if (!ctorPtr)
     {
-        FatalIOErrorInFunction
+        FatalIOErrorInLookup
         (
-            schemeData
-        )   << "Unknown discretisation scheme "
-            << schemeName << nl << nl
-            << "Valid schemes are :" << endl
-            << MeshConstructorTablePtr_->sortedToc()
-            << exit(FatalIOError);
+            schemeData,
+            "discretisation",
+            schemeName,
+            *MeshConstructorTablePtr_
+        ) << exit(FatalIOError);
     }
 
-    return constructorIter()(mesh, schemeData);
+    return ctorPtr(mesh, schemeData);
 }
 
 
@@ -95,10 +94,8 @@ Foam::limitedSurfaceInterpolationScheme<Type>::New
 
     if (schemeData.eof())
     {
-        FatalIOErrorInFunction
-        (
-            schemeData
-        )   << "Discretisation scheme not specified"
+        FatalIOErrorInFunction(schemeData)
+            << "Discretisation scheme not specified"
             << endl << endl
             << "Valid schemes are :" << endl
             << MeshConstructorTablePtr_->sortedToc()
@@ -107,22 +104,20 @@ Foam::limitedSurfaceInterpolationScheme<Type>::New
 
     const word schemeName(schemeData);
 
-    typename MeshFluxConstructorTable::iterator constructorIter =
-        MeshFluxConstructorTablePtr_->find(schemeName);
+    auto* ctorPtr = MeshFluxConstructorTable(schemeName);
 
-    if (constructorIter == MeshFluxConstructorTablePtr_->end())
+    if (!ctorPtr)
     {
-        FatalIOErrorInFunction
+        FatalIOErrorInLookup
         (
-            schemeData
-        )   << "Unknown discretisation scheme "
-            << schemeName << nl << nl
-            << "Valid schemes are :" << endl
-            << MeshFluxConstructorTablePtr_->sortedToc()
-            << exit(FatalIOError);
+            schemeData,
+            "discretisation",
+            schemeName,
+            *MeshFluxConstructorTablePtr_
+        ) << exit(FatalIOError);
     }
 
-    return constructorIter()(mesh, faceFlux, schemeData);
+    return ctorPtr(mesh, faceFlux, schemeData);
 }
 
 

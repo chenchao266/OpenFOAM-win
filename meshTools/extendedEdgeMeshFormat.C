@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2013-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2013-2017 OpenFOAM Foundation
+    Copyright (C) 2019 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -25,7 +28,7 @@ License
 
 #include "extendedEdgeMeshFormat.H"
 #include "IFstream.H"
-#include "Time.T.H"
+#include "Time1.H"
 #include "extendedFeatureEdgeMesh.H"
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
@@ -48,26 +51,15 @@ bool Foam::fileFormats::extendedEdgeMeshFormat::read
 {
     clear();
 
-    fileName dir = filename.path();
-    fileName caseName = dir.name();
-    fileName rootPath = dir.path();
-
-    // Construct dummy time to use as an objectRegistry
-    Time dummyTime
-    (
-        ".",        //rootPath,
-        ".",        //caseName,
-        "system",   //systemName,
-        "constant", //constantName,
-        false       //enableFunctionObjects
-    );
+    // Use dummy Time for objectRegistry
+    autoPtr<Time> dummyTimePtr(Time::New());
 
     // Construct IOobject to re-use the headerOk & readHeader
     // (so we can read ascii and binary)
     IOobject io
     (
         filename,
-        dummyTime,
+        *dummyTimePtr,
         IOobject::NO_READ,
         IOobject::NO_WRITE,
         false

@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2012-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2012-2018 OpenFOAM Foundation
+    Copyright (C) 2020-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -36,12 +39,7 @@ namespace Foam
 namespace fv
 {
     defineTypeNameAndDebug(explicitPorositySource, 0);
-    addToRunTimeSelectionTable
-    (
-        option,
-        explicitPorositySource,
-        dictionary
-    );
+    addToRunTimeSelectionTable(option, explicitPorositySource, dictionary);
 }
 }
 
@@ -56,17 +54,10 @@ Foam::fv::explicitPorositySource::explicitPorositySource
     const fvMesh& mesh
 )
 :
-    cellSetOption(name, modelType, dict, mesh),
+    fv::cellSetOption(name, modelType, dict, mesh),
     porosityPtr_(nullptr)
 {
     read(dict);
-
-    if (selectionMode_ != smCellZone)
-    {
-        FatalErrorInFunction
-            << "selection mode is " << selectionModeTypeNames_[selectionMode_]
-            << exit(FatalError);
-    }
 
     porosityPtr_.reset
     (
@@ -124,30 +115,20 @@ void Foam::fv::explicitPorositySource::addSup
 
 bool Foam::fv::explicitPorositySource::read(const dictionary& dict)
 {
-    if (cellSetOption::read(dict))
+    if (fv::cellSetOption::read(dict))
     {
-        if (coeffs_.found("UNames"))
+        if (!coeffs_.readIfPresent("UNames", fieldNames_))
         {
-            coeffs_.lookup("UNames") >> fieldNames_;
-        }
-        else if (coeffs_.found("U"))
-        {
-            word UName(coeffs_.lookup("U"));
-            fieldNames_ = wordList(1, UName);
-        }
-        else
-        {
-            fieldNames_ = wordList(1, "U");
+            fieldNames_.resize(1);
+            fieldNames_.first() = coeffs_.getOrDefault<word>("U", "U");
         }
 
-        applied_.setSize(fieldNames_.size(), false);
+        fv::option::resetApplied();
 
         return true;
     }
-    else
-    {
-        return false;
-    }
+
+    return false;
 }
 
 

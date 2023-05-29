@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2016-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2016-2017 OpenFOAM Foundation
+    Copyright (C) 2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -23,6 +26,9 @@ License
 
 Class
     Foam::rigidBodyMeshMotion
+
+Group
+    grpMeshMotionSolvers
 
 Description
     Rigid-body mesh motion solver for fvMesh.
@@ -48,7 +54,7 @@ namespace Foam
 {
 
 /*---------------------------------------------------------------------------*\
-        Class rigidBodyMeshMotion Declaration
+                     Class rigidBodyMeshMotion Declaration
 \*---------------------------------------------------------------------------*/
 
 class rigidBodyMeshMotion
@@ -65,7 +71,7 @@ class rigidBodyMeshMotion
         const label bodyID_;
 
         //- List of mesh patches associated with this body
-        const wordReList patches_;
+        const wordRes patches_;
 
         //- Patches to integrate forces
         const labelHashSet patchSet_;
@@ -104,9 +110,8 @@ class rigidBodyMeshMotion
         //  weighting for each body
         PtrList<bodyMesh> bodyMeshes_;
 
-        //- Switch for test-mode in which only the
-        //  gravitational body-force is applied
-        Switch test_;
+        //- Test-mode in which only the gravitational body-force is applied
+        bool test_;
 
         //- Reference density required by the forces object for
         //  incompressible calculations, required if rho == rhoInf
@@ -123,17 +128,21 @@ class rigidBodyMeshMotion
         //- Current time index (used for updating)
         label curTimeIndex_;
 
+        //- Name of the uniformVectorField for CofG displacement
+        word cOfGdisplacement_;
+
+        //- Body Id for the body to write CofG displacement
+        label bodyIdCofG_;
+
+
 
     // Private Member Functions
 
-        //- Disallow default bitwise copy construct
-        rigidBodyMeshMotion
-        (
-            const rigidBodyMeshMotion&
-        );
+        //- No copy construct
+        rigidBodyMeshMotion(const rigidBodyMeshMotion&) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const rigidBodyMeshMotion&);
+        //- No copy assignment
+        void operator=(const rigidBodyMeshMotion&) = delete;
 
 
 public:
@@ -153,7 +162,7 @@ public:
 
 
     //- Destructor
-    ~rigidBodyMeshMotion();
+    ~rigidBodyMeshMotion() = default;
 
 
     // Member Functions
@@ -164,12 +173,10 @@ public:
         //- Solve for motion
         virtual void solve();
 
-        //- Write state using given format, version and compression
+        //- Write state using stream options
         virtual bool writeObject
         (
-            IOstream::streamFormat fmt,
-            IOstream::versionNumber ver,
-            IOstream::compressionType cmp,
+            IOstreamOption streamOpt,
             const bool valid
         ) const;
 

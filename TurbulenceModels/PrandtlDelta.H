@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2015 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2015 OpenFOAM Foundation
+    Copyright (C) 2019 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -85,9 +88,11 @@ class PrandtlDelta
 
     // Private Member Functions
 
-        //- Disallow default bitwise copy construct and assignment
-        PrandtlDelta(const PrandtlDelta&);
-        void operator=(const PrandtlDelta&);
+        //- No copy construct
+        PrandtlDelta(const PrandtlDelta&) = delete;
+
+        //- No copy assignment
+        void operator=(const PrandtlDelta&) = delete;
 
         // Calculate the delta values
         void calcDelta();
@@ -111,8 +116,7 @@ public:
 
 
     //- Destructor
-    virtual ~PrandtlDelta()
-    {}
+    virtual ~PrandtlDelta() = default;
 
 
     // Member Functions

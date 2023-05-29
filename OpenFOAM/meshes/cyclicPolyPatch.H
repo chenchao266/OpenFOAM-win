@@ -1,9 +1,12 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2015 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2015 OpenFOAM Foundation
+    Copyright (C) 2019 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -61,7 +64,9 @@ namespace Foam
                       Class cyclicPolyPatch Declaration
 \*---------------------------------------------------------------------------*/
 
-class cyclicPolyPatch :    public coupledPolyPatch
+class cyclicPolyPatch
+:
+    public coupledPolyPatch
 {
     // Private data
 
@@ -230,11 +235,19 @@ public:
             const word& patchType
         );
 
-        //- Construct as copy, resetting the boundary mesh
+        //- Copy construct, resetting the boundary mesh
         cyclicPolyPatch(const cyclicPolyPatch&, const polyBoundaryMesh&);
 
+        //- Copy construct, resetting nbrPatchID and faceCells
+        cyclicPolyPatch
+        (
+            const cyclicPolyPatch&,
+            label nbrPatchID,
+            const labelList& faceCells
+        );
+
         //- Construct given the original patch and resetting the
-        //  face list and boundary mesh information
+        //- face list and boundary mesh information
         cyclicPolyPatch
         (
             const cyclicPolyPatch& pp,
@@ -307,6 +320,49 @@ public:
 
 
     // Member Functions
+
+        // Implicit Functions
+
+             //- Return number of new internal of this polyPatch faces
+            virtual void newInternalProcFaces
+            (
+                label& newFaces,
+                label& newProcFaces
+            ) const
+            {
+                newFaces = this->size();
+                newProcFaces = neighbPatch().size() - this->size();
+            }
+
+            //- Return nbrCells
+            virtual const labelUList& nbrCells() const
+            {
+                return neighbPatch().faceCells();
+            }
+
+            virtual label neighbPolyPatchID() const
+            {
+                return this->neighbPatchID();
+            }
+
+            virtual refPtr<labelListList> mapCollocatedFaces() const
+            {
+                refPtr<labelListList> tMap(new labelListList(this->size()));
+                labelListList& map = tMap.ref();
+                forAll (map, i)
+                {
+                    labelList& subMap = map[i];
+                    subMap.setSize(1);
+                    subMap[0] = i;
+                }
+                return tMap;
+            }
+
+            //- Return implicit master
+            virtual bool masterImplicit() const
+            {
+                return owner();
+            }
 
         //- Neighbour patch name
         const word& neighbPatchName() const;

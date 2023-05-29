@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2013-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2013-2017 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -34,9 +36,9 @@ Description
     {
         type            filmPyrolysisRadiativeCoupledMixed;
         Tnbr            T;
-        kappa           fluidThermo;
+        kappaMethod     fluidThermo;
+        kappa           none;
         qr              qr;
-        kappaName       none;
         filmDeltaDry    0.0;
         filmDeltaWet    3e-4;
         value           $internalField;
@@ -65,8 +67,7 @@ Description
     towards the film.
 
     Notes:
-
-    - kappa and \c kappaName are inherited from temperatureCoupledBase.
+    - \c kappaMethod and \c kappa are inherited from temperatureCoupledBase.
     - qr is the radiative flux defined in the radiation model.
 
 
@@ -129,10 +130,10 @@ private:
         //- Convective Scaling Factor (as determined by Prateep's tests)
         const scalar convectiveScaling_;
 
-        //- Minimum delta film to be consired dry
+        //- Minimum delta film to be considered dry
         const scalar filmDeltaDry_;
 
-        //- Maximum delta film to be consired wet
+        //- Maximum delta film to be considered wet
         const scalar filmDeltaWet_;
 
         //- Retrieve film model from the database
@@ -214,6 +215,22 @@ public:
 
 
     // Member functions
+
+        // Mapping functions
+
+            //- Map (and resize as needed) from self given a mapping object
+            virtual void autoMap
+            (
+                const fvPatchFieldMapper&
+            );
+
+            //- Reverse map the given fvPatchField onto this fvPatchField
+            virtual void rmap
+            (
+                const fvPatchField<scalar>&,
+                const labelList&
+            );
+
 
         //- Get corresponding K field
         tmp<scalarField> K() const;

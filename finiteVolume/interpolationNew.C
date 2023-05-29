@@ -1,9 +1,12 @@
-﻿/*---------------------------------------------------------------------------*\
+/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2019-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -23,7 +26,7 @@ License
 
 \*---------------------------------------------------------------------------*/
 
-//#include "interpolation.H"
+#include "interpolation.H"
 #include "volFields.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
@@ -35,20 +38,19 @@ Foam::autoPtr<Foam::interpolation<Type>> Foam::interpolation<Type>::New
     const GeometricField<Type, fvPatchField, volMesh>& psi
 )
 {
-    typename dictionaryConstructorTable::iterator cstrIter =
-        dictionaryConstructorTablePtr_->find(interpolationType);
+    auto* ctorPtr = dictionaryConstructorTable(interpolationType);
 
-    if (cstrIter == dictionaryConstructorTablePtr_->end())
+    if (!ctorPtr)
     {
-        FatalErrorInFunction
-            << "Unknown interpolation type " << interpolationType
-            << " for field " << psi.name() << nl << nl
-            << "Valid interpolation types : " << endl
-            << dictionaryConstructorTablePtr_->sortedToc()
-            << exit(FatalError);
+        FatalErrorInLookup
+        (
+            "interpolation",
+            interpolationType,
+            *dictionaryConstructorTablePtr_
+        ) << exit(FatalError);
     }
 
-    return autoPtr<interpolation<Type>>(cstrIter()(psi));
+    return autoPtr<interpolation<Type>>(ctorPtr(psi));
 }
 
 

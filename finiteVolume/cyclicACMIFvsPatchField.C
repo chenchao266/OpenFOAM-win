@@ -1,9 +1,12 @@
-﻿/*---------------------------------------------------------------------------*\
+/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2013-2015 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2013-2015 OpenFOAM Foundation
+    Copyright (C) 2019 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -72,14 +75,12 @@ Foam::cyclicACMIFvsPatchField<Type>::cyclicACMIFvsPatchField
 )
 :
     coupledFvsPatchField<Type>(p, iF, dict),
-    cyclicACMIPatch_(refCast<const cyclicACMIFvPatch>(p))
+    cyclicACMIPatch_(refCast<const cyclicACMIFvPatch>(p, dict))
 {
     if (!isA<cyclicACMIFvPatch>(p))
     {
-        FatalIOErrorInFunction
-        (
-            dict
-        )   << "patch " << this->patch().index() << " not cyclicACMI type. "
+        FatalIOErrorInFunction(dict)
+            << "patch " << this->patch().index() << " not cyclicACMI type. "
             << "Patch type = " << p.type()
             << exit(FatalIOError);
     }
@@ -125,10 +126,8 @@ bool Foam::cyclicACMIFvsPatchField<Type>::coupled() const
     {
         return true;
     }
-    else
-    {
-        return false;
-    }
+
+    return false;
 }
 
 

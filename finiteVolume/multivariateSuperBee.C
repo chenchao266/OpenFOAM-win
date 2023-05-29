@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -24,9 +26,9 @@ License
 \*---------------------------------------------------------------------------*/
 
 #include "multivariateScheme.H"
-#include "LimitedScheme.T.H"
-#include "Limited01.T.H"
-#include "SuperBee.T.H"
+#include "LimitedScheme.H"
+#include "Limited01.H"
+#include "SuperBee.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 

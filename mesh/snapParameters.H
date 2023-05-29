@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2015 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -35,7 +37,7 @@ SourceFiles
 #ifndef snapParameters_H
 #define snapParameters_H
 
-#include "dictionary.H"
+#include "dictionary2.H"
 #include "scalar.H"
 #include "Switch.H"
 
@@ -44,10 +46,8 @@ SourceFiles
 namespace Foam
 {
 
-// Class forward declarations
-
 /*---------------------------------------------------------------------------*\
-                           Class snapParameters Declaration
+                       Class snapParameters Declaration
 \*---------------------------------------------------------------------------*/
 
 class snapParameters
@@ -55,6 +55,8 @@ class snapParameters
     // Private data
 
         const label nSmoothPatch_;
+
+        const label nSmoothInternal_;
 
         const scalar snapTol_;
 
@@ -72,14 +74,39 @@ class snapParameters
 
         const Switch detectNearSurfacesSnap_;
 
+        const Switch strictRegionSnap_;
+
+        const Switch detectBaffles_;
+
+        const Switch baffleFeaturePoints_;
+
+        const Switch releasePoints_;
+
+        const Switch stringFeatures_;
+
+        const Switch avoidDiagonal_;
+
+
+        //- How often needs face splitting be run
+        const label nFaceSplitInterval_;
+
+        //- When is angle too concave too split
+        const scalar concaveAngle_;
+
+        //- When is face-split not sufficiently diagonal
+        const scalar minAreaRatio_;
+
+        //- in dry-run mode
+        const bool dryRun_;
+
 
     // Private Member Functions
 
-        //- Disallow default bitwise copy construct
-        snapParameters(const snapParameters&);
+        //- No copy construct
+        snapParameters(const snapParameters&) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const snapParameters&);
+        //- No copy assignment
+        void operator=(const snapParameters&) = delete;
 
 
 public:
@@ -87,7 +114,7 @@ public:
     // Constructors
 
         //- Construct from dictionary
-        snapParameters(const dictionary& dict);
+        snapParameters(const dictionary& dict, const bool dryRun = false);
 
 
     // Member Functions
@@ -99,6 +126,13 @@ public:
             label nSmoothPatch() const
             {
                 return nSmoothPatch_;
+            }
+
+            //- Number of internal point smoothing iterations (combined with
+            //  nSmoothPatch
+            label nSmoothInternal() const
+            {
+                return nSmoothInternal_;
             }
 
             //- Relative distance for points to be attracted by surface
@@ -123,31 +157,87 @@ public:
                 return nSnap_;
             }
 
-            label nFeatureSnap() const
-            {
-                return nFeatureSnap_;
-            }
 
-            Switch explicitFeatureSnap() const
-            {
-                return explicitFeatureSnap_;
-            }
+            // Surface snapping specific
 
-            Switch implicitFeatureSnap() const
-            {
-                return implicitFeatureSnap_;
-            }
+                //- Override attraction to nearest with intersection location
+                //  at near surfaces
+                Switch detectNearSurfacesSnap() const
+                {
+                    return detectNearSurfacesSnap_;
+                }
 
-            Switch multiRegionFeatureSnap() const
-            {
-                return multiRegionFeatureSnap_;
-            }
+                //- Attract point to corresponding surface region only
+                Switch strictRegionSnap() const
+                {
+                    return strictRegionSnap_;
+                }
 
-            Switch detectNearSurfacesSnap() const
-            {
-                return detectNearSurfacesSnap_;
-            }
 
+            // Feature edge snapping specific
+
+                label nFeatureSnap() const
+                {
+                    return nFeatureSnap_;
+                }
+
+                Switch explicitFeatureSnap() const
+                {
+                    return explicitFeatureSnap_;
+                }
+
+                Switch implicitFeatureSnap() const
+                {
+                    return implicitFeatureSnap_;
+                }
+
+                Switch multiRegionFeatureSnap() const
+                {
+                    return multiRegionFeatureSnap_;
+                }
+
+                Switch detectBaffles() const
+                {
+                    return detectBaffles_;
+                }
+
+                Switch baffleFeaturePoints() const
+                {
+                    return baffleFeaturePoints_;
+                }
+
+                Switch releasePoints() const
+                {
+                    return releasePoints_;
+                }
+
+                Switch stringFeatures() const
+                {
+                    return stringFeatures_;
+                }
+
+                Switch avoidDiagonal() const
+                {
+                    return avoidDiagonal_;
+                }
+
+
+                // Face splitting
+
+                    label nFaceSplitInterval() const
+                    {
+                        return nFaceSplitInterval_;
+                    }
+
+                    scalar concaveAngle() const
+                    {
+                        return concaveAngle_;
+                    }
+
+                    scalar minAreaRatio() const
+                    {
+                        return minAreaRatio_;
+                    }
 };
 
 

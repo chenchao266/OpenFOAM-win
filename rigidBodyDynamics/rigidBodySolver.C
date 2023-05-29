@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -58,7 +60,7 @@ void Foam::RBD::rigidBodySolver::correctQuaternionJoints()
 {
     if (model_.unitQuaternions())
     {
-        forAll (model_.joints(), i)
+        forAll(model_.joints(), i)
         {
             const label qi = model_.joints()[i].qIndex();
 

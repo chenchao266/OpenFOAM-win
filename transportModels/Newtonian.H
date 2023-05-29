@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2017-2019 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -58,10 +61,13 @@ class Newtonian
 
         dimensionedScalar nu0_;
 
-        volScalarField nu_;
-
 
 public:
+
+    // Protected data
+
+        volScalarField nu_;
+
 
     //- Runtime type information
     TypeName("Newtonian");
@@ -80,8 +86,7 @@ public:
 
 
     //- Destructor
-    virtual ~Newtonian()
-    {}
+    virtual ~Newtonian() = default;
 
 
     // Member Functions

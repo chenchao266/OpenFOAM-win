@@ -1,9 +1,12 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2017 OpenFOAM Foundation
+    Copyright (C) 2020-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -25,7 +28,7 @@ Class
     Foam::Function1Types::linearRamp
 
 Description
-    Linear ramp function starting from 0 and increasing linearRamply to 1 from
+    Linear ramp function starting from 0 and increasing linearly to 1 from
     \c start over the \c duration and remaining at 1 thereafter.
 
 See also
@@ -36,8 +39,8 @@ SourceFiles
 
 \*---------------------------------------------------------------------------*/
 
-#ifndef linearRamp_H
-#define linearRamp_H
+#ifndef Function1Types_linearRamp_H
+#define Function1Types_linearRamp_H
 
 #include "ramp.H"
 
@@ -52,14 +55,10 @@ namespace Function1Types
                            Class linearRamp Declaration
 \*---------------------------------------------------------------------------*/
 
-class linearRamp :    public ramp
+class linearRamp
+:
+    public ramp
 {
-    // Private Member Functions
-
-        //- Disallow default bitwise assignment
-        void operator=(const linearRamp&);
-
-
 public:
 
     // Runtime type information
@@ -68,28 +67,23 @@ public:
 
     // Constructors
 
-        //- Construct from entry name and dictionary
+        //- Construct from entry name, dictionary and optional registry
         linearRamp
         (
             const word& entryName,
-            const dictionary& dict
+            const dictionary& dict,
+            const objectRegistry* obrPtr = nullptr
         );
-
-        //- Construct and return a clone
-        virtual tmp<Function1<scalar>> clone() const
-        {
-            return tmp<Function1<scalar>>(new linearRamp(*this));
-        }
 
 
     //- Destructor
-    virtual ~linearRamp();
+    virtual ~linearRamp() = default;
 
 
     // Member Functions
 
         //- Return value for time t
-        scalar value(const scalar t) const;
+        virtual inline scalar value(const scalar t) const;
 };
 
 
@@ -97,6 +91,10 @@ public:
 
 } // End namespace Function1Types
 } // End namespace Foam
+
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+#include "linearRampI.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 

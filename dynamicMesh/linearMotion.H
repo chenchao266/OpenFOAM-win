@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -37,7 +39,7 @@ SourceFiles
 
 #include "solidBodyMotionFunction.H"
 #include "primitiveFields.H"
-#include "point.T.H"
+#include "point.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -54,7 +56,7 @@ class linearMotion
 :
     public solidBodyMotionFunction
 {
-    // Private data
+    // Private Data
 
         //- Linear velocity
         vector velocity_;
@@ -62,11 +64,11 @@ class linearMotion
 
     // Private Member Functions
 
-        //- Disallow copy construct
-        linearMotion(const linearMotion&);
+        //- No copy construct
+        linearMotion(const linearMotion&) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const linearMotion&);
+        //- No copy assignment
+        void operator=(const linearMotion&) = delete;
 
 
 public:
@@ -99,7 +101,7 @@ public:
 
 
     //- Destructor
-    virtual ~linearMotion();
+    virtual ~linearMotion() = default;
 
 
     // Member Functions

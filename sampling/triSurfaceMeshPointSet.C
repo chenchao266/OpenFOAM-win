@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -25,11 +28,11 @@ License
 
 #include "triSurfaceMeshPointSet.H"
 #include "meshSearch.H"
-#include "DynamicList.T.H"
+#include "DynamicList.H"
 #include "polyMesh.H"
 #include "addToRunTimeSelectionTable.H"
 #include "triSurfaceMesh.H"
-#include "Time.T.H"
+#include "Time1.H"
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
 
@@ -91,14 +94,20 @@ void Foam::triSurfaceMeshPointSet::genSamples()
     samplingSegments.shrink();
     samplingCurveDist.shrink();
 
+    // Move into *this
     setSamples
     (
-        samplingPts,
-        samplingCells,
-        samplingFaces,
-        samplingSegments,
-        samplingCurveDist
+        std::move(samplingPts),
+        std::move(samplingCells),
+        std::move(samplingFaces),
+        std::move(samplingSegments),
+        std::move(samplingCurveDist)
     );
+
+    if (debug)
+    {
+        write(Info);
+    }
 }
 
 
@@ -113,64 +122,55 @@ Foam::triSurfaceMeshPointSet::triSurfaceMeshPointSet
 )
 :
     sampledSet(name, mesh, searchEngine, dict),
-    surface_(dict.lookup("surface"))
+    surfaceName_(dict.get<word>("surface"))
 {
-    // Load surface.
-    if (mesh.time().foundObject<triSurfaceMesh>(surface_))
+    // Get or load surface
+
+    const auto* surfPtr =
+        mesh.time().cfindObject<triSurfaceMesh>(surfaceName_);
+
+    if (surfPtr)
     {
         // Note: should use localPoints() instead of points() but assume
         // trisurface is compact.
-        sampleCoords_ = mesh.time().lookupObject<triSurfaceMesh>
-        (
-            surface_
-        ).points();
+        sampleCoords_ = surfPtr->points();
     }
     else
     {
-        sampleCoords_ = triSurfaceMesh
+        sampleCoords_ = triSurface
         (
             IOobject
             (
-                surface_,
+                surfaceName_,
                 mesh.time().constant(),     // instance
                 "triSurface",               // local
                 mesh.time(),
                 IOobject::MUST_READ,
                 IOobject::NO_WRITE,
                 false
-            )
+            ),
+            dictionary::null
         ).points();
     }
 
     genSamples();
-
-    if (debug)
-    {
-        write(Info);
-    }
 }
-
-
-// * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
-
-Foam::triSurfaceMeshPointSet::~triSurfaceMeshPointSet()
-{}
 
 
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
 
-Foam::point Foam::triSurfaceMeshPointSet::getRefPoint(const List<point>& pts)
- const
+Foam::point Foam::triSurfaceMeshPointSet::getRefPoint
+(
+    const List<point>& pts
+) const
 {
     if (pts.size())
     {
         // Use first samplePt as starting point
-        return pts[0];
+        return pts.first();
     }
-    else
-    {
-        return Zero;
-    }
+
+    return Zero;
 }
 
 

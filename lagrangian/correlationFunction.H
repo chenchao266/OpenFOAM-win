@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -37,7 +39,7 @@ SourceFiles
 #define correlationFunction_H
 
 #include "bufferedAccumulator.H"
-#include "dictionary.H"
+#include "dictionary2.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -80,11 +82,11 @@ class correlationFunction
 
         void setTimesAndSizes(const label);
 
-        //- Disallow default bitwise copy construct
-        correlationFunction(const correlationFunction<Type>&);
+        //- No copy construct
+        correlationFunction(const correlationFunction<Type>&) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const correlationFunction<Type>&);
+        //- No copy assignment
+        void operator=(const correlationFunction<Type>&) = delete;
 
 
 public:

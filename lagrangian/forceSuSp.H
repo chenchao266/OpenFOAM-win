@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -40,15 +43,15 @@ SourceFiles
 #ifndef forceSuSp_H
 #define forceSuSp_H
 
-#include "Tuple2.T.H"
+#include "Tuple2.H"
+#include "vector2.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 namespace Foam
 {
 
-// Forward declaration of friend functions
-
+// Forward Declarations
 class forceSuSp;
 
 inline forceSuSp operator+(const forceSuSp& susp1, const forceSuSp& susp2);
@@ -63,13 +66,15 @@ class forceSuSp
 :
     public Tuple2<vector, scalar>
 {
-
 public:
 
     // Constructors
 
-        //- Construct null
-        inline forceSuSp();
+        //- Default construct
+        forceSuSp() = default;
+
+        //- Construct zero-initialized content
+        inline forceSuSp(const Foam::zero);
 
         //- Construct given Tuple2
         inline forceSuSp(const Tuple2<vector, scalar>& susp);
@@ -78,7 +83,7 @@ public:
         inline forceSuSp(const vector& Su, const scalar Sp);
 
         //- Construct from Istream
-        inline forceSuSp(Istream&);
+        inline explicit forceSuSp(Istream& is);
 
 
     // Member Functions
@@ -103,9 +108,6 @@ public:
 
         // Operators
 
-            //- Assignment
-            inline void operator=(const forceSuSp& susp);
-
             //- Addition
             inline void operator+=(const forceSuSp& susp);
 
@@ -113,7 +115,7 @@ public:
             inline void operator-=(const forceSuSp& susp);
 
 
-        // Friend operators
+        // Friend Operators
 
             //- Addition
             friend inline forceSuSp operator*

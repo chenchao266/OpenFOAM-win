@@ -1,9 +1,12 @@
-﻿/*---------------------------------------------------------------------------*\
+/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2015-2017 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -23,23 +26,23 @@ License
 
 \*---------------------------------------------------------------------------*/
 
-//#include "fieldValue.H"
-#include "ListListOps.T.H"
-#include "Pstream.T.H"
+#include "fieldValue.H"
+#include "ListListOps.H"
+#include "Pstream.H"
 
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
 
 template<class Type>
 void Foam::functionObjects::fieldValue::combineFields(Field<Type>& field)
 {
-    List<Field<Type>> allValues(Pstream::nProcs());
-
-    allValues[Pstream::myProcNo()] = field;
-
-    Pstream::gatherList(allValues);
-
-    if (Pstream::master())
+    if (Pstream::parRun())
     {
+        List<Field<Type>> allValues(Pstream::nProcs());
+        allValues[Pstream::myProcNo()] = field;
+
+        Pstream::gatherList(allValues);
+        Pstream::scatterList(allValues);
+
         field =
             ListListOps::combine<Field<Type>>
             (
@@ -53,7 +56,7 @@ void Foam::functionObjects::fieldValue::combineFields(Field<Type>& field)
 template<class Type>
 void Foam::functionObjects::fieldValue::combineFields(tmp<Field<Type>>& field)
 {
-    combineFields(field());
+    combineFields(field.ref());
 }
 
 

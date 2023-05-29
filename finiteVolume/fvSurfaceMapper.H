@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2013 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2013 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -38,7 +40,7 @@ SourceFiles
 #include "morphFieldMapper.H"
 #include "fvMesh.H"
 #include "faceMapper.H"
-#include "HashSet.T.H"
+#include "HashSet.H"
 #include "mapPolyMesh.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
@@ -83,11 +85,11 @@ class fvSurfaceMapper
 
     // Private Member Functions
 
-        //- Disallow default bitwise copy construct
-        fvSurfaceMapper(const fvSurfaceMapper&);
+        //- No copy construct
+        fvSurfaceMapper(const fvSurfaceMapper&) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const fvSurfaceMapper&);
+        //- No copy assignment
+        void operator=(const fvSurfaceMapper&) = delete;
 
 
         //- Calculate addressing
@@ -145,7 +147,7 @@ public:
         //- Return interpolated addressing
         virtual const labelListList& addressing() const;
 
-        //- Return interpolaion weights
+        //- Return interpolation weights
         virtual const scalarListList& weights() const;
 
         //- Are there any inserted faces

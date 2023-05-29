@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2012-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2012-2016 OpenFOAM Foundation
+    Copyright (C) 2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -25,8 +28,8 @@ Class
     Foam::vtkUnstructuredReader
 
 Description
-    Reader for vtk unstructured_grid legacy files. Supports single CELLS, POINTS
-    etc. entry only.
+    Reader for vtk UNSTRUCTURED_GRID legacy files.
+    Supports single CELLS, POINTS etc. entry only.
 
     - all integer types (int, unsigned_int, long etc.) become Foam::label
     - all real types (float, double) become Foam::scalar
@@ -47,10 +50,11 @@ SourceFiles
 #ifndef vtkUnstructuredReader_H
 #define vtkUnstructuredReader_H
 
+#include "foamVtkCore.H"
 #include "objectRegistry.H"
 #include "cellShapeList.H"
-#include "HashSet.T.H"
-#include "NamedEnum.T.H"
+#include "HashSet.H"
+#include "Enum.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -65,12 +69,13 @@ class vtkUnstructuredReader
 {
 public:
 
-    // Public data types
+    // Public Data Types
 
         //- Enumeration defining the vtk data types
         enum vtkDataType
         {
             VTK_INT,
+            VTK_INT64,
             VTK_UINT,
             VTK_LONG,
             VTK_ULONG,
@@ -80,7 +85,7 @@ public:
             VTK_ID
         };
 
-        static const NamedEnum<vtkDataType, 8> vtkDataTypeNames;
+        static const Enum<vtkDataType> vtkDataTypeNames;
 
 
         //- Enumeration defining the vtk dataset types
@@ -91,11 +96,10 @@ public:
             VTK_VECTORS
         };
 
-        static const NamedEnum<vtkDataSetType, 3> vtkDataSetTypeNames;
+        static const Enum<vtkDataSetType> vtkDataSetTypeNames;
 
 
-        //- Enumeration defining the parse mode - what type of data is being
-        //  read
+        //- Enumeration defining the parse mode - type of data being read
         enum parseMode
         {
             NOMODE,
@@ -105,33 +109,13 @@ public:
             POINT_DATA
         };
 
-        static const NamedEnum<parseMode, 5> parseModeNames;
-
-
-        //- Enumeration defining the cell types
-        enum vtkTypes
-        {
-            VTK_EMPTY_CELL       = 0,
-            VTK_VERTEX           = 1,
-            VTK_POLY_VERTEX      = 2,
-            VTK_LINE             = 3,
-            VTK_POLY_LINE        = 4,
-            VTK_TRIANGLE         = 5,
-            VTK_TRIANGLE_STRIP   = 6,
-            VTK_POLYGON          = 7,
-            VTK_PIXEL            = 8,
-            VTK_QUAD             = 9,
-            VTK_TETRA            = 10,
-            VTK_VOXEL            = 11,
-            VTK_HEXAHEDRON       = 12,
-            VTK_WEDGE            = 13,
-            VTK_PYRAMID          = 14,
-            VTK_PENTAGONAL_PRISM = 15,
-            VTK_HEXAGONAL_PRISM  = 16,
-        };
+        static const Enum<parseMode> parseModeNames;
 
 
 private:
+
+    //- The VTK version
+    float version_;
 
     //- Header
     string header_;
@@ -181,27 +165,31 @@ private:
 
     // Private Member Functions
 
-        template<class T>
-        void readBlock
+        //- Read OFFSETS, CONNECTIVITY arrays
+        static void readOffsetsConnectivity
         (
-            Istream& inFile,
-            const label n,
-            List<T>& lst
-        ) const;
+            ISstream& is,
+            const char* entryName,
+            const label nOffsets,
+            labelList& offsets,
+            const label nConnectivity,
+            labelList& connectivity
+        );
 
-        void warnUnhandledType
+        static void warnUnhandledType
         (
-            Istream& inFile,
+            const Istream& is,  // For error message
             const label type,
             labelHashSet& warningGiven
-        ) const;
+        );
 
         //- Split cellTypes into cells, faces and lines
         void extractCells
         (
-            Istream& inFile,
-            const labelList& cellTypes,
-            const labelList& cellVertData
+            const Istream& is,  // For error message
+            const labelUList& cellTypes,
+            const labelUList& cellOffsets,
+            const labelUList& cellVertData
         );
 
         //- Read single field and stores it on the objectRegistry.
@@ -227,8 +215,8 @@ private:
 
         void read(ISstream& inFile);
 
-        //- Dissallow assignment
-        void operator=(const vtkUnstructuredReader&);
+        //- No copy assignment
+        void operator=(const vtkUnstructuredReader&) = delete;
 
 
 public:
@@ -236,120 +224,122 @@ public:
     //- Runtime type information
     ClassName("vtkUnstructuredReader");
 
+
     // Constructors
 
-        //- Construct from Istream, read all
-        vtkUnstructuredReader(const objectRegistry& obr, ISstream&);
+        //- Construct from input stream, read all
+        vtkUnstructuredReader(const objectRegistry& obr, ISstream& is);
+
 
     // Member Functions
 
         //- Header
-        const string header() const
+        const string& header() const noexcept
         {
             return header_;
         }
 
         //- Title
-        const string& title() const
+        const string& title() const noexcept
         {
             return title_;
         }
 
         //- DataType
-        const string& dataType() const
+        const string& dataType() const noexcept
         {
             return dataType_;
         }
 
 
         //- Points
-        const pointField& points() const
+        const pointField& points() const noexcept
         {
             return points_;
         }
 
-        pointField& points()
+        pointField& points() noexcept
         {
             return points_;
         }
 
-        //- 3D cells.
-        const cellShapeList& cells() const
+        //- 3D cells
+        const cellShapeList& cells() const noexcept
         {
             return cells_;
         }
 
-        cellShapeList& cells()
+        cellShapeList& cells() noexcept
         {
             return cells_;
         }
 
-        const labelList& cellMap() const
+        const labelList& cellMap() const noexcept
         {
             return cellMap_;
         }
 
         //- 2D cells (=faces)
-        const faceList& faces() const
+        const faceList& faces() const noexcept
         {
             return faces_;
         }
 
-        faceList& faces()
+        faceList& faces() noexcept
         {
             return faces_;
         }
 
-        const labelList& faceMap() const
+        const labelList& faceMap() const noexcept
         {
             return faceMap_;
         }
 
         //- 1D cells (=open lines)
-        const labelListList& lines() const
+        const labelListList& lines() const noexcept
         {
             return lines_;
         }
 
-        labelListList& lines()
+        labelListList& lines() noexcept
         {
             return lines_;
         }
 
-        const labelList& lineMap() const
+        const labelList& lineMap() const noexcept
         {
             return lineMap_;
         }
 
         //- Cell based fields
-        const objectRegistry& cellData() const
+        const objectRegistry& cellData() const noexcept
         {
             return cellData_;
         }
 
-        objectRegistry& cellData()
+        objectRegistry& cellData() noexcept
         {
             return cellData_;
         }
 
         //- Point based fields
-        const objectRegistry& pointData() const
+        const objectRegistry& pointData() const noexcept
         {
             return pointData_;
         }
 
-        objectRegistry& pointData()
+        objectRegistry& pointData() noexcept
         {
             return pointData_;
         }
 
         //- Other fields
-        const objectRegistry& otherData() const
+        const objectRegistry& otherData() const noexcept
         {
             return otherData_;
         }
 
-        objectRegistry& otherData()
+        objectRegistry& otherData() noexcept
         {
             return otherData_;
         }
@@ -357,8 +347,7 @@ public:
 
         //- Debug: print contents of objectRegistry
         template<class Type>
-        void printFieldStats(const objectRegistry&) const;
-
+        static void printFieldStats(const objectRegistry&);
 };
 
 

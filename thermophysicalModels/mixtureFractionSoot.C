@@ -1,9 +1,12 @@
-﻿/*---------------------------------------------------------------------------*\
+/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2013-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2013-2016 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -23,7 +26,7 @@ License
 
 \*---------------------------------------------------------------------------*/
 
-//#include "mixtureFractionSoot.H"
+#include "mixtureFractionSoot.H"
 #include "singleStepReactingMixture.H"
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
@@ -38,7 +41,7 @@ Foam::radiation::mixtureFractionSoot<ThermoType>::checkThermo
 {
     if (isA<singleStepReactingMixture<ThermoType>>(thermo))
     {
-        return dynamic_cast<const singleStepReactingMixture<ThermoType>& >
+        return dynamic_cast<const singleStepReactingMixture<ThermoType>&>
         (
             thermo
         );
@@ -50,7 +53,7 @@ Foam::radiation::mixtureFractionSoot<ThermoType>::checkThermo
             << "Please select a thermo package based on "
             << "singleStepReactingMixture" << exit(FatalError);
 
-        return dynamic_cast<const singleStepReactingMixture<ThermoType>& >
+        return dynamic_cast<const singleStepReactingMixture<ThermoType>&>
         (
             thermo
         );
@@ -83,12 +86,12 @@ Foam::radiation::mixtureFractionSoot<ThermoType>::mixtureFractionSoot
         mesh_
     ),
     coeffsDict_(dict.subOrEmptyDict(modelType + "Coeffs")),
-    nuSoot_(readScalar(coeffsDict_.lookup("nuSoot"))),
-    Wsoot_(readScalar(coeffsDict_.lookup("Wsoot"))),
+    nuSoot_(coeffsDict_.get<scalar>("nuSoot")),
+    Wsoot_(coeffsDict_.get<scalar>("Wsoot")),
     sootMax_(-1),
     mappingFieldName_
     (
-        coeffsDict_.lookupOrDefault<word>("mappingField", "none")
+        coeffsDict_.getOrDefault<word>("mappingField", "none")
     ),
     mapFieldMax_(1),
     thermo_(mesh.lookupObject<fluidThermo>(basicThermo::dictName)),

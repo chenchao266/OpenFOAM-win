@@ -1,9 +1,12 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -38,7 +41,7 @@ inline bool Foam::patchEdgeFaceInfo::update
     TrackingData& td
 )
 {
-    scalar dist2 = magSqr(pt - w2.origin());
+    const scalar dist2 = magSqr(pt - w2.origin());
 
     if (!valid(td))
     {
@@ -49,7 +52,7 @@ inline bool Foam::patchEdgeFaceInfo::update
         return true;
     }
 
-    scalar diff = distSqr_ - dist2;
+    const scalar diff = distSqr_ - dist2;
 
     if (diff < 0)
     {
@@ -91,7 +94,7 @@ inline bool Foam::patchEdgeFaceInfo::update
         return true;
     }
 
-    scalar diff = distSqr_ - w2.distSqr();
+    const scalar diff = distSqr_ - w2.distSqr();
 
     if (diff < 0)
     {
@@ -117,15 +120,12 @@ inline bool Foam::patchEdgeFaceInfo::update
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
-// Null constructor
 inline Foam::patchEdgeFaceInfo::patchEdgeFaceInfo()
 :
-    origin_(point::max),
-    distSqr_(sqr(GREAT))
+    patchEdgeFaceInfo(point::max_, sqr(GREAT))
 {}
 
 
-// Construct from origin, distance
 inline Foam::patchEdgeFaceInfo::patchEdgeFaceInfo
 (
     const point& origin,
@@ -137,32 +137,12 @@ inline Foam::patchEdgeFaceInfo::patchEdgeFaceInfo
 {}
 
 
-// Construct as copy
-inline Foam::patchEdgeFaceInfo::patchEdgeFaceInfo(const patchEdgeFaceInfo& wpt)
-:
-    origin_(wpt.origin()),
-    distSqr_(wpt.distSqr())
-{}
-
-
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
-
-inline const Foam::point& Foam::patchEdgeFaceInfo::origin() const
-{
-    return origin_;
-}
-
-
-inline Foam::scalar Foam::patchEdgeFaceInfo::distSqr() const
-{
-    return distSqr_;
-}
-
 
 template<class TrackingData>
 inline bool Foam::patchEdgeFaceInfo::valid(TrackingData& td) const
 {
-    return origin_ != point::max;
+    return origin_ != point::max_;
 }
 
 
@@ -193,12 +173,14 @@ inline bool Foam::patchEdgeFaceInfo::updateEdge
 )
 {
     const edge& e = patch.edges()[edgeI];
-    point eMid =
+    const point eMid
+    (
         0.5
       * (
             patch.points()[patch.meshPoints()[e[0]]]
           + patch.points()[patch.meshPoints()[e[1]]]
-        );
+        )
+    );
     return update(eMid, faceInfo, tol, td);
 }
 
@@ -249,10 +231,10 @@ inline bool Foam::patchEdgeFaceInfo::equal
 
 inline bool Foam::patchEdgeFaceInfo::operator==
 (
-    const Foam::patchEdgeFaceInfo& rhs
+    const patchEdgeFaceInfo& rhs
 ) const
 {
-    return origin() == rhs.origin();
+    return origin_ == rhs.origin_;
 }
 
 

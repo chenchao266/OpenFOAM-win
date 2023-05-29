@@ -1,9 +1,12 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -25,10 +28,10 @@ Class
     Foam::tetMatcher
 
 Description
-    A cellMatcher for tet cells
+    A cellMatcher for tet cells (cellModel::TET)
 
 See also
-    cellMatcher
+    cellMatcher, cellModel
 
 SourceFiles
     tetMatcher.C
@@ -49,34 +52,48 @@ namespace Foam
                            Class tetMatcher Declaration
 \*---------------------------------------------------------------------------*/
 
-class tetMatcher :    public cellMatcher
+class tetMatcher
+:
+    public cellMatcher
 {
-    // Static data members
+    // Static Data Members
 
-        //- Constants for this shape
-        static const label vertPerCell;
-        static const label facePerCell;
-        static const label maxVertPerFace;
+        // Constants for this shape
+        static constexpr label vertPerCell = 4;
+        static constexpr label facePerCell = 4;
+        static constexpr label maxVertPerFace = 3;
 
 
     // Private Member Functions
 
-        //- Disallow default bitwise copy construct
-        tetMatcher(const tetMatcher&);
+        //- No copy construct
+        tetMatcher(const tetMatcher&) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const tetMatcher&);
+        //- No copy assignment
+        tetMatcher& operator=(const tetMatcher&) = delete;
 
 
 public:
 
     // Constructors
 
-        //- Construct null
+        //- Default construct
         tetMatcher();
 
+
     //- Destructor
-    ~tetMatcher();
+    ~tetMatcher() = default;
+
+
+    // Static Functions
+
+        //- Test if given list of faces satisfies criteria for TET.
+        //- (4 tri)
+        static bool test(const UList<face>& faces);
+
+        //- Test if given cell satisfies criteria for TET.
+        //- (4 tri)
+        static bool test(const primitiveMesh& mesh, const label celli);
 
 
     // Member Functions
@@ -109,9 +126,15 @@ public:
             const labelList& myFaces
         );
 
-        virtual bool isA(const primitiveMesh& mesh, const label celli);
+        virtual bool isA(const primitiveMesh& mesh, const label celli)
+        {
+            return tetMatcher::test(mesh, celli);
+        }
 
-        virtual bool isA(const faceList&);
+        virtual bool isA(const faceList& faces)
+        {
+            return tetMatcher::test(faces);
+        }
 
         virtual bool matches
         (

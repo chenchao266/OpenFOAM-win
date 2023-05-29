@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2017-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -24,269 +27,256 @@ License
 \*---------------------------------------------------------------------------*/
 
 // * * * * * * * * * * * * Static Member Functions * * * * * * * * * * * * * //
-namespace Foam {
-    inline bool wordRe::meta(char c)
+
+
+ namespace Foam{
+inline bool wordRe::valid(const char c)
+{
+    // Also accept '{' and '}' (for regex grouping?)
+    return (word::valid(c) || c == '{' || c == '}');
+}
+
+
+// * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
+
+inline wordRe::wordRe()
+:
+    word(),
+    re_()
+{}
+
+
+inline wordRe::wordRe(const wordRe& str)
+:
+    word(static_cast<const word&>(str))
+{
+    if (str.isPattern())
     {
-        return regExp::meta(c);
+        compile();
     }
+}
 
 
-    inline bool wordRe::isPattern(const string& str)
-    {
-        return string::meta<regExp>(str);
-    }
+inline wordRe::wordRe(wordRe&& str)
+:
+    word(std::move(static_cast<word&>(str))),
+    re_(std::move(str.re_))
+{}
 
 
-    // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
-
-    inline wordRe::wordRe()
-        :
-        word(),
-        re_()
-    {}
+inline wordRe::wordRe(const word& str)
+:
+    word(str)
+{}
 
 
-    inline wordRe::wordRe(const wordRe& str)
-        :
-        word(str),
-        re_()
-    {
-        if (str.isPattern())
-        {
-            compile();
-        }
-    }
+inline wordRe::wordRe(word&& str)
+:
+    word(std::move(str))
+{}
 
 
-    inline wordRe::wordRe(const word& str)
-        :
-        word(str),
-        re_()
-    {}
-
-
-    inline wordRe::wordRe(const keyType& str)
-        :
-        word(str, false),
-        re_()
-    {
-        if (str.isPattern())
-        {
-            compile();
-        }
-    }
-
-
-    inline wordRe::wordRe(const keyType& str, const compOption opt)
-        :
-        word(str, false),
-        re_()
-    {
-        if (str.isPattern())
-        {
-            compile(opt);
-        }
-    }
-
-
-    inline wordRe::wordRe(const char* str, const compOption opt)
-        :
-        word(str, false),
-        re_()
+inline wordRe::wordRe(const std::string& str, const compOption opt)
+:
+    word(str, false)  // No stripping
+{
+    if (opt != wordRe::LITERAL)
     {
         compile(opt);
     }
+}
 
 
-    inline wordRe::wordRe(const string& str, const compOption opt)
-        :
-        word(str, false),
-        re_()
+inline wordRe::wordRe(const char* str, const compOption opt)
+:
+    word(str, false)  // No stripping
+{
+    if (opt != wordRe::LITERAL)
     {
         compile(opt);
     }
+}
 
 
-    inline wordRe::wordRe(const std::string& str, const compOption opt)
-        :
-        word(str, false),
-        re_()
+// * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
+
+inline bool wordRe::isLiteral() const noexcept
+{
+    return !re_.exists();
+}
+
+
+inline bool wordRe::isPattern() const noexcept
+{
+    return re_.exists();
+}
+
+
+inline bool wordRe::compile(const compOption opt)
+{
+    if (opt != wordRe::LITERAL)
     {
-        compile(opt);
-    }
+        bool comp = false;
 
-
-    // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
-
-    inline bool wordRe::isPattern() const
-    {
-        return re_.exists();
-    }
-
-
-    inline bool wordRe::compile(const compOption opt) const
-    {
-        bool doCompile = false;
-
-        if (opt & wordRe::REGEXP)
+        if (opt & wordRe::REGEX)
         {
-            doCompile = true;
+            comp = true;
         }
         else if (opt & wordRe::DETECT)
         {
-            if (string::meta<regExp>(*this) || !string::valid<word>(*this))
-            {
-                doCompile = true;
-            }
+            comp = regExp::is_meta(*this) || !string::valid<word>(*this);
         }
-        else if (opt & wordRe::NOCASE)
+        else if (opt & wordRe::ICASE)
         {
-            doCompile = true;
+            comp = true;
         }
 
-
-        if (doCompile)
+        if (comp)
         {
-            re_.set(*this, (opt & wordRe::NOCASE));
-        }
-        else
-        {
-            re_.clear();
-        }
-
-        return re_.exists();
-    }
-
-
-    inline bool wordRe::compile() const
-    {
-        re_ = *this;
-        return re_.exists();
-    }
-
-
-    inline bool wordRe::recompile() const
-    {
-        if (re_.exists())
-        {
-            re_ = *this;
-        }
-
-        return re_.exists();
-    }
-
-
-    inline void wordRe::uncompile(const bool doStripInvalid) const
-    {
-        if (re_.clear())
-        {
-            // skip stripping unless debug is active to avoid costly operations
-            if (word::debug && doStripInvalid)
-            {
-                string::stripInvalid<word>
-                    (
-                        const_cast<word&>(static_cast<const word&>(*this))
-                        );
-            }
+            return re_.set(*this, (opt & wordRe::ICASE));
         }
     }
 
-
-    inline void wordRe::clear()
-    {
-        word::clear();
-        re_.clear();
-    }
-
-
-    inline bool wordRe::match(const std::string& str, bool literalMatch) const
-    {
-        if (literalMatch || !re_.exists())
-        {
-            // check as string
-            return (str == *this);
-        }
-        else
-        {
-            // check as regex
-            return re_.match(str);
-        }
-    }
-
-
-    inline string wordRe::quotemeta() const
-    {
-        return string::quotemeta<regExp>(*this);
-    }
-
-
-    inline void wordRe::set(const std::string& str, const compOption opt)
-    {
-        string::operator=(str);
-        compile(opt);
-    }
-
-
-    inline void wordRe::set(const char* str, const compOption opt)
-    {
-        string::operator=(str);
-        compile(opt);
-    }
-
-
-    // * * * * * * * * * * * * * * * Member Operators  * * * * * * * * * * * * * //
-
-    inline void wordRe::operator=(const wordRe& str)
-    {
-        string::operator=(str);
-
-        if (str.isPattern())
-        {
-            compile();
-        }
-        else
-        {
-            re_.clear();
-        }
-    }
-
-
-    inline void wordRe::operator=(const word& str)
-    {
-        word::operator=(str);
-        re_.clear();
-    }
-
-
-    inline void wordRe::operator=(const keyType& str)
-    {
-        string::operator=(str);
-        if (str.isPattern())
-        {
-            compile();
-        }
-    }
-
-
-    inline void wordRe::operator=(const string& str)
-    {
-        string::operator=(str);
-        compile(DETECT);  // auto-detect regex
-    }
-
-
-    inline void wordRe::operator=(const std::string& str)
-    {
-        string::operator=(str);
-        compile(DETECT);  // auto-detect regex
-    }
-
-
-    inline void wordRe::operator=(const char* str)
-    {
-        string::operator=(str);
-        compile(DETECT);  // auto-detect regex
-    }
-
+    // Fall-through behaviour - not a regex
+    re_.clear();
+    return false;
 }
+
+
+inline bool wordRe::compile()
+{
+    return re_.set(*this);
+}
+
+
+inline void wordRe::uncompile()
+{
+    re_.clear();
+}
+
+
+inline void wordRe::uncompile(bool adjust)
+{
+    // Only strip when debug is active (potentially costly operation)
+    if (adjust && isPattern() && word::debug)
+    {
+        string::stripInvalid<word>(*this);
+    }
+    re_.clear();
+}
+
+
+inline void wordRe::clear()
+{
+    word::clear();
+    re_.clear();
+}
+
+
+inline bool wordRe::match(const std::string& text, bool literal) const
+{
+    if (!literal && re_.exists())
+    {
+        return re_.match(text);  // Match as regex
+    }
+
+    return !compare(text);  // Compare as literal
+}
+
+
+inline void wordRe::set(const std::string& str, const compOption opt)
+{
+    assign(str);
+    compile(opt);
+}
+
+
+inline void wordRe::set(const char* str, const compOption opt)
+{
+    assign(str);
+    compile(opt);
+}
+
+
+inline void wordRe::swap(wordRe& str)
+{
+    if (this == &str)
+    {
+        return;  // Self-swap is a no-op
+    }
+
+    word::swap(static_cast<word&>(str));
+    re_.swap(str.re_);
+}
+
+
+// * * * * * * * * * * * * * * * Member Operators  * * * * * * * * * * * * * //
+
+inline bool wordRe::operator()(const std::string& text) const
+{
+    return match(text);
+}
+
+
+inline void wordRe::operator=(const wordRe& str)
+{
+    if (this == &str)
+    {
+        return;  // Self-assignment is a no-op
+    }
+
+    assign(str);
+    if (str.isPattern())
+    {
+        compile();
+    }
+    else
+    {
+        re_.clear();
+    }
+}
+
+
+inline void wordRe::operator=(const word& str)
+{
+    assign(str);
+    re_.clear();
+}
+
+
+inline void wordRe::operator=(const string& str)
+{
+    assign(str);
+    compile(wordRe::DETECT);  // Auto-detect regex
+}
+
+
+inline void wordRe::operator=(const std::string& str)
+{
+    assign(str);
+    compile(wordRe::DETECT);  // Auto-detect regex
+}
+
+
+inline void wordRe::operator=(const char* str)
+{
+    assign(str);
+    compile(wordRe::DETECT);  // Auto-detect regex
+}
+
+
+inline void wordRe::operator=(wordRe&& str)
+{
+    if (this == &str)
+    {
+        return;  // Self-assignment is a no-op
+    }
+
+    clear();
+    swap(str);
+}
+
+
 // ************************************************************************* //
+
+ } // End namespace Foam

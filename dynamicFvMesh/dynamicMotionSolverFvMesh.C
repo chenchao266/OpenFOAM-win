@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2012 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -39,14 +42,64 @@ namespace Foam
         dynamicMotionSolverFvMesh,
         IOobject
     );
+    addToRunTimeSelectionTable
+    (
+        dynamicFvMesh,
+        dynamicMotionSolverFvMesh,
+        doInit
+    );
 }
 
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
-Foam::dynamicMotionSolverFvMesh::dynamicMotionSolverFvMesh(const IOobject& io)
+Foam::dynamicMotionSolverFvMesh::dynamicMotionSolverFvMesh
+(
+    const IOobject& io,
+    const bool doInit
+)
 :
-    dynamicFvMesh(io),
+    dynamicFvMesh(io, doInit),
+    motionPtr_(nullptr)
+{
+    if (doInit)
+    {
+        init(false);    // do not initialise lower levels
+    }
+}
+
+
+bool Foam::dynamicMotionSolverFvMesh::init(const bool doInit)
+{
+    if (doInit)
+    {
+        dynamicFvMesh::init(doInit);
+    }
+
+    motionPtr_ = motionSolver::New(*this);
+    return true;
+}
+
+
+Foam::dynamicMotionSolverFvMesh::dynamicMotionSolverFvMesh
+(
+    const IOobject& io,
+    pointField&& points,
+    faceList&& faces,
+    labelList&& allOwner,
+    labelList&& allNeighbour,
+    const bool syncPar
+)
+:
+    dynamicFvMesh
+    (
+        io,
+        std::move(points),
+        std::move(faces),
+        std::move(allOwner),
+        std::move(allNeighbour),
+        syncPar
+    ),
     motionPtr_(motionSolver::New(*this))
 {}
 
@@ -59,13 +112,24 @@ Foam::dynamicMotionSolverFvMesh::~dynamicMotionSolverFvMesh()
 
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
 
+const Foam::motionSolver& Foam::dynamicMotionSolverFvMesh::motion() const
+{
+    return *motionPtr_;
+}
+
+
 bool Foam::dynamicMotionSolverFvMesh::update()
 {
+    // Scan through AMI patches and update
+
+
     fvMesh::movePoints(motionPtr_->newPoints());
 
-    if (foundObject<volVectorField>("U"))
+    volVectorField* Uptr = getObjectPtr<volVectorField>("U");
+
+    if (Uptr)
     {
-        lookupObjectRef<volVectorField>("U").correctBoundaryConditions();
+        Uptr->correctBoundaryConditions();
     }
 
     return true;

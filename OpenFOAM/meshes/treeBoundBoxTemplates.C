@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2015 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2015 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -23,31 +25,30 @@ License
 
 \*---------------------------------------------------------------------------*/
 
-//#include "treeBoundBox.H"
-#include "FixedList.T.H"
-
+#include "treeBoundBox.H"
+#include "FixedList.H"
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
-namespace Foam {
-    template<unsigned Size>
-    treeBoundBox::treeBoundBox
-    (
-        const UList<point>& points,
-        const FixedList<label, Size>& indices
-    )
-        :
-        boundBox(points, indices, false)
-    {
-        // points may be empty, but a FixedList is never empty
-        if (points.empty())
-        {
-            WarningInFunction
-                << "cannot find bounding box for zero-sized pointField, "
-                << "returning zero" << endl;
 
-            return;
-        }
+ namespace Foam{
+template<unsigned N>
+treeBoundBox::treeBoundBox
+(
+    const UList<point>& points,
+    const FixedList<label, N>& indices
+)
+:
+    boundBox(points, indices, false)
+{
+    // points may be empty, but a FixedList is never empty
+    if (points.empty())
+    {
+        WarningInFunction
+            << "No bounding box for zero-sized pointField" << nl;
     }
 }
+
 // ************************************************************************* //
+
+ } // End namespace Foam

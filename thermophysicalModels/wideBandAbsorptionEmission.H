@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2015 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2018 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -24,6 +26,9 @@ License
 Class
     Foam::radiation::wideBandAbsorptionEmission
 
+Group
+    grpRadiationAbsorptionEmissionSubModels
+
 Description
 
     wideBandAbsorptionEmission radiation absorption and emission coefficients
@@ -37,11 +42,8 @@ Description
 
     The emission constant proportionality is specified per band (EhrrCoeff).
 
-    The coefficients for the species in the lookup table have to be specified
-    for use in moles x P [atm].i.e. (k[i] = species[i]*p*9.869231e-6).
-
-    The coefficients for CO and soot or any other added are multiplied by the
-    respective mass fraction being solved.
+    The coefficients for the species have to be specified for use in
+    moles x P [atm], i.e. (k[i] = species[i]*p*9.869231e-6).
 
     The look Up table file should be in the constant directory.
 
@@ -104,7 +106,7 @@ SourceFiles
 
 #include "interpolationLookUpTable.H"
 #include "absorptionEmissionModel.H"
-#include "HashTable.T.H"
+#include "HashTable.H"
 #include "absorptionCoeffs.H"
 #include "fluidThermo.H"
 
@@ -156,8 +158,8 @@ private:
         //- Proportion of the heat released rate emitted
         FixedList<scalar, maxBands_> iEhrrCoeffs_;
 
-        //- Lookup table of species related to ft
-        mutable interpolationLookUpTable<scalar> lookUpTable_;
+        //- Look-up table of species related to ft
+        mutable autoPtr<interpolationLookUpTable<scalar>> lookUpTablePtr_;
 
         //- Thermo package
         const fluidThermo& thermo_;
@@ -190,24 +192,14 @@ public:
 
     // Member Functions
 
-        // Access
+        //- Absorption coefficient for continuous phase
+        tmp<volScalarField> aCont(const label bandi = 0) const;
 
-            // Absorption coefficient
+        //- Emission coefficient for continuous phase
+        tmp<volScalarField> eCont(const label bandi = 0) const;
 
-                //- Absorption coefficient for continuous phase
-                tmp<volScalarField> aCont(const label bandI = 0) const;
-
-
-            // Emission coefficient
-
-                //- Emission coefficient for continuous phase
-                tmp<volScalarField> eCont(const label bandI = 0) const;
-
-
-            // Emission contribution
-
-                //- Emission contribution for continuous phase
-                tmp<volScalarField> ECont(const label bandI = 0) const;
+        //- Emission contribution for continuous phase
+        tmp<volScalarField> ECont(const label bandi = 0) const;
 
 
         inline bool isGrey() const
@@ -222,15 +214,15 @@ public:
         }
 
         //- Lower and upper limit of band i
-        inline const Vector2D<scalar>& bands(const label i) const
+        inline const Vector2D<scalar>& bands(const label bandi) const
         {
-            return iBands_[i];
+            return iBands_[bandi];
         }
 
         //- Correct rays
         void correct
         (
-            volScalarField& a_,
+            volScalarField& a,
             PtrList<volScalarField>& aLambda
         ) const;
 };

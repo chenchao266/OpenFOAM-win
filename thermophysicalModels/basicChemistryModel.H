@@ -1,9 +1,11 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -22,24 +24,23 @@ License
     along with OpenFOAM.  If not, see <http://www.gnu.org/licenses/>.
 
 Class
-    Foam::basicChemistryModel
+    Foam::BasicChemistryModel
 
 Description
-    Base class for chemistry models
+    Basic chemistry model templated on thermodynamics
 
 SourceFiles
-    basicChemistryModelI.H
-    basicChemistryModel.C
+    BasicChemistryModelI.H
+    BasicChemistryModel.C
 
 \*---------------------------------------------------------------------------*/
 
-#ifndef basicChemistryModel_H
-#define basicChemistryModel_H
+#ifndef BasicChemistryModel_H
+#define BasicChemistryModel_H
 
-#include "IOdictionary.H"
-#include "Switch.H"
-#include "scalarField.H"
-#include "volFields.H"
+#include "basicChemistryModel2.H"
+#include "autoPtr.H"
+#include "runTimeSelectionTables.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -50,132 +51,79 @@ namespace Foam
 class fvMesh;
 
 /*---------------------------------------------------------------------------*\
-                   class basicChemistryModel Declaration
+                     class BasicChemistryModel Declaration
 \*---------------------------------------------------------------------------*/
 
-class basicChemistryModel
+template<class ReactionThermo>
+class BasicChemistryModel
 :
-    public IOdictionary
+    public basicChemistryModel
 {
     // Private Member Functions
 
         //- Construct as copy (not implemented)
-        basicChemistryModel(const basicChemistryModel&);
+        BasicChemistryModel
+        (
+            const BasicChemistryModel<ReactionThermo>&
+        ) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const basicChemistryModel&);
+        //- No copy assignment
+        void operator=(const BasicChemistryModel<ReactionThermo>&) = delete;
 
 
 protected:
 
     // Protected data
 
-        //- Reference to the mesh database
-        const fvMesh& mesh_;
-
-        //- Chemistry activation switch
-        Switch chemistry_;
-
-        //- Initial chemical time step
-        const scalar deltaTChemIni_;
-
-        //- Latest estimation of integration step
-        volScalarField::Internal deltaTChem_;
-
-
-    // Protected Member Functions
-
-        //- Return non-const access to the latest estimation of integration
-        //  step, e.g. for multi-chemistry model
-        inline volScalarField::Internal& deltaTChem();
-
-        //- Correct function - updates due to mesh changes
-        void correct();
+        //- Thermo
+        ReactionThermo& thermo_;
 
 
 public:
 
     //- Runtime type information
-    TypeName("basicChemistryModel");
+    TypeName("BasicChemistryModel");
+
+
+    //- Thermo type
+    typedef ReactionThermo reactionThermo;
+
+
+    //- Declare run-time constructor selection tables
+    declareRunTimeSelectionTable
+    (
+        autoPtr,
+        BasicChemistryModel,
+        thermo,
+        (ReactionThermo& thermo),
+        (thermo)
+    );
 
 
     // Constructors
 
-        //- Construct from mesh
-        basicChemistryModel(const fvMesh& mesh, const word& phaseName);
+        //- Construct from thermo
+        BasicChemistryModel(ReactionThermo& thermo);
 
 
-    // Selectors
-
-        //- Generic New for each of the related chemistry model
-        template<class Thermo>
-        static autoPtr<Thermo> New(const fvMesh& mesh, const word& phaseName);
+    //- Selector
+    static autoPtr<BasicChemistryModel<ReactionThermo>> New
+    (
+        ReactionThermo& thermo
+    );
 
 
     //- Destructor
-    virtual ~basicChemistryModel();
+    virtual ~BasicChemistryModel();
 
 
     // Member Functions
 
-        //- Return const access to the mesh database
-        inline const fvMesh& mesh() const;
+        //- Return access to the thermo package
+        inline ReactionThermo& thermo();
 
-        //- Chemistry activation switch
-        inline Switch chemistry() const;
-
-        //- The number of species
-        virtual label nSpecie() const = 0;
-
-        //- The number of reactions
-        virtual label nReaction() const = 0;
-
-        //- Return the latest estimation of integration step
-        inline const volScalarField::Internal& deltaTChem() const;
-
-
-        // Functions to be derived in derived classes
-
-            // Fields
-
-                //- Return const access to chemical source terms [kg/m3/s]
-                virtual const volScalarField::Internal& RR
-                (
-                    const label i
-                ) const = 0;
-
-                //- Return access to chemical source terms [kg/m3/s]
-                virtual volScalarField::Internal& RR
-                (
-                    const label i
-                ) = 0;
-
-                //- Return reaction rate of the speciei in reactioni
-                virtual tmp<volScalarField::Internal> calculateRR
-                (
-                    const label reactioni,
-                    const label speciei
-                ) const = 0;
-
-
-            // Chemistry solution
-
-                //- Calculates the reaction rates
-                virtual void calculate() = 0;
-
-                //- Solve the reaction system for the given time step
-                //  and return the characteristic time
-                virtual scalar solve(const scalar deltaT) = 0;
-
-                //- Solve the reaction system for the given time step
-                //  and return the characteristic time
-                virtual scalar solve(const scalarField& deltaT) = 0;
-
-                //- Return the chemical time scale
-                virtual tmp<volScalarField> tc() const = 0;
-
-                //- Return the heat release rate [kg/m/s3]
-                virtual tmp<volScalarField> Qdot() const = 0;
+        //- Return const access to the thermo package
+        inline const ReactionThermo& thermo() const;
 };
 
 
@@ -185,11 +133,11 @@ public:
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
-#include "basicChemistryModelI.H"
-
 #ifdef NoRepository
-    #include "basicChemistryModelTemplates.C"
+    #include "BasicChemistryModel.C"
 #endif
+
+#include "BasicChemistryModelI.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 

@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2015 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2019-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -24,171 +27,204 @@ License
 \*---------------------------------------------------------------------------*/
 
 #include "PCG.H"
+#include "PrecisionAdaptor.H"
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
-using namespace Foam;
+
 namespace Foam
 {
     defineTypeNameAndDebug(PCG, 0);
 
     lduMatrix::solver::addsymMatrixConstructorToTable<PCG>
         addPCGSymMatrixConstructorToTable_;
-}
 
 
-// * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
+    // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
-PCG::PCG
-(
-    const word& fieldName,
-    const lduMatrix& matrix,
-    const FieldField<Field, scalar>& interfaceBouCoeffs,
-    const FieldField<Field, scalar>& interfaceIntCoeffs,
-    const lduInterfaceFieldPtrsList& interfaces,
-    const dictionary& solverControls
-) :    lduMatrix::solver
+    PCG::PCG
     (
-        fieldName,
-        matrix,
-        interfaceBouCoeffs,
-        interfaceIntCoeffs,
-        interfaces,
-        solverControls
+        const word& fieldName,
+        const lduMatrix& matrix,
+        const FieldField<Field, scalar>& interfaceBouCoeffs,
+        const FieldField<Field, scalar>& interfaceIntCoeffs,
+        const lduInterfaceFieldPtrsList& interfaces,
+        const dictionary& solverControls
     )
-{}
-
-
-// * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
-
-solverPerformance PCG::solve
-(
-    scalarField& psi,
-    const scalarField& source,
-    const direction cmpt
-) const
-{
-    // --- Setup class containing solver performance data
-    solverPerformance solverPerf
-    (
-        lduMatrix::preconditioner::getName(controlDict_) + typeName,
-        fieldName_
-    );
-
-    label nCells = psi.size();
-
-    scalar* __restrict__ psiPtr = psi.begin();
-
-    scalarField pA(nCells);
-    scalar* __restrict__ pAPtr = pA.begin();
-
-    scalarField wA(nCells);
-    scalar* __restrict__ wAPtr = wA.begin();
-
-    scalar wArA = solverPerf.great_;
-    scalar wArAold = wArA;
-
-    // --- Calculate A.psi
-    matrix_.Amul(wA, psi, interfaceBouCoeffs_, interfaces_, cmpt);
-
-    // --- Calculate initial residual field
-    scalarField rA(source - wA);
-    scalar* __restrict__ rAPtr = rA.begin();
-
-    // --- Calculate normalisation factor
-    scalar normFactor = this->normFactor(psi, source, wA, pA);
-
-    if (lduMatrix::debug >= 2)
-    {
-        Info<< "   Normalisation factor = " << normFactor << endl;
-    }
-
-    // --- Calculate normalised residual norm
-    solverPerf.initialResidual() =
-        gSumMag(rA, matrix().mesh().comm())
-       /normFactor;
-    solverPerf.finalResidual() = solverPerf.initialResidual();
-
-    // --- Check convergence, solve if not converged
-    if
-    (
-        minIter_ > 0
-     || !solverPerf.checkConvergence(tolerance_, relTol_)
-    )
-    {
-        // --- Select and construct the preconditioner
-        autoPtr<lduMatrix::preconditioner> preconPtr =
-        lduMatrix::preconditioner::New
+        :
+        lduMatrix::solver
         (
-            *this,
-            controlDict_
+            fieldName,
+            matrix,
+            interfaceBouCoeffs,
+            interfaceIntCoeffs,
+            interfaces,
+            solverControls
+        )
+    {}
+
+
+    // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
+
+    solverPerformance PCG::scalarSolve
+    (
+        solveScalarField& psi,
+        const solveScalarField& source,
+        const direction cmpt
+    ) const
+    {
+        // --- Setup class containing solver performance data
+        solverPerformance solverPerf
+        (
+            lduMatrix::preconditioner::getName(controlDict_) + typeName,
+            fieldName_
         );
 
-        // --- Solver iteration
-        do
+        label nCells = psi.size();
+
+        solveScalar* __restrict__ psiPtr = psi.begin();
+
+        solveScalarField pA(nCells);
+        solveScalar* __restrict__ pAPtr = pA.begin();
+
+        solveScalarField wA(nCells);
+        solveScalar* __restrict__ wAPtr = wA.begin();
+
+        solveScalar wArA = solverPerf.great_;
+        solveScalar wArAold = wArA;
+
+        // --- Calculate A.psi
+        matrix_.Amul(wA, psi, interfaceBouCoeffs_, interfaces_, cmpt);
+
+        // --- Calculate initial residual field
+        solveScalarField rA(source - wA);
+        solveScalar* __restrict__ rAPtr = rA.begin();
+
+        matrix().setResidualField
+        (
+            ConstPrecisionAdaptor<scalar, solveScalar>(rA)(),
+            fieldName_,
+            true
+        );
+
+        // --- Calculate normalisation factor
+        solveScalar normFactor = this->normFactor(psi, source, wA, pA);
+
+        if ((log_ >= 2) || (lduMatrix::debug >= 2))
         {
-            // --- Store previous wArA
-            wArAold = wArA;
+            Info << "   Normalisation factor = " << normFactor << endl;
+        }
 
-            // --- Precondition residual
-            preconPtr->precondition(wA, rA, cmpt);
+        // --- Calculate normalised residual norm
+        solverPerf.initialResidual() =
+            gSumMag(rA, matrix().mesh().comm())
+            / normFactor;
+        solverPerf.finalResidual() = solverPerf.initialResidual();
 
-            // --- Update search directions:
-            wArA = gSumProd(wA, rA, matrix().mesh().comm());
-
-            if (solverPerf.nIterations() == 0)
-            {
-                for (label cell=0; cell<nCells; cell++)
-                {
-                    pAPtr[cell] = wAPtr[cell];
-                }
-            }
-            else
-            {
-                scalar beta = wArA/wArAold;
-
-                for (label cell=0; cell<nCells; cell++)
-                {
-                    pAPtr[cell] = wAPtr[cell] + beta*pAPtr[cell];
-                }
-            }
-
-
-            // --- Update preconditioned residual
-            matrix_.Amul(wA, pA, interfaceBouCoeffs_, interfaces_, cmpt);
-
-            scalar wApA = gSumProd(wA, pA, matrix().mesh().comm());
-
-
-            // --- Test for singularity
-            if (solverPerf.checkSingularity(mag(wApA)/normFactor)) break;
-
-
-            // --- Update solution and residual:
-
-            scalar alpha = wArA/wApA;
-
-            for (label cell=0; cell<nCells; cell++)
-            {
-                psiPtr[cell] += alpha*pAPtr[cell];
-                rAPtr[cell] -= alpha*wAPtr[cell];
-            }
-
-            solverPerf.finalResidual() =
-                gSumMag(rA, matrix().mesh().comm())
-               /normFactor;
-
-        } while
-        (
+        // --- Check convergence, solve if not converged
+        if
             (
-                solverPerf.nIterations()++ < maxIter_
-            && !solverPerf.checkConvergence(tolerance_, relTol_)
-            )
-         || solverPerf.nIterations() < minIter_
+                minIter_ > 0
+                || !solverPerf.checkConvergence(tolerance_, relTol_, log_)
+                )
+        {
+            // --- Select and construct the preconditioner
+            autoPtr<lduMatrix::preconditioner> preconPtr =
+                lduMatrix::preconditioner::New
+                (
+                    *this,
+                    controlDict_
+                );
+
+            // --- Solver iteration
+            do
+            {
+                // --- Store previous wArA
+                wArAold = wArA;
+
+                // --- Precondition residual
+                preconPtr->precondition(wA, rA, cmpt);
+
+                // --- Update search directions:
+                wArA = gSumProd(wA, rA, matrix().mesh().comm());
+
+                if (solverPerf.nIterations() == 0)
+                {
+                    for (label cell = 0; cell < nCells; cell++)
+                    {
+                        pAPtr[cell] = wAPtr[cell];
+                    }
+                }
+                else
+                {
+                    solveScalar beta = wArA / wArAold;
+
+                    for (label cell = 0; cell < nCells; cell++)
+                    {
+                        pAPtr[cell] = wAPtr[cell] + beta * pAPtr[cell];
+                    }
+                }
+
+
+                // --- Update preconditioned residual
+                matrix_.Amul(wA, pA, interfaceBouCoeffs_, interfaces_, cmpt);
+
+                solveScalar wApA = gSumProd(wA, pA, matrix().mesh().comm());
+
+                // --- Test for singularity
+                if (solverPerf.checkSingularity(mag(wApA) / normFactor)) break;
+
+
+                // --- Update solution and residual:
+
+                solveScalar alpha = wArA / wApA;
+
+                for (label cell = 0; cell < nCells; cell++)
+                {
+                    psiPtr[cell] += alpha * pAPtr[cell];
+                    rAPtr[cell] -= alpha * wAPtr[cell];
+                }
+
+                solverPerf.finalResidual() =
+                    gSumMag(rA, matrix().mesh().comm())
+                    / normFactor;
+
+            } while
+                (
+                (
+                    ++solverPerf.nIterations() < maxIter_
+                    && !solverPerf.checkConvergence(tolerance_, relTol_, log_)
+                    )
+                    || solverPerf.nIterations() < minIter_
+                    );
+        }
+
+        matrix().setResidualField
+        (
+            ConstPrecisionAdaptor<scalar, solveScalar>(rA)(),
+            fieldName_,
+            false
+        );
+
+        return solverPerf;
+    }
+
+
+
+    solverPerformance PCG::solve
+    (
+        scalarField& psi_s,
+        const scalarField& source,
+        const direction cmpt
+    ) const
+    {
+        PrecisionAdaptor<solveScalar, scalar> tpsi(psi_s);
+        return scalarSolve
+        (
+            tpsi.ref(),
+            ConstPrecisionAdaptor<solveScalar, scalar>(source)(),
+            cmpt
         );
     }
 
-    return solverPerf;
 }
-
-
 // ************************************************************************* //

@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -37,13 +40,14 @@ SourceFiles
 
 #ifndef constAnIsoSolidTransport_H
 #define constAnIsoSolidTransport_H
-#include "vector.H"
+
+#include "vector2.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 namespace Foam
 {
-
+// Forward Declarations
 template<class Thermo> class constAnIsoSolidTransport;
 
 template<class Thermo>
@@ -70,7 +74,7 @@ class constAnIsoSolidTransport
 :
     public Thermo
 {
-    // Private data
+    // Private Data
 
         //- Constant anisotropic thermal conductivity.
         vector kappa_;
@@ -84,6 +88,9 @@ class constAnIsoSolidTransport
 
 public:
 
+    // Generated Methods: copy construct, copy assignment
+
+
     // Constructors
 
         //- Construct as named copy
@@ -94,7 +101,7 @@ public:
         );
 
         //- Construct from dictionary
-        constAnIsoSolidTransport(const dictionary&);
+        explicit constAnIsoSolidTransport(const dictionary& dict);
 
         // Selector from dictionary
         inline static autoPtr<constAnIsoSolidTransport> New
@@ -103,7 +110,7 @@ public:
         );
 
 
-    // Member functions
+    // Member Functions
 
         //- Return the instantiated type name
         static word typeName()
@@ -131,13 +138,12 @@ public:
         void write(Ostream& os) const;
 
 
-    // Member operators
+    // Member Operators
 
-        inline void operator=(const constAnIsoSolidTransport&);
         inline void operator+=(const constAnIsoSolidTransport&);
 
 
-    // Friend operators
+    // Friend Operators
 
         friend constAnIsoSolidTransport operator* <Thermo>
         (
@@ -146,7 +152,7 @@ public:
         );
 
 
-    // Ostream Operator
+    // IOstream Operators
 
         friend Ostream& operator<< <Thermo>
         (

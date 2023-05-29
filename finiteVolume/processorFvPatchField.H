@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2019 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -86,10 +89,11 @@ class processorFvPatchField
             mutable label outstandingRecvRequest_;
 
             //- Scalar send buffer
-            mutable Field<scalar> scalarSendBuf_;
+            mutable solveScalarField scalarSendBuf_;
 
             //- Scalar receive buffer
-            mutable Field<scalar> scalarReceiveBuf_;
+            mutable solveScalarField scalarReceiveBuf_;
+
 
 public:
 
@@ -164,7 +168,7 @@ public:
 
 
     //- Destructor
-    ~processorFvPatchField();
+    ~processorFvPatchField() = default;
 
 
     // Member functions
@@ -208,8 +212,11 @@ public:
             //- Initialise neighbour matrix update
             virtual void initInterfaceMatrixUpdate
             (
-                scalarField& result,
-                const scalarField& psiInternal,
+                solveScalarField& result,
+                const bool add,
+                const lduAddressing& lduAddr,
+                const label patchId,
+                const solveScalarField& psiInternal,
                 const scalarField& coeffs,
                 const direction cmpt,
                 const Pstream::commsTypes commsType
@@ -218,8 +225,11 @@ public:
             //- Update result field based on interface functionality
             virtual void updateInterfaceMatrix
             (
-                scalarField& result,
-                const scalarField& psiInternal,
+                solveScalarField& result,
+                const bool add,
+                const lduAddressing& lduAddr,
+                const label patchId,
+                const solveScalarField& psiInternal,
                 const scalarField& coeffs,
                 const direction cmpt,
                 const Pstream::commsTypes commsType
@@ -229,6 +239,9 @@ public:
             virtual void initInterfaceMatrixUpdate
             (
                 Field<Type>& result,
+                const bool add,
+                const lduAddressing& lduAddr,
+                const label patchId,
                 const Field<Type>& psiInternal,
                 const scalarField& coeffs,
                 const Pstream::commsTypes commsType
@@ -238,10 +251,14 @@ public:
             virtual void updateInterfaceMatrix
             (
                 Field<Type>& result,
+                const bool add,
+                const lduAddressing& lduAddr,
+                const label patchId,
                 const Field<Type>& psiInternal,
                 const scalarField& coeffs,
                 const Pstream::commsTypes commsType
             ) const;
+            
 
 
         //- Processor coupled interface functions
@@ -258,13 +275,13 @@ public:
                 return procPatch_.myProcNo();
             }
 
-            //- Return neigbour processor number
+            //- Return neighbour processor number
             virtual int neighbProcNo() const
             {
                 return procPatch_.neighbProcNo();
             }
 
-            //- Does the patch field perform the transfromation
+            //- Does the patch field perform the transformation
             virtual bool doTransform() const
             {
                 return !(procPatch_.parallel() || pTraits<Type>::rank == 0);

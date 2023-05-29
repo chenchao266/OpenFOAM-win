@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2019-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -46,11 +49,20 @@ turbulentTemperatureCoupledBaffleMixedFvPatchScalarField
 )
 :
     mixedFvPatchScalarField(p, iF),
-    temperatureCoupledBase(patch(), "undefined", "undefined", "undefined-K"),
-    TnbrName_("undefined-Tnbr"),
-    thicknessLayers_(0),
-    kappaLayers_(0),
-    contactRes_(0)
+    temperatureCoupledBase
+    (
+        patch(),
+        "undefined",
+        "undefined",
+        "undefined-K",
+        "undefined-alpha"
+    ),
+    mappedPatchFieldBase<scalar>
+    (
+        mappedPatchFieldBase<scalar>::mapper(p, iF),
+        *this
+    ),
+    TnbrName_("undefined-Tnbr")
 {
     this->refValue() = 0.0;
     this->refGrad() = 0.0;
@@ -69,10 +81,17 @@ turbulentTemperatureCoupledBaffleMixedFvPatchScalarField
 :
     mixedFvPatchScalarField(ptf, p, iF, mapper),
     temperatureCoupledBase(patch(), ptf),
+    mappedPatchFieldBase<scalar>
+    (
+        mappedPatchFieldBase<scalar>::mapper(p, iF),
+        *this,
+        ptf
+    ),
     TnbrName_(ptf.TnbrName_),
     thicknessLayers_(ptf.thicknessLayers_),
+    thicknessLayer_(ptf.thicknessLayer_.clone(p.patch())),
     kappaLayers_(ptf.kappaLayers_),
-    contactRes_(ptf.contactRes_)
+    kappaLayer_(ptf.kappaLayer_.clone(p.patch()))
 {}
 
 
@@ -86,10 +105,13 @@ turbulentTemperatureCoupledBaffleMixedFvPatchScalarField
 :
     mixedFvPatchScalarField(p, iF),
     temperatureCoupledBase(patch(), dict),
-    TnbrName_(dict.lookup("Tnbr")),
-    thicknessLayers_(0),
-    kappaLayers_(0),
-    contactRes_(0.0)
+    mappedPatchFieldBase<scalar>
+    (
+        mappedPatchFieldBase<scalar>::mapper(p, iF),
+        *this,
+        dict
+    ),
+    TnbrName_(dict.get<word>("Tnbr"))
 {
     if (!isA<mappedPatchBase>(this->patch().patch()))
     {
@@ -101,21 +123,32 @@ turbulentTemperatureCoupledBaffleMixedFvPatchScalarField
             << exit(FatalError);
     }
 
-    if (dict.found("thicknessLayers"))
-    {
-        dict.lookup("thicknessLayers") >> thicknessLayers_;
-        dict.lookup("kappaLayers") >> kappaLayers_;
+    WarningInFunction
+        << "This BC has been superseded by "
+        << "compressible::turbulentTemperatureRadCoupledMixed "
+        << "which has more functionalities and it can handle "
+        << "the assemble coupled option for energy. "
+        << endl;
 
-        if (thicknessLayers_.size() > 0)
-        {
-            // Calculate effective thermal resistance by harmonic averaging
-            forAll(thicknessLayers_, iLayer)
-            {
-                contactRes_ += thicknessLayers_[iLayer]/kappaLayers_[iLayer];
-            }
-            contactRes_ = 1.0/contactRes_;
-        }
+    // Read list of layers
+    if (dict.readIfPresent("thicknessLayers", thicknessLayers_))
+    {
+        dict.readEntry("kappaLayers", kappaLayers_);
     }
+    // Read single additional PatchFunction1
+    thicknessLayer_ = PatchFunction1<scalar>::NewIfPresent
+    (
+        p.patch(),
+        "thicknessLayer",
+        dict
+    );
+    kappaLayer_ = PatchFunction1<scalar>::NewIfPresent
+    (
+        p.patch(),
+        "kappaLayer",
+        dict
+    );
+
 
     fvPatchScalarField::operator=(scalarField("value", dict, p.size()));
 
@@ -133,6 +166,20 @@ turbulentTemperatureCoupledBaffleMixedFvPatchScalarField
         refGrad() = 0.0;
         valueFraction() = 1.0;
     }
+
+// This blocks (crashes) with more than two worlds!
+//
+///    // Store patch value as initial guess when running in database mode
+///    mappedPatchFieldBase<scalar>::initRetrieveField
+///    (
+///        this->internalField().name(),
+///        *this
+///    );
+///    mappedPatchFieldBase<scalar>::initRetrieveField
+///    (
+///        this->internalField().name() + "_weights",
+///        this->patch().deltaCoeffs()
+///    );
 }
 
 
@@ -145,14 +192,125 @@ turbulentTemperatureCoupledBaffleMixedFvPatchScalarField
 :
     mixedFvPatchScalarField(wtcsf, iF),
     temperatureCoupledBase(patch(), wtcsf),
+    mappedPatchFieldBase<scalar>
+    (
+        mappedPatchFieldBase<scalar>::mapper(patch(), iF),
+        *this,
+        wtcsf
+    ),
     TnbrName_(wtcsf.TnbrName_),
     thicknessLayers_(wtcsf.thicknessLayers_),
+    thicknessLayer_(wtcsf.thicknessLayer_.clone(patch().patch())),
     kappaLayers_(wtcsf.kappaLayers_),
-    contactRes_(wtcsf.contactRes_)
+    kappaLayer_(wtcsf.kappaLayer_.clone(patch().patch()))
+{}
+
+
+turbulentTemperatureCoupledBaffleMixedFvPatchScalarField::
+turbulentTemperatureCoupledBaffleMixedFvPatchScalarField
+(
+    const turbulentTemperatureCoupledBaffleMixedFvPatchScalarField& wtcsf
+)
+:
+    mixedFvPatchScalarField(wtcsf),
+    temperatureCoupledBase(patch(), wtcsf),
+    mappedPatchFieldBase<scalar>
+    (
+        mappedPatchFieldBase<scalar>::mapper(patch(), wtcsf.internalField()),
+        *this,
+        wtcsf
+    ),
+    TnbrName_(wtcsf.TnbrName_),
+    thicknessLayers_(wtcsf.thicknessLayers_),
+    thicknessLayer_(wtcsf.thicknessLayer_.clone(patch().patch())),
+    kappaLayers_(wtcsf.kappaLayers_),
+    kappaLayer_(wtcsf.kappaLayer_.clone(patch().patch()))
 {}
 
 
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
+
+void turbulentTemperatureCoupledBaffleMixedFvPatchScalarField::autoMap
+(
+    const fvPatchFieldMapper& mapper
+)
+{
+    mixedFvPatchScalarField::autoMap(mapper);
+    temperatureCoupledBase::autoMap(mapper);
+    //mappedPatchFieldBase<scalar>::autoMap(mapper);
+    if (thicknessLayer_)
+    {
+        thicknessLayer_().autoMap(mapper);
+        kappaLayer_().autoMap(mapper);
+    }
+}
+
+
+void turbulentTemperatureCoupledBaffleMixedFvPatchScalarField::rmap
+(
+    const fvPatchField<scalar>& ptf,
+    const labelList& addr
+)
+{
+    mixedFvPatchScalarField::rmap(ptf, addr);
+
+    const turbulentTemperatureCoupledBaffleMixedFvPatchScalarField& tiptf =
+        refCast
+        <
+            const turbulentTemperatureCoupledBaffleMixedFvPatchScalarField
+        >(ptf);
+
+    temperatureCoupledBase::rmap(tiptf, addr);
+    //mappedPatchFieldBase<scalar>::rmap(ptf, addr);
+    if (thicknessLayer_)
+    {
+        thicknessLayer_().rmap(tiptf.thicknessLayer_(), addr);
+        kappaLayer_().rmap(tiptf.kappaLayer_(), addr);
+    }
+}
+
+
+tmp<Foam::scalarField>
+turbulentTemperatureCoupledBaffleMixedFvPatchScalarField::kappa
+(
+    const scalarField& Tp
+) const
+{
+    // Get kappa from relevant thermo
+    tmp<scalarField> tk(temperatureCoupledBase::kappa(Tp));
+
+    // Optionally modify with explicit resistance
+    if (thicknessLayer_ || thicknessLayers_.size())
+    {
+        scalarField KDelta(tk*patch().deltaCoeffs());
+
+        // Harmonic averaging of kappa*deltaCoeffs
+        {
+            KDelta = 1.0/KDelta;
+            if (thicknessLayer_)
+            {
+                const scalar t = db().time().timeOutputValue();
+                KDelta +=
+                    thicknessLayer_().value(t)
+                   /kappaLayer_().value(t);
+            }
+            if (thicknessLayers_.size())
+            {
+                forAll(thicknessLayers_, iLayer)
+                {
+                    KDelta += thicknessLayers_[iLayer]/kappaLayers_[iLayer];
+                }
+            }
+            KDelta = 1.0/KDelta;
+        }
+
+        // Update kappa from KDelta
+        tk = KDelta/patch().deltaCoeffs();
+    }
+
+    return tk;
+}
+
 
 void turbulentTemperatureCoupledBaffleMixedFvPatchScalarField::updateCoeffs()
 {
@@ -163,51 +321,57 @@ void turbulentTemperatureCoupledBaffleMixedFvPatchScalarField::updateCoeffs()
 
     // Since we're inside initEvaluate/evaluate there might be processor
     // comms underway. Change the tag we use.
-    int oldTag = UPstream::msgType();
+    const int oldTag = UPstream::msgType();
     UPstream::msgType() = oldTag+1;
 
     // Get the coupling information from the mappedPatchBase
     const mappedPatchBase& mpp =
-        refCast<const mappedPatchBase>(patch().patch());
-    const polyMesh& nbrMesh = mpp.sampleMesh();
-    const label samplePatchi = mpp.samplePolyPatch().index();
-    const fvPatch& nbrPatch =
-        refCast<const fvMesh>(nbrMesh).boundary()[samplePatchi];
-
-    // Calculate the temperature by harmonic averaging
-    // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
-    const turbulentTemperatureCoupledBaffleMixedFvPatchScalarField& nbrField =
-    refCast
-    <
-        const turbulentTemperatureCoupledBaffleMixedFvPatchScalarField
-    >
-    (
-        nbrPatch.lookupPatchField<volScalarField, scalar>
+        mappedPatchFieldBase<scalar>::mapper
         (
-            TnbrName_
-        )
-    );
+            patch(),
+            this->internalField()
+        );
 
-    // Swap to obtain full local values of neighbour internal field
-    tmp<scalarField> nbrIntFld(new scalarField(nbrField.size(), 0.0));
-    tmp<scalarField> nbrKDelta(new scalarField(nbrField.size(), 0.0));
+    const scalarField& Tp = *this;
+    const scalarField kappaTp(kappa(Tp));
+    const tmp<scalarField> myKDelta = kappaTp*patch().deltaCoeffs();
 
-    if (contactRes_ == 0.0)
+
+    scalarField nbrIntFld;
+    scalarField nbrKDelta;
+    if (mpp.sameWorld())
     {
-        nbrIntFld.ref() = nbrField.patchInternalField();
-        nbrKDelta.ref() = nbrField.kappa(nbrField)*nbrPatch.deltaCoeffs();
+        // Same world so lookup
+        const auto& nbrMesh = refCast<const fvMesh>(mpp.sampleMesh());
+        const label nbrPatchID = mpp.samplePolyPatch().index();
+        const auto& nbrPatch = nbrMesh.boundary()[nbrPatchID];
+
+        const turbulentTemperatureCoupledBaffleMixedFvPatchScalarField&
+        nbrField =
+        refCast
+        <
+        const turbulentTemperatureCoupledBaffleMixedFvPatchScalarField
+        >
+        (
+            nbrPatch.lookupPatchField<volScalarField, scalar>
+            (
+                TnbrName_
+            )
+        );
+
+        // Swap to obtain full local values of neighbour K*delta
+        nbrIntFld = nbrField.patchInternalField();
+        nbrKDelta = nbrField.kappa(nbrField)*nbrPatch.deltaCoeffs();
     }
     else
     {
-        nbrIntFld.ref() = nbrField;
-        nbrKDelta.ref() = contactRes_;
+        // Different world so use my region,patch. Distribution below will
+        // do the reordering.
+        nbrIntFld = patchInternalField();
+        nbrKDelta = myKDelta.ref();
     }
-
-    mpp.distribute(nbrIntFld.ref());
-    mpp.distribute(nbrKDelta.ref());
-
-    tmp<scalarField> myKDelta = kappa(*this)*patch().deltaCoeffs();
+    distribute(this->internalField().name() + "_value", nbrIntFld);
+    distribute(this->internalField().name() + "_weights", nbrKDelta);
 
 
     // Both sides agree on
@@ -225,21 +389,21 @@ void turbulentTemperatureCoupledBaffleMixedFvPatchScalarField::updateCoeffs()
     //    - refValue = neighbour value
     //    - mixFraction = nbrKDelta / (nbrKDelta + myKDelta())
 
-    this->refValue() = nbrIntFld();
+    this->refValue() = nbrIntFld;
     this->refGrad() = 0.0;
-    this->valueFraction() = nbrKDelta()/(nbrKDelta() + myKDelta());
+    this->valueFraction() = nbrKDelta/(nbrKDelta + myKDelta());
 
     mixedFvPatchScalarField::updateCoeffs();
 
     if (debug)
     {
-        scalar Q = gSum(kappa(*this)*patch().magSf()*snGrad());
+        scalar Q = gSum(kappaTp*patch().magSf()*snGrad());
 
         Info<< patch().boundaryMesh().mesh().name() << ':'
             << patch().name() << ':'
             << this->internalField().name() << " <- "
-            << nbrMesh.name() << ':'
-            << nbrPatch.name() << ':'
+            << mpp.sampleRegion() << ':'
+            << mpp.samplePatch() << ':'
             << this->internalField().name() << " :"
             << " heat transfer rate:" << Q
             << " walltemperature "
@@ -254,18 +418,72 @@ void turbulentTemperatureCoupledBaffleMixedFvPatchScalarField::updateCoeffs()
 }
 
 
+void turbulentTemperatureCoupledBaffleMixedFvPatchScalarField::manipulateMatrix
+(
+    fvMatrix<scalar>& m,
+    const label iMatrix,
+    const direction cmpt
+)
+{
+    FatalErrorInFunction
+        << "This BC does not support energy coupling "
+        << "Use compressible::turbulentTemperatureRadCoupledMixed "
+        << "which has more functionalities and it can handle "
+        << "the assemble coupled option for energy. "
+        << abort(FatalError);
+}
+
+
+tmp<Field<scalar>>
+turbulentTemperatureCoupledBaffleMixedFvPatchScalarField::coeffs
+(
+    fvMatrix<scalar>& matrix,
+    const Field<scalar>& coeffs,
+    const label mat
+) const
+{
+    FatalErrorInFunction
+        << "This BC does not support energy coupling "
+        << "Use compressible::turbulentTemperatureRadCoupledMixed "
+        << "which has more functionalities and it can handle "
+        << "the assemble coupled option for energy. "
+        << abort(FatalError);
+    /*
+    const label index(this->patch().index());
+
+    const label nSubFaces(matrix.lduMesh().cellBoundMap()[mat][index].size());
+
+    Field<scalar> mapCoeffs(nSubFaces, Zero);
+
+    label subFaceI = 0;
+    forAll(*this, faceI)
+    {
+
+    }
+    */
+    return tmp<Field<scalar>>(new Field<scalar>());
+}
+
+
 void turbulentTemperatureCoupledBaffleMixedFvPatchScalarField::write
 (
     Ostream& os
 ) const
 {
     mixedFvPatchScalarField::write(os);
-    os.writeKeyword("Tnbr")<< TnbrName_
-        << token::END_STATEMENT << nl;
-    thicknessLayers_.writeEntry("thicknessLayers", os);
-    kappaLayers_.writeEntry("kappaLayers", os);
-
+    os.writeEntry("Tnbr", TnbrName_);
+    if (thicknessLayer_)
+    {
+        thicknessLayer_().writeData(os);
+        kappaLayer_().writeData(os);
+    }
+    if (thicknessLayers_.size())
+    {
+        thicknessLayers_.writeEntry("thicknessLayers", os);
+        kappaLayers_.writeEntry("kappaLayers", os);
+    }
     temperatureCoupledBase::write(os);
+    mappedPatchFieldBase<scalar>::write(os);
 }
 
 

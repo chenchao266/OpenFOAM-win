@@ -1,9 +1,11 @@
-﻿/*---------------------------------------------------------------------------*\
+/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -23,18 +25,8 @@ License
 
 \*---------------------------------------------------------------------------*/
 
-//#include "inhomogeneousMixture.H"
+#include "inhomogeneousMixture.H"
 #include "fvMesh.H"
-
-// * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
-
-template<class ThermoType>
-const char* Foam::inhomogeneousMixture<ThermoType>::specieNames_[2] =
-{
-    "ft",
-    "b"
-};
-
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
@@ -49,12 +41,12 @@ Foam::inhomogeneousMixture<ThermoType>::inhomogeneousMixture
     basicCombustionMixture
     (
         thermoDict,
-        speciesTable(nSpecies_, specieNames_),
+        speciesTable({"ft", "b"}),
         mesh,
         phaseName
     ),
 
-    stoicRatio_(thermoDict.lookup("stoichiometricAirFuelMassRatio")),
+    stoicRatio_("stoichiometricAirFuelMassRatio", dimless, thermoDict),
 
     fuel_(thermoDict.subDict("fuel")),
     oxidant_(thermoDict.subDict("oxidant")),
@@ -98,7 +90,7 @@ const ThermoType& Foam::inhomogeneousMixture<ThermoType>::mixture
 template<class ThermoType>
 void Foam::inhomogeneousMixture<ThermoType>::read(const dictionary& thermoDict)
 {
-    stoicRatio_ = thermoDict.lookup("stoichiometricAirFuelMassRatio");
+    thermoDict.readEntry("stoichiometricAirFuelMassRatio", stoicRatio_);
 
     fuel_ = ThermoType(thermoDict.subDict("fuel"));
     oxidant_ = ThermoType(thermoDict.subDict("oxidant"));

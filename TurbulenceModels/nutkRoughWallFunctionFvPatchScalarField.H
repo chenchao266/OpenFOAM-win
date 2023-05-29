@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016, 2019 OpenFOAM Foundation
+    Copyright (C) 2019-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -28,34 +31,41 @@ Group
     grpWallFunctions
 
 Description
-    This boundary condition provides a turbulent kinematic viscosity condition
-    when using wall functions for rough walls, based on turbulence kinetic
-    energy.  The condition manipulates the E parameter to account for roughness
-    effects.
+    This boundary condition provides a wall constraint on the turbulent
+    viscosity, i.e. \c nut, when using wall functions for rough walls,
+    based on the turbulent kinetic energy, i.e. \c k. The condition
+    manipulates the wall roughness parameter, i.e. \c E, to account
+    for roughness effects.
 
-    Parameter ranges
+    Parameter ranges:
     - roughness height = sand-grain roughness (0 for smooth walls)
     - roughness constant = 0.5-1.0
 
 Usage
-    \table
-        Property     | Description             | Required    | Default value
-        Ks           | sand-grain roughness height | yes     |
-        Cs           | roughness constant      | yes         |
-    \endtable
-
     Example of the boundary condition specification:
     \verbatim
     <patchName>
     {
+        // Mandatory entries (unmodifiable)
         type            nutkRoughWallFunction;
         Ks              uniform 0;
         Cs              uniform 0.5;
+
+        // Optional (inherited) entries
+        ...
     }
     \endverbatim
 
-See also
-    Foam::nutkRoughWallFunctionFvPatchScalarField
+    where the entries mean:
+    \table
+      Property    | Description                       | Type   | Req'd  | Dflt
+      type        | Type name: nutkRoughWallFunction  | word   | yes    | -
+      Ks          | Sand-grain roughness height  | scalarField | yes    | -
+      Cs          | Roughness constant           | scalarField | yes    | -
+    \endtable
+
+    The inherited entries are elaborated in:
+      - \link nutkWallFunctionFvPatchScalarField.H \endlink
 
 SourceFiles
     nutkRoughWallFunctionFvPatchScalarField.C
@@ -82,7 +92,7 @@ class nutkRoughWallFunctionFvPatchScalarField
 {
 protected:
 
-    // Protected data
+    // Protected Data
 
         //- Roughness height
         scalarField Ks_;
@@ -96,7 +106,7 @@ protected:
         //- Compute the roughness function
         virtual scalar fnRough(const scalar KsPlus, const scalar Cs) const;
 
-        //- Calculate the turbulence viscosity
+        //- Calculate the turbulent viscosity
         virtual tmp<scalarField> calcNut() const;
 
 
@@ -124,8 +134,8 @@ public:
         );
 
         //- Construct by mapping given
-        //  nutkRoughWallFunctionFvPatchScalarField
-        //  onto a new patch
+        //- nutkRoughWallFunctionFvPatchScalarField
+        //- onto a new patch
         nutkRoughWallFunctionFvPatchScalarField
         (
             const nutkRoughWallFunctionFvPatchScalarField&,
@@ -169,9 +179,9 @@ public:
         }
 
 
-    // Member functions
+    // Member Functions
 
-        // Acces functions
+        // Access functions
 
             // Return Ks
             scalarField& Ks()

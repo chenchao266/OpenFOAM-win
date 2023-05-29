@@ -1,9 +1,12 @@
-﻿/*---------------------------------------------------------------------------*\
+/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -34,21 +37,26 @@ namespace Foam
 {
     defineTypeNameAndDebug(dynamicInkJetFvMesh, 0);
     addToRunTimeSelectionTable(dynamicFvMesh, dynamicInkJetFvMesh, IOobject);
+    addToRunTimeSelectionTable(dynamicFvMesh, dynamicInkJetFvMesh, doInit);
 }
 
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
-Foam::dynamicInkJetFvMesh::dynamicInkJetFvMesh(const IOobject& io)
+Foam::dynamicInkJetFvMesh::dynamicInkJetFvMesh
+(
+    const IOobject& io,
+    const bool doInit
+)
 :
-    dynamicFvMesh(io),
+    dynamicFvMesh(io, doInit),
     dynamicMeshCoeffs_
     (
         IOdictionary
         (
             IOobject
             (
-                word("dynamicMeshDict"),
+                "dynamicMeshDict",
                 io.time().constant(),
                 *this,
                 IOobject::MUST_READ_IF_MODIFIED,
@@ -57,14 +65,14 @@ Foam::dynamicInkJetFvMesh::dynamicInkJetFvMesh(const IOobject& io)
             )
         ).optionalSubDict(typeName + "Coeffs")
     ),
-    amplitude_(readScalar(dynamicMeshCoeffs_.lookup("amplitude"))),
-    frequency_(readScalar(dynamicMeshCoeffs_.lookup("frequency"))),
-    refPlaneX_(readScalar(dynamicMeshCoeffs_.lookup("refPlaneX"))),
+    amplitude_(dynamicMeshCoeffs_.get<scalar>("amplitude")),
+    frequency_(dynamicMeshCoeffs_.get<scalar>("frequency")),
+    refPlaneX_(dynamicMeshCoeffs_.get<scalar>("refPlaneX")),
     stationaryPoints_
     (
         IOobject
         (
-            word("points"),
+            "points",
             io.time().constant(),
             meshSubDir,
             *this,

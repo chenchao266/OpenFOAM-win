@@ -1,9 +1,12 @@
-﻿/*---------------------------------------------------------------------------*\
+/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2019-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -24,178 +27,155 @@ License
 \*---------------------------------------------------------------------------*/
 
 // * * * * * * * * * * * * * * * * Selectors * * * * * * * * * * * * * * * * //
-namespace Foam {
-    template<class Type>
-    tmp<fvPatchField<Type>> fvPatchField<Type>::New
+
+template<class Type>
+Foam::tmp<Foam::fvPatchField<Type>> Foam::fvPatchField<Type>::New
+(
+    const word& patchFieldType,
+    const word& actualPatchType,
+    const fvPatch& p,
+    const DimensionedField<Type, volMesh>& iF
+)
+{
+    DebugInFunction
+        << "patchFieldType = " << patchFieldType
+        << " : " << p.type() << nl;
+
+    auto* ctorPtr = patchConstructorTable(patchFieldType);
+
+    if (!ctorPtr)
+    {
+        FatalErrorInLookup
+        (
+            "patchField",
+            patchFieldType,
+            *patchConstructorTablePtr_
+        ) << exit(FatalError);
+    }
+
+    auto* patchTypeCtor = patchConstructorTable(p.type());
+
+    if
     (
-        const word& patchFieldType,
-        const word& actualPatchType,
-        const fvPatch& p,
-        const DimensionedField<Type, volMesh>& iF
+        actualPatchType == word::null
+     || actualPatchType != p.type()
     )
     {
-        if (debug)
+        if (patchTypeCtor)
         {
-            InfoInFunction
-                << "patchFieldType = " << patchFieldType
-                << " : " << p.type()
-                << endl;
-        }
-
-        typename patchConstructorTable::iterator cstrIter =
-            patchConstructorTablePtr_->find(patchFieldType);
-
-        if (cstrIter == patchConstructorTablePtr_->end())
-        {
-            FatalErrorInFunction
-                << "Unknown patchField type "
-                << patchFieldType << nl << nl
-                << "Valid patchField types are :" << endl
-                << patchConstructorTablePtr_->sortedToc()
-                << exit(FatalError);
-        }
-
-        typename patchConstructorTable::iterator patchTypeCstrIter =
-            patchConstructorTablePtr_->find(p.type());
-
-        if
-            (
-                actualPatchType == word::null
-                || actualPatchType != p.type()
-                )
-        {
-            if (patchTypeCstrIter != patchConstructorTablePtr_->end())
-            {
-                return patchTypeCstrIter()(p, iF);
-            }
-            else
-            {
-                return cstrIter()(p, iF);
-            }
+            return patchTypeCtor(p, iF);
         }
         else
         {
-            tmp<fvPatchField<Type>> tfvp = cstrIter()(p, iF);
-
-            // Check if constraint type override and store patchType if so
-            if ((patchTypeCstrIter != patchConstructorTablePtr_->end()))
-            {
-                tfvp.ref().patchType() = actualPatchType;
-            }
-            return tfvp;
+            return ctorPtr(p, iF);
         }
     }
 
 
-    template<class Type>
-    tmp<fvPatchField<Type>> fvPatchField<Type>::New
-    (
-        const word& patchFieldType,
-        const fvPatch& p,
-        const DimensionedField<Type, volMesh>& iF
-    )
+    tmp<fvPatchField<Type>> tfvp = ctorPtr(p, iF);
+
+    // Check if constraint type override and store patchType if so
+    if (patchTypeCtor)
     {
-        return New(patchFieldType, word::null, p, iF);
+        tfvp.ref().patchType() = actualPatchType;
     }
-
-
-    template<class Type>
-    tmp<fvPatchField<Type>> fvPatchField<Type>::New
-    (
-        const fvPatch& p,
-        const DimensionedField<Type, volMesh>& iF,
-        const dictionary& dict
-    )
-    {
-        const word patchFieldType(dict.lookup("type"));
-
-        if (debug)
-        {
-            InfoInFunction
-                << "patchFieldType = " << patchFieldType
-                << endl;
-        }
-
-        typename dictionaryConstructorTable::iterator cstrIter
-            = dictionaryConstructorTablePtr_->find(patchFieldType);
-
-        if (cstrIter == dictionaryConstructorTablePtr_->end())
-        {
-            if (!disallowGenericFvPatchField)
-            {
-                cstrIter = dictionaryConstructorTablePtr_->find("generic");
-            }
-
-            if (cstrIter == dictionaryConstructorTablePtr_->end())
-            {
-                FatalIOErrorInFunction
-                (
-                    dict
-                ) << "Unknown patchField type " << patchFieldType
-                    << " for patch type " << p.type() << nl << nl
-                    << "Valid patchField types are :" << endl
-                    << dictionaryConstructorTablePtr_->sortedToc()
-                    << exit(FatalIOError);
-            }
-        }
-
-        if
-            (
-                !dict.found("patchType")
-                || word(dict.lookup("patchType")) != p.type()
-                )
-        {
-            typename dictionaryConstructorTable::iterator patchTypeCstrIter
-                = dictionaryConstructorTablePtr_->find(p.type());
-
-            if
-                (
-                    patchTypeCstrIter != dictionaryConstructorTablePtr_->end()
-                    && patchTypeCstrIter() != cstrIter()
-                    )
-            {
-                FatalIOErrorInFunction
-                (
-                    dict
-                ) << "inconsistent patch and patchField types for \n"
-                    "    patch type " << p.type()
-                    << " and patchField type " << patchFieldType
-                    << exit(FatalIOError);
-            }
-        }
-
-        return cstrIter()(p, iF, dict);
-    }
-
-
-    template<class Type>
-    tmp<fvPatchField<Type>> fvPatchField<Type>::New
-    (
-        const fvPatchField<Type>& ptf,
-        const fvPatch& p,
-        const DimensionedField<Type, volMesh>& iF,
-        const fvPatchFieldMapper& pfMapper
-    )
-    {
-        if (debug)
-        {
-            InfoInFunction << "Constructing fvPatchField<Type>" << endl;
-        }
-
-        typename patchMapperConstructorTable::iterator cstrIter =
-            patchMapperConstructorTablePtr_->find(ptf.type());
-
-        if (cstrIter == patchMapperConstructorTablePtr_->end())
-        {
-            FatalErrorInFunction
-                << "Unknown patchField type " << ptf.type() << nl << nl
-                << "Valid patchField types are :" << endl
-                << patchMapperConstructorTablePtr_->sortedToc()
-                << exit(FatalError);
-        }
-
-        return cstrIter()(ptf, p, iF, pfMapper);
-    }
-
+    return tfvp;
 }
+
+
+template<class Type>
+Foam::tmp<Foam::fvPatchField<Type>> Foam::fvPatchField<Type>::New
+(
+    const word& patchFieldType,
+    const fvPatch& p,
+    const DimensionedField<Type, volMesh>& iF
+)
+{
+    return New(patchFieldType, word::null, p, iF);
+}
+
+
+template<class Type>
+Foam::tmp<Foam::fvPatchField<Type>> Foam::fvPatchField<Type>::New
+(
+    const fvPatch& p,
+    const DimensionedField<Type, volMesh>& iF,
+    const dictionary& dict
+)
+{
+    const word patchFieldType(dict.get<word>("type"));
+
+    DebugInFunction
+        << "patchFieldType = " << patchFieldType << nl;
+
+    auto* ctorPtr = dictionaryConstructorTable(patchFieldType);
+
+    if (!ctorPtr)
+    {
+        if (!disallowGenericFvPatchField)
+        {
+            ctorPtr = dictionaryConstructorTable("generic");
+        }
+
+        if (!ctorPtr)
+        {
+            FatalIOErrorInFunction(dict)
+                << "Unknown patchField type " << patchFieldType
+                << " for patch type " << p.type() << nl << nl
+                << "Valid patchField types :" << endl
+                << dictionaryConstructorTablePtr_->sortedToc()
+                << exit(FatalIOError);
+        }
+    }
+
+    if
+    (
+        !dict.found("patchType")
+     || dict.get<word>("patchType") != p.type()
+    )
+    {
+        auto* patchTypeCtor = dictionaryConstructorTable(p.type());
+
+        if (patchTypeCtor && patchTypeCtor != ctorPtr)
+        {
+            FatalIOErrorInFunction(dict)
+                << "inconsistent patch and patchField types for\n"
+                   "    patch type " << p.type()
+                << " and patchField type " << patchFieldType
+                << exit(FatalIOError);
+        }
+    }
+
+    return ctorPtr(p, iF, dict);
+}
+
+
+template<class Type>
+Foam::tmp<Foam::fvPatchField<Type>> Foam::fvPatchField<Type>::New
+(
+    const fvPatchField<Type>& ptf,
+    const fvPatch& p,
+    const DimensionedField<Type, volMesh>& iF,
+    const fvPatchFieldMapper& pfMapper
+)
+{
+    DebugInFunction
+        << "Constructing fvPatchField<Type>" << nl;
+
+    auto* ctorPtr = patchMapperConstructorTable(ptf.type());
+
+    if (!ctorPtr)
+    {
+        FatalErrorInLookup
+        (
+            "patchField",
+            ptf.type(),
+            *patchMapperConstructorTablePtr_
+        ) << exit(FatalError);
+    }
+
+    return ctorPtr(ptf, p, iF, pfMapper);
+}
+
+
 // ************************************************************************* //

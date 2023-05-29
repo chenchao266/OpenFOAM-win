@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -22,7 +24,7 @@ License
     along with OpenFOAM.  If not, see <http://www.gnu.org/licenses/>.
 
 Class
-    Foam::heatTransferModel
+    Foam::regionModels::surfaceFilmModels::heatTransferModel
 
 Description
     Base class for film heat transfer models
@@ -33,8 +35,8 @@ SourceFiles
 
 \*---------------------------------------------------------------------------*/
 
-#ifndef heatTransferModel_H
-#define heatTransferModel_H
+#ifndef regionModels_surfaceFilmModels_heatTransferModel_H
+#define regionModels_surfaceFilmModels_heatTransferModel_H
 
 #include "filmSubModelBase.H"
 #include "runTimeSelectionTables.H"
@@ -60,11 +62,11 @@ private:
 
     // Private Member Functions
 
-        //- Disallow default bitwise copy construct
-        heatTransferModel(const heatTransferModel&);
+        //- No copy construct
+        heatTransferModel(const heatTransferModel&) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const heatTransferModel&);
+        //- No copy assignment
+        void operator=(const heatTransferModel&) = delete;
 
 
 public:
@@ -81,7 +83,7 @@ public:
              heatTransferModel,
              dictionary,
              (
-                 surfaceFilmModel& film,
+                 surfaceFilmRegionModel& film,
                  const dictionary& dict
              ),
              (film, dict)
@@ -90,13 +92,13 @@ public:
     // Constructors
 
         //- Construct null
-        heatTransferModel(surfaceFilmModel& film);
+        heatTransferModel(surfaceFilmRegionModel& film);
 
         //- Construct from type name, dictionary and surface film model
         heatTransferModel
         (
             const word& modelType,
-            surfaceFilmModel& film,
+            surfaceFilmRegionModel& film,
             const dictionary& dict
         );
 
@@ -106,7 +108,7 @@ public:
         //- Return a reference to the selected phase change model
         static autoPtr<heatTransferModel> New
         (
-            surfaceFilmModel& film,
+            surfaceFilmRegionModel& film,
             const dictionary& dict
         );
 

@@ -1,9 +1,11 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2013 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2013 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -38,7 +40,7 @@ SourceFiles
 #define faceMapper_H
 
 #include "morphFieldMapper.H"
-#include "HashSet.T.H"
+#include "HashSet.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -53,7 +55,9 @@ class mapPolyMesh;
                            Class faceMapper Declaration
 \*---------------------------------------------------------------------------*/
 
-class faceMapper :    public morphFieldMapper
+class faceMapper
+:
+    public morphFieldMapper
 {
     // Private data
 
@@ -87,11 +91,11 @@ class faceMapper :    public morphFieldMapper
 
     // Private Member Functions
 
-        //- Disallow default bitwise copy construct
-        faceMapper(const faceMapper&);
+        //- No copy construct
+        faceMapper(const faceMapper&) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const faceMapper&);
+        //- No copy assignment
+        void operator=(const faceMapper&) = delete;
 
 
         //- Calculate addressing for mapping with inserted faces

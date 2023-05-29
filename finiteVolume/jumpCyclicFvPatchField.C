@@ -1,9 +1,12 @@
-﻿/*---------------------------------------------------------------------------*\
+/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2019-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -26,169 +29,177 @@ License
 //#include "jumpCyclicFvPatchField.H"
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
-namespace Foam {
-    template<class Type>
-    jumpCyclicFvPatchField<Type>::jumpCyclicFvPatchField
-    (
-        const fvPatch& p,
-        const DimensionedField<Type, volMesh>& iF
-    )
-        :
-        cyclicFvPatchField<Type>(p, iF)
-    {}
+
+template<class Type>
+Foam::jumpCyclicFvPatchField<Type>::jumpCyclicFvPatchField
+(
+    const fvPatch& p,
+    const DimensionedField<Type, volMesh>& iF
+)
+:
+    cyclicFvPatchField<Type>(p, iF)
+{}
 
 
-    template<class Type>
-    jumpCyclicFvPatchField<Type>::jumpCyclicFvPatchField
-    (
-        const jumpCyclicFvPatchField<Type>& ptf,
-        const fvPatch& p,
-        const DimensionedField<Type, volMesh>& iF,
-        const fvPatchFieldMapper& mapper
-    )
-        :
-        cyclicFvPatchField<Type>(ptf, p, iF, mapper)
-    {}
+template<class Type>
+Foam::jumpCyclicFvPatchField<Type>::jumpCyclicFvPatchField
+(
+    const jumpCyclicFvPatchField<Type>& ptf,
+    const fvPatch& p,
+    const DimensionedField<Type, volMesh>& iF,
+    const fvPatchFieldMapper& mapper
+)
+:
+    cyclicFvPatchField<Type>(ptf, p, iF, mapper)
+{}
 
 
-    template<class Type>
-    jumpCyclicFvPatchField<Type>::jumpCyclicFvPatchField
-    (
-        const fvPatch& p,
-        const DimensionedField<Type, volMesh>& iF,
-        const dictionary& dict
-    )
-        :
-        cyclicFvPatchField<Type>(p, iF, dict)
+template<class Type>
+Foam::jumpCyclicFvPatchField<Type>::jumpCyclicFvPatchField
+(
+    const fvPatch& p,
+    const DimensionedField<Type, volMesh>& iF,
+    const dictionary& dict,
+    const bool valueRequired
+)
+:
+    cyclicFvPatchField<Type>(p, iF, dict, valueRequired)
+{
+    // Call this evaluation in derived classes
+    //this->evaluate(Pstream::commsTypes::blocking);
+}
+
+
+template<class Type>
+Foam::jumpCyclicFvPatchField<Type>::jumpCyclicFvPatchField
+(
+    const jumpCyclicFvPatchField<Type>& ptf
+)
+:
+    cyclicFvPatchField<Type>(ptf)
+{}
+
+
+template<class Type>
+Foam::jumpCyclicFvPatchField<Type>::jumpCyclicFvPatchField
+(
+    const jumpCyclicFvPatchField<Type>& ptf,
+    const DimensionedField<Type, volMesh>& iF
+)
+:
+    cyclicFvPatchField<Type>(ptf, iF)
+{}
+
+
+// * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
+
+template<class Type>
+Foam::tmp<Foam::Field<Type>>
+Foam::jumpCyclicFvPatchField<Type>::patchNeighbourField() const
+{
+    const Field<Type>& iField = this->primitiveField();
+    const labelUList& nbrFaceCells =
+        this->cyclicPatch().neighbFvPatch().faceCells();
+
+    auto tpnf = tmp<Field<Type>>::New(this->size());
+    auto& pnf = tpnf.ref();
+
+    Field<Type> jf(this->jump());
+    if (!this->cyclicPatch().owner())
     {
-        // Call this evaluation in derived classes
-        //this->evaluate(Pstream::commsTypes::blocking);
+        jf *= -1.0;
     }
 
-
-    template<class Type>
-    jumpCyclicFvPatchField<Type>::jumpCyclicFvPatchField
-    (
-        const jumpCyclicFvPatchField<Type>& ptf
-    )
-        :
-        cyclicFvPatchField<Type>(ptf)
-    {}
-
-
-    template<class Type>
-    jumpCyclicFvPatchField<Type>::jumpCyclicFvPatchField
-    (
-        const jumpCyclicFvPatchField<Type>& ptf,
-        const DimensionedField<Type, volMesh>& iF
-    )
-        :
-        cyclicFvPatchField<Type>(ptf, iF)
-    {}
-
-
-    // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
-
-    template<class Type>
-    tmp<Field<Type>>
-        jumpCyclicFvPatchField<Type>::patchNeighbourField() const
+    if (this->doTransform())
     {
-        const Field<Type>& iField = this->primitiveField();
-        const labelUList& nbrFaceCells =
-            this->cyclicPatch().neighbFvPatch().faceCells();
+        forAll(*this, facei)
+        {
+            pnf[facei] = transform
+            (
+                this->forwardT()[0], iField[nbrFaceCells[facei]]
+            ) - jf[facei];
+        }
+    }
+    else
+    {
+        forAll(*this, facei)
+        {
+            pnf[facei] = iField[nbrFaceCells[facei]] - jf[facei];
+        }
+    }
 
-        tmp<Field<Type>> tpnf(new Field<Type>(this->size()));
-        Field<Type>& pnf = tpnf.ref();
+    return tpnf;
+}
 
+
+template<class Type>
+void Foam::jumpCyclicFvPatchField<Type>::updateInterfaceMatrix
+(
+    solveScalarField& result,
+    const bool add,
+    const lduAddressing& lduAddr,
+    const label patchId,
+    const solveScalarField& psiInternal,
+    const scalarField& coeffs,
+    const direction cmpt,
+    const Pstream::commsTypes
+) const
+{
+    NotImplemented;
+}
+
+
+template<class Type>
+void Foam::jumpCyclicFvPatchField<Type>::updateInterfaceMatrix
+(
+    Field<Type>& result,
+    const bool add,
+    const lduAddressing& lduAddr,
+    const label patchId,
+    const Field<Type>& psiInternal,
+    const scalarField& coeffs,
+    const Pstream::commsTypes
+) const
+{
+    Field<Type> pnf(this->size());
+
+    const labelUList& nbrFaceCells =
+        lduAddr.patchAddr
+        (
+            this->cyclicPatch().neighbPatchID()
+        );
+
+    // only apply jump to original field
+    if (&psiInternal == &this->primitiveField())
+    {
         Field<Type> jf(this->jump());
+
         if (!this->cyclicPatch().owner())
         {
             jf *= -1.0;
         }
 
-        if (this->doTransform())
+        forAll(*this, facei)
         {
-            forAll(*this, facei)
-            {
-                pnf[facei] = transform
-                (
-                    this->forwardT()[0], iField[nbrFaceCells[facei]]
-                ) - jf[facei];
-            }
+            pnf[facei] = psiInternal[nbrFaceCells[facei]] - jf[facei];
         }
-        else
-        {
-            forAll(*this, facei)
-            {
-                pnf[facei] = iField[nbrFaceCells[facei]] - jf[facei];
-            }
-        }
-
-        return tpnf;
     }
-
-
-    template<class Type>
-    void jumpCyclicFvPatchField<Type>::updateInterfaceMatrix
-    (
-        scalarField& result,
-        const scalarField& psiInternal,
-        const scalarField& coeffs,
-        const direction cmpt,
-        const Pstream::commsTypes
-    ) const
+    else
     {
-        NotImplemented;
-    }
-
-
-    template<class Type>
-    void jumpCyclicFvPatchField<Type>::updateInterfaceMatrix
-    (
-        Field<Type>& result,
-        const Field<Type>& psiInternal,
-        const scalarField& coeffs,
-        const Pstream::commsTypes
-    ) const
-    {
-        Field<Type> pnf(this->size());
-
-        const labelUList& nbrFaceCells =
-            this->cyclicPatch().neighbFvPatch().faceCells();
-
-        // only apply jump to original field
-        if (&psiInternal == &this->primitiveField())
+        forAll(*this, facei)
         {
-            Field<Type> jf(this->jump());
-
-            if (!this->cyclicPatch().owner())
-            {
-                jf *= -1.0;
-            }
-
-            forAll(*this, facei)
-            {
-                pnf[facei] = psiInternal[nbrFaceCells[facei]] - jf[facei];
-            }
-        }
-        else
-        {
-            forAll(*this, facei)
-            {
-                pnf[facei] = psiInternal[nbrFaceCells[facei]];
-            }
-        }
-
-        // Transform according to the transformation tensors
-        this->transformCoupleField(pnf);
-
-        // Multiply the field by coefficients and add into the result
-        const labelUList& faceCells = this->cyclicPatch().faceCells();
-        forAll(faceCells, elemI)
-        {
-            result[faceCells[elemI]] -= coeffs[elemI] * pnf[elemI];
+            pnf[facei] = psiInternal[nbrFaceCells[facei]];
         }
     }
 
+    // Transform according to the transformation tensors
+    this->transformCoupleField(pnf);
+
+    const labelUList& faceCells = lduAddr.patchAddr(patchId);
+
+    // Multiply the field by coefficients and add into the result
+    this->addToInternalField(result, !add, faceCells, coeffs, pnf);
 }
+
+
 // ************************************************************************* //

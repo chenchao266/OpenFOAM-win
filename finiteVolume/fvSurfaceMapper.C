@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -21,15 +24,13 @@ License
     You should have received a copy of the GNU General Public License
     along with OpenFOAM.  If not, see <http://www.gnu.org/licenses/>.
 
-Description
-    FV surface mapper.
-
 \*---------------------------------------------------------------------------*/
 
 #include "fvSurfaceMapper.H"
 #include "fvMesh.H"
 #include "mapPolyMesh.H"
 #include "faceMapper.H"
+#include "demandDrivenData.H"
 
 // * * * * * * * * * * * * * Private Member Functions  * * * * * * * * * * * //
 
@@ -94,8 +95,8 @@ void Foam::fvSurfaceMapper::calcAddressing() const
         {
             if (max(addr[facei]) >= oldNInternal)
             {
-                addr[facei] = labelList(1, label(0));
-                w[facei] = scalarList(1, 1.0);
+                addr[facei] = labelList(1, Zero);
+                w[facei] = scalarList(1, scalar(1));
             }
         }
     }

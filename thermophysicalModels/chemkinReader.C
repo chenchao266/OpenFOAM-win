@@ -2,11 +2,12 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
 -------------------------------------------------------------------------------
- 2014-02-21 blueCAPE Lda: Modifications for blueCFD-Core 2.3
-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
+-------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
 
@@ -23,28 +24,18 @@ License
     You should have received a copy of the GNU General Public License
     along with OpenFOAM.  If not, see <http://www.gnu.org/licenses/>.
 
-Modifications
-    This file has been modified by blueCAPE's unofficial mingw patches for
-    OpenFOAM.
-    For more information about these patches, visit:
-        http://bluecfd.com/Core
-
-    Modifications made:
-      - Always open the files in binary mode, because of how things work on 
-        Windows.
-
 \*---------------------------------------------------------------------------*/
 
 #include "chemkinReader.H"
-#include <fstream>
+#include "IFstream.H"
 #include "atomicWeights.H"
-#include "IrreversibleReaction.T.H"
-#include "ReversibleReaction.T.H"
-#include "NonEquilibriumReversibleReaction.T.H"
+#include "IrreversibleReaction.H"
+#include "ReversibleReaction.H"
+#include "NonEquilibriumReversibleReaction.H"
 #include "ArrheniusReactionRate.H"
 #include "thirdBodyArrheniusReactionRate.H"
-#include "FallOffReactionRate.T.H"
-#include "ChemicallyActivatedReactionRate.T.H"
+#include "FallOffReactionRate.H"
+#include "ChemicallyActivatedReactionRate.H"
 #include "LindemannFallOffFunction.H"
 #include "TroeFallOffFunction.H"
 #include "SRIFallOffFunction.H"
@@ -435,7 +426,7 @@ void Foam::chemkinReader::addReaction
 {
     checkCoeffs(ArrheniusCoeffs, "Arrhenius", 3);
 
-    scalarList nAtoms(elementNames_.size(), 0.0);
+    scalarList nAtoms(elementNames_.size(), Zero);
 
     forAll(lhs, i)
     {
@@ -465,7 +456,7 @@ void Foam::chemkinReader::addReaction
 
 
     // Calculate the unit conversion factor for the A coefficient
-    // for the change from mol/cm^3 to kmol/m^3 concentraction units
+    // for the change from mol/cm^3 to kmol/m^3 concentration units
     const scalar concFactor = 0.001;
     scalar sumExp = 0.0;
     forAll(lhs, i)
@@ -794,12 +785,9 @@ void Foam::chemkinReader::read
 {
     transportDict_.read(IFstream(transportFileName)());
 
-    if (thermoFileName != fileName::null)
+    if (!thermoFileName.empty())
     {
-        // Use binary mode in case we read binary.
-        // Causes windows reading to fail if we don't.
-        std::ifstream thermoStream(thermoFileName.c_str(), 
-                                   ios_base::in|ios_base::binary);
+        std::ifstream thermoStream(thermoFileName);
 
         if (!thermoStream)
         {
@@ -819,11 +807,8 @@ void Foam::chemkinReader::read
         lineNo_ = 1;
     }
 
-    // Use binary mode in case we read binary.
-    // Causes windows reading to fail if we don't.
-    std::ifstream CHEMKINStream(CHEMKINFileName.c_str(), 
-                               ios_base::in|ios_base::binary);
-    
+    std::ifstream CHEMKINStream(CHEMKINFileName);
+
     if (!CHEMKINStream)
     {
         FatalErrorInFunction
@@ -875,27 +860,23 @@ Foam::chemkinReader::chemkinReader
     specieNames_(10),
     speciesTable_(species),
     reactions_(speciesTable_, speciesThermo_),
-    newFormat_(thermoDict.lookupOrDefault("newFormat", false)),
-    imbalanceTol_(thermoDict.lookupOrDefault("imbalanceTolerance", ROOTSMALL))
+    newFormat_(thermoDict.getOrDefault("newFormat", false)),
+    imbalanceTol_(thermoDict.getOrDefault("imbalanceTolerance", ROOTSMALL))
 {
     if (newFormat_)
     {
         Info<< "Reading CHEMKIN thermo data in new file format" << endl;
     }
 
-    fileName chemkinFile(fileName(thermoDict.lookup("CHEMKINFile")).expand());
+    fileName chemkinFile(thermoDict.get<fileName>("CHEMKINFile"));
+    chemkinFile.expand();
 
-    fileName thermoFile = fileName::null;
+    fileName thermoFile;
+    thermoDict.readIfPresent("CHEMKINThermoFile", thermoFile);
+    thermoFile.expand();
 
-    if (thermoDict.found("CHEMKINThermoFile"))
-    {
-        thermoFile = fileName(thermoDict.lookup("CHEMKINThermoFile")).expand();
-    }
-
-    fileName transportFile
-    (
-        fileName(thermoDict.lookup("CHEMKINTransportFile")).expand()
-    );
+    fileName transportFile(thermoDict.get<fileName>("CHEMKINTransportFile"));
+    transportFile.expand();
 
     // allow relative file names
     fileName relPath = thermoDict.name().path();
@@ -906,7 +887,7 @@ Foam::chemkinReader::chemkinReader
             chemkinFile = relPath/chemkinFile;
         }
 
-        if (thermoFile != fileName::null && !thermoFile.isAbsolute())
+        if (!thermoFile.empty() && !thermoFile.isAbsolute())
         {
             thermoFile = relPath/thermoFile;
         }

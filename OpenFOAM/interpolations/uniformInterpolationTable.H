@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2013 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2013 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -25,7 +27,7 @@ Class
     Foam::uniformInterpolationTable
 
 Description
-    Table with uniform interval in independant variable, with linear
+    Table with uniform interval in independent variable, with linear
     interpolation
 
     Example usage (scalar): values specified within a dictionary:
@@ -53,9 +55,9 @@ SourceFiles
 #ifndef uniformInterpolationTable_H
 #define uniformInterpolationTable_H
 
-#include "List.T.H"
+#include "List.H"
 #include "Switch.H"
-#include "IOobject.T.H"
+#include "IOobject.H"
 #include "objectRegistry.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
@@ -68,7 +70,9 @@ namespace Foam
 \*---------------------------------------------------------------------------*/
 
 template<class Type>
-class uniformInterpolationTable :    public IOobject,
+class uniformInterpolationTable
+:
+    public IOobject,
     public List<Type>
 {
     // Private data
@@ -93,8 +97,8 @@ class uniformInterpolationTable :    public IOobject,
         //- Check that the table is valid
         void checkTable() const;
 
-        //- Disallow default bitwise assignment
-        void operator=(const uniformInterpolationTable&);
+        //- No copy assignment
+        void operator=(const uniformInterpolationTable&) = delete;
 
 
 public:
@@ -188,7 +192,6 @@ public:
 
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
-
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 

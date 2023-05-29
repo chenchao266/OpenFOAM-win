@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2015 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2015 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -67,11 +69,11 @@ class relaxation
 
      // Private Member Functions
 
-        //- Disallow copy construct
-        relaxation(const relaxation&);
+        //- No copy construct
+        relaxation(const relaxation&) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const relaxation&);
+        //- No copy assignment
+        void operator=(const relaxation&) = delete;
 
 
 public:

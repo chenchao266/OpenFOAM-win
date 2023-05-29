@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2015 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2015 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -23,17 +25,18 @@ License
 
 \*---------------------------------------------------------------------------*/
 
+#include "fundamentalConstants.H"
 #include "thermodynamicConstants.H"
 #include "physicoChemicalConstants.H"
-#include "fundamentalConstants.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
- 
+
 namespace Foam
 {
 namespace constant
 {
- 
+namespace thermodynamic
+{
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -41,13 +44,14 @@ namespace constant
     // SI choice of kg rather than g for mass.
     // This is not appropriate for USCS and will be changed to an entry in
     // the DimensionedConstants dictionary in etc/controlDict
-    const scalar thermodynamic::RR = 1e3*physicoChemical::R.value();
+    const scalar RR = 1e3*physicoChemical::R.value();
 
-    const scalar thermodynamic::Pstd = standard::Pstd.value();
-    const scalar thermodynamic::Tstd = standard::Tstd.value();
+    const scalar Pstd = ::Foam::constant::standard::Pstd.value();
+    const scalar Tstd = ::Foam::constant::standard::Tstd.value();
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
-     
+
+} // End namespace thermodynamic
 } // End namespace constant
 } // End namespace Foam
 

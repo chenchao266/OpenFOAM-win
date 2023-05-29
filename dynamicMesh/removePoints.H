@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -46,7 +48,7 @@ SourceFiles
 namespace Foam
 {
 
-// Forward declaration of classes
+// Forward Declarations
 class polyMesh;
 class polyTopoChange;
 class mapPolyMesh;
@@ -58,8 +60,7 @@ class face;
 
 class removePoints
 {
-
-    // Private data
+    // Private Data
 
         //- Reference to mesh
         const polyMesh& mesh_;
@@ -90,11 +91,11 @@ class removePoints
         ) const;
 
 
-        //- Disallow default bitwise copy construct
-        removePoints(const removePoints&);
+        //- No copy construct
+        removePoints(const removePoints&) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const removePoints&);
+        //- No copy assignment
+        void operator=(const removePoints&) = delete;
 
 public:
 
@@ -105,17 +106,17 @@ public:
     // Constructors
 
         //- Construct from mesh
-        removePoints(const polyMesh& mesh, const bool undoable = false);
+        explicit removePoints(const polyMesh& mesh, const bool undoable=false);
 
 
     // Member Functions
 
-            //- If undoable: affected face labels. Already restored faces
-            //  will be -1.
-            const labelList& savedFaceLabels() const
-            {
-                return savedFaceLabels_;
-            }
+        //- If undoable: affected face labels.
+        //- Already restored faces will be -1.
+        const labelList& savedFaceLabels() const
+        {
+            return savedFaceLabels_;
+        }
 
 
         // Helper functions

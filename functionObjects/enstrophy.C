@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2016 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -34,13 +37,7 @@ namespace Foam
 namespace functionObjects
 {
     defineTypeNameAndDebug(enstrophy, 0);
-
-    addToRunTimeSelectionTable
-    (
-        functionObject,
-        enstrophy,
-        dictionary
-    );
+    addToRunTimeSelectionTable(functionObject, enstrophy, dictionary);
 }
 }
 
@@ -57,12 +54,8 @@ bool Foam::functionObjects::enstrophy::calc()
             0.5*magSqr(fvc::curl(lookupObject<volVectorField>(fieldName_)))
         );
     }
-    else
-    {
-        return false;
-    }
 
-    return true;
+    return false;
 }
 
 
@@ -79,12 +72,6 @@ Foam::functionObjects::enstrophy::enstrophy
 {
     setResultName(typeName, "U");
 }
-
-
-// * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
-
-Foam::functionObjects::enstrophy::~enstrophy()
-{}
 
 
 // ************************************************************************* //

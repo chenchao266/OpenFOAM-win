@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2014 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2014 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -24,14 +27,16 @@ License
 \*---------------------------------------------------------------------------*/
 
 #include "prefixOSstream.H"
-#include "Pstream.T.H"
-#include "token.T.H"
+#include "Pstream.H"
+#include "token.H"
 
 // * * * * * * * * * * * * Private Member Functions  * * * * * * * * * * * * //
-using namespace Foam;
+
+
+ namespace Foam{
 inline void prefixOSstream::checkWritePrefix()
 {
-    if (printPrefix_ && prefix_.size())
+    if (printPrefix_ && !prefix_.empty())
     {
         OSstream::write(prefix_.c_str());
         printPrefix_ = false;
@@ -43,14 +48,14 @@ inline void prefixOSstream::checkWritePrefix()
 
 prefixOSstream::prefixOSstream
 (
-    ostream& os,
-    const string& name,
-    streamFormat format,
-    versionNumber version,
-    compressionType compression
-) :    OSstream(os, name, format, version, compression),
+    std::ostream& os,
+    const string& streamName,
+    IOstreamOption streamOpt
+)
+:
+    OSstream(os, streamName, streamOpt),
     printPrefix_(true),
-    prefix_("")
+    prefix_()
 {}
 
 
@@ -63,21 +68,9 @@ void prefixOSstream::print(Ostream& os) const
 }
 
 
-Ostream& prefixOSstream::write(const token& t)
+bool prefixOSstream::write(const token& tok)
 {
-    if (t.type() == token::VERBATIMSTRING)
-    {
-        write(char(token::HASH));
-        write(char(token::BEGIN_BLOCK));
-        writeQuoted(t.stringToken(), false);
-        write(char(token::HASH));
-        write(char(token::END_BLOCK));
-    }
-    else if (t.type() == token::VARIABLE)
-    {
-        writeQuoted(t.stringToken(), false);
-    }
-    return *this;
+    return OSstream::write(tok);
 }
 
 
@@ -100,7 +93,7 @@ Ostream& prefixOSstream::write(const char* str)
     checkWritePrefix();
     OSstream::write(str);
 
-    size_t len = strlen(str);
+    const size_t len = strlen(str);
     if (len && str[len-1] == token::NL)
     {
         printPrefix_ = true;
@@ -180,4 +173,7 @@ void prefixOSstream::indent()
     OSstream::indent();
 }
 
+
 // ************************************************************************* //
+
+ } // End namespace Foam

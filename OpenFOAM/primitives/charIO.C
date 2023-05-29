@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011 OpenFOAM Foundation
+    Copyright (C) 2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -23,41 +26,65 @@ License
 
 \*---------------------------------------------------------------------------*/
 
-#include "char.T.H"
+#include "_char.H"
 #include "IOstreams.H"
+#include "messageStream.H"
 
-// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
-namespace Foam {
-    char readChar(Istream& is)
-    {
-        char c;
-        is.read(c);
-        return c;
-    }
+// * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
 
 
-    Istream& operator>>(Istream& is, char& c)
-    {
-        is.read(c);
-        is.check("Istream& operator>>(Istream&, char&)");
-        return is;
-    }
+ namespace Foam{
+const char* const pTraits<char>::typeName = "char";
 
 
-    Ostream& operator<<(Ostream& os, const char c)
-    {
-        os.write(c);
-        os.check("Ostream& operator<<(Ostream&, const char)");
-        return os;
-    }
+// * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
+
+pTraits<char>::pTraits(const char p) noexcept
+:
+    p_(p)
+{}
 
 
-    Ostream& operator<<(Ostream& os, const char* s)
-    {
-        os.write(s);
-        os.check("Ostream& operator<<(Ostream&, const char*)");
-        return os;
-    }
-
+pTraits<char>::pTraits(Istream& is)
+{
+    is >> p_;
 }
+
+
+// * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
+
+char readChar(Istream& is)
+{
+    char c;
+    is.read(c);
+    return c;
+}
+
+
+Istream& operator>>(Istream& is, char& c)
+{
+    is.read(c);
+    is.check(FUNCTION_NAME);
+    return is;
+}
+
+
+Ostream& operator<<(Ostream& os, const char c)
+{
+    os.write(c);
+    os.check(FUNCTION_NAME);
+    return os;
+}
+
+
+Ostream& operator<<(Ostream& os, const char* str)
+{
+    os.write(str);
+    os.check(FUNCTION_NAME);
+    return os;
+}
+
+
 // ************************************************************************* //
+
+ } // End namespace Foam

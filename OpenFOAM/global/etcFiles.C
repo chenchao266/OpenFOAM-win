@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2016 OpenFOAM Foundation
+    Copyright (C) 2017-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -24,244 +27,441 @@ License
 \*---------------------------------------------------------------------------*/
 
 #include "etcFiles.H"
-#include "OSspecific.H"
 #include "foamVersion.H"
+#include "OSspecific.H"
+
+#ifdef FULLDEBUG
+#ifndef FOAM_RESOURCE_USER_CONFIG_DIRNAME
+# warning FOAM_RESOURCE_USER_CONFIG_DIRNAME undefined (was this intentional?)
+#endif
+
+#ifndef FOAM_RESOURCE_SITE_ENVNAME
+# warning FOAM_RESOURCE_SITE_ENVNAME undefined (was this intentional?)
+#endif
+
+#ifndef FOAM_RESOURCE_SITE_FALLBACK_ENVNAME
+# warning FOAM_RESOURCE_SITE_FALLBACK_ENVNAME undefined (was this intentional?)
+#endif
+#endif
+
+// Always use these names
+#undef  FOAM_PROJECT_ENVNAME
+#define FOAM_PROJECT_ENVNAME "WM_PROJECT_DIR"
+
+// * * * * * * * * * * * * * * Static Functions  * * * * * * * * * * * * * * //
+
+//
+// Some of these could be exposed too (if required),
+// but are fairly special purpose.
+//
+
+namespace Foam
+{
+
+// Return the file location mode as a string.
+//
+// - u : location mask 0700
+// - g : location mask 0070
+// - o : location mask 0007
+static inline std::string locationToString(unsigned short location)
+{
+    std::string mode;
+
+    if (location & 0700) { mode += 'u'; } // User
+    if (location & 0070) { mode += 'g'; } // Group
+    if (location & 0007) { mode += 'o'; } // Other
+    if (mode.empty()) { mode = "???"; }
+
+    return mode;
+}
+
+
+// Error handling when a mandatory entry is not found
+static inline void errorMandatoryNotFound
+(
+    const std::string& name,
+    unsigned short location
+)
+{
+    // Abort when mandatory entry was not found.
+    // Use a direct exit, since this could occur before anything is
+    // setup at all.
+
+    std::cerr
+        << "--> FOAM FATAL ERROR :\n"
+        "    Could not find mandatory etc entry (mode="
+        << locationToString(location) << ")\n    '"
+        << name << "'\n"
+        << std::endl;
+    std::exit(1);
+}
+
+
+// Assign 'queried' parameter to the user resource directory.
+// Return true if this directory exists.
+//
+// Corresponds to foamEtcFile -mode=u
+// Looks for
+//   - ~/.OpenFOAM
+
+ 
+static inline bool userResourceDir(fileName& queried)
+{
+    #ifdef FOAM_RESOURCE_USER_CONFIG_DIRNAME
+    queried = home()/FOAM_RESOURCE_USER_CONFIG_DIRNAME;
+    if (isDir(queried))
+    {
+        // If home() fails, it will have actually queried "./.OpenFOAM"
+        // instead.
+        // But we would have worse problems elsewhere if that were the case.
+        return true;
+    }
+    #endif
+
+    return false;
+}
+
+
+// Assign 'queried' parameter to the group resource directory.
+// Return true if this directory exists.
+// Otherwise clears the parameter and returns false.
+//
+// Corresponds to foamEtcFile -mode=g
+// Looks for
+//   - ${WM_PROJECT_SITE}/etc
+//   - ${WM_PROJECT_DIR}/site/etc
+//
+// Optionally (compile-time defined):
+//   - FOAM_CONFIGURED_PROJECT_DIR/site/etc
+static inline bool groupResourceDir(fileName& queried)
+{
+    #ifdef FOAM_RESOURCE_SITE_ENVNAME
+    queried = getEnv(FOAM_RESOURCE_SITE_ENVNAME)/"etc";
+    if (queried.size() > 4)
+    {
+        return isDir(queried);
+    }
+    #endif
+
+    // Fallback when WM_PROJECT_SITE is unset
+
+    #ifdef FOAM_RESOURCE_SITE_FALLBACK_ENVNAME
+    queried = getEnv(FOAM_RESOURCE_SITE_FALLBACK_ENVNAME)/"site/etc";
+    if (queried.size() > 9 && isDir(queried))
+    {
+        return true;
+    }
+    #endif
+
+    // Compile-time paths
+    #ifdef FOAM_CONFIGURED_PROJECT_DIR
+    queried = FOAM_CONFIGURED_PROJECT_DIR "/site/etc";
+    if (queried.size() > 9 && isDir(queried))
+    {
+        return true;
+    }
+    #endif
+
+    queried.clear();
+    return false;
+}
+
+
+// Assign 'queried' parameter to the OpenFOAM etc/ resource directory.
+// Return true if it exists.
+// Otherwise clears the parameter and returns false.
+//
+// Corresponds to foamEtcFile -mode=o
+// Looks for
+//   - ${WM_PROJECT_DIR}/etc
+//
+// Optionally (compile-time defined):
+//   - FOAM_CONFIGURED_PROJECT_ETC
+//   - FOAM_CONFIGURED_PROJECT_DIR/"etc"
+static inline bool projectResourceDir(fileName& queried)
+{
+    queried = getEnv(FOAM_PROJECT_ENVNAME)/"etc";
+    if (queried.size() > 4 && isDir(queried))
+    {
+        return true;
+    }
+
+    // Compile-time paths
+
+    #ifdef FOAM_CONFIGURED_PROJECT_ETC
+    queried = FOAM_CONFIGURED_PROJECT_ETC;
+    if (isDir(queried))
+    {
+        return true;
+    }
+    #endif
+
+    #ifdef FOAM_CONFIGURED_PROJECT_DIR
+    queried = FOAM_CONFIGURED_PROJECT_DIR "/etc";
+    if (queried.size() > 4 && isDir(queried))
+    {
+        return true;
+    }
+    #endif
+
+    queried.clear();
+    return false;
+}
+
+
+// Check if the named file/directory matches the type required.
+//
+// - typeRequired (UNDEFINED)        => accept either FILE or DIRECTORY
+// - typeRequired (FILE | DIRECTORY) => accept only that type
+static inline bool accept
+(
+    const fileName& name,
+    const fileName::Type typeRequired
+)
+{
+    // followLink(true), checkGzip(true)
+    // -> returns (UNDEFINED | FILE | DIRECTORY), no need to check for (LINK)
+    const auto t = name.type(true, true);
+
+    return
+    (
+        // Found something?
+        fileName::Type::UNDEFINED != t
+    &&
+        (
+            // Any particular type required?
+            fileName::Type::UNDEFINED == typeRequired
+          ? (fileName::Type::UNDEFINED != t)
+          : (typeRequired == t)
+        )
+    );
+}
+
+ 
+
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
-using namespace Foam;
-fileNameList findEtcDirs(const fileName& local)
+
+fileNameList etcDirs(bool test)
 {
-    fileNameList dirs;
+    // Use foamVersion::api (instead of the OPENFOAM define) to ensure this
+    // stays properly synchronized with the build information
+    const fileName version(std::to_string(foamVersion::api));
 
-    // Search for user directories in
-    // * ~/.OpenFOAM/VERSION
-    // * ~/.OpenFOAM
-    //
-    fileName searchDir = home()/".OpenFOAM";
-    if (isDir(searchDir))
+    fileNameList list(5);
+    fileName queried;
+    label nDirs = 0;
+
+    // User resource directories
+    if (userResourceDir(queried) || (!test && queried.size()))
     {
-        fileName fullName = searchDir/FOAMversion/local;
-        if (isDir(fullName))
+        list[nDirs++] = queried/version;
+        list[nDirs++] = queried;
+    }
+
+    // Group (site) resource directories
+    if (groupResourceDir(queried) || (!test && queried.size()))
+    {
+        list[nDirs++] = queried/version;
+        list[nDirs++] = queried;
+    }
+
+    // Other (project) resource directory
+    if (projectResourceDir(queried) || (!test && queried.size()))
+    {
+        list[nDirs++] = queried;
+    }
+
+    list.resize(nDirs);
+
+    return list;
+}
+
+
+fileNameList findEtcEntries
+(
+    const fileName& name,
+    unsigned short location,
+    const fileName::Type typeRequired,
+    const bool findFirst
+)
+{
+    // Debug Tracing
+    // std::cerr
+    //     << "search ("<< locationToString(location) << "): "
+    //     << name.c_str() << '\n';
+
+    if (!(location & 0777))
+    {
+        // Warn about bad location (mode) ... or make it FATAL?
+        std::cerr
+            << "--> FOAM Error :\n    "
+            "No user/group/other location specified for 'etc' file"
+            " or directory\n    '"
+            << name.c_str() << "'\n\n" << std::endl;
+    }
+
+    // Use foamVersion::api (instead of the OPENFOAM define) to ensure this
+    // stays properly synchronized with the build information
+    const fileName version(std::to_string(foamVersion::api));
+
+    fileNameList list;
+    fileName queried, candidate;
+
+    if (fileName::Type::FILE == typeRequired && name.empty())
+    {
+        // FILE must have a name to be found!
+        return list;
+    }
+
+
+    // User resource directories
+    if ((location & 0700) && userResourceDir(queried))
+    {
+        candidate = queried/version/name;
+        if (accept(candidate, typeRequired))
         {
-            dirs.append(fullName);
+            list.append(std::move(candidate));
+            if (findFirst)
+            {
+                return list;
+            }
         }
 
-        fullName = searchDir/local;
-        if (isDir(fullName))
+        candidate = queried/name;
+        if (accept(candidate, typeRequired))
         {
-            dirs.append(fullName);
+            list.append(std::move(candidate));
+            if (findFirst)
+            {
+                return list;
+            }
         }
     }
 
-    // Search for group (site) directories in
-    // * $WM_PROJECT_SITE/VERSION
-    // * $WM_PROJECT_SITE
-    //
-    searchDir = getEnv("WM_PROJECT_SITE");
-    if (searchDir.size())
-    {
-        if (isDir(searchDir))
-        {
-            fileName fullName = searchDir/FOAMversion/local;
-            if (isDir(fullName))
-            {
-                dirs.append(fullName);
-            }
 
-            fullName = searchDir/local;
-            if (isDir(fullName))
+    // Group (site) resource directories
+    if ((location & 0070) && groupResourceDir(queried))
+    {
+        candidate = queried/version/name;
+        if (accept(candidate, typeRequired))
+        {
+            list.append(std::move(candidate));
+            if (findFirst)
             {
-                dirs.append(fullName);
+                return list;
             }
         }
-    }
-    else
-    {
-        // Or search for group (site) files in
-        // * $WM_PROJECT_INST_DIR/site/VERSION
-        // * $WM_PROJECT_INST_DIR/site
-        //
-        searchDir = getEnv("WM_PROJECT_INST_DIR");
-        if (isDir(searchDir))
-        {
-            fileName fullName = searchDir/"site"/FOAMversion/local;
-            if (isDir(fullName))
-            {
-                dirs.append(fullName);
-            }
 
-            fullName = searchDir/"site"/local;
-            if (isDir(fullName))
+        candidate = queried/name;
+        if (accept(candidate, typeRequired))
+        {
+            list.append(std::move(candidate));
+            if (findFirst)
             {
-                dirs.append(fullName);
+                return list;
             }
         }
     }
 
-    // Search for other (shipped) files in
-    // * $WM_PROJECT_DIR/etc
-    //
-    searchDir = getEnv("WM_PROJECT_DIR");
-    if (isDir(searchDir))
+
+    // Other (project) resource directory
+    if ((location & 0007) && projectResourceDir(queried))
     {
-        fileName fullName = searchDir/"etc"/local;
-        if (isDir(fullName))
+        candidate = queried/name;
+        if (accept(candidate, typeRequired))
         {
-            dirs.append(fullName);
+            list.append(std::move(candidate));
         }
     }
 
-    return dirs;
+    return list;
+}
+
+
+fileNameList findEtcDirs
+(
+    const fileName& name,
+    unsigned short location,
+    const bool findFirst
+)
+{
+    return findEtcEntries(name, location, fileName::Type::DIRECTORY, findFirst);
 }
 
 
 fileNameList findEtcFiles
 (
     const fileName& name,
-    bool mandatory,
-    bool findFirst
+    const bool mandatory,
+    unsigned short location,
+    const bool findFirst
 )
 {
-    fileNameList results;
+    // Note: findEtcEntries checks name.size() for FILE
+    fileNameList list
+    (
+        findEtcEntries(name, location, fileName::Type::FILE, findFirst)
+    );
 
-    // Search for user files in
-    // * ~/.OpenFOAM/VERSION
-    // * ~/.OpenFOAM
-    //
-    fileName searchDir = home()/".OpenFOAM";
-    if (isDir(searchDir))
+    if (mandatory && list.empty())
     {
-        fileName fullName = searchDir/FOAMversion/name;
-        if (isFile(fullName))
-        {
-            results.append(fullName);
-            if (findFirst)
-            {
-                return results;
-            }
-        }
-
-        fullName = searchDir/name;
-        if (isFile(fullName))
-        {
-            results.append(fullName);
-            if (findFirst)
-            {
-                return results;
-            }
-        }
+        errorMandatoryNotFound(name, location);
     }
 
-    // Search for group (site) files in
-    // * $WM_PROJECT_SITE/VERSION
-    // * $WM_PROJECT_SITE
-    //
-    searchDir = getEnv("WM_PROJECT_SITE");
-    if (searchDir.size())
-    {
-        if (isDir(searchDir))
-        {
-            fileName fullName = searchDir/FOAMversion/name;
-            if (isFile(fullName))
-            {
-                results.append(fullName);
-                if (findFirst)
-                {
-                    return results;
-                }
-            }
-
-            fullName = searchDir/name;
-            if (isFile(fullName))
-            {
-                results.append(fullName);
-                if (findFirst)
-                {
-                    return results;
-                }
-            }
-        }
-    }
-    else
-    {
-        // Or search for group (site) files in
-        // * $WM_PROJECT_INST_DIR/site/VERSION
-        // * $WM_PROJECT_INST_DIR/site
-        //
-        searchDir = getEnv("WM_PROJECT_INST_DIR");
-        if (isDir(searchDir))
-        {
-            fileName fullName = searchDir/"site"/FOAMversion/name;
-            if (isFile(fullName))
-            {
-                results.append(fullName);
-                if (findFirst)
-                {
-                    return results;
-                }
-            }
-
-            fullName = searchDir/"site"/name;
-            if (isFile(fullName))
-            {
-                results.append(fullName);
-                if (findFirst)
-                {
-                    return results;
-                }
-            }
-        }
-    }
-
-    // Search for other (shipped) files in
-    // * $WM_PROJECT_DIR/etc
-    //
-    searchDir = getEnv("WM_PROJECT_DIR");
-    if (isDir(searchDir))
-    {
-        fileName fullName = searchDir/"etc"/name;
-        if (isFile(fullName))
-        {
-            results.append(fullName);
-            if (findFirst)
-            {
-                return results;
-            }
-        }
-    }
-
-    // Not found
-    if (results.empty())
-    {
-        // Abort if the file is mandatory, otherwise return null
-        if (mandatory)
-        {
-            std::cerr
-                << "--> FOAM FATAL ERROR in findEtcFiles() :"
-                   " could not find mandatory file\n    '"
-                << name.c_str() << "'\n\n" << std::endl;
-            ::exit(1);
-        }
-    }
-
-    // Return list of matching paths or empty list if none found
-    return results;
+    return list;
 }
 
 
-fileName findEtcFile(const fileName& name, bool mandatory)
+fileName findEtcEntry
+(
+    const fileName& name,
+    unsigned short location,
+    const fileName::Type typeRequired
+)
 {
-    fileNameList results(::Foam::findEtcFiles(name, mandatory, true));
+    // With findFirst(true)
+    fileNameList list(findEtcEntries(name, location, typeRequired, true));
 
-    if (results.size())
+    fileName found;
+
+    if (list.size())
     {
-        return results[0];
+        found = std::move(list.first());
     }
-    else
+
+    return found;
+}
+
+
+fileName findEtcDir
+(
+    const fileName& name,
+    unsigned short location
+)
+{
+    return findEtcEntry(name, location, fileName::Type::DIRECTORY);
+}
+
+
+fileName findEtcFile
+(
+    const fileName& name,
+    const bool mandatory,
+    unsigned short location
+)
+{
+    fileName found(findEtcEntry(name, location, fileName::Type::FILE));
+
+    if (mandatory && found.empty())
     {
-        return fileName();
+        errorMandatoryNotFound(name, location);
     }
+
+    return found;
 }
 
 
 // ************************************************************************* //
+
+ } // End namespace Foam

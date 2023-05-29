@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -24,10 +27,8 @@ License
 \*---------------------------------------------------------------------------*/
 
 #include "edgeMeshFormatsCore.H"
-
-#include "Time.T.H"
-#include "IFstream.H"
-#include "OFstream.H"
+#include "Time1.H"
+#include "ListOps.H"
 #include "edgeMesh.H"
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
@@ -39,7 +40,8 @@ Foam::word Foam::fileFormats::edgeMeshFormatsCore::nativeExt("eMesh");
 
 Foam::string Foam::fileFormats::edgeMeshFormatsCore::getLineNoComment
 (
-    IFstream& is
+    ISstream& is,
+    const char comment
 )
 {
     string line;
@@ -47,7 +49,7 @@ Foam::string Foam::fileFormats::edgeMeshFormatsCore::getLineNoComment
     {
         is.getLine(line);
     }
-    while ((line.empty() || line[0] == '#') && is.good());
+    while ((line.empty() || line[0] == comment) && is.good());
 
     return line;
 }
@@ -156,44 +158,31 @@ Foam::fileName Foam::fileFormats::edgeMeshFormatsCore::findMeshFile
 bool Foam::fileFormats::edgeMeshFormatsCore::checkSupport
 (
     const wordHashSet& available,
-    const word& ext,
+    const word& fileType,
     const bool verbose,
-    const word& functionName
+    const char* functionName
 )
 {
-    if (available.found(ext))
+    if (available.found(fileType))
     {
         return true;
     }
     else if (verbose)
     {
-        wordList known = available.sortedToc();
+        Info<< "Unknown file type";
 
-        Info<<"Unknown file extension for " << functionName
-            << " : " << ext << nl
-            <<"Valid types: (";
-        // compact output:
-        forAll(known, i)
+        if (functionName)
         {
-            Info<<" " << known[i];
+            Info<< " for " << functionName;
         }
-        Info<<" )" << endl;
+
+        Info<< " : " << fileType << nl
+            << "Valid types: " << flatOutput(available.sortedToc()) << nl
+            << nl;
     }
 
     return false;
 }
-
-
-// * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
-
-Foam::fileFormats::edgeMeshFormatsCore::edgeMeshFormatsCore()
-{}
-
-
-// * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
-
-Foam::fileFormats::edgeMeshFormatsCore::~edgeMeshFormatsCore()
-{}
 
 
 // ************************************************************************* //

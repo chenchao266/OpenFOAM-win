@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2015-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2015-2016 OpenFOAM Foundation
+    Copyright (C) 2015-2019 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -77,21 +80,19 @@ public:
             weights_(weights),
             hasUnmapped_(false)
         {
-            forAll(addressing_, i)
+            for (const labelList& addr : addressing)
             {
-                if (addressing_[i].size() == 0)
+                if (addr.empty())
                 {
                     hasUnmapped_ = true;
+                    break;
                 }
             }
 
             if ((singlePatchProc_ == -1) != (distMapPtr_ != nullptr))
             {
-                FatalErrorIn
-                (
-                    "distributedWeightedFvPatchFieldMapper::"
-                    "distributedWeightedFvPatchFieldMapper(..)"
-                )   << "Supply a mapDistributeBase if and only if "
+                FatalErrorInFunction
+                    << "Supply a mapDistributeBase if and only if "
                     << "singlePatchProc is -1"
                     << " singlePatchProc_:" << singlePatchProc_
                     << " distMapPtr_:" << (distMapPtr_ != nullptr)
@@ -100,8 +101,7 @@ public:
         }
 
     //- Destructor
-    virtual ~distributedWeightedFvPatchFieldMapper()
-    {}
+    virtual ~distributedWeightedFvPatchFieldMapper() = default;
 
 
     // Member Functions
@@ -132,11 +132,8 @@ public:
         {
             if (!distMapPtr_)
             {
-                FatalErrorIn
-                (
-                    "distributedWeightedFvPatchFieldMapper::"
-                    "distributeMap()"
-                )   << "Cannot ask for distributeMap on a non-distributed"
+                FatalErrorInFunction
+                    << "Cannot ask for distributeMap on a non-distributed"
                     << " mapper" << exit(FatalError);
             }
             return *distMapPtr_;

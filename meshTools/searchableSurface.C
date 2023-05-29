@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2015 OpenFOAM Foundation
+    Copyright (C) 2018-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -43,20 +46,20 @@ Foam::autoPtr<Foam::searchableSurface> Foam::searchableSurface::New
     const dictionary& dict
 )
 {
-    dictConstructorTable::iterator cstrIter =
-        dictConstructorTablePtr_->find(searchableSurfaceType);
+    auto* ctorPtr = dictConstructorTable(searchableSurfaceType);
 
-    if (cstrIter == dictConstructorTablePtr_->end())
+    if (!ctorPtr)
     {
-        FatalErrorInFunction
-            << "Unknown searchableSurface type " << searchableSurfaceType
-            << endl << endl
-            << "Valid searchableSurface types : " << endl
-            << dictConstructorTablePtr_->sortedToc()
-            << exit(FatalError);
+        FatalIOErrorInLookup
+        (
+            dict,
+            "searchableSurface",
+            searchableSurfaceType,
+            *dictConstructorTablePtr_
+        ) << exit(FatalIOError);
     }
 
-    return autoPtr<searchableSurface>(cstrIter()(io, dict));
+    return autoPtr<searchableSurface>(ctorPtr(io, dict));
 }
 
 
@@ -68,13 +71,13 @@ Foam::searchableSurface::searchableSurface(const IOobject& io)
 {}
 
 
-// * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
-
-Foam::searchableSurface::~searchableSurface()
-{}
-
-
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
+
+bool Foam::searchableSurface::hasVolumeType() const
+{
+    return false;
+}
+
 
 void Foam::searchableSurface::findNearest
 (

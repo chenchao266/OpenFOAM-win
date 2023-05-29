@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -23,6 +25,9 @@ License
 
 Class
     Foam::RBD::restraints::linearDamper
+
+Group
+    grpRigidBodyDynamicsRestraints
 
 Description
     Linear damper restraint.  Operates in the local frame of the body.
@@ -92,12 +97,13 @@ public:
 
     // Member Functions
 
-        //- Accumulate the retraint internal joint forces into the tau field and
+        //- Accumulate the restraint internal joint forces into the tau field and
         //  external forces into the fx field
         virtual void restrain
         (
             scalarField& tau,
-            Field<spatialVector>& fx
+            Field<spatialVector>& fx,
+            const rigidBodyModelState& state
         ) const;
 
         //- Update properties from given dictionary

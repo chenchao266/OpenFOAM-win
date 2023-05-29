@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2012-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2012-2017 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -23,6 +25,9 @@ License
 
 Class
     Foam::combustionModels::diffusion
+
+Group
+    grpCombustionModels
 
 Description
     Simple diffusion-based combustion model based on the principle mixed is
@@ -50,10 +55,10 @@ namespace combustionModels
                          Class diffusion Declaration
 \*---------------------------------------------------------------------------*/
 
-template<class CombThermoType, class ThermoType>
+template<class ReactionThermo, class ThermoType>
 class diffusion
 :
-    public singleStepCombustion<CombThermoType, ThermoType>
+    public singleStepCombustion<ReactionThermo, ThermoType>
 {
     // Private data
 
@@ -66,11 +71,11 @@ class diffusion
 
     // Private Member Functions
 
-        //- Disallow copy construct
-        diffusion(const diffusion&);
+        //- No copy construct
+        diffusion(const diffusion&) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const diffusion&);
+        //- No copy assignment
+        void operator=(const diffusion&) = delete;
 
 
 public:
@@ -85,9 +90,9 @@ public:
         diffusion
         (
             const word& modelType,
-            const fvMesh& mesh,
-            const word& combustionProperties,
-            const word& phaseName
+            ReactionThermo& thermo,
+            const compressibleTurbulenceModel& turb,
+            const word& combustionProperties
         );
 
 

@@ -1,9 +1,12 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2019 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -35,11 +38,11 @@ SourceFiles
 #ifndef scalarFieldField_H
 #define scalarFieldField_H
 
-#include "FieldField.T.H"
-#include "scalar.H"
+#include "scalarField.H"
+#include "FieldField.H"
 
-#define TEMPLATE template<template<class > class Field>
-#include "FieldFieldFunctionsM.T.H"
+#define TEMPLATE template<template<class> class Field>
+#include "FieldFieldFunctionsM.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -88,6 +91,9 @@ BINARY_TYPE_FUNCTION(scalar, scalar, scalar, pow)
 
 BINARY_FUNCTION(scalar, scalar, scalar, atan2)
 BINARY_TYPE_FUNCTION(scalar, scalar, scalar, atan2)
+
+BINARY_FUNCTION(scalar, scalar, scalar, hypot)
+BINARY_TYPE_FUNCTION(scalar, scalar, scalar, hypot)
 
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //

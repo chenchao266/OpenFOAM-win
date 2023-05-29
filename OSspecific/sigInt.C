@@ -2,15 +2,15 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
 -------------------------------------------------------------------------------
+    Copyright (C) 2011-2015 OpenFOAM Foundation
+    Copyright (C) 2011 Symscape
+    Copyright (C) 2018-2021 OpenCFD Ltd.
+-------------------------------------------------------------------------------
 License
-    This file is part of blueCAPE's unofficial mingw patches for OpenFOAM.
-    For more information about these patches, visit:
-         http://bluecfd.com/Core
-
-    This file is a derivative work of OpenFOAM.
+    This file is part of OpenFOAM.
 
     OpenFOAM is free software: you can redistribute it and/or modify it
     under the terms of the GNU General Public License as published by
@@ -25,57 +25,30 @@ License
     You should have received a copy of the GNU General Public License
     along with OpenFOAM.  If not, see <http://www.gnu.org/licenses/>.
 
-Modifications
-    This file is based on the original version for POSIX:
-        OpenFOAM/src/OSspecific/POSIX/
-
-    This file was developed for Windows by:
-        Copyright            : (C) 2011 Symscape
-        Website              : www.symscape.com
-
-    This copy of this file has been created by blueCAPE's unofficial mingw
-    patches for OpenFOAM.
-    For more information about these patches, visit:
-        http://bluecfd.com/Core
-
-    Modifications made:
-      - Derived from the patches for blueCFD 2.1 and 2.2.
-
-Class
-    sigInt
-
 \*---------------------------------------------------------------------------*/
 
-#include "error.H"
 #include "sigInt.H"
+#include "error.H"
 #include "JobInfo.H"
 #include "IOstreams.H"
 
+// File-local functions
+#include "signalMacros.C"
+
+
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
 
-__p_sig_fn_t Foam::sigInt::oldAction_ = SIG_DFL;
+bool Foam::sigInt::sigActive_ = false;
+
 
 // * * * * * * * * * * * * * Private Member Functions  * * * * * * * * * * * //
 
-void Foam::sigInt::sigIntHandler(int)
+void Foam::sigInt::sigHandler(int)
 {
-    // Reset old handling
-    const __p_sig_fn_t success = ::signal(SIGINT, oldAction_);
+    resetHandler("SIGINT", SIGINT);
 
-    if (SIG_ERR == success)
-    {
-        FatalErrorIn
-        (
-            "Foam::sigInt::sigIntHandler()"
-        )   << "Cannot reset SIGINT trapping"
-            << abort(FatalError);
-    }
-
-    // Update jobInfo file
-    jobInfo.signalEnd();
-
-    // Throw signal (to old handler)
-    ::raise(SIGINT);
+    JobInfo::shutdown();        // From running -> finished
+    ::raise(SIGINT);            // Throw signal (to old handler)
 }
 
 
@@ -83,7 +56,7 @@ void Foam::sigInt::sigIntHandler(int)
 
 Foam::sigInt::sigInt()
 {
-    oldAction_ = SIG_DFL;
+    set(false);
 }
 
 
@@ -91,46 +64,33 @@ Foam::sigInt::sigInt()
 
 Foam::sigInt::~sigInt()
 {
-    // Reset old handling
-    const __p_sig_fn_t success = ::signal(SIGINT, oldAction_);
-    oldAction_ = SIG_DFL;
-
-    if (SIG_ERR == success)
-    {
-         FatalErrorIn
-        (
-            "Foam::sigInt::~sigInt()"
-        )   << "Cannot reset SIGINT trapping"
-            << abort(FatalError);    
-    }
+    unset(false);
 }
 
 
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
 
-void Foam::sigInt::set(const bool verbose)
+void Foam::sigInt::set(bool)
 {
-    if (SIG_DFL != oldAction_)
+    if (sigActive_)
     {
-        FatalErrorIn
-        (
-            "Foam::sigInt::set()"
-        )   << "Cannot call sigInt::set() more than once"
-            << abort(FatalError);
+        return;
     }
+    sigActive_ = true;
 
-    oldAction_ = ::signal(SIGINT, &Foam::sigInt::sigIntHandler);        
+    setHandler("SIGINT", SIGINT, sigHandler);
+}
 
-    if (SIG_ERR == oldAction_)
+
+void Foam::sigInt::unset(const bool verbose)
+{
+    if (!sigActive_)
     {
-        oldAction_ = SIG_DFL;
- 
-        FatalErrorIn
-        (
-            "Foam::sigInt::set()"
-        )   << "Cannot set SIGINT trapping"
-            << abort(FatalError);    
+        return;
     }
+    sigActive_ = false;
+
+    resetHandler("SIGINT", SIGINT);
 }
 
 

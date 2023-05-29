@@ -1,9 +1,11 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2014 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2014 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -25,7 +27,7 @@ Primitive
     int
 
 Description
-    System integer
+    System signed integer
 
 SourceFiles
     intIO.C
@@ -35,6 +37,7 @@ SourceFiles
 #ifndef int_H
 #define int_H
 
+#include "int16.H"
 #include "int32.H"
 #include "int64.H"
 
@@ -43,16 +46,18 @@ SourceFiles
 namespace Foam
 {
 
-#define MAXMIN(retType, type1, type2)              \
-                                                   \
-inline retType max(const type1 s1, const type2 s2) \
-{                                                  \
-    return (s1 > s2)? s1: s2;                      \
-}                                                  \
-                                                   \
-inline retType min(const type1 s1, const type2 s2) \
-{                                                  \
-    return (s1 < s2)? s1: s2;                      \
+#define MAXMIN(retType, type1, type2)                                          \
+                                                                               \
+/*! \brief Floating/integral min. Use stdmin() to preserve references */ \
+inline retType min(const type1 s1, const type2 s2)                             \
+{                                                                              \
+    return (s1 < s2) ? s1 : s2;                                                \
+}                                                                              \
+                                                                               \
+/*! \brief Floating integral max. Use stdmax() to preserve references */ \
+inline retType max(const type1 s1, const type2 s2)                             \
+{                                                                              \
+    return (s2 < s1) ? s1 : s2;                                                \
 }
 
 
@@ -67,7 +72,30 @@ MAXMIN(int64_t, int64_t, int64_t)
 
 // * * * * * * * * * * * * * * * IOstream Operators  * * * * * * * * * * * * //
 
-int readInt(Istream&);
+//- Read int from stream
+int readInt(Istream& is);
+
+//- Parse entire buffer as an int, skipping leading/trailing whitespace.
+//  \return Parsed value or FatalIOError on any problem
+int readInt(const char* buf);
+
+//- Parse entire string as an int, skipping leading/trailing whitespace.
+//  \return Parsed value or FatalIOError on any problem
+inline int readInt(const std::string& str)
+{
+    return readInt(str.c_str());
+}
+
+//- Read entire buffer as an int, skipping leading/trailing whitespace.
+//  \return True if successful.
+bool readInt(const char* buf, int& val);
+
+//- Read entire string as an int32_t, skipping leading/trailing whitespace.
+//  \return True if successful.
+inline bool readInt(const std::string& str, int& val)
+{
+    return readInt(str.c_str(), val);
+}
 
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //

@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2013-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2013-2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -23,6 +25,9 @@ License
 
 Class
     Foam::TimeScaleModels::nonEquilibrium
+
+Group
+    grpLagrangianIntermediateMPPICTimeScaleSubModels
 
 Description
     Non-Equlibrium model for the time scale over which properties of a
@@ -46,7 +51,7 @@ SourceFiles
 #ifndef nonEquilibrium_H
 #define nonEquilibrium_H
 
-#include "TimeScaleModel.T.H"
+#include "TimeScaleModel.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 

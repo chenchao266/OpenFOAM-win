@@ -1,9 +1,12 @@
-﻿/*---------------------------------------------------------------------------*\
+/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2016-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -24,9 +27,13 @@ License
 \*---------------------------------------------------------------------------*/
 
 #include "cyclicAMIPolyPatch.H"
-#include "SubField.T.H"
-#include "Time.T.H"
+#include "SubField.H"
+#include "Time1.H"
+#include "unitConversion.H"
+#include "OFstream.H"
+#include "meshTools.H"
 #include "addToRunTimeSelectionTable.H"
+#include "cyclicPolyPatch.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -38,6 +45,7 @@ namespace Foam
     addToRunTimeSelectionTable(polyPatch, cyclicAMIPolyPatch, dictionary);
 }
 
+const Foam::scalar Foam::cyclicAMIPolyPatch::tolerance_ = 1e-10;
 
 // * * * * * * * * * * * * Private Member Functions  * * * * * * * * * * * * //
 
@@ -54,14 +62,12 @@ Foam::vector Foam::cyclicAMIPolyPatch::findFaceNormalMaxRadius
 
     label facei = findMax(magRadSqr);
 
-    if (debug)
-    {
-        Info<< "findFaceMaxRadius(const pointField&) : patch: " << name() << nl
-            << "    rotFace  = " << facei << nl
-            << "    point    = " << faceCentres[facei] << nl
-            << "    distance = " << Foam::sqrt(magRadSqr[facei])
-            << endl;
-    }
+    DebugInFunction
+        << "Patch: " << name() << nl
+        << "    rotFace  = " << facei << nl
+        << "    point    = " << faceCentres[facei] << nl
+        << "    distance = " << Foam::sqrt(magRadSqr[facei])
+        << endl;
 
     return n[facei];
 }
@@ -193,8 +199,8 @@ void Foam::cyclicAMIPolyPatch::calcTransforms
                 reduce(n0, maxMagSqrOp<point>());
                 reduce(n1, maxMagSqrOp<point>());
 
-                n0 /= mag(n0) + VSMALL;
-                n1 /= mag(n1) + VSMALL;
+                n0.normalise();
+                n1.normalise();
 
                 // Extended tensor from two local coordinate systems calculated
                 // using normal and rotation axis
@@ -281,96 +287,181 @@ void Foam::cyclicAMIPolyPatch::calcTransforms
 }
 
 
-// * * * * * * * * * * * Protected Member Functions  * * * * * * * * * * * * //
-
-void Foam::cyclicAMIPolyPatch::resetAMI
-(
-    const AMIPatchToPatchInterpolation::interpolationMethod& AMIMethod
-) const
+Foam::autoPtr<Foam::coordSystem::cylindrical>
+Foam::cyclicAMIPolyPatch::cylindricalCS() const
 {
-    if (owner())
+    autoPtr<coordSystem::cylindrical> csPtr;
+
+    const label periodicID = periodicPatchID();
+    if (periodicID != -1)
     {
-        AMIPtr_.clear();
-
-        const polyPatch& nbr = neighbPatch();
-        pointField nbrPoints
+        // Get the periodic patch
+        const coupledPolyPatch& perPp
         (
-            neighbPatch().boundaryMesh().mesh().points(),
-            neighbPatch().meshPoints()
-        );
-
-        if (debug)
-        {
-            const Time& t = boundaryMesh().mesh().time();
-            OFstream os(t.path()/name() + "_neighbourPatch-org.obj");
-            meshTools::writeOBJ(os, neighbPatch().localFaces(), nbrPoints);
-        }
-
-        // Transform neighbour patch to local system
-        transformPosition(nbrPoints);
-        primitivePatch nbrPatch0
-        (
-            SubList<face>
+            refCast<const coupledPolyPatch>
             (
-                nbr.localFaces(),
-                nbr.size()
-            ),
-            nbrPoints
-        );
-
-        if (debug)
-        {
-            const Time& t = boundaryMesh().mesh().time();
-            OFstream osN(t.path()/name() + "_neighbourPatch-trans.obj");
-            meshTools::writeOBJ(osN, nbrPatch0.localFaces(), nbrPoints);
-
-            OFstream osO(t.path()/name() + "_ownerPatch.obj");
-            meshTools::writeOBJ(osO, this->localFaces(), localPoints());
-        }
-
-        // Construct/apply AMI interpolation to determine addressing and weights
-        AMIPtr_.reset
-        (
-            new AMIPatchToPatchInterpolation
-            (
-                *this,
-                nbrPatch0,
-                surfPtr(),
-                faceAreaIntersect::tmMesh,
-                AMIRequireMatch_,
-                AMIMethod,
-                AMILowWeightCorrection_,
-                AMIReverse_
+                boundaryMesh()[periodicID]
             )
         );
-
-        if (debug)
+        if (!perPp.parallel())
         {
-            Pout<< "cyclicAMIPolyPatch : " << name()
-                << " constructed AMI with " << nl
-                << "    " << "srcAddress:" << AMIPtr_().srcAddress().size()
-                << nl
-                << "    " << "tgAddress :" << AMIPtr_().tgtAddress().size()
-                << nl << endl;
+            vector axis(Zero);
+            point axisPoint(Zero);
+            if (isA<cyclicPolyPatch>(perPp))
+            {
+                axis =
+                    refCast<const cyclicPolyPatch>(perPp).rotationAxis();
+                axisPoint =
+                    refCast<const cyclicPolyPatch>(perPp).rotationCentre();
+            }
+            else if (isA<cyclicAMIPolyPatch>(perPp))
+            {
+                axis =
+                    refCast<const cyclicAMIPolyPatch>(perPp).rotationAxis();
+                axisPoint =
+                    refCast<const cyclicAMIPolyPatch>(perPp).rotationCentre();
+            }
+            else
+            {
+                FatalErrorInFunction << "On patch " << name()
+                    << " have unsupported periodicPatch " << perPp.name()
+                    << exit(FatalError);
+            }
+
+            csPtr.set(new coordSystem::cylindrical(axisPoint, axis));
         }
+    }
+    return csPtr;
+}
+
+
+// * * * * * * * * * * * Protected Member Functions  * * * * * * * * * * * * //
+
+const Foam::autoPtr<Foam::searchableSurface>&
+Foam::cyclicAMIPolyPatch::surfPtr() const
+{
+    const word surfType(surfDict_.getOrDefault<word>("type", "none"));
+
+    if (!surfPtr_ && owner() && surfType != "none")
+    {
+        word surfName(surfDict_.getOrDefault("name", name()));
+
+        const polyMesh& mesh = boundaryMesh().mesh();
+
+        surfPtr_ =
+            searchableSurface::New
+            (
+                surfType,
+                IOobject
+                (
+                    surfName,
+                    mesh.time().constant(),
+                    "triSurface",
+                    mesh,
+                    IOobject::MUST_READ,
+                    IOobject::NO_WRITE
+                ),
+                surfDict_
+            );
+    }
+
+    return surfPtr_;
+}
+
+
+void Foam::cyclicAMIPolyPatch::resetAMI() const
+{
+    resetAMI(boundaryMesh().mesh().points());
+}
+
+
+void Foam::cyclicAMIPolyPatch::resetAMI(const UList<point>& points) const
+{
+    DebugInFunction << endl;
+
+    if (!owner())
+    {
+        return;
+    }
+
+    const cyclicAMIPolyPatch& nbr = neighbPatch();
+    pointField srcPoints(localPoints());
+    pointField nbrPoints(nbr.localPoints());
+
+    if (debug)
+    {
+        const Time& t = boundaryMesh().mesh().time();
+        OFstream os(t.path()/name() + "_neighbourPatch-org.obj");
+        meshTools::writeOBJ(os, neighbPatch().localFaces(), nbrPoints);
+    }
+
+    label patchSize0 = size();
+    label nbrPatchSize0 = nbr.size();
+
+    if (createAMIFaces_)
+    {
+        // AMI is created based on the original patch faces (non-extended patch)
+        if (srcFaceIDs_.size())
+        {
+            patchSize0 = srcFaceIDs_.size();
+        }
+        if (tgtFaceIDs_.size())
+        {
+            nbrPatchSize0 = tgtFaceIDs_.size();
+        }
+    }
+
+    // Transform neighbour patch to local system
+    transformPosition(nbrPoints);
+    primitivePatch nbrPatch0
+    (
+        SubList<face>(nbr.localFaces(), nbrPatchSize0),
+        nbrPoints
+    );
+    primitivePatch patch0
+    (
+        SubList<face>(localFaces(), patchSize0),
+        srcPoints
+    );
+
+
+    if (debug)
+    {
+        const Time& t = boundaryMesh().mesh().time();
+        OFstream osN(t.path()/name() + "_neighbourPatch-trans.obj");
+        meshTools::writeOBJ(osN, nbrPatch0.localFaces(), nbrPoints);
+
+        OFstream osO(t.path()/name() + "_ownerPatch.obj");
+        meshTools::writeOBJ(osO, this->localFaces(), localPoints());
+    }
+
+    // Construct/apply AMI interpolation to determine addressing and weights
+    AMIPtr_->upToDate() = false;
+    AMIPtr_->calculate(patch0, nbrPatch0, surfPtr());
+
+    if (debug)
+    {
+        AMIPtr_->checkSymmetricWeights(true);
     }
 }
 
 
 void Foam::cyclicAMIPolyPatch::calcTransforms()
 {
+    DebugInFunction << endl;
+
     const cyclicAMIPolyPatch& half0 = *this;
     vectorField half0Areas(half0.size());
     forAll(half0, facei)
     {
-        half0Areas[facei] = half0[facei].normal(half0.points());
+        half0Areas[facei] = half0[facei].areaNormal(half0.points());
     }
 
     const cyclicAMIPolyPatch& half1 = neighbPatch();
     vectorField half1Areas(half1.size());
     forAll(half1, facei)
     {
-        half1Areas[facei] = half1[facei].normal(half1.points());
+        half1Areas[facei] = half1[facei].areaNormal(half1.points());
     }
 
     calcTransforms
@@ -382,38 +473,35 @@ void Foam::cyclicAMIPolyPatch::calcTransforms()
         half1Areas
     );
 
-    if (debug)
-    {
-        Pout<< "calcTransforms() : patch: " << name() << nl
-            << "    forwardT = " << forwardT() << nl
-            << "    reverseT = " << reverseT() << nl
-            << "    separation = " << separation() << nl
-            << "    collocated = " << collocated() << nl << endl;
-    }
+    DebugPout
+        << "calcTransforms() : patch: " << name() << nl
+        << "    forwardT = " << forwardT() << nl
+        << "    reverseT = " << reverseT() << nl
+        << "    separation = " << separation() << nl
+        << "    collocated = " << collocated() << nl << endl;
 }
 
 
 void Foam::cyclicAMIPolyPatch::initGeometry(PstreamBuffers& pBufs)
 {
-    // Clear the invalid AMI
-    AMIPtr_.clear();
+    DebugInFunction << endl;
+
+    // Flag AMI as needing update
+    AMIPtr_->upToDate() = false;
 
     polyPatch::initGeometry(pBufs);
+
+    // Early calculation of transforms so e.g. cyclicACMI can use them.
+    // Note: also triggers primitiveMesh face centre. Note that cell
+    // centres should -not- be calculated
+    // since e.g. cyclicACMI overrides face areas
+    calcTransforms();
 }
 
 
 void Foam::cyclicAMIPolyPatch::calcGeometry(PstreamBuffers& pBufs)
 {
-    calcGeometry
-    (
-        *this,
-        faceCentres(),
-        faceAreas(),
-        faceCellCentres(),
-        neighbPatch().faceCentres(),
-        neighbPatch().faceAreas(),
-        neighbPatch().faceCellCentres()
-    );
+    DebugInFunction << endl;
 }
 
 
@@ -423,13 +511,33 @@ void Foam::cyclicAMIPolyPatch::initMovePoints
     const pointField& p
 )
 {
-    // Clear the invalid AMI
-    AMIPtr_.clear();
-
-    polyPatch::initMovePoints(pBufs, p);
+    DebugInFunction << endl;
 
     // See below. Clear out any local geometry
     primitivePatch::movePoints(p);
+
+    // Note: processorPolyPatch::initMovePoints calls
+    // processorPolyPatch::initGeometry which will trigger calculation of
+    // patch faceCentres() and cell volumes...
+
+    if (createAMIFaces_)
+    {
+        // Note: AMI should have been updated in setTopology
+
+        // faceAreas() and faceCentres() have been reset and will be
+        // recalculated on-demand using the mesh points and no longer
+        // correspond to the scaled areas!
+        restoreScaledGeometry();
+
+        // deltas need to be recalculated to use new face centres!
+    }
+    else
+    {
+        AMIPtr_->upToDate() = false;
+    }
+
+    // Early calculation of transforms. See above.
+    calcTransforms();
 }
 
 
@@ -439,30 +547,55 @@ void Foam::cyclicAMIPolyPatch::movePoints
     const pointField& p
 )
 {
-    polyPatch::movePoints(pBufs, p);
+    DebugInFunction << endl;
 
-    calcTransforms();
+//    Note: not calling movePoints since this will undo our manipulations!
+//    polyPatch::movePoints(pBufs, p);
+/*
+    polyPatch::movePoints
+     -> primitivePatch::movePoints
+        -> primitivePatch::clearGeom:
+    deleteDemandDrivenData(localPointsPtr_);
+    deleteDemandDrivenData(faceCentresPtr_);
+    deleteDemandDrivenData(faceAreasPtr_);
+    deleteDemandDrivenData(magFaceAreasPtr_);
+    deleteDemandDrivenData(faceNormalsPtr_);
+    deleteDemandDrivenData(pointNormalsPtr_);
+*/
 }
 
 
 void Foam::cyclicAMIPolyPatch::initUpdateMesh(PstreamBuffers& pBufs)
 {
-    // Clear the invalid AMI
-    AMIPtr_.clear();
+    DebugInFunction << endl;
 
     polyPatch::initUpdateMesh(pBufs);
+
+    if (createAMIFaces_ && boundaryMesh().mesh().topoChanging() && owner())
+    {
+        setAMIFaces();
+    }
 }
 
 
 void Foam::cyclicAMIPolyPatch::updateMesh(PstreamBuffers& pBufs)
 {
+    DebugInFunction << endl;
+
+    // Note: this clears out cellCentres(), faceCentres() and faceAreas()
     polyPatch::updateMesh(pBufs);
 }
 
 
 void Foam::cyclicAMIPolyPatch::clearGeom()
 {
-    AMIPtr_.clear();
+    DebugInFunction << endl;
+
+    if (!updatingAMI_)
+    {
+        AMIPtr_->upToDate() = false;
+    }
+
     polyPatch::clearGeom();
 }
 
@@ -477,23 +610,31 @@ Foam::cyclicAMIPolyPatch::cyclicAMIPolyPatch
     const label index,
     const polyBoundaryMesh& bm,
     const word& patchType,
-    const transformType transform
+    const transformType transform,
+    const word& defaultAMIMethod
 )
 :
     coupledPolyPatch(name, size, start, index, bm, patchType, transform),
     nbrPatchName_(word::null),
     nbrPatchID_(-1),
+    fraction_(Zero),
     rotationAxis_(Zero),
-    rotationCentre_(point::_zero),
+    rotationCentre_(Zero),
     rotationAngleDefined_(false),
     rotationAngle_(0.0),
     separationVector_(Zero),
-    AMIPtr_(nullptr),
-    AMIReverse_(false),
-    AMIRequireMatch_(true),
-    AMILowWeightCorrection_(-1.0),
+    periodicPatchName_(word::null),
+    periodicPatchID_(-1),
+    AMIPtr_(AMIInterpolation::New(defaultAMIMethod)),
+    surfDict_(fileName("surface")),
     surfPtr_(nullptr),
-    surfDict_(fileName("surface"))
+    createAMIFaces_(false),
+    moveFaceCentres_(false),
+    updatingAMI_(true),
+    srcFaceIDs_(),
+    tgtFaceIDs_(),
+    faceAreas0_(),
+    faceCentres0_()
 {
     // Neighbour patch might not be valid yet so no transformation
     // calculation possible
@@ -506,40 +647,52 @@ Foam::cyclicAMIPolyPatch::cyclicAMIPolyPatch
     const dictionary& dict,
     const label index,
     const polyBoundaryMesh& bm,
-    const word& patchType
+    const word& patchType,
+    const word& defaultAMIMethod
 )
 :
     coupledPolyPatch(name, dict, index, bm, patchType),
-    nbrPatchName_(dict.lookupOrDefault<word>("neighbourPatch", "")),
+    nbrPatchName_(dict.getOrDefault<word>("neighbourPatch", word::null)),
     coupleGroup_(dict),
     nbrPatchID_(-1),
+    fraction_(dict.getOrDefault<scalar>("fraction", Zero)),
     rotationAxis_(Zero),
-    rotationCentre_(point::_zero),
+    rotationCentre_(Zero),
     rotationAngleDefined_(false),
     rotationAngle_(0.0),
     separationVector_(Zero),
-    AMIPtr_(nullptr),
-    AMIReverse_(dict.lookupOrDefault<bool>("flipNormals", false)),
-    AMIRequireMatch_(true),
-    AMILowWeightCorrection_(dict.lookupOrDefault("lowWeightCorrection", -1.0)),
+    periodicPatchName_(dict.getOrDefault<word>("periodicPatch", word::null)),
+    periodicPatchID_(-1),
+    AMIPtr_
+    (
+        AMIInterpolation::New
+        (
+            dict.getOrDefault<word>("AMIMethod", defaultAMIMethod),
+            dict,
+            dict.getOrDefault("flipNormals", false)
+        )
+    ),
+    surfDict_(dict.subOrEmptyDict("surface")),
     surfPtr_(nullptr),
-    surfDict_(dict.subOrEmptyDict("surface"))
+    createAMIFaces_(dict.getOrDefault("createAMIFaces", false)),
+    moveFaceCentres_(false),
+    updatingAMI_(true),
+    srcFaceIDs_(),
+    tgtFaceIDs_(),
+    faceAreas0_(),
+    faceCentres0_()
 {
     if (nbrPatchName_ == word::null && !coupleGroup_.valid())
     {
-        FatalIOErrorInFunction
-        (
-            dict
-        )   << "No \"neighbourPatch\" or \"coupleGroup\" provided."
+        FatalIOErrorInFunction(dict)
+            << "No \"neighbourPatch\" or \"coupleGroup\" provided."
             << exit(FatalIOError);
     }
 
     if (nbrPatchName_ == name)
     {
-        FatalIOErrorInFunction
-        (
-            dict
-        )   << "Neighbour patch name " << nbrPatchName_
+        FatalIOErrorInFunction(dict)
+            << "Neighbour patch name " << nbrPatchName_
             << " cannot be the same as this patch " << name
             << exit(FatalIOError);
     }
@@ -548,8 +701,8 @@ Foam::cyclicAMIPolyPatch::cyclicAMIPolyPatch
     {
         case ROTATIONAL:
         {
-            dict.lookup("rotationAxis") >> rotationAxis_;
-            dict.lookup("rotationCentre") >> rotationCentre_;
+            dict.readEntry("rotationAxis", rotationAxis_);
+            dict.readEntry("rotationCentre", rotationCentre_);
             if (dict.readIfPresent("rotationAngle", rotationAngle_))
             {
                 rotationAngleDefined_ = true;
@@ -565,10 +718,8 @@ Foam::cyclicAMIPolyPatch::cyclicAMIPolyPatch
             scalar magRot = mag(rotationAxis_);
             if (magRot < SMALL)
             {
-                FatalIOErrorInFunction
-                (
-                    dict
-                )   << "Illegal rotationAxis " << rotationAxis_ << endl
+                FatalIOErrorInFunction(dict)
+                    << "Illegal rotationAxis " << rotationAxis_ << endl
                     << "Please supply a non-zero vector."
                     << exit(FatalIOError);
             }
@@ -578,7 +729,7 @@ Foam::cyclicAMIPolyPatch::cyclicAMIPolyPatch
         }
         case TRANSLATIONAL:
         {
-            dict.lookup("separationVector") >> separationVector_;
+            dict.readEntry("separationVector", separationVector_);
             break;
         }
         default:
@@ -589,6 +740,15 @@ Foam::cyclicAMIPolyPatch::cyclicAMIPolyPatch
 
     // Neighbour patch might not be valid yet so no transformation
     // calculation possible
+
+    // If topology change, recover the sizes of the original patches and
+    // read additional controls
+    if (createAMIFaces_)
+    {
+        srcFaceIDs_.setSize(dict.get<label>("srcSize"));
+        tgtFaceIDs_.setSize(dict.get<label>("tgtSize"));
+        moveFaceCentres_ = dict.getOrDefault("moveFaceCentres", true);
+    }
 }
 
 
@@ -602,17 +762,24 @@ Foam::cyclicAMIPolyPatch::cyclicAMIPolyPatch
     nbrPatchName_(pp.nbrPatchName_),
     coupleGroup_(pp.coupleGroup_),
     nbrPatchID_(-1),
+    fraction_(pp.fraction_),
     rotationAxis_(pp.rotationAxis_),
     rotationCentre_(pp.rotationCentre_),
     rotationAngleDefined_(pp.rotationAngleDefined_),
     rotationAngle_(pp.rotationAngle_),
     separationVector_(pp.separationVector_),
-    AMIPtr_(nullptr),
-    AMIReverse_(pp.AMIReverse_),
-    AMIRequireMatch_(pp.AMIRequireMatch_),
-    AMILowWeightCorrection_(pp.AMILowWeightCorrection_),
+    periodicPatchName_(pp.periodicPatchName_),
+    periodicPatchID_(-1),
+    AMIPtr_(pp.AMIPtr_->clone()),
+    surfDict_(pp.surfDict_),
     surfPtr_(nullptr),
-    surfDict_(pp.surfDict_)
+    createAMIFaces_(pp.createAMIFaces_),
+    moveFaceCentres_(pp.moveFaceCentres_),
+    updatingAMI_(true),
+    srcFaceIDs_(),
+    tgtFaceIDs_(),
+    faceAreas0_(),
+    faceCentres0_()
 {
     // Neighbour patch might not be valid yet so no transformation
     // calculation possible
@@ -633,17 +800,24 @@ Foam::cyclicAMIPolyPatch::cyclicAMIPolyPatch
     nbrPatchName_(nbrPatchName),
     coupleGroup_(pp.coupleGroup_),
     nbrPatchID_(-1),
+    fraction_(pp.fraction_),
     rotationAxis_(pp.rotationAxis_),
     rotationCentre_(pp.rotationCentre_),
     rotationAngleDefined_(pp.rotationAngleDefined_),
     rotationAngle_(pp.rotationAngle_),
     separationVector_(pp.separationVector_),
-    AMIPtr_(nullptr),
-    AMIReverse_(pp.AMIReverse_),
-    AMIRequireMatch_(pp.AMIRequireMatch_),
-    AMILowWeightCorrection_(pp.AMILowWeightCorrection_),
+    periodicPatchName_(pp.periodicPatchName_),
+    periodicPatchID_(-1),
+    AMIPtr_(pp.AMIPtr_->clone()),
+    surfDict_(pp.surfDict_),
     surfPtr_(nullptr),
-    surfDict_(pp.surfDict_)
+    createAMIFaces_(pp.createAMIFaces_),
+    moveFaceCentres_(pp.moveFaceCentres_),
+    updatingAMI_(true),
+    srcFaceIDs_(),
+    tgtFaceIDs_(),
+    faceAreas0_(),
+    faceCentres0_()
 {
     if (nbrPatchName_ == name())
     {
@@ -671,27 +845,59 @@ Foam::cyclicAMIPolyPatch::cyclicAMIPolyPatch
     nbrPatchName_(pp.nbrPatchName_),
     coupleGroup_(pp.coupleGroup_),
     nbrPatchID_(-1),
+    fraction_(pp.fraction_),
     rotationAxis_(pp.rotationAxis_),
     rotationCentre_(pp.rotationCentre_),
     rotationAngleDefined_(pp.rotationAngleDefined_),
     rotationAngle_(pp.rotationAngle_),
     separationVector_(pp.separationVector_),
-    AMIPtr_(nullptr),
-    AMIReverse_(pp.AMIReverse_),
-    AMIRequireMatch_(pp.AMIRequireMatch_),
-    AMILowWeightCorrection_(pp.AMILowWeightCorrection_),
+    periodicPatchName_(pp.periodicPatchName_),
+    periodicPatchID_(-1),
+    AMIPtr_(pp.AMIPtr_->clone()),
+    surfDict_(pp.surfDict_),
     surfPtr_(nullptr),
-    surfDict_(pp.surfDict_)
+    createAMIFaces_(pp.createAMIFaces_),
+    moveFaceCentres_(pp.moveFaceCentres_),
+    updatingAMI_(true),
+    srcFaceIDs_(),
+    tgtFaceIDs_(),
+    faceAreas0_(),
+    faceCentres0_()
 {}
-
-
-// * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
-
-Foam::cyclicAMIPolyPatch::~cyclicAMIPolyPatch()
-{}
-
 
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
+
+void Foam::cyclicAMIPolyPatch::newInternalProcFaces
+(
+    label& newFaces,
+    label& newProcFaces
+) const
+{
+    const labelListList& addSourceFaces = AMI().srcAddress();
+
+    // Add new faces as many weights for AMI
+    forAll (addSourceFaces, faceI)
+    {
+        const labelList& nbrFaceIs = addSourceFaces[faceI];
+
+        forAll (nbrFaceIs, j)
+        {
+            label nbrFaceI = nbrFaceIs[j];
+
+            if (nbrFaceI < neighbPatch().size())
+            {
+                // local faces
+                newFaces++;
+            }
+            else
+            {
+                // Proc faces
+                newProcFaces++;
+            }
+        }
+    }
+}
+
 
 Foam::label Foam::cyclicAMIPolyPatch::neighbPatchID() const
 {
@@ -729,6 +935,32 @@ Foam::label Foam::cyclicAMIPolyPatch::neighbPatchID() const
 }
 
 
+Foam::label Foam::cyclicAMIPolyPatch::periodicPatchID() const
+{
+    if (periodicPatchName_ == word::null)
+    {
+        return -1;
+    }
+    else
+    {
+        if (periodicPatchID_ == -1)
+        {
+            periodicPatchID_ = boundaryMesh().findPatchID(periodicPatchName_);
+
+            if (periodicPatchID_ == -1)
+            {
+                FatalErrorInFunction
+                    << "Illegal neighbourPatch name " << periodicPatchName_
+                    << nl << "Valid patch names are "
+                    << this->boundaryMesh().names()
+                    << exit(FatalError);
+            }
+        }
+        return periodicPatchID_;
+    }
+}
+
+
 bool Foam::cyclicAMIPolyPatch::owner() const
 {
     return index() < neighbPatchID();
@@ -742,38 +974,6 @@ const Foam::cyclicAMIPolyPatch& Foam::cyclicAMIPolyPatch::neighbPatch() const
 }
 
 
-const Foam::autoPtr<Foam::searchableSurface>&
-Foam::cyclicAMIPolyPatch::surfPtr() const
-{
-    const word surfType(surfDict_.lookupOrDefault<word>("type", "none"));
-
-    if (!surfPtr_.valid() && owner() && surfType != "none")
-    {
-        word surfName(surfDict_.lookupOrDefault("name", name()));
-
-        const polyMesh& mesh = boundaryMesh().mesh();
-
-        surfPtr_ =
-            searchableSurface::New
-            (
-                surfType,
-                IOobject
-                (
-                    surfName,
-                    mesh.time().constant(),
-                    "triSurface",
-                    mesh,
-                    IOobject::MUST_READ,
-                    IOobject::NO_WRITE
-                ),
-                surfDict_
-            );
-    }
-
-    return surfPtr_;
-}
-
-
 const Foam::AMIPatchToPatchInterpolation& Foam::cyclicAMIPolyPatch::AMI() const
 {
     if (!owner())
@@ -783,12 +983,12 @@ const Foam::AMIPatchToPatchInterpolation& Foam::cyclicAMIPolyPatch::AMI() const
             << abort(FatalError);
     }
 
-    if (!AMIPtr_.valid())
+    if (!AMIPtr_->upToDate())
     {
         resetAMI();
     }
 
-    return AMIPtr_();
+    return *AMIPtr_;
 }
 
 
@@ -946,16 +1146,7 @@ void Foam::cyclicAMIPolyPatch::calcGeometry
     const vectorField& nbrAreas,
     const pointField& nbrCc
 )
-{
-    calcTransforms
-    (
-        referPatch,
-        thisCtrs,
-        thisAreas,
-        nbrCtrs,
-        nbrAreas
-    );
-}
+{}
 
 
 void Foam::cyclicAMIPolyPatch::initOrder
@@ -1036,8 +1227,7 @@ void Foam::cyclicAMIPolyPatch::write(Ostream& os) const
     coupledPolyPatch::write(os);
     if (!nbrPatchName_.empty())
     {
-        os.writeKeyword("neighbourPatch") << nbrPatchName_
-            << token::END_STATEMENT << nl;
+        os.writeEntry("neighbourPatch", nbrPatchName_);
     }
     coupleGroup_.write(os);
 
@@ -1045,23 +1235,19 @@ void Foam::cyclicAMIPolyPatch::write(Ostream& os) const
     {
         case ROTATIONAL:
         {
-            os.writeKeyword("rotationAxis") << rotationAxis_
-                << token::END_STATEMENT << nl;
-            os.writeKeyword("rotationCentre") << rotationCentre_
-                << token::END_STATEMENT << nl;
+            os.writeEntry("rotationAxis", rotationAxis_);
+            os.writeEntry("rotationCentre", rotationCentre_);
 
             if (rotationAngleDefined_)
             {
-                os.writeKeyword("rotationAngle") << radToDeg(rotationAngle_)
-                    << token::END_STATEMENT << nl;
+                os.writeEntry("rotationAngle", radToDeg(rotationAngle_));
             }
 
             break;
         }
         case TRANSLATIONAL:
         {
-            os.writeKeyword("separationVector") << separationVector_
-                << token::END_STATEMENT << nl;
+            os.writeEntry("separationVector", separationVector_);
             break;
         }
         case NOORDERING:
@@ -1074,23 +1260,27 @@ void Foam::cyclicAMIPolyPatch::write(Ostream& os) const
         }
     }
 
-    if (AMIReverse_)
+    if (periodicPatchName_ != word::null)
     {
-        os.writeKeyword("flipNormals") << AMIReverse_
-            << token::END_STATEMENT << nl;
+        os.writeEntry("periodicPatch", periodicPatchName_);
     }
 
-    if (AMILowWeightCorrection_ > 0)
-    {
-        os.writeKeyword("lowWeightCorrection") << AMILowWeightCorrection_
-            << token::END_STATEMENT << nl;
-    }
+    AMIPtr_->write(os);
 
     if (!surfDict_.empty())
     {
-        os.writeKeyword(surfDict_.dictName());
-        os  << surfDict_;
+        surfDict_.writeEntry(surfDict_.dictName(), os);
     }
+
+    if (createAMIFaces_)
+    {
+        os.writeEntry("createAMIFaces", createAMIFaces_);
+        os.writeEntry("srcSize", srcFaceIDs_.size());
+        os.writeEntry("tgtSize", tgtFaceIDs_.size());
+        os.writeEntry("moveFaceCentres", moveFaceCentres_);
+    }
+
+    os.writeEntryIfDifferent<scalar>("fraction", Zero, fraction_);
 }
 
 

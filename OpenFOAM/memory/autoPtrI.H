@@ -1,9 +1,12 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2016-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -26,141 +29,144 @@ License
 #include "error.H"
 #include <typeinfo>
 
-// * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
-namespace Foam {
+// * * * * * * * * * * * * * Static Member Functions * * * * * * * * * * * * //
+ namespace Foam{
 template<class T>
-inline autoPtr<T>::autoPtr(T* p) :    ptr_(p)
+template<class... Args>
+inline autoPtr<T> autoPtr<T>::New(Args&&... args)
+{
+    return autoPtr<T>(new T(std::forward<Args>(args)...));
+}
+
+
+template<class T>
+template<class U, class... Args>
+inline autoPtr<T> autoPtr<T>::NewFrom(Args&&... args)
+{
+    return autoPtr<T>(new U(std::forward<Args>(args)...));
+}
+
+
+// * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
+
+template<class T>
+inline constexpr autoPtr<T>::autoPtr() noexcept
+:
+    ptr_(nullptr)
 {}
 
 
 template<class T>
-inline autoPtr<T>::autoPtr(const autoPtr<T>& ap) :    ptr_(ap.ptr_)
-{
-    ap.ptr_ = 0;
-}
+inline constexpr autoPtr<T>::autoPtr(std::nullptr_t) noexcept
+:
+    ptr_(nullptr)
+{}
 
 
 template<class T>
-inline autoPtr<T>::autoPtr(const autoPtr<T>& ap, const bool reuse)
-{
-    if (reuse)
-    {
-        ptr_ = ap.ptr_;
-        ap.ptr_ = 0;
-    }
-    else if (ap.valid())
-    {
-        ptr_ = ap().clone().ptr();
-    }
-    else
-    {
-        ptr_ = nullptr;
-    }
-}
+inline autoPtr<T>::autoPtr(T* p) noexcept
+:
+    ptr_(p)
+{}
 
 
 template<class T>
-inline autoPtr<T>::~autoPtr()
+inline autoPtr<T>::autoPtr(autoPtr<T>&& ap) noexcept
+:
+    ptr_(ap.release())
+{}
+
+
+template<class T>
+template<class U>
+inline autoPtr<T>::autoPtr(autoPtr<U>&& ap)
+:
+    ptr_(ap.release())
+{}
+
+
+// * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
+
+template<class T>
+inline autoPtr<T>::~autoPtr() noexcept
 {
-    clear();
+    reset(nullptr);
 }
 
 
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
 
 template<class T>
-inline bool autoPtr<T>::empty() const
+inline T* autoPtr<T>::release() noexcept
 {
-    return !ptr_;
+    T* p = ptr_;
+    ptr_ = nullptr;
+    return p;
 }
 
 
 template<class T>
-inline bool autoPtr<T>::valid() const
+inline void autoPtr<T>::reset(T* p) noexcept
 {
-    return ptr_;
-}
-
-
-template<class T>
-inline T* autoPtr<T>::ptr()
-{
-    T* ptr = ptr_;
-    ptr_ = 0;
-    return ptr;
-}
-
-
-template<class T>
-inline void autoPtr<T>::set(T* p)
-{
-    if (ptr_)
-    {
-        FatalErrorInFunction
-            << "object of type " << typeid(T).name()
-            << " already allocated"
-            << abort(FatalError);
-    }
-
+    if (ptr_) delete ptr_;
     ptr_ = p;
 }
 
 
 template<class T>
-inline void autoPtr<T>::reset(T* p)
+inline void autoPtr<T>::reset(autoPtr<T>&& other) noexcept
 {
-    if (ptr_)
+    if (&other != this)
     {
-        delete ptr_;
+        // Ignore self-assignment
+        reset(other.release());
     }
-
-    ptr_ = p;
 }
 
 
 template<class T>
-inline void autoPtr<T>::clear()
+inline void autoPtr<T>::swap(autoPtr<T>& other) noexcept
 {
-    reset(0);
+    // Swap is just copy/assign for pointer and enum types
+    // Self-swap is effectively ignored
+    T* p = ptr_;
+    ptr_ = other.ptr_;
+    other.ptr_ = p;
+}
+
+
+template<class T>
+template<class... Args>
+inline autoPtr<T> autoPtr<T>::clone(Args&&... args) const
+{
+    if (ptr_)
+    {
+        return autoPtr<T>(ptr_->clone(std::forward<Args>(args)...).ptr());
+    }
+
+    return autoPtr<T>();
 }
 
 
 // * * * * * * * * * * * * * * * Member Operators  * * * * * * * * * * * * * //
 
 template<class T>
-inline T& autoPtr<T>::operator()()
+inline T& autoPtr<T>::operator*()
 {
     if (!ptr_)
     {
         FatalErrorInFunction
-            << "object of type " << typeid(T).name()
-            << " is not allocated"
+            << "unallocated autoPtr of type " << typeid(T).name()
             << abort(FatalError);
     }
-
     return *ptr_;
 }
 
 
 template<class T>
-inline const T& autoPtr<T>::operator()() const
+inline const T& autoPtr<T>::operator*() const
 {
-    if (!ptr_)
-    {
-        FatalErrorInFunction
-            << "object of type " << typeid(T).name()
-            << " is not allocated"
-            << abort(FatalError);
-    }
-
-    return *ptr_;
-}
-
-
-template<class T>
-inline autoPtr<T>::operator const T&() const
-{
-    return operator()();
+    return const_cast<autoPtr<T>*>(this)->operator*();
 }
 
 
@@ -170,11 +176,9 @@ inline T* autoPtr<T>::operator->()
     if (!ptr_)
     {
         FatalErrorInFunction
-            << "object of type " << typeid(T).name()
-            << " is not allocated"
+            << "unallocated autoPtr of type " << typeid(T).name()
             << abort(FatalError);
     }
-
     return ptr_;
 }
 
@@ -182,25 +186,54 @@ inline T* autoPtr<T>::operator->()
 template<class T>
 inline const T* autoPtr<T>::operator->() const
 {
-    return const_cast<autoPtr<T>&>(*this).operator->();
+    return const_cast<autoPtr<T>*>(this)->operator->();
 }
 
 
 template<class T>
-inline void autoPtr<T>::operator=(T* p)
+inline T& autoPtr<T>::operator()()
 {
-    reset(p);
+    return operator*();
 }
 
 
 template<class T>
-inline void autoPtr<T>::operator=(const autoPtr<T>& ap)
+inline const T& autoPtr<T>::operator()() const
+{
+    return operator*();
+}
+
+
+template<class T>
+inline void autoPtr<T>::operator=(autoPtr<T>&& ap) noexcept
 {
     if (this != &ap)
     {
-        reset(const_cast<autoPtr<T>&>(ap).ptr());
+        // Ignore self-assignment
+        reset(ap.release());
     }
 }
 
+
+template<class T>
+template<class U>
+inline void autoPtr<T>::operator=(autoPtr<U>&& ap) noexcept
+{
+    if (this != &ap)
+    {
+        // Ignore self-assignment
+        reset(ap.release());
+    }
 }
+
+
+template<class T>
+inline void autoPtr<T>::operator=(std::nullptr_t) noexcept
+{
+    reset(nullptr);
+}
+
+
 // ************************************************************************* //
+
+ } // End namespace Foam

@@ -1,9 +1,11 @@
-﻿/*---------------------------------------------------------------------------*\
+/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -23,7 +25,7 @@ License
 
 \*---------------------------------------------------------------------------*/
 
-//#include "extendedCellToFaceStencil.H"
+#include "extendedCellToFaceStencil.H"
 
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
 
@@ -32,7 +34,7 @@ Foam::tmp<Foam::GeometricField<Type, Foam::fvsPatchField, Foam::surfaceMesh>>
 Foam::extendedUpwindCellToFaceStencil::weightedSum
 (
     const surfaceScalarField& phi,
-    const volFieldType<Type>& fld,
+    const GeometricField<Type, fvPatchField, volMesh>& fld,
     const List<List<scalar>>& ownWeights,
     const List<List<scalar>>& neiWeights
 ) const
@@ -45,9 +47,9 @@ Foam::extendedUpwindCellToFaceStencil::weightedSum
     List<List<Type>> neiFld;
     collectData(neiMap(), neiStencil(), fld, neiFld);
 
-    tmp<surfaceFieldType<Type>> tsfCorr
+    tmp<GeometricField<Type, fvsPatchField, surfaceMesh>> tsfCorr
     (
-        new surfaceFieldType<Type>
+        new GeometricField<Type, fvsPatchField, surfaceMesh>
         (
             IOobject
             (
@@ -59,15 +61,10 @@ Foam::extendedUpwindCellToFaceStencil::weightedSum
                 false
             ),
             mesh,
-            dimensioned<Type>
-            (
-                fld.name(),
-                fld.dimensions(),
-                Zero
-            )
+            dimensioned<Type>(fld.dimensions(), Zero)
         )
     );
-    surfaceFieldType<Type>& sf = tsfCorr.ref();
+    GeometricField<Type, fvsPatchField, surfaceMesh>& sf = tsfCorr.ref();
 
     // Internal faces
     for (label facei = 0; facei < mesh.nInternalFaces(); facei++)
@@ -97,7 +94,7 @@ Foam::extendedUpwindCellToFaceStencil::weightedSum
 
     // Boundaries. Either constrained or calculated so assign value
     // directly (instead of nicely using operator==)
-    typename surfaceFieldType<Type>::
+    typename GeometricField<Type, fvsPatchField, surfaceMesh>::
         Boundary& bSfCorr = sf.boundaryFieldRef();
 
     forAll(bSfCorr, patchi)

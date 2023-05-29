@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2016-2019 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -24,23 +27,25 @@ License
 \*---------------------------------------------------------------------------*/
 
 #include "word.H"
-#include "Ostream.H"
-#include "token.T.H"
+#include "_Ostream.H"
+#include "token.H"
 #include "keyType.H"
 #include "IOstreams.H"
 
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
-using namespace Foam;
+
+
+ namespace Foam{
 void Ostream::decrIndent()
 {
-    if (indentLevel_ == 0)
+    if (!indentLevel_)
     {
-        cerr<< "Ostream::decrIndent() : attempt to decrement 0 indent level"
-            << std::endl;
+        std::cerr
+            << "Ostream::decrIndent() : attempt to decrement 0 indent level\n";
     }
     else
     {
-        indentLevel_--;
+        --indentLevel_;
     }
 }
 
@@ -54,17 +59,23 @@ Ostream& Ostream::write(const keyType& kw)
 Ostream& Ostream::writeKeyword(const keyType& kw)
 {
     indent();
-    write(kw);
+    writeQuoted(kw, kw.isPattern());
+
+    if (indentSize_ <= 1)
+    {
+        write(char(token::SPACE));
+        return *this;
+    }
 
     label nSpaces = entryIndentation_ - label(kw.size());
 
-    // pattern is surrounded by quotes
+    // Account for quotes surrounding pattern
     if (kw.isPattern())
     {
         nSpaces -= 2;
     }
 
-    // could also increment by indentSize_ ...
+    // Could also increment by indentSize_ ...
     if (nSpaces < 1)
     {
         nSpaces = 1;
@@ -79,4 +90,41 @@ Ostream& Ostream::writeKeyword(const keyType& kw)
 }
 
 
+Ostream& Ostream::beginBlock(const keyType& kw)
+{
+    indent(); writeQuoted(kw, kw.isPattern()); write('\n');
+    beginBlock();
+
+    return *this;
+}
+
+
+Ostream& Ostream::beginBlock()
+{
+    indent(); write(char(token::BEGIN_BLOCK)); write('\n');
+    incrIndent();
+
+    return *this;
+}
+
+
+Ostream& Ostream::endBlock()
+{
+    decrIndent();
+    indent(); write(char(token::END_BLOCK)); write('\n');
+
+    return *this;
+}
+
+
+Ostream& Ostream::endEntry()
+{
+    write(char(token::END_STATEMENT)); write('\n');
+
+    return *this;
+}
+
+
 // ************************************************************************* //
+
+ } // End namespace Foam

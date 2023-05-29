@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2016-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -38,17 +41,15 @@ SourceFiles
 #include "IOdictionary.H"
 #include "pointField.H"
 
-#include "Time.T.H"
+#include "Time1.H"
 #include "polyMesh.H"
-#include "dictionaryEntry.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 namespace Foam
 {
 
-// Forward class declarations
-class polyMesh;
+// Forward Declarations
 class mapPolyMesh;
 
 /*---------------------------------------------------------------------------*\
@@ -59,7 +60,7 @@ class motionSolver
 :
     public IOdictionary
 {
-    // Private data
+    // Private Data
 
         //- Reference to mesh
         const polyMesh& mesh_;
@@ -68,7 +69,9 @@ class motionSolver
         dictionary coeffDict_;
 
 
-    // Private Member Functions
+protected:
+
+    // Protected Member Functions
 
         //- De-register object if registered and assign to current
         static IOobject stealRegistration(const IOdictionary& dict);
@@ -133,7 +136,7 @@ public:
 
 
     //- Destructor
-    virtual ~motionSolver();
+    virtual ~motionSolver() = default;
 
 
     // Member Functions
@@ -167,12 +170,10 @@ public:
         //-  Update local data for topology changes
         virtual void updateMesh(const mapPolyMesh&) = 0;
 
-        //- Write state using given format, version and compression
+        //- Write state using stream options
         virtual bool writeObject
         (
-            IOstream::streamFormat fmt,
-            IOstream::versionNumber ver,
-            IOstream::compressionType cmp,
+            IOstreamOption streamOpt,
             const bool valid
         ) const;
 

@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -27,114 +30,113 @@ License
 #include "fvPatchFieldMapper.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
-namespace Foam {
-    template<class Type>
-    const word& fvsPatchField<Type>::calculatedType()
+
+template<class Type>
+const Foam::word& Foam::fvsPatchField<Type>::calculatedType()
+{
+    return calculatedFvsPatchField<Type>::typeName;
+}
+
+// * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
+
+template<class Type>
+Foam::calculatedFvsPatchField<Type>::calculatedFvsPatchField
+(
+    const fvPatch& p,
+    const DimensionedField<Type, surfaceMesh>& iF
+)
+:
+    fvsPatchField<Type>(p, iF)
+{}
+
+
+template<class Type>
+Foam::calculatedFvsPatchField<Type>::calculatedFvsPatchField
+(
+    const fvPatch& p,
+    const DimensionedField<Type, surfaceMesh>& iF,
+    const dictionary& dict
+)
+:
+    fvsPatchField<Type>(p, iF, Field<Type>("value", dict, p.size()))
+{}
+
+
+template<class Type>
+Foam::calculatedFvsPatchField<Type>::calculatedFvsPatchField
+(
+    const calculatedFvsPatchField<Type>& ptf,
+    const fvPatch& p,
+    const DimensionedField<Type, surfaceMesh>& iF,
+    const fvPatchFieldMapper& mapper
+)
+:
+    fvsPatchField<Type>(ptf, p, iF, mapper)
+{}
+
+
+template<class Type>
+Foam::calculatedFvsPatchField<Type>::calculatedFvsPatchField
+(
+    const calculatedFvsPatchField<Type>& ptf
+)
+:
+    fvsPatchField<Type>(ptf)
+{}
+
+
+template<class Type>
+Foam::calculatedFvsPatchField<Type>::calculatedFvsPatchField
+(
+    const calculatedFvsPatchField<Type>& ptf,
+    const DimensionedField<Type, surfaceMesh>& iF
+)
+:
+    fvsPatchField<Type>(ptf, iF)
+{}
+
+
+template<class Type>
+Foam::tmp<Foam::fvsPatchField<Type>>
+Foam::fvsPatchField<Type>::NewCalculatedType
+(
+    const fvPatch& p
+)
+{
+    auto* patchTypeCtor = patchConstructorTable(p.type());
+
+    if (patchTypeCtor)
     {
-        return calculatedFvsPatchField<Type>::typeName;
-    }
-
-    // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
-
-    template<class Type>
-    calculatedFvsPatchField<Type>::calculatedFvsPatchField
-    (
-        const fvPatch& p,
-        const DimensionedField<Type, surfaceMesh>& iF
-    )
-        :
-        fvsPatchField<Type>(p, iF)
-    {}
-
-
-    template<class Type>
-    calculatedFvsPatchField<Type>::calculatedFvsPatchField
-    (
-        const fvPatch& p,
-        const DimensionedField<Type, surfaceMesh>& iF,
-        const dictionary& dict
-    )
-        :
-        fvsPatchField<Type>(p, iF, Field<Type>("value", dict, p.size()))
-    {}
-
-
-    template<class Type>
-    calculatedFvsPatchField<Type>::calculatedFvsPatchField
-    (
-        const calculatedFvsPatchField<Type>& ptf,
-        const fvPatch& p,
-        const DimensionedField<Type, surfaceMesh>& iF,
-        const fvPatchFieldMapper& mapper
-    )
-        :
-        fvsPatchField<Type>(ptf, p, iF, mapper)
-    {}
-
-
-    template<class Type>
-    calculatedFvsPatchField<Type>::calculatedFvsPatchField
-    (
-        const calculatedFvsPatchField<Type>& ptf
-    )
-        :
-        fvsPatchField<Type>(ptf)
-    {}
-
-
-    template<class Type>
-    calculatedFvsPatchField<Type>::calculatedFvsPatchField
-    (
-        const calculatedFvsPatchField<Type>& ptf,
-        const DimensionedField<Type, surfaceMesh>& iF
-    )
-        :
-        fvsPatchField<Type>(ptf, iF)
-    {}
-
-
-    template<class Type>
-    tmp<fvsPatchField<Type>>
-        fvsPatchField<Type>::NewCalculatedType
+        return patchTypeCtor
         (
-            const fvPatch& p
-        )
-    {
-        typename patchConstructorTable::iterator patchTypeCstrIter =
-            patchConstructorTablePtr_->find(p.type());
-
-        if (patchTypeCstrIter != patchConstructorTablePtr_->end())
-        {
-            return patchTypeCstrIter()
-                (
-                    p,
-                    DimensionedField<Type, surfaceMesh>::null()
-                    );
-        }
-        else
-        {
-            return tmp<fvsPatchField<Type>>
-                (
-                    new calculatedFvsPatchField<Type>
-                    (
-                        p,
-                        DimensionedField<Type, surfaceMesh>::null()
-                        )
-                    );
-        }
+            p,
+            DimensionedField<Type, surfaceMesh>::null()
+        );
     }
-
-
-    template<class Type>
-    template<class Type2>
-    tmp<fvsPatchField<Type>>
-        fvsPatchField<Type>::NewCalculatedType
-        (
-            const fvsPatchField<Type2>& pf
-        )
+    else
     {
-        return NewCalculatedType(pf.patch());
+        return tmp<fvsPatchField<Type>>
+        (
+            new calculatedFvsPatchField<Type>
+            (
+                p,
+                DimensionedField<Type, surfaceMesh>::null()
+            )
+        );
     }
 }
+
+
+template<class Type>
+template<class Type2>
+Foam::tmp<Foam::fvsPatchField<Type>>
+Foam::fvsPatchField<Type>::NewCalculatedType
+(
+    const fvsPatchField<Type2>& pf
+)
+{
+    return NewCalculatedType(pf.patch());
+}
+
 
 // ************************************************************************* //

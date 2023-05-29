@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2015-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -24,45 +27,48 @@ License
 \*---------------------------------------------------------------------------*/
 
 #include "polyMesh.H"
-#include "Time.T.H"
+#include "Time1.h"
 #include "cellIOList.H"
 
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
-using namespace Foam;
-void polyMesh::setInstance(const fileName& inst)
-{
-    if (debug)
-    {
-        InfoInFunction << "Resetting file instance to " << inst << endl;
-    }
 
-    points_.writeOpt() = IOobject::AUTO_WRITE;
+
+ namespace Foam{
+void polyMesh::setInstance
+(
+    const fileName& inst,
+    const IOobject::writeOption wOpt
+)
+{
+    DebugInFunction << "Resetting file instance to " << inst << endl;
+
+    points_.writeOpt(wOpt);
     points_.instance() = inst;
 
-    faces_.writeOpt() = IOobject::AUTO_WRITE;
+    faces_.writeOpt(wOpt);
     faces_.instance() = inst;
 
-    owner_.writeOpt() = IOobject::AUTO_WRITE;
+    owner_.writeOpt(wOpt);
     owner_.instance() = inst;
 
-    neighbour_.writeOpt() = IOobject::AUTO_WRITE;
+    neighbour_.writeOpt(wOpt);
     neighbour_.instance() = inst;
 
-    boundary_.writeOpt() = IOobject::AUTO_WRITE;
+    boundary_.writeOpt(wOpt);
     boundary_.instance() = inst;
 
-    pointZones_.writeOpt() = IOobject::AUTO_WRITE;
+    pointZones_.writeOpt(wOpt);
     pointZones_.instance() = inst;
 
-    faceZones_.writeOpt() = IOobject::AUTO_WRITE;
+    faceZones_.writeOpt(wOpt);
     faceZones_.instance() = inst;
 
-    cellZones_.writeOpt() = IOobject::AUTO_WRITE;
+    cellZones_.writeOpt(wOpt);
     cellZones_.instance() = inst;
 
-    if (tetBasePtIsPtr_.valid())
+    if (tetBasePtIsPtr_)
     {
-        tetBasePtIsPtr_->writeOpt() = IOobject::AUTO_WRITE;
+        tetBasePtIsPtr_->writeOpt(wOpt);
         tetBasePtIsPtr_->instance() = inst;
     }
 }
@@ -70,10 +76,7 @@ void polyMesh::setInstance(const fileName& inst)
 
 polyMesh::readUpdateState polyMesh::readUpdate()
 {
-    if (debug)
-    {
-        InfoInFunction << "Updating mesh based on saved data." << endl;
-    }
+    DebugInFunction << "Updating mesh based on saved data." << endl;
 
     // Find the point and cell instance
     fileName pointsInst(time().findInstance(meshDir(), "points"));
@@ -207,6 +210,7 @@ polyMesh::readUpdateState polyMesh::readUpdate()
         if (boundaryChanged)
         {
             WarningInFunction
+                << "Number of patches has changed.  This may have "
                 << "unexpected consequences.  Proceed with care." << endl;
 
             boundary_.clear();
@@ -228,7 +232,8 @@ polyMesh::readUpdateState polyMesh::readUpdate()
                     newBoundary[patchi].start(),
                     patchi,
                     boundary_,
-                    newBoundary[patchi].type()
+                    newBoundary[patchi].physicalType(),
+                    newBoundary[patchi].inGroups()
                 );
             }
         }
@@ -413,13 +418,6 @@ polyMesh::readUpdateState polyMesh::readUpdate()
             Info<< "Point motion" << endl;
         }
 
-        clearGeom();
-
-
-        label nOldPoints = points_.size();
-
-        points_.clear();
-
         pointIOField newPoints
         (
             IOobject
@@ -434,35 +432,11 @@ polyMesh::readUpdateState polyMesh::readUpdate()
             )
         );
 
-        if (nOldPoints != 0 && nOldPoints != newPoints.size())
-        {
-            FatalErrorInFunction
-                << "Point motion detected but number of points "
-                << newPoints.size() << " in "
-                << newPoints.objectPath() << " does not correspond to "
-                << " current " << nOldPoints
-                << exit(FatalError);
-        }
-
-        points_.transfer(newPoints);
-        points_.instance() = pointsInst;
-
         // Re-read tet base points
         autoPtr<labelIOList> newTetBasePtIsPtr = readTetBasePtIs();
-        if (newTetBasePtIsPtr.valid())
-        {
-            tetBasePtIsPtr_ = newTetBasePtIsPtr;
-        }
 
-        // Calculate the geometry for the patches (transformation tensors etc.)
-        boundary_.calcGeometry();
-
-        // Derived info
-        bounds_ = boundBox(points_);
-
-        // Rotation can cause direction vector to change
-        geometricD_ = Zero;
-        solutionD_ = Zero;
+        // Update all geometry
+        updateGeomPoints(std::move(newPoints), newTetBasePtIsPtr);
 
         return polyMesh::POINTS_MOVED;
     }
@@ -479,3 +453,5 @@ polyMesh::readUpdateState polyMesh::readUpdate()
 
 
 // ************************************************************************* //
+
+ } // End namespace Foam

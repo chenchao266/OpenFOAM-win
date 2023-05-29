@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2012 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2012 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -36,7 +38,7 @@ namespace Foam
 template<>
 tmp<scalarField> wedgeFvPatchField<scalar>::snGrad() const
 {
-    return tmp<scalarField >(new scalarField(size(), 0.0));
+    return tmp<scalarField>::New(size(), Zero);
 }
 
 

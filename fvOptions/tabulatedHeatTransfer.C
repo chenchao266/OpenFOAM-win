@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -33,12 +36,7 @@ namespace Foam
 namespace fv
 {
     defineTypeNameAndDebug(tabulatedHeatTransfer, 0);
-    addToRunTimeSelectionTable
-    (
-        option,
-        tabulatedHeatTransfer,
-        dictionary
-    );
+    addToRunTimeSelectionTable(option, tabulatedHeatTransfer, dictionary);
 }
 }
 
@@ -48,18 +46,18 @@ namespace fv
 const Foam::interpolation2DTable<Foam::scalar>&
 Foam::fv::tabulatedHeatTransfer::hTable()
 {
-    if (!hTable_.valid())
+    if (!hTable_)
     {
         hTable_.reset(new interpolation2DTable<scalar>(coeffs_));
     }
 
-    return hTable_();
+    return *hTable_;
 }
 
 
 const Foam::volScalarField& Foam::fv::tabulatedHeatTransfer::AoV()
 {
-    if (!AoV_.valid())
+    if (!AoV_)
     {
         AoV_.reset
         (
@@ -78,7 +76,7 @@ const Foam::volScalarField& Foam::fv::tabulatedHeatTransfer::AoV()
         );
     }
 
-    return AoV_();
+    return *AoV_;
 }
 
 
@@ -93,17 +91,11 @@ Foam::fv::tabulatedHeatTransfer::tabulatedHeatTransfer
 )
 :
     interRegionHeatTransferModel(name, modelType, dict, mesh),
-    UName_(coeffs_.lookupOrDefault<word>("U", "U")),
-    UNbrName_(coeffs_.lookupOrDefault<word>("UNbr", "U")),
+    UName_(coeffs_.getOrDefault<word>("U", "U")),
+    UNbrName_(coeffs_.getOrDefault<word>("UNbr", "U")),
     hTable_(),
     AoV_(),
     startTimeName_(mesh.time().timeName())
-{}
-
-
-// * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
-
-Foam::fv::tabulatedHeatTransfer::~tabulatedHeatTransfer()
 {}
 
 
@@ -111,16 +103,15 @@ Foam::fv::tabulatedHeatTransfer::~tabulatedHeatTransfer()
 
 void Foam::fv::tabulatedHeatTransfer::calculateHtc()
 {
-    const fvMesh& nbrMesh = mesh_.time().lookupObject<fvMesh>(nbrRegionName());
+    const auto& nbrMesh = mesh_.time().lookupObject<fvMesh>(nbrRegionName());
 
-    const volVectorField& UNbr =
-        nbrMesh.lookupObject<volVectorField>(UNbrName_);
+    const auto& UNbr = nbrMesh.lookupObject<volVectorField>(UNbrName_);
 
     const scalarField UMagNbr(mag(UNbr));
 
     const scalarField UMagNbrMapped(interpolate(UMagNbr));
 
-    const volVectorField& U = mesh_.lookupObject<volVectorField>(UName_);
+    const auto& U = mesh_.lookupObject<volVectorField>(UName_);
 
     scalarField& htcc = htc_.primitiveFieldRef();
 
@@ -139,10 +130,8 @@ bool Foam::fv::tabulatedHeatTransfer::read(const dictionary& dict)
     {
         return true;
     }
-    else
-    {
-        return false;
-    }
+
+    return false;
 }
 
 

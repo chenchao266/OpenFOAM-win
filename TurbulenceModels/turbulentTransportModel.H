@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2015-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2015-2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -43,10 +45,10 @@ SourceFiles
 #ifndef turbulentTransportModel_H
 #define turbulentTransportModel_H
 
-#include "IncompressibleTurbulenceModel.T.H"
+#include "IncompressibleTurbulenceModel2.H"
 #include "laminarModel.H"
-#include "RASModel.T.H"
-#include "LESModel.T.H"
+#include "RASModel.H"
+#include "LESModel.H"
 #include "transportModel.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //

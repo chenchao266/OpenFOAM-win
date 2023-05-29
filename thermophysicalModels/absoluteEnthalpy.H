@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2012-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2012-2017 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -23,6 +25,9 @@ License
 
 Class
     Foam::absoluteEnthalpy
+
+Group
+    grpSpecieThermo
 
 Description
     Thermodynamics mapping class to expose the absolute enthalpy functions.
@@ -64,7 +69,7 @@ public:
 
         // Fundamental properties
 
-            static word name()
+            static word energyName()
             {
                 return "ha";
             }
@@ -77,7 +82,14 @@ public:
                 const scalar T
             ) const
             {
+                #ifdef __clang__
+                // Using volatile to prevent compiler optimisations leading to
+                // a sigfpe
+                volatile const scalar cp = thermo.Cp(p, T);
+                return cp;
+                #else
                 return thermo.Cp(p, T);
+                #endif
             }
 
             //- Cp/Cp []
@@ -99,7 +111,14 @@ public:
                 const scalar T
             ) const
             {
+                #ifdef __clang__
+                // Using volatile to prevent compiler optimisations leading to
+                // a sigfpe
+                volatile const scalar ha = thermo.Ha(p, T);
+                return ha;
+                #else
                 return thermo.Ha(p, T);
+                #endif
             }
 
             //- Temperature from absolute enthalpy
@@ -112,7 +131,14 @@ public:
                 const scalar T0
             ) const
             {
+                #ifdef __clang__
+                // Using volatile to prevent compiler optimisations leading to
+                // a sigfpe
+                volatile const scalar tha = thermo.THa(h, p, T0);
+                return tha;
+                #else
                 return thermo.THa(h, p, T0);
+                #endif
             }
 };
 

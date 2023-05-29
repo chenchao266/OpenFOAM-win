@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2018-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -24,44 +27,162 @@ License
 \*---------------------------------------------------------------------------*/
 
 #include "geomDecomp.H"
+#include "specifiedRotation.H"
+
+// * * * * * * * * * * * * * Private Member Functions  * * * * * * * * * * * //
+
+void Foam::geomDecomp::setOrder()
+{
+    const word order(coeffsDict_.getOrDefault<word>("order", ""));
+
+    if (order.empty())
+    {
+        return;
+    }
+    else if (order.size() != 3)
+    {
+        FatalIOErrorInFunction(decompDict_)
+            << "Number of characters in order (" << order << ") != 3"
+            << exit(FatalIOError);
+    }
+
+    for (int i = 0; i < 3; ++i)
+    {
+        // Change [x-z] -> [0-2]
+
+        switch (order[i])
+        {
+            case 'x': order_[i] = 0; break;
+            case 'y': order_[i] = 1; break;
+            case 'z': order_[i] = 2; break;
+
+            default:
+                FatalIOErrorInFunction(decompDict_)
+                    << "Illegal decomposition order " << order << nl
+                    << "It should only contain x, y or z"
+                    << exit(FatalIOError);
+                break;
+        }
+    }
+}
+
+
+void Foam::geomDecomp::readCoeffs()
+{
+    coeffsDict_.readIfPresent("delta", delta_);
+
+    coeffsDict_.readEntry("n", n_);
+
+    if (nDomains_ != n_.x()*n_.y()*n_.z())
+    {
+        // Verify that the input makes sense
+        FatalIOErrorInFunction(coeffsDict_)
+            << "Wrong number of domain divisions in geomDecomp:" << nl
+            << "Number of domains    : " << nDomains_ << nl
+            << "Wanted decomposition : " << n_
+            << exit(FatalIOError);
+    }
+    setOrder();
+
+    const dictionary* transformDict =
+        coeffsDict_.findDict("transform", keyType::LITERAL);
+
+    if (transformDict)
+    {
+        csys_ = coordinateSystem(*transformDict);
+    }
+    else if (equal(delta_, 0))
+    {
+        csys_.clear();  // Reset to identity
+    }
+    else
+    {
+        const scalar d = 1 - 0.5*delta_*delta_;
+        const scalar d2 = sqr(d);
+
+        const scalar a = delta_;
+        const scalar a2 = sqr(a);
+
+        // Direction (forward/reverse) doesn't matter much
+        tensor rot
+        (
+            d2,         -a*d,         a,
+            a*d - a2*d,  a*a2 + d2,  -2*a*d,
+            a*d2 + a2,   a*d - a2*d,  d2 - a2
+        );
+
+        // origin=0
+        csys_ = coordinateSystem(coordinateRotations::specified(rot));
+    }
+}
+
+// * * * * * * * * * * * * Protected Member Functions  * * * * * * * * * * * //
+
+Foam::tmp<Foam::pointField> Foam::geomDecomp::adjustPoints
+(
+    const pointField& points
+) const
+{
+    return csys_.localPosition(points);
+}
+
+
+void Foam::geomDecomp::checkDecompositionDirections
+(
+    const Vector<label>& meshDirs
+) const
+{
+    for (direction dir = 0; dir < Vector<label>::nComponents; ++dir)
+    {
+        if (n_[dir] > 1 && meshDirs[dir] == -1)
+        {
+            WarningInFunction
+                << "Trying to decompose a 1/2D mesh"
+                << " into " << n_[dir]
+                << " parts in direction "
+                << Vector<label>::componentNames[dir]
+                << endl;
+        }
+    }
+}
+
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
 Foam::geomDecomp::geomDecomp
 (
-    const dictionary& decompositionDict,
-    const word& derivedType
+    const word& derivedType,
+    const dictionary& decompDict,
+    int select
 )
 :
-    decompositionMethod(decompositionDict),
-    geomDecomDict_(decompositionDict.optionalSubDict(derivedType + "Coeffs")),
-    n_(geomDecomDict_.lookup("n")),
-    delta_(readScalar(geomDecomDict_.lookup("delta"))),
-    rotDelta_(I)
+    decompositionMethod(decompDict),
+    delta_(0.001),
+    csys_(),
+    n_(1,1,1),
+    order_(0,1,2),
+    coeffsDict_(findCoeffsDict(derivedType + "Coeffs", select))
 {
-    // check that the case makes sense :
+    readCoeffs();
+}
 
-    if (nProcessors_ != n_.x()*n_.y()*n_.z())
-    {
-        FatalErrorInFunction
-            << "Wrong number of processor divisions in geomDecomp:" << nl
-            << "Number of domains    : " << nProcessors_ << nl
-            << "Wanted decomposition : " << n_
-            << exit(FatalError);
-    }
 
-    scalar d = 1 - 0.5*delta_*delta_;
-    scalar d2 = sqr(d);
-
-    scalar a = delta_;
-    scalar a2 = sqr(a);
-
-    rotDelta_ = tensor
-    (
-        d2,         -a*d,         a,
-        a*d - a2*d,  a*a2 + d2,  -2*a*d,
-        a*d2 + a2,   a*d - a2*d,  d2 - a2
-    );
+Foam::geomDecomp::geomDecomp
+(
+    const word& derivedType,
+    const dictionary& decompDict,
+    const word& regionName,
+    int select
+)
+:
+    decompositionMethod(decompDict, regionName),
+    delta_(0.001),
+    csys_(),
+    n_(1,1,1),
+    order_(0,1,2),
+    coeffsDict_(findCoeffsDict(derivedType + "Coeffs", select))
+{
+    readCoeffs();
 }
 
 

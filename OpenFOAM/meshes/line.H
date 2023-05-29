@@ -1,9 +1,12 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011 OpenFOAM Foundation
+    Copyright (C) 2018-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -35,32 +38,26 @@ SourceFiles
 #ifndef line_H
 #define line_H
 
-#include "vector.H"
-#include "PointHit.T.H"
+#include "vector2.H"
+#include "PointHit.H"
 #include "point2D.H"
-#include "FixedList.T.H"
-#include "UList.T.H"
+#include "FixedList.H"
+#include "UList.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 namespace Foam
 {
 
-// Forward declaration of classes
-
-class Istream;
-class Ostream;
-
-
-// Forward declaration of friend functions and operators
+// Forward Declarations
 
 template<class Point, class PointRef> class line;
 
 template<class Point, class PointRef>
-inline Istream& operator>>(Istream&, line<Point, PointRef>&);
+inline Istream& operator>>(Istream& is, line<Point, PointRef>& l);
 
 template<class Point, class PointRef>
-inline Ostream& operator<<(Ostream&, const line<Point, PointRef>&);
+inline Ostream& operator<<(Ostream& os, const line<Point, PointRef>& l);
 
 
 /*---------------------------------------------------------------------------*\
@@ -70,9 +67,13 @@ inline Ostream& operator<<(Ostream&, const line<Point, PointRef>&);
 template<class Point, class PointRef>
 class line
 {
-    // Private data
+    // Private Data
 
-        PointRef a_, b_;
+        //- First point
+        PointRef a_;
+
+        //- Second point
+        PointRef b_;
 
 
 public:
@@ -80,69 +81,81 @@ public:
     // Constructors
 
         //- Construct from two points
-        inline line(const Point& start, const Point& end);
+        inline line(const Point& from, const Point& to);
 
         //- Construct from two points in the list of points
         //  The indices could be from edge etc.
         inline line
         (
-            const UList<Point>&,
+            const UList<Point>& points,
             const FixedList<label, 2>& indices
         );
 
         //- Construct from Istream
-        inline line(Istream&);
+        inline explicit line(Istream& is);
 
 
-    // Member functions
+    // Member Functions
 
-        // Access
+    // Access
 
-            //- Return first vertex
-            inline PointRef start() const;
+        //- Return first point
+        inline PointRef first() const noexcept;
 
-            //- Return second vertex
-            inline PointRef end() const;
+        //- Return second (last) point
+        inline PointRef second() const noexcept;
 
+        //- Return last (second) point
+        inline PointRef last() const noexcept;
 
-        // Properties
+        //- Return first point
+        inline PointRef start() const noexcept;
 
-            //- Return centre (centroid)
-            inline Point centre() const;
-
-            //- Return scalar magnitude
-            inline scalar mag() const;
-
-            //- Return start-end vector
-            inline Point vec() const;
-
-            //- Return nearest distance to line from a given point
-            //  If the nearest point is on the line, return a hit
-            PointHit<Point> nearestDist(const Point& p) const;
-
-            //- Return nearest distance from line to line. Returns distance
-            //  and sets both points (one on *this, one on the provided
-            //  linePointRef.
-            scalar nearestDist
-            (
-                const line<Point, const Point&>& edge,
-                Point& thisPoint,
-                Point& edgePoint
-            ) const;
+        //- Return second (last) point
+        inline PointRef end() const noexcept;
 
 
-    // Ostream operator
+    // Properties
+
+        //- Return centre (centroid)
+        inline Point centre() const;
+
+        //- Return scalar magnitude
+        inline scalar mag() const;
+
+        //- Return start-to-end vector
+        inline Point vec() const;
+
+        //- Return the unit vector (start-to-end)
+        inline Point unitVec() const;
+
+        //- Return nearest distance to line from a given point
+        //  If the nearest point is on the line, return a hit
+        PointHit<Point> nearestDist(const Point& p) const;
+
+        //- Return nearest distance from line to line. Returns distance
+        //  and sets both points (one on *this, one on the provided
+        //  linePointRef.
+        scalar nearestDist
+        (
+            const line<Point, const Point&>& edge,
+            Point& thisPoint,
+            Point& edgePoint
+        ) const;
+
+
+    // IOstream operators
 
         friend Istream& operator>> <Point, PointRef>
         (
-            Istream&,
-            line&
+            Istream& is,
+            line& l
         );
 
         friend Ostream& operator<< <Point, PointRef>
         (
-            Ostream&,
-            const line&
+            Ostream& os,
+            const line& l
         );
 };
 

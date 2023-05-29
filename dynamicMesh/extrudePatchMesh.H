@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -74,7 +77,7 @@ Description
 #include "autoPtr.H"
 
 #include "fvMesh.H"
-#include "Time.T.H"
+#include "Time1.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -92,10 +95,7 @@ class extrudePatchMesh
 :
     public fvMesh
 {
-
-private:
-
-    // Private data
+    // Private Data
 
         //- Enumeration of patch IDs
         enum patchID
@@ -112,11 +112,20 @@ private:
         dictionary dict_;
 
 
-    // Private member functions
+    // Private Member Functions
 
         //- Extrude mesh using polyPatches
         void extrudeMesh(const List<polyPatch*>& regionPatches);
 
+        //- Construct from mesh, patch and dictionary without patches.
+        //  Only used internally
+        extrudePatchMesh
+        (
+            const word& regionName,
+            const fvMesh& mesh,
+            const fvPatch& p,
+            const dictionary& dict
+        );
 
 public:
 
@@ -129,30 +138,29 @@ public:
         //- Construct from mesh, patch and dictionary
         extrudePatchMesh
         (
-            const fvMesh&,
-            const fvPatch&,
-            const dictionary&,
-            const word
+            const fvMesh& mesh,
+            const fvPatch& p,
+            const dictionary& dict,
+            const word& regionName
         );
 
         //- Construct from mesh, patch, dictionary and new mesh
         //  polyPatch information
         extrudePatchMesh
         (
-            const fvMesh&,
-            const fvPatch&,
-            const dictionary&,
-            const word,
+            const fvMesh& mesh,
+            const fvPatch& p,
+            const dictionary& dict,
+            const word& regionName,
             const List<polyPatch*>& polyPatches
         );
 
 
     //- Destructor
-    virtual ~extrudePatchMesh();
+    virtual ~extrudePatchMesh() = default;
 
 
-    // Member functions
-
+    // Member Functions
 
         // Access functions
 
@@ -185,8 +193,8 @@ public:
             {
                 return extrudedPatch_;
             }
-
 };
+
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 

@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2012-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2012-2017 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -22,7 +24,7 @@ License
     along with OpenFOAM.  If not, see <http://www.gnu.org/licenses/>.
 
 Class
-    Foam::regionModelFunctionObject
+    Foam::regionModels::regionModelFunctionObject
 
 Description
     Region model function object base class
@@ -108,10 +110,7 @@ public:
         //- Construct and return a clone
         virtual autoPtr<regionModelFunctionObject> clone() const
         {
-            return autoPtr<regionModelFunctionObject>
-            (
-                new regionModelFunctionObject(*this)
-            );
+            return autoPtr<regionModelFunctionObject>::New(*this);
         }
 
 

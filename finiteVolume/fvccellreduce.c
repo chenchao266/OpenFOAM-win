@@ -1,9 +1,11 @@
-﻿/*---------------------------------------------------------------------------*\
+/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2013-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2013-2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -23,90 +25,90 @@ License
 
 \*---------------------------------------------------------------------------*/
 
-//#include "fvcCellReduce.H"
+#include "fvcCellReduce.H"
 #include "fvMesh.H"
 #include "volFields.H"
 #include "surfaceFields.H"
 #include "extrapolatedCalculatedFvPatchFields.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
-namespace Foam {
-    template<class Type, class CombineOp>
-    tmp<volFieldType<Type>>
-        fvc::cellReduce
-        (
-            const surfaceFieldType<Type>& ssf,
-            const CombineOp& cop,
-            const Type& nullValue
-        )
-    {
-        typedef volFieldType<Type> VolFieldType;
 
-        const fvMesh& mesh = ssf.mesh();
+template<class Type, class CombineOp>
+Foam::tmp<Foam::GeometricField<Type, Foam::fvPatchField, Foam::volMesh>>
+Foam::fvc::cellReduce
+(
+    const GeometricField<Type, fvsPatchField, surfaceMesh>& ssf,
+    const CombineOp& cop,
+    const Type& nullValue
+)
+{
+    typedef GeometricField<Type, fvPatchField, volMesh> volFieldType;
 
-        tmp<VolFieldType> tresult
+    const fvMesh& mesh = ssf.mesh();
+
+    tmp<volFieldType> tresult
+    (
+        new volFieldType
         (
-            new VolFieldType
+            IOobject
             (
-                IOobject
-                (
-                    "cellReduce(" + ssf.name() + ')',
-                    ssf.instance(),
-                    mesh,
-                    IOobject::NO_READ,
-                    IOobject::NO_WRITE
-                ),
+                "cellReduce(" + ssf.name() + ')',
+                ssf.instance(),
                 mesh,
-                dimensioned<Type>("initialValue", ssf.dimensions(), nullValue),
-                extrapolatedCalculatedFvPatchField<Type>::typeName
-            )
-        );
-
-        volFieldType& result = tresult.ref();
-
-        const labelUList& own = mesh.owner();
-        const labelUList& nbr = mesh.neighbour();
-
-        forAll(own, i)
-        {
-            label celli = own[i];
-            cop(result[celli], ssf[i]);
-        }
-        forAll(nbr, i)
-        {
-            label celli = nbr[i];
-            cop(result[celli], ssf[i]);
-        }
-
-        result.correctBoundaryConditions();
-
-        return tresult;
-    }
-
-
-    template<class Type, class CombineOp>
-    tmp<volFieldType<Type>>
-        fvc::cellReduce
-        (
-            const tmp<surfaceFieldType<Type>>& tssf,
-            const CombineOp& cop,
-            const Type& nullValue
+                IOobject::NO_READ,
+                IOobject::NO_WRITE
+            ),
+            mesh,
+            dimensioned<Type>("initialValue", ssf.dimensions(), nullValue),
+            extrapolatedCalculatedFvPatchField<Type>::typeName
         )
+    );
+
+    volFieldType& result = tresult.ref();
+
+    const labelUList& own = mesh.owner();
+    const labelUList& nbr = mesh.neighbour();
+
+    forAll(own, i)
     {
-        tmp<volFieldType<Type>> tvf
-        (
-            cellReduce
-            (
-                tssf,
-                cop,
-                nullValue
-            )
-        );
-
-        tssf.clear();
-
-        return tvf;
+        label celli = own[i];
+        cop(result[celli], ssf[i]);
+    }
+    forAll(nbr, i)
+    {
+        label celli = nbr[i];
+        cop(result[celli], ssf[i]);
     }
 
+    result.correctBoundaryConditions();
+
+    return tresult;
 }
+
+
+template<class Type, class CombineOp>
+Foam::tmp<Foam::GeometricField<Type, Foam::fvPatchField, Foam::volMesh>>
+Foam::fvc::cellReduce
+(
+    const tmp<GeometricField<Type, fvsPatchField, surfaceMesh>>& tssf,
+    const CombineOp& cop,
+    const Type& nullValue
+)
+{
+    tmp<GeometricField<Type, fvPatchField, volMesh>> tvf
+    (
+        cellReduce
+        (
+            tssf,
+            cop,
+            nullValue
+        )
+    );
+
+    tssf.clear();
+
+    return tvf;
+}
+
+
 // ************************************************************************* //

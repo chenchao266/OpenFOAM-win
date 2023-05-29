@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -43,8 +46,8 @@ SourceFiles
 #ifndef solidBodyMotionFunction_H
 #define solidBodyMotionFunction_H
 
-#include "Time.T.H"
-#include "dictionary.H"
+#include "Time1.H"
+#include "dictionary2.H"
 #include "septernion.H"
 #include "autoPtr.H"
 #include "runTimeSelectionTables.H"
@@ -55,28 +58,27 @@ namespace Foam
 {
 
 /*---------------------------------------------------------------------------*\
- s                  Class solidBodyMotionFunction Declaration
+                    Class solidBodyMotionFunction Declaration
 \*---------------------------------------------------------------------------*/
 
 class solidBodyMotionFunction
 {
 protected:
 
-    // Protected data
+    // Protected Data
 
         dictionary SBMFCoeffs_;
+
         const Time& time_;
 
 
-private:
+    // Protected Member Functions
 
-    // Private Member Functions
+        //- No copy construct
+        solidBodyMotionFunction(const solidBodyMotionFunction&) = delete;
 
-        //- Disallow default bitwise copy construct
-        solidBodyMotionFunction(const solidBodyMotionFunction&);
-
-        //- Disallow default bitwise assignment
-        void operator=(const solidBodyMotionFunction&);
+        //- No copy assignment
+        void operator=(const solidBodyMotionFunction&) = delete;
 
 
 public:
@@ -121,7 +123,7 @@ public:
 
 
     //- Destructor
-    virtual ~solidBodyMotionFunction();
+    virtual ~solidBodyMotionFunction() = default;
 
 
     // Member Functions

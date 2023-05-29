@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -51,18 +54,18 @@ Foam::syringePressureFvPatchScalarField::syringePressureFvPatchScalarField
 )
 :
     fixedValueFvPatchScalarField(p, iF, dict, false),
-    Ap_(readScalar(dict.lookup("Ap"))),
-    Sp_(readScalar(dict.lookup("Sp"))),
-    VsI_(readScalar(dict.lookup("VsI"))),
-    tas_(readScalar(dict.lookup("tas"))),
-    tae_(readScalar(dict.lookup("tae"))),
-    tds_(readScalar(dict.lookup("tds"))),
-    tde_(readScalar(dict.lookup("tde"))),
-    psI_(readScalar(dict.lookup("psI"))),
-    psi_(readScalar(dict.lookup("psi"))),
-    ams_(readScalar(dict.lookup("ams"))),
+    Ap_(dict.get<scalar>("Ap")),
+    Sp_(dict.get<scalar>("Sp")),
+    VsI_(dict.get<scalar>("VsI")),
+    tas_(dict.get<scalar>("tas")),
+    tae_(dict.get<scalar>("tae")),
+    tds_(dict.get<scalar>("tds")),
+    tde_(dict.get<scalar>("tde")),
+    psI_(dict.get<scalar>("psI")),
+    psi_(dict.get<scalar>("psi")),
+    ams_(dict.get<scalar>("ams")),
     ams0_(ams_),
-    phiName_(dict.lookupOrDefault<word>("phi", "phi")),
+    phiName_(dict.getOrDefault<word>("phi", "phi")),
     curTimeIndex_(-1)
 {
     scalar ps = (psI_*VsI_ + ams_/psi_)/Vs(db().time().value());
@@ -233,17 +236,17 @@ void Foam::syringePressureFvPatchScalarField::write(Ostream& os) const
 {
     fvPatchScalarField::write(os);
 
-    os.writeKeyword("Ap") << Ap_ << token::END_STATEMENT << nl;
-    os.writeKeyword("Sp") << Sp_ << token::END_STATEMENT << nl;
-    os.writeKeyword("VsI") << VsI_ << token::END_STATEMENT << nl;
-    os.writeKeyword("tas") << tas_ << token::END_STATEMENT << nl;
-    os.writeKeyword("tae") << tae_ << token::END_STATEMENT << nl;
-    os.writeKeyword("tds") << tds_ << token::END_STATEMENT << nl;
-    os.writeKeyword("tde") << tde_ << token::END_STATEMENT << nl;
-    os.writeKeyword("psI") << psI_ << token::END_STATEMENT << nl;
-    os.writeKeyword("psi") << psi_ << token::END_STATEMENT << nl;
-    os.writeKeyword("ams") << ams_ << token::END_STATEMENT << nl;
-    writeEntryIfDifferent<word>(os, "phi", "phi", phiName_);
+    os.writeEntry("Ap", Ap_);
+    os.writeEntry("Sp", Sp_);
+    os.writeEntry("VsI", VsI_);
+    os.writeEntry("tas", tas_);
+    os.writeEntry("tae", tae_);
+    os.writeEntry("tds", tds_);
+    os.writeEntry("tde", tde_);
+    os.writeEntry("psI", psI_);
+    os.writeEntry("psi", psi_);
+    os.writeEntry("ams", ams_);
+    os.writeEntryIfDifferent<word>("phi", "phi", phiName_);
 
     writeEntry("value", os);
 }

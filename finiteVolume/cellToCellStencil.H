@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -38,7 +40,7 @@ SourceFiles
 
 #include "globalIndex.H"
 #include "boolList.H"
-#include "HashSet.T.H"
+#include "HashSet.H"
 #include "indirectPrimitivePatch.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
@@ -89,13 +91,6 @@ protected:
 
         //- Return patch of all coupled faces.
         autoPtr<indirectPrimitivePatch> allCoupledFacesPatch() const;
-
-        //- Combine operator for labelLists
-        class unionEqOp
-        {
-            public:
-            void operator()(labelList& x, const labelList& y) const;
-        };
 
         //- Collect cell neighbours of faces in global numbering
         void insertFaceCells

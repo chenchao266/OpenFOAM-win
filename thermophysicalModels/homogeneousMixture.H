@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2020      OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -24,8 +27,11 @@ License
 Class
     Foam::homogeneousMixture
 
+Group
+    grpReactionThermophysicalMixtures
+
 Description
-    Foam::homogeneousMixture
+    The homogeneous mixture contains species ("b").
 
 SourceFiles
     homogeneousMixture.C
@@ -51,21 +57,18 @@ class homogeneousMixture
 :
     public basicCombustionMixture
 {
-    // Private data
-
-        static const int nSpecies_ = 1;
-        static const char* specieNames_[1];
+    // Private Data
 
         ThermoType reactants_;
         ThermoType products_;
 
         mutable ThermoType mixture_;
 
-        //- Construct as copy (not implemented)
-        homogeneousMixture(const homogeneousMixture<ThermoType>&);
-
         //- Regress variable
         volScalarField& b_;
+
+        //- No copy construct
+        homogeneousMixture(const homogeneousMixture<ThermoType>&) = delete;
 
 
 public:
@@ -77,19 +80,39 @@ public:
     // Constructors
 
         //- Construct from dictionary, mesh and phase name
-        homogeneousMixture(const dictionary&, const fvMesh&, const word&);
+        homogeneousMixture
+        (
+            const dictionary& thermoDict,
+            const fvMesh& mesh,
+            const word& phaseName
+        );
 
 
     //- Destructor
-    virtual ~homogeneousMixture()
-    {}
+    virtual ~homogeneousMixture() = default;
 
 
     // Member functions
 
+        //- Return the instantiated type name
+        static word typeName()
+        {
+            return "homogeneousMixture<" + ThermoType::typeName() + '>';
+        }
+
         const ThermoType& mixture(const scalar) const;
 
         const ThermoType& cellMixture(const label celli) const
+        {
+            return mixture(b_[celli]);
+        }
+
+        const ThermoType& cellVolMixture
+        (
+            const scalar p,
+            const scalar T,
+            const label celli
+        ) const
         {
             return mixture(b_[celli]);
         }
@@ -102,6 +125,19 @@ public:
         {
             return mixture(b_.boundaryField()[patchi][facei]);
         }
+
+
+        const ThermoType& patchFaceVolMixture
+        (
+            const scalar p,
+            const scalar T,
+            const label patchi,
+            const label facei
+        ) const
+        {
+            return mixture(b_.boundaryField()[patchi][facei]);
+        }
+
 
         const ThermoType& cellReactants(const label) const
         {
@@ -135,7 +171,7 @@ public:
 
 } // End namespace Foam
 
-// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 #ifdef NoRepository
     #include "homogeneousMixture.C"

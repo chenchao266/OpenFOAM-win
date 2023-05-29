@@ -1,9 +1,12 @@
-﻿/*---------------------------------------------------------------------------*\
+/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2017-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -23,7 +26,7 @@ License
 
 \*---------------------------------------------------------------------------*/
 
-//#include "heSolidThermo.H"
+#include "heSolidThermo.H"
 #include "volFields.H"
 
 // * * * * * * * * * * * * * Private Member Functions  * * * * * * * * * * * //
@@ -46,12 +49,15 @@ void Foam::heSolidThermo<BasicSolidThermo, MixtureType>::calculate()
         const typename MixtureType::thermoType& volMixture_ =
             this->cellVolMixture(pCells[celli], TCells[celli], celli);
 
-        TCells[celli] = mixture_.THE
-        (
-            hCells[celli],
-            pCells[celli],
-            TCells[celli]
-        );
+        if (this->updateT())
+        {
+            TCells[celli] = mixture_.THE
+            (
+                hCells[celli],
+                pCells[celli],
+                TCells[celli]
+            );
+        }
 
         rhoCells[celli] = volMixture_.rho(pCells[celli], TCells[celli]);
 
@@ -61,20 +67,11 @@ void Foam::heSolidThermo<BasicSolidThermo, MixtureType>::calculate()
             mixture_.Cpv(pCells[celli], TCells[celli]);
     }
 
-    volScalarField::Boundary& pBf =
-        this->p_.boundaryFieldRef();
-
-    volScalarField::Boundary& TBf =
-        this->T_.boundaryFieldRef();
-
-    volScalarField::Boundary& rhoBf =
-        this->rho_.boundaryFieldRef();
-
-    volScalarField::Boundary& heBf =
-        this->he().boundaryFieldRef();
-
-    volScalarField::Boundary& alphaBf =
-        this->alpha_.boundaryFieldRef();
+    volScalarField::Boundary& pBf = this->p_.boundaryFieldRef();
+    volScalarField::Boundary& TBf = this->T_.boundaryFieldRef();
+    volScalarField::Boundary& rhoBf = this->rho_.boundaryFieldRef();
+    volScalarField::Boundary& heBf = this->he().boundaryFieldRef();
+    volScalarField::Boundary& alphaBf = this->alpha_.boundaryFieldRef();
 
     forAll(this->T_.boundaryField(), patchi)
     {
@@ -100,7 +97,6 @@ void Foam::heSolidThermo<BasicSolidThermo, MixtureType>::calculate()
                         facei
                     );
 
-
                 phe[facei] = mixture_.HE(pp[facei], pT[facei]);
                 prho[facei] = volMixture_.rho(pp[facei], pT[facei]);
 
@@ -125,7 +121,11 @@ void Foam::heSolidThermo<BasicSolidThermo, MixtureType>::calculate()
                         facei
                     );
 
-                pT[facei] = mixture_.THE(phe[facei], pp[facei] ,pT[facei]);
+                if (this->updateT())
+                {
+                    pT[facei] = mixture_.THE(phe[facei], pp[facei] ,pT[facei]);
+                }
+
                 prho[facei] = volMixture_.rho(pp[facei], pT[facei]);
 
                 palpha[facei] =
@@ -134,8 +134,9 @@ void Foam::heSolidThermo<BasicSolidThermo, MixtureType>::calculate()
             }
         }
     }
-}
 
+    this->alpha_.correctBoundaryConditions();
+}
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
@@ -150,6 +151,8 @@ heSolidThermo
     heThermo<BasicSolidThermo, MixtureType>(mesh, phaseName)
 {
     calculate();
+    this->mu_ == dimensionedScalar(this->mu_.dimensions(), Zero);
+    this->psi_ == dimensionedScalar(this->psi_.dimensions(), Zero);
 }
 
 
@@ -165,6 +168,28 @@ heSolidThermo
     heThermo<BasicSolidThermo, MixtureType>(mesh, dict, phaseName)
 {
     calculate();
+    this->mu_ == dimensionedScalar(this->mu_.dimensions(), Zero);
+    this->psi_ == dimensionedScalar(this->psi_.dimensions(), Zero);
+}
+
+
+template<class BasicSolidThermo, class MixtureType>
+Foam::heSolidThermo<BasicSolidThermo, MixtureType>::
+heSolidThermo
+(
+    const fvMesh& mesh,
+    const word& phaseName,
+    const word& dictName
+)
+:
+    heThermo<BasicSolidThermo, MixtureType>(mesh, phaseName, dictName)
+{
+    calculate();
+
+    // TBD. initialise psi, mu (at heThermo level) since these do not
+    // get initialised. Move to heThermo constructor?
+    this->mu_ == dimensionedScalar(this->mu_.dimensions(), Zero);
+    this->psi_ == dimensionedScalar(this->psi_.dimensions(), Zero);
 }
 
 
@@ -180,17 +205,11 @@ Foam::heSolidThermo<BasicSolidThermo, MixtureType>::~heSolidThermo()
 template<class BasicSolidThermo, class MixtureType>
 void Foam::heSolidThermo<BasicSolidThermo, MixtureType>::correct()
 {
-    if (debug)
-    {
-        InfoInFunction << endl;
-    }
+    DebugInFunction << nl;
 
     calculate();
 
-    if (debug)
-    {
-        Info<< "    Finished" << endl;
-    }
+    DebugInfo << "    Finished" << endl;
 }
 
 

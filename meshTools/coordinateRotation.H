@@ -1,9 +1,12 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2018-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -21,43 +24,48 @@ License
     You should have received a copy of the GNU General Public License
     along with OpenFOAM.  If not, see <http://www.gnu.org/licenses/>.
 
+Namespace
+    Foam::coordinateRotations
+
+Description
+    Namespace for coordinate system rotations.
+
 Class
     Foam::coordinateRotation
 
 Description
-    Abstract base class for coordinate rotation
+    User specification of a coordinate rotation.
 
     \verbatim
-    coordinateRotation
+    rotation
     {
-        type        axesRotation
-        e1          (1 0 0);
-        e2          (0 1 0);
+        type    axes
+        e1      (1 0 0);
+        e2      (0 1 0);
     }
     \endverbatim
 
-    Types of coordinateRotation:
-      -# axesRotation
-      -# STARCDRotation
-      -# cylindrical
-      -# EulerCoordinateRotation
+    Types of coordinateRotations:
+      -# \link coordinateRotations::identity none \endlink
+      -# \link coordinateRotations::axes axes \endlink
+      -# \link coordinateRotations::axisAngle axisAngle \endlink
+      -# \link coordinateRotations::cylindrical cylindrical \endlink
+      -# \link coordinateRotations::euler euler \endlink
+      -# \link coordinateRotations::starcd starcd \endlink
 
 SourceFiles
     coordinateRotation.C
-    coordinateRotationNew.C
 
 \*---------------------------------------------------------------------------*/
 
 #ifndef coordinateRotation_H
 #define coordinateRotation_H
 
-#include "vector.H"
-#include "tensor.H"
-#include "tensorField.H"
-#include "dictionary.H"
+#include "autoPtr.H"
+#include "vector2.H"
+#include "tensor2.H"
+#include "dictionary2.H"
 #include "runTimeSelectionTables.H"
-#include "objectRegistry.H"
-#include "polyMesh.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -65,42 +73,25 @@ namespace Foam
 {
 
 /*---------------------------------------------------------------------------*\
-                    Class coordinateRotation Declaration
+                     Class coordinateRotation Declaration
 \*---------------------------------------------------------------------------*/
 
 class coordinateRotation
 {
 protected:
 
-    // Protected member functions
+    // Protected Member Functions
 
-        //- Transform principal
-        symmTensor transformPrincipal(const tensor&, const vector&) const;
+        //- Determine best-guess for an orthogonal axis
+        static vector findOrthogonal(const vector& axis);
 
 
 public:
 
-
     //- Runtime type information
-    TypeName("coordinateRotation");
+    TypeNameNoDebug("coordinateRotation");
 
-
-    // Declare run-time constructor selection table
-    // for constructors with dictionary and objectRegistry
-    declareRunTimeSelectionTable
-    (
-        autoPtr,
-        coordinateRotation,
-        objectRegistry,
-        (
-            const dictionary& dict, const objectRegistry& obr
-        ),
-        (dict, obr)
-    );
-
-
-    // Declare run-time constructor selection table
-    // for constructors with dictionary
+    // Declare run-time constructor selection table from dictionary
     declareRunTimeSelectionTable
     (
         autoPtr,
@@ -113,107 +104,40 @@ public:
     );
 
 
+    // Constructors
+
+        // Uses all default constructors
+
+        //- Construct and return a clone
+        virtual autoPtr<coordinateRotation> clone() const = 0;
+
+
     // Selectors
 
-        //- Select constructed from dictionary and objectRegistry
-        static autoPtr<coordinateRotation> New
-        (
-            const dictionary& dict, const objectRegistry& obr
-        );
-
         //- Select constructed from dictionary
-        static autoPtr<coordinateRotation> New
-        (
-            const dictionary& dict
-        );
+        static autoPtr<coordinateRotation> New(const dictionary& dict);
 
 
     //- Destructor
-    virtual ~coordinateRotation()
-    {}
+    virtual ~coordinateRotation() = default;
 
 
     // Member Functions
 
-        //- Reset rotation to an identity rotation
+        //- Reset specification
         virtual void clear() = 0;
 
-        //- Update the rotation for a list of cells
-        virtual void updateCells
-        (
-            const polyMesh& mesh,
-            const labelList& cells
-        ) = 0;
-
-        //- Return local-to-global transformation tensor
-        virtual const tensor& R() const = 0;
-
-        //- Return global-to-local transformation tensor
-        virtual const tensor& Rtr() const = 0;
-
-        //- Return local Cartesian x-axis
-        virtual const vector e1() const = 0;
-
-        //- Return local Cartesian y-axis
-        virtual const vector e2() const = 0;
-
-        //- Return local Cartesian z-axis
-        virtual const vector e3() const = 0;
-
-        //- Return local-to-global transformation tensor
-        virtual const tensorField& Tr() const = 0;
-
-        //- Return true if the rotation tensor is uniform
-        virtual bool uniform() const
-        {
-            return true;
-        }
-
-        //- Transform vectorField using transformation tensor field
-        virtual tmp<vectorField> transform(const vectorField& st) const = 0;
-
-        //- Transform vector using transformation tensor
-        virtual vector transform(const vector& st) const = 0;
-
-        //- Inverse transform vectorField using transformation tensor field
-        virtual tmp<vectorField> invTransform(const vectorField& st) const = 0;
-
-        //- Inverse transform vector using transformation tensor
-        virtual vector invTransform(const vector& st) const = 0;
-
-        //- Transform tensor field using transformation tensorField
-        virtual tmp<tensorField> transformTensor
-        (
-            const tensorField& st
-        ) const = 0;
-
-        //- Transform tensor sub-field using transformation tensorField
-        virtual tmp<tensorField> transformTensor
-        (
-            const tensorField& st,
-            const labelList& cellMap
-        ) const = 0;
-
-        //- Transform tensor using transformation tensorField
-        virtual tensor transformTensor(const tensor& st) const = 0;
-
-        //- Transform vectorField using transformation tensorField and return
-        // symmetrical tensorField
-        virtual tmp<symmTensorField> transformVector
-        (
-            const vectorField& st
-        ) const = 0;
-
-        //- Transform vector using transformation tensor and return
-        // symmetrical tensor
-        virtual symmTensor transformVector(const vector& st) const = 0;
+        //- Calculate and return the rotation tensor
+        virtual tensor R() const = 0;
 
 
     // Write
 
-            //- Write
-            virtual void write(Ostream&) const = 0;
+        //- Write information
+        virtual void write(Ostream& os) const = 0;
 
+        //- Write dictionary entry
+        virtual void writeEntry(const word& keyword, Ostream& os) const = 0;
 };
 
 

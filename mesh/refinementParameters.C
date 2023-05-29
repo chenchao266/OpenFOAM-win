@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2015 OpenFOAM Foundation
+    Copyright (C) 2015-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -27,36 +30,117 @@ License
 #include "unitConversion.H"
 #include "polyMesh.H"
 #include "globalIndex.H"
+#include "Tuple2.H"
+#include "wallPolyPatch.H"
+#include "meshRefinement.H"
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
-Foam::refinementParameters::refinementParameters(const dictionary& dict)
+Foam::refinementParameters::refinementParameters
+(
+    const dictionary& dict,
+    const bool dryRun
+)
 :
-    maxGlobalCells_(readLabel(dict.lookup("maxGlobalCells"))),
-    maxLocalCells_(readLabel(dict.lookup("maxLocalCells"))),
-    minRefineCells_(readLabel(dict.lookup("minRefinementCells"))),
+    maxGlobalCells_
+    (
+        meshRefinement::get<label>(dict, "maxGlobalCells", dryRun)
+    ),
+    maxLocalCells_
+    (
+        meshRefinement::get<label>(dict, "maxLocalCells", dryRun)
+    ),
+    minRefineCells_
+    (
+        meshRefinement::get<label>(dict, "minRefinementCells", dryRun)
+    ),
     planarAngle_
     (
-        dict.lookupOrDefault
+        dict.getOrDefault
         (
             "planarAngle",
-            readScalar(dict.lookup("resolveFeatureAngle"))
+            dict.get<scalar>("resolveFeatureAngle")
         )
     ),
-    nBufferLayers_(readLabel(dict.lookup("nCellsBetweenLevels"))),
-    keepPoints_(pointField(1, dict.lookup("locationInMesh"))),
-    allowFreeStandingZoneFaces_(dict.lookup("allowFreeStandingZoneFaces")),
+    nBufferLayers_
+    (
+        meshRefinement::get<label>(dict, "nCellsBetweenLevels", dryRun)
+    ),
+    locationsOutsideMesh_
+    (
+        dict.getOrDefault
+        (
+            "locationsOutsideMesh",
+            pointField(0)
+        )
+    ),
+    faceZoneControls_(dict.subOrEmptyDict("faceZoneControls")),
+    allowFreeStandingZoneFaces_
+    (
+        meshRefinement::get<bool>(dict, "allowFreeStandingZoneFaces", dryRun)
+    ),
     useTopologicalSnapDetection_
     (
-        dict.lookupOrDefault<bool>("useTopologicalSnapDetection", true)
+        dict.getOrDefault("useTopologicalSnapDetection", true)
     ),
-    maxLoadUnbalance_(dict.lookupOrDefault<scalar>("maxLoadUnbalance", 0)),
+    maxLoadUnbalance_(dict.getOrDefault<scalar>("maxLoadUnbalance", 0)),
     handleSnapProblems_
     (
-        dict.lookupOrDefault<Switch>("handleSnapProblems", true)
-    )
+        dict.getOrDefault<Switch>("handleSnapProblems", true)
+    ),
+    interfaceRefine_
+    (
+        dict.getOrDefault<Switch>("interfaceRefine", true)
+    ),
+    nErodeCellZone_(dict.getOrDefault<label>("nCellZoneErodeIter", 0)),
+    nFilterIter_(dict.getOrDefault<label>("nFilterIter", 2)),
+    minCellFraction_(dict.getOrDefault<scalar>("minCellFraction", 0)),
+    dryRun_(dryRun)
 {
-    scalar featAngle(readScalar(dict.lookup("resolveFeatureAngle")));
+    point locationInMesh;
+    List<Tuple2<point, word>> pointsToZone;
+    if (dict.readIfPresent("locationInMesh", locationInMesh))
+    {
+        locationsInMesh_.append(locationInMesh);
+        zonesInMesh_.append("none");    // special name for no cellZone
+
+        if (dict.found("locationsInMesh"))
+        {
+            FatalIOErrorInFunction(dict)
+                << "Cannot both specify 'locationInMesh' and 'locationsInMesh'"
+                << exit(FatalIOError);
+        }
+    }
+    else if (dict.readIfPresent("locationsInMesh", pointsToZone))
+    {
+        List<Tuple2<point, word>> pointsToZone(dict.lookup("locationsInMesh"));
+        label nZones = locationsInMesh_.size();
+        locationsInMesh_.setSize(nZones+pointsToZone.size());
+        zonesInMesh_.setSize(locationsInMesh_.size());
+
+        forAll(pointsToZone, i)
+        {
+            locationsInMesh_[nZones] = pointsToZone[i].first();
+            zonesInMesh_[nZones] = pointsToZone[i].second();
+            if (zonesInMesh_[nZones] == word::null)
+            {
+                zonesInMesh_[nZones] = "none";
+            }
+            nZones++;
+        }
+    }
+    else
+    {
+        IOWarningInFunction(dict)
+            << "No 'locationInMesh' or 'locationsInMesh' provided"
+            << endl;
+    }
+
+
+    const scalar featAngle
+    (
+        meshRefinement::get<scalar>(dict, "resolveFeatureAngle", dryRun)
+    );
 
     if (featAngle < 0 || featAngle > 180)
     {
@@ -71,8 +155,63 @@ Foam::refinementParameters::refinementParameters(const dictionary& dict)
 
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
 
-Foam::labelList Foam::refinementParameters::findCells(const polyMesh& mesh)
-const
+Foam::dictionary Foam::refinementParameters::getZoneInfo
+(
+    const word& fzName,
+    surfaceZonesInfo::faceZoneType& faceType
+) const
+{
+    dictionary patchInfo;
+    patchInfo.add("type", wallPolyPatch::typeName);
+    faceType = surfaceZonesInfo::INTERNAL;
+
+    if (faceZoneControls_.found(fzName))
+    {
+        const dictionary& fzDict = faceZoneControls_.subDict(fzName);
+
+        if (fzDict.found("patchInfo"))
+        {
+            patchInfo = fzDict.subDict("patchInfo");
+        }
+
+        word faceTypeName;
+        if (fzDict.readIfPresent("faceType", faceTypeName))
+        {
+            faceType = surfaceZonesInfo::faceZoneTypeNames[faceTypeName];
+        }
+    }
+    return patchInfo;
+}
+
+
+Foam::labelList Foam::refinementParameters::addCellZonesToMesh
+(
+    polyMesh& mesh
+) const
+{
+    labelList zoneIDs(zonesInMesh_.size(), -1);
+    forAll(zonesInMesh_, i)
+    {
+        if (zonesInMesh_[i] != word::null && zonesInMesh_[i] != "none")
+        {
+            zoneIDs[i] = surfaceZonesInfo::addCellZone
+            (
+                zonesInMesh_[i],    // name
+                labelList(0),       // addressing
+                mesh
+            );
+        }
+    }
+    return zoneIDs;
+}
+
+
+Foam::labelList Foam::refinementParameters::findCells
+(
+    const bool checkInsideMesh,
+    const polyMesh& mesh,
+    const pointField& locations
+)
 {
     // Force calculation of tet-diag decomposition (for use in findCell)
     (void)mesh.tetBasePtIs();
@@ -81,43 +220,42 @@ const
     globalIndex globalCells(mesh.nCells());
 
     // Cell label per point
-    labelList cellLabels(keepPoints_.size());
+    labelList cellLabels(locations.size());
 
-    forAll(keepPoints_, i)
+    forAll(locations, i)
     {
-        const point& keepPoint = keepPoints_[i];
+        const point& location = locations[i];
 
-        label localCelli = mesh.findCell(keepPoint);
+        label localCellI = mesh.findCell(location, polyMesh::FACE_DIAG_TRIS);
 
-        label globalCelli = -1;
+        label globalCellI = -1;
 
-        if (localCelli != -1)
+        if (localCellI != -1)
         {
-            globalCelli = globalCells.toGlobal(localCelli);
+            globalCellI = globalCells.toGlobal(localCellI);
         }
 
-        reduce(globalCelli, maxOp<label>());
+        reduce(globalCellI, maxOp<label>());
 
-        if (globalCelli == -1)
+        if (checkInsideMesh && globalCellI == -1)
         {
             FatalErrorInFunction
-                << "Point " << keepPoint
+                << "Point " << location
                 << " is not inside the mesh or on a face or edge." << nl
                 << "Bounding box of the mesh:" << mesh.bounds()
                 << exit(FatalError);
         }
 
 
-        label proci = globalCells.whichProcID(globalCelli);
-        label procCelli = globalCells.toLocal(proci, globalCelli);
+        label procI = globalCells.whichProcID(globalCellI);
+        label procCellI = globalCells.toLocal(procI, globalCellI);
 
-        Info<< "Found point " << keepPoint << " in cell " << procCelli
-            << " on processor " << proci << endl;
+        Info<< "Found point " << location << " in cell " << procCellI
+            << " on processor " << procI << endl;
 
-
-        if (globalCells.isLocal(globalCelli))
+        if (globalCells.isLocal(globalCellI))
         {
-            cellLabels[i] = localCelli;
+            cellLabels[i] = localCellI;
         }
         else
         {
@@ -125,6 +263,50 @@ const
         }
     }
     return cellLabels;
+}
+
+
+Foam::labelList Foam::refinementParameters::zonedLocations
+(
+    const wordList& zonesInMesh
+)
+{
+    DynamicList<label> indices(zonesInMesh.size());
+
+    forAll(zonesInMesh, i)
+    {
+        if
+        (
+            zonesInMesh[i] != word::null
+         && zonesInMesh[i] != "none"
+        )
+        {
+            indices.append(i);
+        }
+    }
+    return indices;
+}
+
+
+Foam::labelList Foam::refinementParameters::unzonedLocations
+(
+    const wordList& zonesInMesh
+)
+{
+    DynamicList<label> indices(0);
+
+    forAll(zonesInMesh, i)
+    {
+        if
+        (
+            zonesInMesh[i] == word::null
+         || zonesInMesh[i] == "none"
+        )
+        {
+            indices.append(i);
+        }
+    }
+    return indices;
 }
 
 

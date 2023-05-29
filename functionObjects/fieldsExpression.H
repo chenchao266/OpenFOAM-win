@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2012-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2012-2016 OpenFOAM Foundation
+    Copyright (C) 2019-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -28,12 +31,38 @@ Group
     grpFieldFunctionObjects
 
 Description
+    Intermediate class for handling field expression function objects
+    (e.g. \c add, \c subtract etc.) whereinto more than one fields are input.
+
+Usage
+    Minimal example by using \c system/controlDict.functions:
+    \verbatim
+    <userDefinedSubDictName1>
+    {
+        // Mandatory and other optional entries
+        ...
+
+        // Optional (inherited) entries (runtime modifiable)
+        fields            (<field1> <field2> ... <fieldN>);
+        result            <fieldResult>;
+    }
+    \endverbatim
+
+    where the entries mean:
+    \table
+      Property  | Description                 | Type     | Req'd | Dflt
+      fields    | Names of operand fields     | wordList |  yes  | -
+      result    | Names of output fields | wordList | no | \<FO\>(\<f1\>,...)
+    \endtable
 
 See also
-    Foam::functionObjects::fvMeshFunctionObject
+    - Foam::functionObject
+    - Foam::functionObjects::fvMeshFunctionObject
+    - ExtendedCodeGuide::functionObjects::field::fieldsExpression
 
 SourceFiles
     fieldsExpression.C
+    fieldsExpressionTemplates.C
 
 \*---------------------------------------------------------------------------*/
 
@@ -60,7 +89,7 @@ class fieldsExpression
 {
 protected:
 
-    // Protected member data
+    // Protected Member Data
 
         //- Names of fields to process
         wordList fieldNames_;
@@ -69,7 +98,7 @@ protected:
         word resultName_;
 
 
-    // Protected member functions
+    // Protected Member Functions
 
         void setResultName
         (
@@ -91,18 +120,8 @@ protected:
         template<class FOType>
         bool calcAllTypes(FOType& fo);
 
+        //- Calculate expression
         virtual bool calc() = 0;
-
-
-private:
-
-    // Private Member Functions
-
-        //- Disallow default bitwise copy construct
-        fieldsExpression(const fieldsExpression&);
-
-        //- Disallow default bitwise assignment
-        void operator=(const fieldsExpression&);
 
 
 public:
@@ -123,15 +142,21 @@ public:
             const word& resultName = word::null
         );
 
+        //- No copy construct
+        fieldsExpression(const fieldsExpression&) = delete;
+
+        //- No copy assignment
+        void operator=(const fieldsExpression&) = delete;
+
 
     //- Destructor
-    virtual ~fieldsExpression();
+    virtual ~fieldsExpression() = default;
 
 
     // Member Functions
 
         //- Read the fieldsExpression data
-        virtual bool read(const dictionary&);
+        virtual bool read(const dictionary& dict);
 
         //- Calculate the result fields
         virtual bool execute();

@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -23,6 +25,9 @@ License
 
 Class
     Foam::linearUpwind
+
+Group
+    grpFvSurfaceInterpolationSchemes
 
 Description
     linearUpwind interpolation scheme class derived from upwind and returns
@@ -61,11 +66,11 @@ class linearUpwind
 
     // Private Member Functions
 
-        //- Disallow default bitwise copy construct
-        linearUpwind(const linearUpwind&);
+        //- No copy construct
+        linearUpwind(const linearUpwind&) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const linearUpwind&);
+        //- No copy assignment
+        void operator=(const linearUpwind&) = delete;
 
 
 public:
@@ -122,10 +127,10 @@ public:
         }
 
         //- Return the explicit correction to the face-interpolate
-        virtual tmp<surfaceFieldType<Type>>
+        virtual tmp<GeometricField<Type, fvsPatchField, surfaceMesh>>
         correction
         (
-            const volFieldType<Type>&
+            const GeometricField<Type, fvPatchField, volMesh>&
         ) const;
 };
 

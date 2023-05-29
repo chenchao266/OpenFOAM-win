@@ -1,9 +1,11 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -39,7 +41,7 @@ Description
       - procSchedule()[proci] gives per proci
 
     Does not care whether 'talking' is first send, second receive or maybe
-    full swap. This is all responsability of caller. See ProcessorTopology
+    full swap. This is all responsibility of caller. See ProcessorTopology
     class for use in scheduling processor boundary swaps.
 
 SourceFiles
@@ -50,7 +52,7 @@ SourceFiles
 #ifndef commSchedule_H
 #define commSchedule_H
 
-#include "DynamicList.T.H"
+#include "DynamicList.H"
 #include "labelPair.H"
 #include "labelList.H"
 

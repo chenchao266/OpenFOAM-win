@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -26,7 +28,9 @@ License
 #include "primitiveMesh.H"
 
 // * * * * * * * * * * * * * Private Member Functions  * * * * * * * * * * * //
-using namespace Foam;
+
+
+ namespace Foam{
 void primitiveMesh::calcCells
 (
     cellList& cellFaceAddr,
@@ -50,7 +54,7 @@ void primitiveMesh::calcCells
 
     // 1. Count number of faces per cell
 
-    labelList ncf(nCells, 0);
+    labelList ncf(nCells, Zero);
 
     forAll(own, facei)
     {
@@ -145,3 +149,5 @@ const cellList& primitiveMesh::cells() const
 
 
 // ************************************************************************* //
+
+ } // End namespace Foam

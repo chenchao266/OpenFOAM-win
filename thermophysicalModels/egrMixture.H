@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -24,8 +26,11 @@ License
 Class
     Foam::egrMixture
 
+Group
+    grpReactionThermophysicalMixtures
+
 Description
-    Foam::egrMixture
+    The egr mixture contains species ("ft", "b", "egr").
 
 SourceFiles
     egrMixture.C
@@ -51,10 +56,7 @@ class egrMixture
 :
     public basicCombustionMixture
 {
-    // Private data
-
-        static const int nSpecies_ = 3;
-        static const char* specieNames_[3];
+    // Private Data
 
         dimensionedScalar stoicRatio_;
 
@@ -73,8 +75,8 @@ class egrMixture
         //- Residual gases
         volScalarField& egr_;
 
-        //- Construct as copy (not implemented)
-        egrMixture(const egrMixture<ThermoType>&);
+        //- No copy construct
+        egrMixture(const egrMixture<ThermoType>&) = delete;
 
 
 public:
@@ -86,15 +88,25 @@ public:
     // Constructors
 
         //- Construct from dictionary, mesh and phaseName
-        egrMixture(const dictionary&, const fvMesh&, const word&);
+        egrMixture
+        (
+            const dictionary& thermoDict,
+            const fvMesh& mesh,
+            const word& phaseName
+        );
 
 
     //- Destructor
-    virtual ~egrMixture()
-    {}
+    virtual ~egrMixture() = default;
 
 
     // Member functions
+
+        //- Return the instantiated type name
+        static word typeName()
+        {
+            return "egrMixture<" + ThermoType::typeName() + '>';
+        }
 
         const dimensionedScalar& stoicRatio() const
         {
@@ -177,7 +189,7 @@ public:
 
 } // End namespace Foam
 
-// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 #ifdef NoRepository
     #include "egrMixture.C"

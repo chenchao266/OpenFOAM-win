@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2017-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -24,7 +27,6 @@ License
 \*---------------------------------------------------------------------------*/
 
 #include "pimpleControl.H"
-#include "Switch.H"
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
 
@@ -36,18 +38,23 @@ namespace Foam
 
 // * * * * * * * * * * * * Protected Member Functions  * * * * * * * * * * * //
 
-void Foam::pimpleControl::read()
+bool Foam::pimpleControl::read()
 {
     solutionControl::read(false);
 
-    const dictionary& pimpleDict = dict();
+    const dictionary pimpleDict(dict());
 
-    solveFlow_ = pimpleDict.lookupOrDefault<Switch>("solveFlow", true);
-    nCorrPIMPLE_ = pimpleDict.lookupOrDefault<label>("nOuterCorrectors", 1);
-    nCorrPISO_ = pimpleDict.lookupOrDefault<label>("nCorrectors", 1);
-    SIMPLErho_ = pimpleDict.lookupOrDefault<Switch>("SIMPLErho", false);
+    solveFlow_ = pimpleDict.getOrDefault("solveFlow", true);
+    nCorrPIMPLE_ = pimpleDict.getOrDefault<label>("nOuterCorrectors", 1);
+    nCorrPISO_ = pimpleDict.getOrDefault<label>("nCorrectors", 1);
+    SIMPLErho_ = pimpleDict.getOrDefault("SIMPLErho", false);
     turbOnFinalIterOnly_ =
-        pimpleDict.lookupOrDefault<Switch>("turbOnFinalIterOnly", true);
+        pimpleDict.getOrDefault("turbOnFinalIterOnly", true);
+    finalOnLastPimpleIterOnly_ =
+        pimpleDict.getOrDefault("finalOnLastPimpleIterOnly", false);
+    ddtCorr_ = pimpleDict.getOrDefault("ddtCorr", true);
+
+    return true;
 }
 
 
@@ -60,41 +67,40 @@ bool Foam::pimpleControl::criteriaSatisfied()
     }
 
 
-    bool storeIni = this->storeInitialResiduals();
+    const bool storeIni = this->storeInitialResiduals();
 
     bool achieved = true;
     bool checked = false;    // safety that some checks were indeed performed
 
     const dictionary& solverDict = mesh_.solverPerformanceDict();
-    forAllConstIter(dictionary, solverDict, iter)
+    for (const entry& solverPerfDictEntry : solverDict)
     {
-        const word& variableName = iter().keyword();
-        const label fieldi = applyToField(variableName);
+        const word& fieldName = solverPerfDictEntry.keyword();
+        const label fieldi = applyToField(fieldName);
+
         if (fieldi != -1)
         {
-            scalar residual = 0;
-            const scalar firstResidual =
-                maxResidual(variableName, iter().stream(), residual);
+            Pair<scalar> residuals = maxResidual(solverPerfDictEntry);
 
             checked = true;
 
-            if (storeIni)
-            {
-                residualControl_[fieldi].initialResidual = firstResidual;
-            }
-
-            const bool absCheck = residual < residualControl_[fieldi].absTol;
+            scalar relative = 0.0;
             bool relCheck = false;
 
-            scalar relative = 0.0;
-            if (!storeIni)
+            const bool absCheck =
+                (residuals.last() < residualControl_[fieldi].absTol);
+
+            if (storeIni)
+            {
+                residualControl_[fieldi].initialResidual = residuals.first();
+            }
+            else
             {
                 const scalar iniRes =
-                    residualControl_[fieldi].initialResidual
-                  + ROOTVSMALL;
+                    (residualControl_[fieldi].initialResidual + ROOTVSMALL);
 
-                relative = residual/iniRes;
-                relCheck = relative < residualControl_[fieldi].relTol;
+                relative = residuals.last() / iniRes;
+                relCheck = (relative < residualControl_[fieldi].relTol);
             }
 
             achieved = achieved && (absCheck || relCheck);
@@ -103,11 +109,11 @@ bool Foam::pimpleControl::criteriaSatisfied()
             {
                 Info<< algorithmName_ << " loop:" << endl;
 
-                Info<< "    " << variableName
+                Info<< "    " << fieldName
                     << " PIMPLE iter " << corr_
                     << ": ini res = "
                     << residualControl_[fieldi].initialResidual
-                    << ", abs tol = " << residual
+                    << ", abs tol = " << residuals.last()
                     << " (" << residualControl_[fieldi].absTol << ")"
                     << ", rel tol = " << relative
                     << " (" << residualControl_[fieldi].relTol << ")"
@@ -120,9 +126,26 @@ bool Foam::pimpleControl::criteriaSatisfied()
 }
 
 
+void Foam::pimpleControl::setFirstIterFlag(const bool check, const bool force)
+{
+    DebugInfo
+        << "corr:" << corr_
+        << " corrPISO:" << corrPISO_
+        << " corrNonOrtho:" << corrNonOrtho_
+        << endl;
+
+    solutionControl::setFirstIterFlag(check && corrPISO_ <= 1, force);
+}
+
+
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
-Foam::pimpleControl::pimpleControl(fvMesh& mesh, const word& dictName)
+Foam::pimpleControl::pimpleControl
+(
+    fvMesh& mesh,
+    const word& dictName,
+    const bool verbose
+)
 :
     solutionControl(mesh, dictName),
     solveFlow_(true),
@@ -131,45 +154,45 @@ Foam::pimpleControl::pimpleControl(fvMesh& mesh, const word& dictName)
     corrPISO_(0),
     SIMPLErho_(false),
     turbOnFinalIterOnly_(true),
+    finalOnLastPimpleIterOnly_(false),
+    ddtCorr_(true),
     converged_(false)
 {
     read();
 
-    if (nCorrPIMPLE_ > 1)
+    if (verbose)
     {
-        Info<< nl;
-        if (residualControl_.empty())
+        Info<< nl << algorithmName_;
+
+        if (nCorrPIMPLE_ > 1)
         {
-            Info<< algorithmName_ << ": no residual control data found. "
-                << "Calculations will employ " << nCorrPIMPLE_
-                << " corrector loops" << nl << endl;
+            if (residualControl_.empty())
+            {
+                Info<< ": no residual control data found. "
+                    << "Calculations will employ " << nCorrPIMPLE_
+                    << " corrector loops" << nl;
+            }
+            else
+            {
+                Info<< ": max iterations = " << nCorrPIMPLE_ << nl;
+
+                for (const fieldData& ctrl : residualControl_)
+                {
+                    Info<< "    field " << ctrl.name << token::TAB
+                        << ": relTol " << ctrl.relTol
+                        << ", tolerance " << ctrl.absTol
+                        << nl;
+                }
+            }
         }
         else
         {
-            Info<< algorithmName_ << ": max iterations = " << nCorrPIMPLE_
-                << endl;
-            forAll(residualControl_, i)
-            {
-                Info<< "    field " << residualControl_[i].name << token::TAB
-                    << ": relTol " << residualControl_[i].relTol
-                    << ", tolerance " << residualControl_[i].absTol
-                    << nl;
-            }
-            Info<< endl;
+            Info<< ": Operating solver in PISO mode" << nl;
         }
-    }
-    else
-    {
-        Info<< nl << algorithmName_ << ": Operating solver in PISO mode" << nl
-            << endl;
+
+        Info<< endl;
     }
 }
-
-
-// * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
-
-Foam::pimpleControl::~pimpleControl()
-{}
 
 
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
@@ -178,16 +201,18 @@ bool Foam::pimpleControl::loop()
 {
     read();
 
-    corr_++;
+    ++corr_;
 
     if (debug)
     {
         Info<< algorithmName_ << " loop: corr = " << corr_ << endl;
     }
 
+    setFirstIterFlag();
+
     if (corr_ == nCorrPIMPLE_ + 1)
     {
-        if ((!residualControl_.empty()) && (nCorrPIMPLE_ != 1))
+        if (!residualControl_.empty() && (nCorrPIMPLE_ != 1))
         {
             Info<< algorithmName_ << ": not converged within "
                 << nCorrPIMPLE_ << " iterations" << endl;

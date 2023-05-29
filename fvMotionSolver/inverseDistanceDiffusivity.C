@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2017 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -26,9 +29,11 @@ License
 #include "inverseDistanceDiffusivity.H"
 #include "addToRunTimeSelectionTable.H"
 #include "patchWave.H"
-#include "HashSet.T.H"
+#include "HashSet.H"
 #include "surfaceInterpolate.H"
 #include "zeroGradientFvPatchFields.H"
+#include "wallDist.H"
+#include "meshWavePatchDistMethod.H"
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
 
@@ -60,50 +65,21 @@ Foam::inverseDistanceDiffusivity::inverseDistanceDiffusivity
 }
 
 
-// * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
-
-Foam::inverseDistanceDiffusivity::~inverseDistanceDiffusivity()
-{}
-
-
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
-
-Foam::tmp<Foam::scalarField> Foam::inverseDistanceDiffusivity::y() const
-{
-    labelHashSet patchSet(mesh().boundaryMesh().patchSet(patchNames_));
-
-    if (patchSet.size())
-    {
-        return tmp<scalarField>
-        (
-            new scalarField(patchWave(mesh(), patchSet, false).distance())
-        );
-    }
-    else
-    {
-        return tmp<scalarField>(new scalarField(mesh().nCells(), 1.0));
-    }
-}
-
 
 void Foam::inverseDistanceDiffusivity::correct()
 {
-    volScalarField y_
-    (
-        IOobject
+    faceDiffusivity_ =
+        dimensionedScalar("one", dimLength, 1)
+       /fvc::interpolate
         (
-            "y",
-            mesh().time().timeName(),
-            mesh()
-        ),
-        mesh(),
-        dimless,
-        zeroGradientFvPatchScalarField::typeName
-    );
-    y_.primitiveFieldRef() = y();
-    y_.correctBoundaryConditions();
-
-    faceDiffusivity_ = 1.0/fvc::interpolate(y_);
+            wallDist::New
+            (
+                mesh(),
+                patchDistMethods::meshWave::typeName,
+                mesh().boundaryMesh().patchSet(patchNames_)
+            ).y()
+        );
 }
 
 

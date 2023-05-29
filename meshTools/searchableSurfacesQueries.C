@@ -1,9 +1,12 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2015-2018 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -24,10 +27,10 @@ License
 \*---------------------------------------------------------------------------*/
 
 #include "searchableSurfacesQueries.H"
-#include "ListOps.T.H"
+#include "ListOps.H"
 #include "OFstream.H"
 #include "meshTools.H"
-#include "DynamicField.T.H"
+#include "DynamicField.H"
 #include "pointConstraint.H"
 #include "plane.H"
 
@@ -354,6 +357,13 @@ void Foam::searchableSurfacesQueries::findNearest
 {
     // Find nearest. Return -1 or nearest point
 
+    if (samples.size() != nearestDistSqr.size())
+    {
+        FatalErrorInFunction << "Inconsistent sizes. samples:" << samples.size()
+            << " search-radius:" << nearestDistSqr.size()
+            << exit(FatalError);
+    }
+
     // Initialise
     nearestSurfaces.setSize(samples.size());
     nearestSurfaces = -1;
@@ -394,14 +404,24 @@ void Foam::searchableSurfacesQueries::findNearest
 (
     const PtrList<searchableSurface>& allSurfaces,
     const labelList& surfacesToTest,
+    const labelListList& regionIndices,
+
     const pointField& samples,
     const scalarField& nearestDistSqr,
-    const labelList& regionIndices,
+
     labelList& nearestSurfaces,
     List<pointIndexHit>& nearestInfo
 )
 {
     // Find nearest. Return -1 or nearest point
+
+    if (samples.size() != nearestDistSqr.size())
+    {
+        FatalErrorInFunction << "Inconsistent sizes. samples:" << samples.size()
+            << " search-radius:" << nearestDistSqr.size()
+            << exit(FatalError);
+    }
+
 
     if (regionIndices.empty())
     {
@@ -431,7 +451,7 @@ void Foam::searchableSurfacesQueries::findNearest
         (
             samples,
             minDistSqr,
-            regionIndices,
+            regionIndices[testI],
             hitInfo
         );
 
@@ -466,6 +486,15 @@ void Foam::searchableSurfacesQueries::findNearest
 {
     // Multi-surface findNearest
 
+
+    if (start.size() != distSqr.size())
+    {
+        FatalErrorInFunction << "Inconsistent sizes. samples:" << start.size()
+            << " search-radius:" << distSqr.size()
+            << exit(FatalError);
+    }
+
+
     vectorField normal;
     List<pointIndexHit> info;
 
@@ -481,67 +510,81 @@ void Foam::searchableSurfacesQueries::findNearest
             near[i] = info[i].hitPoint();
         }
     }
+
+    // Store normal as constraint
     constraint.setSize(near.size());
-
-
-    if (surfacesToTest.size() == 1)
+    constraint = pointConstraint();
+    forAll(constraint, i)
     {
-        constraint = pointConstraint();
-        forAll(info, i)
+        if (info[i].hit())
         {
-            if (info[i].hit())
-            {
-                constraint[i].applyConstraint(normal[i]);
-            }
+            constraint[i].applyConstraint(normal[i]);
         }
     }
-    else if (surfacesToTest.size() >= 2)
+
+    if (surfacesToTest.size() >= 2)
     {
         // Work space
-        pointField near1;
+        //pointField near1;
         vectorField normal1;
 
         label surfi = 1;
         for (label iter = 0; iter < nIter; iter++)
         {
-            constraint = pointConstraint();
-            forAll(constraint, i)
-            {
-                if (info[i].hit())
-                {
-                    constraint[i].applyConstraint(normal[i]);
-                }
-            }
-
-            // Find intersection with next surface
+            // Find nearest on next surface
             const searchableSurface& s = allSurfaces[surfacesToTest[surfi]];
+
+            // Update: info, normal1
             s.findNearest(near, distSqr, info);
             s.getNormal(info, normal1);
-            near1.setSize(info.size());
-            forAll(info, i)
+
+            // Move to intersection of
+            //    - previous surface(s) : near+normal
+            //    - current surface     : info+normal1
+            forAll(near, i)
             {
                 if (info[i].hit())
                 {
-                    near1[i] = info[i].hitPoint();
-                }
-            }
+                    if (normal[i] != vector::zero_)
+                    {
+                        // Have previous hit. Find intersection
+                        if (mag(normal[i]&normal1[i]) < 1.0-1e-6)
+                        {
+                            plane pl0(near[i], normal[i], false);
+                            plane pl1(info[i].hitPoint(), normal1[i], false);
 
-            // Move to intersection
-            forAll(near, pointi)
-            {
-                if (info[pointi].hit())
-                {
-                    plane pl0(near[pointi], normal[pointi]);
-                    plane pl1(near1[pointi], normal1[pointi]);
-                    plane::ray r(pl0.planeIntersect(pl1));
-                    vector n = r.dir() / mag(r.dir());
+                            plane::ray r(pl0.planeIntersect(pl1));
+                            vector n = r.dir() / mag(r.dir());
 
-                    vector d(r.refPoint()-near[pointi]);
-                    d -= (d&n)*n;
+                            // Calculate vector to move onto intersection line
+                            vector d(r.refPoint()-near[i]);
+                            d -= (d&n)*n;
 
-                    near[pointi] += d;
-                    normal[pointi] = normal1[pointi];
-                    constraint[pointi].applyConstraint(normal1[pointi]);
+                            // Trim the max distance
+                            scalar magD = mag(d);
+                            if (magD > SMALL)
+                            {
+                                scalar maxDist = Foam::sqrt(distSqr[i]);
+                                if (magD > maxDist)
+                                {
+                                    // Clip
+                                    d /= magD;
+                                    d *= maxDist;
+                                }
+
+                                near[i] += d;
+                                normal[i] = normal1[i];
+                                constraint[i].applyConstraint(normal1[i]);
+                            }
+                        }
+                    }
+                    else
+                    {
+                        // First hit
+                        near[i] = info[i].hitPoint();
+                        normal[i] = normal1[i];
+                        constraint[i].applyConstraint(normal1[i]);
+                    }
                 }
             }
 
@@ -639,8 +682,7 @@ void Foam::searchableSurfacesQueries::signedDistance
                             << " point:" << surfPoints[i]
                             << " surface:"
                             << allSurfaces[surfacesToTest[testI]].name()
-                            << " volType:"
-                            << volumeType::names[vT]
+                            << " volType:" << vT.str()
                             << exit(FatalError);
                         break;
                     }
@@ -654,21 +696,17 @@ void Foam::searchableSurfacesQueries::signedDistance
 Foam::boundBox Foam::searchableSurfacesQueries::bounds
 (
     const PtrList<searchableSurface>& allSurfaces,
-    const labelList& surfacesToTest
+    const labelUList& surfacesToTest
 )
 {
-    pointField bbPoints(2*surfacesToTest.size());
+    boundBox bb(boundBox::invertedBox);
 
-    forAll(surfacesToTest, testI)
+    for (const label surfi : surfacesToTest)
     {
-        const searchableSurface& surface(allSurfaces[surfacesToTest[testI]]);
-
-        bbPoints[2*testI] = surface.bounds().min();
-
-        bbPoints[2*testI + 1] = surface.bounds().max();
+        bb.add(allSurfaces[surfi].bounds());
     }
 
-    return boundBox(bbPoints);
+    return bb;
 }
 
 

@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2015 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2015 OpenFOAM Foundation
+    Copyright (C) 2019-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -34,35 +37,31 @@ Foam::autoPtr<Foam::reactionRateFlameArea> Foam::reactionRateFlameArea::New
     const combustionModel& combModel
 )
 {
-    word reactionRateFlameAreaType
+    const word modelType
     (
         dict.lookup("reactionRateFlameArea")
     );
 
     Info<< "Selecting reaction rate flame area correlation "
-        << reactionRateFlameAreaType << endl;
+        << modelType << endl;
 
-    dictionaryConstructorTable::iterator cstrIter =
-        dictionaryConstructorTablePtr_->find(reactionRateFlameAreaType);
+    auto* ctorPtr = dictionaryConstructorTable(modelType);
 
-    if (cstrIter == dictionaryConstructorTablePtr_->end())
+    if (!ctorPtr)
     {
-        FatalIOErrorInFunction
+        FatalIOErrorInLookup
         (
-            dict
-        )   << "Unknown reactionRateFlameArea type "
-            << reactionRateFlameAreaType << endl << endl
-            << "Valid reaction rate flame area types are :" << endl
-            << dictionaryConstructorTablePtr_->toc()
-            << exit(FatalIOError);
+            dict,
+            "reactionRateFlameArea",
+            modelType,
+            *dictionaryConstructorTablePtr_
+        ) << exit(FatalIOError);
     }
 
-    const label tempOpen = reactionRateFlameAreaType.find('<');
-
-    const word className = reactionRateFlameAreaType(0, tempOpen);
+    const word className = modelType.substr(0, modelType.find('<'));
 
     return autoPtr<reactionRateFlameArea>
-        (cstrIter()(className, dict, mesh, combModel));
+        (ctorPtr(className, dict, mesh, combModel));
 }
 
 

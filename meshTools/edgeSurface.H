@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -93,24 +95,11 @@ private:
         //- From face to our edges_
         labelListList faceEdges_;
 
-
         //- Constructed from above: pointEdges
         labelListList pointEdges_;
 
 
     // Private Member Functions
-
-        //- Dump edges in obj format
-        static void writeOBJ(const pointField&, const edgeList&, Ostream&);
-
-        //- Dump selected edges in obj format
-        static void writeOBJ
-        (
-            const pointField&,
-            const edgeList&,
-            const labelList&,
-            Ostream&
-        );
 
         //- Calculate pointEdges
         void calcPointEdges();

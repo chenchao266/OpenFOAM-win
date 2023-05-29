@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2015-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2015-2017 OpenFOAM Foundation
+    Copyright (C) 2015-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -25,48 +28,51 @@ License
 
 #include "mapDistributeBase.H"
 #include "commSchedule.H"
-#include "HashSet.T.H"
+#include "labelPairHashes.H"
 #include "globalIndex.H"
-#include "ListOps.T.H"
+#include "ListOps.H"
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
- 
+
 namespace Foam
 {
     defineTypeNameAndDebug(mapDistributeBase, 0);
-}
+ 
 
 
 // * * * * * * * * * * * * Protected Member Functions  * * * * * * * * * * * //
-namespace Foam
-{
+
 List<labelPair> mapDistributeBase::schedule
 (
     const labelListList& subMap,
     const labelListList& constructMap,
-    const int tag
+    const int tag,
+    const label comm
 )
 {
+    const label myRank = Pstream::myProcNo(comm);
+    const label nProcs = Pstream::nProcs(comm);
+
     // Communications: send and receive processor
     List<labelPair> allComms;
 
     {
-        HashSet<labelPair, labelPair::Hash<>> commsSet(Pstream::nProcs());
+        labelPairHashSet commsSet(nProcs);
 
         // Find what communication is required
         forAll(subMap, proci)
         {
-            if (proci != Pstream::myProcNo())
+            if (proci != myRank)
             {
                 if (subMap[proci].size())
                 {
                     // I need to send to proci
-                    commsSet.insert(labelPair(Pstream::myProcNo(), proci));
+                    commsSet.insert(labelPair(myRank, proci));
                 }
                 if (constructMap[proci].size())
                 {
                     // I need to receive from proci
-                    commsSet.insert(labelPair(proci, Pstream::myProcNo()));
+                    commsSet.insert(labelPair(proci, myRank));
                 }
             }
         }
@@ -75,22 +81,24 @@ List<labelPair> mapDistributeBase::schedule
 
 
     // Reduce
-    if (Pstream::master())
+    if (Pstream::master(comm))
     {
         // Receive and merge
-        for
-        (
-            int slave=Pstream::firstSlave();
-            slave<=Pstream::lastSlave();
-            slave++
-        )
+        for (const int slave : Pstream::subProcs(comm))
         {
-            IPstream fromSlave(Pstream::commsTypes::scheduled, slave, 0, tag);
+            IPstream fromSlave
+            (
+                Pstream::commsTypes::scheduled,
+                slave,
+                0,
+                tag,
+                comm
+            );
             List<labelPair> nbrData(fromSlave);
 
             forAll(nbrData, i)
             {
-                if (findIndex(allComms, nbrData[i]) == -1)
+                if (!allComms.found(nbrData[i]))
                 {
                     label sz = allComms.size();
                     allComms.setSize(sz+1);
@@ -99,14 +107,16 @@ List<labelPair> mapDistributeBase::schedule
             }
         }
         // Send back
-        for
-        (
-            int slave=Pstream::firstSlave();
-            slave<=Pstream::lastSlave();
-            slave++
-        )
+        for (const int slave : Pstream::subProcs(comm))
         {
-            OPstream toSlave(Pstream::commsTypes::scheduled, slave, 0, tag);
+            OPstream toSlave
+            (
+                Pstream::commsTypes::scheduled,
+                slave,
+                0,
+                tag,
+                comm
+            );
             toSlave << allComms;
         }
     }
@@ -118,7 +128,8 @@ List<labelPair> mapDistributeBase::schedule
                 Pstream::commsTypes::scheduled,
                 Pstream::masterNo(),
                 0,
-                tag
+                tag,
+                comm
             );
             toMaster << allComms;
         }
@@ -128,7 +139,8 @@ List<labelPair> mapDistributeBase::schedule
                 Pstream::commsTypes::scheduled,
                 Pstream::masterNo(),
                 0,
-                tag
+                tag,
+                comm
             );
             fromMaster >> allComms;
         }
@@ -140,9 +152,9 @@ List<labelPair> mapDistributeBase::schedule
     (
         commSchedule
         (
-            Pstream::nProcs(),
+            nProcs,
             allComms
-        ).procSchedule()[Pstream::myProcNo()]
+        ).procSchedule()[myRank]
     );
 
     // Processors involved in my schedule
@@ -159,7 +171,7 @@ List<labelPair> mapDistributeBase::schedule
     //        label sendProc = twoProcs[0];
     //        label recvProc = twoProcs[1];
     //
-    //        if (recvProc == Pstream::myProcNo())
+    //        if (recvProc == myRank)
     //        {
     //            Pout<< "    receive from " << sendProc << endl;
     //        }
@@ -174,17 +186,17 @@ List<labelPair> mapDistributeBase::schedule
 
 const List<labelPair>& mapDistributeBase::schedule() const
 {
-    if (schedulePtr_.empty())
+    if (!schedulePtr_)
     {
         schedulePtr_.reset
         (
             new List<labelPair>
             (
-                schedule(subMap_, constructMap_, Pstream::msgType())
+                schedule(subMap_, constructMap_, Pstream::msgType(), comm_)
             )
         );
     }
-    return schedulePtr_();
+    return *schedulePtr_;
 }
 
 
@@ -208,9 +220,12 @@ void mapDistributeBase::checkReceivedSize
 
 void mapDistributeBase::printLayout(Ostream& os) const
 {
+    const label myRank = Pstream::myProcNo(comm_);
+    const label nProcs = Pstream::nProcs(comm_);
+
     // Determine offsets of remote data.
-    labelList minIndex(Pstream::nProcs(), labelMax);
-    labelList maxIndex(Pstream::nProcs(), labelMin);
+    labelList minIndex(nProcs, labelMax);
+    labelList maxIndex(nProcs, labelMin);
     forAll(constructMap_, proci)
     {
         const labelList& construct = constructMap_[proci];
@@ -235,27 +250,27 @@ void mapDistributeBase::printLayout(Ostream& os) const
     }
 
     label localSize;
-    if (maxIndex[Pstream::myProcNo()] == labelMin)
+    if (maxIndex[myRank] == labelMin)
     {
         localSize = 0;
     }
     else
     {
-        localSize = maxIndex[Pstream::myProcNo()]+1;
+        localSize = maxIndex[myRank]+1;
     }
 
     os  << "Layout: (constructSize:" << constructSize_
         << " subHasFlip:" << subHasFlip_
         << " constructHasFlip:" << constructHasFlip_
         << ")" << endl
-        << "local (processor " << Pstream::myProcNo() << "):" << endl
+        << "local (processor " << myRank << "):" << endl
         << "    start : 0" << endl
         << "    size  : " << localSize << endl;
 
     label offset = localSize;
     forAll(minIndex, proci)
     {
-        if (proci != Pstream::myProcNo())
+        if (proci != myRank)
         {
             if (constructMap_[proci].size() > 0)
             {
@@ -283,22 +298,23 @@ void mapDistributeBase::printLayout(Ostream& os) const
 void mapDistributeBase::calcCompactAddressing
 (
     const globalIndex& globalNumbering,
-    const labelList& elements,
+    const labelUList& elements,
     List<Map<label>>& compactMap
 ) const
 {
-    compactMap.setSize(Pstream::nProcs());
+    const label myRank = Pstream::myProcNo(comm_);
+    const label nProcs = Pstream::nProcs(comm_);
+
+    compactMap.setSize(nProcs);
 
     // Count all (non-local) elements needed. Just for presizing map.
-    labelList nNonLocal(Pstream::nProcs(), 0);
+    labelList nNonLocal(nProcs, Zero);
 
-    forAll(elements, i)
+    for (const label globalIdx : elements)
     {
-        label globalIndex = elements[i];
-
-        if (globalIndex != -1 && !globalNumbering.isLocal(globalIndex))
+        if (globalIdx != -1 && !globalNumbering.isLocal(globalIdx))
         {
-            label proci = globalNumbering.whichProcID(globalIndex);
+            label proci = globalNumbering.whichProcID(globalIdx);
             nNonLocal[proci]++;
         }
     }
@@ -306,7 +322,7 @@ void mapDistributeBase::calcCompactAddressing
     forAll(compactMap, proci)
     {
         compactMap[proci].clear();
-        if (proci != Pstream::myProcNo())
+        if (proci != myRank)
         {
             compactMap[proci].resize(2*nNonLocal[proci]);
         }
@@ -314,14 +330,12 @@ void mapDistributeBase::calcCompactAddressing
 
 
     // Collect all (non-local) elements needed.
-    forAll(elements, i)
+    for (const label globalIdx : elements)
     {
-        label globalIndex = elements[i];
-
-        if (globalIndex != -1 && !globalNumbering.isLocal(globalIndex))
+        if (globalIdx != -1 && !globalNumbering.isLocal(globalIdx))
         {
-            label proci = globalNumbering.whichProcID(globalIndex);
-            label index = globalNumbering.toLocal(proci, globalIndex);
+            label proci = globalNumbering.whichProcID(globalIdx);
+            label index = globalNumbering.toLocal(proci, globalIdx);
             label nCompact = compactMap[proci].size();
             compactMap[proci].insert(index, nCompact);
         }
@@ -336,22 +350,21 @@ void mapDistributeBase::calcCompactAddressing
     List<Map<label>>& compactMap
 ) const
 {
-    compactMap.setSize(Pstream::nProcs());
+    const label myRank = Pstream::myProcNo(comm_);
+    const label nProcs = Pstream::nProcs(comm_);
+
+    compactMap.setSize(nProcs);
 
     // Count all (non-local) elements needed. Just for presizing map.
-    labelList nNonLocal(Pstream::nProcs(), 0);
+    labelList nNonLocal(nProcs, Zero);
 
-    forAll(cellCells, cellI)
+    for (const labelList& cCells : cellCells)
     {
-        const labelList& cCells = cellCells[cellI];
-
-        forAll(cCells, i)
+        for (const label globalIdx : cCells)
         {
-            label globalIndex = cCells[i];
-
-            if (globalIndex != -1 && !globalNumbering.isLocal(globalIndex))
+            if (globalIdx != -1 && !globalNumbering.isLocal(globalIdx))
             {
-                label proci = globalNumbering.whichProcID(globalIndex);
+                label proci = globalNumbering.whichProcID(globalIdx);
                 nNonLocal[proci]++;
             }
         }
@@ -360,7 +373,7 @@ void mapDistributeBase::calcCompactAddressing
     forAll(compactMap, proci)
     {
         compactMap[proci].clear();
-        if (proci != Pstream::myProcNo())
+        if (proci != myRank)
         {
             compactMap[proci].resize(2*nNonLocal[proci]);
         }
@@ -368,18 +381,14 @@ void mapDistributeBase::calcCompactAddressing
 
 
     // Collect all (non-local) elements needed.
-    forAll(cellCells, cellI)
+    for (const labelList& cCells : cellCells)
     {
-        const labelList& cCells = cellCells[cellI];
-
-        forAll(cCells, i)
+        for (const label globalIdx : cCells)
         {
-            label globalIndex = cCells[i];
-
-            if (globalIndex != -1 && !globalNumbering.isLocal(globalIndex))
+            if (globalIdx != -1 && !globalNumbering.isLocal(globalIdx))
             {
-                label proci = globalNumbering.whichProcID(globalIndex);
-                label index = globalNumbering.toLocal(proci, globalIndex);
+                label proci = globalNumbering.whichProcID(globalIdx);
+                label index = globalNumbering.toLocal(proci, globalIdx);
                 label nCompact = compactMap[proci].size();
                 compactMap[proci].insert(index, nCompact);
             }
@@ -397,16 +406,19 @@ void mapDistributeBase::exchangeAddressing
     labelList& compactStart
 )
 {
+    const label myRank = Pstream::myProcNo(comm_);
+    const label nProcs = Pstream::nProcs(comm_);
+
     // The overall compact addressing is
     // - myProcNo data first (uncompacted)
     // - all other processors consecutively
 
-    compactStart.setSize(Pstream::nProcs());
-    compactStart[Pstream::myProcNo()] = 0;
+    compactStart.setSize(nProcs);
+    compactStart[myRank] = 0;
     constructSize_ = globalNumbering.localSize();
     forAll(compactStart, proci)
     {
-        if (proci != Pstream::myProcNo())
+        if (proci != myRank)
         {
             compactStart[proci] = constructSize_;
             constructSize_ += compactMap[proci].size();
@@ -418,12 +430,12 @@ void mapDistributeBase::exchangeAddressing
     // Find out what to receive/send in compact addressing.
 
     // What I want to receive is what others have to send
-    labelListList wantedRemoteElements(Pstream::nProcs());
+    labelListList wantedRemoteElements(nProcs);
     // Compact addressing for received data
-    constructMap_.setSize(Pstream::nProcs());
+    constructMap_.setSize(nProcs);
     forAll(compactMap, proci)
     {
-        if (proci == Pstream::myProcNo())
+        if (proci == myRank)
         {
             // All my own elements are used
             label nLocal = globalNumbering.localSize();
@@ -438,9 +450,9 @@ void mapDistributeBase::exchangeAddressing
             remoteElem.setSize(compactMap[proci].size());
             localElem.setSize(compactMap[proci].size());
             label i = 0;
-            forAllIter(Map<label>, compactMap[proci], iter)
+            forAllIters(compactMap[proci], iter)
             {
-                const label compactI = compactStart[proci] + iter();
+                const label compactI = compactStart[proci] + iter.val();
                 remoteElem[i] = iter.key();
                 localElem[i]  = compactI;
                 iter() = compactI;
@@ -449,19 +461,19 @@ void mapDistributeBase::exchangeAddressing
         }
     }
 
-    subMap_.setSize(Pstream::nProcs());
+    subMap_.setSize(nProcs);
     Pstream::exchange<labelList, label>
     (
         wantedRemoteElements,
         subMap_,
         tag,
-        Pstream::worldComm  //TBD
+        comm_
     );
 
     // Renumber elements
-    forAll(elements, i)
+    for (label& elem : elements)
     {
-        elements[i] = renumber(globalNumbering, compactMap, elements[i]);
+        elem = renumber(globalNumbering, compactMap, elem);
     }
 }
 
@@ -475,16 +487,19 @@ void mapDistributeBase::exchangeAddressing
     labelList& compactStart
 )
 {
+    const label myRank = Pstream::myProcNo(comm_);
+    const label nProcs = Pstream::nProcs(comm_);
+
     // The overall compact addressing is
     // - myProcNo data first (uncompacted)
     // - all other processors consecutively
 
-    compactStart.setSize(Pstream::nProcs());
-    compactStart[Pstream::myProcNo()] = 0;
+    compactStart.setSize(nProcs);
+    compactStart[myRank] = 0;
     constructSize_ = globalNumbering.localSize();
     forAll(compactStart, proci)
     {
-        if (proci != Pstream::myProcNo())
+        if (proci != myRank)
         {
             compactStart[proci] = constructSize_;
             constructSize_ += compactMap[proci].size();
@@ -492,16 +507,15 @@ void mapDistributeBase::exchangeAddressing
     }
 
 
-
     // Find out what to receive/send in compact addressing.
 
     // What I want to receive is what others have to send
-    labelListList wantedRemoteElements(Pstream::nProcs());
+    labelListList wantedRemoteElements(nProcs);
     // Compact addressing for received data
-    constructMap_.setSize(Pstream::nProcs());
+    constructMap_.setSize(nProcs);
     forAll(compactMap, proci)
     {
-        if (proci == Pstream::myProcNo())
+        if (proci == myRank)
         {
             // All my own elements are used
             label nLocal = globalNumbering.localSize();
@@ -516,9 +530,9 @@ void mapDistributeBase::exchangeAddressing
             remoteElem.setSize(compactMap[proci].size());
             localElem.setSize(compactMap[proci].size());
             label i = 0;
-            forAllIter(Map<label>, compactMap[proci], iter)
+            forAllIters(compactMap[proci], iter)
             {
-                const label compactI = compactStart[proci] + iter();
+                const label compactI = compactStart[proci] + iter.val();
                 remoteElem[i] = iter.key();
                 localElem[i]  = compactI;
                 iter() = compactI;
@@ -527,23 +541,21 @@ void mapDistributeBase::exchangeAddressing
         }
     }
 
-    subMap_.setSize(Pstream::nProcs());
+    subMap_.setSize(nProcs);
     Pstream::exchange<labelList, label>
     (
         wantedRemoteElements,
         subMap_,
         tag,
-        Pstream::worldComm      //TBD
+        comm_
     );
 
     // Renumber elements
-    forAll(cellCells, cellI)
+    for (labelList& cCells : cellCells)
     {
-        labelList& cCells = cellCells[cellI];
-
-        forAll(cCells, i)
+        for (label& celli : cCells)
         {
-            cCells[i] = renumber(globalNumbering, compactMap, cCells[i]);
+            celli = renumber(globalNumbering, compactMap, celli);
         }
     }
 }
@@ -551,38 +563,73 @@ void mapDistributeBase::exchangeAddressing
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
-mapDistributeBase::mapDistributeBase() :    constructSize_(0),
+mapDistributeBase::mapDistributeBase(const label comm)
+:
+    constructSize_(0),
     subHasFlip_(false),
     constructHasFlip_(false),
+    comm_(comm),
     schedulePtr_()
 {}
+
+
+
+mapDistributeBase::mapDistributeBase(const mapDistributeBase& map)
+:
+    constructSize_(map.constructSize_),
+    subMap_(map.subMap_),
+    constructMap_(map.constructMap_),
+    subHasFlip_(map.subHasFlip_),
+    constructHasFlip_(map.constructHasFlip_),
+    comm_(map.comm_),
+    schedulePtr_()
+{}
+
+
+mapDistributeBase::mapDistributeBase(mapDistributeBase&& map)
+:
+    mapDistributeBase()
+{
+    transfer(map);
+}
 
 
 mapDistributeBase::mapDistributeBase
 (
     const label constructSize,
-    const Xfer<labelListList>& subMap,
-    const Xfer<labelListList>& constructMap,
+    labelListList&& subMap,
+    labelListList&& constructMap,
     const bool subHasFlip,
-    const bool constructHasFlip
-) :    constructSize_(constructSize),
-    subMap_(subMap),
-    constructMap_(constructMap),
+    const bool constructHasFlip,
+    const label comm
+)
+:
+    constructSize_(constructSize),
+    subMap_(std::move(subMap)),
+    constructMap_(std::move(constructMap)),
     subHasFlip_(subHasFlip),
     constructHasFlip_(constructHasFlip),
+    comm_(comm),
     schedulePtr_()
 {}
 
 
 mapDistributeBase::mapDistributeBase
 (
-    const labelList& sendProcs,
-    const labelList& recvProcs
-) :    constructSize_(0),
+    const labelUList& sendProcs,
+    const labelUList& recvProcs,
+    const label comm
+)
+:
+    constructSize_(0),
     subHasFlip_(false),
     constructHasFlip_(false),
+    comm_(comm),
     schedulePtr_()
 {
+    const label myRank = Pstream::myProcNo(comm_);
+    const label nProcs = Pstream::nProcs(comm_);
+
     if (sendProcs.size() != recvProcs.size())
     {
         FatalErrorInFunction
@@ -592,31 +639,31 @@ mapDistributeBase::mapDistributeBase
     }
 
     // Per processor the number of samples we have to send/receive.
-    labelList nSend(Pstream::nProcs(), 0);
-    labelList nRecv(Pstream::nProcs(), 0);
+    labelList nSend(nProcs, Zero);
+    labelList nRecv(nProcs, Zero);
 
     forAll(sendProcs, sampleI)
     {
-        label sendProc = sendProcs[sampleI];
-        label recvProc = recvProcs[sampleI];
+        const label sendProc = sendProcs[sampleI];
+        const label recvProc = recvProcs[sampleI];
 
         // Note that also need to include local communication (both
         // RecvProc and sendProc on local processor)
 
-        if (Pstream::myProcNo() == sendProc)
+        if (myRank == sendProc)
         {
             // I am the sender. Count destination processor.
             nSend[recvProc]++;
         }
-        if (Pstream::myProcNo() == recvProc)
+        if (myRank == recvProc)
         {
             // I am the receiver.
             nRecv[sendProc]++;
         }
     }
 
-    subMap_.setSize(Pstream::nProcs());
-    constructMap_.setSize(Pstream::nProcs());
+    subMap_.setSize(nProcs);
+    constructMap_.setSize(nProcs);
     forAll(nSend, proci)
     {
         subMap_[proci].setSize(nSend[proci]);
@@ -627,15 +674,15 @@ mapDistributeBase::mapDistributeBase
 
     forAll(sendProcs, sampleI)
     {
-        label sendProc = sendProcs[sampleI];
-        label recvProc = recvProcs[sampleI];
+        const label sendProc = sendProcs[sampleI];
+        const label recvProc = recvProcs[sampleI];
 
-        if (Pstream::myProcNo() == sendProc)
+        if (myRank == sendProc)
         {
             // I am the sender. Store index I need to send.
             subMap_[recvProc][nSend[recvProc]++] = sampleI;
         }
-        if (Pstream::myProcNo() == recvProc)
+        if (myRank == recvProc)
         {
             // I am the receiver.
             constructMap_[sendProc][nRecv[sendProc]++] = sampleI;
@@ -651,10 +698,14 @@ mapDistributeBase::mapDistributeBase
     const globalIndex& globalNumbering,
     labelList& elements,
     List<Map<label>>& compactMap,
-    const int tag
-) :    constructSize_(0),
+    const int tag,
+    const label comm
+)
+:
+    constructSize_(0),
     subHasFlip_(false),
     constructHasFlip_(false),
+    comm_(comm),
     schedulePtr_()
 {
     // Construct per processor compact addressing of the global elements
@@ -670,16 +721,15 @@ mapDistributeBase::mapDistributeBase
     //// Sort remote elements needed (not really necessary)
     //forAll(compactMap, proci)
     //{
-    //    if (proci != Pstream::myProcNo())
+    //    if (proci != myRank)
     //    {
     //        Map<label>& globalMap = compactMap[proci];
     //
-    //        SortableList<label> sorted(globalMap.toc().xfer());
+    //        const List<label> sorted(globalMap.sortedToc());
     //
     //        forAll(sorted, i)
     //        {
-    //            Map<label>::iterator iter = globalMap.find(sorted[i]);
-    //            iter() = i;
+    //            globalMap(sorted[i]) = i;
     //        }
     //    }
     //}
@@ -709,10 +759,14 @@ mapDistributeBase::mapDistributeBase
     const globalIndex& globalNumbering,
     labelListList& cellCells,
     List<Map<label>>& compactMap,
-    const int tag
-) :    constructSize_(0),
+    const int tag,
+    const label comm
+)
+:
+    constructSize_(0),
     subHasFlip_(false),
     constructHasFlip_(false),
+    comm_(comm),
     schedulePtr_()
 {
     // Construct per processor compact addressing of the global elements
@@ -728,16 +782,15 @@ mapDistributeBase::mapDistributeBase
     //// Sort remote elements needed (not really necessary)
     //forAll(compactMap, proci)
     //{
-    //    if (proci != Pstream::myProcNo())
+    //    if (proci != myRank)
     //    {
     //        Map<label>& globalMap = compactMap[proci];
     //
-    //        SortableList<label> sorted(globalMap.toc().xfer());
+    //        const List<label> sorted(globalMap.sortedToc());
     //
     //        forAll(sorted, i)
     //        {
-    //            Map<label>::iterator iter = globalMap.find(sorted[i]);
-    //            iter() = i;
+    //            globalMap(sorted[i]) = i;
     //        }
     //    }
     //}
@@ -762,22 +815,61 @@ mapDistributeBase::mapDistributeBase
 }
 
 
-mapDistributeBase::mapDistributeBase(const mapDistributeBase& map) :    constructSize_(map.constructSize_),
-    subMap_(map.subMap_),
-    constructMap_(map.constructMap_),
-    subHasFlip_(map.subHasFlip_),
-    constructHasFlip_(map.constructHasFlip_),
+mapDistributeBase::mapDistributeBase
+(
+    labelListList&& subMap,
+    const bool subHasFlip,
+    const bool constructHasFlip,
+    const label comm
+)
+:
+    constructSize_(0),
+    subMap_(std::move(subMap)),
+    subHasFlip_(subHasFlip),
+    constructHasFlip_(constructHasFlip),
+    comm_(comm),
     schedulePtr_()
-{}
+{
+    const label myRank = Pstream::myProcNo(comm_);
+    const label nProcs = Pstream::nProcs(comm_);
 
+    // Send over how many i need to receive.
+    labelList recvSizes;
+    Pstream::exchangeSizes(subMap_, recvSizes, comm_);
 
-mapDistributeBase::mapDistributeBase(const Xfer<mapDistributeBase>& map) :    constructSize_(map().constructSize_),
-    subMap_(map().subMap_.xfer()),
-    constructMap_(map().constructMap_.xfer()),
-    subHasFlip_(map().subHasFlip_),
-    constructHasFlip_(map().constructHasFlip_),
-    schedulePtr_()
-{}
+    // Determine order of receiving
+    labelListList constructMap(nProcs);
+
+    // My local segments first
+    label nLocal = recvSizes[myRank];
+    {
+        labelList& myMap = constructMap[myRank];
+        myMap.setSize(nLocal);
+        forAll(myMap, i)
+        {
+            myMap[i] = i;
+        }
+    }
+
+    label segmenti = nLocal;
+    forAll(constructMap, proci)
+    {
+        if (proci != myRank)
+        {
+            // What i need to receive is what other processor is sending to me.
+            label nRecv = recvSizes[proci];
+            constructMap[proci].setSize(nRecv);
+
+            for (label i = 0; i < nRecv; i++)
+            {
+                constructMap[proci][i] = segmenti++;
+            }
+        }
+    }
+
+    constructSize_ = segmenti;
+    constructMap_.transfer(constructMap);
+}
 
 
 mapDistributeBase::mapDistributeBase(Istream& is)
@@ -790,18 +882,23 @@ mapDistributeBase::mapDistributeBase(Istream& is)
 
 void mapDistributeBase::transfer(mapDistributeBase& rhs)
 {
+    if (this == &rhs)
+    {
+        // Self-assignment is a no-op
+        return;
+    }
+
     constructSize_ = rhs.constructSize_;
     subMap_.transfer(rhs.subMap_);
     constructMap_.transfer(rhs.constructMap_);
     subHasFlip_ = rhs.subHasFlip_;
     constructHasFlip_ = rhs.constructHasFlip_;
+    comm_ = rhs.comm_;
     schedulePtr_.clear();
-}
 
-
-Xfer<mapDistributeBase> mapDistributeBase::xfer()
-{
-    return xferMove(*this);
+    rhs.constructSize_ = 0;
+    rhs.subHasFlip_ = false;
+    rhs.constructHasFlip_ = false;
 }
 
 
@@ -829,8 +926,15 @@ label mapDistributeBase::renumber
 }
 
 
-void mapDistributeBase::compact(const boolList& elemIsUsed, const int tag)
+void mapDistributeBase::compact
+(
+    const boolList& elemIsUsed,
+    const int tag
+)
 {
+    const label myRank = Pstream::myProcNo(comm_);
+    const label nProcs = Pstream::nProcs(comm_);
+
     // 1. send back to sender. Have sender delete the corresponding element
     //    from the submap and do the same to the constructMap locally
     //    (and in same order).
@@ -843,34 +947,35 @@ void mapDistributeBase::compact(const boolList& elemIsUsed, const int tag)
 
         // Set up receives from neighbours
 
-        List<boolList> recvFields(Pstream::nProcs());
+        List<boolList> recvFields(nProcs);
 
-        for (label domain = 0; domain < Pstream::nProcs(); domain++)
+        for (const int domain : Pstream::allProcs(comm_))
         {
             const labelList& map = subMap_[domain];
 
-            if (domain != Pstream::myProcNo() && map.size())
+            if (domain != myRank && map.size())
             {
                 recvFields[domain].setSize(map.size());
                 IPstream::read
                 (
                     Pstream::commsTypes::nonBlocking,
                     domain,
-                    reinterpret_cast<char*>(recvFields[domain].begin()),
-                    recvFields[domain].size()*sizeof(bool),
-                    tag
+                    recvFields[domain].data_bytes(),
+                    recvFields[domain].size_bytes(),
+                    tag,
+                    comm_
                 );
             }
         }
 
 
-        List<boolList> sendFields(Pstream::nProcs());
+        List<boolList> sendFields(nProcs);
 
-        for (label domain = 0; domain < Pstream::nProcs(); domain++)
+        for (const int domain : Pstream::allProcs(comm_))
         {
             const labelList& map = constructMap_[domain];
 
-            if (domain != Pstream::myProcNo() && map.size())
+            if (domain != myRank && map.size())
             {
                 boolList& subField = sendFields[domain];
                 subField.setSize(map.size());
@@ -889,9 +994,10 @@ void mapDistributeBase::compact(const boolList& elemIsUsed, const int tag)
                 (
                     Pstream::commsTypes::nonBlocking,
                     domain,
-                    reinterpret_cast<const char*>(subField.begin()),
-                    subField.size()*sizeof(bool),
-                    tag
+                    subField.cdata_bytes(),
+                    subField.size_bytes(),
+                    tag,
+                    comm_
                 );
             }
         }
@@ -901,12 +1007,12 @@ void mapDistributeBase::compact(const boolList& elemIsUsed, const int tag)
         // Set up 'send' to myself - write directly into recvFields
 
         {
-            const labelList& map = constructMap_[Pstream::myProcNo()];
+            const labelList& map = constructMap_[myRank];
 
-            recvFields[Pstream::myProcNo()].setSize(map.size());
+            recvFields[myRank].setSize(map.size());
             forAll(map, i)
             {
-                recvFields[Pstream::myProcNo()][i] = accessAndFlip
+                recvFields[myRank][i] = accessAndFlip
                 (
                     elemIsUsed,
                     map[i],
@@ -923,7 +1029,7 @@ void mapDistributeBase::compact(const boolList& elemIsUsed, const int tag)
 
 
         // Compact out all submap entries that are referring to unused elements
-        for (label domain = 0; domain < Pstream::nProcs(); domain++)
+        for (const int domain : Pstream::allProcs(comm_))
         {
             const labelList& map = subMap_[domain];
 
@@ -952,7 +1058,7 @@ void mapDistributeBase::compact(const boolList& elemIsUsed, const int tag)
 
     label maxConstructIndex = -1;
 
-    for (label domain = 0; domain < Pstream::nProcs(); domain++)
+    for (const int domain : Pstream::allProcs(comm_))
     {
         const labelList& map = constructMap_[domain];
 
@@ -998,6 +1104,9 @@ void mapDistributeBase::compact
     const int tag
 )
 {
+    const label myRank = Pstream::myProcNo(comm_);
+    const label nProcs = Pstream::nProcs(comm_);
+
     // 1. send back to sender. Have sender delete the corresponding element
     //    from the submap and do the same to the constructMap locally
     //    (and in same order).
@@ -1010,34 +1119,35 @@ void mapDistributeBase::compact
 
         // Set up receives from neighbours
 
-        List<boolList> recvFields(Pstream::nProcs());
+        List<boolList> recvFields(nProcs);
 
-        for (label domain = 0; domain < Pstream::nProcs(); domain++)
+        for (const int domain : Pstream::allProcs(comm_))
         {
             const labelList& map = subMap_[domain];
 
-            if (domain != Pstream::myProcNo() && map.size())
+            if (domain != myRank && map.size())
             {
                 recvFields[domain].setSize(map.size());
                 IPstream::read
                 (
                     Pstream::commsTypes::nonBlocking,
                     domain,
-                    reinterpret_cast<char*>(recvFields[domain].begin()),
-                    recvFields[domain].size()*sizeof(bool),
-                    tag
+                    recvFields[domain].data_bytes(),
+                    recvFields[domain].size_bytes(),
+                    tag,
+                    comm_
                 );
             }
         }
 
 
-        List<boolList> sendFields(Pstream::nProcs());
+        List<boolList> sendFields(nProcs);
 
-        for (label domain = 0; domain < Pstream::nProcs(); domain++)
+        for (const int domain : Pstream::allProcs(comm_))
         {
             const labelList& map = constructMap_[domain];
 
-            if (domain != Pstream::myProcNo() && map.size())
+            if (domain != myRank && map.size())
             {
                 boolList& subField = sendFields[domain];
                 subField.setSize(map.size());
@@ -1055,9 +1165,10 @@ void mapDistributeBase::compact
                 (
                     Pstream::commsTypes::nonBlocking,
                     domain,
-                    reinterpret_cast<const char*>(subField.begin()),
-                    subField.size()*sizeof(bool),
-                    tag
+                    subField.cdata_bytes(),
+                    subField.size_bytes(),
+                    tag,
+                    comm_
                 );
             }
         }
@@ -1067,9 +1178,9 @@ void mapDistributeBase::compact
         // Set up 'send' to myself - write directly into recvFields
 
         {
-            const labelList& map = constructMap_[Pstream::myProcNo()];
+            const labelList& map = constructMap_[myRank];
 
-            recvFields[Pstream::myProcNo()].setSize(map.size());
+            recvFields[myRank].setSize(map.size());
             forAll(map, i)
             {
                 label index = map[i];
@@ -1077,7 +1188,7 @@ void mapDistributeBase::compact
                 {
                     index = mag(index)-1;
                 }
-                recvFields[Pstream::myProcNo()][i] = elemIsUsed[index];
+                recvFields[myRank][i] = elemIsUsed[index];
             }
         }
 
@@ -1095,7 +1206,7 @@ void mapDistributeBase::compact
 
             boolList sendElemIsUsed(localSize, false);
 
-            for (label domain = 0; domain < Pstream::nProcs(); domain++)
+            for (const int domain : Pstream::allProcs(comm_))
             {
                 const labelList& map = subMap_[domain];
                 forAll(map, i)
@@ -1124,7 +1235,7 @@ void mapDistributeBase::compact
 
 
         // Compact out all submap entries that are referring to unused elements
-        for (label domain = 0; domain < Pstream::nProcs(); domain++)
+        for (const int domain : Pstream::allProcs(comm_))
         {
             const labelList& map = subMap_[domain];
 
@@ -1174,7 +1285,7 @@ void mapDistributeBase::compact
         }
     }
 
-    for (label domain = 0; domain < Pstream::nProcs(); domain++)
+    for (const int domain : Pstream::allProcs(comm_))
     {
         const labelList& map = constructMap_[domain];
 
@@ -1215,19 +1326,28 @@ void mapDistributeBase::compact
 
 void mapDistributeBase::operator=(const mapDistributeBase& rhs)
 {
-    // Check for assignment to self
     if (this == &rhs)
     {
-        FatalErrorInFunction
-            << "Attempted assignment to self"
-            << abort(FatalError);
+        return;  // Self-assignment is a no-op
     }
+
     constructSize_ = rhs.constructSize_;
     subMap_ = rhs.subMap_;
     constructMap_ = rhs.constructMap_;
     subHasFlip_ = rhs.subHasFlip_;
     constructHasFlip_ = rhs.constructHasFlip_;
+    comm_ = rhs.comm_;
     schedulePtr_.clear();
+}
+
+
+void mapDistributeBase::operator=(mapDistributeBase&& rhs)
+{
+    if (this != &rhs)
+    {
+        // Avoid self assignment
+        transfer(rhs);
+    }
 }
 
 
@@ -1235,10 +1355,11 @@ void mapDistributeBase::operator=(const mapDistributeBase& rhs)
 
 Istream& operator>>(Istream& is, mapDistributeBase& map)
 {
-    is.fatalCheck("operator>>(Istream&, mapDistributeBase&)");
+    is.fatalCheck(FUNCTION_NAME);
 
     is  >> map.constructSize_ >> map.subMap_ >> map.constructMap_
-        >> map.subHasFlip_ >> map.constructHasFlip_;
+        >> map.subHasFlip_ >> map.constructHasFlip_
+        >> map.comm_;
 
     return is;
 }
@@ -1252,7 +1373,7 @@ Ostream& operator<<(Ostream& os, const mapDistributeBase& map)
         << map.subMap_ << token::NL
         << map.constructMap_ << token::NL
         << map.subHasFlip_ << token::SPACE << map.constructHasFlip_
-        << token::NL;
+        << token::SPACE << map.comm_ << token::NL;
 
     return os;
 }

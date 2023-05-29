@@ -1,9 +1,12 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2019 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -35,11 +38,11 @@ SourceFiles
 #ifndef scalarField_H
 #define scalarField_H
 
-#include "Field.T.H"
+#include "Field.H"
 #include "scalar.H"
 
 #define TEMPLATE
-#include "FieldFunctionsM.T.H"
+#include "FieldFunctionsM.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -74,8 +77,13 @@ tmp<scalarField> stabilise(const tmp<scalarField>&, const scalar s);
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
+//- Sum product for float
 template<>
-scalar sumProd(const UList<scalar>& f1, const UList<scalar>& f2);
+float sumProd(const UList<float>& f1, const UList<float>& f2);
+
+//- Sum product for double
+template<>
+double sumProd(const UList<double>& f1, const UList<double>& f2);
 
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
@@ -93,6 +101,9 @@ BINARY_TYPE_FUNCTION(scalar, scalar, scalar, pow)
 
 BINARY_FUNCTION(scalar, scalar, scalar, atan2)
 BINARY_TYPE_FUNCTION(scalar, scalar, scalar, atan2)
+
+BINARY_FUNCTION(scalar, scalar, scalar, hypot)
+BINARY_TYPE_FUNCTION(scalar, scalar, scalar, hypot)
 
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
@@ -137,7 +148,9 @@ UNARY_FUNCTION(scalar, scalar, y1)
 UNARY_FUNCTION(scalar, scalar, degToRad)
 UNARY_FUNCTION(scalar, scalar, radToDeg)
 UNARY_FUNCTION(scalar, scalar, atmToPa)
+UNARY_FUNCTION(scalar, scalar, barToPa)
 UNARY_FUNCTION(scalar, scalar, paToAtm)
+UNARY_FUNCTION(scalar, scalar, paToBar)
 
 #define BesselFunc(func)                                            \
 void func(scalarField& Res, const int n, const UList<scalar>& sf);  \

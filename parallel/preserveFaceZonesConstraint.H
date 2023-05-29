@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2015-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2015-2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -22,11 +24,18 @@ License
     along with OpenFOAM.  If not, see <http://www.gnu.org/licenses/>.
 
 Class
-    Foam::preserveFaceZonesConstraint
+    Foam::decompositionConstraints::preserveFaceZones
 
 Description
     Constraint to keep/move owner and neighbour of faceZone onto same
     processor.
+
+    \heading Dictionary parameters
+    \table
+        Property    | Description                       | Required  | Default
+        type        | preserveFaceZones                 | yes   |
+        zones       | List of face zone names or regexs | yes   |
+    \endtable
 
 SourceFiles
     preserveFaceZonesConstraint.C
@@ -37,28 +46,27 @@ SourceFiles
 #define preserveFaceZonesConstraint_H
 
 #include "decompositionConstraint.H"
-#include "wordReList.H"
+#include "wordRes.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 namespace Foam
 {
-
 namespace decompositionConstraints
 {
 
 /*---------------------------------------------------------------------------*\
-                Class preserveFaceZonesConstraint Declaration
+                      Class preserveFaceZones Declaration
 \*---------------------------------------------------------------------------*/
 
-class preserveFaceZonesConstraint
+class preserveFaceZones
 :
     public decompositionConstraint
 {
     // Private data
 
         //- List of zones to keep together
-        wordReList zones_;
+        wordRes zones_;
 
 
 public:
@@ -69,20 +77,15 @@ public:
 
     // Constructors
 
-        //- Construct with generic dictionary with optional entry for type
-        preserveFaceZonesConstraint
-        (
-            const dictionary& constraintsDict,
-            const word& type
-        );
+        //- Construct with constraint dictionary
+        explicit preserveFaceZones(const dictionary& dict);
 
         //- Construct from components
-        preserveFaceZonesConstraint(const wordReList& zones);
+        explicit preserveFaceZones(const UList<wordRe>& zones);
 
 
     //- Destructor
-    virtual ~preserveFaceZonesConstraint()
-    {}
+    virtual ~preserveFaceZones() = default;
 
 
     // Member Functions

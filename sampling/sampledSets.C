@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2015-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -24,11 +27,9 @@ License
 \*---------------------------------------------------------------------------*/
 
 #include "sampledSets.H"
-#include "dictionary.H"
-#include "Time.T.H"
+#include "dictionary2.H"
+#include "Time1.H"
 #include "volFields.H"
-#include "ListListOps.T.H"
-#include "SortableList.T.H"
 #include "volPointInterpolation.H"
 #include "mapPolyMesh.H"
 #include "addToRunTimeSelectionTable.H"
@@ -70,67 +71,11 @@ void Foam::sampledSets::combineSampledSets
 
     forAll(sampledSets, setI)
     {
-        const sampledSet& samplePts = sampledSets[setI];
-
-        // Collect data from all processors
-        List<List<point>> gatheredPts(Pstream::nProcs());
-        gatheredPts[Pstream::myProcNo()] = samplePts;
-        Pstream::gatherList(gatheredPts);
-
-        List<labelList> gatheredSegments(Pstream::nProcs());
-        gatheredSegments[Pstream::myProcNo()] = samplePts.segments();
-        Pstream::gatherList(gatheredSegments);
-
-        List<scalarList> gatheredDist(Pstream::nProcs());
-        gatheredDist[Pstream::myProcNo()] = samplePts.curveDist();
-        Pstream::gatherList(gatheredDist);
-
-
-        // Combine processor lists into one big list.
-        List<point> allPts
-        (
-            ListListOps::combine<List<point>>
-            (
-                gatheredPts, accessOp<List<point>>()
-            )
-        );
-        labelList allSegments
-        (
-            ListListOps::combine<labelList>
-            (
-                gatheredSegments, accessOp<labelList>()
-            )
-        );
-        scalarList allCurveDist
-        (
-            ListListOps::combine<scalarList>
-            (
-                gatheredDist, accessOp<scalarList>()
-            )
-        );
-
-
-        if (Pstream::master() && allCurveDist.size() == 0)
-        {
-            WarningInFunction
-                << "Sample set " << samplePts.name()
-                << " has zero points." << endl;
-        }
-
-        // Sort curveDist and use to fill masterSamplePts
-        SortableList<scalar> sortedDist(allCurveDist);
-        indexSets[setI] = sortedDist.indices();
-
+        labelList segments;
         masterSampledSets.set
         (
             setI,
-            new coordSet
-            (
-                samplePts.name(),
-                samplePts.axis(),
-                List<point>(UIndirectList<point>(allPts, indexSets[setI])),
-                scalarList(UIndirectList<scalar>(allCurveDist, indexSets[setI]))
-            )
+            sampledSets[setI].gather(indexSets[setI], segments)
         );
     }
 }
@@ -141,42 +86,31 @@ void Foam::sampledSets::combineSampledSets
 Foam::sampledSets::sampledSets
 (
     const word& name,
-    const Time& t,
+    const Time& runTime,
     const dictionary& dict
 )
 :
-    functionObject(name),
+    functionObjects::regionFunctionObject(name, runTime, dict),
     PtrList<sampledSet>(),
-    mesh_
-    (
-        refCast<const fvMesh>
-        (
-            t.lookupObject<objectRegistry>
-            (
-                dict.lookupOrDefault("region", polyMesh::defaultRegion)
-            )
-        )
-    ),
+    mesh_(refCast<const fvMesh>(obr_)),
     loadFromFiles_(false),
     outputPath_(fileName::null),
     searchEngine_(mesh_),
     interpolationScheme_(word::null),
-    writeFormat_(word::null)
+    writeFormat_(word::null),
+    writeFormatOptions_(dict.subOrEmptyDict("formatOptions"))
 {
-    if (Pstream::parRun())
+    outputPath_ =
+    (
+        mesh_.time().globalPath()/functionObject::outputPrefix/name
+    );
+
+    if (mesh_.name() != polyMesh::defaultRegion)
     {
-        outputPath_ = mesh_.time().path()/".."/"postProcessing"/name;
+        outputPath_ /= mesh_.name();
     }
-    else
-    {
-        outputPath_ = mesh_.time().path()/"postProcessing"/name;
-    }
-    if (mesh_.name() != fvMesh::defaultRegion)
-    {
-        outputPath_ = outputPath_/mesh_.name();
-    }
-    // Remove ".."
-    outputPath_.clean();
+
+    outputPath_.clean();  // Remove unneeded ".."
 
     read(dict);
 }
@@ -190,45 +124,39 @@ Foam::sampledSets::sampledSets
     const bool loadFromFiles
 )
 :
-    functionObject(name),
+    functionObjects::regionFunctionObject(name, obr, dict),
     PtrList<sampledSet>(),
     mesh_(refCast<const fvMesh>(obr)),
     loadFromFiles_(loadFromFiles),
     outputPath_(fileName::null),
     searchEngine_(mesh_),
     interpolationScheme_(word::null),
-    writeFormat_(word::null)
+    writeFormat_(word::null),
+    writeFormatOptions_(dict.subOrEmptyDict("formatOptions"))
 {
-    if (Pstream::parRun())
+    outputPath_ =
+    (
+        mesh_.time().globalPath()/functionObject::outputPrefix/name
+    );
+
+    if (mesh_.name() != polyMesh::defaultRegion)
     {
-        outputPath_ = mesh_.time().path()/".."/"postProcessing"/name;
+        outputPath_ /= mesh_.name();
     }
-    else
-    {
-        outputPath_ = mesh_.time().path()/"postProcessing"/name;
-    }
-    if (mesh_.name() != fvMesh::defaultRegion)
-    {
-        outputPath_ = outputPath_/mesh_.name();
-    }
-    // Remove ".."
-    outputPath_.clean();
+
+    outputPath_.clean();  // Remove unneeded ".."
 
     read(dict);
 }
 
 
-// * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
-
-Foam::sampledSets::~sampledSets()
-{}
-
-
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
 
-void Foam::sampledSets::verbose(const bool verbosity)
+bool Foam::sampledSets::verbose(const bool on)
 {
-    verbose_ = verbosity;
+    bool old(verbose_);
+    verbose_ = on;
+    return old;
 }
 
 
@@ -262,10 +190,14 @@ bool Foam::sampledSets::write()
                 {
                     Pout<< "Creating directory "
                         << outputPath_/mesh_.time().timeName()
-                            << nl << endl;
+                        << nl << endl;
                 }
 
                 mkDir(outputPath_/mesh_.time().timeName());
+            }
+            else
+            {
+                Info<< "No fields to sample" << endl;
             }
         }
 
@@ -287,14 +219,13 @@ bool Foam::sampledSets::read(const dictionary& dict)
 {
     dict_ = dict;
 
-    bool setsFound = dict_.found("sets");
-    if (setsFound)
+    if (dict_.found("sets"))
     {
-        dict_.lookup("fields") >> fieldSelection_;
+        dict_.readEntry("fields", fieldSelection_);
         clearFieldGroups();
 
-        dict.lookup("interpolationScheme") >> interpolationScheme_;
-        dict.lookup("setFormat") >> writeFormat_;
+        dict.readEntry("interpolationScheme", interpolationScheme_);
+        dict.readEntry("setFormat", writeFormat_);
 
         PtrList<sampledSet> newList
         (
@@ -333,8 +264,7 @@ bool Foam::sampledSets::read(const dictionary& dict)
 
 void Foam::sampledSets::correct()
 {
-    bool setsFound = dict_.found("sets");
-    if (setsFound)
+    if (dict_.found("sets"))
     {
         searchEngine_.correct();
 

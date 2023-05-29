@@ -1,9 +1,12 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2012 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2012 OpenFOAM Foundation
+    Copyright (C) 2019 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -45,49 +48,43 @@ namespace Foam
                   Class linearInterpolationWeights Declaration
 \*---------------------------------------------------------------------------*/
 
-class linearInterpolationWeights :    public interpolationWeights
+class linearInterpolationWeights
+:
+    public interpolationWeights
 {
-
-private:
-
-    // Private data
+    // Private Data
 
         //- Cached index in samples from previous invocation
         mutable label index_;
 
+
     // Private Member Functions
 
         //- Get weights of i and i+1 to calculate integration from t to
-        //  samples_[i+1]
-        Pair<scalar> integrationWeights
-        (
-            const label i,
-            const scalar t
-        ) const;
+        //- samples_[i+1]
+        Pair<scalar> integrationWeights(const label i, const scalar t) const;
+
 
 public:
 
     //- Runtime type information
     TypeName("linear");
 
+
     // Constructors
 
         //- Construct from components
-        linearInterpolationWeights
-        (
-            const scalarField& samples
-        );
+        explicit linearInterpolationWeights(const scalarField& samples);
 
 
     //- Destructor
-    virtual ~linearInterpolationWeights()
-    {}
+    virtual ~linearInterpolationWeights() = default;
 
 
     // Member Functions
 
         //- Calculate weights and indices to calculate t from samples.
-        //  Returns true if indices changed.
+        //  \return true if indices changed.
         virtual bool valueWeights
         (
             const scalar t,
@@ -96,7 +93,8 @@ public:
         ) const;
 
         //- Calculate weights and indices to calculate integrand of t1..t2
-        //  from samples. Returns true if indices changed.
+        //- from samples.
+        //  \return true if indices changed.
         virtual bool integrationWeights
         (
             const scalar t1,

@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2012-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2012-2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -21,7 +23,7 @@ License
     You should have received a copy of the GNU General Public License
     along with OpenFOAM.  If not, see <http://www.gnu.org/licenses/>.
 
-InNamspace
+InNamespace
     Foam
 
 Description
@@ -54,6 +56,17 @@ void allReduce
     const BinaryOp& bop,
     const int tag,
     const label communicator
+);
+
+template<class Type>
+void iallReduce
+(
+    void* Value,
+    int count,
+    MPI_Datatype MPIType,
+    MPI_Op op,
+    const label communicator,
+    label& requestID
 );
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //

@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2017 OpenFOAM Foundation
+    Copyright (C) 2020-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -52,10 +55,10 @@ Foam::porosityModels::solidification::solidification
 )
 :
     porosityModel(name, modelType, mesh, dict, cellZoneName),
-    TName_(coeffs_.lookupOrDefault<word>("T", "T")),
-    alphaName_(coeffs_.lookupOrDefault<word>("alpha", "none")),
-    rhoName_(coeffs_.lookupOrDefault<word>("rho", "rho")),
-    D_(Function1<scalar>::New("D", coeffs_))
+    TName_(coeffs_.getOrDefault<word>("T", "T")),
+    alphaName_(coeffs_.getOrDefault<word>("alpha", "none")),
+    rhoName_(coeffs_.getOrDefault<word>("rho", "rho")),
+    D_(Function1<scalar>::New("D", coeffs_, &mesh))
 {}
 
 
@@ -79,7 +82,7 @@ void Foam::porosityModels::solidification::calcForce
     vectorField& force
 ) const
 {
-    scalarField Udiag(U.size(), 0.0);
+    scalarField Udiag(U.size(), Zero);
     const scalarField& V = mesh_.V();
 
     apply(Udiag, V, rho, U);
@@ -99,7 +102,7 @@ void Foam::porosityModels::solidification::correct
 
     if (UEqn.dimensions() == dimForce)
     {
-        const volScalarField& rho = mesh_.lookupObject<volScalarField>
+        const auto& rho = mesh_.lookupObject<volScalarField>
         (
             IOobject::groupName(rhoName_, U.group())
         );
@@ -138,7 +141,7 @@ void Foam::porosityModels::solidification::correct
 
     if (UEqn.dimensions() == dimForce)
     {
-        const volScalarField& rho = mesh_.lookupObject<volScalarField>
+        const auto& rho = mesh_.lookupObject<volScalarField>
         (
             IOobject::groupName(rhoName_, U.group())
         );
@@ -154,8 +157,7 @@ void Foam::porosityModels::solidification::correct
 
 bool Foam::porosityModels::solidification::writeData(Ostream& os) const
 {
-    os  << indent << name_ << endl;
-    dict_.write(os);
+    dict_.writeEntry(name_, os);
 
     return true;
 }

@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2013-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2013-2016 OpenFOAM Foundation
+    Copyright (C) 2015-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -28,35 +31,58 @@ Group
     grpFieldFunctionObjects
 
 Description
-    Evaluates and outputs turbulence y+ for models. Values written to
-    time directories as field 'yPlus'.
+    Computes the near wall \f$y_1^+\f$ for turbulence models.
 
-    Example of function object specification:
+    Operands:
+    \table
+      Operand        | Type           | Location
+      input          | -              | -
+      output file    | dat | $FOAM_CASE/postProcessing/\<FO\>/\<time\>/\<file\>
+      output field   | volScalarField | $FOAM_CASE/\<time\>/\<outField\>
+    \endtable
+
+Usage
+    Minimal example by using \c system/controlDict.functions:
     \verbatim
     yPlus1
     {
+        // Mandatory entries (unmodifiable)
         type        yPlus;
-        libs        ("libfieldFunctionObjects.so");
+        libs        (fieldFunctionObjects);
+
+        // Optional entries
+        useWallFunction    true;
+
+        // Optional (inherited) entries
         ...
     }
     \endverbatim
 
-Usage
+    where the entries mean:
     \table
-        Property | Description                | Required   | Default value
-        type     | type name: yPlus           | yes        |
+      Property   | Description                        | Type | Req'd | Dflt
+      type       | Type name: yPlus                   | word |  yes  | -
+      libs       | Library name: fieldFunctionObjects | word |  yes  | -
+      useWallFunction | Flag to use the local expressions of <!--
+                      --> the selected nut wall function to compute yPlus, <!--
+                      --> otherwise directly compute yPlus from flow field <!--
+                      -->                             | bool | no    | true
     \endtable
 
-Note
-    Writing field 'yPlus' is done by default, but it can be overridden by
-    defining an empty \c objects list. For details see writeLocalObjects.
+    The inherited entries are elaborated in:
+     - \link functionObject.H \endlink
+     - \link writeFile.H \endlink
+
+    Minimal example by using the \c postProcess utility:
+    \verbatim
+        <solver> -postProcess -func yPlus
+    \endverbatim
 
 See also
-    Foam::functionObject
-    Foam::functionObjects::fvMeshFunctionObject
-    Foam::functionObjects::logFiles
-    Foam::functionObjects::writeLocalObjects
-    Foam::functionObjects::timeControl
+    - Foam::functionObject
+    - Foam::functionObjects::fvMeshFunctionObject
+    - Foam::functionObjects::writeFile
+    - ExtendedCodeGuide::functionObjects::field::yPlus
 
 SourceFiles
     yPlus.C
@@ -67,8 +93,7 @@ SourceFiles
 #define functionObjects_yPlus_H
 
 #include "fvMeshFunctionObject.H"
-#include "logFiles.H"
-#include "writeLocalObjects.H"
+#include "writeFile.H"
 #include "volFieldsFwd.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
@@ -76,39 +101,28 @@ SourceFiles
 namespace Foam
 {
 
-// Forward declaration of classes
-class turbulenceModel;
-
 namespace functionObjects
 {
 
 /*---------------------------------------------------------------------------*\
-                          Class yPlus Declaration
+                            Class yPlus Declaration
 \*---------------------------------------------------------------------------*/
 
 class yPlus
 :
     public fvMeshFunctionObject,
-    public logFiles,
-    public writeLocalObjects
+    public writeFile
 {
+    // Private Data
+
+        //- Flag to use the wall function expressions to compute yPlus
+        bool useWallFunction_;
+
+
     // Private Member Functions
 
         //- File header information
-        virtual void writeFileHeader(const label i);
-
-        //- Calculate y+
-        void calcYPlus
-        (
-            const turbulenceModel& turbModel,
-            volScalarField& yPlus
-        );
-
-        //- Disallow default bitwise copy construct
-        yPlus(const yPlus&);
-
-        //- Disallow default bitwise assignment
-        void operator=(const yPlus&);
+        virtual void writeFileHeader(Ostream& os) const;
 
 
 public:
@@ -127,9 +141,15 @@ public:
             const dictionary& dict
         );
 
+        //- No copy construct
+        yPlus(const yPlus&) = delete;
+
+        //- No copy assignment
+        void operator=(const yPlus&) = delete;
+
 
     //- Destructor
-    virtual ~yPlus();
+    virtual ~yPlus() = default;
 
 
     // Member Functions

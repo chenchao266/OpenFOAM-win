@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2012-2015 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2012-2015 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -35,16 +38,15 @@ Foam::fv::interRegionOption::nbrRegionName() const
 inline const Foam::meshToMesh&
 Foam::fv::interRegionOption::meshInterp() const
 {
-    if (!meshInterpPtr_.valid())
+    if (!meshInterpPtr_)
     {
         FatalErrorInFunction
             << "Interpolation object not set"
             << abort(FatalError);
     }
 
-    return meshInterpPtr_();
+    return *meshInterpPtr_;
 }
-
 
 
 // ************************************************************************* //

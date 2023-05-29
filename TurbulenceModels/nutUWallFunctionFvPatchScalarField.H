@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2019-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -28,20 +31,39 @@ Group
     grpWallFunctions
 
 Description
-    This boundary condition provides a turbulent kinematic viscosity condition
-    when using wall functions, based on velocity.
+    This boundary condition provides a wall constraint on the turbulent
+    viscosity, i.e. \c nut, based on velocity, i.e. \c U, for low- and
+    high-Reynolds number turbulence models.
 
 Usage
     Example of the boundary condition specification:
     \verbatim
     <patchName>
     {
+        // Mandatory entries (unmodifiable)
         type            nutUWallFunction;
+
+        // Optional (inherited) entries
+        ...
     }
     \endverbatim
 
-See also
-    Foam::nutWallFunctionFvPatchScalarField
+    where the entries mean:
+    \table
+      Property  | Description                    | Type   | Req'd  | Dflt
+      type      | Type name: nutUWallFunction    | word   | yes    | -
+    \endtable
+
+    The inherited entries are elaborated in:
+      - \link nutWallFunctionFvPatchScalarField.H \endlink
+
+Note
+    - Suffers from non-exact restart since \c correctNut() (called through
+    \c turbulence->validate) returns a slightly different value every time
+    it is called.
+    See \link nutUSpaldingWallFunctionFvPatchScalarField.C \endlink.
+    - See \link nutWallFunctionFvPatchScalarField.H \endlink for the wall
+    function blending treatments.
 
 SourceFiles
     nutUWallFunctionFvPatchScalarField.C
@@ -70,10 +92,10 @@ protected:
 
     // Protected Member Functions
 
-        //- Calculate yPLus
+        //- Calculate yPlus
         virtual tmp<scalarField> calcYPlus(const scalarField& magUp) const;
 
-        //- Calculate the turbulence viscosity
+        //- Calculate the turbulent viscosity
         virtual tmp<scalarField> calcNut() const;
 
 
@@ -101,8 +123,8 @@ public:
         );
 
         //- Construct by mapping given
-        //  nutUWallFunctionFvPatchScalarField
-        //  onto a new patch
+        //- nutUWallFunctionFvPatchScalarField
+        //- onto a new patch
         nutUWallFunctionFvPatchScalarField
         (
             const nutUWallFunctionFvPatchScalarField&,
@@ -146,7 +168,7 @@ public:
         }
 
 
-    // Member functions
+    // Member Functions
 
         // Evaluation functions
 

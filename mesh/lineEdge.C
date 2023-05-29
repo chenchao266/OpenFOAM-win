@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2019-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -43,11 +46,21 @@ namespace blockEdges
 Foam::blockEdges::lineEdge::lineEdge
 (
     const pointField& points,
-    const label start,
-    const label end
+    const edge& fromTo
 )
 :
-    blockEdge(points, start, end)
+    blockEdge(points, fromTo)
+{}
+
+
+Foam::blockEdges::lineEdge::lineEdge
+(
+    const pointField& points,
+    const label from,
+    const label to
+)
+:
+    blockEdge(points, from, to)
 {}
 
 
@@ -55,7 +68,7 @@ Foam::blockEdges::lineEdge::lineEdge
 (
     const dictionary& dict,
     const label index,
-    const searchableSurfaces& geometry,
+    const searchableSurfaces&,
     const pointField& points,
     Istream& is
 )
@@ -64,30 +77,17 @@ Foam::blockEdges::lineEdge::lineEdge
 {}
 
 
-// * * * * * * * * * * * * * * * * Destructor * * * * * * * * * * * * * * * * //
-
-Foam::blockEdges::lineEdge::~lineEdge()
-{}
-
-
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
 
 Foam::point Foam::blockEdges::lineEdge::position(const scalar lambda) const
 {
-    if (lambda < -SMALL || lambda > 1+SMALL)
-    {
-        FatalErrorInFunction
-            << "Parameter out of range, lambda = " << lambda
-            << abort(FatalError);
-    }
-
-    return points_[start_] + lambda * (points_[end_] - points_[start_]);
+    return blockEdge::linearPosition(lambda);
 }
 
 
 Foam::scalar Foam::blockEdges::lineEdge::length() const
 {
-    return mag(points_[end_] - points_[start_]);
+    return Foam::mag(lastPoint() - firstPoint());
 }
 
 

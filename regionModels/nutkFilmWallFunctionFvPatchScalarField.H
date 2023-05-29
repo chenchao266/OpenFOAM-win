@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -50,8 +52,8 @@ SourceFiles
 
 \*---------------------------------------------------------------------------*/
 
-#ifndef compressibleNutSpalartAllmarasWallFunctionFvPatchScalarField_H
-#define compressibleNutSpalartAllmarasWallFunctionFvPatchScalarField_H
+#ifndef nutkFilmWallFunctionFvPatchScalarField_H
+#define nutkFilmWallFunctionFvPatchScalarField_H
 
 #include "nutkWallFunctionFvPatchScalarField.H"
 
@@ -75,6 +77,9 @@ class nutkFilmWallFunctionFvPatchScalarField
 protected:
 
     // Protected data
+
+        //- Name of film region
+        word filmRegionName_;
 
         //- B Coefficient (default = 5.5)
         scalar B_;

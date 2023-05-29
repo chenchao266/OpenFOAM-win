@@ -1,9 +1,12 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2017-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -25,12 +28,15 @@ Class
     Foam::one
 
 Description
-    A class representing the concept of 1 (scalar(1)) used to avoid
-    unnecessary manipulations for objects which are known to be one at
-    compile-time.
+    A class representing the concept of 1 (one) that can be used to avoid
+    manipulating objects known to be \em one at compile-time.
+    It is also used for tagged dispatch.
 
 SourceFiles
     oneI.H
+
+SeeAlso
+    Foam::zero
 
 \*---------------------------------------------------------------------------*/
 
@@ -44,8 +50,13 @@ SourceFiles
 namespace Foam
 {
 
+// Forward Declarations
+class one;
+class Istream;
+class Ostream;
+
 /*---------------------------------------------------------------------------*\
-                           Class one Declaration
+                             Class one Declaration
 \*---------------------------------------------------------------------------*/
 
 class one
@@ -54,33 +65,122 @@ public:
 
     typedef one value_type;
 
-    // Constructors
+    // Forward Declarations
+    class minus;
+    class null;
 
-        //- Construct null
-        one()
-        {}
+    //- Default construct
+    constexpr one() noexcept {}
+
+    //- Construct from Istream consumes no content.
+    explicit constexpr one(Istream&) noexcept {}
 
 
-    // Member operators
+    //- Return 1 for label
+    constexpr operator label() const noexcept
+    {
+        return 1;
+    }
 
-        //- Return 1 for label
-        inline operator label() const
-        {
-            return 1;
-        }
+    //- Return 1 for float
+    constexpr operator float() const noexcept
+    {
+        return 1;
+    }
 
-        //- Return 1 for float
-        inline operator float() const
-        {
-            return 1;
-        }
-
-        //- Return 1 for double
-        inline operator double() const
-        {
-            return 1;
-        }
+    //- Return 1 for double
+    constexpr operator double() const noexcept
+    {
+        return 1;
+    }
 };
+
+
+/*---------------------------------------------------------------------------*\
+                         Class one::minus Declaration
+\*---------------------------------------------------------------------------*/
+
+//- A class representing the concept of -1.
+//  \note this class must never be derived from Foam::one, since this could
+//  potentially mask its behaviour.
+class one::minus
+{
+public:
+
+    typedef minus value_type;
+
+    //- Default construct
+    constexpr minus() noexcept {}
+
+    //- Construct from Istream consumes no content.
+    explicit constexpr minus(Istream&) noexcept {}
+
+
+    //- Return -1 for label
+    constexpr operator label() const noexcept
+    {
+        return -1;
+    }
+
+    //- Return -1 for float
+    constexpr operator float() const noexcept
+    {
+        return -1;
+    }
+
+    //- Return -1 for double
+    constexpr operator double() const noexcept
+    {
+        return -1;
+    }
+};
+
+
+/*---------------------------------------------------------------------------*\
+                          Class one::null Declaration
+\*---------------------------------------------------------------------------*/
+
+//- A Foam::one class with a null output adapter.
+class one::null
+:
+    public one
+{
+public:
+
+    typedef null value_type;
+
+    //- Default construct
+    constexpr null() noexcept {}
+
+    //- Construct from Istream consumes no content.
+    explicit constexpr null(Istream&) noexcept {}
+};
+
+
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+//- Global one (1)
+static constexpr const one One;
+
+// IOstream Operators
+
+//- Read from Istream consumes no content.
+inline constexpr Istream& operator>>(Istream& is, one&) noexcept
+{
+    return is;
+}
+
+//- Read from Istream consumes no content.
+inline constexpr Istream& operator>>(Istream& is, one::minus&) noexcept
+{
+    return is;
+}
+
+//- Write to Ostream emits no content.
+inline constexpr Ostream& operator<<(Ostream& os, const one::null&) noexcept
+{
+    return os;
+}
 
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
@@ -89,6 +189,7 @@ public:
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
+// Global Operators, Functions
 #include "oneI.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //

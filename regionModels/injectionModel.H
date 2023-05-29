@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -66,11 +68,11 @@ class injectionModel
 
     // Private Member Functions
 
-        //- Disallow default bitwise copy construct
-        injectionModel(const injectionModel&);
+        //- No copy construct
+        injectionModel(const injectionModel&) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const injectionModel&);
+        //- No copy assignment
+        void operator=(const injectionModel&) = delete;
 
 
 protected:
@@ -98,7 +100,7 @@ public:
              injectionModel,
              dictionary,
              (
-                surfaceFilmModel& film,
+                surfaceFilmRegionModel& film,
                 const dictionary& dict
              ),
              (film, dict)
@@ -108,13 +110,13 @@ public:
     // Constructors
 
         //- Construct null
-        injectionModel(surfaceFilmModel& film);
+        injectionModel(surfaceFilmRegionModel& film);
 
         //- Construct from type name, dictionary and surface film model
         injectionModel
         (
             const word& modelType,
-            surfaceFilmModel& film,
+            surfaceFilmRegionModel& film,
             const dictionary& dict
         );
 
@@ -124,7 +126,7 @@ public:
         //- Return a reference to the selected injection model
         static autoPtr<injectionModel> New
         (
-            surfaceFilmModel& film,
+            surfaceFilmRegionModel& film,
             const dictionary& dict,
             const word& mdoelType
         );

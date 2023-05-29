@@ -1,3 +1,7 @@
-Foam::Info<< "Create time\n" << Foam::endl;
+﻿
+ namespace Foam{
+Info<< "Create time\n" << endl;
 
-Foam::Time runTime(Foam::Time::controlDictName, args);
+Time runTime(Time::controlDictName, args);
+
+ } // End namespace Foam

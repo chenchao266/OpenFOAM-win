@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -28,18 +30,18 @@ License
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
-#include "SphereDragForce.T.H"
-#include "NonSphereDragForce.T.H"
+#include "SphereDragForce.H"
+#include "NonSphereDragForce.H"
 
-#include "SaffmanMeiLiftForce.T.H"
-#include "TomiyamaLiftForce.T.H"
+#include "SaffmanMeiLiftForce.H"
+#include "TomiyamaLiftForce.H"
 
-#include "GravityForce.T.H"
-#include "NonInertialFrameForce.T.H"
-#include "ParamagneticForce.T.H"
-#include "PressureGradientForce.T.H"
-#include "SRFForce.T.H"
-#include "VirtualMassForce.T.H"
+#include "GravityForce.H"
+#include "NonInertialFrameForce.H"
+#include "ParamagneticForce.H"
+#include "PressureGradientForce.H"
+#include "SRFForce.H"
+#include "VirtualMassForce.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 

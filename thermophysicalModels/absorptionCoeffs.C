@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2018 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -26,13 +28,6 @@ License
 #include "absorptionCoeffs.H"
 #include "IOstreams.H"
 
-
-// * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * //
-
-Foam::radiation::absorptionCoeffs::~absorptionCoeffs()
-{}
-
-
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
 
 void Foam::radiation::absorptionCoeffs::checkT(const scalar T) const
@@ -40,7 +35,7 @@ void Foam::radiation::absorptionCoeffs::checkT(const scalar T) const
     if (T < Tlow_ || T > Thigh_)
     {
         WarningInFunction
-            << "usinf absCoeff out of temperature range:" << nl
+            << "using absorptionCoeffs out of temperature range:" << nl
             << "    " << Tlow_ << " -> " << Thigh_ << ";  T = " << T
             << nl << endl;
     }
@@ -68,13 +63,12 @@ Foam::radiation::absorptionCoeffs::coeffs
 
 void Foam::radiation::absorptionCoeffs::initialise(const dictionary& dict)
 {
-    dict.lookup("Tcommon") >> Tcommon_;
-    dict.lookup("Tlow") >> Tlow_;
-    dict.lookup("Thigh") >> Thigh_;
-    dict.lookup("invTemp") >> invTemp_;
-
-    dict.lookup("loTcoeffs") >> lowACoeffs_;
-    dict.lookup("hiTcoeffs") >> highACoeffs_;
+    dict.readEntry("Tcommon", Tcommon_);
+    dict.readEntry("Tlow", Tlow_);
+    dict.readEntry("Thigh", Thigh_);
+    dict.readEntry("invTemp", invTemp_);
+    dict.readEntry("loTcoeffs", lowACoeffs_);
+    dict.readEntry("hiTcoeffs", highACoeffs_);
 }
 
 

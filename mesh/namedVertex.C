@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -39,44 +41,40 @@ namespace blockVertices
 
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
-namespace Foam
+
+Foam::blockVertices::namedVertex::namedVertex
+(
+    const dictionary& dict,
+    const label index,
+    const searchableSurfaces& geometry,
+    Istream& is
+)
+:
+    name_(is),
+    vertexPtr_(blockVertex::New(dict, index, geometry, is))
 {
-    namespace blockVertices
+    dictionary& d = const_cast<dictionary&>(dict);
+
+    dictionary* varDictPtr = d.findDict("namedVertices");
+    if (varDictPtr)
     {
-        namedVertex::namedVertex
-        (
-            const dictionary& dict,
-            const label index,
-            const searchableSurfaces& geometry,
-            Istream& is
-        )
-            :
-            name_(is),
-            vertexPtr_(blockVertex::New(dict, index, geometry, is))
-        {
-            dictionary& d = const_cast<dictionary&>(dict);
-
-            dictionary* varDictPtr = d.subDictPtr("namedVertices");
-            if (varDictPtr)
-            {
-                const_cast<dictionary&>(*varDictPtr).add(name_, index);
-            }
-            else
-            {
-                dictionary varDict;
-                varDict.add(name_, index);
-                d.add("namedVertices", varDict);
-            }
-        }
-
-
-        // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
-
-        namedVertex::operator point() const
-        {
-            return vertexPtr_().operator point();
-        }
-
+        varDictPtr->add(name_, index);
+    }
+    else
+    {
+        dictionary varDict;
+        varDict.add(name_, index);
+        d.add("namedVertices", varDict);
     }
 }
+
+
+// * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
+
+Foam::blockVertices::namedVertex::operator Foam::point() const
+{
+    return vertexPtr_().operator point();
+}
+
+
 // ************************************************************************* //

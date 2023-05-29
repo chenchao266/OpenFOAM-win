@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2014 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2014 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -22,7 +24,7 @@ License
     along with OpenFOAM.  If not, see <http://www.gnu.org/licenses/>.
 
 Class
-    Foam::pyrolysisModelCollection
+    Foam::regionModels::pyrolysisModels::pyrolysisModelCollection
 
 Description
     A centralized pyrolysis collection.
@@ -38,7 +40,7 @@ SourceFiles
 #ifndef pyrolysisModelCollection_H
 #define pyrolysisModelCollection_H
 
-#include "PtrList.T.H"
+#include "PtrList.H"
 #include "pyrolysisModel.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
@@ -64,11 +66,11 @@ class pyrolysisModelCollection
 {
     // Private Member Functions
 
-        //- Disallow default bitwise copy construct
-        pyrolysisModelCollection(const pyrolysisModelCollection&);
+        //- No copy construct
+        pyrolysisModelCollection(const pyrolysisModelCollection&) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const pyrolysisModelCollection&);
+        //- No copy assignment
+        void operator=(const pyrolysisModelCollection&) = delete;
 
 
 public:

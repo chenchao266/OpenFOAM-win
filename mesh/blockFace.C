@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2016 OpenFOAM Foundation
+    Copyright (C) 2019-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -65,7 +68,7 @@ Foam::blockFace::blockFace
 Foam::autoPtr<Foam::blockFace> Foam::blockFace::clone() const
 {
     NotImplemented;
-    return autoPtr<blockFace>(nullptr);
+    return nullptr;
 }
 
 
@@ -77,27 +80,24 @@ Foam::autoPtr<Foam::blockFace> Foam::blockFace::New
     Istream& is
 )
 {
-    if (debug)
-    {
-        InfoInFunction << "Constructing blockFace" << endl;
-    }
+    DebugInFunction << "Constructing blockFace" << endl;
 
     const word faceType(is);
 
-    IstreamConstructorTable::iterator cstrIter =
-        IstreamConstructorTablePtr_->find(faceType);
+    auto* ctorPtr = IstreamConstructorTable(faceType);
 
-    if (cstrIter == IstreamConstructorTablePtr_->end())
+    if (!ctorPtr)
     {
-        FatalErrorInFunction
-            << "Unknown blockFace type "
-            << faceType << nl << nl
-            << "Valid blockFace types are" << endl
-            << IstreamConstructorTablePtr_->sortedToc()
-            << abort(FatalError);
+        FatalIOErrorInLookup
+        (
+            dict,
+            "blockFace",
+            faceType,
+            *IstreamConstructorTablePtr_
+        ) << abort(FatalIOError);
     }
 
-    return autoPtr<blockFace>(cstrIter()(dict, index, geometry, is));
+    return autoPtr<blockFace>(ctorPtr(dict, index, geometry, is));
 }
 
 
@@ -111,7 +111,7 @@ void Foam::blockFace::write(Ostream& os, const dictionary& d) const
     // Write contents
     forAll(vertices_, i)
     {
-        if (i > 0) os << token::SPACE;
+        if (i) os << token::SPACE;
         blockVertex::write(os, vertices_[i], d);
     }
 

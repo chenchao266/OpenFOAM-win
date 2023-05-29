@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -25,6 +28,50 @@ Class
     Foam::uniformSet
 
 Description
+    A sampler type which provides a uniform distribution of \c nPoints
+    sample locations along a straight line specified between a given
+    \c start and an \c end points.
+
+Usage
+    Example specification:
+    \verbatim
+    sets
+    (
+        <set>
+        {
+            // Mandatory entries
+            type        uniform;
+            axis        <options>;
+            start       <vector>;
+            end         <vector>;
+            nPoints     <label>;
+
+            // Optional entries
+            tol         <scalar>;
+        }
+
+    );
+    \endverbatim
+
+    where the entries mean:
+    \table
+      Property  | Description                        | Type | Reqd  | Deflt
+      type      | Type name: uniform                 | word | yes   | -
+      axis      | Output type of sample locations    | word | yes   | -
+      start     | Start point of sample line         | vector | yes | -
+      end       | End point of sample line           | vector | yes | -
+      nPoints   | Number of points between start/end | label  | yes | -
+      tol       | Relative tolerance                 | scalar | no  | 1e-3
+    \endtable
+
+    Options for the \c axis entry:
+    \verbatim
+      x        | x-ordinate of a sample
+      y        | y-ordinate of a sample
+      z        | z-ordinate of a sample
+      xyz      | x-y-z coordinates of a sample
+      distance | Normal distance to the first point of a sample
+    \endverbatim
 
 SourceFiles
     uniformSet.C
@@ -36,7 +83,7 @@ SourceFiles
 
 #include "passiveParticleCloud.H"
 #include "sampledSet.H"
-#include "DynamicList.T.H"
+#include "DynamicList.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -51,16 +98,21 @@ class uniformSet
 :
     public sampledSet
 {
-    // Private data
+    // Private Data
 
-        //- Starting point
+        //- Start point of sample line
         point start_;
 
-        //- End point
+        //- End point of sample line
         point end_;
 
-        //- Number of points
+        //- Relative tolerance when comparing points
+        //- relative to difference between start_ and end_
+        scalar tol_;
+
+        //- Number of sampling points
         label nPoints_;
+
 
     // Private Member Functions
 
@@ -113,13 +165,6 @@ public:
     TypeName("uniform");
 
 
-    // Static data
-
-        //- Tolerance when comparing points relative to difference between
-        //  start_ and end_
-        static const scalar tol;
-
-
     // Constructors
 
         //- Construct from components
@@ -145,7 +190,7 @@ public:
 
 
     //- Destructor
-    virtual ~uniformSet();
+    virtual ~uniformSet() = default;
 };
 
 

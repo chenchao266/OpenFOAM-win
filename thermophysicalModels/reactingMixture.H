@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -23,6 +26,9 @@ License
 
 Class
     Foam::reactingMixture
+
+Group
+    grpReactionThermophysicalMixtures
 
 Description
     Foam::reactingMixture
@@ -52,11 +58,11 @@ template<class ThermoType>
 class reactingMixture
 :
     public speciesTable,
-    public autoPtr<chemistryReader<ThermoType>>,
+    private autoPtr<chemistryReader<ThermoType>>,
     public multiComponentMixture<ThermoType>,
     public PtrList<Reaction<ThermoType>>
 {
-    // Private member data
+    // Private Member Data
 
         //- Table of species composition
         speciesCompositionTable speciesComposition_;
@@ -64,11 +70,14 @@ class reactingMixture
 
     // Private Member Functions
 
-        //- Disallow default bitwise copy construct
-        reactingMixture(const reactingMixture&);
+        //- The chemistry reader
+        autoPtr<chemistryReader<ThermoType>>& reader();
 
-        //- Disallow default bitwise assignment
-        void operator=(const reactingMixture&);
+        //- No copy construct
+        reactingMixture(const reactingMixture&) = delete;
+
+        //- No copy assignment
+        void operator=(const reactingMixture&) = delete;
 
 
 public:
@@ -80,38 +89,40 @@ public:
     // Constructors
 
         //- Construct from dictionary, mesh and phase name
-        reactingMixture(const dictionary&, const fvMesh&, const word&);
+        reactingMixture
+        (
+            const dictionary& thermoDict,
+            const fvMesh& mesh,
+            const word& phaseName
+        );
 
 
     //- Destructor
-    virtual ~reactingMixture()
-    {}
+    virtual ~reactingMixture() = default;
 
 
     // Member functions
 
+        //- Return the instantiated type name
+        static word typeName()
+        {
+            return "reactingMixture<" + ThermoType::typeName() + '>';
+        }
+
         //- Read dictionary
         void read(const dictionary&);
 
-        label size() const
-        {
-            return PtrList<Reaction<ThermoType>>::size();
-        }
-
-        Reaction<ThermoType>& operator[](const label i)
-        {
-            return PtrList<Reaction<ThermoType>>::operator[](i);
-        }
-
-        const Reaction<ThermoType>& operator[](const label i) const
-        {
-            return PtrList<Reaction<ThermoType>>::operator[](i);
-        }
+        using PtrList<Reaction<ThermoType>>::size;
+        using PtrList<Reaction<ThermoType>>::operator[];
 
         //- Table of species composition
-        const speciesCompositionTable& specieComposition() const
+        virtual autoPtr<speciesCompositionTable> specieComposition() const
         {
-            return speciesComposition_;
+            return
+                autoPtr<speciesCompositionTable>
+                (
+                    new speciesCompositionTable(speciesComposition_)
+                );
         }
 };
 

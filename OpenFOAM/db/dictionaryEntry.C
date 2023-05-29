@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2015 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2015 OpenFOAM Foundation
+    Copyright (C) 2017-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -26,75 +29,90 @@ License
 #include "dictionaryEntry.H"
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
-namespace Foam
+
+
+ namespace Foam{
+dictionaryEntry::dictionaryEntry
+(
+    const keyType& key,
+    const dictionary& parentDict,
+    const dictionary& dict
+)
+:
+    entry(key),
+    dictionary(parentDict, dict)
+{}
+
+
+dictionaryEntry::dictionaryEntry
+(
+    const dictionary& parentDict,
+    const dictionaryEntry& dictEnt
+)
+:
+    entry(dictEnt),
+    dictionary(parentDict, dictEnt)
+{}
+
+
+// * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
+
+label dictionaryEntry::startLineNumber() const
 {
-    dictionaryEntry::dictionaryEntry
-    (
-        const keyType& key,
-        const dictionary& parentDict,
-        const dictionary& dict
-    ) : entry(key),
-        dictionary(parentDict, dict)
-    {}
-
-
-    dictionaryEntry::dictionaryEntry
-    (
-        const dictionary& parentDict,
-        const dictionaryEntry& dictEnt
-    ) : entry(dictEnt),
-        dictionary(parentDict, dictEnt)
-    {}
-
-
-    // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
-
-    label dictionaryEntry::startLineNumber() const
+    if (size())
     {
-        if (size())
-        {
-            return first()->startLineNumber();
-        }
-        else
-        {
-            return -1;
-        }
+        return first()->startLineNumber();
     }
 
-
-    label dictionaryEntry::endLineNumber() const
-    {
-        if (size())
-        {
-            return last()->endLineNumber();
-        }
-        else
-        {
-            return -1;
-        }
-    }
-
-
-    ITstream& dictionaryEntry::stream() const
-    {
-        FatalIOErrorInFunction(*this)
-            << "Attempt to return dictionary entry as a primitive"
-            << abort(FatalIOError);
-
-        return lookup("");
-    }
-
-
-    const dictionary& dictionaryEntry::dict() const
-    {
-        return *this;
-    }
-
-
-    dictionary& dictionaryEntry::dict()
-    {
-        return *this;
-    }
-
+    return -1;
 }
+
+
+label dictionaryEntry::endLineNumber() const
+{
+    if (size())
+    {
+        return last()->endLineNumber();
+    }
+
+    return -1;
+}
+
+
+ITstream& dictionaryEntry::stream() const
+{
+    FatalIOErrorInFunction(*this)
+        << "Attempt to return dictionary entry as a primitive"
+        << abort(FatalIOError);
+
+    return lookup("");
+}
+
+
+const dictionary* dictionaryEntry::dictPtr() const noexcept
+{
+    return this;
+}
+
+
+dictionary* dictionaryEntry::dictPtr() noexcept
+{
+    return this;
+}
+
+
+const dictionary& dictionaryEntry::dict() const noexcept
+{
+    return *this;
+}
+
+
+dictionary& dictionaryEntry::dict() noexcept
+{
+    return *this;
+}
+
+
 // ************************************************************************* //
+
+ } // End namespace Foam

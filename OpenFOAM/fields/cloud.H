@@ -1,9 +1,12 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2016-2019 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -25,7 +28,7 @@ Class
     Foam::cloud
 
 Description
-    A cloud is a collection of lagrangian particles
+    A cloud is a registry collection of lagrangian particles.
 
 SourceFiles
     cloud.C
@@ -36,32 +39,47 @@ SourceFiles
 #define cloud_H
 
 #include "objectRegistry.H"
+#include "Enum.H"
+#include "point.H"
+#include "IOField.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 namespace Foam
 {
 
-// Forward declaration of classes
+// Forward Declarations
 class mapPolyMesh;
 
 /*---------------------------------------------------------------------------*\
                             Class cloud Declaration
 \*---------------------------------------------------------------------------*/
 
-class cloud :    public objectRegistry
+class cloud
+:
+    public objectRegistry
 {
 
     // Private Member Functions
 
-        //- Disallow default bitwise copy construct
-        cloud(const cloud&);
+        //- No copy construct
+        cloud(const cloud&) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const cloud&);
+        //- No copy assignment
+        void operator=(const cloud&) = delete;
 
 
 public:
+
+    //- Cloud geometry type (internal or IO representations)
+    enum class geometryType
+    {
+        COORDINATES,    //!< barycentric coordinates
+        POSITIONS       //!< positions
+    };
+
+    static const Enum<geometryType> geometryTypeNames;
+
 
     //- Runtime type information
     TypeName("cloud");
@@ -75,27 +93,94 @@ public:
 
     // Constructors
 
-        //- Construct for the given objectRegistry and named cloud instance
-        cloud(const objectRegistry&, const word& cloudName = defaultName);
+        //- Construct for given objectRegistry and default cloud name
+        explicit cloud(const objectRegistry& obr);
+
+        //- Construct for given objectRegistry and named cloud instance
+        cloud(const objectRegistry& obr, const word& cloudName);
 
 
     //- Destructor
-    virtual ~cloud();
+    virtual ~cloud() = default;
 
 
     // Member Functions
 
+        // Sizes
+
+            //- Number of parcels for the hosting cloud
+            virtual label nParcels() const;
+
+
         // Edit
 
             //- Remap the cells of particles corresponding to the
-            //  mesh topology change
+            //- mesh topology change
             virtual void autoMap(const mapPolyMesh&);
+
+
+        // I-O
+
+            //- Read particle fields from objects in the obr registry
+            virtual void readObjects(const objectRegistry& obr);
+
+            //- Write particle fields as objects into the obr registry
+            virtual void writeObjects(objectRegistry& obr) const;
+
+            //- Helper to construct IOField on a supplied object registry
+            template<class Type>
+            static IOField<Type>& createIOField
+            (
+                const word& fieldName,
+                const label nParticle,
+                objectRegistry& obr
+            );
+
+            //- Locate an IOField within object registry
+            //  \return nullptr if not found or wrong type
+            template<class Type>
+            inline static const IOField<Type>* findIOField
+            (
+                const word& fieldName,
+                const objectRegistry& obr
+            )
+            {
+                return obr.cfindObject<IOField<Type>>(fieldName);
+            }
+
+            //- Locate the "position" IOField within object registry
+            //  \return nullptr if not found or wrong type
+            inline static const IOField<point>* findIOPosition
+            (
+                const objectRegistry& obr
+            )
+            {
+                return obr.cfindObject<IOField<point>>("position");
+            }
+
+            //- Lookup an IOField within object registry
+            //  Fatal if not found or wrong type
+            template<class Type>
+            inline static const IOField<Type>& lookupIOField
+            (
+                const word& fieldName,
+                const objectRegistry& obr
+            )
+            {
+                return obr.lookupObject<IOField<Type>>(fieldName);
+            }
 };
 
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 } // End namespace Foam
+
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+#ifdef NoRepository
+    #include "cloudTemplates.C"
+#endif
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 

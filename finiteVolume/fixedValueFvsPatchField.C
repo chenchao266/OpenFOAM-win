@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -115,7 +117,7 @@ template<class Type>
 Foam::tmp<Foam::Field<Type>>
 Foam::fixedValueFvsPatchField<Type>::gradientInternalCoeffs() const
 {
-    return -pTraits<Type>::one*this->patch().deltaCoeffs();
+    return -pTraits<Type>::one_*this->patch().deltaCoeffs();
 }
 
 

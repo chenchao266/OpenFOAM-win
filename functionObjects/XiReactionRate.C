@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2016 OpenFOAM Foundation
+    Copyright (C) 2016-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -55,13 +58,13 @@ Foam::functionObjects::XiReactionRate::XiReactionRate
 }
 
 
-// * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
-
-Foam::functionObjects::XiReactionRate::~XiReactionRate()
-{}
-
-
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
+
+bool Foam::functionObjects::XiReactionRate::read(const dictionary& dict)
+{
+    return fvMeshFunctionObject::read(dict);
+}
+
 
 bool Foam::functionObjects::XiReactionRate::execute()
 {
@@ -71,20 +74,17 @@ bool Foam::functionObjects::XiReactionRate::execute()
 
 bool Foam::functionObjects::XiReactionRate::write()
 {
-    const volScalarField& b =
-        mesh_.lookupObject<volScalarField>("b");
+    const volScalarField& b = mesh_.lookupObject<volScalarField>("b");
 
-    const volScalarField& Su =
-        mesh_.lookupObject<volScalarField>("Su");
+    const volScalarField& Su = mesh_.lookupObject<volScalarField>("Su");
 
-    const volScalarField& Xi =
-        mesh_.lookupObject<volScalarField>("Xi");
+    const volScalarField& Xi = mesh_.lookupObject<volScalarField>("Xi");
 
-    volScalarField St
+    const volScalarField St
     (
         IOobject
         (
-            "St",
+            scopedName("St"),
             time_.timeName(),
             mesh_
         ),
@@ -96,11 +96,11 @@ bool Foam::functionObjects::XiReactionRate::write()
 
     St.write();
 
-    volScalarField wdot
+    const volScalarField wdot
     (
         IOobject
         (
-            "wdot",
+            scopedName("wdot"),
             time_.timeName(),
             mesh_
         ),

@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2015 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2015 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -100,13 +103,13 @@ bool Foam::sixDoFRigidBodyMotionConstraints::plane::read
 {
     sixDoFRigidBodyMotionConstraint::read(sDoFRBMCDict);
 
-    centreOfRotation_ = sDoFRBMCCoeffs_.lookupOrDefault
+    centreOfRotation_ = sDoFRBMCCoeffs_.getOrDefault
     (
         "centreOfRotation",
         motion_.initialCentreOfMass()
     );
 
-    sDoFRBMCCoeffs_.lookup("normal") >> normal_;
+    sDoFRBMCCoeffs_.readEntry("normal", normal_);
 
     return true;
 }
@@ -117,10 +120,8 @@ void Foam::sixDoFRigidBodyMotionConstraints::plane::write
     Ostream& os
 ) const
 {
-    os.writeKeyword("centreOfRotation")
-        << centreOfRotation_ << token::END_STATEMENT << nl;
-    os.writeKeyword("normal")
-        << normal_ << token::END_STATEMENT << nl;
+    os.writeEntry("centreOfRotation", centreOfRotation_);
+    os.writeEntry("normal", normal_);
 }
 
 // ************************************************************************* //

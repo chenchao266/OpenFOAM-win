@@ -1,9 +1,11 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2012 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2012 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -40,7 +42,7 @@ SourceFiles
 namespace Foam
 {
 
-// Forward declaration of classes
+// Forward declarations
 class Istream;
 class Ostream;
 
@@ -66,18 +68,16 @@ public:
 
 
     //- Destructor
-    virtual ~simpleRegIOobject()
-    {};
+    virtual ~simpleRegIOobject() = default;
 
 
     // Member Functions
 
         //- Read
-        virtual void readData(Istream&) = 0;
+        virtual void readData(Istream& is) = 0;
 
         //- Write
-        virtual void writeData(Ostream&) const = 0;
-
+        virtual void writeData(Ostream& os) const = 0;
 };
 
 

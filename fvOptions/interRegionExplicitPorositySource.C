@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2012-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2012-2016 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -56,7 +59,7 @@ void Foam::fv::interRegionExplicitPorositySource::initialise()
 
     const word zoneName(name_ + ":porous");
 
-    const fvMesh& nbrMesh = mesh_.time().lookupObject<fvMesh>(nbrRegionName_);
+    const auto& nbrMesh = mesh_.time().lookupObject<fvMesh>(nbrRegionName_);
     const cellZoneMesh& cellZones = nbrMesh.cellZones();
     label zoneID = cellZones.findZoneID(zoneName);
 
@@ -118,13 +121,13 @@ Foam::fv::interRegionExplicitPorositySource::interRegionExplicitPorositySource
     interRegionOption(name, modelType, dict, mesh),
     porosityPtr_(nullptr),
     firstIter_(true),
-    UName_(coeffs_.lookupOrDefault<word>("U", "U")),
-    muName_(coeffs_.lookupOrDefault<word>("mu", "thermo:mu"))
+    UName_(coeffs_.getOrDefault<word>("U", "U")),
+    muName_(coeffs_.getOrDefault<word>("mu", "thermo:mu"))
 {
     if (active_)
     {
-        fieldNames_.setSize(1, UName_);
-        applied_.setSize(1, false);
+        fieldNames_.resize(1, UName_);
+        fv::option::resetApplied();
     }
 }
 
@@ -139,7 +142,7 @@ void Foam::fv::interRegionExplicitPorositySource::addSup
 {
     initialise();
 
-    const fvMesh& nbrMesh = mesh_.time().lookupObject<fvMesh>(nbrRegionName_);
+    const auto& nbrMesh = mesh_.time().lookupObject<fvMesh>(nbrRegionName_);
 
     const volVectorField& U = eqn.psi();
 
@@ -154,7 +157,7 @@ void Foam::fv::interRegionExplicitPorositySource::addSup
             IOobject::NO_WRITE
         ),
         nbrMesh,
-        dimensionedVector("zero", U.dimensions(), Zero)
+        dimensionedVector(U.dimensions(), Zero)
     );
 
     // Map local velocity onto neighbour region
@@ -193,7 +196,7 @@ void Foam::fv::interRegionExplicitPorositySource::addSup
 {
     initialise();
 
-    const fvMesh& nbrMesh = mesh_.time().lookupObject<fvMesh>(nbrRegionName_);
+    const auto& nbrMesh = mesh_.time().lookupObject<fvMesh>(nbrRegionName_);
 
     const volVectorField& U = eqn.psi();
 
@@ -208,7 +211,7 @@ void Foam::fv::interRegionExplicitPorositySource::addSup
             IOobject::NO_WRITE
         ),
         nbrMesh,
-        dimensionedVector("zero", U.dimensions(), Zero)
+        dimensionedVector(U.dimensions(), Zero)
     );
 
     // Map local velocity onto neighbour region
@@ -232,7 +235,7 @@ void Foam::fv::interRegionExplicitPorositySource::addSup
             IOobject::NO_WRITE
         ),
         nbrMesh,
-        dimensionedScalar("zero", dimDensity, 0.0)
+        dimensionedScalar(dimDensity, Zero)
     );
 
     volScalarField muNbr
@@ -246,11 +249,10 @@ void Foam::fv::interRegionExplicitPorositySource::addSup
             IOobject::NO_WRITE
         ),
         nbrMesh,
-        dimensionedScalar("zero", dimViscosity, 0.0)
+        dimensionedScalar(dimViscosity, Zero)
     );
 
-    const volScalarField& mu =
-        mesh_.lookupObject<volScalarField>(muName_);
+    const auto& mu = mesh_.lookupObject<volScalarField>(muName_);
 
     // Map local rho onto neighbour region
     meshInterp().mapSrcToTgt
@@ -296,10 +298,8 @@ bool Foam::fv::interRegionExplicitPorositySource::read(const dictionary& dict)
 
         return true;
     }
-    else
-    {
-        return false;
-    }
+
+    return false;
 }
 
 

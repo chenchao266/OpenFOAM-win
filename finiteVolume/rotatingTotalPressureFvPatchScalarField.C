@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -53,7 +56,7 @@ rotatingTotalPressureFvPatchScalarField
 )
 :
     totalPressureFvPatchScalarField(ptf, p, iF, mapper),
-    omega_(ptf.omega_, false)
+    omega_(ptf.omega_.clone())
 {}
 
 
@@ -66,7 +69,7 @@ rotatingTotalPressureFvPatchScalarField
 )
 :
     totalPressureFvPatchScalarField(p, iF, dict),
-    omega_(Function1<vector>::New("omega", dict))
+    omega_(Function1<vector>::New("omega", dict, &db()))
 {}
 
 
@@ -77,7 +80,7 @@ rotatingTotalPressureFvPatchScalarField
 )
 :
     totalPressureFvPatchScalarField(rtppsf),
-    omega_(rtppsf.omega_, false)
+    omega_(rtppsf.omega_.clone())
 {}
 
 
@@ -89,7 +92,7 @@ rotatingTotalPressureFvPatchScalarField
 )
 :
     totalPressureFvPatchScalarField(rtppsf, iF),
-    omega_(rtppsf.omega_, false)
+    omega_(rtppsf.omega_.clone())
 {}
 
 

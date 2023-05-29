@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2012 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2012 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -57,7 +59,7 @@ class Kmesh
         vector l_;
 
         //- Multi-dimensional addressing array
-        labelList nn_;
+        List<int> nn_;
 
         //- Maximum wavenumber
         scalar kmax_;
@@ -71,7 +73,7 @@ class Kmesh
             const label i,
             const label j,
             const label k,
-            const labelList& nn
+            const UList<int>& nn
         );
 
 
@@ -92,7 +94,7 @@ public:
             return l_;
         }
 
-        const labelList& nn() const
+        const List<int>& nn() const
         {
             return nn_;
         }

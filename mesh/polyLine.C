@@ -1,9 +1,11 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2020 Ivor Clifford/Paul Scherrer Institut
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -24,155 +26,186 @@ License
 \*---------------------------------------------------------------------------*/
 
 #include "polyLine.H"
+#include "addToRunTimeSelectionTable.H"
+#include "interpolateXY.H"
+#include "quaternion.H"
 
-// * * * * * * * * * * * * Protected Member Functions  * * * * * * * * * * * //
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
-void Foam::polyLine::calcParam()
+namespace Foam
 {
-    param_.setSize(points_.size());
+//namespace extrudeModels
+//{
 
-    if (param_.size())
-    {
-        param_[0] = 0.0;
+// * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
 
-        for (label i=1; i < param_.size(); i++)
-        {
-            param_[i] = param_[i-1] + mag(points_[i] - points_[i-1]);
-        }
+defineTypeNameAndDebug(polyLine, 0);
 
-        // Normalize on the interval 0-1
-        lineLength_ = param_.last();
-        for (label i=1; i < param_.size() - 1; i++)
-        {
-            param_[i] /= lineLength_;
-        }
-        param_.last() = 1.0;
-    }
-    else
-    {
-        lineLength_ = 0.0;
-    }
-}
-
+addToRunTimeSelectionTable(extrudeModel, polyLine, dictionary);
 
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
-Foam::polyLine::polyLine(const pointField& ps, const bool)
+polyLine::polyLine(const dictionary& dict)
 :
-    points_(ps),
-    lineLength_(0.0),
-    param_(0)
+    extrudeModel(typeName, dict),
+    geometry_(0),
+    vertices_(coeffDict_.lookup("vertices")),
+    segments_
+    (
+        coeffDict_.lookup("edges"),
+        blockEdge::iNew(coeffDict_, geometry_, vertices_)
+    ),
+    x_(segments_.size() + 1),
+    y_(segments_.size() + 1),
+    relTol_(coeffDict_.getOrDefault<scalar>("toleranceCheck", SMALL))
 {
-    calcParam();
+    // Check continuity and smoothness of the supplied polyLine
+    for (label i=1; i < segments_.size(); ++i)
+    {
+        // Check continuity
+        const vector x0 = segments_[i-1].position(1);
+        const vector x1 = segments_[i].position(0);
+
+        if (mag(x1-x0) > SMALL)
+        {
+            FatalErrorInFunction()
+                << "Supplied polyLine is not continuous." << endl
+                << Foam::abort(FatalError);
+        }
+
+        // Check smoothness
+        const vector v0 =
+            normalised
+            (
+                segments_[i-1].position(1)
+              - segments_[i-1].position(1-DELTA)
+            );
+
+        const vector v1 =
+            normalised
+            (
+                segments_[i].position(DELTA)
+              - segments_[i].position(0)
+            );
+
+        if ((v1 & v0) < (1 - relTol_))
+        {
+            FatalErrorInFunction()
+                << "Supplied polyLine is not smooth." << endl
+                << Foam::abort(FatalError);
+        }
+    }
+
+    // Calculate cumulative length along polyLine
+    x_[0] = 0;
+    y_[0] = 0;
+    scalar totalLength = 0;
+    forAll(segments_, i)
+    {
+        totalLength += segments_[i].length();
+        x_[i+1] = totalLength;
+        y_[i+1] = i+1;
+    }
+
+    // Normalise cumulative length (0 <= x <= 1)
+    x_ /= totalLength;
+
+    // Position vector and direction at start of polyLine
+    positionAndDirection(0, p0_, n0_);
+
+    if (debug)
+    {
+        Info
+            << tab << "Polyline start: " << p0_ << nl
+            << tab << "Polyline normal at start: " << n0_ << nl
+            << tab << "Polyline end: "
+            << segments_.last().position(1) << nl
+            << tab << "Total length: " << totalLength << endl;
+    }
 }
 
 
-// * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
+// * * * * * * * * * * * * * * * * Operators * * * * * * * * * * * * * * * * //
 
-const Foam::pointField& Foam::polyLine::points() const
-{
-    return points_;
-}
-
-
-Foam::label Foam::polyLine::nSegments() const
-{
-    return points_.size()-1;
-}
-
-
-Foam::label Foam::polyLine::localParameter(scalar& lambda) const
-{
-    // Check endpoints
-    if (lambda < SMALL)
-    {
-        lambda = 0;
-        return 0;
-    }
-    else if (lambda > 1 - SMALL)
-    {
-        lambda = 1;
-        return nSegments();
-    }
-
-    // Search table of cumulative distances to find which line-segment
-    // we are on.
-    // Check the upper bound.
-
-    label segmentI = 1;
-    while (param_[segmentI] < lambda)
-    {
-        segmentI++;
-    }
-    segmentI--;   // We want the corresponding lower bound
-
-    // The local parameter [0-1] on this line segment
-    lambda =
-        (lambda - param_[segmentI])/(param_[segmentI+1] - param_[segmentI]);
-
-    return segmentI;
-}
-
-
-Foam::point Foam::polyLine::position(const scalar mu) const
-{
-    // Check end-points
-    if (mu < SMALL)
-    {
-        return points_.first();
-    }
-    else if (mu > 1 - SMALL)
-    {
-        return points_.last();
-    }
-
-    scalar lambda = mu;
-    label segment = localParameter(lambda);
-    return position(segment, lambda);
-}
-
-
-Foam::point Foam::polyLine::position
+point polyLine::operator()
 (
-    const label segment,
-    const scalar mu
+    const point& surfacePoint,
+    const vector& surfaceNormal,
+    const label layer
 ) const
 {
-    // Out-of-bounds
-    if (segment < 0)
+    // Offset between supplied point and origin of polyLine
+    vector dp = (surfacePoint - p0_);
+
+    // If this is the first layer, check whether the start of the
+    // polyLine seems to lie on the surface
+    if (layer == 0)
     {
-        return points_.first();
-    }
-    else if (segment > nSegments())
-    {
-        return points_.last();
+        if (mag((dp/mag(dp)) & n0_) > relTol_)
+        {
+            WarningInFunction()
+                << "The starting point of the polyLine does not appear "
+                << "to lie of the supplied surface. Apparent absolute "
+                << "misalignment is " << (dp & n0_) << endl;
+        }
     }
 
-    const point& p0 = points()[segment];
-    const point& p1 = points()[segment+1];
+    // Position and direction vector at end of layer
+    vector p;
+    vector n;
+    positionAndDirection(sumThickness(layer), p, n);
 
-    // Special cases - no calculation needed
-    if (mu <= 0.0)
+    // Angle between normal vector and normal at origin
+    scalar cosTheta = (n & n0_);
+
+    // Rotate point to align with current normal vector
+    if (cosTheta < (1-SMALL))
     {
-        return p0;
+        const vector axis = normalised(n0_ ^ n);
+
+        dp = quaternion(axis, cosTheta, true).transform(dp);
     }
-    else if (mu >= 1.0)
-    {
-        return p1;
-    }
-    else
-    {
-        // Linear interpolation
-        return points_[segment] + mu*(p1 - p0);
-    }
+
+    return p + dp;
 }
 
 
-Foam::scalar Foam::polyLine::length() const
+void polyLine::positionAndDirection
+(
+    const scalar lambda,
+    vector& p,
+    vector& n
+) const
 {
-    return lineLength_;
+    // Find associated segment and position for supplied lambda
+    scalar y = interpolateXY(lambda, x_, y_);
+    int i = floor(y);
+    scalar s = y - i;
+    if (i > segments_.size()-1)
+    {
+        i = segments_.size()-1;
+        s = 1.0;
+    }
+
+    // Position vector
+    p = segments_[i].position(s);
+
+    // Normal vector at current position
+    // Estimated normal vector using numerical differencing since
+    // blockEdge doesn't include a normal function
+
+    n = normalised
+    (
+        segments_[i].position(min(s + DELTA, 1))
+      - segments_[i].position(max(s - DELTA, 0))
+    );
 }
 
+
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+//} // End namespace extrudeModels
+} // End namespace Foam
 
 // ************************************************************************* //

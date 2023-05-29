@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2018-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -26,20 +29,18 @@ License
 #include "setToFaceZone.H"
 #include "polyMesh.H"
 #include "faceZoneSet.H"
-
 #include "addToRunTimeSelectionTable.H"
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
 
 namespace Foam
 {
+    defineTypeNameAndDebug(setToFaceZone, 0);
+    addToRunTimeSelectionTable(topoSetSource, setToFaceZone, word);
+    addToRunTimeSelectionTable(topoSetSource, setToFaceZone, istream);
 
-defineTypeNameAndDebug(setToFaceZone, 0);
-
-addToRunTimeSelectionTable(topoSetSource, setToFaceZone, word);
-
-addToRunTimeSelectionTable(topoSetSource, setToFaceZone, istream);
-
+    addToRunTimeSelectionTable(topoSetFaceZoneSource, setToFaceZone, word);
+    addToRunTimeSelectionTable(topoSetFaceZoneSource, setToFaceZone, istream);
 }
 
 
@@ -54,45 +55,43 @@ Foam::topoSetSource::addToUsageTable Foam::setToFaceZone::usage_
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
-// Construct from components
 Foam::setToFaceZone::setToFaceZone
 (
     const polyMesh& mesh,
     const word& setName
 )
 :
-    topoSetSource(mesh),
+    topoSetFaceZoneSource(mesh),
     setName_(setName)
 {}
 
 
-// Construct from dictionary
 Foam::setToFaceZone::setToFaceZone
 (
     const polyMesh& mesh,
     const dictionary& dict
 )
 :
-    topoSetSource(mesh),
-    setName_(dict.lookup("faceSet"))
-{}
+    topoSetFaceZoneSource(mesh),
+    setName_(dict.get<word>("faceSet"))
+{
+    if (dict.found("cellSet"))
+    {
+        IOWarningInFunction(dict)
+            << "Ignoring entry 'cellSet' - maybe use setsToFaceZone instead ?"
+            << endl;
+    }
+}
 
 
-// Construct from Istream
 Foam::setToFaceZone::setToFaceZone
 (
     const polyMesh& mesh,
     Istream& is
 )
 :
-    topoSetSource(mesh),
+    topoSetFaceZoneSource(mesh),
     setName_(checkIs(is))
-{}
-
-
-// * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
-
-Foam::setToFaceZone::~setToFaceZone()
 {}
 
 
@@ -108,61 +107,67 @@ void Foam::setToFaceZone::applyToSet
     {
         WarningInFunction
             << "Operation only allowed on a faceZoneSet." << endl;
+        return;
     }
     else
     {
-        faceZoneSet& fzSet = refCast<faceZoneSet>(set);
+        faceZoneSet& zoneSet = refCast<faceZoneSet>(set);
 
-        if ((action == topoSetSource::NEW) || (action == topoSetSource::ADD))
+        if (action == topoSetSource::ADD || action == topoSetSource::NEW)
         {
-            Info<< "    Adding all faces from faceSet " << setName_
-                << " ..." << endl;
+            if (verbose_)
+            {
+                Info<< "    Adding all faces from faceSet " << setName_
+                    << " ..." << endl;
+            }
 
             // Load the sets
-            faceSet fSet(mesh_, setName_);
+            faceSet loadedSet(mesh_, setName_);
+            const labelHashSet& faceLabels = loadedSet;
 
             // Start off from copy
-            DynamicList<label> newAddressing(fzSet.addressing());
-            DynamicList<bool> newFlipMap(fzSet.flipMap());
+            DynamicList<label> newAddressing(zoneSet.addressing());
+            DynamicList<bool> newFlipMap(zoneSet.flipMap());
 
-            forAllConstIter(faceSet, fSet, iter)
+            for (const label facei : faceLabels)
             {
-                label facei = iter.key();
-
-                if (!fzSet.found(facei))
+                if (!zoneSet.found(facei))
                 {
                     newAddressing.append(facei);
                     newFlipMap.append(false);
                 }
             }
 
-            fzSet.addressing().transfer(newAddressing);
-            fzSet.flipMap().transfer(newFlipMap);
-            fzSet.updateSet();
+            zoneSet.addressing().transfer(newAddressing);
+            zoneSet.flipMap().transfer(newFlipMap);
+            zoneSet.updateSet();
         }
-        else if (action == topoSetSource::DELETE)
+        else if (action == topoSetSource::SUBTRACT)
         {
-            Info<< "    Removing all faces from faceSet " << setName_
-                << " ..." << endl;
+            if (verbose_)
+            {
+                Info<< "    Removing all faces from faceSet " << setName_
+                    << " ..." << endl;
+            }
 
             // Load the set
             faceSet loadedSet(mesh_, setName_);
 
             // Start off empty
-            DynamicList<label> newAddressing(fzSet.addressing().size());
-            DynamicList<bool> newFlipMap(fzSet.flipMap().size());
+            DynamicList<label> newAddressing(zoneSet.addressing().size());
+            DynamicList<bool> newFlipMap(zoneSet.flipMap().size());
 
-            forAll(fzSet.addressing(), i)
+            forAll(zoneSet.addressing(), i)
             {
-                if (!loadedSet.found(fzSet.addressing()[i]))
+                if (!loadedSet.found(zoneSet.addressing()[i]))
                 {
-                    newAddressing.append(fzSet.addressing()[i]);
-                    newFlipMap.append(fzSet.flipMap()[i]);
+                    newAddressing.append(zoneSet.addressing()[i]);
+                    newFlipMap.append(zoneSet.flipMap()[i]);
                 }
             }
-            fzSet.addressing().transfer(newAddressing);
-            fzSet.flipMap().transfer(newFlipMap);
-            fzSet.updateSet();
+            zoneSet.addressing().transfer(newAddressing);
+            zoneSet.flipMap().transfer(newFlipMap);
+            zoneSet.updateSet();
         }
     }
 }

@@ -1,9 +1,11 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2015-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2015-2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -43,12 +45,12 @@ SourceFiles
 #ifndef turbulentFluidThermoModel_H
 #define turbulentFluidThermoModel_H
 
-#include "CompressibleTurbulenceModel.T.H"
-#include "ThermalDiffusivity.T.H"
-#include "EddyDiffusivity.T.H"
+#include "CompressibleTurbulenceModel2.H"
+#include "ThermalDiffusivity.H"
+#include "EddyDiffusivity.H"
 #include "laminarModel.H"
-#include "RASModel.T.H"
-#include "LESModel.T.H"
+#include "RASModel.H"
+#include "LESModel.H"
 #include "fluidThermo.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //

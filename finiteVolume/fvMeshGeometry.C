@@ -1,9 +1,12 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2020-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -24,12 +27,12 @@ License
 \*---------------------------------------------------------------------------*/
 
 #include "fvMesh.H"
-#include "Time.T.H"
+#include "Time1.H"
 #include "volFields.H"
 #include "surfaceFields.H"
 #include "slicedVolFields.H"
 #include "slicedSurfaceFields.H"
-#include "SubField.T.H"
+#include "SubField.H"
 #include "cyclicFvPatchFields.H"
 #include "cyclicAMIFvPatchFields.H"
 
@@ -37,10 +40,7 @@ License
 
 void Foam::fvMesh::makeSf() const
 {
-    if (debug)
-    {
-        InfoInFunction << "Assembling face areas" << endl;
-    }
+    DebugInFunction << "Assembling face areas" << endl;
 
     // It is an error to attempt to recalculate
     // if the pointer is already set
@@ -57,7 +57,7 @@ void Foam::fvMesh::makeSf() const
         (
             "S",
             pointsInstance(),
-            meshSubDir,
+            fileName(meshSubDir),
             *this,
             IOobject::NO_READ,
             IOobject::NO_WRITE,
@@ -67,15 +67,14 @@ void Foam::fvMesh::makeSf() const
         dimArea,
         faceAreas()
     );
+
+    SfPtr_->setOriented();
 }
 
 
 void Foam::fvMesh::makeMagSf() const
 {
-    if (debug)
-    {
-        InfoInFunction << "Assembling mag face areas" << endl;
-    }
+    DebugInFunction << "Assembling mag face areas" << endl;
 
     // It is an error to attempt to recalculate
     // if the pointer is already set
@@ -95,7 +94,7 @@ void Foam::fvMesh::makeMagSf() const
         (
             "magSf",
             pointsInstance(),
-            meshSubDir,
+            fileName(meshSubDir),
             *this,
             IOobject::NO_READ,
             IOobject::NO_WRITE,
@@ -108,10 +107,7 @@ void Foam::fvMesh::makeMagSf() const
 
 void Foam::fvMesh::makeC() const
 {
-    if (debug)
-    {
-        InfoInFunction << "Assembling cell centres" << endl;
-    }
+    DebugInFunction << "Assembling cell centres" << endl;
 
     // It is an error to attempt to recalculate
     // if the pointer is already set
@@ -130,7 +126,7 @@ void Foam::fvMesh::makeC() const
         (
             "C",
             pointsInstance(),
-            meshSubDir,
+            fileName(meshSubDir),
             *this,
             IOobject::NO_READ,
             IOobject::NO_WRITE,
@@ -148,10 +144,7 @@ void Foam::fvMesh::makeC() const
 
 void Foam::fvMesh::makeCf() const
 {
-    if (debug)
-    {
-        InfoInFunction << "Assembling face centres" << endl;
-    }
+    DebugInFunction << "Assembling face centres" << endl;
 
     // It is an error to attempt to recalculate
     // if the pointer is already set
@@ -168,7 +161,7 @@ void Foam::fvMesh::makeCf() const
         (
             "Cf",
             pointsInstance(),
-            meshSubDir,
+            fileName(meshSubDir),
             *this,
             IOobject::NO_READ,
             IOobject::NO_WRITE,
@@ -187,18 +180,15 @@ const Foam::volScalarField::Internal& Foam::fvMesh::V() const
 {
     if (!VPtr_)
     {
-        if (debug)
-        {
-            InfoInFunction
-                << "Constructing from primitiveMesh::cellVolumes()" << endl;
-        }
+        DebugInFunction
+            << "Constructing from primitiveMesh::cellVolumes()" << endl;
 
         VPtr_ = new slicedVolScalarField::Internal
         (
             IOobject
             (
                 "V",
-                time().timeName(),
+                fileName(time().timeName()),
                 *this,
                 IOobject::NO_READ,
                 IOobject::NO_WRITE,
@@ -244,37 +234,34 @@ const Foam::volScalarField::Internal& Foam::fvMesh::V00() const
 {
     if (!V00Ptr_)
     {
-        if (debug)
-        {
-            InfoInFunction << "Constructing from V0" << endl;
-        }
+        DebugInFunction << "Constructing from V0" << endl;
 
         V00Ptr_ = new DimensionedField<scalar, volMesh>
         (
             IOobject
             (
                 "V00",
-                time().timeName(),
+                fileName(time().timeName()),
                 *this,
                 IOobject::NO_READ,
                 IOobject::NO_WRITE,
-                false
+                true
             ),
             V0()
         );
 
+
         // If V00 is used then V0 should be stored for restart
-        V0Ptr_->writeOpt() = IOobject::AUTO_WRITE;
+        V0Ptr_->writeOpt(IOobject::AUTO_WRITE);
     }
 
     return *V00Ptr_;
 }
 
 
-Foam::tmp<Foam::volScalarField::Internal>
-Foam::fvMesh::Vsc() const
+Foam::tmp<Foam::volScalarField::Internal> Foam::fvMesh::Vsc() const
 {
-    if (moving() && time().subCycling())
+    if (!steady() && moving() && time().subCycling())
     {
         const TimeState& ts = time();
         const TimeState& ts0 = time().prevTimeState();
@@ -300,10 +287,9 @@ Foam::fvMesh::Vsc() const
 }
 
 
-Foam::tmp<Foam::volScalarField::Internal>
-Foam::fvMesh::Vsc0() const
+Foam::tmp<Foam::volScalarField::Internal> Foam::fvMesh::Vsc0() const
 {
-    if (moving() && time().subCycling())
+    if (!steady() && moving() && time().subCycling())
     {
         const TimeState& ts = time();
         const TimeState& ts0 = time().prevTimeState();
@@ -376,10 +362,7 @@ const Foam::surfaceVectorField& Foam::fvMesh::Cf() const
 
 Foam::tmp<Foam::surfaceVectorField> Foam::fvMesh::delta() const
 {
-    if (debug)
-    {
-        InfoInFunction << "Calculating face deltas" << endl;
-    }
+    DebugInFunction << "Calculating face deltas" << endl;
 
     tmp<surfaceVectorField> tdelta
     (
@@ -389,7 +372,7 @@ Foam::tmp<Foam::surfaceVectorField> Foam::fvMesh::delta() const
             (
                 "delta",
                 pointsInstance(),
-                meshSubDir,
+                fileName(meshSubDir),
                 *this,
                 IOobject::NO_READ,
                 IOobject::NO_WRITE,
@@ -400,6 +383,7 @@ Foam::tmp<Foam::surfaceVectorField> Foam::fvMesh::delta() const
         )
     );
     surfaceVectorField& delta = tdelta.ref();
+    delta.setOriented();
 
     const volVectorField& C = this->C();
     const labelUList& owner = this->owner();
@@ -410,8 +394,7 @@ Foam::tmp<Foam::surfaceVectorField> Foam::fvMesh::delta() const
         delta[facei] = C[neighbour[facei]] - C[owner[facei]];
     }
 
-    surfaceVectorField::Boundary& deltabf =
-        delta.boundaryFieldRef();
+    surfaceVectorField::Boundary& deltabf =  delta.boundaryFieldRef();
 
     forAll(deltabf, patchi)
     {
@@ -435,8 +418,10 @@ const Foam::surfaceScalarField& Foam::fvMesh::phi() const
     // mesh motion fluxes if the time has been incremented
     if (!time().subCycling() && phiPtr_->timeIndex() != time().timeIndex())
     {
-        (*phiPtr_) = dimensionedScalar("0", dimVolume/dimTime, 0.0);
+        (*phiPtr_) = dimensionedScalar(dimVolume/dimTime, Zero);
     }
+
+    phiPtr_->setOriented();
 
     return *phiPtr_;
 }

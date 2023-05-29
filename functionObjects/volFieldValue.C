@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2017-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -37,75 +40,131 @@ namespace functionObjects
 namespace fieldValues
 {
     defineTypeNameAndDebug(volFieldValue, 0);
-    addToRunTimeSelectionTable(fieldValue, volFieldValue, dictionary);
+    addToRunTimeSelectionTable(fieldValue, volFieldValue, runTime);
     addToRunTimeSelectionTable(functionObject, volFieldValue, dictionary);
 }
 }
 }
 
-template<>
-const char*
-Foam::NamedEnum
+const Foam::Enum
 <
-    Foam::functionObjects::fieldValues::volFieldValue::operationType,
-    13
->::names[] =
-{
-    "none",
-    "sum",
-    "weightedSum",
-    "sumMag",
-    "average",
-    "weightedAverage",
-    "volAverage",
-    "weightedVolAverage",
-    "volIntegrate",
-    "weightedVolIntegrate",
-    "min",
-    "max",
-    "CoV"
-};
+    Foam::functionObjects::fieldValues::volFieldValue::operationType
+>
+Foam::functionObjects::fieldValues::volFieldValue::operationTypeNames_
+({
+    // Normal operations
+    { operationType::opNone, "none" },
+    { operationType::opMin, "min" },
+    { operationType::opMax, "max" },
+    { operationType::opSum, "sum" },
+    { operationType::opSumMag, "sumMag" },
+    { operationType::opAverage, "average" },
+    { operationType::opVolAverage, "volAverage" },
+    { operationType::opVolIntegrate, "volIntegrate" },
+    { operationType::opCoV, "CoV" },
 
-const Foam::NamedEnum
+    // Using weighting
+    { operationType::opWeightedSum, "weightedSum" },
+    { operationType::opWeightedAverage, "weightedAverage" },
+    { operationType::opWeightedVolAverage, "weightedVolAverage" },
+    { operationType::opWeightedVolIntegrate, "weightedVolIntegrate" },
+});
+
+const Foam::Enum
 <
-    Foam::functionObjects::fieldValues::volFieldValue::operationType,
-    13
-> Foam::functionObjects::fieldValues::volFieldValue::operationTypeNames_;
+    Foam::functionObjects::fieldValues::volFieldValue::postOperationType
+>
+Foam::functionObjects::fieldValues::volFieldValue::postOperationTypeNames_
+({
+    { postOperationType::postOpNone, "none" },
+    { postOperationType::postOpMag, "mag" },
+    { postOperationType::postOpSqrt, "sqrt" },
+});
 
 
 // * * * * * * * * * * * * Protected Member Functions  * * * * * * * * * * * //
 
-void Foam::functionObjects::fieldValues::volFieldValue::initialise
-(
-    const dictionary& dict
-)
+bool Foam::functionObjects::fieldValues::volFieldValue::usesVol()
+const noexcept
 {
-    if (dict.readIfPresent("weightField", weightFieldName_))
+    // Few operations require the cell volume
+    switch (operation_)
     {
-        Info<< "    weight field = " << weightFieldName_;
-    }
+        case opVolAverage:
+        case opVolIntegrate:
+        case opWeightedVolAverage:
+        case opWeightedVolIntegrate:
+        case opCoV:
+            return true;
 
-    Info<< nl << endl;
+        default:
+            return false;
+    }
 }
 
 
 void Foam::functionObjects::fieldValues::volFieldValue::writeFileHeader
 (
-    const label i
-)
+    Ostream& os
+) const
 {
-    volRegion::writeFileHeader(*this, file());
+    volRegion::writeFileHeader(*this, os);
 
-    writeCommented(file(), "Time");
-
-    forAll(fields_, fieldi)
+    if (weightFieldNames_.size())
     {
-        file()
-            << tab << operationTypeNames_[operation_]
-            << "(" << fields_[fieldi] << ")";
+        writeHeaderValue
+        (
+            os,
+            "Weight field",
+            flatOutput(weightFieldNames_, FlatOutput::BareComma{})
+        );
     }
 
-    file() << endl;
+    writeCommented(os, "Time");
+
+    // TBD: add in postOperation information?
+
+    for (const word& fieldName : fields_)
+    {
+        os  << tab << operationTypeNames_[operation_]
+            << "(" << fieldName << ")";
+    }
+
+    os  << endl;
+}
+
+
+Foam::label Foam::functionObjects::fieldValues::volFieldValue::writeAll
+(
+    const scalarField& V,
+    const scalarField& weightField
+)
+{
+    label nProcessed = 0;
+
+    for (const word& fieldName : fields_)
+    {
+        if
+        (
+            writeValues<scalar>(fieldName, V, weightField)
+         || writeValues<vector>(fieldName, V, weightField)
+         || writeValues<sphericalTensor>(fieldName, V, weightField)
+         || writeValues<symmTensor>(fieldName, V, weightField)
+         || writeValues<tensor>(fieldName, V, weightField)
+        )
+        {
+            ++nProcessed;
+        }
+        else
+        {
+            WarningInFunction
+                << "Requested field " << fieldName
+                << " not found in database and not processed"
+                << endl;
+        }
+    }
+
+    return nProcessed;
 }
 
 
@@ -120,10 +179,21 @@ Foam::functionObjects::fieldValues::volFieldValue::volFieldValue
 :
     fieldValue(name, runTime, dict, typeName),
     volRegion(fieldValue::mesh_, dict),
-    operation_(operationTypeNames_.read(dict.lookup("operation"))),
-    weightFieldName_("none")
+    operation_(operationTypeNames_.get("operation", dict)),
+    postOperation_
+    (
+        postOperationTypeNames_.getOrDefault
+        (
+            "postOperation",
+            dict,
+            postOperationType::postOpNone,
+            true  // Failsafe behaviour
+        )
+    ),
+    weightFieldNames_()
 {
     read(dict);
+    writeFileHeader(file());
 }
 
 
@@ -136,17 +206,21 @@ Foam::functionObjects::fieldValues::volFieldValue::volFieldValue
 :
     fieldValue(name, obr, dict, typeName),
     volRegion(fieldValue::mesh_, dict),
-    operation_(operationTypeNames_.read(dict.lookup("operation"))),
-    weightFieldName_("none")
+    operation_(operationTypeNames_.get("operation", dict)),
+    postOperation_
+    (
+        postOperationTypeNames_.getOrDefault
+        (
+            "postOperation",
+            dict,
+            postOperationType::postOpNone,
+            true  // Failsafe behaviour
+        )
+    ),
+    weightFieldNames_()
 {
     read(dict);
 }
-
-
-// * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
-
-Foam::functionObjects::fieldValues::volFieldValue::~volFieldValue()
-{}
 
 
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
@@ -158,8 +232,56 @@ bool Foam::functionObjects::fieldValues::volFieldValue::read
 {
     fieldValue::read(dict);
 
-    // No additional info to read
-    initialise(dict);
+    weightFieldNames_.clear();
+
+    if (is_weightedOp())
+    {
+        // Can have "weightFields" or "weightField"
+
+        bool missing = true;
+        if (dict.readIfPresent("weightFields", weightFieldNames_))
+        {
+            missing = false;
+        }
+        else
+        {
+            weightFieldNames_.resize(1);
+
+            if (dict.readIfPresent("weightField", weightFieldNames_.first()))
+            {
+                missing = false;
+                if ("none" == weightFieldNames_.first())
+                {
+                    // "none" == no weighting
+                    weightFieldNames_.clear();
+                }
+            }
+        }
+
+        if (missing)
+        {
+            // Suggest possible alternative unweighted operation?
+            FatalIOErrorInFunction(dict)
+                << "The '" << operationTypeNames_[operation_]
+                << "' operation is missing a weightField." << nl
+                << "Either provide the weightField, "
+                << "use weightField 'none' to suppress weighting," << nl
+                << "or use a different operation."
+                << exit(FatalIOError);
+        }
+
+        Info<< "    weight field  = ";
+        if (weightFieldNames_.empty())
+        {
+            Info<< "none" << nl;
+        }
+        else
+        {
+            Info<< flatOutput(weightFieldNames_) << nl;
+        }
+    }
+
+    Info<< nl << endl;
 
     return true;
 }
@@ -167,32 +289,61 @@ bool Foam::functionObjects::fieldValues::volFieldValue::read
 
 bool Foam::functionObjects::fieldValues::volFieldValue::write()
 {
+    volRegion::update();        // Ensure cached values are valid
+
     fieldValue::write();
 
     if (Pstream::master())
     {
-        writeTime(file());
+        writeCurrentTime(file());
     }
 
-    forAll(fields_, i)
+    // Only some operations need the cell volume
+    scalarField V;
+    if (usesVol())
     {
-        const word& fieldName = fields_[i];
-        bool processed = false;
+        V = filterField(fieldValue::mesh_.V());
+    }
 
-        processed = processed || writeValues<scalar>(fieldName);
-        processed = processed || writeValues<vector>(fieldName);
-        processed = processed || writeValues<sphericalTensor>(fieldName);
-        processed = processed || writeValues<symmTensor>(fieldName);
-        processed = processed || writeValues<tensor>(fieldName);
+    // Check availability and type of weight field
+    // Only support a few weight types:
+    // scalar: 0-N fields
 
-        if (!processed)
+    // Default is a zero-size scalar weight field (ie, weight = 1)
+    scalarField scalarWeights;
+
+    for (const word& weightName : weightFieldNames_)
+    {
+        if (validField<scalar>(weightName))
         {
-            WarningInFunction
-                << "Requested field " << fieldName
-                << " not found in database and not processed"
-                << endl;
+            tmp<scalarField> tfld = getFieldValues<scalar>(weightName, true);
+
+            if (scalarWeights.empty())
+            {
+                scalarWeights = tfld;
+            }
+            else
+            {
+                scalarWeights *= tfld;
+            }
+        }
+        else if (weightName != "none")
+        {
+            // Silently ignore "none", flag everything else as an error
+
+            // TBD: treat missing "rho" like incompressible with rho = 1
+            // and/or provided rhoRef value
+
+            FatalErrorInFunction
+                << "weightField " << weightName
+                << " not found or an unsupported type" << nl
+                << abort(FatalError);
         }
     }
+
+
+    // Process the fields
+    writeAll(V, scalarWeights);
 
     if (Pstream::master())
     {

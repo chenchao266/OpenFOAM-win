@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -30,12 +32,16 @@ inline Foam::eConstThermo<EquationOfState>::eConstThermo
 (
     const EquationOfState& st,
     const scalar cv,
-    const scalar hf
+    const scalar hf,
+    const scalar Tref,
+    const scalar Esref
 )
 :
     EquationOfState(st),
     Cv_(cv),
-    Hf_(hf)
+    Hf_(hf),
+    Tref_(Tref),
+    Esref_(Esref)
 {}
 
 
@@ -50,7 +56,9 @@ inline Foam::eConstThermo<EquationOfState>::eConstThermo
 :
     EquationOfState(name, ct),
     Cv_(ct.Cv_),
-    Hf_(ct.Hf_)
+    Hf_(ct.Hf_),
+    Tref_(ct.Tref_),
+    Esref_(ct.Esref_)
 {}
 
 
@@ -58,10 +66,7 @@ template<class EquationOfState>
 inline Foam::autoPtr<Foam::eConstThermo<EquationOfState>>
 Foam::eConstThermo<EquationOfState>::clone() const
 {
-    return autoPtr<eConstThermo<EquationOfState>>
-    (
-        new eConstThermo<EquationOfState>(*this)
-    );
+    return autoPtr<eConstThermo<EquationOfState>>::New(*this);
 }
 
 
@@ -69,10 +74,7 @@ template<class EquationOfState>
 inline Foam::autoPtr<Foam::eConstThermo<EquationOfState>>
 Foam::eConstThermo<EquationOfState>::New(const dictionary& dict)
 {
-    return autoPtr<eConstThermo<EquationOfState>>
-    (
-        new eConstThermo<EquationOfState>(dict)
-    );
+    return autoPtr<eConstThermo<EquationOfState>>::New(dict);
 }
 
 
@@ -89,35 +91,35 @@ inline Foam::scalar Foam::eConstThermo<EquationOfState>::limit
 
 
 template<class EquationOfState>
-inline Foam::scalar Foam::eConstThermo<EquationOfState>::Cp
+inline Foam::scalar Foam::eConstThermo<EquationOfState>::Cv
 (
     const scalar p,
     const scalar T
 ) const
 {
-    return Cv_ + this->CpMCv(p, T) + EquationOfState::Cp(p, T);
+    return Cv_ + EquationOfState::Cv(p, T);
 }
 
 
 template<class EquationOfState>
-inline Foam::scalar Foam::eConstThermo<EquationOfState>::Ha
+inline Foam::scalar Foam::eConstThermo<EquationOfState>::Es
 (
     const scalar p,
     const scalar T
 ) const
 {
-    return Cp(p, T)*T + Hf_ + EquationOfState::H(p, T);
+    return Cv_*(T - Tref_) + Esref_ + EquationOfState::E(p, T);
 }
 
 
 template<class EquationOfState>
-inline Foam::scalar Foam::eConstThermo<EquationOfState>::Hs
+inline Foam::scalar Foam::eConstThermo<EquationOfState>::Ea
 (
     const scalar p,
     const scalar T
 ) const
 {
-    return Cp(p, T)*T + EquationOfState::H(p, T);
+    return Es(p, T) + Hc();
 }
 
 
@@ -139,6 +141,29 @@ inline Foam::scalar Foam::eConstThermo<EquationOfState>::S
 }
 
 
+template<class EquationOfState>
+inline Foam::scalar Foam::eConstThermo<EquationOfState>::Gstd
+(
+    const scalar T
+) const
+{
+    return
+        Cv_*(T - Tref_) + Esref_ + Hc() + Pstd/EquationOfState::rho(Pstd, T)
+      - S(Pstd, T)*T;
+}
+
+
+template<class EquationOfState>
+inline Foam::scalar Foam::eConstThermo<EquationOfState>::dCpdT
+(
+    const scalar p,
+    const scalar T
+) const
+{
+    NotImplemented;
+    return 0;
+}
+
 // * * * * * * * * * * * * * * * Member Operators  * * * * * * * * * * * * * //
 
 template<class EquationOfState>
@@ -158,6 +183,7 @@ inline void Foam::eConstThermo<EquationOfState>::operator+=
 
         Cv_ = Y1*Cv_ + Y2*ct.Cv_;
         Hf_ = Y1*Hf_ + Y2*ct.Hf_;
+        Esref_ = Y1*Esref_ + Y2*ct.Esref_;
     }
 }
 
@@ -183,7 +209,9 @@ inline Foam::eConstThermo<EquationOfState> Foam::operator+
         (
             eofs,
             ct1.Cv_,
-            ct1.Hf_
+            ct1.Hf_,
+            ct1.Tref_,
+            ct1.Esref_
         );
     }
     else
@@ -194,7 +222,10 @@ inline Foam::eConstThermo<EquationOfState> Foam::operator+
             ct1.Y()/eofs.Y()*ct1.Cv_
           + ct2.Y()/eofs.Y()*ct2.Cv_,
             ct1.Y()/eofs.Y()*ct1.Hf_
-          + ct2.Y()/eofs.Y()*ct2.Hf_
+          + ct2.Y()/eofs.Y()*ct2.Hf_,
+            ct1.Tref_,
+            ct1.Y()/eofs.Y()*ct1.Esref_
+          + ct2.Y()/eofs.Y()*ct2.Esref_
         );
     }
 }
@@ -211,7 +242,9 @@ inline Foam::eConstThermo<EquationOfState> Foam::operator*
     (
         s*static_cast<const EquationOfState&>(ct),
         ct.Cv_,
-        ct.Hf_
+        ct.Hf_,
+        ct.Tref_,
+        ct.Esref_
     );
 }
 
@@ -235,7 +268,10 @@ inline Foam::eConstThermo<EquationOfState> Foam::operator==
         ct2.Y()/eofs.Y()*ct2.Cv_
       - ct1.Y()/eofs.Y()*ct1.Cv_,
         ct2.Y()/eofs.Y()*ct2.Hf_
-      - ct1.Y()/eofs.Y()*ct1.Hf_
+      - ct1.Y()/eofs.Y()*ct1.Hf_,
+        ct1.Tref_,
+        ct2.Y()/eofs.Y()*ct2.Esref_
+      - ct1.Y()/eofs.Y()*ct1.Esref_
     );
 }
 

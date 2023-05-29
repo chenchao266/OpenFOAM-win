@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2017-2019 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -24,18 +27,20 @@ License
 \*---------------------------------------------------------------------------*/
 
 #include "GAMGSolver.H"
-#include "vector2D.H"
+#include "vector2D2.H"
 
 // * * * * * * * * * * * * * Private Member Functions  * * * * * * * * * * * //
-using namespace Foam;
+
+
+ namespace Foam{
 void GAMGSolver::scale
 (
-    scalarField& field,
-    scalarField& Acf,
+    solveScalarField& field,
+    solveScalarField& Acf,
     const lduMatrix& A,
     const FieldField<Field, scalar>& interfaceLevelBouCoeffs,
     const lduInterfaceFieldPtrsList& interfaceLevel,
-    const scalarField& source,
+    const solveScalarField& source,
     const direction cmpt
 ) const
 {
@@ -48,19 +53,28 @@ void GAMGSolver::scale
         cmpt
     );
 
-    scalar scalingFactorNum = 0.0;
-    scalar scalingFactorDenom = 0.0;
 
-    forAll(field, i)
+    const label nCells = field.size();
+    solveScalar* __restrict__ fieldPtr = field.begin();
+    const solveScalar* const __restrict__ sourcePtr = source.begin();
+    const solveScalar* const __restrict__ AcfPtr = Acf.begin();
+
+
+    solveScalar scalingFactorNum = 0.0;
+    solveScalar scalingFactorDenom = 0.0;
+
+    for (label i=0; i<nCells; i++)
     {
-        scalingFactorNum += source[i]*field[i];
-        scalingFactorDenom += Acf[i]*field[i];
+        scalingFactorNum += sourcePtr[i]*fieldPtr[i];
+        scalingFactorDenom += AcfPtr[i]*fieldPtr[i];
     }
 
-    vector2D scalingVector(scalingFactorNum, scalingFactorDenom);
-    A.mesh().reduce(scalingVector, sumOp<vector2D>());
+    Vector2D<solveScalar> scalingVector(scalingFactorNum, scalingFactorDenom);
+    A.mesh().reduce(scalingVector, sumOp<Vector2D<solveScalar>>());
 
-    const scalar sf = scalingVector.x()/stabilise(scalingVector.y(), VSMALL);
+    const solveScalar sf =
+        scalingVector.x()
+       /stabilise(scalingVector.y(), pTraits<solveScalar>::vsmall);
 
     if (debug >= 2)
     {
@@ -68,12 +82,15 @@ void GAMGSolver::scale
     }
 
     const scalarField& D = A.diag();
+    const scalar* const __restrict__ DPtr = D.begin();
 
-    forAll(field, i)
+    for (label i=0; i<nCells; i++)
     {
-        field[i] = sf*field[i] + (source[i] - sf*Acf[i])/D[i];
+        fieldPtr[i] = sf*fieldPtr[i] + (sourcePtr[i] - sf*AcfPtr[i])/DPtr[i];
     }
 }
 
 
 // ************************************************************************* //
+
+ } // End namespace Foam

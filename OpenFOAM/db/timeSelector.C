@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2018-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -24,18 +27,17 @@ License
 \*---------------------------------------------------------------------------*/
 
 #include "timeSelector.H"
-#include "ListOps.T.H"
+#include "ListOps.H"
 #include "argList.H"
-#include "Time.T.H"
-#include "IStringStream.H"
+#include "Time1.h"
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
-using namespace Foam;
-timeSelector::timeSelector() :    scalarRanges()
-{}
 
 
-timeSelector::timeSelector(Istream& is) :    scalarRanges(is)
+ namespace Foam{
+timeSelector::timeSelector(const std::string& str)
+:
+    scalarRanges(str)
 {}
 
 
@@ -43,66 +45,58 @@ timeSelector::timeSelector(Istream& is) :    scalarRanges(is)
 
 bool timeSelector::selected(const instant& value) const
 {
-    return scalarRanges::selected(value.value());
+    return scalarRanges::match(value.value());
 }
 
 
-List<bool> timeSelector::selected(const instantList& Times) const
+List<bool> timeSelector::selected(const instantList& times) const
 {
-    List<bool> lst(Times.size(), false);
+    List<bool> selectTimes(times.size(), false);
 
     // Check ranges, avoid false positive on constant/
-    forAll(Times, timeI)
+    forAll(times, timei)
     {
-        if (Times[timeI].name() != "constant" && selected(Times[timeI]))
+        if (times[timei].name() != "constant" && selected(times[timei]))
         {
-            lst[timeI] = true;
+            selectTimes[timei] = true;
         }
     }
 
     // Check specific values
-    forAll(*this, rangeI)
+    for (const scalarRange& range : *this)
     {
-        if (operator[](rangeI).isExact())
+        if (range.single())
         {
-            scalar target = operator[](rangeI).value();
+            const scalar target = range.value();
 
-            int nearestIndex = -1;
-            scalar nearestDiff = GREAT;
+            const label nearestIndex =
+                TimePaths::findClosestTimeIndex(times, target);
 
-            forAll(Times, timeI)
-            {
-                if (Times[timeI].name() == "constant") continue;
-
-                scalar diff = fabs(Times[timeI].value() - target);
-                if (diff < nearestDiff)
-                {
-                    nearestDiff = diff;
-                    nearestIndex = timeI;
-                }
-            }
+            // Note could also test if the index is too far away.
+            // Eg, for times (0 10 20 30 40) selecting 100 will currently
+            // return the closest time (40), but perhaps we should limit that
+            // to the last deltaT?
 
             if (nearestIndex >= 0)
             {
-                lst[nearestIndex] = true;
+                selectTimes[nearestIndex] = true;
             }
         }
     }
 
-    return lst;
+    return selectTimes;
 }
 
 
-instantList timeSelector::select(const instantList& Times)
-const
+instantList timeSelector::select(const instantList& times) const
 {
-    return subset(selected(Times), Times);
+    return subset(selected(times), times);
 }
 
 
-void timeSelector::inplaceSelect(instantList& Times) const
+void timeSelector::inplaceSelect(instantList& times) const
 {
-    inplaceSubset(selected(Times), Times);
+    inplaceSubset(selected(times), times);
 }
 
 
@@ -117,7 +111,7 @@ void timeSelector::addOptions
         argList::addBoolOption
         (
             "constant",
-            "include the 'constant/' dir in the times list"
+            "Include the 'constant/' dir in the times list"
         );
     }
     if (withZero)
@@ -125,13 +119,13 @@ void timeSelector::addOptions
         argList::addBoolOption
         (
             "withZero",
-            "include the '0/' dir in the times list"
+            "Include the '0/' dir in the times list"
         );
     }
     argList::addBoolOption
     (
         "noZero",
-        string("exclude the '0/' dir from the times list")
+        string("Exclude the '0/' dir from the times list")
       + (
             withZero
           ? ", has precedence over the -withZero option"
@@ -141,46 +135,42 @@ void timeSelector::addOptions
     argList::addBoolOption
     (
         "latestTime",
-        "select the latest time"
-    );
-    argList::addBoolOption
-    (
-        "newTimes",
-        "select the new times"
+        "Select the latest time"
     );
     argList::addOption
     (
         "time",
         "ranges",
-        "comma-separated time ranges - eg, ':10,20,40:70,1000:'"
+        "List of ranges. Eg, ':10,20 40:70 1000:', 'none', etc"
     );
 }
 
 
 instantList timeSelector::select
 (
-    const instantList& timeDirs,
+    const instantList& times,
     const argList& args,
     const word& constantName
 )
 {
-    if (timeDirs.size())
+    if (times.size())
     {
-        List<bool> selectTimes(timeDirs.size(), true);
+        List<bool> selectTimes(times.size(), true);
 
-        // Determine locations of constant/ and 0/ directories
         label constantIdx = -1;
         label zeroIdx = -1;
+        label latestIdx = -1;
 
-        forAll(timeDirs, timeI)
+        // Determine locations of constant/ and 0/ directories
+        forAll(times, timei)
         {
-            if (timeDirs[timeI].name() == constantName)
+            if (times[timei].name() == constantName)
             {
-                constantIdx = timeI;
+                constantIdx = timei;
             }
-            else if (timeDirs[timeI].value() == 0)
+            else if (times[timei].value() == 0)
             {
-                zeroIdx = timeI;
+                zeroIdx = timei;
             }
 
             if (constantIdx >= 0 && zeroIdx >= 0)
@@ -191,11 +181,10 @@ instantList timeSelector::select
 
         // Determine latestTime selection (if any)
         // This must appear before the -time option processing
-        label latestIdx = -1;
-        if (args.optionFound("latestTime"))
+        if (args.found("latestTime"))
         {
             selectTimes = false;
-            latestIdx = timeDirs.size() - 1;
+            latestIdx = times.size() - 1;
 
             // Avoid false match on constant/
             if (latestIdx == constantIdx)
@@ -204,13 +193,10 @@ instantList timeSelector::select
             }
         }
 
-        if (args.optionFound("time"))
+        if (args.found("time"))
         {
             // Can match 0/, but can never match constant/
-            selectTimes = timeSelector
-            (
-                args.optionLookup("time")()
-            ).selected(timeDirs);
+            selectTimes = timeSelector(args["time"]).selected(times);
         }
 
         // Add in latestTime (if selected)
@@ -222,13 +208,13 @@ instantList timeSelector::select
         if (constantIdx >= 0)
         {
             // Only add constant/ if specifically requested
-            selectTimes[constantIdx] = args.optionFound("constant");
+            selectTimes[constantIdx] = args.found("constant");
         }
 
         // Special treatment for 0/
         if (zeroIdx >= 0)
         {
-            if (args.optionFound("noZero"))
+            if (args.found("noZero"))
             {
                 // Exclude 0/ if specifically requested
                 selectTimes[zeroIdx] = false;
@@ -236,16 +222,14 @@ instantList timeSelector::select
             else if (argList::validOptions.found("withZero"))
             {
                 // With -withZero enabled, drop 0/ unless specifically requested
-                selectTimes[zeroIdx] = args.optionFound("withZero");
+                selectTimes[zeroIdx] = args.found("withZero");
             }
         }
 
-        return subset(selectTimes, timeDirs);
+        return subset(selectTimes, times);
     }
-    else
-    {
-        return timeDirs;
-    }
+
+    return times;
 }
 
 
@@ -255,7 +239,7 @@ instantList timeSelector::select0
     const argList& args
 )
 {
-    instantList timeDirs
+    instantList times
     (
         timeSelector::select
         (
@@ -265,18 +249,18 @@ instantList timeSelector::select0
         )
     );
 
-    if (timeDirs.empty())
+    if (times.empty())
     {
         WarningInFunction
             << "No time specified or available, selecting 'constant'"
             << endl;
 
-        timeDirs.append(instant(0, runTime.constant()));
+        times.append(instant(0, runTime.constant()));
     }
 
-    runTime.setTime(timeDirs[0], 0);
+    runTime.setTime(times.first(), 0);
 
-    return timeDirs;
+    return times;
 }
 
 
@@ -288,54 +272,21 @@ instantList timeSelector::selectIfPresent
 {
     if
     (
-        args.optionFound("latestTime")
-     || args.optionFound("time")
-     || args.optionFound("constant")
-     || args.optionFound("noZero")
-     || args.optionFound("withZero")
+        args.found("latestTime")
+     || args.found("time")
+     || args.found("constant")
+     || args.found("noZero")
+     || args.found("withZero")
     )
     {
         return select0(runTime, args);
     }
-    else
-    {
-        // No timeSelector option specified. Do not change runTime.
-        return instantList(1, instant(runTime.value(), runTime.timeName()));
-    }
-}
 
-
-instantList timeSelector::select
-(
-    Time& runTime,
-    const argList& args,
-    const word& fName
-)
-{
-    instantList timeDirs(timeSelector::select0(runTime, args));
-
-    if (timeDirs.size() && args.optionFound("newTimes"))
-    {
-        List<bool> selectTimes(timeDirs.size(), true);
-
-        forAll(timeDirs, timeI)
-        {
-            selectTimes[timeI] =
-               !fileHandler().exists
-                (
-                    runTime.path()
-                   /timeDirs[timeI].name()
-                   /fName
-                );
-        }
-
-        return subset(selectTimes, timeDirs);
-    }
-    else
-    {
-        return timeDirs;
-    }
+    // No timeSelector option specified. Do not change runTime.
+    return instantList(one{}, instant(runTime.value(), runTime.timeName()));
 }
 
 
 // ************************************************************************* //
+
+ } // End namespace Foam

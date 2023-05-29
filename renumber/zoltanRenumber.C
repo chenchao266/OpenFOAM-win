@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -57,6 +59,7 @@ SourceFiles
 #include "globalIndex.H"
 #include "uint.H"
 
+#pragma GCC diagnostic ignored "-Wold-style-cast"
 #include "zoltan.h"
 #include <mpi.h>
 
@@ -72,190 +75,190 @@ namespace Foam
         zoltanRenumber,
         dictionary
     );
-}
 
 
-static int get_number_of_vertices(void *data, int *ierr)
-{
-    const Foam::polyMesh& mesh = *static_cast<const Foam::polyMesh*>(data);
-    *ierr = ZOLTAN_OK;
-    return mesh.nCells();
-}
 
-
-static void get_vertex_list(void *data, int sizeGID, int sizeLID,
-            ZOLTAN_ID_PTR globalID, ZOLTAN_ID_PTR localID,
-                  int wgt_dim, float *obj_wgts, int *ierr)
-{
-    const Foam::polyMesh& mesh = *static_cast<const Foam::polyMesh*>(data);
-
-    *ierr = ZOLTAN_OK;
-
-  /* In this example, return the IDs of our vertices, but no weights.
-   * Zoltan will assume equally weighted vertices.
-   */
-
-    wgt_dim = 0;
-    obj_wgts = nullptr;
-
-    for (Foam::label i=0; i<mesh.nCells(); i++)
+    static int get_number_of_vertices(void *data, int *ierr)
     {
-        globalID[i] = i;        // should be global
-        localID[i] = i;
-    }
-}
-
-
-static void get_num_edges_list(void *data, int sizeGID, int sizeLID,
-                      int num_obj,
-             ZOLTAN_ID_PTR globalID, ZOLTAN_ID_PTR localID,
-             int *numEdges, int *ierr)
-{
-  const Foam::polyMesh& mesh = *static_cast<const Foam::polyMesh*>(data);
-
-    if ((sizeGID != 1) || (sizeLID != 1) || (num_obj != mesh.nCells()))
-    {
-        *ierr = ZOLTAN_FATAL;
-        return;
+        const polyMesh& mesh = *static_cast<const polyMesh*>(data);
+        *ierr = ZOLTAN_OK;
+        return mesh.nCells();
     }
 
-    for (Foam::label i=0; i < num_obj ;i++)
+
+    static void get_vertex_list(void *data, int sizeGID, int sizeLID,
+        ZOLTAN_ID_PTR globalID, ZOLTAN_ID_PTR localID,
+        int wgt_dim, float *obj_wgts, int *ierr)
     {
-        Foam::label celli = localID[i];
-        const Foam::cell& cFaces = mesh.cells()[celli];
-        forAll(cFaces, cFacei)
+        const polyMesh& mesh = *static_cast<const polyMesh*>(data);
+
+        *ierr = ZOLTAN_OK;
+
+        /* In this example, return the IDs of our vertices, but no weights.
+         * Zoltan will assume equally weighted vertices.
+         */
+
+        wgt_dim = 0;
+        obj_wgts = nullptr;
+
+        for (label i = 0; i < mesh.nCells(); i++)
         {
-            Foam::label n = 0;
-            if (mesh.isInternalFace(cFaces[cFacei]))
-            {
-                n++;
-            }
-            numEdges[i] = n;
+            globalID[i] = i;        // should be global
+            localID[i] = i;
         }
     }
 
-    *ierr = ZOLTAN_OK;
-}
+
+    static void get_num_edges_list(void *data, int sizeGID, int sizeLID,
+        int num_obj,
+        ZOLTAN_ID_PTR globalID, ZOLTAN_ID_PTR localID,
+        int *numEdges, int *ierr)
+    {
+        const polyMesh& mesh = *static_cast<const polyMesh*>(data);
+
+        if ((sizeGID != 1) || (sizeLID != 1) || (num_obj != mesh.nCells()))
+        {
+            *ierr = ZOLTAN_FATAL;
+            return;
+        }
+
+        for (label i = 0; i < num_obj; i++)
+        {
+            label celli = localID[i];
+            const cell& cFaces = mesh.cells()[celli];
+            forAll(cFaces, cFacei)
+            {
+                label n = 0;
+                if (mesh.isInternalFace(cFaces[cFacei]))
+                {
+                    n++;
+                }
+                numEdges[i] = n;
+            }
+        }
+
+        *ierr = ZOLTAN_OK;
+    }
 
 
-static void get_edge_list(void *data, int sizeGID, int sizeLID,
+    static void get_edge_list(void *data, int sizeGID, int sizeLID,
         int num_obj, ZOLTAN_ID_PTR globalID, ZOLTAN_ID_PTR localID,
         int *num_edges,
         ZOLTAN_ID_PTR nborGID, int *nborProc,
         int wgt_dim, float *ewgts, int *ierr)
-{
-    const Foam::polyMesh& mesh = *static_cast<const Foam::polyMesh*>(data);
-
-    if
-    (
-        (sizeGID != 1)
-     || (sizeLID != 1)
-     || (num_obj != mesh.nCells())
-     || (wgt_dim != 1)
-    )
     {
-        *ierr = ZOLTAN_FATAL;
-        return;
-    }
+        const polyMesh& mesh = *static_cast<const polyMesh*>(data);
 
-    ZOLTAN_ID_TYPE* nextNbor = nborGID;
-    int* nextProc = nborProc;
-    float* nextWgt = ewgts;
-
-    for (Foam::label i=0; i < num_obj; i++)
-    {
-        Foam::label celli = localID[i];
-
-        const Foam::cell& cFaces = mesh.cells()[celli];
-        forAll(cFaces, cFacei)
+        if
+            (
+            (sizeGID != 1)
+                || (sizeLID != 1)
+                || (num_obj != mesh.nCells())
+                || (wgt_dim != 1)
+                )
         {
-            Foam::label n = 0;
+            *ierr = ZOLTAN_FATAL;
+            return;
+        }
 
-            Foam::label facei = cFaces[cFacei];
-            if (mesh.isInternalFace(facei))
+        ZOLTAN_ID_TYPE* nextNbor = nborGID;
+        int* nextProc = nborProc;
+        float* nextWgt = ewgts;
+
+        for (label i = 0; i < num_obj; i++)
+        {
+            label celli = localID[i];
+
+            const cell& cFaces = mesh.cells()[celli];
+            forAll(cFaces, cFacei)
             {
-                Foam::label nbr = mesh.faceOwner()[facei];
-                if (nbr == celli)
+                label n = 0;
+
+                label facei = cFaces[cFacei];
+                if (mesh.isInternalFace(facei))
                 {
-                    nbr = mesh.faceNeighbour()[facei];
+                    label nbr = mesh.faceOwner()[facei];
+                    if (nbr == celli)
+                    {
+                        nbr = mesh.faceNeighbour()[facei];
+                    }
+
+                    // Note: global index
+                    *nextNbor++ = nbr;
+                    *nextProc++ = 0;
+                    *nextWgt++ = 1.0;
+
+                    n++;
                 }
-
-                // Note: global index
-                *nextNbor++ = nbr;
-                *nextProc++ = 0;
-                *nextWgt++ = 1.0;
-
-                n++;
-            }
-            if (n != num_edges[i])
-            {
-                *ierr = ZOLTAN_FATAL;
-                return;
+                if (n != num_edges[i])
+                {
+                    *ierr = ZOLTAN_FATAL;
+                    return;
+                }
             }
         }
+        *ierr = ZOLTAN_OK;
     }
-    *ierr = ZOLTAN_OK;
-}
 
 
-static int get_mesh_dim(void *data, int *ierr)
-{
-    const Foam::polyMesh& mesh = *static_cast<const Foam::polyMesh*>(data);
+    static int get_mesh_dim(void *data, int *ierr)
+    {
+        const polyMesh& mesh = *static_cast<const polyMesh*>(data);
 
-    return mesh.nSolutionD();
-}
+        return mesh.nSolutionD();
+    }
 
 
-static void get_geom_list
-(
-    void *data,
-    int num_gid_entries,
-    int num_lid_entries,
-    int num_obj,
-    ZOLTAN_ID_PTR global_ids,
-    ZOLTAN_ID_PTR local_ids,
-    int num_dim,
-    double *geom_vec,
-    int *ierr
-)
-{
-    const Foam::polyMesh& mesh = *static_cast<const Foam::polyMesh*>(data);
-
-    if
+    static void get_geom_list
     (
-        (num_gid_entries != 1)
-     || (num_lid_entries != 1)
-     || (num_obj != mesh.nCells())
-     || (num_dim != mesh.nSolutionD())
+        void *data,
+        int num_gid_entries,
+        int num_lid_entries,
+        int num_obj,
+        ZOLTAN_ID_PTR global_ids,
+        ZOLTAN_ID_PTR local_ids,
+        int num_dim,
+        double *geom_vec,
+        int *ierr
     )
     {
-        *ierr = ZOLTAN_FATAL;
-        return;
-    }
+        const polyMesh& mesh = *static_cast<const polyMesh*>(data);
 
-    double* p = geom_vec;
-
-
-    const Foam::Vector<Foam::label>& sol = mesh.solutionD();
-
-    const Foam::pointField& cc = mesh.cellCentres();
-
-    for (Foam::label celli = 0; celli < num_obj; celli++)
-    {
-        const Foam::point& pt = cc[celli];
-
-        for (Foam::direction cmpt = 0; cmpt < Foam::vector::nComponents; cmpt++)
+        if
+            (
+            (num_gid_entries != 1)
+                || (num_lid_entries != 1)
+                || (num_obj != mesh.nCells())
+                || (num_dim != mesh.nSolutionD())
+                )
         {
-            if (sol[cmpt] == 1)
+            *ierr = ZOLTAN_FATAL;
+            return;
+        }
+
+        double* p = geom_vec;
+
+
+        const Vector<label>& sol = mesh.solutionD();
+
+        const pointField& cc = mesh.cellCentres();
+
+        for (label celli = 0; celli < num_obj; celli++)
+        {
+            const point& pt = cc[celli];
+
+            for (direction cmpt = 0; cmpt < vector::nComponents; cmpt++)
             {
-                *p++ = pt[cmpt];
+                if (sol[cmpt] == 1)
+                {
+                    *p++ = pt[cmpt];
+                }
             }
         }
+        *ierr = ZOLTAN_OK;
     }
-    *ierr = ZOLTAN_OK;
+
 }
-
-
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
 Foam::zoltanRenumber::zoltanRenumber(const dictionary& renumberDict)
@@ -277,7 +280,7 @@ Foam::labelList Foam::zoltanRenumber::renumber
     args[0] = "zoltanRenumber";
 
     int argc = args.size();
-    char* argv[1];//argc
+    char* argv[argc];
     for (label i = 0; i < argc; i++)
     {
         argv[i] = strdup(args[i].c_str());
@@ -299,12 +302,12 @@ Foam::labelList Foam::zoltanRenumber::renumber
     polyMesh& mesh = const_cast<polyMesh&>(pMesh);
 
 
-    forAllConstIter(IDLList<entry>, coeffsDict_, iter)
+    for (const entry& dEntry : coeffsDict_)
     {
-        if (!iter().isDict())
+        if (!dEntry.isDict())
         {
-            const word& key = iter().keyword();
-            const word value(iter().stream());
+            const word& key = dEntry.keyword();
+            const word value(dEntry.get<word>());
 
             Info<< typeName << " : setting parameter " << key
                 << " to " << value << endl;

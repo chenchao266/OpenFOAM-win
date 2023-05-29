@@ -2,8 +2,13 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2016-2021 OpenCFD Ltd.
+    Copyright (C) 2020 PCOpt/NTUA
+    Copyright (C) 2020 FOSS GP
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -23,7 +28,59 @@ License
 
 \*---------------------------------------------------------------------------*/
 
+#include "profiling.H"
+
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
+
+template<class Type>
+Foam::tmp<Foam::fvMatrix<Type>> Foam::fv::optionList::source
+(
+    GeometricField<Type, fvPatchField, volMesh>& field,
+    const word& fieldName,
+    const dimensionSet& ds
+)
+{
+    checkApplied();
+
+    tmp<fvMatrix<Type>> tmtx(new fvMatrix<Type>(field, ds));
+    fvMatrix<Type>& mtx = tmtx.ref();
+
+    for (fv::option& source : *this)
+    {
+        const label fieldi = source.applyToField(fieldName);
+
+        if (fieldi != -1)
+        {
+            addProfiling(fvopt, "fvOption()." + source.name());
+
+            source.setApplied(fieldi);
+
+            const bool ok = source.isActive();
+
+            if (debug)
+            {
+                if (ok)
+                {
+                    Info<< "Apply";
+                }
+                else
+                {
+                    Info<< "(Inactive)";
+                }
+                Info<< " source " << source.name()
+                    << " for field " << fieldName << endl;
+            }
+
+            if (ok)
+            {
+                source.addSup(mtx, fieldi);
+            }
+        }
+    }
+
+    return tmtx;
+}
+
 
 template<class Type>
 Foam::tmp<Foam::fvMatrix<Type>> Foam::fv::optionList::operator()
@@ -42,37 +99,7 @@ Foam::tmp<Foam::fvMatrix<Type>> Foam::fv::optionList::operator()
     const word& fieldName
 )
 {
-    checkApplied();
-
-    const dimensionSet ds = field.dimensions()/dimTime*dimVolume;
-
-    tmp<fvMatrix<Type>> tmtx(new fvMatrix<Type>(field, ds));
-    fvMatrix<Type>& mtx = tmtx.ref();
-
-    forAll(*this, i)
-    {
-        option& source = this->operator[](i);
-
-        label fieldi = source.applyToField(fieldName);
-
-        if (fieldi != -1)
-        {
-            source.setApplied(fieldi);
-
-            if (source.isActive())
-            {
-                if (debug)
-                {
-                    Info<< "Applying source " << source.name() << " to field "
-                        << fieldName << endl;
-                }
-
-                source.addSup(mtx, fieldi);
-            }
-        }
-    }
-
-    return tmtx;
+    return source(field, fieldName, field.dimensions()/dimTime*dimVolume);
 }
 
 
@@ -105,24 +132,34 @@ Foam::tmp<Foam::fvMatrix<Type>> Foam::fv::optionList::operator()
     tmp<fvMatrix<Type>> tmtx(new fvMatrix<Type>(field, ds));
     fvMatrix<Type>& mtx = tmtx.ref();
 
-    forAll(*this, i)
+    for (fv::option& source : *this)
     {
-        option& source = this->operator[](i);
-
-        label fieldi = source.applyToField(fieldName);
+        const label fieldi = source.applyToField(fieldName);
 
         if (fieldi != -1)
         {
+            addProfiling(fvopt, "fvOption()." + source.name());
+
             source.setApplied(fieldi);
 
-            if (source.isActive())
-            {
-                if (debug)
-                {
-                    Info<< "Applying source " << source.name() << " to field "
-                        << fieldName << endl;
-                }
+            const bool ok = source.isActive();
 
+            if (debug)
+            {
+                if (ok)
+                {
+                    Info<< "Apply";
+                }
+                else
+                {
+                    Info<< "(Inactive)";
+                }
+                Info<< " source " << source.name()
+                    << " for field " << fieldName << endl;
+            }
+
+            if (ok)
+            {
                 source.addSup(rho, mtx, fieldi);
             }
         }
@@ -164,24 +201,34 @@ Foam::tmp<Foam::fvMatrix<Type>> Foam::fv::optionList::operator()
     tmp<fvMatrix<Type>> tmtx(new fvMatrix<Type>(field, ds));
     fvMatrix<Type>& mtx = tmtx.ref();
 
-    forAll(*this, i)
+    for (fv::option& source : *this)
     {
-        option& source = this->operator[](i);
-
-        label fieldi = source.applyToField(fieldName);
+        const label fieldi = source.applyToField(fieldName);
 
         if (fieldi != -1)
         {
+            addProfiling(fvopt, "fvOption()." + source.name());
+
             source.setApplied(fieldi);
 
-            if (source.isActive())
-            {
-                if (debug)
-                {
-                    Info<< "Applying source " << source.name() << " to field "
-                        << fieldName << endl;
-                }
+            const bool ok = source.isActive();
 
+            if (debug)
+            {
+                if (ok)
+                {
+                    Info<< "Apply";
+                }
+                else
+                {
+                    Info<< "(Inactive)";
+                }
+                Info<< " source " << source.name()
+                    << " for field " << fieldName << endl;
+            }
+
+            if (ok)
+            {
                 source.addSup(alpha, rho, mtx, fieldi);
             }
         }
@@ -243,28 +290,59 @@ Foam::tmp<Foam::fvMatrix<Type>> Foam::fv::optionList::operator()
 
 
 template<class Type>
+Foam::tmp<Foam::fvMatrix<Type>> Foam::fv::optionList::d2dt2
+(
+    GeometricField<Type, fvPatchField, volMesh>& field
+)
+{
+    return this->d2dt2(field, field.name());
+}
+
+
+template<class Type>
+Foam::tmp<Foam::fvMatrix<Type>> Foam::fv::optionList::d2dt2
+(
+    GeometricField<Type, fvPatchField, volMesh>& field,
+    const word& fieldName
+)
+{
+    return source(field, fieldName, field.dimensions()/sqr(dimTime)*dimVolume);
+}
+
+
+template<class Type>
 void Foam::fv::optionList::constrain(fvMatrix<Type>& eqn)
 {
     checkApplied();
 
-    forAll(*this, i)
+    for (fv::option& source : *this)
     {
-        option& source = this->operator[](i);
-
-        label fieldi = source.applyToField(eqn.psi().name());
+        const label fieldi = source.applyToField(eqn.psi().name());
 
         if (fieldi != -1)
         {
+            addProfiling(fvopt, "fvOption::constrain." + eqn.psi().name());
+
             source.setApplied(fieldi);
 
-            if (source.isActive())
-            {
-                if (debug)
-                {
-                    Info<< "Applying constraint " << source.name()
-                        << " to field " << eqn.psi().name() << endl;
-                }
+            const bool ok = source.isActive();
 
+            if (debug)
+            {
+                if (ok)
+                {
+                    Info<< "Constrain";
+                }
+                else
+                {
+                    Info<< "(Inactive constrain)";
+                }
+                Info<< " source " << source.name()
+                    << " for field " << eqn.psi().name() << endl;
+            }
+
+            if (ok)
+            {
                 source.constrain(eqn, fieldi);
             }
         }
@@ -280,25 +358,73 @@ void Foam::fv::optionList::correct
 {
     const word& fieldName = field.name();
 
-    forAll(*this, i)
+    for (fv::option& source : *this)
     {
-        option& source = this->operator[](i);
-
-        label fieldi = source.applyToField(fieldName);
+        const label fieldi = source.applyToField(fieldName);
 
         if (fieldi != -1)
         {
+            addProfiling(fvopt, "fvOption::correct." + source.name());
+
             source.setApplied(fieldi);
 
-            if (source.isActive())
-            {
-                if (debug)
-                {
-                    Info<< "Correcting source " << source.name()
-                        << " for field " << fieldName << endl;
-                }
+            const bool ok = source.isActive();
 
+            if (debug)
+            {
+                if (ok)
+                {
+                    Info<< "Correct";
+                }
+                else
+                {
+                    Info<< "(Inactive correct)";
+                }
+                Info<< " source " << source.name()
+                    << " for field " << fieldName << endl;
+            }
+
+            if (ok)
+            {
                 source.correct(field);
+            }
+        }
+    }
+}
+
+
+template<class Type>
+void Foam::fv::optionList::postProcessSens
+(
+    Field<Type>& sensField,
+    const word& fieldName,
+    const word& designVariablesName
+)
+{
+    for (fv::option& source : *this)
+    {
+        const label fieldi = source.applyToField(fieldName);
+
+        if (fieldi != -1)
+        {
+            addProfiling(fvopt, "fvOption::postProcessSens." + source.name());
+
+            const bool ok = source.isActive();
+
+            if (debug && ok)
+            {
+                Info<< "Post processing sensitivity source "
+                    << source.name() << " for field " << fieldName << endl;
+            }
+
+            if (ok)
+            {
+                source.postProcessSens
+                (
+                    sensField,
+                    fieldName,
+                    designVariablesName
+                );
             }
         }
     }

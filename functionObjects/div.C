@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2013-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2013-2016 OpenFOAM Foundation
+    Copyright (C) 2020-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -44,12 +47,26 @@ namespace functionObjects
 
 bool Foam::functionObjects::div::calc()
 {
-    bool processed = false;
+    return
+    (
+        calcDiv<surfaceScalarField>()
+     || calcDiv<volVectorField>()
+    );
+}
 
-    processed = processed || calcDiv<surfaceScalarField>();
-    processed = processed || calcDiv<volVectorField>();
 
-    return processed;
+bool Foam::functionObjects::div::write()
+{
+    if (zoneSubSetPtr_)
+    {
+        return
+        (
+            writeField<scalar>()
+         || writeField<vector>()
+        );
+    }
+
+    return writeObject(resultName_);
 }
 
 
@@ -63,12 +80,6 @@ Foam::functionObjects::div::div
 )
 :
     fieldExpression(name, runTime, dict)
-{}
-
-
-// * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
-
-Foam::functionObjects::div::~div()
 {}
 
 

@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2013 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2013 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -54,7 +57,7 @@ class layerAdditionRemoval
 :
     public polyMeshModifier
 {
-    // Private data
+    // Private Data
 
         //- Master face zone ID
         faceZoneID faceZoneID_;
@@ -74,10 +77,10 @@ class layerAdditionRemoval
         mutable scalar oldLayerThickness_;
 
         //- Point pairing
-        mutable labelList* pointsPairingPtr_;
+        mutable unique_ptr<labelList> pointsPairingPtr_;
 
         //- Face pairing
-        mutable labelList* facesPairingPtr_;
+        mutable unique_ptr<labelList> facesPairingPtr_;
 
         //- Layer removal trigger time index
         mutable label triggerRemoval_;
@@ -88,17 +91,17 @@ class layerAdditionRemoval
 
     // Private Member Functions
 
-        //- Disallow default bitwise copy construct
-        layerAdditionRemoval(const layerAdditionRemoval&);
+        //- No copy construct
+        layerAdditionRemoval(const layerAdditionRemoval&) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const layerAdditionRemoval&);
+        //- No copy assignment
+        void operator=(const layerAdditionRemoval&) = delete;
 
         //- Check validity of construction data
         void checkDefinition();
 
 
-        // Topological changes
+        // Topological Changes
 
             //- Check for valid layer
             bool validCollapse() const;
@@ -125,13 +128,7 @@ class layerAdditionRemoval
             void clearAddressing() const;
 
 
-        // Helpers
-
-            //- Optionally read old thickness
-            static scalar readOldThickness(const dictionary&);
-
-
-    // Static data members
+    // Static Data Members
 
         //- Thickness insertion fraction for the pre-motion
         static const scalar addDelta_;
@@ -158,7 +155,7 @@ public:
             const word& zoneName,
             const scalar minThickness,
             const scalar maxThickness,
-            const Switch thicknessFromVolume = true
+            const bool thicknessFromVolume = true
         );
 
         //- Construct from dictionary
@@ -172,7 +169,7 @@ public:
 
 
     //- Destructor
-    virtual ~layerAdditionRemoval();
+    virtual ~layerAdditionRemoval() = default;
 
 
     // Member Functions

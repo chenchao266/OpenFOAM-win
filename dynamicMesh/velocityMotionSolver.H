@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2012-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2012-2016 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -46,6 +49,7 @@ SourceFiles
 namespace Foam
 {
 
+// Forward Declarations
 class mapPolyMesh;
 
 /*---------------------------------------------------------------------------*\
@@ -58,23 +62,19 @@ class velocityMotionSolver
 {
 protected:
 
-    // Protected data
+    // Protected Data
 
         //- Point motion field
         mutable pointVectorField pointMotionU_;
 
-private:
 
-    // Private Member Functions
+    // Protected Member Functions
 
-        //- Disallow default bitwise copy construct
-        velocityMotionSolver
-        (
-            const velocityMotionSolver&
-        );
+        //- No copy construct
+        velocityMotionSolver(const velocityMotionSolver&) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const velocityMotionSolver&);
+        //- No copy assignment
+        void operator=(const velocityMotionSolver&) = delete;
 
 public:
 
@@ -94,7 +94,7 @@ public:
 
 
     //- Destructor
-    virtual ~velocityMotionSolver();
+    virtual ~velocityMotionSolver() = default;
 
 
     // Member Functions

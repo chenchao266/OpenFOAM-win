@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2018-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -26,7 +29,6 @@ License
 #include "pointToCell.H"
 #include "polyMesh.H"
 #include "pointSet.H"
-
 #include "addToRunTimeSelectionTable.H"
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
@@ -36,17 +38,8 @@ namespace Foam
     defineTypeNameAndDebug(pointToCell, 0);
     addToRunTimeSelectionTable(topoSetSource, pointToCell, word);
     addToRunTimeSelectionTable(topoSetSource, pointToCell, istream);
-
-    template<>
-    const char* Foam::NamedEnum
-    <
-        Foam::pointToCell::pointAction,
-        2
-    >::names[] =
-    {
-        "any",
-        "edge"
-    };
+    addToRunTimeSelectionTable(topoSetCellSource, pointToCell, word);
+    addToRunTimeSelectionTable(topoSetCellSource, pointToCell, istream);
 }
 
 
@@ -58,42 +51,56 @@ Foam::topoSetSource::addToUsageTable Foam::pointToCell::usage_
     " in the pointSet\n\n"
 );
 
-const Foam::NamedEnum<Foam::pointToCell::pointAction, 2>
-    Foam::pointToCell::pointActionNames_;
+const Foam::Enum
+<
+    Foam::pointToCell::pointAction
+>
+Foam::pointToCell::pointActionNames_
+({
+    { pointAction::ANY, "any" },
+    { pointAction::EDGE, "edge" },
+});
 
 
 // * * * * * * * * * * * * * Private Member Functions  * * * * * * * * * * * //
 
-void Foam::pointToCell::combine(topoSet& set, const bool add) const
+void Foam::pointToCell::combine
+(
+    topoSet& set,
+    const bool add,
+    const word& setName
+) const
 {
     // Load the set
-    pointSet loadedSet(mesh_, setName_);
+    pointSet loadedSet(mesh_, setName);
 
+    const labelHashSet& pointLabels = loadedSet;
 
     // Handle any selection
     if (option_ == ANY)
     {
-        forAllConstIter(pointSet, loadedSet, iter)
+        for (const label pointi : pointLabels)
         {
-            const label pointi = iter.key();
             const labelList& pCells = mesh_.pointCells()[pointi];
 
-            forAll(pCells, pCelli)
-            {
-                addOrDelete(set, pCells[pCelli], add);
-            }
+            addOrDelete(set, pCells, add);
         }
     }
     else if (option_ == EDGE)
     {
         const faceList& faces = mesh_.faces();
+
         forAll(faces, facei)
         {
             const face& f = faces[facei];
 
             forAll(f, fp)
             {
-                if (loadedSet.found(f[fp]) && loadedSet.found(f.nextLabel(fp)))
+                if
+                (
+                    pointLabels.found(f[fp])
+                 && pointLabels.found(f.nextLabel(fp))
+                )
                 {
                     addOrDelete(set, mesh_.faceOwner()[facei], add);
                     if (mesh_.isInternalFace(facei))
@@ -109,7 +116,6 @@ void Foam::pointToCell::combine(topoSet& set, const bool add) const
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
-// Construct from components
 Foam::pointToCell::pointToCell
 (
     const polyMesh& mesh,
@@ -117,41 +123,40 @@ Foam::pointToCell::pointToCell
     const pointAction option
 )
 :
-    topoSetSource(mesh),
-    setName_(setName),
+    topoSetCellSource(mesh),
+    names_(one{}, setName),
     option_(option)
 {}
 
 
-// Construct from dictionary
 Foam::pointToCell::pointToCell
 (
     const polyMesh& mesh,
     const dictionary& dict
 )
 :
-    topoSetSource(mesh),
-    setName_(dict.lookup("set")),
-    option_(pointActionNames_.read(dict.lookup("option")))
-{}
+    topoSetCellSource(mesh),
+    names_(),
+    option_(pointActionNames_.get("option", dict))
+{
+    // Look for 'sets' or 'set'
+    if (!dict.readIfPresent("sets", names_))
+    {
+        names_.resize(1);
+        dict.readEntry("set", names_.first());
+    }
+}
 
 
-// Construct from Istream
 Foam::pointToCell::pointToCell
 (
     const polyMesh& mesh,
     Istream& is
 )
 :
-    topoSetSource(mesh),
-    setName_(checkIs(is)),
+    topoSetCellSource(mesh),
+    names_(one{}, word(checkIs(is))),
     option_(pointActionNames_.read(checkIs(is)))
-{}
-
-
-// * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
-
-Foam::pointToCell::~pointToCell()
 {}
 
 
@@ -163,19 +168,31 @@ void Foam::pointToCell::applyToSet
     topoSet& set
 ) const
 {
-    if ((action == topoSetSource::NEW) || (action == topoSetSource::ADD))
+    if (action == topoSetSource::ADD || action == topoSetSource::NEW)
     {
-        Info<< "    Adding cells according to pointSet " << setName_
-            << " ..." << endl;
+        if (verbose_)
+        {
+            Info<< "    Adding cells according to pointSet "
+                << flatOutput(names_) << nl;
+        }
 
-        combine(set, true);
+        for (const word& setName : names_)
+        {
+            combine(set, true, setName);
+        }
     }
-    else if (action == topoSetSource::DELETE)
+    else if (action == topoSetSource::SUBTRACT)
     {
-        Info<< "    Removing cells according to pointSet " << setName_
-            << " ..." << endl;
+        if (verbose_)
+        {
+            Info<< "    Removing cells according to pointSet "
+                << flatOutput(names_) << nl;
+        }
 
-        combine(set, false);
+        for (const word& setName : names_)
+        {
+            combine(set, false, setName);
+        }
     }
 }
 

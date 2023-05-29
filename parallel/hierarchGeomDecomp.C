@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2015-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -25,15 +28,14 @@ License
 
 #include "hierarchGeomDecomp.H"
 #include "addToRunTimeSelectionTable.H"
-#include "PstreamReduceOps.T.H"
-#include "SortableList.T.H"
+#include "PstreamReduceOps.H"
+#include "SortableList.H"
 
-// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+// * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
 
 namespace Foam
 {
     defineTypeNameAndDebug(hierarchGeomDecomp, 0);
-
     addToRunTimeSelectionTable
     (
         decompositionMethod,
@@ -42,68 +44,30 @@ namespace Foam
     );
 }
 
-// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
-void Foam::hierarchGeomDecomp::setDecompOrder()
-{
-    const word order(geomDecomDict_.lookup("order"));
-
-    if (order.size() != 3)
-    {
-        FatalIOErrorInFunction
-        (
-            decompositionDict_
-        )   << "number of characters in order (" << order << ") != 3"
-            << exit(FatalIOError);
-    }
-
-    for (label i = 0; i < 3; ++i)
-    {
-        if (order[i] == 'x')
-        {
-            decompOrder_[i] = 0;
-        }
-        else if (order[i] == 'y')
-        {
-            decompOrder_[i] = 1;
-        }
-        else if (order[i] == 'z')
-        {
-            decompOrder_[i] = 2;
-        }
-        else
-        {
-            FatalIOErrorInFunction
-            (
-                decompositionDict_
-            )   << "Illegal decomposition order " << order << endl
-                << "It should only contain x, y or z" << exit(FatalError);
-        }
-    }
-}
-
+// * * * * * * * * * * * * * Private Member Functions  * * * * * * * * * * * //
 
 Foam::label Foam::hierarchGeomDecomp::findLower
 (
-    const List<scalar>& l,
-    const scalar t,
-    const label initLow,
-    const label initHigh
+    const UList<scalar>& list,
+    const scalar val,
+    const label first,
+    const label last
 )
 {
-    if (initHigh <= initLow)
-    {
-        return initLow;
-    }
+    label low = first;
+    label high = last;
 
-    label low = initLow;
-    label high = initHigh;
+    if (high <= low)
+    {
+        return low;
+    }
 
     while ((high - low) > 1)
     {
-        label mid = (low + high)/2;
+        const label mid = (low + high)/2;
 
-        if (l[mid] < t)
+        if (list[mid] < val)
         {
             low = mid;
         }
@@ -115,18 +79,14 @@ Foam::label Foam::hierarchGeomDecomp::findLower
 
     // high and low can still differ by one. Choose best.
 
-    label tIndex = -1;
-
-    if (l[high-1] < t)
+    if (list[high-1] < val)
     {
-        tIndex = high;
+        return high;
     }
     else
     {
-        tIndex = low;
+        return low;
     }
-
-    return tIndex;
 }
 
 
@@ -147,7 +107,7 @@ void Foam::hierarchGeomDecomp::calculateSortedWeightedSizes
     sortedWeightedSizes[0] = 0;
     forAll(current, i)
     {
-        label pointi = current[indices[i]];
+        const label pointi = current[indices[i]];
         sortedWeightedSizes[i + 1] = sortedWeightedSizes[i] + weights[pointi];
     }
     // Non-dimensionalise and multiply by size.
@@ -164,7 +124,7 @@ void Foam::hierarchGeomDecomp::calculateSortedWeightedSizes
 
 // Find position in values so between minIndex and this position there
 // are wantedSize elements.
-void Foam::hierarchGeomDecomp::findBinary
+bool Foam::hierarchGeomDecomp::findBinary
 (
     const label sizeTol,
     const List<scalar>& values,
@@ -178,12 +138,11 @@ void Foam::hierarchGeomDecomp::findBinary
     scalar& midValue            // value at mid
 )
 {
-    label low = minIndex;
     scalar lowValue = minValue;
-
     scalar highValue = maxValue;
-    // (one beyond) index of highValue
-    label high = values.size();
+
+    label low = minIndex;
+    label high = values.size();  // (one beyond) index of highValue
 
     // Safeguards to avoid infinite loop.
     scalar midValuePrev = VGREAT;
@@ -225,20 +184,26 @@ void Foam::hierarchGeomDecomp::findBinary
 
         if (returnReduce(hasNotChanged, andOp<bool>()))
         {
-            WarningInFunction
-                << "unable to find desired decomposition split, making do!"
-                << endl;
-            break;
+            if (debug)
+            {
+                WarningInFunction
+                    << "unable to find desired decomposition split, making do!"
+                    << endl;
+            }
+
+            return false;
         }
 
         midValuePrev = midValue;
     }
+
+    return true;
 }
 
 
 // Find position in values so between minIndex and this position there
 // are wantedSize elements.
-void Foam::hierarchGeomDecomp::findBinary
+bool Foam::hierarchGeomDecomp::findBinary
 (
     const label sizeTol,
     const List<scalar>& sortedWeightedSizes,
@@ -305,30 +270,39 @@ void Foam::hierarchGeomDecomp::findBinary
 
         if (returnReduce(hasNotChanged, andOp<bool>()))
         {
-            WarningInFunction
-                << "unable to find desired deomposition split, making do!"
-                << endl;
-            break;
+            if (debug)
+            {
+                WarningInFunction
+                    << "Unable to find desired decomposition split, making do!"
+                    << endl;
+            }
+
+            return false;
         }
 
         midValuePrev = midValue;
     }
+
+    return true;
 }
 
 
 // Sort points into bins according to one component. Recurses to next component.
-void Foam::hierarchGeomDecomp::sortComponent
+Foam::label Foam::hierarchGeomDecomp::sortComponent
 (
     const label sizeTol,
     const pointField& points,
     const labelList& current,       // slice of points to decompose
-    const direction componentIndex, // index in decompOrder_
+    const direction componentIndex, // index in order_
     const label mult,               // multiplication factor for finalDecomp
     labelList& finalDecomp
-)
+) const
 {
     // Current component
-    label compI = decompOrder_[componentIndex];
+    const label compI = order_[componentIndex];
+
+    // Track the number of times that findBinary() did not converge
+    label nWarnings = 0;
 
     if (debug)
     {
@@ -341,7 +315,7 @@ void Foam::hierarchGeomDecomp::sortComponent
 
     forAll(current, i)
     {
-        label pointi = current[i];
+        const label pointi = current[i];
 
         sortedCoord[i] = points[pointi][compI];
     }
@@ -353,7 +327,7 @@ void Foam::hierarchGeomDecomp::sortComponent
     (
         (
             sortedCoord.size()
-          ? sortedCoord[0]
+          ? sortedCoord.first()
           : GREAT
         ),
         minOp<scalar>()
@@ -404,7 +378,14 @@ void Foam::hierarchGeomDecomp::sortComponent
         {
             // No need for binary searching of bin size
             localSize = label(current.size()/n_[compI]);
-            rightCoord = sortedCoord[leftIndex+localSize];
+            if (leftIndex+localSize < sortedCoord.size())
+            {
+                rightCoord = sortedCoord[leftIndex+localSize];
+            }
+            else
+            {
+                rightCoord = maxCoord;
+            }
         }
         else
         {
@@ -416,7 +397,7 @@ void Foam::hierarchGeomDecomp::sortComponent
             rightCoord = maxCoord;
 
             // Calculate rightIndex/rightCoord to have wanted size
-            findBinary
+            bool ok = findBinary
             (
                 sizeTol,
                 sortedCoord,
@@ -429,6 +410,11 @@ void Foam::hierarchGeomDecomp::sortComponent
                 rightCoord
             );
             localSize = rightIndex - leftIndex;
+
+            if (!ok)
+            {
+                ++nWarnings;
+            }
         }
 
         if (debug)
@@ -467,7 +453,7 @@ void Foam::hierarchGeomDecomp::sortComponent
                 Pout.prefix() = "  " + oldPrefix;
             }
 
-            sortComponent
+            nWarnings += sortComponent
             (
                 sizeTol,
                 points,
@@ -487,23 +473,28 @@ void Foam::hierarchGeomDecomp::sortComponent
         leftIndex += localSize;
         leftCoord = rightCoord;
     }
+
+    return nWarnings;
 }
 
 
 // Sort points into bins according to one component. Recurses to next component.
-void Foam::hierarchGeomDecomp::sortComponent
+Foam::label Foam::hierarchGeomDecomp::sortComponent
 (
     const label sizeTol,
     const scalarField& weights,
     const pointField& points,
     const labelList& current,       // slice of points to decompose
-    const direction componentIndex, // index in decompOrder_
+    const direction componentIndex, // index in order_
     const label mult,               // multiplication factor for finalDecomp
     labelList& finalDecomp
-)
+) const
 {
     // Current component
-    label compI = decompOrder_[componentIndex];
+    const label compI = order_[componentIndex];
+
+    // Track the number of times that findBinary() did not converge
+    label nWarnings = 0;
 
     if (debug)
     {
@@ -526,7 +517,7 @@ void Foam::hierarchGeomDecomp::sortComponent
 
     // Now evaluate local cumulative weights, based on the sorting.
     // Make one bigger than the nodes.
-    scalarField sortedWeightedSizes(current.size()+1, 0);
+    scalarField sortedWeightedSizes(current.size()+1, Zero);
     calculateSortedWeightedSizes
     (
         current,
@@ -540,7 +531,7 @@ void Foam::hierarchGeomDecomp::sortComponent
     (
         (
             sortedCoord.size()
-          ? sortedCoord[0]
+          ? sortedCoord.first()
           : GREAT
         ),
         minOp<scalar>()
@@ -598,7 +589,7 @@ void Foam::hierarchGeomDecomp::sortComponent
             rightCoord = maxCoord;
 
             // Calculate rightIndex/rightCoord to have wanted size
-            findBinary
+            bool ok = findBinary
             (
                 sizeTol,
                 sortedWeightedSizes,
@@ -612,6 +603,11 @@ void Foam::hierarchGeomDecomp::sortComponent
                 rightCoord
             );
             localSize = rightIndex - leftIndex;
+
+            if (!ok)
+            {
+                ++nWarnings;
+            }
         }
 
         if (debug)
@@ -650,7 +646,7 @@ void Foam::hierarchGeomDecomp::sortComponent
                 Pout.prefix() = "  " + oldPrefix;
             }
 
-            sortComponent
+            nWarnings += sortComponent
             (
                 sizeTol,
                 weights,
@@ -671,44 +667,61 @@ void Foam::hierarchGeomDecomp::sortComponent
         leftIndex += localSize;
         leftCoord = rightCoord;
     }
+
+    return nWarnings;
 }
 
+
+// * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
+
+Foam::hierarchGeomDecomp::hierarchGeomDecomp
+(
+    const dictionary& decompDict,
+    const word& regionName
+)
+:
+    geomDecomp(typeName, decompDict, regionName)
+{}
+
+
+// * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
 
 Foam::labelList Foam::hierarchGeomDecomp::decompose
 (
     const pointField& points
-)
+) const
 {
     // construct a list for the final result
-    labelList finalDecomp(points.size(), 0);
+    labelList finalDecomp(points.size(), Zero);
 
     // Start off with every point sorted onto itself.
-    labelList slice(points.size());
-    forAll(slice, i)
-    {
-        slice[i] = i;
-    }
+    labelList slice(identity(points.size()));
 
-    pointField rotatedPoints(rotDelta_ & points);
+    const pointField rotatedPoints(adjustPoints(points));
 
     // Calculate tolerance of cell distribution. For large cases finding
-    // distibution to the cell exact would cause too many iterations so allow
+    // distribution to the cell exact would cause too many iterations so allow
     // some slack.
-    label allSize = points.size();
-    reduce(allSize, sumOp<label>());
-
-    const label sizeTol = max(1, label(1e-3*allSize/nProcessors_));
+    const label allSize = returnReduce(points.size(), sumOp<label>());
+    const label sizeTol = max(1, label(1e-3*allSize/nDomains_));
 
     // Sort recursive
-    sortComponent
+    const label nWarnings = sortComponent
     (
         sizeTol,
         rotatedPoints,
         slice,
-        0,              // Sort first component in decompOrder.
+        0,              // Sort first component in order_
         1,              // Offset for different x bins.
         finalDecomp
     );
+
+    if (nWarnings)
+    {
+        WarningInFunction
+            << "\nEncountered " << nWarnings << " occurrences where the desired"
+               " decomposition split could not be properly satisfied" << endl;
+    }
 
     return finalDecomp;
 }
@@ -718,55 +731,42 @@ Foam::labelList Foam::hierarchGeomDecomp::decompose
 (
     const pointField& points,
     const scalarField& weights
-)
+) const
 {
-    // construct a list for the final result
-    labelList finalDecomp(points.size(), 0);
+    // Construct a list for the final result
+    labelList finalDecomp(points.size(), Zero);
 
     // Start off with every point sorted onto itself.
-    labelList slice(points.size());
-    forAll(slice, i)
-    {
-        slice[i] = i;
-    }
+    labelList slice(identity(points.size()));
 
-    pointField rotatedPoints(rotDelta_ & points);
+    const pointField rotatedPoints(adjustPoints(points));
 
     // Calculate tolerance of cell distribution. For large cases finding
-    // distibution to the cell exact would cause too many iterations so allow
+    // distribution to the cell exact would cause too many iterations so allow
     // some slack.
-    label allSize = points.size();
-    reduce(allSize, sumOp<label>());
-
-    const label sizeTol = max(1, label(1e-3*allSize/nProcessors_));
+    const label allSize = returnReduce(points.size(), sumOp<label>());
+    const label sizeTol = max(1, label(1e-3*allSize/nDomains_));
 
     // Sort recursive
-    sortComponent
+    const label nWarnings = sortComponent
     (
         sizeTol,
         weights,
         rotatedPoints,
         slice,
-        0,              // Sort first component in decompOrder.
+        0,              // Sort first component in order_
         1,              // Offset for different x bins.
         finalDecomp
     );
 
+    if (nWarnings)
+    {
+        WarningInFunction
+            << "\nEncountered " << nWarnings << " occurrences where the desired"
+               " decomposition split could not be properly satisfied" << endl;
+    }
+
     return finalDecomp;
-}
-
-
-// * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
-
-Foam::hierarchGeomDecomp::hierarchGeomDecomp
-(
-    const dictionary& decompositionDict
-)
-:
-    geomDecomp(decompositionDict, typeName),
-    decompOrder_()
-{
-    setDecompOrder();
 }
 
 

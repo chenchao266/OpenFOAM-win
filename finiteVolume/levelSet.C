@@ -1,9 +1,12 @@
-﻿/*---------------------------------------------------------------------------*\
+/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2017 OpenFOAM Foundation
+    Copyright (C) 2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -50,7 +53,7 @@ Foam::levelSetFraction
                 mesh
             ),
             mesh,
-            dimensionedScalar("0", dimless, 0)
+            dimensionedScalar(dimless, Zero)
         )
     );
     DimensionedField<scalar, volMesh>& result = tResult.ref();
@@ -110,18 +113,19 @@ Foam::tmp<Foam::scalarField> Foam::levelSetFraction
     const bool above
 )
 {
-    tmp<scalarField> tResult(new scalarField(patch.size(), 0));
+    tmp<scalarField> tResult(new scalarField(patch.size(), Zero));
     scalarField& result = tResult.ref();
 
     forAll(result, fI)
     {
         const face& f = patch.patch().localFaces()[fI];
 
-        vector a = vector::_zero, r = vector::_zero;
+        vector a(Zero);
+        vector r(Zero);
 
-        for(label eI = 0; eI < f.size(); ++ eI)
+        for (label edgei = 0; edgei < f.nEdges(); ++edgei)
         {
-            const edge e = f.faceEdge(eI);
+            const edge e = f.edge(edgei);
 
             const FixedList<point, 3>
                 tri =

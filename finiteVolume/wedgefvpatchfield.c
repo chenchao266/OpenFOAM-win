@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -23,156 +25,154 @@ License
 
 \*---------------------------------------------------------------------------*/
 
-//#include "wedgeFvPatch.H"
-#include "wedgeFvPatchField.H"
+#include "wedgeFvPatch.H"
+//#include "wedgeFvPatchField.H"
 #include "transformField.H"
 #include "symmTransform.H"
-#include "diagTensor.H"
+#include "diagTensor2.H"
 
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
-namespace Foam {
-    template<class Type>
-    wedgeFvPatchField<Type>::wedgeFvPatchField
-    (
-        const fvPatch& p,
-        const DimensionedField<Type, volMesh>& iF
-    )
-        :
-        transformFvPatchField<Type>(p, iF)
-    {}
+
+template<class Type>
+Foam::wedgeFvPatchField<Type>::wedgeFvPatchField
+(
+    const fvPatch& p,
+    const DimensionedField<Type, volMesh>& iF
+)
+:
+    transformFvPatchField<Type>(p, iF)
+{}
 
 
-    template<class Type>
-    wedgeFvPatchField<Type>::wedgeFvPatchField
-    (
-        const wedgeFvPatchField<Type>& ptf,
-        const fvPatch& p,
-        const DimensionedField<Type, volMesh>& iF,
-        const fvPatchFieldMapper& mapper
-    )
-        :
-        transformFvPatchField<Type>(ptf, p, iF, mapper)
+template<class Type>
+Foam::wedgeFvPatchField<Type>::wedgeFvPatchField
+(
+    const wedgeFvPatchField<Type>& ptf,
+    const fvPatch& p,
+    const DimensionedField<Type, volMesh>& iF,
+    const fvPatchFieldMapper& mapper
+)
+:
+    transformFvPatchField<Type>(ptf, p, iF, mapper)
+{
+    if (!isType<wedgeFvPatch>(this->patch()))
     {
-        if (!isType<wedgeFvPatch>(this->patch()))
-        {
-            FatalErrorInFunction
-                << "' not constraint type '" << typeName << "'"
-                << "\n    for patch " << p.name()
-                << " of field " << this->internalField().name()
-                << " in file " << this->internalField().objectPath()
-                << exit(FatalIOError);
-        }
+        FatalErrorInFunction
+            << "' not constraint type '" << typeName << "'"
+            << "\n    for patch " << p.name()
+            << " of field " << this->internalField().name()
+            << " in file " << this->internalField().objectPath()
+            << exit(FatalError);
     }
-
-
-    template<class Type>
-    wedgeFvPatchField<Type>::wedgeFvPatchField
-    (
-        const fvPatch& p,
-        const DimensionedField<Type, volMesh>& iF,
-        const dictionary& dict
-    )
-        :
-        transformFvPatchField<Type>(p, iF, dict)
-    {
-        if (!isType<wedgeFvPatch>(p))
-        {
-            FatalIOErrorInFunction
-            (
-                dict
-            ) << "\n    patch type '" << p.type()
-                << "' not constraint type '" << typeName << "'"
-                << "\n    for patch " << p.name()
-                << " of field " << this->internalField().name()
-                << " in file " << this->internalField().objectPath()
-                << exit(FatalIOError);
-        }
-
-        evaluate();
-    }
-
-
-    template<class Type>
-    wedgeFvPatchField<Type>::wedgeFvPatchField
-    (
-        const wedgeFvPatchField<Type>& ptf
-    )
-        :
-        transformFvPatchField<Type>(ptf)
-    {}
-
-
-    template<class Type>
-    wedgeFvPatchField<Type>::wedgeFvPatchField
-    (
-        const wedgeFvPatchField<Type>& ptf,
-        const DimensionedField<Type, volMesh>& iF
-    )
-        :
-        transformFvPatchField<Type>(ptf, iF)
-    {}
-
-
-    // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
-
-    template<class Type>
-    tmp<Field<Type>> wedgeFvPatchField<Type>::snGrad() const
-    {
-        const Field<Type> pif(this->patchInternalField());
-
-        return
-            (
-                transform(refCast<const wedgeFvPatch>(this->patch()).cellT(), pif) - pif
-                )*(0.5*this->patch().deltaCoeffs());
-    }
-
-
-    template<class Type>
-    void wedgeFvPatchField<Type>::evaluate(const Pstream::commsTypes)
-    {
-        if (!this->updated())
-        {
-            this->updateCoeffs();
-        }
-
-        fvPatchField<Type>::operator==
-            (
-                transform
-                (
-                    refCast<const wedgeFvPatch>(this->patch()).faceT(),
-                    this->patchInternalField()
-                )
-                );
-    }
-
-
-    template<class Type>
-    tmp<Field<Type>>
-        wedgeFvPatchField<Type>::snGradTransformDiag() const
-    {
-        const diagTensor diagT =
-            0.5*diag(I - refCast<const wedgeFvPatch>(this->patch()).cellT());
-
-        const vector diagV(diagT.xx(), diagT.yy(), diagT.zz());
-
-        return tmp<Field<Type>>
-            (
-                new Field<Type>
-                (
-                    this->size(),
-                    transformMask<Type>
-                    (
-                        pow
-                        (
-                            diagV,
-                            pTraits<typename powProduct<vector, pTraits<Type>::rank>
-                            ::type>::_zero
-                        )
-                        )
-                    )
-                );
-    }
-
 }
+
+
+template<class Type>
+Foam::wedgeFvPatchField<Type>::wedgeFvPatchField
+(
+    const fvPatch& p,
+    const DimensionedField<Type, volMesh>& iF,
+    const dictionary& dict
+)
+:
+    transformFvPatchField<Type>(p, iF, dict)
+{
+    if (!isType<wedgeFvPatch>(p))
+    {
+        FatalIOErrorInFunction(dict)
+            << "\n    patch type '" << p.type()
+            << "' not constraint type '" << typeName << "'"
+            << "\n    for patch " << p.name()
+            << " of field " << this->internalField().name()
+            << " in file " << this->internalField().objectPath()
+            << exit(FatalIOError);
+    }
+
+    evaluate();
+}
+
+
+template<class Type>
+Foam::wedgeFvPatchField<Type>::wedgeFvPatchField
+(
+    const wedgeFvPatchField<Type>& ptf
+)
+:
+    transformFvPatchField<Type>(ptf)
+{}
+
+
+template<class Type>
+Foam::wedgeFvPatchField<Type>::wedgeFvPatchField
+(
+    const wedgeFvPatchField<Type>& ptf,
+    const DimensionedField<Type, volMesh>& iF
+)
+:
+    transformFvPatchField<Type>(ptf, iF)
+{}
+
+
+// * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
+
+template<class Type>
+Foam::tmp<Foam::Field<Type>> Foam::wedgeFvPatchField<Type>::snGrad() const
+{
+    const Field<Type> pif(this->patchInternalField());
+
+    return
+    (
+        transform(refCast<const wedgeFvPatch>(this->patch()).cellT(), pif) - pif
+    )*(0.5*this->patch().deltaCoeffs());
+}
+
+
+template<class Type>
+void Foam::wedgeFvPatchField<Type>::evaluate(const Pstream::commsTypes)
+{
+    if (!this->updated())
+    {
+        this->updateCoeffs();
+    }
+
+    fvPatchField<Type>::operator==
+    (
+        transform
+        (
+            refCast<const wedgeFvPatch>(this->patch()).faceT(),
+            this->patchInternalField()
+        )
+    );
+}
+
+
+template<class Type>
+Foam::tmp<Foam::Field<Type>>
+Foam::wedgeFvPatchField<Type>::snGradTransformDiag() const
+{
+    const diagTensor diagT =
+        0.5*diag(I - refCast<const wedgeFvPatch>(this->patch()).cellT());
+
+    const vector diagV(diagT.xx(), diagT.yy(), diagT.zz());
+
+    return tmp<Field<Type>>
+    (
+        new Field<Type>
+        (
+            this->size(),
+            transformMask<Type>
+            (
+                pow
+                (
+                    diagV,
+                    pTraits<typename powProduct<vector, pTraits<Type>::rank>
+                    ::type>::zero_
+                )
+            )
+        )
+    );
+}
+
+
 // ************************************************************************* //

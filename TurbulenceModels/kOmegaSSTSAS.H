@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2015-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2015-2016 OpenFOAM Foundation
+    Copyright (C) 2019 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -102,9 +105,11 @@ class kOmegaSSTSAS
 {
     // Private Member Functions
 
-        // Disallow default bitwise copy construct and assignment
-        kOmegaSSTSAS(const kOmegaSSTSAS&);
-        void operator=(const kOmegaSSTSAS&);
+        //- No copy construct
+        kOmegaSSTSAS(const kOmegaSSTSAS&) = delete;
+
+        //- No copy assignment
+        void operator=(const kOmegaSSTSAS&) = delete;
 
 
 protected:
@@ -165,8 +170,7 @@ public:
 
 
     //- Destructor
-    virtual ~kOmegaSSTSAS()
-    {}
+    virtual ~kOmegaSSTSAS() = default;
 
 
     // Member Functions
@@ -177,7 +181,7 @@ public:
         //- Access function to filter width
         inline const volScalarField& delta() const
         {
-            return delta_();
+            return *delta_;
         }
 };
 

@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2013-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2013-2017 OpenFOAM Foundation
+    Copyright (C) 2019 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -55,11 +58,11 @@ class extendedEdgeMeshFormat
 {
     // Private Member Functions
 
-        //- Disallow default bitwise copy construct
-        extendedEdgeMeshFormat(const extendedEdgeMeshFormat&);
+        //- No copy construct
+        extendedEdgeMeshFormat(const extendedEdgeMeshFormat&) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const extendedEdgeMeshFormat&);
+        //- No copy assignment
+        void operator=(const extendedEdgeMeshFormat&) = delete;
 
 
 public:
@@ -71,8 +74,7 @@ public:
 
 
     //- Destructor
-    virtual ~extendedEdgeMeshFormat()
-    {}
+    virtual ~extendedEdgeMeshFormat() = default;
 
 
     // Member Functions

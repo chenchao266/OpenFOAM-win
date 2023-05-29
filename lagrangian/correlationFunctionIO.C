@@ -1,9 +1,11 @@
-﻿/*---------------------------------------------------------------------------*\
+/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -23,7 +25,7 @@ License
 
 \*---------------------------------------------------------------------------*/
 
-//#include "correlationFunction.H"
+#include "correlationFunction.H"
 #include "IOstreams.H"
 
 template<class Type>
@@ -57,13 +59,7 @@ Foam::Ostream& Foam::operator<<
         << nl << cF.tZeroBuffers()
         << nl << static_cast<const bufferedAccumulator<scalar>&>(cF);
 
-    // Check state of Ostream
-    os.check
-    (
-        "Foam::Ostream& Foam::operator<<"
-        "(Ostream&, const correlationFunction<Type>&)"
-    );
-
+    os.check(FUNCTION_NAME);
     return os;
 }
 

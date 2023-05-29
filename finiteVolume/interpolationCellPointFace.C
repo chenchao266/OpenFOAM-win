@@ -1,9 +1,11 @@
-﻿/*---------------------------------------------------------------------------*\
+/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -23,7 +25,7 @@ License
 
 \*---------------------------------------------------------------------------*/
 
-//#include "interpolationCellPointFace.H"
+#include "interpolationCellPointFace.H"
 #include "volFields.H"
 #include "polyMesh.H"
 #include "volPointInterpolation.H"
@@ -88,12 +90,9 @@ Type Foam::interpolationCellPointFace<Type>::interpolate
         label closestFace = -1;
         scalar minDistance = GREAT;
 
-        forAll(cellFaces, facei)
+        for (const label nFace : cellFaces)
         {
-            label nFace = cellFaces[facei];
-
-            vector normal = this->pMeshFaceAreas_[nFace];
-            normal /= mag(normal);
+            const vector normal = normalised(this->pMeshFaceAreas_[nFace]);
 
             const vector& faceCentreTmp = this->pMeshFaceCentres_[nFace];
 

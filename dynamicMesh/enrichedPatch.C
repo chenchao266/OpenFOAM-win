@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2017-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -24,7 +27,6 @@ License
 \*---------------------------------------------------------------------------*/
 
 #include "enrichedPatch.H"
-#include "demandDrivenData.H"
 #include "OFstream.H"
 #include "meshTools.H"
 
@@ -47,10 +49,7 @@ void Foam::enrichedPatch::calcMeshPoints() const
             << abort(FatalError);
     }
 
-    meshPointsPtr_ = new labelList(pointMap().toc());
-    labelList& mp = *meshPointsPtr_;
-
-    sort(mp);
+    meshPointsPtr_.reset(new labelList(pointMap().sortedToc()));
 }
 
 
@@ -68,27 +67,24 @@ void Foam::enrichedPatch::calcLocalFaces() const
 
     Map<label> mpLookup(2*mp.size());
 
-    forAll(mp, mpI)
+    forAll(mp, mpi)
     {
-        mpLookup.insert(mp[mpI], mpI);
+        mpLookup.insert(mp[mpi], mpi);
     }
+
+    // Create local faces.
+    // Copy original faces and overwrite vertices after
 
     const faceList& faces = enrichedFaces();
 
-    localFacesPtr_ = new faceList(faces.size());
-    faceList& lf = *localFacesPtr_;
+    localFacesPtr_.reset(new faceList(faces));
+    auto& locFaces = *localFacesPtr_;
 
-    forAll(faces, facei)
+    for (face& f : locFaces)
     {
-        const face& f = faces[facei];
-
-        face& curlf = lf[facei];
-
-        curlf.setSize(f.size());
-
-        forAll(f, pointi)
+        for (label& pointi : f)
         {
-            curlf[pointi] = mpLookup.find(f[pointi])();
+            pointi = *(mpLookup.cfind(pointi));
         }
     }
 }
@@ -105,25 +101,25 @@ void Foam::enrichedPatch::calcLocalPoints() const
 
     const labelList& mp = meshPoints();
 
-    localPointsPtr_ = new pointField(mp.size());
-    pointField& lp = *localPointsPtr_;
+    localPointsPtr_.reset(new pointField(mp.size()));
+    auto& locPoints = *localPointsPtr_;
 
-    forAll(lp, i)
+    forAll(locPoints, i)
     {
-        lp[i] = pointMap().find(mp[i])();
+        locPoints[i] = *(pointMap().cfind(mp[i]));
     }
 }
 
 
 void Foam::enrichedPatch::clearOut()
 {
-    deleteDemandDrivenData(enrichedFacesPtr_);
+    enrichedFacesPtr_.reset(nullptr);
 
-    deleteDemandDrivenData(meshPointsPtr_);
-    deleteDemandDrivenData(localFacesPtr_);
-    deleteDemandDrivenData(localPointsPtr_);
-    deleteDemandDrivenData(pointPointsPtr_);
-    deleteDemandDrivenData(masterPointFacesPtr_);
+    meshPointsPtr_.reset(nullptr);
+    localFacesPtr_.reset(nullptr);
+    localPointsPtr_.reset(nullptr);
+    pointPointsPtr_.reset(nullptr);
+    masterPointFacesPtr_.reset(nullptr);
 
     clearCutFaces();
 }
@@ -131,14 +127,13 @@ void Foam::enrichedPatch::clearOut()
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
-// Construct from components
 Foam::enrichedPatch::enrichedPatch
 (
     const primitiveFacePatch& masterPatch,
     const primitiveFacePatch& slavePatch,
-    const labelList& slavePointPointHits,
-    const labelList& slavePointEdgeHits,
-    const List<objectHit>& slavePointFaceHits
+    const labelUList& slavePointPointHits,
+    const labelUList& slavePointEdgeHits,
+    const UList<objectHit>& slavePointFaceHits
 )
 :
     masterPatch_(masterPatch),
@@ -163,14 +158,6 @@ Foam::enrichedPatch::enrichedPatch
     cutFaceMasterPtr_(nullptr),
     cutFaceSlavePtr_(nullptr)
 {}
-
-
-// * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
-
-Foam::enrichedPatch::~enrichedPatch()
-{
-    clearOut();
-}
 
 
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
@@ -227,15 +214,13 @@ bool Foam::enrichedPatch::checkSupport() const
 
     forAll(faces, facei)
     {
-        const face& curFace = faces[facei];
-
-        forAll(curFace, pointi)
+        for (const label pointi : faces[facei])
         {
-            if (!pointMap().found(curFace[pointi]))
+            if (!pointMap().found(pointi))
             {
                 WarningInFunction
                     << "Point " << pointi << " of face " << facei
-                    << " global point index: " << curFace[pointi]
+                    << " global point index: " << pointi
                     << " not supported in point map.  This is not allowed."
                     << endl;
 
@@ -252,36 +237,20 @@ void Foam::enrichedPatch::writeOBJ(const fileName& fName) const
 {
     OFstream str(fName);
 
-    const pointField& lp = localPoints();
-
-    forAll(lp, pointi)
-    {
-        meshTools::writeOBJ(str, lp[pointi]);
-    }
+    meshTools::writeOBJ(str, localPoints());
 
     const faceList& faces = localFaces();
 
-    forAll(faces, facei)
+    for (const face& f : faces)
     {
-        const face& f = faces[facei];
-
         str << 'f';
-        forAll(f, fp)
+        for (const label fp : f)
         {
-            str << ' ' << f[fp]+1;
+            str << ' ' << fp+1;
         }
         str << nl;
     }
 }
-
-
-// * * * * * * * * * * * * * * * Member Operators  * * * * * * * * * * * * * //
-
-
-// * * * * * * * * * * * * * * * Friend Functions  * * * * * * * * * * * * * //
-
-
-// * * * * * * * * * * * * * * * Friend Operators  * * * * * * * * * * * * * //
 
 
 // ************************************************************************* //

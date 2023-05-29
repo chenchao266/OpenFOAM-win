@@ -1,9 +1,12 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -25,7 +28,7 @@ Class
     Foam::geometricZeroField
 
 Description
-    A class representing the concept of a GeometricField of 1 used to avoid
+    A class representing the concept of a GeometricField of 0 used to avoid
     unnecessary manipulations for objects which are known to be zero at
     compile-time.
 
@@ -50,31 +53,76 @@ namespace Foam
                       Class geometricZeroField Declaration
 \*---------------------------------------------------------------------------*/
 
-class geometricZeroField :    public zero
+class geometricZeroField
+:
+    public zero
 {
-
 public:
+
+    // Public Typedefs
+
+        typedef zeroField Internal;
+        typedef zeroField Patch;
+        typedef zeroFieldField Boundary;
+        typedef zero cmptType;
+
 
     // Constructors
 
-        //- Construct null
-        geometricZeroField()
-        {}
+        //- Default construct
+        geometricZeroField() noexcept = default;
+
+
+    // Member Functions
+
+        const dimensionSet& dimensions() const noexcept
+        {
+            return dimless;
+        }
+
+        zeroField field() const noexcept
+        {
+            return zeroField{};
+        }
+
+        zeroField oldTime() const noexcept
+        {
+            return zeroField{};
+        }
+
+        Internal internalField() const noexcept
+        {
+            return Internal{};
+        }
+
+        Internal primitiveField() const noexcept
+        {
+            return Internal{};
+        }
+
+        Boundary boundaryField() const noexcept
+        {
+            return Boundary{};
+        }
+
+        // Same as internalField()
+        Internal v() const noexcept
+        {
+            return Internal{};
+        }
 
 
     // Member Operators
 
-        inline const dimensionSet& dimensions() const;
+        scalar operator[](const label) const noexcept
+        {
+            return 0;
+        }
 
-        inline scalar operator[](const label) const;
-
-        inline zeroField field() const;
-
-        inline zeroField operator()() const;
-
-        inline zeroField oldTime() const;
-
-        inline zeroFieldField boundaryField() const;
+        Internal operator()() const noexcept
+        {
+            return Internal{};
+        }
 };
 
 
@@ -83,6 +131,8 @@ public:
 } // End namespace Foam
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+// Global Operators
 
 #include "geometricZeroFieldI.H"
 

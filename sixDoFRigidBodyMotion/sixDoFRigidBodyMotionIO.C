@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2014 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2014 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -25,16 +28,17 @@ License
 
 #include "sixDoFRigidBodyMotion.H"
 #include "IOstreams.H"
+#include "sixDoFSolver.H"
 
 // * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * * //
 
 bool Foam::sixDoFRigidBodyMotion::read(const dictionary& dict)
 {
-    dict.lookup("mass") >> mass_;
-    dict.lookup("momentOfInertia") >> momentOfInertia_;
-    aRelax_ = dict.lookupOrDefault<scalar>("accelerationRelaxation", 1.0);
-    aDamp_ = dict.lookupOrDefault<scalar>("accelerationDamping", 1.0);
-    report_ = dict.lookupOrDefault<Switch>("report", false);
+    dict.readEntry("mass", mass_);
+    dict.readEntry("momentOfInertia", momentOfInertia_);
+    aRelax_ = dict.getOrDefault<scalar>("accelerationRelaxation", 1);
+    aDamp_ = dict.getOrDefault<scalar>("accelerationDamping", 1);
+    report_ = dict.getOrDefault<Switch>("report", false);
 
     restraints_.clear();
     addRestraints(dict);
@@ -50,67 +54,60 @@ void Foam::sixDoFRigidBodyMotion::write(Ostream& os) const
 {
     motionState_.write(os);
 
-    os.writeKeyword("centreOfMass")
-        << initialCentreOfMass_ << token::END_STATEMENT << nl;
-    os.writeKeyword("initialOrientation")
-        << initialQ_ << token::END_STATEMENT << nl;
-    os.writeKeyword("mass")
-        << mass_ << token::END_STATEMENT << nl;
-    os.writeKeyword("momentOfInertia")
-        << momentOfInertia_ << token::END_STATEMENT << nl;
-    os.writeKeyword("accelerationRelaxation")
-        << aRelax_ << token::END_STATEMENT << nl;
-    os.writeKeyword("accelerationDamping")
-        << aDamp_ << token::END_STATEMENT << nl;
-    os.writeKeyword("report")
-        << report_ << token::END_STATEMENT << nl;
+    os.writeEntry("centreOfMass", initialCentreOfMass_);
+    os.writeEntry("initialOrientation", initialQ_);
+    os.writeEntry("mass", mass_);
+    os.writeEntry("momentOfInertia", momentOfInertia_);
+    os.writeEntry("accelerationRelaxation", aRelax_);
+    os.writeEntry("accelerationDamping", aDamp_);
+    os.writeEntry("report", report_);
 
     if (!restraints_.empty())
     {
-        os  << indent << "restraints" << nl
-            << indent << token::BEGIN_BLOCK << incrIndent << nl;
+        os.beginBlock("restraints");
 
         forAll(restraints_, rI)
         {
-            word restraintType = restraints_[rI].type();
+            const word& restraintType(restraints_[rI].type());
 
-            os  << indent << restraints_[rI].name() << nl
-                << indent << token::BEGIN_BLOCK << incrIndent << endl;
+            os.beginBlock(restraints_[rI].name());
 
-            os.writeKeyword("sixDoFRigidBodyMotionRestraint")
-                << restraintType << token::END_STATEMENT << nl;
+            os.writeEntry("sixDoFRigidBodyMotionRestraint", restraintType);
 
             restraints_[rI].write(os);
 
-            os  << decrIndent << indent << token::END_BLOCK << endl;
+            os.endBlock();
         }
 
-        os  << decrIndent << indent << token::END_BLOCK << nl;
+        os.endBlock();
     }
 
     if (!constraints_.empty())
     {
-        os  << indent << "constraints" << nl
-            << indent << token::BEGIN_BLOCK << incrIndent << nl;
+        os.beginBlock("constraints");
 
         forAll(constraints_, rI)
         {
-            word constraintType = constraints_[rI].type();
+            const word& constraintType(constraints_[rI].type());
 
-            os  << indent << constraints_[rI].name() << nl
-                << indent << token::BEGIN_BLOCK << incrIndent << endl;
+            os.beginBlock(constraints_[rI].name());
 
-            os.writeKeyword("sixDoFRigidBodyMotionConstraint")
-                << constraintType << token::END_STATEMENT << nl;
+            os.writeEntry("sixDoFRigidBodyMotionConstraint", constraintType);
 
             constraints_[rI].sixDoFRigidBodyMotionConstraint::write(os);
 
             constraints_[rI].write(os);
 
-            os  << decrIndent << indent << token::END_BLOCK << endl;
+            os.endBlock();
         }
 
-        os  << decrIndent << indent << token::END_BLOCK << nl;
+        os.endBlock();
+    }
+
+    if (solver_)
+    {
+        os  << indent << "solver";
+        solver_->write(os);
     }
 }
 

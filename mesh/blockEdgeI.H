@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -25,15 +28,33 @@ License
 
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
 
-inline Foam::label Foam::blockEdge::start() const
+inline bool Foam::blockEdge::valid() const noexcept
+{
+    return (start_ != end_ && start_ >= 0 && end_ >= 0);
+}
+
+
+inline Foam::label Foam::blockEdge::start() const noexcept
 {
     return start_;
 }
 
 
-inline Foam::label Foam::blockEdge::end() const
+inline Foam::label Foam::blockEdge::end() const noexcept
 {
     return end_;
+}
+
+
+inline const Foam::point& Foam::blockEdge::firstPoint() const
+{
+    return points_[start_];
+}
+
+
+inline const Foam::point& Foam::blockEdge::lastPoint() const
+{
+    return points_[end_];
 }
 
 
@@ -47,10 +68,8 @@ inline int Foam::blockEdge::compare(const label start, const label end) const
     {
         return -1;
     }
-    else
-    {
-        return 0;
-    }
+
+    return 0;
 }
 
 
@@ -63,6 +82,29 @@ inline int Foam::blockEdge::compare(const blockEdge& e) const
 inline int Foam::blockEdge::compare(const edge& e) const
 {
     return Foam::blockEdge::compare(e.start(), e.end());
+}
+
+
+inline Foam::point Foam::blockEdge::linearPosition(const scalar lambda) const
+{
+    #ifdef FULLDEBUG
+    if (lambda < -SMALL || lambda > 1 + SMALL)
+    {
+        InfoInFunction
+            << "Limit parameter to [0-1] range: " << lambda << nl;
+    }
+    #endif
+
+    if (lambda < SMALL)
+    {
+        return firstPoint();
+    }
+    else if (lambda >= 1 - SMALL)
+    {
+        return lastPoint();
+    }
+
+    return firstPoint() + lambda * (lastPoint() - firstPoint());
 }
 
 

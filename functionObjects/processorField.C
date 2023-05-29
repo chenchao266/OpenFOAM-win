@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -65,18 +68,12 @@ Foam::functionObjects::processorField::processorField
                 IOobject::NO_WRITE
             ),
             mesh_,
-            dimensionedScalar("0", dimless, 0.0)
+            dimensionedScalar(dimless, Zero)
         )
     );
 
     mesh_.objectRegistry::store(procFieldPtr);
 }
-
-
-// * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
-
-Foam::functionObjects::processorField::~processorField()
-{}
 
 
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
@@ -91,7 +88,10 @@ bool Foam::functionObjects::processorField::read(const dictionary& dict)
 
 bool Foam::functionObjects::processorField::execute()
 {
-    mesh_.lookupObjectRef<volScalarField>("processorID") ==
+    volScalarField& procField =
+        mesh_.lookupObjectRef<volScalarField>("processorID");
+
+    procField ==
         dimensionedScalar("proci", dimless, Pstream::myProcNo());
 
     return true;
@@ -100,7 +100,10 @@ bool Foam::functionObjects::processorField::execute()
 
 bool Foam::functionObjects::processorField::write()
 {
-    mesh_.lookupObject<volScalarField>("processorID").write();
+    const volScalarField& procField =
+        mesh_.lookupObject<volScalarField>("processorID");
+
+    procField.write();
 
     return true;
 }

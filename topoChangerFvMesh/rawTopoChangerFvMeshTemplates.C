@@ -1,9 +1,11 @@
-﻿/*---------------------------------------------------------------------------*\
+/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -23,8 +25,8 @@ License
 
 \*---------------------------------------------------------------------------*/
 
-//#include "rawTopoChangerFvMesh.H"
-#include "Time.T.H"
+#include "rawTopoChangerFvMesh.H"
+#include "Time1.H"
 
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
 
@@ -32,7 +34,7 @@ template<class Type, template<class> class PatchField, class GeoMesh>
 void Foam::rawTopoChangerFvMesh::setUnmappedValues
 (
     GeometricField<Type, PatchField, GeoMesh>& fld,
-    const PackedBoolList& mappedFace,
+    const bitSet& mappedFace,
     const GeometricField<Type, PatchField, GeoMesh>& baseFld
 )
 {
@@ -64,7 +66,7 @@ void Foam::rawTopoChangerFvMesh::setUnmappedValues
 template<class Type, template<class> class PatchField, class GeoMesh>
 void Foam::rawTopoChangerFvMesh::zeroUnmappedValues
 (
-    const PackedBoolList& mappedFace
+    const bitSet& mappedFace
 ) const
 {
     typedef GeometricField<Type, PatchField, GeoMesh> FieldType;
@@ -93,7 +95,7 @@ void Foam::rawTopoChangerFvMesh::zeroUnmappedValues
                     false
                 ),
                 *this,
-                dimensioned<Type>("0", fld.dimensions(), Zero)
+                dimensioned<Type>(fld.dimensions(), Zero)
             )
         );
     }

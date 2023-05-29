@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2013 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2013 OpenFOAM Foundation
+    Copyright (C) 2019 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -36,7 +39,7 @@ SourceFiles
 #ifndef cyclicACMIGAMGInterfaceField_H
 #define cyclicACMIGAMGInterfaceField_H
 
-#include "GAMGInterfaceField.T.H"
+#include "GAMGInterfaceField.H"
 #include "cyclicACMIGAMGInterface.H"
 #include "cyclicACMILduInterfaceField.H"
 
@@ -68,11 +71,14 @@ class cyclicACMIGAMGInterfaceField
 
     // Private Member Functions
 
-        //- Disallow default bitwise copy construct
-        cyclicACMIGAMGInterfaceField(const cyclicACMIGAMGInterfaceField&);
+        //- No copy construct
+        cyclicACMIGAMGInterfaceField
+        (
+            const cyclicACMIGAMGInterfaceField&
+        ) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const cyclicACMIGAMGInterfaceField&);
+        //- No copy assignment
+        void operator=(const cyclicACMIGAMGInterfaceField&) = delete;
 
 
 public:
@@ -119,8 +125,11 @@ public:
             //- Update result field based on interface functionality
             virtual void updateInterfaceMatrix
             (
-                scalarField& result,
-                const scalarField& psiInternal,
+                solveScalarField& result,
+                const bool add,
+                const lduAddressing& lduAddr,
+                const label patchId,
+                const solveScalarField& psiInternal,
                 const scalarField& coeffs,
                 const direction cmpt,
                 const Pstream::commsTypes commsType
@@ -129,7 +138,7 @@ public:
 
         //- Cyclic interface functions
 
-            //- Does the interface field perform the transfromation
+            //- Does the interface field perform the transformation
             virtual bool doTransform() const
             {
                 return doTransform_;

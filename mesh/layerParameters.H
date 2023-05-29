@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2015 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -35,10 +37,11 @@ SourceFiles
 #ifndef layerParameters_H
 #define layerParameters_H
 
-#include "dictionary.H"
+#include "dictionary2.H"
 #include "scalarField.H"
 #include "labelList.H"
 #include "Switch.H"
+#include "Enum.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -60,20 +63,19 @@ public:
     // Public data types
 
         //- Enumeration defining the layer specification:
-        //
-        //    - first and total thickness specified
-        //    - first and expansion ratio specified
-        //    - final and total thickness specified
-        //    - final and expansion ratio specified
-        //    - total thickness and expansion ratio specified
-        enum layerSpecification
+        //  - first and total thickness specified
+        //  - first and expansion ratio specified
+        //  - final and total thickness specified
+        //  - final and expansion ratio specified
+        //  - total thickness and expansion ratio specified
+        enum thicknessModelType
         {
-            ILLEGAL,
             FIRST_AND_TOTAL,
             FIRST_AND_EXPANSION,
             FINAL_AND_TOTAL,
             FINAL_AND_EXPANSION,
-            TOTAL_AND_EXPANSION
+            TOTAL_AND_EXPANSION,
+            FIRST_AND_RELATIVE_FINAL
         };
 
 
@@ -81,13 +83,19 @@ private:
 
     // Static data members
 
-        //- Default angle for faces to be convcave
+        //- Default angle for faces to be concave
         static const scalar defaultConcaveAngle;
 
+        //- thicknessModelType names
+        static const Enum<thicknessModelType> thicknessModelTypeNames_;
 
-    // Private data
+
+    // Private Data
 
         const dictionary dict_;
+
+        //- In dry-run mode?
+        const bool dryRun_;
 
 
         // Per patch (not region!) information
@@ -96,24 +104,26 @@ private:
             labelList numLayers_;
 
             //- Are sizes relative to local cell size
-            Switch relativeSizes_;
+            boolList relativeSizes_;
 
             //- How thickness is specified.
-            layerSpecification layerSpec_;
+            List<thicknessModelType> layerModels_;
 
-                scalarField firstLayerThickness_;
+            scalarField firstLayerThickness_;
 
-                scalarField finalLayerThickness_;
+            scalarField finalLayerThickness_;
 
-                scalarField thickness_;
+            scalarField thickness_;
 
-                scalarField expansionRatio_;
+            scalarField expansionRatio_;
 
             //- Minimum total thickness
             scalarField minThickness_;
 
 
         scalar featureAngle_;
+
+        scalar mergePatchFacesAngle_;
 
         scalar concaveAngle_;
 
@@ -127,7 +137,8 @@ private:
 
         label nRelaxedIter_;
 
-        Switch additionalReporting_;
+        //- Any additional reporting
+        bool additionalReporting_;
 
         word meshShrinker_;
 
@@ -136,17 +147,39 @@ private:
 
         //- Calculate expansion ratio from overall size v.s. thickness of
         //  first layer.
-        scalar layerExpansionRatio
+        static scalar layerExpansionRatio
         (
             const label n,
             const scalar totalOverFirst
-        ) const;
+        );
 
-        //- Disallow default bitwise copy construct
-        layerParameters(const layerParameters&);
+        //- Read parameters according to thickness model
+        static void readLayerParameters
+        (
+            const bool verbose,
+            const dictionary&,
+            const thicknessModelType& spec,
+            scalar& firstLayerThickness,
+            scalar& finalLayerThickness,
+            scalar& thickness,
+            scalar& expansionRatio
+        );
 
-        //- Disallow default bitwise assignment
-        void operator=(const layerParameters&);
+        void calculateLayerParameters
+        (
+            const thicknessModelType& spec,
+            const label nLayers,
+            scalar& firstLayerThickness,
+            scalar& finalLayerThickness,
+            scalar& thickness,
+            scalar& expansionRatio
+        );
+
+        //- No copy construct
+        layerParameters(const layerParameters&) = delete;
+
+        //- No copy assignment
+        void operator=(const layerParameters&) = delete;
 
 
 public:
@@ -154,7 +187,12 @@ public:
     // Constructors
 
         //- Construct from dictionary
-        layerParameters(const dictionary& dict, const polyBoundaryMesh&);
+        layerParameters
+        (
+            const dictionary& dict,
+            const polyBoundaryMesh&,
+            const bool dryRun = false
+        );
 
 
     // Member Functions
@@ -167,12 +205,11 @@ public:
 
         // Per patch information
 
-            //- How many layers to add:
-            //
-            //    - -1 : no specification. Assume 0 layers but allow sliding
-            //        to make layers
-            //    - 0 : specified to have 0 layers. No sliding allowed.
-            //    - >0 : number of layers
+            //- How many layers to add.
+            //  -1 : no specification. Assume 0 layers but allow sliding
+            //       to make layers
+            //   0 : specified to have 0 layers. No sliding allowed.
+            //  >0 : number of layers
             const labelList& numLayers() const
             {
                 return numLayers_;
@@ -180,9 +217,15 @@ public:
 
             //- Are size parameters relative to inner cell size or
             //  absolute distances.
-            bool relativeSizes() const
+            const boolList& relativeSizes() const
             {
                 return relativeSizes_;
+            }
+
+            //- Specification of layer thickness
+            const List<thicknessModelType>& layerModels() const
+            {
+                return layerModels_;
             }
 
             // Expansion factor for layer mesh
@@ -249,6 +292,11 @@ public:
                 return featureAngle_;
             }
 
+            scalar mergePatchFacesAngle() const
+            {
+                return mergePatchFacesAngle_;
+            }
+
             scalar concaveAngle() const
             {
                 return concaveAngle_;
@@ -274,7 +322,8 @@ public:
                 return nBufferCellsNoExtrude_;
             }
 
-            const Switch& additionalReporting() const
+            //- Any additional reporting requested?
+            bool additionalReporting() const
             {
                 return additionalReporting_;
             }
@@ -289,45 +338,48 @@ public:
         // Helper
 
             //- Determine overall thickness. Uses two of the four parameters
-            //  according to the layerSpecification
-            scalar layerThickness
+            //  according to the thicknessModel
+            static scalar layerThickness
             (
+                const thicknessModelType,
                 const label nLayers,
-                const scalar firstLayerThickess,
-                const scalar finalLayerThickess,
+                const scalar firstLayerThickness,
+                const scalar finalLayerThickness,
                 const scalar totalThickness,
                 const scalar expansionRatio
-            ) const;
+            );
 
             //- Determine expansion ratio. Uses two of the four parameters
-            //  according to the layerSpecification
-            scalar layerExpansionRatio
+            //  according to the thicknessModel
+            static scalar layerExpansionRatio
             (
+                const thicknessModelType,
                 const label nLayers,
-                const scalar firstLayerThickess,
-                const scalar finalLayerThickess,
+                const scalar firstLayerThickness,
+                const scalar finalLayerThickness,
                 const scalar totalThickness,
                 const scalar expansionRatio
-            ) const;
+            );
 
             //- Determine first layer (near-wall) thickness. Uses two of the
-            //  four parameters according to the layerSpecification
-            scalar firstLayerThickness
+            //  four parameters according to the thicknessModel
+            static scalar firstLayerThickness
             (
+                const thicknessModelType,
                 const label nLayers,
-                const scalar firstLayerThickess,
-                const scalar finalLayerThickess,
+                const scalar firstLayerThickness,
+                const scalar finalLayerThickness,
                 const scalar totalThickness,
                 const scalar expansionRatio
-            ) const;
+            );
 
             //- Determine ratio of final layer thickness to
             //  overall layer thickness
-            scalar finalLayerThicknessRatio
+            static scalar finalLayerThicknessRatio
             (
                 const label nLayers,
                 const scalar expansionRatio
-            ) const;
+            );
 };
 
 

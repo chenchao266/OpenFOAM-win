@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2016 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -59,10 +62,10 @@ Foam::solidBodyMotionSolver::solidBodyMotionSolver
     moveAllCells_(false)
 {
     word cellZoneName =
-        coeffDict().lookupOrDefault<word>("cellZone", "none");
+        coeffDict().getOrDefault<word>("cellZone", "none");
 
     word cellSetName =
-        coeffDict().lookupOrDefault<word>("cellSet", "none");
+        coeffDict().getOrDefault<word>("cellSet", "none");
 
     if ((cellZoneName != "none") && (cellSetName != "none"))
     {

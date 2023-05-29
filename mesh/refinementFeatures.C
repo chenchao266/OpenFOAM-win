@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2015 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -24,10 +27,11 @@ License
 \*---------------------------------------------------------------------------*/
 
 #include "refinementFeatures.H"
-#include "Time.T.H"
-#include "Tuple2.T.H"
-#include "DynamicField.T.H"
+#include "Time1.H"
+#include "Tuple2.H"
+#include "DynamicField.H"
 #include "featureEdgeMesh.H"
+#include "meshRefinement.H"
 
 // * * * * * * * * * * * * * Private Member Functions  * * * * * * * * * * * //
 
@@ -41,7 +45,17 @@ void Foam::refinementFeatures::read
     {
         const dictionary& dict = featDicts[featI];
 
-        fileName featFileName(dict.lookup("file"));
+        fileName featFileName
+        (
+            meshRefinement::get<fileName>
+            (
+                dict,
+                "file",
+                dryRun_,
+                keyType::REGEX,
+                fileName::null
+            )
+        );
 
 
         // Try reading extendedEdgeMesh first
@@ -66,10 +80,13 @@ void Foam::refinementFeatures::read
                 fName
             );
 
-            Info<< "Read extendedFeatureEdgeMesh " << extFeatObj.name()
-                << nl << incrIndent;
-            eMeshPtr().writeStats(Info);
-            Info<< decrIndent << endl;
+            if (!dryRun_)
+            {
+                Info<< "Read extendedFeatureEdgeMesh " << extFeatObj.name()
+                    << nl << incrIndent;
+                eMeshPtr().writeStats(Info);
+                Info<< decrIndent << endl;
+            }
 
             set(featI, new extendedFeatureEdgeMesh(extFeatObj, eMeshPtr()));
         }
@@ -92,23 +109,22 @@ void Foam::refinementFeatures::read
 
             if (fName.empty())
             {
-                FatalIOErrorInFunction
-                (
-                    dict
-                )   << "Could not open " << featObj.objectPath()
+                FatalIOErrorInFunction(dict)
+                    << "Could not open " << featObj.objectPath()
                     << exit(FatalIOError);
             }
-
 
             // Read as edgeMesh
             autoPtr<edgeMesh> eMeshPtr = edgeMesh::New(fName);
             const edgeMesh& eMesh = eMeshPtr();
 
-            Info<< "Read edgeMesh " << featObj.name() << nl
-                << incrIndent;
-            eMesh.writeStats(Info);
-            Info<< decrIndent << endl;
-
+            if (!dryRun_)
+            {
+                Info<< "Read edgeMesh " << featObj.name() << nl
+                    << incrIndent;
+                eMesh.writeStats(Info);
+                Info<< decrIndent << endl;
+            }
 
             // Analyse for feature points. These are all classified as mixed
             // points for lack of anything better
@@ -186,13 +202,13 @@ void Foam::refinementFeatures::read
 
         if (dict.found("levels"))
         {
-            List<Tuple2<scalar, label>> distLevels(dict["levels"]);
+            List<Tuple2<scalar, label>> distLevels(dict.lookup("levels"));
 
             if (dict.size() < 1)
             {
                 FatalErrorInFunction
                     << " : levels should be at least size 1" << endl
-                    << "levels : "  << dict["levels"]
+                    << "levels : "  << dict.lookup("levels")
                     << exit(FatalError);
             }
 
@@ -203,6 +219,14 @@ void Foam::refinementFeatures::read
             {
                 distances_[featI][j] = distLevels[j].first();
                 levels_[featI][j] = distLevels[j].second();
+
+                if (levels_[featI][j] < 0)
+                {
+                    FatalErrorInFunction
+                        << "Feature " << featFileName
+                        << " has illegal refinement level " << levels_[featI][j]
+                        << exit(FatalError);
+                }
 
                 // Check in incremental order
                 if (j > 0)
@@ -227,18 +251,33 @@ void Foam::refinementFeatures::read
         else
         {
             // Look up 'level' for single level
-            levels_[featI] = labelList(1, readLabel(dict.lookup("level")));
-            distances_[featI] = scalarField(1, 0.0);
+            levels_[featI] =
+                labelList
+                (
+                    1,
+                    meshRefinement::get<label>
+                    (
+                        dict,
+                        "level",
+                        dryRun_,
+                        keyType::REGEX,
+                        0
+                    )
+                );
+            distances_[featI] = scalarField(1, Zero);
         }
 
-        Info<< "Refinement level according to distance to "
-            << featFileName << " (" << eMesh.points().size() << " points, "
-            << eMesh.edges().size() << " edges)." << endl;
-        forAll(levels_[featI], j)
+        if (!dryRun_)
         {
-            Info<< "    level " << levels_[featI][j]
-                << " for all cells within " << distances_[featI][j]
-                << " metre." << endl;
+            Info<< "Refinement level according to distance to "
+                << featFileName << " (" << eMesh.points().size() << " points, "
+                << eMesh.edges().size() << " edges)." << endl;
+            forAll(levels_[featI], j)
+            {
+                Info<< "    level " << levels_[featI][j]
+                    << " for all cells within " << distances_[featI][j]
+                    << " metre." << endl;
+            }
         }
     }
 }
@@ -259,8 +298,8 @@ void Foam::refinementFeatures::buildTrees(const label featI)
     // Slightly extended bb. Slightly off-centred just so on symmetric
     // geometry there are less face/edge aligned items.
     bb = bb.extend(rndGen, 1e-4);
-    bb.min() -= point(ROOTVSMALL, ROOTVSMALL, ROOTVSMALL);
-    bb.max() += point(ROOTVSMALL, ROOTVSMALL, ROOTVSMALL);
+    bb.min() -= point::uniform(ROOTVSMALL);
+    bb.max() += point::uniform(ROOTVSMALL);
 
     edgeTrees_.set
     (
@@ -377,7 +416,7 @@ void Foam::refinementFeatures::findHigherLevel
 const Foam::PtrList<Foam::indexedOctree<Foam::treeDataEdge>>&
 Foam::refinementFeatures::regionEdgeTrees() const
 {
-    if (!regionEdgeTreesPtr_.valid())
+    if (!regionEdgeTreesPtr_)
     {
         regionEdgeTreesPtr_.reset
         (
@@ -400,8 +439,8 @@ Foam::refinementFeatures::regionEdgeTrees() const
             // Slightly extended bb. Slightly off-centred just so on symmetric
             // geometry there are less face/edge aligned items.
             bb = bb.extend(rndGen, 1e-4);
-            bb.min() -= point(ROOTVSMALL, ROOTVSMALL, ROOTVSMALL);
-            bb.max() += point(ROOTVSMALL, ROOTVSMALL, ROOTVSMALL);
+            bb.min() -= point::uniform(ROOTVSMALL);
+            bb.max() += point::uniform(ROOTVSMALL);
 
             trees.set
             (
@@ -423,7 +462,8 @@ Foam::refinementFeatures::regionEdgeTrees() const
             );
         }
     }
-    return regionEdgeTreesPtr_();
+
+    return *regionEdgeTreesPtr_;
 }
 
 
@@ -432,14 +472,16 @@ Foam::refinementFeatures::regionEdgeTrees() const
 Foam::refinementFeatures::refinementFeatures
 (
     const objectRegistry& io,
-    const PtrList<dictionary>& featDicts
+    const PtrList<dictionary>& featDicts,
+    const bool dryRun
 )
 :
     PtrList<extendedFeatureEdgeMesh>(featDicts.size()),
     distances_(featDicts.size()),
     levels_(featDicts.size()),
     edgeTrees_(featDicts.size()),
-    pointTrees_(featDicts.size())
+    pointTrees_(featDicts.size()),
+    dryRun_(dryRun)
 {
     // Read features
     read(io, featDicts);
@@ -524,6 +566,76 @@ Foam::refinementFeatures::refinementFeatures
 
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
 
+bool Foam::refinementFeatures::checkSizes
+(
+    const scalar maxRatio,
+    const boundBox& meshBb,
+    const bool report,
+    Ostream& os
+) const
+{
+    if (report)
+    {
+        os<< "Checking for size." << endl;
+    }
+
+    bool hasError = false;
+
+    forAll(*this, i)
+    {
+        const extendedFeatureEdgeMesh& em = operator[](i);
+        const boundBox bb(em.points(), true);
+
+        for (label j = i+1; j < size(); j++)
+        {
+            const extendedFeatureEdgeMesh& em2 = operator[](j);
+            const boundBox bb2(em2.points(), true);
+
+            scalar ratio = bb.mag()/bb2.mag();
+
+            if (ratio > maxRatio || ratio < 1.0/maxRatio)
+            {
+                hasError = true;
+
+                if (report)
+                {
+                    os  << "    " << em.name()
+                        << " bounds differ from " << em2.name()
+                        << " by more than a factor 100:" << nl
+                        << "        bounding box : " << bb << nl
+                        << "        bounding box : " << bb2
+                        << endl;
+                }
+            }
+        }
+    }
+
+    forAll(*this, i)
+    {
+        const extendedFeatureEdgeMesh& em = operator[](i);
+        const boundBox bb(em.points(), true);
+        if (!meshBb.contains(bb))
+        {
+            if (report)
+            {
+                os  << "    " << em.name()
+                    << " bounds not fully contained in mesh"<< nl
+                    << "        bounding box      : " << bb << nl
+                    << "        mesh bounding box : " << meshBb
+                    << endl;
+            }
+        }
+    }
+
+    if (report)
+    {
+        os<< endl;
+    }
+
+    return returnReduce(hasError, orOp<bool>());
+}
+
+
 void Foam::refinementFeatures::findNearestEdge
 (
     const pointField& samples,
@@ -574,8 +686,8 @@ void Foam::refinementFeatures::findNearestEdge
 
                     const treeDataEdge& td = tree.shapes();
                     const edge& e = td.edges()[nearInfo[sampleI].index()];
-                    nearNormal[sampleI] =  e.vec(td.points());
-                    nearNormal[sampleI] /= mag(nearNormal[sampleI])+VSMALL;
+
+                    nearNormal[sampleI] = e.unitVec(td.points());
                 }
             }
         }
@@ -637,8 +749,8 @@ void Foam::refinementFeatures::findNearestRegionEdge
                 );
 
                 const edge& e = td.edges()[nearInfo[sampleI].index()];
-                nearNormal[sampleI] =  e.vec(td.points());
-                nearNormal[sampleI] /= mag(nearNormal[sampleI])+VSMALL;
+
+                nearNormal[sampleI] = e.unitVec(td.points());
             }
         }
     }

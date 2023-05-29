@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -65,7 +67,7 @@ class enginePiston
         polyPatchID patchID_;
 
         //- Coordinate system
-        autoPtr<coordinateSystem> csPtr_;
+        autoPtr<coordinateSystem> csysPtr_;
 
 
         // Piston layering data
@@ -79,11 +81,11 @@ class enginePiston
 
     // Private Member Functions
 
-        //- Disallow default bitwise copy construct
-        enginePiston(const enginePiston&);
+        //- No copy construct
+        enginePiston(const enginePiston&) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const enginePiston&);
+        //- No copy assignment
+        void operator=(const enginePiston&) = delete;
 
 
 public:
@@ -112,7 +114,8 @@ public:
         );
 
 
-    // Destructor - default
+    //- Destructor
+    ~enginePiston() = default;
 
 
     // Member Functions
@@ -120,7 +123,7 @@ public:
         //- Return coordinate system
         const coordinateSystem& cs() const
         {
-            return csPtr_();
+            return *csysPtr_;
         }
 
         //- Return ID of piston patch

@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2013-2015 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2013-2015 OpenFOAM Foundation
+    Copyright (C) 2019-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -34,24 +37,21 @@ Foam::autoPtr<Foam::meshToMeshMethod> Foam::meshToMeshMethod::New
     const polyMesh& tgt
 )
 {
-    if (debug)
+    DebugInfo << "Selecting AMIMethod " << methodName << endl;
+
+    auto* ctorPtr = componentsConstructorTable(methodName);
+
+    if (!ctorPtr)
     {
-        Info<< "Selecting AMIMethod " << methodName << endl;
+        FatalErrorInLookup
+        (
+            "meshToMesh",
+            methodName,
+            *componentsConstructorTablePtr_
+        ) << exit(FatalError);
     }
 
-    componentsConstructorTable::iterator cstrIter =
-        componentsConstructorTablePtr_->find(methodName);
-
-    if (cstrIter == componentsConstructorTablePtr_->end())
-    {
-        FatalErrorInFunction
-            << "Unknown meshToMesh type "
-            << methodName << nl << nl
-            << "Valid meshToMesh types are:" << nl
-            << componentsConstructorTablePtr_->sortedToc() << exit(FatalError);
-    }
-
-    return autoPtr<meshToMeshMethod>(cstrIter()(src, tgt));
+    return autoPtr<meshToMeshMethod>(ctorPtr(src, tgt));
 }
 
 

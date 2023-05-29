@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2013-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2013-2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -27,6 +29,15 @@ License
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
+defineTurbulenceModelTypes
+(
+    geometricOneField,
+    geometricOneField,
+    incompressibleTurbulenceModel,
+    IncompressibleTurbulenceModel,
+    transportModel
+);
+
 makeBaseTurbulenceModel
 (
     geometricOneField,
@@ -41,10 +52,13 @@ makeBaseTurbulenceModel
 // Laminar models
 // -------------------------------------------------------------------------- //
 
-#include "Stokes.T.H"
+#include "Stokes.H"
 makeLaminarModel(Stokes);
 
-#include "Maxwell.T.H"
+#include "generalizedNewtonian.H"
+makeLaminarModel(generalizedNewtonian);
+
+#include "Maxwell.H"
 makeLaminarModel(Maxwell);
 
 
@@ -52,19 +66,19 @@ makeLaminarModel(Maxwell);
 // RAS models
 // -------------------------------------------------------------------------- //
 
-#include "SpalartAllmaras.T.H"
+#include "SpalartAllmaras.H"
 makeRASModel(SpalartAllmaras);
 
 #include "kEpsilon.H"
 makeRASModel(kEpsilon);
 
-#include "RNGkEpsilon.T.H"
+#include "RNGkEpsilon.H"
 makeRASModel(RNGkEpsilon);
 
 #include "realizableKE.H"
 makeRASModel(realizableKE);
 
-#include "LaunderSharmaKE.T.H"
+#include "LaunderSharmaKE.H"
 makeRASModel(LaunderSharmaKE);
 
 #include "kOmega.H"
@@ -79,24 +93,24 @@ makeRASModel(kOmegaSSTSAS);
 #include "kOmegaSSTLM.H"
 makeRASModel(kOmegaSSTLM);
 
-#include "v2f.H"
-makeRASModel(v2f);
-
-#include "LRR.T.H"
+#include "LRR.H"
 makeRASModel(LRR);
 
-#include "SSG.T.H"
+#include "SSG.H"
 makeRASModel(SSG);
+
+#include "kEpsilonPhitF.H"
+makeRASModel(kEpsilonPhitF);
 
 
 // -------------------------------------------------------------------------- //
 // LES models
 // -------------------------------------------------------------------------- //
 
-#include "Smagorinsky.T.H"
+#include "Smagorinsky.H"
 makeLESModel(Smagorinsky);
 
-#include "WALE.T.H"
+#include "WALE.H"
 makeLESModel(WALE);
 
 #include "kEqn.H"
@@ -108,20 +122,26 @@ makeLESModel(dynamicKEqn);
 #include "dynamicLagrangian.H"
 makeLESModel(dynamicLagrangian);
 
+#include "SpalartAllmarasDES.H"
+makeLESModel(SpalartAllmarasDES);
+
+#include "SpalartAllmarasDDES.H"
+makeLESModel(SpalartAllmarasDDES);
+
+#include "SpalartAllmarasIDDES.H"
+makeLESModel(SpalartAllmarasIDDES);
+
+#include "DeardorffDiffStress.H"
+makeLESModel(DeardorffDiffStress);
+
 #include "kOmegaSSTDES.H"
 makeLESModel(kOmegaSSTDES);
 
-#include "SpalartAllmarasDES.T.H"
-makeLESModel(SpalartAllmarasDES);
+#include "kOmegaSSTDDES.H"
+makeLESModel(kOmegaSSTDDES);
 
-#include "SpalartAllmarasDDES.T.H"
-makeLESModel(SpalartAllmarasDDES);
-
-#include "SpalartAllmarasIDDES.T.H"
-makeLESModel(SpalartAllmarasIDDES);
-
-#include "DeardorffDiffStress.T.H"
-makeLESModel(DeardorffDiffStress);
+#include "kOmegaSSTIDDES.H"
+makeLESModel(kOmegaSSTIDDES);
 
 
 // ************************************************************************* //

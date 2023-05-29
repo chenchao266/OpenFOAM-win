@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -27,53 +29,57 @@ License
 
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
-namespace Foam {
-    template<>
-    const char* const labelTensor::vsType::typeName = "labelTensor";
 
-    template<>
-    const char* const labelTensor::vsType::componentNames[] =
-    {
-        "xx", "xy", "xz",
-        "yx", "yy", "yz",
-        "zx", "zy", "zz"
-    };
 
-    template<>
-    const labelTensor labelTensor::vsType::_zero
-    (
-        labelTensor::uniform(0)
-    );
+ namespace Foam{
+template<>
+const char* const labelTensor::vsType::typeName = "labelTensor";
 
-    template<>
-    const labelTensor labelTensor::vsType::one
-    (
-        labelTensor::uniform(1)
-    );
+template<>
+const char* const labelTensor::vsType::componentNames[] =
+{
+    "xx", "xy", "xz",
+    "yx", "yy", "yz",
+    "zx", "zy", "zz"
+};
 
-    template<>
-    const labelTensor labelTensor::vsType::max
-    (
-        labelTensor::uniform(labelMax)
-    );
+template<>
+const labelTensor labelTensor::vsType::zero_
+(
+    labelTensor::uniform(0)
+);
 
-    template<>
-    const labelTensor labelTensor::vsType::min
-    (
-        labelTensor::uniform(-labelMax)
-    );
+template<>
+const labelTensor labelTensor::vsType::one_
+(
+    labelTensor::uniform(1)
+);
 
-    template<>
-    const labelTensor labelTensor::vsType::rootMax
-    (
-        labelTensor::uniform(sqrt(scalar(labelMax)))
-    );
+template<>
+const labelTensor labelTensor::vsType::max_
+(
+    labelTensor::uniform(labelMax)
+);
 
-    template<>
-    const labelTensor labelTensor::vsType::rootMin
-    (
-        labelTensor::uniform(-sqrt(scalar(labelMax)))
-    );
-}
+template<>
+const labelTensor labelTensor::vsType::min_
+(
+    labelTensor::uniform(-labelMax)
+);
+
+template<>
+const labelTensor labelTensor::vsType::rootMax_
+(
+    labelTensor::uniform(sqrt(scalar(labelMax)))
+);
+
+template<>
+const labelTensor labelTensor::vsType::rootMin_
+(
+    labelTensor::uniform(-sqrt(scalar(labelMax)))
+);
+
 
 // ************************************************************************* //
+
+ } // End namespace Foam

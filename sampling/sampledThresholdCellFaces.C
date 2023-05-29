@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2018-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -24,12 +27,12 @@ License
 \*---------------------------------------------------------------------------*/
 
 #include "sampledThresholdCellFaces.H"
-#include "dictionary.H"
+#include "thresholdCellFaces.H"
+#include "dictionary2.H"
 #include "volFields.H"
 #include "volPointInterpolation.H"
 #include "addToRunTimeSelectionTable.H"
 #include "fvMesh.H"
-#include "thresholdCellFaces.H"
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
 
@@ -45,6 +48,7 @@ namespace Foam
     );
 }
 
+
 // * * * * * * * * * * * * * Private Member Functions  * * * * * * * * * * * //
 
 bool Foam::sampledThresholdCellFaces::updateGeometry() const
@@ -59,54 +63,51 @@ bool Foam::sampledThresholdCellFaces::updateGeometry() const
 
     prevTimeIndex_ = fvm.time().timeIndex();
 
-    // Optionally read volScalarField
-    autoPtr<volScalarField> readFieldPtr_;
+    // Use volField from database, or try to read it in
 
-    // 1. see if field in database
-    // 2. see if field can be read
-    const volScalarField* cellFldPtr = nullptr;
-    if (fvm.foundObject<volScalarField>(fieldName_))
+    const auto* cellFldPtr = fvm.findObject<volScalarField>(fieldName_);
+
+    if (debug)
     {
-        if (debug)
+        if (cellFldPtr)
         {
-            InfoInFunction<< "Lookup " << fieldName_ << endl;
+            InfoInFunction << "Lookup " << fieldName_ << endl;
         }
-
-        cellFldPtr = &fvm.lookupObject<volScalarField>(fieldName_);
-    }
-    else
-    {
-        // Bit of a hack. Read field and store.
-
-        if (debug)
+        else
         {
             InfoInFunction
                 << "Reading " << fieldName_
                 << " from time " << fvm.time().timeName()
                 << endl;
         }
-
-        readFieldPtr_.reset
-        (
-            new volScalarField
-            (
-                IOobject
-                (
-                    fieldName_,
-                    fvm.time().timeName(),
-                    fvm,
-                    IOobject::MUST_READ,
-                    IOobject::NO_WRITE,
-                    false
-                ),
-                fvm
-            )
-        );
-
-        cellFldPtr = readFieldPtr_.operator->();
     }
-    const volScalarField& cellFld = *cellFldPtr;
 
+    // For holding the volScalarField read in.
+    autoPtr<volScalarField> fieldReadPtr;
+
+    if (!cellFldPtr)
+    {
+        // Bit of a hack. Read field and store.
+
+        fieldReadPtr = autoPtr<volScalarField>::New
+        (
+            IOobject
+            (
+                fieldName_,
+                fvm.time().timeName(),
+                fvm,
+                IOobject::MUST_READ,
+                IOobject::NO_WRITE,
+                false
+            ),
+            fvm
+        );
+    }
+
+    const volScalarField& cellFld =
+        (fieldReadPtr ? *fieldReadPtr : *cellFldPtr);
+
+    Mesh& mySurface = const_cast<sampledThresholdCellFaces&>(*this);
 
     thresholdCellFaces surf
     (
@@ -117,13 +118,10 @@ bool Foam::sampledThresholdCellFaces::updateGeometry() const
         triangulate_
     );
 
-    const_cast<sampledThresholdCellFaces&>
-    (
-        *this
-    ).MeshedSurface<face>::transfer(surf);
+    mySurface.transfer(static_cast<Mesh&>(surf));
     meshCells_.transfer(surf.meshCells());
 
-    // clear derived data
+    // Clear derived data
     sampledSurface::clearGeom();
 
     if (debug)
@@ -152,13 +150,12 @@ Foam::sampledThresholdCellFaces::sampledThresholdCellFaces
 )
 :
     sampledSurface(name, mesh, dict),
-    fieldName_(dict.lookup("field")),
-    lowerThreshold_(dict.lookupOrDefault<scalar>("lowerLimit", -VGREAT)),
-    upperThreshold_(dict.lookupOrDefault<scalar>("upperLimit", VGREAT)),
-    zoneKey_(keyType::null),
-    triangulate_(dict.lookupOrDefault("triangulate", false)),
+    fieldName_(dict.get<word>("field")),
+    lowerThreshold_(dict.getOrDefault<scalar>("lowerLimit", -VGREAT)),
+    upperThreshold_(dict.getOrDefault<scalar>("upperLimit", VGREAT)),
+    triangulate_(dict.getOrDefault("triangulate", false)),
     prevTimeIndex_(-1),
-    meshCells_(0)
+    meshCells_()
 {
     if (!dict.found("lowerLimit") && !dict.found("upperLimit"))
     {
@@ -167,12 +164,6 @@ Foam::sampledThresholdCellFaces::sampledThresholdCellFaces
             << abort(FatalError);
     }
 }
-
-
-// * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
-
-Foam::sampledThresholdCellFaces::~sampledThresholdCellFaces()
-{}
 
 
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
@@ -207,46 +198,46 @@ bool Foam::sampledThresholdCellFaces::update()
 
 Foam::tmp<Foam::scalarField> Foam::sampledThresholdCellFaces::sample
 (
-    const volScalarField& vField
+    const interpolation<scalar>& sampler
 ) const
 {
-    return sampleField(vField);
+    return sampleOnFaces(sampler);
 }
 
 
 Foam::tmp<Foam::vectorField> Foam::sampledThresholdCellFaces::sample
 (
-    const volVectorField& vField
+    const interpolation<vector>& sampler
 ) const
 {
-    return sampleField(vField);
+    return sampleOnFaces(sampler);
 }
 
 
 Foam::tmp<Foam::sphericalTensorField> Foam::sampledThresholdCellFaces::sample
 (
-    const volSphericalTensorField& vField
+    const interpolation<sphericalTensor>& sampler
 ) const
 {
-    return sampleField(vField);
+    return sampleOnFaces(sampler);
 }
 
 
 Foam::tmp<Foam::symmTensorField> Foam::sampledThresholdCellFaces::sample
 (
-    const volSymmTensorField& vField
+    const interpolation<symmTensor>& sampler
 ) const
 {
-    return sampleField(vField);
+    return sampleOnFaces(sampler);
 }
 
 
 Foam::tmp<Foam::tensorField> Foam::sampledThresholdCellFaces::sample
 (
-    const volTensorField& vField
+    const interpolation<tensor>& sampler
 ) const
 {
-    return sampleField(vField);
+    return sampleOnFaces(sampler);
 }
 
 
@@ -255,7 +246,7 @@ Foam::tmp<Foam::scalarField> Foam::sampledThresholdCellFaces::interpolate
     const interpolation<scalar>& interpolator
 ) const
 {
-    return interpolateField(interpolator);
+    return sampleOnPoints(interpolator);
 }
 
 
@@ -264,7 +255,7 @@ Foam::tmp<Foam::vectorField> Foam::sampledThresholdCellFaces::interpolate
     const interpolation<vector>& interpolator
 ) const
 {
-    return interpolateField(interpolator);
+    return sampleOnPoints(interpolator);
 }
 
 Foam::tmp<Foam::sphericalTensorField>
@@ -273,7 +264,7 @@ Foam::sampledThresholdCellFaces::interpolate
     const interpolation<sphericalTensor>& interpolator
 ) const
 {
-    return interpolateField(interpolator);
+    return sampleOnPoints(interpolator);
 }
 
 
@@ -282,7 +273,7 @@ Foam::tmp<Foam::symmTensorField> Foam::sampledThresholdCellFaces::interpolate
     const interpolation<symmTensor>& interpolator
 ) const
 {
-    return interpolateField(interpolator);
+    return sampleOnPoints(interpolator);
 }
 
 
@@ -291,18 +282,23 @@ Foam::tmp<Foam::tensorField> Foam::sampledThresholdCellFaces::interpolate
     const interpolation<tensor>& interpolator
 ) const
 {
-    return interpolateField(interpolator);
+    return sampleOnPoints(interpolator);
 }
 
 
-void Foam::sampledThresholdCellFaces::print(Ostream& os) const
+void Foam::sampledThresholdCellFaces::print(Ostream& os, int level) const
 {
     os  << "sampledThresholdCellFaces: " << name() << " :"
-        << "  field:" << fieldName_
-        << "  lowerLimit:" << lowerThreshold_
-        << "  upperLimit:" << upperThreshold_;
-        //<< "  faces:" << faces().size()   // possibly no geom yet
-        //<< "  points:" << points().size();
+        << " field:" << fieldName_
+        << " lowerLimit:" << lowerThreshold_
+        << " upperLimit:" << upperThreshold_;
+
+    // Possibly no geom yet...
+    // if (level)
+    // {
+    //     os  << "  faces:" << faces().size()
+    //         << "  points:" << points().size();
+    // }
 }
 
 

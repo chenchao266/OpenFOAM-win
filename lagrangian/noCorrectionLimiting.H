@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2013-2014 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2013-2014 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -24,7 +26,11 @@ License
 Class
     Foam::CorrectionLimitingMethods::noCorrectionLimiting
 
+Group
+    grpLagrangianIntermediateMPPICCorrectionLimitingMethods
+
 Description
+    Place holder for the 'none' option
 
 SourceFiles
     noCorrectionLimiting.C

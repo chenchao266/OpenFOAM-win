@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2015 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2015 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -35,7 +37,7 @@ SourceFiles
 #ifndef cyclicAMIGAMGInterface_H
 #define cyclicAMIGAMGInterface_H
 
-#include "GAMGInterface.T.H"
+#include "GAMGInterface.H"
 #include "cyclicAMILduInterface.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
@@ -64,11 +66,11 @@ class cyclicAMIGAMGInterface
 
     // Private Member Functions
 
-        //- Disallow default bitwise copy construct
-        cyclicAMIGAMGInterface(const cyclicAMIGAMGInterface&);
+        //- No copy construct
+        cyclicAMIGAMGInterface(const cyclicAMIGAMGInterface&) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const cyclicAMIGAMGInterface&);
+        //- No copy assignment
+        void operator=(const cyclicAMIGAMGInterface&) = delete;
 
 
 public:
@@ -80,7 +82,7 @@ public:
     // Constructors
 
         //- Construct from fine level interface,
-        //  local and neighbour restrict addressing
+        //- local and neighbour restrict addressing
         cyclicAMIGAMGInterface
         (
             const label index,
@@ -132,7 +134,7 @@ public:
 
             virtual const AMIPatchToPatchInterpolation& AMI() const
             {
-                return amiPtr_();
+                return *amiPtr_;
             }
 
             //- Return face transformation tensor

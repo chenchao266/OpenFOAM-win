@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2020      OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -24,8 +27,11 @@ License
 Class
     Foam::inhomogeneousMixture
 
+Group
+    grpReactionThermophysicalMixtures
+
 Description
-    Foam::inhomogeneousMixture
+    The inhomogeneous mixture contains species ("ft", "b").
 
 SourceFiles
     inhomogeneousMixture.C
@@ -51,10 +57,7 @@ class inhomogeneousMixture
 :
     public basicCombustionMixture
 {
-    // Private data
-
-        static const int nSpecies_ = 2;
-        static const char* specieNames_[2];
+    // Private Data
 
         dimensionedScalar stoicRatio_;
 
@@ -70,8 +73,11 @@ class inhomogeneousMixture
         //- Regress variable
         volScalarField& b_;
 
-        //- Construct as copy (not implemented)
-        inhomogeneousMixture(const inhomogeneousMixture<ThermoType>&);
+        //- No copy construct
+        inhomogeneousMixture
+        (
+            const inhomogeneousMixture<ThermoType>&
+        ) = delete;
 
 
 public:
@@ -83,15 +89,25 @@ public:
     // Constructors
 
         //- Construct from dictionary, mesh and phase name
-        inhomogeneousMixture(const dictionary&, const fvMesh&, const word&);
+        inhomogeneousMixture
+        (
+            const dictionary& thermoDict,
+            const fvMesh& mesh,
+            const word& phaseName
+        );
 
 
     //- Destructor
-    virtual ~inhomogeneousMixture()
-    {}
+    virtual ~inhomogeneousMixture() = default;
 
 
     // Member functions
+
+        //- Return the instantiated type name
+        static word typeName()
+        {
+            return "inhomogeneousMixture<" + ThermoType::typeName() + '>';
+        }
 
         const dimensionedScalar& stoicRatio() const
         {
@@ -105,8 +121,33 @@ public:
             return mixture(ft_[celli], b_[celli]);
         }
 
+        const ThermoType& cellVolMixture
+        (
+            const scalar p,
+            const scalar T,
+            const label celli
+        ) const
+        {
+            return mixture(ft_[celli], b_[celli]);
+        }
+
         const ThermoType& patchFaceMixture
         (
+            const label patchi,
+            const label facei
+        ) const
+        {
+            return mixture
+            (
+                ft_.boundaryField()[patchi][facei],
+                b_.boundaryField()[patchi][facei]
+            );
+        }
+
+        const ThermoType& patchFaceVolMixture
+        (
+            const scalar p,
+            const scalar T,
             const label patchi,
             const label facei
         ) const
@@ -166,7 +207,7 @@ public:
 
 } // End namespace Foam
 
-// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * *
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 #ifdef NoRepository
     #include "inhomogeneousMixture.C"

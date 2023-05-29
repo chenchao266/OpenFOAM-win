@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -23,66 +25,70 @@ License
 
 \*---------------------------------------------------------------------------*/
 
-#include "spatialTensor.H"
+#include "spatialTensor2.H"
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
-namespace Foam {
-    template<>
-    const char* const spatialTensor::vsType::typeName = "spatialTensor";
 
-    template<>
-    const char* const spatialTensor::vsType::componentNames[] =
-    {
-        "Exx",  "Exy",  "Exz",    "Erxx", "Erxy", "Erxz",
-        "Eyx",  "Eyy",  "Eyz",    "Eryx", "Eryy", "Eryz",
-        "Ezx",  "Ezy",  "Ezz",    "Erzx", "Erzy", "Erzz"
 
-        "Erxx", "Erxy", "Erxz",   "Exx",  "Exy",  "Exz",
-        "Eryx", "Eryy", "Eryz",   "Eyx",  "Eyy",  "Eyz",
-        "Erzx", "Erzy", "Erzz",   "Ezx",  "Ezy",  "Ezz"
-    };
+ namespace Foam{
+template<>
+const char* const spatialTensor::vsType::typeName = "spatialTensor";
 
-    template<>
-    const spatialTensor spatialTensor::vsType::_zero
-    (
-        spatialTensor::uniform(0)
-    );
+template<>
+const char* const spatialTensor::vsType::componentNames[] =
+{
+    "Exx",  "Exy",  "Exz",    "Erxx", "Erxy", "Erxz",
+    "Eyx",  "Eyy",  "Eyz",    "Eryx", "Eryy", "Eryz",
+    "Ezx",  "Ezy",  "Ezz",    "Erzx", "Erzy", "Erzz",
 
-    template<>
-    const spatialTensor spatialTensor::vsType::one
-    (
-        spatialTensor::uniform(1)
-    );
+    "Erxx", "Erxy", "Erxz",   "Exx",  "Exy",  "Exz",
+    "Eryx", "Eryy", "Eryz",   "Eyx",  "Eyy",  "Eyz",
+    "Erzx", "Erzy", "Erzz",   "Ezx",  "Ezy",  "Ezz"
+};
 
-    template<>
-    const spatialTensor spatialTensor::vsType::max
-    (
-        spatialTensor::uniform(VGREAT)
-    );
+template<>
+const spatialTensor spatialTensor::vsType::zero_
+(
+    spatialTensor::uniform(0)
+);
 
-    template<>
-    const spatialTensor spatialTensor::vsType::min
-    (
-        spatialTensor::uniform(-VGREAT)
-    );
+template<>
+const spatialTensor spatialTensor::vsType::one_
+(
+    spatialTensor::uniform(1)
+);
 
-    template<>
-    const spatialTensor spatialTensor::vsType::rootMax
-    (
-        spatialTensor::uniform(ROOTVGREAT)
-    );
+template<>
+const spatialTensor spatialTensor::vsType::max_
+(
+    spatialTensor::uniform(VGREAT)
+);
 
-    template<>
-    const spatialTensor spatialTensor::vsType::rootMin
-    (
-        spatialTensor::uniform(-ROOTVGREAT)
-    );
+template<>
+const spatialTensor spatialTensor::vsType::min_
+(
+    spatialTensor::uniform(-VGREAT)
+);
 
-    template<>
-    const spatialTensor spatialTensor::I
-    (
-        spatialTensor::identity()
-    );
-}
+template<>
+const spatialTensor spatialTensor::vsType::rootMax_
+(
+    spatialTensor::uniform(ROOTVGREAT)
+);
+
+template<>
+const spatialTensor spatialTensor::vsType::rootMin_
+(
+    spatialTensor::uniform(-ROOTVGREAT)
+);
+
+template<>
+const spatialTensor spatialTensor::I
+(
+    spatialTensor::identity()
+);
+
 
 // ************************************************************************* //
+
+ } // End namespace Foam

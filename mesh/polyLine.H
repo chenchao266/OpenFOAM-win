@@ -1,9 +1,11 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2020 Ivor Clifford/Paul Scherrer Institut
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -22,106 +24,130 @@ License
     along with OpenFOAM.  If not, see <http://www.gnu.org/licenses/>.
 
 Class
-    Foam::polyLine
+    Foam::extrudeModels::polyline
 
 Description
-    A series of straight line segments, which can also be interpreted as
-    a series of control points for splines, etc.
+    Extrudes by transforming points along a polyline provided as a
+    series of points and edge segments. Supports all blockMesh edge
+    types, e.g. line, arc, spline. The surface points are rotated to
+    follow the path.
 
-    A future implementation could also handle a closed polyLine.
-
-SourceFiles
-    polyLine.C
+    \table
+        Property  | Description                             | Required | Default
+        vertices  | List of vertices                        | yes      |
+        edges     | List of blockEdge segments              | yes      |
+        toleranceCheck | Relative tolerance for polyline checks | no | SMALL
+    \endtable
 
 \*---------------------------------------------------------------------------*/
 
-#ifndef polyLine_H
-#define polyLine_H
+#ifndef polyline_H
+#define polyline_H
 
-#include "pointField.H"
-#include "scalarList.H"
+#include "extrudeModel.H"
+#include "blockEdgeList.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 namespace Foam
 {
+//namespace extrudeModels
+//{
 
 /*---------------------------------------------------------------------------*\
-                          Class polyLine Declaration
+                    Class polyline Declaration
 \*---------------------------------------------------------------------------*/
 
-
 class polyLine
+:
+    public extrudeModel
 {
-    // Private Member Functions
+    // Private Data
 
-        //- Disallow default bitwise copy construct
-        polyLine(const polyLine&);
+        //- Dummy object needed to use blockEdge
+        searchableSurfaces geometry_;
 
-        //- Disallow default bitwise assignment
-        void operator=(const polyLine&);
+        //- List of points
+        pointField vertices_;
 
+        //- List of line segments
+        blockEdgeList segments_;
 
-protected:
+        //- Relative length along all segments for interplation (0 <= x <= 1)
+        scalarField x_;
 
-    // Protected data
+        //- Relative position on segments for interpolation
+        //- (0 <= y <= segments_.size())
+        scalarField y_;
 
-        //- The control points or ends of each segments
-        pointField points_;
+        //- Position vector at start of polyline
+        vector p0_;
 
-        //- The real line length
+        //- Direction vector at start of polyline
+        vector n0_;
+
+        //- Relative tolerance for checking alignment of polyline and surface
+        scalar relTol_;
+
         scalar lineLength_;
 
-        //- The rational (0-1) cumulative parameter value for each point
-        scalarList param_;
-
-
-    // Protected Member Functions
-
-        //- Precalculate the rational cumulative parameter value
-        //  and the line-length
-        void calcParam();
-
-        //- Return the line segment and the local parameter [0..1]
-        //  corresponding to the global lambda [0..1]
-        label localParameter(scalar& lambda) const;
-
+        //- Small delta for numerical differencing
+        const scalar DELTA = 1e-6;
 
 public:
 
+    //- Runtime type information
+    TypeName("polyline");
+
+
     // Constructors
 
-        //- Construct from components
-        polyLine
-        (
-            const pointField&,
-            const bool notImplementedClosed = false
+        //- Construct from dictionary
+        explicit polyLine(const dictionary& dict);
+        explicit polyLine(const pointField& dict, bool);
+        explicit  polyLine(
+            const point& firstPoint,
+            const pointField& intermediate,
+            const point& lastPoint
         );
 
+    //- Destructor
+    virtual ~polyLine() = default;
 
-    // Member Functions
 
-        //- Return const-access to the control-points
-        const pointField& points() const;
+    // Member Operators
+    static  polyLine concat(
+        const point& firstPoint,
+        const pointField& intermediate,
+        const point& lastPoint
+    );
 
-        //- Return the number of line segments
+        point operator()
+        (
+            const point& surfacePoint,
+            const vector& surfaceNormal,
+            const label layer
+        ) const;
+
+        //- The point and direction vector corresponding to the polyline
+        //- parameter [0-1]
+        void positionAndDirection
+        (
+            const scalar lambda,
+            vector& p,
+            vector& n
+        ) const;
+
+        point position(const scalar lambda) const;
         label nSegments() const;
-
-        //- Return the point position corresponding to the curve parameter
-        //  0 <= lambda <= 1
-        point position(const scalar) const;
-
-        //- Return the point position corresponding to the local parameter
-        //  0 <= lambda <= 1 on the given segment
-        point position(const label segment, const scalar) const;
-
-        //- Return the length of the curve
-        scalar length() const;
+        label localParameter(scalar) const;
+        pointField points() const;
 };
 
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
+//} // End namespace extrudeModels
 } // End namespace Foam
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //

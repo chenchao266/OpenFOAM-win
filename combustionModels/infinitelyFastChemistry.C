@@ -1,9 +1,12 @@
-﻿/*---------------------------------------------------------------------------*\
+/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2019 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -23,7 +26,7 @@ License
 
 \*---------------------------------------------------------------------------*/
 
-//#include "infinitelyFastChemistry.H"
+#include "infinitelyFastChemistry.H"
 
 namespace Foam
 {
@@ -32,40 +35,39 @@ namespace combustionModels
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
-template<class CombThermoType, class ThermoType>
-infinitelyFastChemistry<CombThermoType, ThermoType>::infinitelyFastChemistry
+template<class ReactionThermo, class ThermoType>
+infinitelyFastChemistry<ReactionThermo, ThermoType>::infinitelyFastChemistry
 (
     const word& modelType,
-    const fvMesh& mesh,
-    const word& combustionProperties,
-    const word& phaseName
+    ReactionThermo& thermo,
+    const compressibleTurbulenceModel& turb,
+    const word& combustionProperties
 )
 :
-    singleStepCombustion<CombThermoType, ThermoType>
+    singleStepCombustion<ReactionThermo, ThermoType>
     (
         modelType,
-        mesh,
-        combustionProperties,
-        phaseName
+        thermo,
+        turb,
+        combustionProperties
     ),
-    C_(readScalar(this->coeffs().lookup("C")))
+    C_(this->coeffs().getScalar("C"))
 {}
 
 
 // * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
 
-template<class CombThermoType, class ThermoType>
-infinitelyFastChemistry<CombThermoType, ThermoType>::~infinitelyFastChemistry()
+template<class ReactionThermo, class ThermoType>
+infinitelyFastChemistry<ReactionThermo, ThermoType>::~infinitelyFastChemistry()
 {}
 
 
 // * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * * //
 
-template<class CombThermoType, class ThermoType>
-void infinitelyFastChemistry<CombThermoType, ThermoType>::correct()
+template<class ReactionThermo, class ThermoType>
+void infinitelyFastChemistry<ReactionThermo, ThermoType>::correct()
 {
-    this->wFuel_ ==
-        dimensionedScalar("zero", dimMass/pow3(dimLength)/dimTime, 0.0);
+    this->wFuel_ == dimensionedScalar(dimMass/dimVolume/dimTime, Zero);
 
     if (this->active())
     {
@@ -74,13 +76,13 @@ void infinitelyFastChemistry<CombThermoType, ThermoType>::correct()
         const label fuelI = this->singleMixturePtr_->fuelIndex();
 
         const volScalarField& YFuel =
-            this->thermoPtr_->composition().Y()[fuelI];
+            this->thermo().composition().Y()[fuelI];
 
         const dimensionedScalar s = this->singleMixturePtr_->s();
 
-        if (this->thermoPtr_->composition().contains("O2"))
+        if (this->thermo().composition().contains("O2"))
         {
-            const volScalarField& YO2 = this->thermoPtr_->composition().Y("O2");
+            const volScalarField& YO2 = this->thermo().composition().Y("O2");
 
             this->wFuel_ ==
                 this->rho()/(this->mesh().time().deltaT()*C_)
@@ -90,18 +92,16 @@ void infinitelyFastChemistry<CombThermoType, ThermoType>::correct()
 }
 
 
-template<class CombThermoType, class ThermoType>
-bool infinitelyFastChemistry<CombThermoType, ThermoType>::read()
+template<class ReactionThermo, class ThermoType>
+bool infinitelyFastChemistry<ReactionThermo, ThermoType>::read()
 {
-    if (singleStepCombustion<CombThermoType, ThermoType>::read())
+    if (singleStepCombustion<ReactionThermo, ThermoType>::read())
     {
-        this->coeffs().lookup("C") >> C_ ;
+        this->coeffs().readEntry("C", C_);
         return true;
     }
-    else
-    {
-        return false;
-    }
+
+    return false;
 }
 
 

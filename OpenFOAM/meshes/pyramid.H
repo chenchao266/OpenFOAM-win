@@ -1,9 +1,12 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -42,7 +45,7 @@ SourceFiles
 namespace Foam
 {
 
-// Forward declaration of friend functions and operators
+// Forward Declarations
 
 template<class Point, class PointRef, class polygonRef>
 class pyramid;
@@ -50,15 +53,15 @@ class pyramid;
 template<class Point, class PointRef, class polygonRef>
 inline Istream& operator>>
 (
-    Istream&,
-    pyramid<Point, PointRef, polygonRef>&
+    Istream& is,
+    pyramid<Point, PointRef, polygonRef>& p
 );
 
 template<class Point, class PointRef, class polygonRef>
 inline Ostream& operator<<
 (
-    Ostream&,
-    const pyramid<Point, PointRef, polygonRef>&
+    Ostream& os,
+    const pyramid<Point, PointRef, polygonRef>& p
 );
 
 
@@ -69,13 +72,20 @@ inline Ostream& operator<<
 template<class Point, class PointRef, class polygonRef>
 class pyramid
 {
-    // Private data
+    // Private Data
 
         polygonRef base_;
+
         PointRef apex_;
 
 
 public:
+
+    // Public Typedefs
+
+        //- The point type
+        typedef Point point_type;
+
 
     // Constructors
 
@@ -83,10 +93,10 @@ public:
         inline pyramid(polygonRef base, const Point& apex);
 
         //- Construct from Istream
-        inline pyramid(Istream&);
+        inline explicit pyramid(Istream& is);
 
 
-    // Member functions
+    // Member Functions
 
         // Access
 
@@ -100,27 +110,27 @@ public:
         // Properties
 
             //- Return centre (centroid)
-            inline Point centre(const pointField& points) const;
+            inline Point centre(const UList<point>& points) const;
 
             //- Return height vector
-            inline vector height(const pointField& points) const;
+            inline vector height(const UList<point>& points) const;
 
             //- Return scalar magnitude - returns volume of pyramid
-            inline scalar mag(const pointField& points) const;
+            inline scalar mag(const UList<point>& points) const;
 
 
-    // IOstream operators
+    // IOstream Operators
 
         friend Istream& operator>> <Point, PointRef, polygonRef>
         (
-            Istream&,
-            pyramid&
+            Istream& is,
+            pyramid& p
         );
 
         friend Ostream& operator<< <Point, PointRef, polygonRef>
         (
-            Ostream&,
-            const pyramid&
+            Ostream& os,
+            const pyramid& p
         );
 };
 

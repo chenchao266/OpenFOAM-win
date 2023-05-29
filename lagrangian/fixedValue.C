@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -42,24 +45,26 @@ namespace distributionModels
 Foam::distributionModels::fixedValue::fixedValue
 (
     const dictionary& dict,
-    cachedRandom& rndGen
+    Random& rndGen
 )
 :
     distributionModel(typeName, dict, rndGen),
-    value_(readScalar(distributionModelDict_.lookup("value")))
-{}
+    value_(distributionModelDict_.get<scalar>("value"))
+{
+    if (value_ < VSMALL)
+    {
+        FatalErrorInFunction
+            << "Fixed value cannot be equal to or less than zero:" << nl
+            << "    value = " << value_
+            << exit(FatalError);
+    }
+}
 
 
 Foam::distributionModels::fixedValue::fixedValue(const fixedValue& p)
 :
     distributionModel(p),
     value_(p.value_)
-{}
-
-
-// * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
-
-Foam::distributionModels::fixedValue::~fixedValue()
 {}
 
 

@@ -1,9 +1,12 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2019-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -23,26 +26,15 @@ License
 
 \*---------------------------------------------------------------------------*/
 
-#include "oneField.H"
-
-// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
-namespace Foam {
-inline one oneField::operator[](const label) const
+namespace Foam
 {
-    return one();
-}
 
-
-inline oneField oneField::field() const
-{
-    return oneField();
-}
-
+// * * * * * * * * * * * * * * * Global Operators  * * * * * * * * * * * * * //
 
 inline const oneField& operator*
 (
     const oneField& of,
-    const oneField&
+    const oneField& /*ignore*/
 )
 {
     return of;
@@ -52,11 +44,15 @@ inline const oneField& operator*
 inline const oneField& operator/
 (
     const oneField& of,
-    const oneField&
+    const oneField& /*ignore*/
 )
 {
     return of;
 }
 
-}
+
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+} // End namespace Foam
+
 // ************************************************************************* //

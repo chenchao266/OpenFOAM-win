@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -25,14 +28,25 @@ License
 
 #include "searchablePlate.H"
 #include "addToRunTimeSelectionTable.H"
-#include "SortableList.T.H"
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
 
 namespace Foam
 {
     defineTypeNameAndDebug(searchablePlate, 0);
-    addToRunTimeSelectionTable(searchableSurface, searchablePlate, dict);
+    addToRunTimeSelectionTable
+    (
+        searchableSurface,
+        searchablePlate,
+        dict
+    );
+    addNamedToRunTimeSelectionTable
+    (
+        searchableSurface,
+        searchablePlate,
+        dict,
+        plate
+    );
 }
 
 
@@ -42,34 +56,33 @@ Foam::direction Foam::searchablePlate::calcNormal(const point& span)
 {
     direction normalDir = 3;
 
-    for (direction dir = 0; dir < vector::nComponents; dir++)
+    for (direction dir = 0; dir < vector::nComponents; ++dir)
     {
         if (span[dir] < 0)
         {
-            FatalErrorInFunction
-                << "Span should have two positive and one zero entry. Now:"
-                << span << exit(FatalError);
+            // Negative entry. Flag and exit.
+            normalDir = 3;
+            break;
         }
         else if (span[dir] < VSMALL)
         {
-            if (normalDir == 3)
-            {
-                normalDir = dir;
-            }
-            else
+            if (normalDir != 3)
             {
                 // Multiple zero entries. Flag and exit.
                 normalDir = 3;
                 break;
             }
+
+            normalDir = dir;
         }
     }
 
     if (normalDir == 3)
     {
         FatalErrorInFunction
-            << "Span should have two positive and one zero entry. Now:"
-            << span << exit(FatalError);
+            << "Span should have two positive and one zero entry: "
+            << span << nl
+            << exit(FatalError);
     }
 
     return normalDir;
@@ -96,7 +109,7 @@ Foam::pointIndexHit Foam::searchablePlate::findNearest
     info.rawPoint()[normalDir_] = origin_[normalDir_];
 
     // Clip to edges if outside
-    for (direction dir = 0; dir < vector::nComponents; dir++)
+    for (direction dir = 0; dir < vector::nComponents; ++dir)
     {
         if (dir != normalDir_)
         {
@@ -158,7 +171,7 @@ Foam::pointIndexHit Foam::searchablePlate::findLine
             info.rawPoint()[normalDir_] = origin_[normalDir_];
 
             // Clip to edges
-            for (direction dir = 0; dir < vector::nComponents; dir++)
+            for (direction dir = 0; dir < vector::nComponents; ++dir)
             {
                 if (dir != normalDir_)
                 {
@@ -216,14 +229,10 @@ Foam::searchablePlate::searchablePlate
     span_(span),
     normalDir_(calcNormal(span_))
 {
-    if (debug)
-    {
-        InfoInFunction
-            << " origin:" << origin_
-            << " origin+span:" << origin_+span_
-            << " normal:" << vector::componentNames[normalDir_]
-            << endl;
-    }
+    DebugInFunction
+        << " origin:" << origin_
+        << " origin+span:" << origin_+span_
+        << " normal:" << vector::componentNames[normalDir_] << nl;
 
     bounds() = boundBox(origin_, origin_ + span_);
 }
@@ -235,27 +244,7 @@ Foam::searchablePlate::searchablePlate
     const dictionary& dict
 )
 :
-    searchableSurface(io),
-    origin_(dict.lookup("origin")),
-    span_(dict.lookup("span")),
-    normalDir_(calcNormal(span_))
-{
-    if (debug)
-    {
-        InfoInFunction
-            << " origin:" << origin_
-            << " origin+span:" << origin_+span_
-            << " normal:" << vector::componentNames[normalDir_]
-            << endl;
-    }
-
-    bounds() = boundBox(origin_, origin_ + span_);
-}
-
-
-// * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
-
-Foam::searchablePlate::~searchablePlate()
+    searchablePlate(io, dict.get<point>("origin"), dict.get<vector>("span"))
 {}
 
 
@@ -265,8 +254,8 @@ const Foam::wordList& Foam::searchablePlate::regions() const
 {
     if (regions_.empty())
     {
-        regions_.setSize(1);
-        regions_[0] = "region0";
+        regions_.resize(1);
+        regions_.first() = "region0";
     }
     return regions_;
 }
@@ -274,7 +263,7 @@ const Foam::wordList& Foam::searchablePlate::regions() const
 
 Foam::tmp<Foam::pointField> Foam::searchablePlate::coordinates() const
 {
-    return tmp<pointField>(new pointField(1, origin_ + 0.5*span_));
+    return tmp<pointField>::New(1, origin_ + 0.5*span_);
 }
 
 
@@ -284,10 +273,10 @@ void Foam::searchablePlate::boundingSpheres
     scalarField& radiusSqr
 ) const
 {
-    centres.setSize(1);
-    centres[0] = origin_ + 0.5*span_;
+    centres.resize(1);
+    radiusSqr.resize(1);
 
-    radiusSqr.setSize(1);
+    centres[0] = origin_ + 0.5*span_;
     radiusSqr[0] = Foam::magSqr(0.5*span_);
 
     // Add a bit to make sure all points are tested inside
@@ -297,43 +286,34 @@ void Foam::searchablePlate::boundingSpheres
 
 Foam::tmp<Foam::pointField> Foam::searchablePlate::points() const
 {
-    tmp<pointField> tPts(new pointField(4));
-    pointField& pts = tPts.ref();
+    auto tpts = tmp<pointField>::New(4, origin_);
+    auto& pts = tpts.ref();
 
-    pts[0] = origin_;
-    pts[2] = origin_ + span_;
+    pts[2] += span_;
 
     if (span_.x() < span_.y() && span_.x() < span_.z())
     {
-        pts[1] = origin_ + point(0, span_.y(), 0);
-        pts[3] = origin_ + point(0, 0, span_.z());
+        pts[1].y() += span_.y();
+        pts[3].z() += span_.z();
     }
     else if (span_.y() < span_.z())
     {
-        pts[1] = origin_ + point(span_.x(), 0, 0);
-        pts[3] = origin_ + point(0, 0, span_.z());
+        pts[1].x() += span_.x();
+        pts[3].z() += span_.z();
     }
     else
     {
-        pts[1] = origin_ + point(span_.x(), 0, 0);
-        pts[3] = origin_ + point(0, span_.y(), 0);
+        pts[1].x() += span_.x();
+        pts[3].y() += span_.y();
     }
 
-    return tPts;
+    return tpts;
 }
 
 
 bool Foam::searchablePlate::overlaps(const boundBox& bb) const
 {
-    return
-    (
-        (origin_.x() + span_.x()) >= bb.min().x()
-     && origin_.x() <= bb.max().x()
-     && (origin_.y() + span_.y()) >= bb.min().y()
-     && origin_.y() <= bb.max().y()
-     && (origin_.z() + span_.z()) >= bb.min().z()
-     && origin_.z() <= bb.max().z()
-    );
+    return bb.overlaps(bounds());
 }
 
 

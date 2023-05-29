@@ -1,9 +1,12 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2017-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -43,55 +46,54 @@ SourceFiles
 #define dictionaryEntry_H
 
 #include "entry.H"
-#include "dictionary.H"
-#include "InfoProxy.T.H"
+#include "dictionary2.H"
+#include "InfoProxy.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 namespace Foam
 {
 
-// Forward declaration of friend functions and operators
-
+// Forward declarations
 class dictionaryEntry;
-
-Ostream& operator<<(Ostream&, const dictionaryEntry&);
+Ostream& operator<<(Ostream& os, const dictionaryEntry& e);
 
 
 /*---------------------------------------------------------------------------*\
-                           Class dictionaryEntry Declaration
+                       Class dictionaryEntry Declaration
 \*---------------------------------------------------------------------------*/
 
-class dictionaryEntry :    public entry,
+class dictionaryEntry
+:
+    public entry,
     public dictionary
 {
     // Private Member Functions
 
-        void readData(Istream&);
-
-        //- Dissallow bitwise copy
-        dictionaryEntry(const dictionary&);
+        //- No copy construct
+        dictionaryEntry(const dictionaryEntry&) = delete;
 
 
 public:
 
     // Constructors
 
-        //- Construct from the parent dictionary and Istream
-        dictionaryEntry(const dictionary& parentDict, Istream&);
+        //- Construct from the parent dictionary and Istream.
+        //  The keyword is extracted from the stream
+        dictionaryEntry(const dictionary& parentDict, Istream& is);
 
         //- Construct from the keyword, parent dictionary and a Istream
         dictionaryEntry
         (
-            const keyType&,
+            const keyType& key,
             const dictionary& parentDict,
-            Istream&
+            Istream& is
         );
 
         //- Construct from the keyword, parent dictionary and a dictionary
         dictionaryEntry
         (
-            const keyType&,
+            const keyType& key,
             const dictionary& parentDict,
             const dictionary& dict
         );
@@ -100,7 +102,7 @@ public:
         dictionaryEntry
         (
             const dictionary& parentDict,
-            const dictionaryEntry&
+            const dictionaryEntry& dictEnt
         );
 
         autoPtr<entry> clone(const dictionary& parentDict) const
@@ -111,48 +113,50 @@ public:
 
     // Member functions
 
-        //- Return the local dictionary name (final part of scoped name)
-        const word dictName() const
-        {
-            return dictionary::dictName();
-        }
-
-        //- Return the dictionary name (scoped, e.g. dictA::dictB::dictC)
-        const fileName& name() const
+        //- Return the scoped dictionary name (eg, dictA.dictB.dictC)
+        virtual const fileName& name() const
         {
             return dictionary::name();
         }
 
-        //- Return the dictionary name (scoped, e.g. dictA::dictB::dictC)
-        fileName& name()
+        //- Return scoped dictionary name for modification
+        virtual fileName& name()
         {
             return dictionary::name();
+        }
+
+        //- Return scoped dictionary name relative to the current case
+        virtual fileName relativeName() const
+        {
+            return dictionary::relativeName();
         }
 
         //- Return line number of first token in dictionary
-        label startLineNumber() const;
+        virtual label startLineNumber() const;
 
         //- Return line number of last token in dictionary
-        label endLineNumber() const;
+        virtual label endLineNumber() const;
 
         //- This entry is not a primitive,
-        //  calling this function generates a FatalError
-        ITstream& stream() const;
+        //- calling this function generates a FatalError
+        virtual ITstream& stream() const;
 
-        //- Return true because this entry is a dictionary
-        bool isDict() const
-        {
-            return true;
-        }
 
-        //- Return dictionary
-        const dictionary& dict() const;
+        //- Return pointer to this dictionary
+        virtual const dictionary* dictPtr() const noexcept;
+
+        //- Return non-const pointer to this dictionary
+        virtual dictionary* dictPtr() noexcept;
+
+        //- Return dictionary (ie, this)
+        virtual const dictionary& dict() const noexcept;
 
         //- Return non-const access to dictionary
-        dictionary& dict();
+        virtual dictionary& dict() noexcept;
+
 
         //- Write
-        void write(Ostream&) const;
+        virtual void write(Ostream& os) const;
 
         //- Return info proxy.
         //  Used to print token information to a stream
@@ -162,14 +166,14 @@ public:
         }
 
 
-    // Ostream operator
+    // Ostream Operator
 
-        friend Ostream& operator<<(Ostream&, const dictionaryEntry&);
+        friend Ostream& operator<<(Ostream& os, const dictionaryEntry& e);
 };
 
 
 template<>
-Ostream& operator<<(Ostream&, const InfoProxy<dictionaryEntry>&);
+Ostream& operator<<(Ostream& os, const InfoProxy<dictionaryEntry>& ip);
 
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //

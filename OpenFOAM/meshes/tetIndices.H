@@ -1,9 +1,11 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -60,7 +62,7 @@ SourceFiles
 #include "triPointRef.H"
 #include "polyMesh.H"
 #include "triFace.H"
-#include "face.T.H"
+#include "face.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -142,18 +144,30 @@ public:
             inline label& tetPt();
 
             //- Return the indices corresponding to the tri on the face for
-            //  this tet. The normal of the tri points out of the cell.
-            inline triFace faceTriIs(const polyMesh& mesh) const;
+            //  this tet. The normal of the tri points out of the cell
+            inline triFace faceTriIs
+            (
+                const polyMesh& mesh,
+                const bool warn = true
+            ) const;
+
+            //- Return the local indices corresponding to the tri on the face
+            //  for this tet. The normal of the tri points out of the cell
+            inline triFace triIs
+            (
+                const polyMesh& mesh,
+                const bool warn = true
+            ) const;
 
             //- Return the geometry corresponding to this tet
             inline tetPointRef tet(const polyMesh& mesh) const;
 
             //- Return the geometry corresponding to the tri on the face for
-            //  this tet. The normal of the tri points out of the cell.
+            //  this tet. The normal of the tri points out of the cell
             inline triPointRef faceTri(const polyMesh& mesh) const;
 
             //- Return the geometry corresponding to the tri on the face for
-            //  this tet using the old positions.
+            //  this tet using the old positions
             inline triPointRef oldFaceTri(const polyMesh& mesh) const;
 
 

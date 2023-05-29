@@ -1,9 +1,12 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2018 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -36,8 +39,6 @@ See also
 #ifndef refCount_H
 #define refCount_H
 
-#include "bool.H"
-
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 namespace Foam
@@ -49,72 +50,64 @@ namespace Foam
 
 class refCount
 {
-    // Private data
-
-        int count_;
-
-
-    // Private Member Functions
-
-        //- Dissallow copy
-        refCount(const refCount&);
-
-        //- Dissallow bitwise assignment
-        void operator=(const refCount&);
+    // Private Data
+    int count_;
 
 
-protected:
+public:
+
+    //- A non-counting (dummy) refCount
+    struct zero {};
+
 
     // Constructors
 
-        //- Construct null initializing count to 0
-        refCount()
+        //- Default construct, initializing count to 0
+        constexpr refCount() noexcept
         :
             count_(0)
         {}
 
 
-public:
-
     // Member Functions
 
         //- Return the current reference count
-        int count() const
+        int count() const noexcept
         {
             return count_;
         }
 
         //- Return true if the reference count is zero
-        bool unique() const
+        bool unique() const noexcept
         {
-            return count_ == 0;
+            return !count_;
         }
 
 
     // Member Operators
 
         //- Increment the reference count
-        void operator++()
+        void operator++() noexcept
         {
-            count_++;
+            ++count_;
         }
 
         //- Increment the reference count
-        void operator++(int)
+        void operator++(int) noexcept
         {
-            count_++;
+            ++count_;
         }
 
         //- Decrement the reference count
-        void operator--()
+        void operator--() noexcept
         {
-            count_--;
+            --count_;
         }
 
         //- Decrement the reference count
-        void operator--(int)
+        void operator--(int) noexcept
         {
-            count_--;
+            --count_;
         }
 };
 

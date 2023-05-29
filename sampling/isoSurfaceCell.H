@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2016-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -38,23 +41,24 @@ Description
 
 SourceFiles
     isoSurfaceCell.C
+    isoSurfaceCellTemplates.C
 
 \*---------------------------------------------------------------------------*/
 
 #ifndef isoSurfaceCell_H
 #define isoSurfaceCell_H
 
-#include "triSurface.H"
 #include "labelPair.H"
-#include "pointIndexHit.H"
-#include "PackedBoolList.H"
+#include "pointIndexHit2.H"
+#include "isoSurfaceBase.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 namespace Foam
 {
 
-class polyMesh;
+// Forward Declarations
+class triSurface;
 
 /*---------------------------------------------------------------------------*\
                        Class isoSurfaceCell Declaration
@@ -62,82 +66,36 @@ class polyMesh;
 
 class isoSurfaceCell
 :
-    public triSurface
+    public isoSurfaceBase
 {
-    // Private data
-
-        enum segmentCutType
-        {
-            NEARFIRST,      // intersection close to e.first()
-            NEARSECOND,     //  ,,                   e.second()
-            NOTNEAR         // no intersection
-        };
-
-        enum cellCutType
-        {
-            NOTCUT,     // not cut
-            SPHERE,     // all edges to cell centre cut
-            CUT         // normal cut
-        };
-
-
-        //- Reference to mesh
-        const polyMesh& mesh_;
-
-        const scalarField& cVals_;
-
-        const scalarField& pVals_;
-
-        //- isoSurfaceCell value
-        const scalar iso_;
+    // Private Data
 
         //- When to merge points
         const scalar mergeDistance_;
 
-        //- Whether cell might be cut
-        List<cellCutType> cellCutType_;
+        //- The cell cut type
+        List<cutType> cellCutType_;
 
         //- Estimated number of cut cells
         label nCutCells_;
 
-        //- For every triangle the original cell in mesh
-        labelList meshCells_;
-
         //- For every unmerged triangle point the point in the triSurface
         labelList triPointMergeMap_;
+
+        //- triSurface points that have weighted interpolation
+        DynamicList<label> interpolatedPoints_;
+
+        //- corresponding original, unmerged points
+        DynamicList<FixedList<label, 3>> interpolatedOldPoints_;
+
+        //- corresponding weights
+        DynamicList<FixedList<scalar, 3>> interpolationWeights_;
 
 
     // Private Member Functions
 
         //- Get location of iso value as fraction inbetween s0,s1
-        scalar isoFraction
-        (
-            const scalar s0,
-            const scalar s1
-        ) const;
-
-        //- Does any edge of triangle cross iso value?
-        bool isTriCut
-        (
-            const triFace& tri,
-            const scalarField& pointValues
-        ) const;
-
-        //- Determine whether cell is cut
-        cellCutType calcCutType
-        (
-            const PackedBoolList&,
-            const scalarField& cellValues,
-            const scalarField& pointValues,
-            const label
-        ) const;
-
-        void calcCutTypes
-        (
-            const PackedBoolList&,
-            const scalarField& cellValues,
-            const scalarField& pointValues
-        );
+        scalar isoFraction(const scalar s0, const scalar s1) const;
 
         //- Return the two common points between two triangles
         static labelPair findCommonPoints
@@ -146,7 +104,7 @@ class isoSurfaceCell
             const labelledTri&
         );
 
-        //- Caculate centre of surface.
+        //- Calculate centre of surface.
         static point calcCentre(const triSurface&);
 
         //- Replace surface (localPoints, localTris) with single point.
@@ -159,10 +117,10 @@ class isoSurfaceCell
         ) const;
 
         //- Determine per cc whether all near cuts can be snapped to single
-        //  point.
+        //- point.
         void calcSnappedCc
         (
-            const PackedBoolList& isTet,
+            const bitSet& isTet,
             const scalarField& cVals,
             const scalarField& pVals,
             DynamicList<point>& triPoints,
@@ -194,7 +152,7 @@ class isoSurfaceCell
         //  point.
         void calcSnappedPoint
         (
-            const PackedBoolList& isTet,
+            const bitSet& isTet,
             const scalarField& cVals,
             const scalarField& pVals,
             DynamicList<point>& triPoints,
@@ -258,9 +216,6 @@ class isoSurfaceCell
             labelList& triMap               // merged to unmerged triangle
         ) const;
 
-        //- Check single triangle for (topological) validity
-        static bool validTri(const triSurface&, const label);
-
         //- Determine edge-face addressing
         void calcAddressing
         (
@@ -290,12 +245,22 @@ class isoSurfaceCell
 
         static triSurface subsetMesh
         (
-            const triSurface& s,
+            const triSurface&,
             const labelList& newToOldFaces,
             labelList& oldToNewPoints,
             labelList& newToOldPoints
         );
 
+
+    // Sampling
+
+        //- Interpolates cCoords, pCoords.
+        template<class Type>
+        tmp<Field<Type>> interpolateTemplate
+        (
+            const Field<Type>& cCoords,
+            const Field<Type>& pCoords
+        ) const;
 
 public:
 
@@ -305,33 +270,35 @@ public:
 
     // Constructors
 
-        //- Construct from dictionary
+        //- Construct from cell and point values
+        //
+        //  \param ignoreCells cells to ignore in the cellValues
+        //
+        //  Control parameters include
+        //  - bounds optional bounding box for trimming
+        //  - mergeTol fraction of mesh bounding box for merging points
         isoSurfaceCell
         (
             const polyMesh& mesh,
             const scalarField& cellValues,
             const scalarField& pointValues,
             const scalar iso,
-            const bool regularise,
-            const scalar mergeTol = 1e-6    // fraction of bounding box
+            const isoSurfaceParams& params = isoSurfaceParams(),
+            const bitSet& ignoreCells = bitSet()
         );
 
 
-    // Member Functions
+    //- Destructor
+    virtual ~isoSurfaceCell() = default;
 
-        //- For every face original cell in mesh
-        const labelList& meshCells() const
-        {
-            return meshCells_;
-        }
 
-        //- Interpolates cCoords,pCoords.
-        template<class Type>
-        tmp<Field<Type>> interpolate
-        (
-            const Field<Type>& cCoords,
-            const Field<Type>& pCoords
-        ) const;
+    // Sampling
+
+        declareIsoSurfaceInterpolateMethod(scalar);
+        declareIsoSurfaceInterpolateMethod(vector);
+        declareIsoSurfaceInterpolateMethod(sphericalTensor);
+        declareIsoSurfaceInterpolateMethod(symmTensor);
+        declareIsoSurfaceInterpolateMethod(tensor);
 };
 
 

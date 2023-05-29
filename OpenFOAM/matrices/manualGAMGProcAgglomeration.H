@@ -1,9 +1,11 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2013-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2013-2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -60,8 +62,8 @@ SourceFiles
 #define manualGAMGProcAgglomeration_H
 
 #include "GAMGProcAgglomeration.H"
-#include "DynamicList.T.H"
-#include "Tuple2.T.H"
+#include "DynamicList.H"
+#include "Tuple2.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -74,7 +76,9 @@ class GAMGAgglomeration;
               Class manualGAMGProcAgglomeration Declaration
 \*---------------------------------------------------------------------------*/
 
-class manualGAMGProcAgglomeration :    public GAMGProcAgglomeration
+class manualGAMGProcAgglomeration
+:
+    public GAMGProcAgglomeration
 {
     // Private data
 
@@ -87,14 +91,14 @@ class manualGAMGProcAgglomeration :    public GAMGProcAgglomeration
 
     // Private Member Functions
 
-        //- Disallow default bitwise copy construct
+        //- No copy construct
         manualGAMGProcAgglomeration
         (
             const manualGAMGProcAgglomeration&
-        );
+        ) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const manualGAMGProcAgglomeration&);
+        //- No copy assignment
+        void operator=(const manualGAMGProcAgglomeration&) = delete;
 
 
 public:

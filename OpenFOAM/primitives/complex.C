@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011 OpenFOAM Foundation
+    Copyright (C) 2019 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -25,60 +28,88 @@ License
 
 #include "complex.H"
 #include "IOstreams.H"
-
-#include <sstream>
+#include "token.H"
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
-namespace Foam {
-    const char* const complex::typeName = "complex";
-    const complex complex::_zero(0, 0);
-    const complex complex::one(1, 1);
-
-    // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
-
-    complex::complex(Istream& is)
-    {
-        is >> *this;
-    }
 
 
-    // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+ namespace Foam{
+const char* const pTraits<complex>::typeName = "complex";
+const char* const pTraits<complex>::componentNames[] = {"re", "im"};
 
-    word name(const complex& c)
-    {
-        std::ostringstream buf;
-        buf << '(' << c.Re() << ',' << c.Im() << ')';
-        return buf.str();
-    }
+const complex pTraits<complex>::zero_(0, 0);
+const complex pTraits<complex>::one_(1, 0);
 
+const complex pTraits<complex>::min_(-VGREAT, -VGREAT);
+const complex pTraits<complex>::max_(VGREAT, VGREAT);
 
-    // * * * * * * * * * * * * * * * IOstream Operators  * * * * * * * * * * * * //
+const complex pTraits<complex>::rootMin_
+(
+    -ROOTVGREAT, -ROOTVGREAT
+);
 
-    Istream& operator>>(Istream& is, complex& c)
-    {
-        // Read beginning of complex
-        is.readBegin("complex");
-
-        is >> c.re >> c.im;
-
-        // Read end of complex
-        is.readEnd("complex");
-
-        // Check state of Istream
-        is.check("operator>>(Istream&, complex&)");
-
-        return is;
-    }
+const complex pTraits<complex>::rootMax_
+(
+    ROOTVGREAT, ROOTVGREAT
+);
 
 
-    Ostream& operator<<(Ostream& os, const complex& c)
-    {
-        os << token::BEGIN_LIST
-            << c.re << token::SPACE << c.im
-            << token::END_LIST;
+pTraits<complex>::pTraits(const complex& val)
+:
+    p_(val)
+{}
 
-        return os;
-    }
 
+pTraits<complex>::pTraits(Istream& is)
+{
+    is >> p_;
 }
+
+
+// * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
+
+complex::complex(Istream& is)
+{
+    is >> *this;
+}
+
+
+// * * * * * * * * * * * * * * * Global Functions  * * * * * * * * * * * * * //
+
+word name(const complex& c)
+{
+    return '(' + std::to_string(c.Re()) + ',' + std::to_string(c.Im()) + ')';
+}
+
+
+// * * * * * * * * * * * * * * * IOstream Operators  * * * * * * * * * * * * //
+
+Istream& operator>>(Istream& is, complex& c)
+{
+    scalar r, i;
+
+    is.readBegin("complex");
+    is >> r >> i;
+    is.readEnd("complex");
+
+    c.real(r);
+    c.imag(i);
+
+    is.check(FUNCTION_NAME);
+    return is;
+}
+
+
+Ostream& operator<<(Ostream& os, const complex& c)
+{
+    os  << token::BEGIN_LIST
+        << c.real() << token::SPACE << c.imag()
+        << token::END_LIST;
+
+    return os;
+}
+
+
 // ************************************************************************* //
+
+ } // End namespace Foam

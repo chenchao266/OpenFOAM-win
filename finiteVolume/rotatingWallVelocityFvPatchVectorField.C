@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -40,7 +43,7 @@ rotatingWallVelocityFvPatchVectorField
     fixedValueFvPatchField<vector>(p, iF),
     origin_(),
     axis_(Zero),
-    omega_(0)
+    omega_(nullptr)
 {}
 
 
@@ -55,7 +58,7 @@ rotatingWallVelocityFvPatchVectorField
     fixedValueFvPatchField<vector>(p, iF, dict, false),
     origin_(dict.lookup("origin")),
     axis_(dict.lookup("axis")),
-    omega_(Function1<scalar>::New("omega", dict))
+    omega_(Function1<scalar>::New("omega", dict, &db()))
 {
     if (dict.found("value"))
     {
@@ -84,7 +87,7 @@ rotatingWallVelocityFvPatchVectorField
     fixedValueFvPatchField<vector>(ptf, p, iF, mapper),
     origin_(ptf.origin_),
     axis_(ptf.axis_),
-    omega_(ptf.omega_, false)
+    omega_(ptf.omega_.clone())
 {}
 
 
@@ -97,7 +100,7 @@ rotatingWallVelocityFvPatchVectorField
     fixedValueFvPatchField<vector>(rwvpvf),
     origin_(rwvpvf.origin_),
     axis_(rwvpvf.axis_),
-    omega_(rwvpvf.omega_, false)
+    omega_(rwvpvf.omega_.clone())
 {}
 
 
@@ -111,7 +114,7 @@ rotatingWallVelocityFvPatchVectorField
     fixedValueFvPatchField<vector>(rwvpvf, iF),
     origin_(rwvpvf.origin_),
     axis_(rwvpvf.axis_),
-    omega_(rwvpvf.omega_, false)
+    omega_(rwvpvf.omega_.clone())
 {}
 
 
@@ -145,8 +148,8 @@ void Foam::rotatingWallVelocityFvPatchVectorField::updateCoeffs()
 void Foam::rotatingWallVelocityFvPatchVectorField::write(Ostream& os) const
 {
     fvPatchVectorField::write(os);
-    os.writeKeyword("origin") << origin_ << token::END_STATEMENT << nl;
-    os.writeKeyword("axis") << axis_ << token::END_STATEMENT << nl;
+    os.writeEntry("origin", origin_);
+    os.writeEntry("axis", axis_);
     omega_->writeData(os);
     writeEntry("value", os);
 }

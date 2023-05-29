@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2015 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2015 OpenFOAM Foundation
+    Copyright (C) 2019-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -35,23 +38,24 @@ Foam::radiation::absorptionEmissionModel::New
     const fvMesh& mesh
 )
 {
-    const word modelType(dict.lookup("absorptionEmissionModel"));
+    const word modelType(dict.get<word>("absorptionEmissionModel"));
 
     Info<< "Selecting absorptionEmissionModel " << modelType << endl;
 
-    dictionaryConstructorTable::iterator cstrIter =
-        dictionaryConstructorTablePtr_->find(modelType);
+    auto* ctorPtr = dictionaryConstructorTable(modelType);
 
-    if (cstrIter == dictionaryConstructorTablePtr_->end())
+    if (!ctorPtr)
     {
-        FatalErrorInFunction
-            << "Unknown absorptionEmissionModel type "
-            << modelType << nl << nl
-            << "Valid absorptionEmissionModel types are :" << nl
-            << dictionaryConstructorTablePtr_->sortedToc() << exit(FatalError);
+        FatalIOErrorInLookup
+        (
+            dict,
+            "absorptionEmissionModel",
+            modelType,
+            *dictionaryConstructorTablePtr_
+        ) << exit(FatalIOError);
     }
 
-    return autoPtr<absorptionEmissionModel>(cstrIter()(dict, mesh));
+    return autoPtr<absorptionEmissionModel>(ctorPtr(dict, mesh));
 }
 
 

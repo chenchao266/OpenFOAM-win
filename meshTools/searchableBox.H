@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2018-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -27,6 +30,22 @@ Class
 Description
     Searching on bounding box
 
+    \heading Dictionary parameters
+    \table
+        Property    | Description                       | Required | Default
+        type        | box                               | selector |
+        min         | Minimum point for bounding box    | yes   |
+        max         | Maximum point for bounding box    | yes   |
+        span        | Box width                         | cond'l |
+    \endtable
+
+Note
+    The order of precedence from the highest to the lowest is
+    \c min-max or \c min-span pair
+
+Note
+    Longer type name : \c searchableBox
+
 SourceFiles
     searchableBox.C
 
@@ -43,8 +62,6 @@ SourceFiles
 namespace Foam
 {
 
-// Forward declaration of classes
-
 /*---------------------------------------------------------------------------*\
                            Class searchableBox Declaration
 \*---------------------------------------------------------------------------*/
@@ -54,8 +71,6 @@ class searchableBox
     public searchableSurface,
     public treeBoundBox
 {
-private:
-
     // Private Member Data
 
         mutable wordList regions_;
@@ -83,11 +98,11 @@ private:
         ) const;
 
 
-        //- Disallow default bitwise copy construct
-        searchableBox(const searchableBox&);
+        //- No copy construct
+        searchableBox(const searchableBox&) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const searchableBox&);
+        //- No copy assignment
+        void operator=(const searchableBox&) = delete;
 
 
 public:
@@ -108,18 +123,25 @@ public:
             const dictionary& dict
         );
 
+
     //- Destructor
-    virtual ~searchableBox();
+    virtual ~searchableBox() = default;
 
 
     // Member Functions
 
+        //- Names of regions
         virtual const wordList& regions() const;
 
-        //- Whether supports volume type below
+        //- Whether surface supports volume type (below)
         virtual bool hasVolumeType() const
         {
             return true;
+        }
+        //- What is type of points outside bounds
+        virtual volumeType outsideVolumeType() const
+        {
+            return volumeType::OUTSIDE;
         }
 
         //- Range of local indices that can be returned.
@@ -248,12 +270,11 @@ public:
                 vectorField& normal
             ) const;
 
-            //- Determine type (inside/outside/mixed) for point. unknown if
-            //  cannot be determined (e.g. non-manifold surface)
+            //- Determine type (inside/outside) for points.
             virtual void getVolumeType
             (
-                const pointField&,
-                List<volumeType>&
+                const pointField& points,
+                List<volumeType>& volType
             ) const;
 
 

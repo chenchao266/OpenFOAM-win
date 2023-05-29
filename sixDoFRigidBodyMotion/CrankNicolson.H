@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2015-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2015-2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -23,6 +25,9 @@ License
 
 Class
     Foam::sixDoFSolvers::CrankNicolson
+
+Group
+    grpSixDoFRigidBodySolvers
 
 Description
     Crank-Nicolson 2nd-order time-integrator for 6DoF solid-body motion.
@@ -94,6 +99,12 @@ public:
             const dictionary& dict,
             sixDoFRigidBodyMotion& body
         );
+
+        //- Construct and return a clone
+        virtual autoPtr<sixDoFSolver> clone() const
+        {
+            return autoPtr<sixDoFSolver>::NewFrom<CrankNicolson>(dict_, body_);
+        }
 
 
     //- Destructor

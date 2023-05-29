@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2017-2018 OpenFOAM Foundation
+    Copyright (C) 2020-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -28,18 +31,23 @@ License
 #include "OFstreamCollator.H"
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
-using namespace Foam;
+
+
+ namespace Foam{
 threadedCollatedOFstream::threadedCollatedOFstream
 (
     OFstreamCollator& writer,
     const fileName& pathName,
-    streamFormat format,
-    versionNumber version,
-    compressionType compression
-) :    OStringStream(format, version),
+    IOstreamOption streamOpt,
+    const bool useThread
+)
+:
+    OStringStream(streamOpt),
     writer_(writer),
     pathName_(pathName),
-    compression_(compression)
+    compression_(streamOpt.compression()),
+    useThread_(useThread),
+    headerEntries_()
 {}
 
 
@@ -52,12 +60,22 @@ threadedCollatedOFstream::~threadedCollatedOFstream()
         decomposedBlockData::typeName,
         pathName_,
         str(),
-        IOstream::BINARY,
-        version(),
-        compression_,
-        false                   // append
+        IOstreamOption(IOstream::BINARY, version(), compression_),
+        false,  // append=false
+        useThread_,
+        headerEntries_
     );
 }
 
 
+// * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
+
+void threadedCollatedOFstream::setHeaderEntries(const dictionary& dict)
+{
+    headerEntries_ = dict;
+}
+
+
 // ************************************************************************* //
+
+ } // End namespace Foam

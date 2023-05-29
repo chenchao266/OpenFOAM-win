@@ -1,9 +1,11 @@
-﻿/*---------------------------------------------------------------------------*\
+/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -23,7 +25,7 @@ License
 
 \*---------------------------------------------------------------------------*/
 
-//#include "kOmegaSST.H"
+#include "kOmegaSST.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -31,6 +33,29 @@ namespace Foam
 {
 namespace RASModels
 {
+
+// * * * * * * * * * * * * Protected Member Functions  * * * * * * * * * * * //
+
+template<class BasicTurbulenceModel>
+void kOmegaSST<BasicTurbulenceModel>::correctNut(const volScalarField& S2)
+{
+    // Correct the turbulence viscosity
+    kOmegaSSTBase<eddyViscosity<RASModel<BasicTurbulenceModel>>>::correctNut
+    (
+        S2
+    );
+
+    // Correct the turbulence thermal diffusivity
+    BasicTurbulenceModel::correctNut();
+}
+
+
+template<class BasicTurbulenceModel>
+void kOmegaSST<BasicTurbulenceModel>::correctNut()
+{
+    correctNut(2*magSqr(symm(fvc::grad(this->U_))));
+}
+
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
@@ -47,11 +72,7 @@ kOmegaSST<BasicTurbulenceModel>::kOmegaSST
     const word& type
 )
 :
-    Foam::kOmegaSST
-    <
-        eddyViscosity<RASModel<BasicTurbulenceModel>>,
-        BasicTurbulenceModel
-    >
+    kOmegaSSTBase<eddyViscosity<RASModel<BasicTurbulenceModel>>>
     (
         type,
         alpha,

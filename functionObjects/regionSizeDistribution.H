@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2013-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2013-2016 OpenFOAM Foundation
+    Copyright (C) 2016-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -28,8 +31,8 @@ Group
     grpFieldFunctionObjects
 
 Description
-    Creates a size distribution via interrogating a continuous phase fraction
-    field.
+    Creates a droplet size distribution via interrogating a continuous phase
+    fraction field.
 
     Looks up a phase-fraction (alpha) field and splits the mesh into regions
     based on where the field is below the threshold value.  These
@@ -47,60 +50,122 @@ Description
     - alpha_liquidCore : alpha with outside liquid core set to 0
     - alpha_background : alpha with outside background set to 0.
 
-    %Histogram:
+    Histogram:
     - determine histogram of diameter (given minDiameter, maxDiameter, nBins)
     - write graph of number of droplets per bin
     - write graph of sum, average and deviation of droplet volume per bin
     - write graph of sum, average and deviation of user-defined fields.  For
       volVectorFields these are those of the 3 components and the magnitude.
+    - (optional) write graph of histogram of centroids on iso planes
+      downstream of the injector determined by origin, direction and maxDiameter
+      up to maxDownstream
 
-    Example of function object specification:
+    Operands:
+    \table
+      Operand           | Type              | Location
+      input             | -                 | -
+      output file       | -                 <!--
+                    --> | $FOAM_CASE/postProcessing/\<FO\>/\<time\>/\<files\>
+      output field      | -                 | -
+    \endtable
+
+Usage
+    Minimal example by using \c system/controlDict.functions:
     \verbatim
     regionSizeDistribution1
     {
+        // Mandatory entries (unmodifiable)
         type            regionSizeDistribution;
-        libs            ("libfieldFunctionObjects.so");
-        ...
+        libs            (fieldFunctionObjects);
+
+        // Mandatory entries (runtime modifiable)
         field           alpha;
         patches         (inlet);
-        threshold       0.4;
         fields          (p U);
+        threshold       0.4;
+        maxDiameter     5e-5;
         nBins           100;
-        maxDiameter     0.5e-4;
-        minDiameter     0;
         setFormat       gnuplot;
+
+        // Optional entries (runtime modifiable)
+        minDiameter     0.0;
         coordinateSystem
         {
-            type            cartesian;
-            origin          (0 0 0);
-            e3              (0 1 1);
-            e1              (1 0 0);
+            origin  (0 0 0);
+            rotation
+            {
+                type    axes;
+                e3      (0 0 1);
+                e1      (1 0 0);
+            }
         }
+
+        // Optional downstream iso-plane bins
+        isoPlanes       true;
+
+            // Mandatory entries if isoPlanes=true   (runtime modifiable)
+            // Plane normal and point definition
+            origin          (1e-4 0 5e-4);
+            direction       (1 0 1);
+
+            // Maximum diameter of the cylinder formed by the origin point
+            // and direction
+            maxD            3e-4;
+
+            // Maximum downstream distance
+            maxDownstream   6e-4;
+
+            // Number of iso-plane bins
+            nDownstreamBins 20;
+
+        // Optional (inherited) entries
+        ...
     }
     \endverbatim
 
-Usage
+    where the entries mean:
     \table
-        Property     | Description             | Required    | Default value
-        type         | type name: regionSizeDistribution |yes|
-        field        | phase field to interrogate | yes      |
-        patches      | patches from which the liquid core is identified | yes|
-        threshold    | phase fraction applied to delimit regions | yes |
-        fields       | fields to sample        | yes         |
-        nBins        | number of bins for histogram | yes    |
-        maxDiameter  | maximum region equivalent diameter | yes |
-        minDiameter  | minimum region equivalent diameter | no  | 0
-        setFormat    | writing format          | yes         |
-        coordinateSystem | transformation for vector fields | no         |
+      Property     | Description                        | Type | Req'd | Dflt
+      type         | Type name: regionSizeDistribution  | word |  yes  | -
+      libs         | Library name: fieldFunctionObjects | word |  yes  | -
+      field        | Phase field to interrogate         | word |  yes  | -
+      patches      | Patches wherefrom the liquid core is identified <!--
+                                                    --> | wordList | yes | -
+      fields     | Fields to sample                     | wordList | yes | -
+      threshold  | Phase fraction applied to delimit regions | scalar | yes | -
+      maxDiameter  | Maximum droplet diameter           | scalar | yes | -
+      minDiameter  | Minimum droplet diameter           | scalar | no  | 0.0
+      nBins        | Number of bins for histogram       | label  | yes | -
+      setFormat    | Output format                      | word   | yes | -
+      isoPlanes    | Flag for isoPlanes                 | bool | no    | false
+      origin       | Origin of the plane when isoPlanes is used <!--
+                                                    --> | vector | yes | -
+      direction   <!--
+      --> | Direction of the plane when isoPlanes is used | vector | yes | -
+      maxD        | Maximum diameter of the sampling <!--
+                --> cylinder when isoPlanes is used     | vector | yes | -
+      nDownstreamBins  <!--
+      --> | Number of bins when isoPlanes is used       | label | yes  | -
+      maxDownstream  <!--
+      --> | Maximum distance from origin when isoPlanes is used <!--
+                                                    --> | scalar | yes | -
     \endtable
 
+    The inherited entries are elaborated in:
+     - \link functionObject.H \endlink
+     - \link writeFile.H \endlink
+
+    Usage by the \c postProcess utility is not available.
+
 See also
-    Foam::functionObject
-    Foam::functionObjects::fvMeshFunctionObject
-    Foam::functionObjects::writeFile
+    - Foam::functionObject
+    - Foam::functionObjects::fvMeshFunctionObject
+    - Foam::functionObjects::writeFile
+    - ExtendedCodeGuide::functionObjects::field::regionSizeDistribution
 
 SourceFiles
     regionSizeDistribution.C
+    regionSizeDistributionTemplates.C
 
 \*---------------------------------------------------------------------------*/
 
@@ -110,17 +175,17 @@ SourceFiles
 #include "fvMeshFunctionObject.H"
 #include "writeFile.H"
 #include "writer.H"
-#include "Map.T.H"
+#include "Map.H"
 #include "volFieldsFwd.H"
-#include "wordReList.H"
+#include "wordRes.H"
 #include "coordinateSystem.H"
+#include "Switch.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 namespace Foam
 {
 
-// Forward declaration of classes
 class regionSplit;
 
 namespace functionObjects
@@ -132,17 +197,16 @@ namespace functionObjects
 
 class regionSizeDistribution
 :
-    public fvMeshFunctionObject
+    public fvMeshFunctionObject,
+    public writeFile
 {
-    // Private data
+    // Private Data
 
-        writeFile file_;
+        //- Number of bins
+        label nBins_;
 
         //- Name of field
         word alphaName_;
-
-        //- Patches to walk from
-        wordReList patchNames_;
 
         //- Clip value
         scalar threshold_;
@@ -153,17 +217,38 @@ class regionSizeDistribution
         //- Minimum droplet diameter
         scalar minDiam_;
 
-        //- Mumber of bins
-        label nBins_;
+        //- Patches to walk from
+        wordRes patchNames_;
 
         //- Names of fields to sample on regions
-        wordReList fields_;
+        wordRes fields_;
 
         //- Output formatter to write
         autoPtr<writer<scalar>> formatterPtr_;
 
         //- Optional coordinate system
-        autoPtr<coordinateSystem> coordSysPtr_;
+        autoPtr<coordinateSystem> csysPtr_;
+
+        // Optional extra definition of bins on planes downstream to the origin
+        // point and maximum diameter
+
+            //- Optional origin point
+            vector origin_;
+
+            //- Optional plane normal direction
+            vector direction_;
+
+            //- Optional maximum diameter on plane
+            scalar maxDiameter_;
+
+            //- Optional number of bins for
+            scalar nDownstreamBins_;
+
+            //- Optional maximum downstream coordinate from origin
+            scalar maxDownstream_;
+
+            //- Switch to enable iso-planes sampling
+            bool isoPlanes_;
 
 
     // Private Member Functions
@@ -173,8 +258,7 @@ class regionSizeDistribution
 
         //- Get data in order
         template<class Type>
-        List<Type> extractData(const UList<label>& keys, const Map<Type>&)
-        const;
+        List<Type> extractData(const labelUList& keys, const Map<Type>&) const;
 
         void writeGraph
         (
@@ -184,7 +268,7 @@ class regionSizeDistribution
         ) const;
 
         //- Write volfields with the parts of alpha which are not
-        //  droplets (liquidCore, backGround)
+        //- droplets (liquidCore, backGround)
         void writeAlphaFields
         (
             const regionSplit& regions,
@@ -214,21 +298,13 @@ class regionSizeDistribution
         (
             const word& fieldName,              // name of field
             const scalarField& cellField,       // per cell field data
-
             const regionSplit& regions,         // per cell the region(=droplet)
             const labelList& sortedRegions,     // valid regions in sorted order
             const scalarField& sortedNormalisation,
-
             const labelList& indices,           // index of bin for each region
             const scalarField& binCount,        // per bin number of regions
             const coordSet& coords              // graph data for bins
         ) const;
-
-        //- Disallow default bitwise copy construct
-        regionSizeDistribution(const regionSizeDistribution&);
-
-        //- Disallow default bitwise assignment
-        void operator=(const regionSizeDistribution&);
 
 
 public:
@@ -248,10 +324,15 @@ public:
             const dictionary&
         );
 
+        //- No copy construct
+        regionSizeDistribution(const regionSizeDistribution&) = delete;
+
+        //- No copy assignment
+        void operator=(const regionSizeDistribution&) = delete;
+
 
     // Destructor
-
-        virtual ~regionSizeDistribution();
+    virtual ~regionSizeDistribution() = default;
 
 
     // Member Functions

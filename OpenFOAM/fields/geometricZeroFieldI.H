@@ -1,9 +1,11 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -23,39 +25,16 @@ License
 
 \*---------------------------------------------------------------------------*/
 
-#include "geometricZeroField.H"
+namespace Foam
+{
+
+// * * * * * * * * * * * * * * * Global Operators  * * * * * * * * * * * * * //
+
+// None defined
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
-namespace Foam {
-inline const dimensionSet& geometricZeroField::dimensions() const
-{
-    return dimless;
-}
 
-inline scalar geometricZeroField::operator[](const label) const
-{
-    return scalar(0);
-}
+} // End namespace Foam
 
-inline zeroField geometricZeroField::field() const
-{
-    return zeroField();
-}
 
-inline zeroField geometricZeroField::operator()() const
-{
-    return zeroField();
-}
-
-inline zeroField geometricZeroField::oldTime() const
-{
-    return zeroField();
-}
-
-inline zeroFieldField geometricZeroField::boundaryField() const
-{
-    return zeroFieldField();
-}
-
-}
 // ************************************************************************* //

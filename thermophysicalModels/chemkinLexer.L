@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2019 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -30,9 +33,14 @@ License
 #include "chemkinReader.H"
 
 #include "error.H"
-#include "IStringStream.H"
+#include "StringStream.H"
 // For EOF only
 #include <cstdio>
+
+// Flex may use register, which is deprecated and incompatible with C++17
+#pragma clang diagnostic ignored "-Wdeprecated-register"
+
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 // flex input buffer size
 int Foam::chemkinReader::yyBufSize = YY_BUF_SIZE;
@@ -54,7 +62,7 @@ int yyFlexLexer::yylex()
 // It is called by yylex but is not used as the mechanism to change file.
 // See <<EOF>>
 //! \cond dummy
-#if YY_FLEX_MINOR_VERSION < 6 && YY_FLEX_SUBMINOR_VERSION < 34
+#if YY_FLEX_MAJOR_VERSION <= 2 && YY_FLEX_MINOR_VERSION <= 5 && YY_FLEX_SUBMINOR_VERSION < 34
 extern "C" int yywrap()
 #else
 int yyFlexLexer::yywrap()
@@ -63,29 +71,6 @@ int yyFlexLexer::yywrap()
     return 1;
 }
 //! \endcond
-
-
-Foam::string foamSpecieString(const char* YYText)
-{
-    Foam::string specieString(YYText);
-    return specieString;
-}
-
-
-Foam::word foamName(const char* YYText)
-{
-    Foam::string fn(YYText);
-    Foam::string::stripInvalid<Foam::word>(fn);
-    return fn;
-}
-
-
-Foam::word foamName(const Foam::string& s)
-{
-    Foam::string fn(s);
-    Foam::string::stripInvalid<Foam::word>(fn);
-    return fn;
-}
 
 
  /* ------------------------------------------------------------------------- *\
@@ -344,7 +329,7 @@ bool finishReaction = false;
     }
 
 <readElements>{elementName} {
-        currentElementName = foamName(YYText());
+        currentElementName = word::validate(YYText());
         correctElementName(currentElementName);
 
         if (!elementIndices_.found(currentElementName))
@@ -382,7 +367,7 @@ bool finishReaction = false;
     }
 
 <readSpecies>{specieName} {
-        word specieName(foamName(foamSpecieString(YYText())));
+        const word specieName = word::validate(YYText());
 
         if (specieName == "THERMO")
         {
@@ -429,27 +414,27 @@ bool finishReaction = false;
     }
 
 <readThermoAll>{thermoTemp}{thermoTemp}{thermoTemp} {
-        string temperaturesString(YYText());
-        //scalar lowestT(stringToScalar(temperaturesString(0, 10)));
-        allCommonT = stringToScalar(temperaturesString(10, 10));
-        //scalar highestT(stringToScalar(temperaturesString(20, 10)));
+        const string temperaturesString(YYText());
+        //scalar lowestT(stringToScalar(temperaturesString.substr(0, 10)));
+        allCommonT = stringToScalar(temperaturesString.substr(10, 10));
+        //scalar highestT(stringToScalar(temperaturesString.substr(20, 10)));
         BEGIN(readThermoSpecieName);
     }
 
 <readThermoSpecieName>{thermoSpecieName} {
-        string specieString(foamSpecieString(YYText()));
+        string specieString(YYText());
         if (newFormat_)
         {
             specieString.replaceAll(" ", "_");
-            size_t strEnd = specieString.find_last_not_of('_');
+            const auto strEnd = specieString.find_last_not_of('_');
             currentSpecieName = specieString.substr(0, strEnd + 1);
         }
         else
         {
-            size_t spacePos = specieString.find(' ');
+            const auto spacePos = specieString.find(' ');
             if (spacePos != string::npos)
             {
-                currentSpecieName = specieString(0, spacePos);
+                currentSpecieName = specieString.substr(0, spacePos);
             }
             else
             {
@@ -467,21 +452,20 @@ bool finishReaction = false;
     }
 
 <readThermoFormula>{thermoFormula} {
-        string thermoFormula(YYText());
+        const string thermoFormula(YYText());
 
         nSpecieElements = 0;
         currentSpecieComposition.setSize(5);
 
         for (int i=0; i<4; i++)
         {
-            word elementName(foamName(thermoFormula(5*i, 2)));
-            label nAtoms = atoi(thermoFormula(5*i + 2, 3).c_str());
+            word elementName = word::validate(thermoFormula.substr(5*i, 2));
+            const int nAtoms = atoi(thermoFormula.substr(5*i + 2, 3).c_str());
 
             if (elementName.size() && nAtoms)
             {
                 correctElementName(elementName);
-                currentSpecieComposition[nSpecieElements].name() =
-                    elementName;
+                currentSpecieComposition[nSpecieElements].name() = elementName;
                 currentSpecieComposition[nSpecieElements++].nAtoms() = nAtoms;
             }
         }
@@ -490,31 +474,23 @@ bool finishReaction = false;
     }
 
 <readThermoPhase>{thermoPhase} {
-        char phaseChar = YYText()[0];
+        const char phaseChar = YYText()[0];
 
         switch (phaseChar)
         {
-            case 'S':
-                speciePhase_.insert(currentSpecieName, solid);
-            break;
-
-            case 'L':
-                speciePhase_.insert(currentSpecieName, liquid);
-            break;
-
-            case 'G':
-                speciePhase_.insert(currentSpecieName, gas);
-            break;
+            case 'S': speciePhase_.insert(currentSpecieName, solid); break;
+            case 'L': speciePhase_.insert(currentSpecieName, liquid); break;
+            case 'G': speciePhase_.insert(currentSpecieName, gas); break;
         }
 
         BEGIN(readThermoTemps);
     }
 
 <readThermoTemps>{thermoLowTemp}{thermoHighTemp}{thermoCommonTemp} {
-        string temperaturesString(YYText());
-        currentLowT = stringToScalar(temperaturesString(0, 10));
-        currentHighT = stringToScalar(temperaturesString(10, 10));
-        currentCommonT = stringToScalar(temperaturesString(20, 8));
+        const string temperaturesString(YYText());
+        currentLowT = stringToScalar(temperaturesString.substr(0, 10));
+        currentHighT = stringToScalar(temperaturesString.substr(10, 10));
+        currentCommonT = stringToScalar(temperaturesString.substr(20, 8));
 
         if (currentCommonT < SMALL)
         {
@@ -525,40 +501,28 @@ bool finishReaction = false;
     }
 
 <readThermoFormula2>{thermoFormula2} {
-        string thermoFormula(YYText());
-        word elementName(foamName(thermoFormula(0, 2)));
-        label nAtoms = atoi(thermoFormula(2, 3).c_str());
+        const string thermoFormula(YYText());
+        word elementName = word::validate(thermoFormula.substr(0, 2));
+        const int nAtoms = atoi(thermoFormula.substr(2, 3).c_str());
 
         if
         (
             elementName.size()
-         && elementName.find('0') == string::npos
+         && elementName.find('0') == std::string::npos
          && nAtoms
         )
         {
             correctElementName(elementName);
-            currentSpecieComposition[nSpecieElements].name() =
-                elementName;
+            currentSpecieComposition[nSpecieElements].name() = elementName;
             currentSpecieComposition[nSpecieElements++].nAtoms() = nAtoms;
         }
 
         currentSpecieComposition.setSize(nSpecieElements);
 
-        speciesCompositionTable::iterator specieCompositionIter
-        (
-            speciesComposition_.find(currentSpecieName)
-        );
-
-        if (specieCompositionIter != speciesComposition_.end())
-        {
-            speciesComposition_.erase(specieCompositionIter);
-        }
-
-        speciesComposition_.insert
-        (
-            currentSpecieName,
-            currentSpecieComposition
-        );
+        // Add current specie composition to the hash table
+        // - overwrite existing
+        speciesComposition_.erase(currentSpecieName);
+        speciesComposition_.set(currentSpecieName, currentSpecieComposition);
 
         BEGIN(readThermoLineLabel1);
     }
@@ -568,13 +532,13 @@ bool finishReaction = false;
     }
 
 <readThermoCoeff1>{thermoCoeff}{thermoCoeff}{thermoCoeff}{thermoCoeff}{thermoCoeff} {
-        string thermoCoeffString(YYText());
+        const string thermoCoeffString(YYText());
 
-        highCpCoeffs[0] = stringToScalar(thermoCoeffString(0, 15));
-        highCpCoeffs[1] = stringToScalar(thermoCoeffString(15, 15));
-        highCpCoeffs[2] = stringToScalar(thermoCoeffString(30, 15));
-        highCpCoeffs[3] = stringToScalar(thermoCoeffString(45, 15));
-        highCpCoeffs[4] = stringToScalar(thermoCoeffString(60, 15));
+        highCpCoeffs[0] = stringToScalar(thermoCoeffString.substr(0, 15));
+        highCpCoeffs[1] = stringToScalar(thermoCoeffString.substr(15, 15));
+        highCpCoeffs[2] = stringToScalar(thermoCoeffString.substr(30, 15));
+        highCpCoeffs[3] = stringToScalar(thermoCoeffString.substr(45, 15));
+        highCpCoeffs[4] = stringToScalar(thermoCoeffString.substr(60, 15));
 
         BEGIN(readThermoLineLabel2);
     }
@@ -586,12 +550,12 @@ bool finishReaction = false;
 <readThermoCoeff2>{thermoCoeff}{thermoCoeff}{thermoCoeff}{thermoCoeff}{thermoCoeff} {
         string thermoCoeffString(YYText());
 
-        highCpCoeffs[5] = stringToScalar(thermoCoeffString(0, 15));
-        highCpCoeffs[6] = stringToScalar(thermoCoeffString(15, 15));
+        highCpCoeffs[5] = stringToScalar(thermoCoeffString.substr(0, 15));
+        highCpCoeffs[6] = stringToScalar(thermoCoeffString.substr(15, 15));
 
-        lowCpCoeffs[0] = stringToScalar(thermoCoeffString(30, 15));
-        lowCpCoeffs[1] = stringToScalar(thermoCoeffString(45, 15));
-        lowCpCoeffs[2] = stringToScalar(thermoCoeffString(60, 15));
+        lowCpCoeffs[0] = stringToScalar(thermoCoeffString.substr(30, 15));
+        lowCpCoeffs[1] = stringToScalar(thermoCoeffString.substr(45, 15));
+        lowCpCoeffs[2] = stringToScalar(thermoCoeffString.substr(60, 15));
 
         BEGIN(readThermoLineLabel3);
     }
@@ -603,30 +567,22 @@ bool finishReaction = false;
 <readThermoCoeff3>{thermoCoeff}{thermoCoeff}{thermoCoeff}{thermoCoeff}{thermoCoeff} {
         string thermoCoeffString(YYText());
 
-        lowCpCoeffs[3] = stringToScalar(thermoCoeffString(0, 15));
-        lowCpCoeffs[4] = stringToScalar(thermoCoeffString(15, 15));
-        lowCpCoeffs[5] = stringToScalar(thermoCoeffString(30, 15));
-        lowCpCoeffs[6] = stringToScalar(thermoCoeffString(45, 15));
+        lowCpCoeffs[3] = stringToScalar(thermoCoeffString.substr(0, 15));
+        lowCpCoeffs[4] = stringToScalar(thermoCoeffString.substr(15, 15));
+        lowCpCoeffs[5] = stringToScalar(thermoCoeffString.substr(30, 15));
+        lowCpCoeffs[6] = stringToScalar(thermoCoeffString.substr(45, 15));
 
         BEGIN(readThermoLineLabel4);
     }
 
 <readThermoLineLabel4>{thermoLineLabel4} {
 
-        HashPtrTable<gasHThermoPhysics>::iterator specieThermoIter
-        (
-            speciesThermo_.find(currentSpecieName)
-        );
+        speciesThermo_.erase(currentSpecieName);
 
-        if (specieThermoIter != speciesThermo_.end())
-        {
-            speciesThermo_.erase(specieThermoIter);
-        }
-
-        speciesThermo_.insert
+        speciesThermo_.set
         (
             currentSpecieName,
-            new gasHThermoPhysics
+            autoPtr<gasHThermoPhysics>::New
             (
                 janafThermo<perfectGas<specie>>
                 (
@@ -695,16 +651,14 @@ bool finishReaction = false;
 
 <readReactionKeyword>{reactionKeyword} {
 
-        word keyword(foamName(YYText()));
+        const word keyword = word::validate(YYText());
 
-        HashTable<int>::iterator reactionKeywordIter
-        (
-            reactionKeywordTable_.find(keyword)
-        );
+        const auto reactionKeywordIter =
+            reactionKeywordTable_.cfind(keyword);
 
-        if (reactionKeywordIter != reactionKeywordTable_.end())
+        if (reactionKeywordIter.found())
         {
-            switch(reactionKeywordIter())
+            switch (reactionKeywordIter.val())
             {
                 case duplicateReactionType:
                 {
@@ -807,14 +761,12 @@ bool finishReaction = false;
         }
         else
         {
-            currentSpecieName = foamName(foamSpecieString(YYText()));
+            currentSpecieName = word::validate(YYText());
 
-            HashTable<label>::iterator specieIndexIter
-            (
-                specieIndices_.find(currentSpecieName)
-            );
+            const auto specieIndexIter =
+                specieIndices_.cfind(currentSpecieName);
 
-            if (specieIndexIter != specieIndices_.end())
+            if (specieIndexIter.found())
             {
                 if (finishReaction)
                 {
@@ -839,7 +791,7 @@ bool finishReaction = false;
                     lrhsPtr = &lhs;
                 }
 
-                currentSpecieCoeff.index = specieIndexIter();
+                currentSpecieCoeff.index = specieIndexIter.val();
                 lrhsPtr->append(currentSpecieCoeff);
 
                 BEGIN(readReactionDelimiter);
@@ -853,16 +805,14 @@ bool finishReaction = false;
 
 <readReactionKeyword>{reactionKeywordSlash} {
 
-        word keyword(foamName(YYText()));
+        const word keyword = word::validate(YYText());
 
-        HashTable<int>::iterator reactionKeywordIter
-        (
-            reactionKeywordTable_.find(keyword)
-        );
+        const auto reactionKeywordIter =
+            reactionKeywordTable_.cfind(keyword);
 
-        if (reactionKeywordIter != reactionKeywordTable_.end())
+        if (reactionKeywordIter.found())
         {
-            switch(reactionKeywordIter())
+            switch (reactionKeywordIter.val())
             {
                 case unimolecularFallOffReactionType:
                 {
@@ -1168,14 +1118,12 @@ bool finishReaction = false;
         }
         else
         {
-            HashTable<label>::iterator specieIndexIter
-            (
-                specieIndices_.find(keyword)
-            );
+            const auto specieIndexIter =
+                specieIndices_.cfind(keyword);
 
-            if (specieIndexIter != specieIndices_.end())
+            if (specieIndexIter.found())
             {
-                currentThirdBodyIndex = specieIndexIter();
+                currentThirdBodyIndex = specieIndexIter.val();
             }
             else
             {
@@ -1194,12 +1142,10 @@ bool finishReaction = false;
 <readSpecieNamePlus>"+" {
         currentSpecieName += "+";
 
-        HashTable<label>::iterator specieIndexIter
-        (
-            specieIndices_.find(currentSpecieName)
-        );
+        const auto specieIndexIter =
+            specieIndices_.cfind(currentSpecieName);
 
-        if (specieIndexIter != specieIndices_.end())
+        if (specieIndexIter.found())
         {
             if (finishReaction)
             {
@@ -1224,7 +1170,7 @@ bool finishReaction = false;
                 lrhsPtr = &lhs;
             }
 
-            currentSpecieCoeff.index = specieIndexIter();
+            currentSpecieCoeff.index = specieIndexIter.val();
             lrhsPtr->append(currentSpecieCoeff);
 
             BEGIN(readReactionDelimiter);
@@ -1327,11 +1273,9 @@ bool finishReaction = false;
 
 <readPDependentSpecie>{pDependentSpecie} {
 
-        word rhsPDependentSpecieName = pDependentSpecieName;
-        pDependentSpecieName =
-            foamName(foamSpecieString(YYText()));
-        pDependentSpecieName =
-            pDependentSpecieName(0, pDependentSpecieName.size() - 1);
+        const word rhsPDependentSpecieName = pDependentSpecieName;
+        pDependentSpecieName = word::validate(YYText());
+        pDependentSpecieName.resize(pDependentSpecieName.size()-1);
 
         if (rrType == thirdBodyArrhenius)
         {
@@ -1365,15 +1309,13 @@ bool finishReaction = false;
 
         if (pDependentSpecieName != "M")
         {
-            HashTable<label>::iterator specieIndexIter
-            (
-                specieIndices_.find(pDependentSpecieName)
-            );
+            const auto specieIndexIter =
+                specieIndices_.cfind(pDependentSpecieName);
 
-            if (specieIndexIter != specieIndices_.end())
+            if (specieIndexIter.found())
             {
                 thirdBodyEfficiencies = 0.0;
-                thirdBodyEfficiencies[specieIndexIter()] = 1.0;
+                thirdBodyEfficiencies[specieIndexIter.val()] = 1.0;
             }
             else
             {
@@ -1400,7 +1342,7 @@ bool finishReaction = false;
     }
 
 <readTdepSpecie>{specieName} {
-        word specieName(foamName(foamSpecieString(YYText())));
+        word specieName = word::validate(YYText());
         FatalErrorInFunction
             << "Temperature-dependent reaction on line "
             << lineNo_ << "not yet supported"
@@ -1409,17 +1351,13 @@ bool finishReaction = false;
     }
 
 <readReactionOrderSpecie>{specieName} {
-        currentSpecieName =
-            word(foamName(foamSpecieString(YYText())));
+        currentSpecieName = word::validate(YYText());
 
-        HashTable<label>::iterator specieIndexIter
-        (
-            specieIndices_.find(currentSpecieName)
-        );
+        const auto specieIndexIter = specieIndices_.cfind(currentSpecieName);
 
-        if (specieIndexIter != specieIndices_.end())
+        if (specieIndexIter.found())
         {
-            currentSpecieIndex = specieIndexIter();
+            currentSpecieIndex = specieIndexIter.val();
         }
         else
         {
@@ -1441,11 +1379,11 @@ bool finishReaction = false;
 
         bool found = false;
 
-        forAll(lrhs, i)
+        for (gasHReaction::specieCoeffs& coeffs : lrhs)
         {
-            if (lrhs[i].index == currentSpecieIndex)
+            if (coeffs.index == currentSpecieIndex)
             {
-                lrhs[i].exponent = stringToScalar(YYText());
+                coeffs.exponent = stringToScalar(YYText());
                 found = true;
                 break;
             }

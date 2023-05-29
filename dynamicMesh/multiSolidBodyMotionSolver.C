@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2018 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -59,23 +62,23 @@ Foam::multiSolidBodyMotionSolver::multiSolidBodyMotionSolver
     pointIDs_.setSize(coeffDict().size());
     label zonei = 0;
 
-    forAllConstIter(dictionary, coeffDict(), iter)
+    for (const entry& dEntry : coeffDict())
     {
-        if (iter().isDict())
+        if (dEntry.isDict())
         {
-            zoneIDs_[zonei] = mesh.cellZones().findZoneID(iter().keyword());
+            const word& zoneName = dEntry.keyword();
+            const dictionary& subDict = dEntry.dict();
+
+            zoneIDs_[zonei] = mesh.cellZones().findZoneID(zoneName);
 
             if (zoneIDs_[zonei] == -1)
             {
-                FatalIOErrorInFunction
-                (
-                    coeffDict()
-                )   << "Cannot find cellZone named " << iter().keyword()
-                    << ". Valid zones are " << mesh.cellZones().names()
+                FatalIOErrorInFunction(coeffDict())
+                    << "Cannot find cellZone named " << zoneName
+                    << ". Valid zones are "
+                    << flatOutput(mesh.cellZones().names())
                     << exit(FatalIOError);
             }
-
-            const dictionary& subDict = iter().dict();
 
             SBMFs_.set
             (
@@ -117,8 +120,9 @@ Foam::multiSolidBodyMotionSolver::multiSolidBodyMotionSolver
             pointIDs_[zonei].transfer(ptIDs);
 
             Info<< "Applying solid body motion " << SBMFs_[zonei].type()
-                << " to " << pointIDs_[zonei].size() << " points of cellZone "
-                << iter().keyword() << endl;
+                << " to "
+                << returnReduce(pointIDs_[zonei].size(), sumOp<label>())
+                << " points of cellZone " << zoneName << endl;
 
             zonei++;
         }

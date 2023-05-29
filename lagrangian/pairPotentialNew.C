@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2015 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2015 OpenFOAM Foundation
+    Copyright (C) 2019-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -31,29 +34,29 @@ License
 Foam::autoPtr<Foam::pairPotential> Foam::pairPotential::New
 (
     const word& name,
-    const dictionary& propDict
+    const dictionary& dict
 )
 {
-    const word potentialType(propDict.lookup("pairPotential"));
+    const word modelType(dict.get<word>("pairPotential"));
 
     Info<< nl << "Selecting intermolecular pair potential "
-        << potentialType << " for "
+        << modelType << " for "
         << name << " interaction." << endl;
 
-    dictionaryConstructorTable::iterator cstrIter =
-        dictionaryConstructorTablePtr_->find(potentialType);
+    auto* ctorPtr = dictionaryConstructorTable(modelType);
 
-    if (cstrIter == dictionaryConstructorTablePtr_->end())
+    if (!ctorPtr)
     {
-        FatalErrorInFunction
-            << "Unknown pairPotential type "
-            << potentialType << nl << nl
-            << "Valid pairPotentials are:" << nl
-            << dictionaryConstructorTablePtr_->sortedToc()
-            << exit(FatalError);
+        FatalIOErrorInLookup
+        (
+            dict,
+            "pairPotential",
+            modelType,
+            *dictionaryConstructorTablePtr_
+        ) << exit(FatalIOError);
     }
 
-    return autoPtr<pairPotential>(cstrIter()(name, propDict));
+    return autoPtr<pairPotential>(ctorPtr(name, dict));
 }
 
 

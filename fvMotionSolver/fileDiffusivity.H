@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2012 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2012 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -63,11 +65,11 @@ private:
 
     // Private Member Functions
 
-        //- Disallow default bitwise copy construct
-        fileDiffusivity(const fileDiffusivity&);
+        //- No copy construct
+        fileDiffusivity(const fileDiffusivity&) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const fileDiffusivity&);
+        //- No copy assignment
+        void operator=(const fileDiffusivity&) = delete;
 
 
 public:

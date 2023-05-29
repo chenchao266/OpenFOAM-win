@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2015-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2015-2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -23,49 +25,53 @@ License
 
 \*---------------------------------------------------------------------------*/
 
-//#include "data.H"
-#include "Time.T.H"
-#include "solverPerformance.H"
+#include "data.H"
+#include "Time1.H"
+#include "solverPerformance2.H"
 
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
-namespace Foam {
-    template<class Type>
-    void data::setSolverPerformance
-    (
-        const word& name,
-        const SolverPerformance<Type>& sp
-    ) const
+
+
+ namespace Foam{
+template<class Type>
+void data::setSolverPerformance
+(
+    const word& name,
+    const SolverPerformance<Type>& sp
+) const
+{
+    dictionary& dict = const_cast<dictionary&>(solverPerformanceDict());
+
+    List<SolverPerformance<Type>> perfs;
+
+    if (prevTimeIndex_ != this->time().timeIndex())
     {
-        dictionary& dict = const_cast<dictionary&>(solverPerformanceDict());
-
-        List<SolverPerformance<Type>> perfs;
-
-        if (prevTimeIndex_ != this->time().timeIndex())
-        {
-            // Reset solver performance between iterations
-            prevTimeIndex_ = this->time().timeIndex();
-            dict.clear();
-        }
-        else
-        {
-            dict.readIfPresent(name, perfs);
-        }
-
-        // Append to list
-        perfs.setSize(perfs.size() + 1, sp);
-
-        dict.set(name, perfs);
+        // Reset solver performance between iterations
+        prevTimeIndex_ = this->time().timeIndex();
+        dict.clear();
+    }
+    else
+    {
+        dict.readIfPresent(name, perfs);
     }
 
+    // Append to list
+    perfs.setSize(perfs.size()+1, sp);
 
-    template<class Type>
-    void data::setSolverPerformance
-    (
-        const SolverPerformance<Type>& sp
-    ) const
-    {
-        setSolverPerformance(sp.fieldName(), sp);
-    }
-
+    dict.set(name, perfs);
 }
+
+
+template<class Type>
+void data::setSolverPerformance
+(
+    const SolverPerformance<Type>& sp
+) const
+{
+    setSolverPerformance(sp.fieldName(), sp);
+}
+
+
 // ************************************************************************* //
+
+ } // End namespace Foam

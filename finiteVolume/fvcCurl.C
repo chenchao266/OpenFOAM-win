@@ -1,9 +1,11 @@
-﻿/*---------------------------------------------------------------------------*\
+/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -23,7 +25,7 @@ License
 
 \*---------------------------------------------------------------------------*/
 
-//#include "fvcCurl.H"
+#include "fvcCurl.H"
 #include "fvcGrad.H"
 #include "fvMesh.H"
 
@@ -48,7 +50,7 @@ curl
 {
     word nameCurlVf = "curl(" + vf.name() + ')';
 
-    // Gausses theorem curl
+    // Gauss's theorem curl
     // tmp<GeometricField<Type, fvPatchField, volMesh>> tcurlVf =
     //     fvc::surfaceIntegrate(vf.mesh().Sf() ^ fvc::interpolate(vf));
 

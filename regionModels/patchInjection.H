@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2015-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2015-2017 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -57,17 +59,17 @@ class patchInjection
 {
     // Private member functions
 
-        //- Disallow default bitwise copy construct
-        patchInjection(const patchInjection&);
+        //- No copy construct
+        patchInjection(const patchInjection&) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const patchInjection&);
+        //- No copy assignment
+        void operator=(const patchInjection&) = delete;
 
 
 protected:
 
-        //- Stable film thickness - mass only removed if thickness execeeds
-        //  this threhold value
+        //- Stable film thickness - mass only removed if thickness exceeds
+        //  this threshold value
         scalar deltaStable_;
 
         //- List of patch IDs at which the film is removed
@@ -86,7 +88,7 @@ public:
     // Constructors
 
         //- Construct from surface film model
-        patchInjection(surfaceFilmModel& film, const dictionary& dict);
+        patchInjection(surfaceFilmRegionModel& film, const dictionary& dict);
 
 
     //- Destructor

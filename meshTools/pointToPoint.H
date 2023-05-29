@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011 OpenFOAM Foundation
+    Copyright (C) 2018-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -25,7 +28,73 @@ Class
     Foam::pointToPoint
 
 Description
-    A topoSetSource to select points based on usage in pointSet.
+    A \c topoSetPointSource to select all points from given \c pointSet(s).
+
+    Operands
+    \table
+      Operand   | Type        | Location
+      input     | pointSet(s) | $FOAM_CASE/constant/polyMesh/sets/\<set\>
+      output    | pointSet    | $FOAM_CASE/constant/polyMesh/sets/\<set\>
+    \endtable
+
+Usage
+    Minimal example by using \c system/topoSetDict.actions:
+    \verbatim
+    {
+        // Mandatory (inherited) entries
+        name        <name>;
+        type        pointSet;
+        action      <action>;
+
+        // Mandatory entries
+        source      pointToPoint;
+
+        // Conditional mandatory entries
+        // Select either of the below
+
+        // Option-1
+        sets
+        (
+            <pointSetName1>
+            <pointSetName2>
+            ...
+        );
+
+        // Option-2
+        set   <pointSetName>;
+    }
+    \endverbatim
+
+    where the entries mean:
+    \table
+      Property   | Description                          | Type | Req'd | Dflt
+      name       | Name of pointSet                     | word |  yes  | -
+      type       | Type name: pointSet                  | word |  yes  | -
+      action     | Action applied on points - see below | word |  yes  | -
+      source     | Source name: pointToPoint            | word |  yes  | -
+    \endtable
+
+    Options for the \c action entry:
+    \verbatim
+      new      | Create a new pointSet from selected points
+      add      | Add selected points into this pointSet
+      subtract | Remove selected points from this pointSet
+    \endverbatim
+
+    Options for the conditional mandatory entries:
+    \verbatim
+      Entry    | Description                | Type     | Req'd  | Dflt
+      sets     | Names of input pointSets   | wordList | cond'l | -
+      set      | Name of input pointSet     | word     | cond'l | -
+    \endverbatim
+
+Note
+    The order of precedence among the conditional mandatory entries from the
+    highest to the lowest is \c sets, and \c set.
+
+See also
+    - Foam::topoSetSource
+    - Foam::topoSetPointSource
 
 SourceFiles
     pointToPoint.C
@@ -35,7 +104,7 @@ SourceFiles
 #ifndef pointToPoint_H
 #define pointToPoint_H
 
-#include "topoSetSource.H"
+#include "topoSetPointSource.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -48,62 +117,46 @@ namespace Foam
 
 class pointToPoint
 :
-    public topoSetSource
+    public topoSetPointSource
 {
-    // Private data
+    // Private Data
 
         //- Add usage string
         static addToUsageTable usage_;
 
-        //- Name of set to use
-        word setName_;
+        //- Names of sets to use
+        wordList names_;
+
 
 public:
 
     //- Runtime type information
     TypeName("pointToPoint");
 
+
     // Constructors
 
         //- Construct from components
-        pointToPoint
-        (
-            const polyMesh& mesh,
-            const word& setName
-        );
+        pointToPoint(const polyMesh& mesh, const word& setName);
 
         //- Construct from dictionary
-        pointToPoint
-        (
-            const polyMesh& mesh,
-            const dictionary& dict
-        );
+        pointToPoint(const polyMesh& mesh, const dictionary& dict);
 
         //- Construct from Istream
-        pointToPoint
-        (
-            const polyMesh& mesh,
-            Istream&
-        );
+        pointToPoint(const polyMesh& mesh, Istream& is);
 
 
     //- Destructor
-    virtual ~pointToPoint();
+    virtual ~pointToPoint() = default;
 
 
     // Member Functions
 
-        virtual sourceType setType() const
-        {
-            return POINTSETSOURCE;
-        }
-
         virtual void applyToSet
         (
             const topoSetSource::setAction action,
-            topoSet&
+            topoSet& set
         ) const;
-
 };
 
 

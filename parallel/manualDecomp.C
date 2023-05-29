@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2017-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -21,22 +24,17 @@ License
     You should have received a copy of the GNU General Public License
     along with OpenFOAM.  If not, see <http://www.gnu.org/licenses/>.
 
-Description
-    Decomposition given a cell-to-processor association in a file
-
 \*---------------------------------------------------------------------------*/
 
 #include "manualDecomp.H"
-#include "addToRunTimeSelectionTable.H"
-#include "IFstream.H"
 #include "labelIOList.H"
+#include "addToRunTimeSelectionTable.H"
 
-// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+// * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
 
 namespace Foam
 {
     defineTypeNameAndDebug(manualDecomp, 0);
-
     addToRunTimeSelectionTable
     (
         decompositionMethod,
@@ -48,15 +46,16 @@ namespace Foam
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
-Foam::manualDecomp::manualDecomp(const dictionary& decompositionDict)
+Foam::manualDecomp::manualDecomp
+(
+    const dictionary& decompDict,
+    const word& regionName
+)
 :
-    decompositionMethod(decompositionDict),
-    decompDataFile_
+    decompositionMethod(decompDict, regionName),
+    dataFile_
     (
-        decompositionDict.optionalSubDict
-        (
-            word(decompositionDict.lookup("method")) + "Coeffs"
-        ).lookup("dataFile")
+        findCoeffsDict(typeName + "Coeffs").get<fileName>("dataFile")
     )
 {}
 
@@ -68,13 +67,13 @@ Foam::labelList Foam::manualDecomp::decompose
     const polyMesh& mesh,
     const pointField& points,
     const scalarField& pointWeights
-)
+) const
 {
     labelIOList finalDecomp
     (
         IOobject
         (
-            decompDataFile_,
+            dataFile_,
             mesh.facesInstance(),
             mesh,
             IOobject::MUST_READ,
@@ -83,8 +82,7 @@ Foam::labelList Foam::manualDecomp::decompose
         )
     );
 
-    // check if the final decomposition is OK
-
+    // Check if the final decomposition is OK
     if (finalDecomp.size() != points.size())
     {
         FatalErrorInFunction
@@ -93,22 +91,25 @@ Foam::labelList Foam::manualDecomp::decompose
             << finalDecomp.size() << " Number of points: "
             << points.size()
             << ".\n" << "Manual decomposition data read from file "
-            << decompDataFile_ << "." << endl
+            << dataFile_ << "." << endl
             << exit(FatalError);
     }
 
-    if (min(finalDecomp) < 0 || max(finalDecomp) > nProcessors_ - 1)
+    const label minVal = min(finalDecomp);
+    const label maxVal = max(finalDecomp);
+
+    if (minVal < 0 || maxVal >= nDomains_)
     {
         FatalErrorInFunction
             << "According to the decomposition, cells assigned to "
             << "impossible processor numbers.  Min processor = "
-            << min(finalDecomp) << " Max processor = " << max(finalDecomp)
+            << minVal << " Max processor = " << maxVal
             << ".\n" << "Manual decomposition data read from file "
-            << decompDataFile_ << "." << endl
+            << dataFile_ << "." << endl
             << exit(FatalError);
     }
 
-    return finalDecomp;
+    return std::move(finalDecomp);
 }
 
 

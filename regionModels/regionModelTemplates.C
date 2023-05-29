@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -87,15 +89,7 @@ Foam::regionModels::regionModel::mapRegionPatchField
     {
         const polyPatch& p = regionMesh().boundaryMesh()[regionPatchi];
 
-        return
-            tmp<Field<Type>>
-            (
-                new Field<Type>
-                (
-                    p.size(),
-                    Zero
-                )
-            );
+        return tmp<Field<Type>>::New(p.size(), Zero);
     }
 }
 
@@ -143,15 +137,7 @@ Foam::regionModels::regionModel::mapRegionPatchInternalField
     {
         const polyPatch& p = regionMesh().boundaryMesh()[regionPatchi];
 
-        return
-            tmp<Field<Type>>
-            (
-                new Field<Type>
-                (
-                    p.size(),
-                    Zero
-                )
-            );
+        return tmp<Field<Type>>::New(p.size(), Zero);
     }
 }
 

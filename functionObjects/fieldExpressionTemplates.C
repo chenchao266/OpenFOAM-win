@@ -1,9 +1,11 @@
-﻿/*---------------------------------------------------------------------------*\
+/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -23,29 +25,31 @@ License
 
 \*---------------------------------------------------------------------------*/
 
-//#include "fieldExpression.H"
+#include "fieldExpression.H"
 
 // * * * * * * * * * * * * * Protected Member Functions  * * * * * * * * * * //
 
 template<class Type>
 bool Foam::functionObjects::fieldExpression::foundObject
 (
-    const word& name
-)
+    const word& name,
+    const bool verbose
+) const
 {
     if (fvMeshFunctionObject::foundObject<Type>(name))
     {
         return true;
     }
-    else
+
+    if (debug || verbose)
     {
         Warning
             << "    functionObjects::" << type() << " " << this->name()
             << " cannot find required object " << name << " of type "
             << Type::typeName << endl;
-
-        return false;
     }
+
+    return false;
 }
 
 

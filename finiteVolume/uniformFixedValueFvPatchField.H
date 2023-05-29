@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2018-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -32,8 +35,8 @@ Description
 
 Usage
     \table
-        Property     | Description             | Required    | Default value
-        uniformValue | uniform value           |         yes |
+        Property     | Description                  | Required | Default
+        uniformValue | uniform value                | yes |
     \endtable
 
     Example of the boundary condition specification:
@@ -46,9 +49,9 @@ Usage
     \endverbatim
 
 Note
-    The uniformValue entry is a Function1 type, able to describe time
-    varying functions.  The example above gives the usage for supplying a
-    constant value.
+    The uniformValue entry is a PatchFunction1 type,
+    able to describe time and spatial varying functions.
+    The example above gives the usage for supplying a constant value.
 
 See also
     Foam::Function1Types
@@ -63,7 +66,7 @@ SourceFiles
 #define uniformFixedValueFvPatchField_H
 
 #include "fixedValueFvPatchFields.H"
-#include "Function1.T.H"
+#include "PatchFunction1.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -79,9 +82,10 @@ class uniformFixedValueFvPatchField
 :
     public fixedValueFvPatchField<Type>
 {
-    // Private data
+    // Private Data
 
-        autoPtr<Function1<Type>> uniformValue_;
+        //- Value
+        autoPtr<PatchFunction1<Type>> uniformValue_;
 
 
 public:
@@ -115,8 +119,7 @@ public:
             const dictionary&
         );
 
-        //- Construct by mapping given uniformFixedValueFvPatchField
-        //  onto a new patch
+        //- Construct by mapping onto a new patch
         uniformFixedValueFvPatchField
         (
             const uniformFixedValueFvPatchField<Type>&,
@@ -162,11 +165,27 @@ public:
 
     // Member functions
 
+        // Mapping functions
+
+            //- Map (and resize as needed) from self given a mapping object
+            virtual void autoMap
+            (
+                const fvPatchFieldMapper&
+            );
+
+            //- Reverse map the given fvPatchField onto this fvPatchField
+            virtual void rmap
+            (
+                const fvPatchField<Type>&,
+                const labelList&
+            );
+
+
         //- Update the coefficients associated with the patch field
         virtual void updateCoeffs();
 
         //- Write
-        virtual void write(Ostream&) const;
+        virtual void write(Ostream& os) const;
 };
 
 

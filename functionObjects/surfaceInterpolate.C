@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2016-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -34,13 +37,7 @@ namespace Foam
 namespace functionObjects
 {
     defineTypeNameAndDebug(surfaceInterpolate, 0);
-
-    addToRunTimeSelectionTable
-    (
-        functionObject,
-        surfaceInterpolate,
-        dictionary
-    );
+    addToRunTimeSelectionTable(functionObject, surfaceInterpolate, dictionary);
 }
 }
 
@@ -61,12 +58,6 @@ Foam::functionObjects::surfaceInterpolate::surfaceInterpolate
 }
 
 
-// * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
-
-Foam::functionObjects::surfaceInterpolate::~surfaceInterpolate()
-{}
-
-
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
 
 bool Foam::functionObjects::surfaceInterpolate::read
@@ -74,7 +65,9 @@ bool Foam::functionObjects::surfaceInterpolate::read
     const dictionary& dict
 )
 {
-    dict.lookup("fields") >> fieldSet_;
+    fvMeshFunctionObject::read(dict);
+
+    dict.readEntry("fields", fieldSet_);
 
     return true;
 }
@@ -82,22 +75,15 @@ bool Foam::functionObjects::surfaceInterpolate::read
 
 bool Foam::functionObjects::surfaceInterpolate::execute()
 {
-    Info<< type() << " " << name() << " write:" << nl;
+    Log << type() << " " << name() << " write:" << nl;
 
-    // Clear out any previously loaded fields
-    ssf_.clear();
-    svf_.clear();
-    sSpheretf_.clear();
-    sSymmtf_.clear();
-    stf_.clear();
+    interpolateFields<scalar>();
+    interpolateFields<vector>();
+    interpolateFields<sphericalTensor>();
+    interpolateFields<symmTensor>();
+    interpolateFields<tensor>();
 
-    interpolateFields<scalar>(ssf_);
-    interpolateFields<vector>(svf_);
-    interpolateFields<sphericalTensor>(sSpheretf_);
-    interpolateFields<symmTensor>(sSymmtf_);
-    interpolateFields<tensor>(stf_);
-
-    Info<< endl;
+    Log << endl;
 
     return true;
 }
@@ -105,31 +91,29 @@ bool Foam::functionObjects::surfaceInterpolate::execute()
 
 bool Foam::functionObjects::surfaceInterpolate::write()
 {
-    Info<< type() << " " << name() << " write:" << nl;
+    Log << "    functionObjects::" << type() << " " << name()
+        << " writing interpolated surface fields:" << nl;
 
-    Info<< "    Writing interpolated surface fields to "
-        << obr_.time().timeName() << endl;
+    forAll(fieldSet_, i)
+    {
+        const word& fieldName = fieldSet_[i].second();
 
-    forAll(ssf_, i)
-    {
-        ssf_[i].write();
+        const regIOobject* ioptr = obr_.findObject<regIOobject>(fieldName);
+
+        if (ioptr)
+        {
+            Log << "        " << fieldName << nl;
+            ioptr->write();
+        }
+        else
+        {
+            WarningInFunction
+                << "Unable to find field " << fieldName
+                << " in the mesh database" << endl;
+        }
     }
-    forAll(svf_, i)
-    {
-        svf_[i].write();
-    }
-    forAll(sSpheretf_, i)
-    {
-        sSpheretf_[i].write();
-    }
-    forAll(sSymmtf_, i)
-    {
-        sSymmtf_[i].write();
-    }
-    forAll(stf_, i)
-    {
-        stf_[i].write();
-    }
+
+    Log << endl;
 
     return true;
 }

@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2020 OpenFOAM Foundation
+    Copyright (C) 2019-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -25,7 +28,7 @@ Class
     Foam::meshToMesh0
 
 Description
-    mesh to mesh interpolation class.
+    Serial mesh to mesh interpolation class.
 
 Note
     This class is due to be deprecated in favour of meshToMesh0New
@@ -38,11 +41,11 @@ SourceFiles
 
 \*---------------------------------------------------------------------------*/
 
-#ifndef meshtoMesh_H
-#define meshtoMesh_H
+#ifndef meshToMesh0_H
+#define meshToMesh0_H
 
 #include "fvMesh.H"
-#include "HashTable.T.H"
+#include "HashTable.H"
 #include "fvPatchMapper.H"
 #include "scalarList.H"
 #include "className.H"
@@ -52,9 +55,8 @@ SourceFiles
 namespace Foam
 {
 
-template<class Type>
-class indexedOctree;
-
+// Forward Declarations
+template<class Type> class indexedOctree;
 class treeDataCell;
 
 /*---------------------------------------------------------------------------*\
@@ -63,9 +65,9 @@ class treeDataCell;
 
 class meshToMesh0
 {
-    // Private data
+    // Private Data
 
-        // mesh references
+        // Mesh References
 
         const fvMesh& fromMesh_;
         const fvMesh& toMesh_;
@@ -89,13 +91,13 @@ class meshToMesh0
         labelListList boundaryAddressing_;
 
         //- Inverse-distance interpolation weights
-        mutable scalarListList* inverseDistanceWeightsPtr_;
+        mutable unique_ptr<scalarListList> inverseDistanceWeightsPtr_;
 
         //- Inverse-volume interpolation weights
-        mutable scalarListList* inverseVolumeWeightsPtr_;
+        mutable unique_ptr<scalarListList> inverseVolumeWeightsPtr_;
 
         //- Cell to cell overlap addressing
-        mutable labelListList* cellToCellAddressingPtr_;
+        mutable unique_ptr<labelListList> cellToCellAddressingPtr_;
 
         //- Overlap volume
         mutable scalar V_;
@@ -103,6 +105,9 @@ class meshToMesh0
 
     // Private Member Functions
 
+        //- Calculates mesh to mesh addressing pattern.
+        //  For each cell from one mesh find the closest cell centre
+        //  in the other mesh
         void calcAddressing();
 
         void cellAddresses
@@ -127,7 +132,7 @@ class meshToMesh0
         const labelListList& cellToCellAddressing() const;
 
 
-    // Private static data members
+    // Private Static Data Members
 
         //- Direct hit tolerance
         static const scalar directHitTol;
@@ -172,7 +177,7 @@ public:
 
 
     //- Destructor
-    ~meshToMesh0();
+    ~meshToMesh0() = default;
 
 
     //- Patch-field interpolation class
@@ -195,8 +200,7 @@ public:
 
 
         //- Destructor
-        virtual ~patchFieldInterpolator()
-        {}
+        virtual ~patchFieldInterpolator() = default;
 
 
         // Member Functions

@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2013 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2013 OpenFOAM Foundation
+    Copyright (C) 2018-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -24,45 +27,54 @@ License
 \*---------------------------------------------------------------------------*/
 
 #include "volumeType.H"
+#include "dictionary2.H"
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
-using namespace Foam;
-namespace Foam
-{
-    template<>
-    const char* NamedEnum
-    <
-        volumeType,
-        4
-    >::names[] =
-    {
-        "unknown",
-        "mixed",
-        "inside",
-        "outside"
-    };
-}
 
-const NamedEnum<volumeType, 4> volumeType::names;
+
+ namespace Foam{
+const Enum
+<
+    volumeType::type
+>
+volumeType::names
+({
+    { volumeType::type::UNKNOWN, "unknown" },
+    { volumeType::type::INSIDE, "inside" },
+    { volumeType::type::OUTSIDE, "outside" },
+    { volumeType::type::MIXED, "mixed" },
+});
+
+
+// * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
+
+volumeType::volumeType
+(
+    const word& key,
+    const dictionary& dict,
+    const type deflt
+)
+:
+    t_(names.getOrDefault(key, dict, deflt))
+{}
+
+
+// * * * * * * * * * * * * * * * Member Functions * * * * * * * * * * * * * * //
+
+const word& volumeType::str() const
+{
+    return names[t_];
+}
 
 
 // * * * * * * * * * * * * * * * IOstream Operators  * * * * * * * * * * * * //
 
 Istream& operator>>(Istream& is, volumeType& vt)
 {
-    // Read beginning of volumeType
-    is.readBegin("volumeType");
+    int val;
+    is  >> val;
 
-    int type;
-    is  >> type;
-
-    vt.t_ = static_cast<volumeType::type>(type);
-
-    // Read end of volumeType
-    is.readEnd("volumeType");
-
-    // Check state of Istream
-    is.check("operator>>(Istream&, volumeType&)");
+    vt.t_ = static_cast<volumeType::type>(val);
 
     return is;
 }
@@ -77,3 +89,5 @@ Ostream& operator<<(Ostream& os, const volumeType& vt)
 
 
 // ************************************************************************* //
+
+ } // End namespace Foam

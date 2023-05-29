@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2019 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -37,7 +40,7 @@ SourceFiles
 #ifndef solidParticleCloud_H
 #define solidParticleCloud_H
 
-#include "Cloud.T.H"
+#include "Cloud.H"
 #include "solidParticle.H"
 #include "IOdictionary.H"
 
@@ -46,7 +49,7 @@ SourceFiles
 namespace Foam
 {
 
-// Forward declaration of classes
+// Forward Declarations
 class fvMesh;
 
 /*---------------------------------------------------------------------------*\
@@ -70,11 +73,11 @@ class solidParticleCloud
 
     // Private Member Functions
 
-        //- Disallow default bitwise copy construct
-        solidParticleCloud(const solidParticleCloud&);
+        //- No copy construct
+        solidParticleCloud(const solidParticleCloud&) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const solidParticleCloud&);
+        //- No copy assignment
+        void operator=(const solidParticleCloud&) = delete;
 
 
 public:
@@ -82,10 +85,10 @@ public:
     // Constructors
 
         //- Construct given mesh
-        solidParticleCloud
+        explicit solidParticleCloud
         (
-            const fvMesh&,
-            const word& cloudName = "defaultCloud",
+            const fvMesh& mesh,
+            const word& cloudName = cloud::defaultName,
             bool readFields = true
         );
 
@@ -93,8 +96,6 @@ public:
     // Member Functions
 
         // Access
-
-            bool hasWallImpactDistance() const;
 
             inline const fvMesh& mesh() const;
 

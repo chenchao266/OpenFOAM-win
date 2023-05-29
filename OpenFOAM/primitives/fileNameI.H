@@ -1,15 +1,15 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
 -------------------------------------------------------------------------------
- 2011 Symscape: Allow spaces for file names and paths.
- 2014-02-21 blueCAPE Lda: Modifications for blueCFD-Core 2.3
-------------------------------------------------------------------------------
+    Copyright (C) 2011 OpenFOAM Foundation
+    Copyright (C) 2016-2021 OpenCFD Ltd.
+-------------------------------------------------------------------------------
 License
-    This file is a derivative work of OpenFOAM.
+    This file is part of OpenFOAM.
 
     OpenFOAM is free software: you can redistribute it and/or modify it
     under the terms of the GNU General Public License as published by
@@ -24,18 +24,97 @@ License
     You should have received a copy of the GNU General Public License
     along with OpenFOAM.  If not, see <http://www.gnu.org/licenses/>.
 
-Modifications
-    This file has been modified by blueCAPE's unofficial mingw patches for
-    OpenFOAM.
-    For more information about these patches, visit:
-        http://bluecfd.com/Core
-
 \*---------------------------------------------------------------------------*/
 
-// * * * * * * * * * * * * * Private Member Functions  * * * * * * * * * * * //
-namespace Foam {
+#include <iostream>  // For std::cerr
+
+// * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
+
+
+ namespace Foam{
+inline fileName::fileName(const word& s)
+:
+    string(s)
+{}
+
+
+inline fileName::fileName(word&& s)
+:
+    string(std::move(s))
+{}
+
+
+inline fileName::fileName(const string& s, bool doStrip)
+:
+    string(s)
+{
+    if (doStrip)
+    {
+        stripInvalid();
+    }
+}
+
+
+inline fileName::fileName(string&& s, bool doStrip)
+:
+    string(std::move(s))
+{
+    if (doStrip)
+    {
+        stripInvalid();
+    }
+}
+
+
+inline fileName::fileName(const std::string& s, bool doStrip)
+:
+    string(s)
+{
+    if (doStrip)
+    {
+        stripInvalid();
+    }
+}
+
+
+inline fileName::fileName(std::string&& s, bool doStrip)
+:
+    string(std::move(s))
+{
+    if (doStrip)
+    {
+        stripInvalid();
+    }
+}
+
+
+inline fileName::fileName(const char* s, bool doStrip)
+:
+    string(s)
+{
+    if (doStrip)
+    {
+        stripInvalid();
+    }
+}
+
+
+// * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
+
+inline bool fileName::valid(char c)
+{
+    return
+    (
+        c != '"'    // string quote
+     && c != '\''   // string quote
+     && (!isspace(c) || (allowSpaceInFileName && c == ' '))
+    );
+}
+
+
 inline void fileName::stripInvalid()
 {
+    // Only strip when debug is active (potentially costly operation)
     if (debug && string::stripInvalid<fileName>(*this))
     {
         std::cerr
@@ -47,65 +126,213 @@ inline void fileName::stripInvalid()
             std::cerr
                 << "    For debug level (= " << debug
                 << ") > 1 this is considered fatal" << std::endl;
-            std::abort();
+            std::exit(1);
         }
 
         removeRepeated('/');
-        removeTrailing('/');
+        removeEnd('/');
     }
 }
 
 
-// * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
-
-inline fileName::fileName() :    string()
-{}
-
-inline fileName::fileName(const fileName& fn) :    string(fn)
-{}
-
-inline fileName::fileName(const word& w) :    string(w)
+inline bool fileName::isAbsolute(const std::string& str)
 {
-    toUnixPath();
-    stripInvalid();
-}
-
-
-inline fileName::fileName(const string& str) :    string(str)
-{
-    toUnixPath();
-    stripInvalid();
-}
-
-
-inline fileName::fileName(const std::string& str) :    string(str)
-{
-    toUnixPath();
-    stripInvalid();
-}
-
-
-inline fileName::fileName(const char* str) :    string(str)
-{
-    toUnixPath();
-    stripInvalid();
-}
-
-
-// * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
-
-inline bool fileName::valid(char c)
-{
-    return
+    return !str.empty() &&
     (
-    // Under windows spaces are common in file paths,
-    // so can't disallow them. Prefer also
-    // to allow them under *nix too.
-    //    !isspace(c) &&
-     c != '"'   // string quote
-     && c != '\''  // string quote
+        // Starts with '/', but also accept '\\' since it will be
+        // converted to a generic '/' or it is part of a (windows)
+        // UNC '\\server-name\path'
+        // - accept even on non-windows systems
+
+        (str[0] == '/' || str[0] == '\\')
+
+#ifdef _WIN32
+         // Filesytem root - eg, d:/path or d:\path
+     || (
+            (str.length() > 2 && str[1] == ':')
+         && (str[2] == '/' || str[2] == '\\')
+        )
+#endif
     );
 }
 
+
+inline bool fileName::isAbsolute() const
+{
+    return isAbsolute(*this);
 }
+
+
+inline bool fileName::isBackup() const
+{
+    return isBackup(*this);
+}
+
+
+inline bool fileName::hasPath() const
+{
+    return string::hasPath();
+}
+
+
+inline std::string fileName::path(const std::string& str)
+{
+    const auto i = str.rfind('/');
+
+    if (i == npos)
+    {
+        return ".";
+    }
+    else if (i)
+    {
+        return str.substr(0, i);
+    }
+
+    return "/";
+}
+
+
+inline fileName fileName::path() const
+{
+    return path(*this);
+}
+
+
+inline std::string fileName::name(const std::string& str)
+{
+    const auto i = str.rfind('/');
+
+    if (npos == i)
+    {
+        return str;
+    }
+
+    return str.substr(i+1);
+}
+
+
+inline word fileName::name() const
+{
+    return fileName::name(*this);
+}
+
+
+word fileName::ext() const
+{
+    return string::ext();
+}
+
+
+inline word fileName::nameLessExt() const
+{
+    return nameLessExt(*this);
+}
+
+
+inline fileName fileName::lessExt() const
+{
+    const auto i = find_ext();
+
+    if (i == npos)
+    {
+        return *this;
+    }
+
+    return substr(0, i);
+}
+
+
+inline bool fileName::removePath()
+{
+    return string::removePath();
+}
+
+
+inline fileName& fileName::ext(const word& ending)
+{
+    string::ext(ending);
+    return *this;
+}
+
+
+// * * * * * * * * * * * * * * * Member Operators  * * * * * * * * * * * * * //
+
+inline fileName& fileName::operator=(const fileName& str)
+{
+    // Self-assignment is a no-op
+    if (this != &str)
+    {
+        assign(str);
+    }
+    return *this;
+}
+
+
+inline fileName& fileName::operator=(fileName&& str)
+{
+    // Self-assignment is a no-op
+    if (this != &str)
+    {
+        assign(std::move(str));
+    }
+    return *this;
+}
+
+
+inline fileName& fileName::operator=(const word& str)
+{
+    assign(str);
+    return *this;
+}
+
+
+inline fileName& fileName::operator=(word&& str)
+{
+    assign(std::move(str));
+    return *this;
+}
+
+
+inline fileName& fileName::operator=(const string& str)
+{
+    assign(str);
+    stripInvalid();
+    return *this;
+}
+
+
+inline fileName& fileName::operator=(string&& str)
+{
+    assign(std::move(str));
+    stripInvalid();
+    return *this;
+}
+
+
+inline fileName& fileName::operator=(const std::string& str)
+{
+    assign(str);
+    stripInvalid();
+    return *this;
+}
+
+
+inline fileName& fileName::operator=(std::string&& str)
+{
+    assign(std::move(str));
+    stripInvalid();
+    return *this;
+}
+
+
+inline fileName& fileName::operator=(const char* str)
+{
+    assign(str);
+    stripInvalid();
+    return *this;
+}
+
+
 // ************************************************************************* //
+
+ } // End namespace Foam

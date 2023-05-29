@@ -1,9 +1,12 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2019 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -36,7 +39,7 @@ SourceFiles
 #ifndef PBiCG_H
 #define PBiCG_H
 
-#include "lduMatrix.H"
+#include "lduMatrix2.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -47,15 +50,17 @@ namespace Foam
                            Class PBiCG Declaration
 \*---------------------------------------------------------------------------*/
 
-class PBiCG :    public lduMatrix::solver
+class PBiCG
+:
+    public lduMatrix::solver
 {
     // Private Member Functions
 
-        //- Disallow default bitwise copy construct
-        PBiCG(const PBiCG&);
+        //- No copy construct
+        PBiCG(const PBiCG&) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const PBiCG&);
+        //- No copy assignment
+        void operator=(const PBiCG&) = delete;
 
 
 public:
@@ -79,8 +84,7 @@ public:
 
 
     //- Destructor
-    virtual ~PBiCG()
-    {}
+    virtual ~PBiCG() = default;
 
 
     // Member Functions

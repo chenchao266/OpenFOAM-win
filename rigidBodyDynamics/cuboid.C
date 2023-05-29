@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -62,14 +64,9 @@ Foam::RBD::cuboid::~cuboid()
 
 void Foam::RBD::cuboid::write(Ostream& os) const
 {
-    os.writeKeyword("type")
-        << type() << token::END_STATEMENT << nl;
-
-    os.writeKeyword("mass")
-        << m() << token::END_STATEMENT << nl;
-
-    os.writeKeyword("L")
-        << L() << token::END_STATEMENT << nl;
+    os.writeEntry("type", type());
+    os.writeEntry("mass", m());
+    os.writeEntry("L", L());
 }
 
 

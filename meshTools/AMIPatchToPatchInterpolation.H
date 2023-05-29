@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -26,21 +29,13 @@ License
 #ifndef AMIPatchToPatchInterpolation_H
 #define AMIPatchToPatchInterpolation_H
 
-#include "AMIInterpolation.T.H"
-#include "PrimitivePatch.T.H"
-#include "face.T.H"
-#include "SubList.T.H"
-#include "pointField.H"
+#include "AMIInterpolation.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 namespace Foam
 {
-    typedef AMIInterpolation
-    <
-        PrimitivePatch<face, SubList, const pointField&>,
-        PrimitivePatch<face, SubList, const pointField&>
-    >   AMIPatchToPatchInterpolation;
+    typedef AMIInterpolation AMIPatchToPatchInterpolation;
 }
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //

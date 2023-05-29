@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -31,7 +34,7 @@ Description
     cell centre and normal in direction of provided direction. Snaps cuts
     close to edge endpoints (close = snapTol * minEdgeLen) to vertices.
 
-    Currently determines cuts through edges (and edgeendpoints close to plane)
+    Currently determines cuts through edges (and edge endpoints close to plane)
     in random order and then sorts them acc. to angle. Could be converted to
     use walk but problem is that face can be cut multiple times (since does
     not need to be convex). Another problem is that edges parallel to plane
@@ -54,7 +57,7 @@ SourceFiles
 namespace Foam
 {
 
-// Forward declaration of classes
+// Forward Declarations
 class plane;
 
 /*---------------------------------------------------------------------------*\
@@ -65,7 +68,6 @@ class geomCellLooper
 :
     public cellLooper
 {
-
     // Static
 
         //- Tolerance for point equal test. Fraction of edge length.
@@ -112,11 +114,11 @@ class geomCellLooper
         bool edgeEndsCut(const labelList&, const label index) const;
 
 
-        //- Disallow default bitwise copy construct
-        geomCellLooper(const geomCellLooper&);
+        //- No copy construct
+        geomCellLooper(const geomCellLooper&) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const geomCellLooper&);
+        //- No copy assignment
+        void operator=(const geomCellLooper&) = delete;
 
 
 public:
@@ -138,21 +140,17 @@ public:
         }
 
 
-
-
     // Constructors
 
-        //- Construct from components
-        geomCellLooper(const polyMesh& mesh);
+        //- Construct from mesh
+        explicit geomCellLooper(const polyMesh& mesh);
 
 
     //- Destructor
-    virtual ~geomCellLooper();
+    virtual ~geomCellLooper() = default;
 
 
     // Member Functions
-
-
 
         //- Create cut along circumference of celli. Gets current mesh cuts.
         //  Cut along circumference is expressed as loop of cuts plus weights

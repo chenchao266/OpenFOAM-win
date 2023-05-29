@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2017-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -24,38 +26,208 @@ License
 \*---------------------------------------------------------------------------*/
 
 #include "NASCore.H"
-#include "IStringStream.H"
+#include "IOmanip.H"
+#include "_Ostream.H"
+#include "parsing.H"
 
-// * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
+// * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
 
-Foam::fileFormats::NASCore::NASCore()
-{}
+const Foam::Enum
+<
+    Foam::fileFormats::NASCore::fieldFormat
+>
+Foam::fileFormats::NASCore::fieldFormatNames
+({
+    { fieldFormat::SHORT, "short" },
+    { fieldFormat::LONG,  "long" },
+    { fieldFormat::FREE,  "free" },
+});
 
 
-// * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * * //
+const Foam::Enum
+<
+    Foam::fileFormats::NASCore::loadFormat
+>
+Foam::fileFormats::NASCore::loadFormatNames
+({
+    { loadFormat::PLOAD2, "PLOAD2" },
+    { loadFormat::PLOAD4, "PLOAD4" },
+});
 
-Foam::scalar Foam::fileFormats::NASCore::parseNASCoord
-(
-    const string& s
-)
+
+// * * * * * * * * * * * * * Static Member Functions * * * * * * * * * * * * //
+
+Foam::scalar Foam::fileFormats::NASCore::readNasScalar(const std::string& str)
 {
-    size_t expSign = s.find_last_of("+-");
+    const auto signPos = str.find_last_of("+-");
 
-    if (expSign != string::npos && expSign > 0 && !isspace(s[expSign-1]))
+    if
+    (
+        signPos == std::string::npos
+     || signPos == 0
+     || str[signPos-1] == 'E' || str[signPos-1] == 'e'
+     || isspace(str[signPos-1])
+    )
     {
-        scalar mantissa = readScalar(IStringStream(s.substr(0, expSign))());
-        scalar exponent = readScalar(IStringStream(s.substr(expSign+1))());
+        // A normal number format
+        return readScalar(str);
+    }
 
-        if (s[expSign] == '-')
-        {
-            exponent = -exponent;
-        }
-        return mantissa * pow(10, exponent);
+
+    // Nastran compact number format.
+    // Eg, "1234-2" instead of "1234E-2"
+
+    scalar value = 0;
+    int exponent = 0; // Any integer
+
+    if
+    (
+        readScalar(str.substr(0, signPos), value)   // Mantissa
+     && readInt(str.substr(signPos), exponent)      // Exponent (with sign)
+    )
+    {
+        // Note: this does not catch underflow/overflow
+        // (especially when scalar is a float)
+        value *= ::pow(10, exponent);
     }
     else
     {
-        return readScalar(IStringStream(s)());
+        FatalIOErrorInFunction("unknown")
+            << parsing::errorNames[parsing::errorType::GENERAL] << str
+            << exit(FatalIOError);
+
+        value = 0;
     }
+
+    return value;
+}
+
+
+std::string Foam::fileFormats::NASCore::nextNasField
+(
+    const std::string& str,
+    std::string::size_type& pos,
+    std::string::size_type len
+)
+{
+    const auto beg = pos;
+    const auto end = str.find(',', pos);
+
+    if (end == std::string::npos)
+    {
+        pos = beg + len;    // Continue after field width
+    }
+    else
+    {
+        len = (end - beg);  // Efffective width
+        pos = end + 1;      // Continue after comma
+    }
+
+    return str.substr(beg, len);
+}
+
+
+void Foam::fileFormats::NASCore::setPrecision
+(
+    Ostream& os,
+    const fieldFormat format
+)
+{
+    os.setf(ios_base::scientific);
+
+    // Capitalise the E marker
+    os.setf(ios_base::uppercase);
+
+    const label offset = 7;
+
+    label prec = 16 - offset;
+    switch (format)
+    {
+        case fieldFormat::SHORT :
+        {
+            prec = 8 - offset;
+            break;
+        }
+
+        case fieldFormat::LONG :
+        case fieldFormat::FREE :
+        {
+            prec = 16 - offset;
+            break;
+        }
+    }
+
+    os.precision(prec);
+}
+
+
+Foam::Ostream& Foam::fileFormats::NASCore::writeKeyword
+(
+    Ostream& os,
+    const word& keyword,
+    const fieldFormat format
+)
+{
+    os.setf(ios_base::left);
+
+    switch (format)
+    {
+        case fieldFormat::SHORT :
+        {
+            os  << setw(8) << keyword;
+            break;
+        }
+
+        case fieldFormat::LONG :
+        {
+            os  << setw(8) << word(keyword + '*');
+            break;
+        }
+
+        case fieldFormat::FREE :
+        {
+            os  << keyword;
+            break;
+        }
+    }
+
+    os.unsetf(ios_base::left);
+
+    return os;
+}
+
+
+Foam::label Foam::fileFormats::NASCore::faceDecomposition
+(
+    const UList<point>& points,
+    const UList<face>& faces,
+    labelList& decompOffsets,
+    DynamicList<face>& decompFaces
+)
+{
+    // On-demand face decomposition (triangulation)
+
+    decompOffsets.resize(faces.size()+1);
+    decompFaces.clear();
+
+    auto offsetIter = decompOffsets.begin();
+    *offsetIter = 0; // The first offset is always zero
+
+    for (const face& f : faces)
+    {
+        const label n = f.size();
+
+        if (n != 3 && n != 4)
+        {
+            // Decompose non-tri/quad into tris
+            f.triangles(points, decompFaces);
+        }
+
+        // The end offset, which is the next begin offset
+        *(++offsetIter) = decompFaces.size();
+    }
+
+    return decompFaces.size();
 }
 
 

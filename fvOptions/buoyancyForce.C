@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2015-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2015-2017 OpenFOAM Foundation
+    Copyright (C) 2018-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -26,6 +29,7 @@ License
 #include "buoyancyForce.H"
 #include "fvMatrices.H"
 #include "addToRunTimeSelectionTable.H"
+#include "gravityMeshObject.H"
 
 // * * * * * * * * * * * * * Static Member Functions * * * * * * * * * * * * //
 
@@ -34,13 +38,7 @@ namespace Foam
 namespace fv
 {
     defineTypeNameAndDebug(buoyancyForce, 0);
-
-    addToRunTimeSelectionTable
-    (
-        option,
-        buoyancyForce,
-        dictionary
-    );
+    addToRunTimeSelectionTable(option, buoyancyForce, dictionary);
 }
 }
 
@@ -55,20 +53,10 @@ Foam::fv::buoyancyForce::buoyancyForce
     const fvMesh& mesh
 )
 :
-    option(sourceName, modelType, dict, mesh),
-    g_
-    (
-        IOobject
-        (
-            "g",
-            mesh.time().constant(),
-            mesh,
-            IOobject::MUST_READ,
-            IOobject::NO_WRITE
-        )
-    )
+    fv::option(sourceName, modelType, dict, mesh),
+    g_(meshObjects::gravity::New(mesh.time()))
 {
-    coeffs_.lookup("fields") >> fieldNames_;
+    coeffs_.readEntry("fields", fieldNames_);
 
     if (fieldNames_.size() != 1)
     {
@@ -76,11 +64,21 @@ Foam::fv::buoyancyForce::buoyancyForce
             << "settings are:" << fieldNames_ << exit(FatalError);
     }
 
-    applied_.setSize(fieldNames_.size(), false);
+    fv::option::resetApplied();
 }
 
 
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
+
+void Foam::fv::buoyancyForce::addSup
+(
+    fvMatrix<vector>& eqn,
+    const label fieldi
+)
+{
+    eqn += g_;
+}
+
 
 void Foam::fv::buoyancyForce::addSup
 (
@@ -90,6 +88,14 @@ void Foam::fv::buoyancyForce::addSup
 )
 {
     eqn += rho*g_;
+}
+
+
+bool Foam::fv::buoyancyForce::read(const dictionary& dict)
+{
+    NotImplemented;
+
+    return false;
 }
 
 

@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2015-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2015-2017 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -22,7 +24,7 @@ License
     along with OpenFOAM.  If not, see <http://www.gnu.org/licenses/>.
 
 Class
-    Foam::ArrheniusViscosity
+    Foam::regionModels::surfaceFilmModels::ArrheniusViscosity
 
 Description
     The Arrhenius temperature-dependent viscosity model multiplies the viscosity
@@ -65,11 +67,11 @@ class ArrheniusViscosity
 {
     // Private member functions
 
-        //- Disallow default bitwise copy construct
-        ArrheniusViscosity(const ArrheniusViscosity&);
+        //- No copy construct
+        ArrheniusViscosity(const ArrheniusViscosity&) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const ArrheniusViscosity&);
+        //- No copy assignment
+        void operator=(const ArrheniusViscosity&) = delete;
 
 
 protected:
@@ -100,7 +102,7 @@ public:
         //- Construct from surface film model
         ArrheniusViscosity
         (
-            surfaceFilmModel& film,
+            surfaceFilmRegionModel& film,
             const dictionary& dict,
             volScalarField& mu
         );

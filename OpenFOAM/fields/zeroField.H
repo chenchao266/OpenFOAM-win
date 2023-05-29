@@ -1,9 +1,12 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2019 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -48,26 +51,42 @@ namespace Foam
                            Class zeroField Declaration
 \*---------------------------------------------------------------------------*/
 
-class zeroField :    public zero
+class zeroField
+:
+    public zero
 {
 public:
 
     // Constructors
 
-        //- Construct null
-        zeroField()
-        {}
+        //- Default construct
+        zeroField() noexcept = default;
+
+
+    // Member Functions
+
+        zeroField field() const noexcept
+        {
+            return zeroField{};
+        }
 
 
     // Member Operators
 
-        inline scalar operator[](const label) const;
+        scalar operator[](const label) const noexcept
+        {
+            return scalar(0);
+        }
 
-        inline zeroField field() const;
+        zeroField operator()() const noexcept
+        {
+            return zeroField{};
+        }
 
-        inline zeroField operator()() const;
-
-        inline zeroField operator-() const;
+        zeroField operator-() const noexcept
+        {
+            return zeroField{};
+        }
 };
 
 
@@ -76,6 +95,8 @@ public:
 } // End namespace Foam
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+// Global Operators
 
 #include "zeroFieldI.H"
 

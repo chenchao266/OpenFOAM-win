@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -64,24 +66,21 @@ class fvMeshFunctionObject
 :
     public regionFunctionObject
 {
-
 protected:
 
-    // Protected member data
+    // Protected Member Data
 
         //- Reference to the fvMesh
         const fvMesh& mesh_;
 
 
-private:
+    // Protected Member Functions
 
-    // Private Member Functions
+        //- No copy construct
+        fvMeshFunctionObject(const fvMeshFunctionObject&) = delete;
 
-        //- Disallow default bitwise copy construct
-        fvMeshFunctionObject(const fvMeshFunctionObject&);
-
-        //- Disallow default bitwise assignment
-        void operator=(const fvMeshFunctionObject&);
+        //- No copy assignment
+        void operator=(const fvMeshFunctionObject&) = delete;
 
 
 public:
@@ -110,7 +109,8 @@ public:
 
 
     //- Destructor
-    virtual ~fvMeshFunctionObject();
+    virtual ~fvMeshFunctionObject() = default;
+
 };
 
 

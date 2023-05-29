@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -26,98 +28,100 @@ Description
 
 \*---------------------------------------------------------------------------*/
 
-#include "lduMatrix.H"
+//#include "lduMatrix2.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
-namespace Foam {
-    template<class Type>
-    tmp<Field<Type>> lduMatrix::H(const Field<Type>& psi) const
+
+
+ namespace Foam{
+template<class Type>
+tmp<Field<Type>> lduMatrix::H(const Field<Type>& psi) const
+{
+    tmp<Field<Type>> tHpsi
+    (
+        new Field<Type>(lduAddr().size(), Zero)
+    );
+
+    if (lowerPtr_ || upperPtr_)
     {
-        tmp<Field<Type>> tHpsi
-        (
-            new Field<Type>(lduAddr().size(), Zero)
-        );
+        Field<Type> & Hpsi = tHpsi.ref();
 
-        if (lowerPtr_ || upperPtr_)
+        Type* __restrict__ HpsiPtr = Hpsi.begin();
+
+        const Type* __restrict__ psiPtr = psi.begin();
+
+        const label* __restrict__ uPtr = lduAddr().upperAddr().begin();
+        const label* __restrict__ lPtr = lduAddr().lowerAddr().begin();
+
+        const scalar* __restrict__ lowerPtr = lower().begin();
+        const scalar* __restrict__ upperPtr = upper().begin();
+
+        const label nFaces = upper().size();
+
+        for (label face=0; face<nFaces; face++)
         {
-            Field<Type> & Hpsi = tHpsi.ref();
-
-            Type* __restrict__ HpsiPtr = Hpsi.begin();
-
-            const Type* __restrict__ psiPtr = psi.begin();
-
-            const label* __restrict__ uPtr = lduAddr().upperAddr().begin();
-            const label* __restrict__ lPtr = lduAddr().lowerAddr().begin();
-
-            const scalar* __restrict__ lowerPtr = lower().begin();
-            const scalar* __restrict__ upperPtr = upper().begin();
-
-            const label nFaces = upper().size();
-
-            for (label face = 0; face < nFaces; face++)
-            {
-                HpsiPtr[uPtr[face]] -= lowerPtr[face] * psiPtr[lPtr[face]];
-                HpsiPtr[lPtr[face]] -= upperPtr[face] * psiPtr[uPtr[face]];
-            }
-        }
-
-        return tHpsi;
-    }
-
-    template<class Type>
-    tmp<Field<Type>>
-        lduMatrix::H(const tmp<Field<Type>>& tpsi) const
-    {
-        tmp<Field<Type>> tHpsi(H(tpsi()));
-        tpsi.clear();
-        return tHpsi;
-    }
-
-
-    template<class Type>
-    tmp<Field<Type>>
-        lduMatrix::faceH(const Field<Type>& psi) const
-    {
-        if (lowerPtr_ || upperPtr_)
-        {
-            const scalarField& Lower = const_cast<const lduMatrix&>(*this).lower();
-            const scalarField& Upper = const_cast<const lduMatrix&>(*this).upper();
-
-            const labelUList& l = lduAddr().lowerAddr();
-            const labelUList& u = lduAddr().upperAddr();
-
-            tmp<Field<Type>> tfaceHpsi(new Field<Type>(Lower.size()));
-            Field<Type> & faceHpsi = tfaceHpsi.ref();
-
-            for (label face = 0; face < l.size(); face++)
-            {
-                faceHpsi[face] =
-                    Upper[face] * psi[u[face]]
-                    - Lower[face] * psi[l[face]];
-            }
-
-            return tfaceHpsi;
-        }
-        else
-        {
-            FatalErrorInFunction
-                << "Cannot calculate faceH"
-                " the matrix does not have any off-diagonal coefficients."
-                << exit(FatalError);
-
-            return tmp<Field<Type>>(nullptr);
+            HpsiPtr[uPtr[face]] -= lowerPtr[face]*psiPtr[lPtr[face]];
+            HpsiPtr[lPtr[face]] -= upperPtr[face]*psiPtr[uPtr[face]];
         }
     }
 
+    return tHpsi;
+}
 
-    template<class Type>
-    tmp<Field<Type>>
-        lduMatrix::faceH(const tmp<Field<Type>>& tpsi) const
+template<class Type>
+tmp<Field<Type>>
+lduMatrix::H(const tmp<Field<Type>>& tpsi) const
+{
+    tmp<Field<Type>> tHpsi(H(tpsi()));
+    tpsi.clear();
+    return tHpsi;
+}
+
+
+template<class Type>
+tmp<Field<Type>>
+lduMatrix::faceH(const Field<Type>& psi) const
+{
+    if (lowerPtr_ || upperPtr_)
     {
-        tmp<Field<Type>> tfaceHpsi(faceH(tpsi()));
-        tpsi.clear();
+        const scalarField& Lower = const_cast<const lduMatrix&>(*this).lower();
+        const scalarField& Upper = const_cast<const lduMatrix&>(*this).upper();
+
+        const labelUList& l = lduAddr().lowerAddr();
+        const labelUList& u = lduAddr().upperAddr();
+
+        tmp<Field<Type>> tfaceHpsi(new Field<Type> (Lower.size()));
+        Field<Type> & faceHpsi = tfaceHpsi.ref();
+
+        for (label face=0; face<l.size(); face++)
+        {
+            faceHpsi[face] =
+                Upper[face]*psi[u[face]]
+              - Lower[face]*psi[l[face]];
+        }
+
         return tfaceHpsi;
     }
 
+    FatalErrorInFunction
+        << "Cannot calculate faceH"
+           " the matrix does not have any off-diagonal coefficients."
+        << exit(FatalError);
+
+    return nullptr;
 }
+
+
+template<class Type>
+tmp<Field<Type>>
+lduMatrix::faceH(const tmp<Field<Type>>& tpsi) const
+{
+    tmp<Field<Type>> tfaceHpsi(faceH(tpsi()));
+    tpsi.clear();
+    return tfaceHpsi;
+}
+
+
 // ************************************************************************* //
+
+ } // End namespace Foam

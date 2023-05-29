@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2017 OpenCFD Ltd
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -45,7 +48,7 @@ namespace viscosityModels
 }
 
 
-// * * * * * * * * * * * * Private Member Functions  * * * * * * * * * * * * //
+// * * * * * * * * * * * * Protected Member Functions  * * * * * * * * * * * * //
 
 Foam::tmp<Foam::volScalarField>
 Foam::viscosityModels::powerLaw::calcNu() const
@@ -61,7 +64,7 @@ Foam::viscosityModels::powerLaw::calcNu() const
                 max
                 (
                     dimensionedScalar("one", dimTime, 1.0)*strainRate(),
-                    dimensionedScalar("VSMALL", dimless, VSMALL)
+                    dimensionedScalar("SMALL", dimless, SMALL)
                 ),
                 n_.value() - scalar(1)
             )
@@ -112,10 +115,10 @@ bool Foam::viscosityModels::powerLaw::read
 
     powerLawCoeffs_ = viscosityProperties.optionalSubDict(typeName + "Coeffs");
 
-    powerLawCoeffs_.lookup("k") >> k_;
-    powerLawCoeffs_.lookup("n") >> n_;
-    powerLawCoeffs_.lookup("nuMin") >> nuMin_;
-    powerLawCoeffs_.lookup("nuMax") >> nuMax_;
+    powerLawCoeffs_.readEntry("k", k_);
+    powerLawCoeffs_.readEntry("n", n_);
+    powerLawCoeffs_.readEntry("nuMin", nuMin_);
+    powerLawCoeffs_.readEntry("nuMax", nuMax_);
 
     return true;
 }

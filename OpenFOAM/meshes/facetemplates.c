@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -23,98 +25,102 @@ License
 
 \*---------------------------------------------------------------------------*/
 
-//#include "face.T.H"
-#include "DynamicList.T.H"
+//#include "face.H"
+#include "DynamicList.H"
 
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
-namespace Foam {
-    template<unsigned SizeInc, unsigned SizeMult, unsigned SizeDiv>
-    label face::triangles
-    (
-        const pointField& points,
-        DynamicList<face, SizeInc, SizeMult, SizeDiv>& triFaces
-    ) const
+
+
+ namespace Foam{
+template<int SizeMin>
+label face::triangles
+(
+    const UList<point>& points,
+    DynamicList<face, SizeMin>& triFaces
+) const
+{
+    label triI = triFaces.size();
+    label quadI = 0;
+    faceList quadFaces;
+
+    // adjust the addressable size (and allocate space if needed)
+    triFaces.setSize(triI + nTriangles());
+
+    return split(SPLITTRIANGLE, points, triI, quadI, triFaces, quadFaces);
+}
+
+
+template<class Type>
+Type face::average
+(
+    const UList<point>& meshPoints,
+    const Field<Type>& fld
+) const
+{
+    // Calculate the average by breaking the face into triangles and
+    // area-weighted averaging their averages
+
+    // If the face is a triangle, do a direct calculation
+    if (size() == 3)
     {
-        label triI = triFaces.size();
-        label quadI = 0;
-        faceList quadFaces;
-
-        // adjust the addressable size (and allocate space if needed)
-        triFaces.setSize(triI + nTriangles());
-
-        return split(SPLITTRIANGLE, points, triI, quadI, triFaces, quadFaces);
+        return
+            (1.0/3.0)
+           *(
+               fld[operator[](0)]
+             + fld[operator[](1)]
+             + fld[operator[](2)]
+            );
     }
 
+    label nPoints = size();
 
-    template<class Type>
-    Type face::average
-    (
-        const pointField& meshPoints,
-        const Field<Type>& fld
-    ) const
+    point centrePoint = Zero;
+    Type cf = Zero;
+
+    for (label pI=0; pI<nPoints; pI++)
     {
-        // Calculate the average by breaking the face into triangles and
-        // area-weighted averaging their averages
+        centrePoint += meshPoints[operator[](pI)];
+        cf += fld[operator[](pI)];
+    }
 
-        // If the face is a triangle, do a direct calculation
-        if (size() == 3)
-        {
-            return
-                (1.0 / 3.0)
-                *(
-                    fld[operator[](0)]
-                    + fld[operator[](1)]
-                    + fld[operator[](2)]
-                    );
-        }
+    centrePoint /= nPoints;
+    cf /= nPoints;
 
-        label nPoints = size();
+    scalar sumA = 0;
+    Type sumAf = Zero;
 
-        point centrePoint = Zero;
-        Type cf = Zero;
+    for (label pI=0; pI<nPoints; pI++)
+    {
+        // Calculate 3*triangle centre field value
+        Type ttcf  =
+        (
+            fld[operator[](pI)]
+          + fld[operator[]((pI + 1) % nPoints)]
+          + cf
+        );
 
-        for (label pI = 0; pI < nPoints; pI++)
-        {
-            centrePoint += meshPoints[operator[](pI)];
-            cf += fld[operator[](pI)];
-        }
+        // Calculate 2*triangle area
+        scalar ta = ::Foam::mag
+        (
+            (meshPoints[operator[](pI)] - centrePoint)
+          ^ (meshPoints[operator[]((pI + 1) % nPoints)] - centrePoint)
+        );
 
-        centrePoint /= nPoints;
-        cf /= nPoints;
+        sumA += ta;
+        sumAf += ta*ttcf;
+    }
 
-        scalar sumA = 0;
-        Type sumAf = Zero;
-
-        for (label pI = 0; pI < nPoints; pI++)
-        {
-            // Calculate 3*triangle centre field value
-            Type ttcf =
-                (
-                    fld[operator[](pI)]
-                    + fld[operator[]((pI + 1) % nPoints)]
-                    + cf
-                    );
-
-            // Calculate 2*triangle area
-            scalar ta = ::Foam::mag
-            (
-                (meshPoints[operator[](pI)] - centrePoint)
-                ^ (meshPoints[operator[]((pI + 1) % nPoints)] - centrePoint)
-            );
-
-            sumA += ta;
-            sumAf += ta * ttcf;
-        }
-
-        if (sumA > VSMALL)
-        {
-            return sumAf / (3 * sumA);
-        }
-        else
-        {
-            return cf;
-        }
+    if (sumA > VSMALL)
+    {
+        return sumAf/(3*sumA);
+    }
+    else
+    {
+        return cf;
     }
 }
 
+
 // ************************************************************************* //
+
+ } // End namespace Foam

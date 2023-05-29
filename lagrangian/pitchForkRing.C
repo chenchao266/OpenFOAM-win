@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -58,9 +60,9 @@ pitchForkRing::pitchForkRing
     (
         tetherPotentialProperties.subDict(typeName + "Coeffs")
     ),
-    mu_(readScalar(pitchForkRingCoeffs_.lookup("mu"))),
-    alpha_(readScalar(pitchForkRingCoeffs_.lookup("alpha"))),
-    rOrbit_(readScalar(pitchForkRingCoeffs_.lookup("rOrbit")))
+    mu_(pitchForkRingCoeffs_.get<scalar>("mu")),
+    alpha_(pitchForkRingCoeffs_.get<scalar>("alpha")),
+    rOrbit_(pitchForkRingCoeffs_.get<scalar>("rOrbit"))
 {}
 
 
@@ -101,9 +103,9 @@ bool pitchForkRing::read(const dictionary& tetherPotentialProperties)
     pitchForkRingCoeffs_ =
         tetherPotentialProperties.subDict(typeName + "Coeffs");
 
-    pitchForkRingCoeffs_.lookup("mu") >> mu_;
-    pitchForkRingCoeffs_.lookup("alpha") >> alpha_;
-    pitchForkRingCoeffs_.lookup("rOrbit") >> rOrbit_;
+    pitchForkRingCoeffs_.readEntry("mu", mu_);
+    pitchForkRingCoeffs_.readEntry("alpha", alpha_);
+    pitchForkRingCoeffs_.readEntry("rOrbit", rOrbit_);
 
     return true;
 }

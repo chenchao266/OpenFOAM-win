@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -50,24 +53,24 @@ Description
     possible sources, as detailed in the class temperatureCoupledBase.
 
     The ambient temperature Ta is specified as a Foam::Function1 of time but
-    uniform is space.
+    uniform in space.
 
 Usage
     \table
-    Property     | Description                 | Required | Default value
-    mode         | 'power', 'flux' or 'coefficient' | yes |
-    Q            | Power [W]                   | for mode 'power'     |
-    q            | Heat flux [W/m^2]           | for mode 'flux'     |
-    h            | Heat transfer coefficient [W/m^2/K] | for mode 'coefficent' |
-    Ta           | Ambient temperature [K]     | for mode 'coefficient' |
-    thicknessLayers | Layer thicknesses [m] | no |
-    kappaLayers  | Layer thermal conductivities [W/m/K] | no |
-    relaxation   | Relaxation for the wall temperature | no | 1
-    emissivity   | Surface emissivity for radiative flux to ambient | no | 0
-    qr           | Name of the radiative field | no | none
-    qrRelaxation | Relaxation factor for radiative field | no | 1
-    kappaMethod  | Inherited from temperatureCoupledBase | inherited |
-    kappa        | Inherited from temperatureCoupledBase | inherited |
+    Property    | Description                              | Required | Default
+    mode        | 'power', 'flux' or 'coefficient'         | yes |
+    Q           | Power [W]                                | for mode 'power' |
+    q           | Heat flux [W/m^2]                        | for mode 'flux' |
+    h           | Heat transfer coefficient [W/m^2/K] | for mode 'coefficient' |
+    Ta          | Ambient temperature [K]             | for mode 'coefficient' |
+    thicknessLayers | Layer thicknesses [m]                | no  |
+    kappaLayers | Layer thermal conductivities [W/m/K]     | no  |
+    relaxation  | Relaxation for the wall temperature      | no  | 1
+    emissivity  | Surface emissivity for radiative flux to ambient | no | 0
+    qr          | Name of the radiative field              | no  | none
+    qrRelaxation | Relaxation factor for radiative field   | no  | 1
+    kappaMethod | Inherited from temperatureCoupledBase    | inherited |
+    kappa       | Inherited from temperatureCoupledBase    | inherited |
     \endtable
 
     Example of the boundary condition specification:
@@ -79,7 +82,7 @@ Usage
         mode            coefficient;
 
         Ta              constant 300.0;
-        h               uniform 10.0;
+        h               constant 10.0;
         thicknessLayers (0.1 0.2 0.3 0.4);
         kappaLayers     (1 2 3 4);
 
@@ -88,6 +91,12 @@ Usage
         value           $internalField;
     }
     \endverbatim
+
+Note
+    Quantities that are considered "global" (eg, power, ambient temperature)
+    can be specified as Function1 types.
+    Quantities that may have local variations (eg, htc, heat-flux)
+    can be specified as PatchFunction1 types.
 
 See also
     Foam::temperatureCoupledBase
@@ -98,12 +107,12 @@ SourceFiles
 
 \*---------------------------------------------------------------------------*/
 
-#ifndef solidWallHeatFluxTemperatureFvPatchScalarField_H
-#define solidWallHeatFluxTemperatureFvPatchScalarField_H
+#ifndef externalWallHeatFluxTemperatureFvPatchScalarField_H
+#define externalWallHeatFluxTemperatureFvPatchScalarField_H
 
 #include "mixedFvPatchFields.H"
 #include "temperatureCoupledBase.H"
-#include "Function1.T.H"
+#include "PatchFunction1.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -121,34 +130,34 @@ class externalWallHeatFluxTemperatureFvPatchScalarField
 {
 public:
 
-    // Public data
+    // Public Data
 
         //- Operation mode enumeration
         enum operationMode
         {
-            fixedPower,
-            fixedHeatFlux,
-            fixedHeatTransferCoeff
+            fixedPower,             //!< Heat power [W]
+            fixedHeatFlux,          //!< Heat flux [W/m2]
+            fixedHeatTransferCoeff, //!< Heat transfer coefficient [W/m^2/K]
         };
 
-        static const NamedEnum<operationMode, 3> operationModeNames;
+        static const Enum<operationMode> operationModeNames;
 
 
 private:
 
-    // Private data
+    // Private Data
 
         //- Operation mode
         operationMode mode_;
 
         //- Heat power [W]
-        scalar Q_;
+        autoPtr<Function1<scalar>> Q_;
 
         //- Heat flux [W/m2]
-        scalarField q_;
+        autoPtr<PatchFunction1<scalar>> q_;
 
         //- Heat transfer coefficient [W/m2K]
-        scalarField h_;
+        autoPtr<PatchFunction1<scalar>> h_;
 
         //- Ambient temperature [K]
         autoPtr<Function1<scalar>> Ta_;

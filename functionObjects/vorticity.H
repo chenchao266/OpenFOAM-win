@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2014-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2014-2016 OpenFOAM Foundation
+    Copyright (C) 2016-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -28,11 +31,61 @@ Group
     grpFieldFunctionObjects
 
 Description
-    Calculates the vorticity, the curl of the velocity.
+    Computes the vorticity, the curl of the velocity.
+
+    \f[
+        \vec \omega = \nabla \times \vec U
+    \f]
+
+    where
+    \vartable
+        \vec \omega   | Vorticity vector    [1/s]
+        \vec U        | Velocity vector     [m/s]
+    \endvartable
+
+    Operands:
+    \table
+      Operand        | Type           | Location
+      input          | volVectorField | $FOAM_CASE/\<time\>/\<inpField\>
+      output file    | -              | -
+      output field   | volVectorField | $FOAM_CASE/\<time\>/\<outField\>
+    \endtable
+
+Usage
+    Minimal example by using \c system/controlDict.functions:
+    \verbatim
+    vorticity1
+    {
+        // Mandatory entries (unmodifiable)
+        type        vorticity;
+        libs        (fieldFunctionObjects);
+
+        // Optional (inherited) entries
+        ...
+    }
+    \endverbatim
+
+    where the entries mean:
+    \table
+      Property     | Description                        | Type | Req'd | Dflt
+      type         | Type name: vorticity               | word |  yes  | -
+      libs         | Library name: fieldFunctionObjects | word |  yes  | -
+    \endtable
+
+    The inherited entries are elaborated in:
+     - \link functionObject.H \endlink
+     - \link fieldExpression.H \endlink
+
+    Minimal example by using the \c postProcess utility:
+    \verbatim
+        postProcess -func vorticity
+    \endverbatim
 
 See also
-    Foam::functionObjects::fieldExpression
-    Foam::functionObjects::fvMeshFunctionObject
+    - Foam::functionObject
+    - Foam::functionObjects::fvMeshFunctionObject
+    - Foam::functionObjects::fieldExpression
+    - ExtendedCodeGuide::functionObjects::field::vorticity
 
 SourceFiles
     vorticity.C
@@ -81,9 +134,15 @@ public:
             const dictionary& dict
         );
 
+        //- No copy construct
+        vorticity(const vorticity&) = delete;
+
+        //- No copy assignment
+        void operator=(const vorticity&) = delete;
+
 
     //- Destructor
-    virtual ~vorticity();
+    virtual ~vorticity() = default;
 };
 
 

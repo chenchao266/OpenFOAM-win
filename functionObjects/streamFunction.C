@@ -1,9 +1,12 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2016 OpenFOAM Foundation
+    Copyright (C) 2019-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -39,13 +42,7 @@ namespace Foam
 namespace functionObjects
 {
     defineTypeNameAndDebug(streamFunction, 0);
-
-    addToRunTimeSelectionTable
-    (
-        functionObject,
-        streamFunction,
-        dictionary
-    );
+    addToRunTimeSelectionTable(functionObject, streamFunction, dictionary);
 }
 }
 
@@ -58,9 +55,9 @@ Foam::tmp<Foam::pointScalarField> Foam::functionObjects::streamFunction::calc
 ) const
 {
     Log << "    functionObjects::" << type() << " " << name()
-        << " calculating steam-function" << endl;
+        << " calculating stream-function" << endl;
 
-    Vector<label> slabNormal((Vector<label>::one - mesh_.geometricD())/2);
+    Vector<label> slabNormal((Vector<label>::one_ - mesh_.geometricD())/2);
     const direction slabDir
     (
         slabNormal
@@ -71,27 +68,21 @@ Foam::tmp<Foam::pointScalarField> Foam::functionObjects::streamFunction::calc
 
     const pointMesh& pMesh = pointMesh::New(mesh_);
 
-    tmp<pointScalarField> tstreamFunction
+    auto tstreamFunction = tmp<pointScalarField>::New
     (
-        new pointScalarField
+        IOobject
         (
-            IOobject
-            (
-                "streamFunction",
-                time_.timeName(),
-                mesh_
-            ),
-            pMesh,
-            dimensionedScalar("zero", phi.dimensions(), 0.0)
-        )
+            "streamFunction",
+            time_.timeName(),
+            mesh_
+        ),
+        pMesh,
+        dimensionedScalar(phi.dimensions(), Zero)
     );
     pointScalarField& streamFunction = tstreamFunction.ref();
 
-    labelList visitedPoint(mesh_.nPoints());
-    forAll(visitedPoint, pointi)
-    {
-        visitedPoint[pointi] = 0;
-    }
+    labelList visitedPoint(mesh_.nPoints(), Zero);
+
     label nVisited = 0;
     label nVisitedOld = 0;
 
@@ -107,7 +98,7 @@ Foam::tmp<Foam::pointScalarField> Foam::functionObjects::streamFunction::calc
 
     bool finished = true;
 
-    // Find the boundary face with zero flux. set the stream function
+    // Find the boundary face with zero flux. Set the stream function
     // to zero on that face
     bool found = false;
 
@@ -123,10 +114,7 @@ Foam::tmp<Foam::pointScalarField> Foam::functionObjects::streamFunction::calc
             {
                 forAll(bouFaces, facei)
                 {
-                    if
-                    (
-                        magSqr(phi.boundaryField()[patchi][facei]) < SMALL
-                    )
+                    if (magSqr(phi.boundaryField()[patchi][facei]) < SMALL)
                     {
                         const labelList& zeroPoints = bouFaces[facei];
 
@@ -171,9 +159,9 @@ Foam::tmp<Foam::pointScalarField> Foam::functionObjects::streamFunction::calc
 
             const cellList& c = mesh_.cells();
 
-            forAll(c, cI)
+            forAll(c, ci)
             {
-                labelList zeroPoints = c[cI].labels(mesh_.faces());
+                labelList zeroPoints = c[ci].labels(mesh_.faces());
 
                 bool found = true;
 
@@ -266,7 +254,7 @@ Foam::tmp<Foam::pointScalarField> Foam::functionObjects::streamFunction::calc
                                     points[curBPoints[pointi]]
                                   - currentBStreamPoint;
                                 edgeHat.replace(slabDir, 0);
-                                edgeHat /= mag(edgeHat);
+                                edgeHat.normalise();
 
                                 vector nHat = unitAreas[facei];
 
@@ -359,7 +347,7 @@ Foam::tmp<Foam::pointScalarField> Foam::functionObjects::streamFunction::calc
                                 points[curPoints[pointi]] - currentStreamPoint;
 
                             edgeHat.replace(slabDir, 0);
-                            edgeHat /= mag(edgeHat);
+                            edgeHat.normalise();
 
                             vector nHat = unitAreas[facei];
 
@@ -423,10 +411,8 @@ bool Foam::functionObjects::streamFunction::calc()
 
         return store(resultName_, calc(phi));
     }
-    else
-    {
-        return false;
-    }
+
+    return false;
 }
 
 
@@ -441,9 +427,9 @@ Foam::functionObjects::streamFunction::streamFunction
 :
     fieldExpression(name, runTime, dict, "phi")
 {
-    setResultName("streamFunction", "phi");
+    setResultName(typeName, "phi");
 
-    label nD = mesh_.nGeometricD();
+    const label nD = mesh_.nGeometricD();
 
     if (nD != 2)
     {
@@ -452,12 +438,6 @@ Foam::functionObjects::streamFunction::streamFunction
             << exit(FatalError);
     }
 }
-
-
-// * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
-
-Foam::functionObjects::streamFunction::~streamFunction()
-{}
 
 
 // ************************************************************************* //

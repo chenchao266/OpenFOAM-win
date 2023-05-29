@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -36,7 +38,7 @@ SourceFiles
 #define multivariateSurfaceInterpolationScheme_H
 
 #include "surfaceInterpolationScheme.H"
-#include "HashTable.T.H"
+#include "HashTable.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -50,7 +52,7 @@ namespace Foam
 template<class Type>
 class multivariateSurfaceInterpolationScheme
 :
-    public tmp<multivariateSurfaceInterpolationScheme<Type>>::refCount
+    public refCount
 {
 
 public:
@@ -85,14 +87,14 @@ private:
 
     // Private Member Functions
 
-        //- Disallow default bitwise copy construct
+        //- No copy construct
         multivariateSurfaceInterpolationScheme
         (
             const multivariateSurfaceInterpolationScheme&
-        );
+        ) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const multivariateSurfaceInterpolationScheme&);
+        //- No copy assignment
+        void operator=(const multivariateSurfaceInterpolationScheme&) = delete;
 
 
 public:
@@ -143,7 +145,7 @@ public:
 
 
     //- Destructor
-    virtual ~multivariateSurfaceInterpolationScheme();
+    virtual ~multivariateSurfaceInterpolationScheme() = default;
 
 
     // Member Functions

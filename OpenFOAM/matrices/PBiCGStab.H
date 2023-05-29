@@ -1,9 +1,12 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2016 OpenFOAM Foundation
+    Copyright (C) 2019 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -51,7 +54,7 @@ SourceFiles
 #ifndef PBiCGStab_H
 #define PBiCGStab_H
 
-#include "lduMatrix.H"
+#include "lduMatrix2.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -62,15 +65,17 @@ namespace Foam
                            Class PBiCGStab Declaration
 \*---------------------------------------------------------------------------*/
 
-class PBiCGStab :    public lduMatrix::solver
+class PBiCGStab
+:
+    public lduMatrix::solver
 {
     // Private Member Functions
 
-        //- Disallow default bitwise copy construct
-        PBiCGStab(const PBiCGStab&);
+        //- No copy construct
+        PBiCGStab(const PBiCGStab&) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const PBiCGStab&);
+        //- No copy assignment
+        void operator=(const PBiCGStab&) = delete;
 
 
 public:
@@ -94,11 +99,18 @@ public:
 
 
     //- Destructor
-    virtual ~PBiCGStab()
-    {}
+    virtual ~PBiCGStab() = default;
 
 
     // Member Functions
+
+        //- Solve the matrix with this solver
+        virtual solverPerformance scalarSolve
+        (
+            solveScalarField& psi,
+            const solveScalarField& source,
+            const direction cmpt = 0
+        ) const;
 
         //- Solve the matrix with this solver
         virtual solverPerformance solve

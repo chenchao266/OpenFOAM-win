@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2017-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -28,7 +31,7 @@ License
 #include "addToRunTimeSelectionTable.H"
 #include "treeBoundBox.H"
 #include "treeDataFace.H"
-#include "Time.T.H"
+#include "Time1.H"
 #include "meshTools.H"
 // For 'nearInfo' helper class only
 #include "mappedPatchBase.H"
@@ -53,52 +56,43 @@ void Foam::patchCloudSet::calcSamples
     DynamicList<scalar>& samplingCurveDist
 ) const
 {
-    if (debug)
-    {
-        Info<< "patchCloudSet : sampling on patches :" << endl;
-    }
+    DebugInfo << "patchCloudSet : sampling on patches :" << endl;
 
     // Construct search tree for all patch faces.
     label sz = 0;
-    forAllConstIter(labelHashSet, patchSet_, iter)
+    for (const label patchi : patchSet_)
     {
-        const polyPatch& pp = mesh().boundaryMesh()[iter.key()];
+        const polyPatch& pp = mesh().boundaryMesh()[patchi];
 
         sz += pp.size();
 
-        if (debug)
-        {
-            Info<< "    " << pp.name() << " size " << pp.size() << endl;
-        }
+        DebugInfo << "    " << pp.name() << " size " << pp.size() << endl;
     }
 
     labelList patchFaces(sz);
     sz = 0;
-    treeBoundBox bb(point::max, point::min);
-    forAllConstIter(labelHashSet, patchSet_, iter)
+    treeBoundBox bb(boundBox::invertedBox);
+    for (const label patchi : patchSet_)
     {
-        const polyPatch& pp = mesh().boundaryMesh()[iter.key()];
+        const polyPatch& pp = mesh().boundaryMesh()[patchi];
 
         forAll(pp, i)
         {
             patchFaces[sz++] = pp.start()+i;
         }
 
-        // Do not do reduction.
-        const boundBox patchBb(pp.points(), pp.meshPoints(), false);
-
-        bb.min() = min(bb.min(), patchBb.min());
-        bb.max() = max(bb.max(), patchBb.max());
+        // Without reduction.
+        bb.add(pp.points(), pp.meshPoints());
     }
 
     // Not very random
     Random rndGen(123456);
-    // Make bb asymetric just to avoid problems on symmetric meshes
+    // Make bb asymmetric just to avoid problems on symmetric meshes
     bb = bb.extend(rndGen, 1e-4);
 
     // Make sure bb is 3D.
-    bb.min() -= point(ROOTVSMALL, ROOTVSMALL, ROOTVSMALL);
-    bb.max() += point(ROOTVSMALL, ROOTVSMALL, ROOTVSMALL);
+    bb.min() -= point::uniform(ROOTVSMALL);
+    bb.max() += point::uniform(ROOTVSMALL);
 
 
     indexedOctree<treeDataFace> patchTree
@@ -183,9 +177,9 @@ void Foam::patchCloudSet::calcSamples
             if (nearest[i].first().hit())
             {
                 meshTools::writeOBJ(str, sampleCoords_[i]);
-                vertI++;
+                ++vertI;
                 meshTools::writeOBJ(str, nearest[i].first().hitPoint());
-                vertI++;
+                ++vertI;
                 str << "l " << vertI-1 << ' ' << vertI << nl;
             }
         }
@@ -259,6 +253,11 @@ void Foam::patchCloudSet::genSamples()
         samplingSegments,
         samplingCurveDist
     );
+
+    if (debug)
+    {
+        write(Info);
+    }
 }
 
 
@@ -281,11 +280,6 @@ Foam::patchCloudSet::patchCloudSet
     searchDist_(searchDist)
 {
     genSamples();
-
-    if (debug)
-    {
-        write(Info);
-    }
 }
 
 
@@ -298,29 +292,15 @@ Foam::patchCloudSet::patchCloudSet
 )
 :
     sampledSet(name, mesh, searchEngine, dict),
-    sampleCoords_(dict.lookup("points")),
+    sampleCoords_(dict.get<pointField>("points")),
     patchSet_
     (
-        mesh.boundaryMesh().patchSet
-        (
-            wordReList(dict.lookup("patches"))
-        )
+        mesh.boundaryMesh().patchSet(dict.get<wordRes>("patches"))
     ),
-    searchDist_(readScalar(dict.lookup("maxDistance")))
+    searchDist_(dict.get<scalar>("maxDistance"))
 {
     genSamples();
-
-    if (debug)
-    {
-        write(Info);
-    }
 }
-
-
-// * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
-
-Foam::patchCloudSet::~patchCloudSet()
-{}
 
 
 // ************************************************************************* //

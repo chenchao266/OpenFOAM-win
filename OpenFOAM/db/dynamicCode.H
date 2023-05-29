@@ -1,9 +1,12 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011 OpenFOAM Foundation
+    Copyright (C) 2019-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -35,16 +38,16 @@ SourceFiles
 #ifndef dynamicCode_H
 #define dynamicCode_H
 
-#include "Tuple2.T.H"
-#include "HashTable.T.H"
-#include "DynamicList.T.H"
+#include "Tuple2.H"
+#include "HashTable.H"
+#include "DynamicList.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 namespace Foam
 {
 
-// Forward declaration of classes
+// Forward Declarations
 class dynamicCodeContext;
 class ISstream;
 class OSstream;
@@ -57,10 +60,12 @@ class SHA1Digest;
 class dynamicCode
 {
 public:
+
     typedef Tuple2<fileName, string> fileAndContent;
 
 private:
-    // Private data
+
+    // Private Data
 
         //- Root for dynamic code compilation
         fileName codeRoot_;
@@ -92,19 +97,19 @@ private:
 
     // Private Member Functions
 
-        //- Disallow default bitwise copy construct
-        dynamicCode(const dynamicCode&);
+        //- No copy construct
+        dynamicCode(const dynamicCode&) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const dynamicCode&);
+        //- No copy assignment
+        void operator=(const dynamicCode&) = delete;
 
 
 protected:
 
-    // Static data members
+    // Static Data Members
 
-        //- Root of the LIB target for Make/files
-        static const char* const libTargetRoot;
+        //- Directory for library targets for Make/files
+        static const char* const targetLibDir;
 
         //- Top-level directory name for copy/compiling
         static const char* const topDirName;
@@ -148,7 +153,7 @@ protected:
 
 public:
 
-    // Static data members
+    // Static Data Members
 
         //- Name of the code template environment variable
         //  Used to located the codeTemplateName
@@ -167,15 +172,12 @@ public:
         //- Check security for creating dynamic code
         static void checkSecurity(const char* title, const dictionary&);
 
-        //- Return the library basename without leading 'lib' or trailing '.so'
-        static word libraryBaseName(const fileName& libPath);
-
 
     // Constructors
 
         //- Construct for a specified code name and code directory name
         //  Defaults to using the code name for the code directory name
-        dynamicCode
+        explicit dynamicCode
         (
             const word& codeName,
             const word& codeDirName = ""
@@ -197,7 +199,7 @@ public:
         }
 
         //- Root for dynamic code compilation
-        //  Expanded from \$FOAM_CASE/dynamicCode
+        //  Expanded from \<case\>/dynamicCode
         const fileName& codeRoot() const
         {
             return codeRoot_;
@@ -217,19 +219,15 @@ public:
             return codeRoot_/codeDirName_;
         }
 
-        //- Library path for specified code name
-        //  Corresponds to codeRoot()/libSubDir()/lib\<codeName\>.so
-        fileName libPath() const
-        {
-            return codeRoot_/libSubDir_/"lib" + codeName_ + ".so";
-        }
-
-        //- Path for specified code name relative to \$FOAM_CASE
+        //- Path for specified code name relative to \<case\>
         //  Corresponds to topDirName/codeDirName()
         fileName codeRelPath() const;
 
+        //- Library path for specified code name
+        //  Corresponds to codeRoot()/libSubDir()/lib\<codeName\>.so
+        fileName libPath() const;
 
-        //- Library path for specified code name relative to \$FOAM_CASE
+        //- Library path for specified code name relative to \<case\>
         //  Corresponds to
         //  dynamicCode/codeDirName()/libSubDir()/lib\<codeName\>.so
         fileName libRelPath() const;
@@ -281,6 +279,23 @@ public:
         //- Compile a libso
         bool wmakeLibso() const;
 
+
+    // Convenience
+
+        //- Define a filter variables TemplateType and FieldType
+        template<class Type>
+        void setFieldTemplates()
+        {
+            std::string val(pTraits<Type>::typeName);
+
+            // Template type
+            setFilterVariable("TemplateType", val);
+
+            // Field type - eg, ScalarField, VectorField, ...
+            val[0] = toupper(val[0]);
+            val += "Field";
+            setFilterVariable("FieldType", val);
+        }
 };
 
 

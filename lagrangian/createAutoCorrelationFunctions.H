@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -59,7 +61,7 @@ correlationFunction<vector> vacf
     molecules.size()
 );
 
-bool writeVacf(Switch(velocityACFDict.lookup("writeFile")));
+bool writeVacf(velocityACFDict.get<bool>("writeFile"));
 
 //- Pressure autocorrelation function
 
@@ -77,7 +79,7 @@ correlationFunction<vector> pacf
     1
 );
 
-bool writePacf(Switch(pressureACFDict.lookup("writeFile")));
+bool writePacf(pressureACFDict.get<bool>("writeFile"));
 
 //- Heat flux autocorrelation function
 
@@ -95,4 +97,4 @@ correlationFunction<vector> hfacf
     1
 );
 
-bool writeHFacf(Switch(heatFluxACFDict.lookup("writeFile")));
+bool writeHFacf(heatFluxACFDict.get<bool>("writeFile"));

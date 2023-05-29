@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2019-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -174,7 +177,7 @@ tmp<volScalarField> kkLOmega::phiBP(const volScalarField& Omega) const
               - CbpCrit_,
                 scalar(0)
             ),
-            scalar(50.0)
+            scalar(50)
         )
     );
 }
@@ -245,7 +248,7 @@ kkLOmega::kkLOmega
 
     A0_
     (
-        dimensioned<scalar>::lookupOrAddToDict
+        dimensioned<scalar>::getOrAddToDict
         (
             "A0",
             coeffDict_,
@@ -254,7 +257,7 @@ kkLOmega::kkLOmega
     ),
     As_
     (
-        dimensioned<scalar>::lookupOrAddToDict
+        dimensioned<scalar>::getOrAddToDict
         (
             "As",
             coeffDict_,
@@ -263,7 +266,7 @@ kkLOmega::kkLOmega
     ),
     Av_
     (
-        dimensioned<scalar>::lookupOrAddToDict
+        dimensioned<scalar>::getOrAddToDict
         (
             "Av",
             coeffDict_,
@@ -272,7 +275,7 @@ kkLOmega::kkLOmega
     ),
     Abp_
     (
-        dimensioned<scalar>::lookupOrAddToDict
+        dimensioned<scalar>::getOrAddToDict
         (
             "Abp",
             coeffDict_,
@@ -281,7 +284,7 @@ kkLOmega::kkLOmega
     ),
     Anat_
     (
-        dimensioned<scalar>::lookupOrAddToDict
+        dimensioned<scalar>::getOrAddToDict
         (
             "Anat",
             coeffDict_,
@@ -290,7 +293,7 @@ kkLOmega::kkLOmega
     ),
     Ats_
     (
-        dimensioned<scalar>::lookupOrAddToDict
+        dimensioned<scalar>::getOrAddToDict
         (
             "Ats",
             coeffDict_,
@@ -299,7 +302,7 @@ kkLOmega::kkLOmega
     ),
     CbpCrit_
     (
-        dimensioned<scalar>::lookupOrAddToDict
+        dimensioned<scalar>::getOrAddToDict
         (
             "CbpCrit",
             coeffDict_,
@@ -308,7 +311,7 @@ kkLOmega::kkLOmega
     ),
     Cnc_
     (
-        dimensioned<scalar>::lookupOrAddToDict
+        dimensioned<scalar>::getOrAddToDict
         (
             "Cnc",
             coeffDict_,
@@ -317,7 +320,7 @@ kkLOmega::kkLOmega
     ),
     CnatCrit_
     (
-        dimensioned<scalar>::lookupOrAddToDict
+        dimensioned<scalar>::getOrAddToDict
         (
             "CnatCrit",
             coeffDict_,
@@ -326,7 +329,7 @@ kkLOmega::kkLOmega
     ),
     Cint_
     (
-        dimensioned<scalar>::lookupOrAddToDict
+        dimensioned<scalar>::getOrAddToDict
         (
             "Cint",
             coeffDict_,
@@ -335,7 +338,7 @@ kkLOmega::kkLOmega
     ),
     CtsCrit_
     (
-        dimensioned<scalar>::lookupOrAddToDict
+        dimensioned<scalar>::getOrAddToDict
         (
             "CtsCrit",
             coeffDict_,
@@ -344,7 +347,7 @@ kkLOmega::kkLOmega
     ),
     CrNat_
     (
-        dimensioned<scalar>::lookupOrAddToDict
+        dimensioned<scalar>::getOrAddToDict
         (
             "CrNat",
             coeffDict_,
@@ -353,7 +356,7 @@ kkLOmega::kkLOmega
     ),
     C11_
     (
-        dimensioned<scalar>::lookupOrAddToDict
+        dimensioned<scalar>::getOrAddToDict
         (
             "C11",
             coeffDict_,
@@ -362,7 +365,7 @@ kkLOmega::kkLOmega
     ),
     C12_
     (
-        dimensioned<scalar>::lookupOrAddToDict
+        dimensioned<scalar>::getOrAddToDict
         (
             "C12",
             coeffDict_,
@@ -371,7 +374,7 @@ kkLOmega::kkLOmega
     ),
     CR_
     (
-        dimensioned<scalar>::lookupOrAddToDict
+        dimensioned<scalar>::getOrAddToDict
         (
             "CR",
             coeffDict_,
@@ -380,7 +383,7 @@ kkLOmega::kkLOmega
     ),
     CalphaTheta_
     (
-        dimensioned<scalar>::lookupOrAddToDict
+        dimensioned<scalar>::getOrAddToDict
         (
             "CalphaTheta",
             coeffDict_,
@@ -389,7 +392,7 @@ kkLOmega::kkLOmega
     ),
     Css_
     (
-        dimensioned<scalar>::lookupOrAddToDict
+        dimensioned<scalar>::getOrAddToDict
         (
             "Css",
             coeffDict_,
@@ -398,7 +401,7 @@ kkLOmega::kkLOmega
     ),
     CtauL_
     (
-        dimensioned<scalar>::lookupOrAddToDict
+        dimensioned<scalar>::getOrAddToDict
         (
             "CtauL",
             coeffDict_,
@@ -407,7 +410,7 @@ kkLOmega::kkLOmega
     ),
     Cw1_
     (
-        dimensioned<scalar>::lookupOrAddToDict
+        dimensioned<scalar>::getOrAddToDict
         (
             "Cw1",
             coeffDict_,
@@ -416,7 +419,7 @@ kkLOmega::kkLOmega
     ),
     Cw2_
     (
-        dimensioned<scalar>::lookupOrAddToDict
+        dimensioned<scalar>::getOrAddToDict
         (
             "Cw2",
             coeffDict_,
@@ -425,7 +428,7 @@ kkLOmega::kkLOmega
     ),
     Cw3_
     (
-        dimensioned<scalar>::lookupOrAddToDict
+        dimensioned<scalar>::getOrAddToDict
         (
             "Cw3",
             coeffDict_,
@@ -434,7 +437,7 @@ kkLOmega::kkLOmega
     ),
     CwR_
     (
-        dimensioned<scalar>::lookupOrAddToDict
+        dimensioned<scalar>::getOrAddToDict
         (
             "CwR",
             coeffDict_,
@@ -443,7 +446,7 @@ kkLOmega::kkLOmega
     ),
     Clambda_
     (
-        dimensioned<scalar>::lookupOrAddToDict
+        dimensioned<scalar>::getOrAddToDict
         (
             "Clambda",
             coeffDict_,
@@ -452,7 +455,7 @@ kkLOmega::kkLOmega
     ),
     CmuStd_
     (
-        dimensioned<scalar>::lookupOrAddToDict
+        dimensioned<scalar>::getOrAddToDict
         (
             "CmuStd",
             coeffDict_,
@@ -461,7 +464,7 @@ kkLOmega::kkLOmega
     ),
     Prtheta_
     (
-        dimensioned<scalar>::lookupOrAddToDict
+        dimensioned<scalar>::getOrAddToDict
         (
             "Prtheta",
             coeffDict_,
@@ -470,7 +473,7 @@ kkLOmega::kkLOmega
     ),
     Sigmak_
     (
-        dimensioned<scalar>::lookupOrAddToDict
+        dimensioned<scalar>::getOrAddToDict
         (
             "Sigmak",
             coeffDict_,
@@ -479,7 +482,7 @@ kkLOmega::kkLOmega
     ),
     Sigmaw_
     (
-        dimensioned<scalar>::lookupOrAddToDict
+        dimensioned<scalar>::getOrAddToDict
         (
             "Sigmaw",
             coeffDict_,
@@ -490,7 +493,7 @@ kkLOmega::kkLOmega
     (
         IOobject
         (
-            IOobject::groupName("kt", U.group()),
+            IOobject::groupName("kt", alphaRhoPhi.group()),
             runTime_.timeName(),
             mesh_,
             IOobject::MUST_READ,
@@ -502,7 +505,7 @@ kkLOmega::kkLOmega
     (
         IOobject
         (
-            IOobject::groupName("kl", U.group()),
+            IOobject::groupName("kl", alphaRhoPhi.group()),
             runTime_.timeName(),
             mesh_,
             IOobject::MUST_READ,
@@ -514,7 +517,7 @@ kkLOmega::kkLOmega
     (
         IOobject
         (
-            IOobject::groupName("omega", U.group()),
+            IOobject::groupName("omega", alphaRhoPhi.group()),
             runTime_.timeName(),
             mesh_,
             IOobject::MUST_READ,
@@ -586,10 +589,8 @@ bool kkLOmega::read()
 
         return true;
     }
-    else
-    {
-        return false;
-    }
+
+    return false;
 }
 
 
@@ -635,7 +636,7 @@ void kkLOmega::correct()
        *fINT()
        *Cmu(sqrt(S2))*sqrt(ktS)*lambdaEff
     );
-    const volScalarField Pkt(nuts*S2);
+    volScalarField Pkt(this->GName(), nuts*S2);
 
     const volScalarField ktL(kt_ - ktS);
     const volScalarField ReOmega(sqr(y_)*Omega/nu());

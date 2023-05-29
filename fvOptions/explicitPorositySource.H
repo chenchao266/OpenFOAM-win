@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2012-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2012-2018 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -24,10 +27,62 @@ License
 Class
     Foam::fv::explicitPorositySource
 
+Group
+    grpFvOptionsSources
+
 Description
-    Explicit porosity source
+    Applies an explicit porosity source to
+    the momentum equation within a specified region.
+
+    Sources applied to:
+    \verbatim
+      U         | Velocity                                   [m/s]
+    \endverbatim
+
+    Required fields:
+    \verbatim
+      U         | Velocity                                   [m/s]
+    \endverbatim
 
 Usage
+    Minimal example by using \c constant/fvOptions:
+    \verbatim
+    explicitPorositySource1
+    {
+        // Mandatory entries (unmodifiable)
+        type                 <porosityModelName>;
+
+        <porosityModelName>Coeffs
+        {
+            // Optional entries (runtime modifiable)
+            UNames          (<Uname1> <Uname2> ... <UnameN>);
+
+            // Conditional optional entries (runtime modifiable)
+
+                // when the entry "UNames" is not present
+                U           U;
+
+            // Mandatory/Optional (inherited) entries
+            ...
+        }
+
+        // Mandatory/Optional (inherited) entries
+        ...
+    }
+    \endverbatim
+
+    where the entries mean:
+    \table
+      Property  | Description                       | Type   | Reqd  | Dflt
+      type      | Type name: \<porosityModelName\>  | word   | yes   | -
+      UNames    | Names of operand velocity fields  | wordList | no  | -
+      U         | Name of operand velocity field    | word   | no    | U
+    \endtable
+
+    The inherited entries are elaborated in:
+     - \link fvOption.H \endlink
+     - \link cellSetOption.H \endlink
+
     Example usage, here employing the Darcy-Forchheimer model:
     \verbatim
     explicitPorositySourceCoeffs
@@ -41,21 +96,19 @@ Usage
 
             coordinateSystem
             {
-                type    cartesian;
                 origin  (0 0 0);
-                coordinateRotation
-                {
-                    type    axesRotation;
-                    e1  (0.70710678 0.70710678 0);
-                    e2  (0 0 1);
-                }
+                e1      (0.70710678 0.70710678 0);
+                e2      (0 0 1);
             }
         }
     }
     \endverbatim
 
-Note:
-    The porous region must be selected as a cellZone.
+Note
+  - The porous region must be selected as a \c cellZone.
+
+See also
+  - Foam::porosityModel
 
 SourceFiles
     explicitPorositySource.C
@@ -77,33 +130,20 @@ class porosityModel;
 namespace fv
 {
 
-
 /*---------------------------------------------------------------------------*\
                    Class explicitPorositySource Declaration
 \*---------------------------------------------------------------------------*/
 
 class explicitPorositySource
 :
-    public cellSetOption
+    public fv::cellSetOption
 {
-
 protected:
 
-    // Protected data
+    // Protected Data
 
         //- Run-time selectable porosity model
         autoPtr<porosityModel> porosityPtr_;
-
-
-private:
-
-    // Private Member Functions
-
-        //- Disallow default bitwise copy construct
-        explicitPorositySource(const explicitPorositySource&);
-
-        //- Disallow default bitwise assignment
-        void operator=(const explicitPorositySource&);
 
 
 public:
@@ -123,45 +163,53 @@ public:
             const fvMesh& mesh
         );
 
+        //- No copy construct
+        explicitPorositySource(const explicitPorositySource&) = delete;
+
+        //- No copy assignment
+        void operator=(const explicitPorositySource&) = delete;
+
 
     //- Destructor
-    virtual ~explicitPorositySource()
-    {}
+    virtual ~explicitPorositySource() = default;
 
 
     // Member Functions
 
-        // Add explicit and implicit contributions
-
-            //- Add implicit contribution to momentum equation
-            virtual void addSup
-            (
-                fvMatrix<vector>& eqn,
-                const label fieldi
-            );
-
-            //- Add implicit contribution to compressible momentum equation
-            virtual void addSup
-            (
-                const volScalarField& rho,
-                fvMatrix<vector>& eqn,
-                const label fieldi
-            );
-
-            //- Add implicit contribution to phase momentum equation
-            virtual void addSup
-            (
-                const volScalarField& alpha,
-                const volScalarField& rho,
-                fvMatrix<vector>& eqn,
-                const label fieldi
-            );
+        //- Access to the porosityModel
+        const porosityModel& model() const
+        {
+            return *porosityPtr_;
+        }
 
 
-        // IO
+        //- Add implicit contribution to momentum equation
+        virtual void addSup
+        (
+            fvMatrix<vector>& eqn,
+            const label fieldi
+        );
 
-            //- Read dictionary
-            virtual bool read(const dictionary& dict);
+        //- Add implicit contribution to compressible momentum equation
+        virtual void addSup
+        (
+            const volScalarField& rho,
+            fvMatrix<vector>& eqn,
+            const label fieldi
+        );
+
+        //- Add implicit contribution to phase momentum equation
+        virtual void addSup
+        (
+            const volScalarField& alpha,
+            const volScalarField& rho,
+            fvMatrix<vector>& eqn,
+            const label fieldi
+        );
+
+
+        //- Read dictionary
+        virtual bool read(const dictionary& dict);
 };
 
 

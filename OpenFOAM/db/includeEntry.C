@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2018-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -24,75 +27,89 @@ License
 \*---------------------------------------------------------------------------*/
 
 #include "includeEntry.H"
-#include "dictionary.H"
-#include "IFstream.H"
 #include "addToMemberFunctionSelectionTable.H"
 #include "stringOps.H"
+#include "IFstream.H"
 #include "IOstreams.H"
+#include "Time1.h"
 #include "fileOperation.H"
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
-using namespace Foam;
-const word functionEntries::includeEntry::typeName
-(
-    functionEntries::includeEntry::typeName_()
-);
 
-// Don't lookup the debug switch here as the debug switch dictionary
-// might include includeEntry
-int functionEntries::includeEntry::debug(0);
 
+ namespace Foam{
 bool functionEntries::includeEntry::log(false);
 
 
+
+ } // End namespace Foam
 namespace Foam
 {
 namespace functionEntries
 {
-    addToMemberFunctionSelectionTable
+    addNamedToMemberFunctionSelectionTable
     (
         functionEntry,
         includeEntry,
         execute,
-        dictionaryIstream
+        dictionaryIstream,
+        include
     );
 
-    addToMemberFunctionSelectionTable
+    addNamedToMemberFunctionSelectionTable
     (
         functionEntry,
         includeEntry,
         execute,
-        primitiveEntryIstream
+        primitiveEntryIstream,
+        include
     );
-}
-}
+
+    addNamedToMemberFunctionSelectionTable
+    (
+        functionEntry,
+        sincludeEntry,
+        execute,
+        dictionaryIstream,
+        sinclude
+    );
+
+    addNamedToMemberFunctionSelectionTable
+    (
+        functionEntry,
+        sincludeEntry,
+        execute,
+        primitiveEntryIstream,
+        sinclude
+    );
+
+    // Compat 1712 and earlier
+    addNamedToMemberFunctionSelectionTable
+    (
+        functionEntry,
+        sincludeEntry,
+        execute,
+        dictionaryIstream,
+        includeIfPresent
+    );
+
+    addNamedToMemberFunctionSelectionTable
+    (
+        functionEntry,
+        sincludeEntry,
+        execute,
+        primitiveEntryIstream,
+        includeIfPresent
+    );
+} // End namespace functionEntries
+} // End namespace Foam
+
 
 // * * * * * * * * * * * Protected Member Functions  * * * * * * * * * * * * //
 
-fileName functionEntries::includeEntry::includeFileName
-(
-    Istream& is,
-    const dictionary& dict
-)
-{
-    fileName fName(is);
-    // Substitute dictionary and environment variables. Allow empty
-    // substitutions.
-    stringOps::inplaceExpand(fName, dict, true, true);
 
-    if (fName.empty() || fName.isAbsolute())
-    {
-        return fName;
-    }
-    else
-    {
-        // relative name
-        return fileName(is.name()).path()/fName;
-    }
-}
-
-
-fileName functionEntries::includeEntry::includeFileName
+ namespace Foam{
+fileName functionEntries::includeEntry::resolveFile
 (
     const fileName& dir,
     const fileName& f,
@@ -100,19 +117,121 @@ fileName functionEntries::includeEntry::includeFileName
 )
 {
     fileName fName(f);
-    // Substitute dictionary and environment variables. Allow empty
-    // substitutions.
+
+    // Substitute dictionary and environment variables.
+    // Allow empty substitutions.
     stringOps::inplaceExpand(fName, dict, true, true);
 
     if (fName.empty() || fName.isAbsolute())
     {
         return fName;
     }
-    else
+
+    // Relative name
+    return dir/fName;
+}
+
+
+bool functionEntries::includeEntry::execute
+(
+    const bool mandatory,
+    dictionary& parentDict,
+    Istream& is
+)
+{
+    const fileName rawName(is);
+    const fileName fName(resolveFile(is.name().path(), rawName, parentDict));
+
+    autoPtr<ISstream> ifsPtr(fileHandler().NewIFstream(fName));
+    auto& ifs = *ifsPtr;
+
+    if (ifs)
     {
-        // relative name
-        return dir/fName;
+        if (functionEntries::includeEntry::log)
+        {
+            // Report to stdout which file is included
+            Info<< fName << nl;
+        }
+
+        // Add watch on included file
+        const dictionary& top = parentDict.topDict();
+        if (isA<regIOobject>(top))
+        {
+            regIOobject& rio = const_cast<regIOobject&>
+            (
+                dynamic_cast<const regIOobject&>(top)
+            );
+            rio.addWatch(fName);
+        }
+
+        parentDict.read(ifs);
+        return true;
     }
+
+    if (!mandatory)
+    {
+        return true; // Never fails if optional
+    }
+
+    FatalIOErrorInFunction(is)
+        << "Cannot open include file "
+        << (ifs.name().size() ? ifs.name() : rawName)
+        << " while reading dictionary " << parentDict.relativeName()
+        << exit(FatalIOError);
+
+    return false;
+}
+
+
+bool functionEntries::includeEntry::execute
+(
+    const bool mandatory,
+    const dictionary& parentDict,
+    primitiveEntry& entry,
+    Istream& is
+)
+{
+    const fileName rawName(is);
+    const fileName fName(resolveFile(is.name().path(), rawName, parentDict));
+
+    autoPtr<ISstream> ifsPtr(fileHandler().NewIFstream(fName));
+    auto& ifs = *ifsPtr;
+
+    if (ifs)
+    {
+        if (functionEntries::includeEntry::log)
+        {
+            // Report to stdout which file is included
+            Info<< fName << nl;
+        }
+
+        // Add watch on included file
+        const dictionary& top = parentDict.topDict();
+        if (isA<regIOobject>(top))
+        {
+            regIOobject& rio = const_cast<regIOobject&>
+            (
+                dynamic_cast<const regIOobject&>(top)
+            );
+            rio.addWatch(fName);
+        }
+
+        entry.read(parentDict, ifs);
+        return true;
+    }
+
+    if (!mandatory)
+    {
+        return true; // Never fails if optional
+    }
+
+    FatalIOErrorInFunction(is)
+        << "Cannot open include file "
+        << (ifs.name().size() ? ifs.name() : rawName)
+        << " while reading dictionary " << parentDict.relativeName()
+        << exit(FatalIOError);
+
+    return false;
 }
 
 
@@ -124,37 +243,7 @@ bool functionEntries::includeEntry::execute
     Istream& is
 )
 {
-    const fileName rawFName(is);
-    const fileName fName
-    (
-        includeFileName(is.name().path(), rawFName, parentDict)
-    );
-
-    //IFstream ifs(fName);
-    autoPtr<ISstream> ifsPtr(fileHandler().NewIFstream(fName));
-    ISstream& ifs = ifsPtr();
-
-    if (ifs)
-    {
-        if (functionEntries::includeEntry::log)
-        {
-            Info<< fName << endl;
-        }
-        parentDict.read(ifs);
-        return true;
-    }
-    else
-    {
-        FatalIOErrorInFunction
-        (
-            is
-        )   << "Cannot open include file "
-            << (ifs.name().size() ? ifs.name() : rawFName)
-            << " while reading dictionary " << parentDict.name()
-            << exit(FatalIOError);
-
-        return false;
-    }
+    return includeEntry::execute(true, parentDict, is);
 }
 
 
@@ -165,37 +254,31 @@ bool functionEntries::includeEntry::execute
     Istream& is
 )
 {
-    const fileName rawFName(is);
-    const fileName fName
-    (
-        includeFileName(is.name().path(), rawFName, parentDict)
-    );
-
-    //IFstream ifs(fName);
-    autoPtr<ISstream> ifsPtr(fileHandler().NewIFstream(fName));
-    ISstream& ifs = ifsPtr();
-
-    if (ifs)
-    {
-        if (functionEntries::includeEntry::log)
-        {
-            Info<< fName << endl;
-        }
-        entry.read(parentDict, ifs);
-        return true;
-    }
-    else
-    {
-        FatalIOErrorInFunction
-        (
-            is
-        )   << "Cannot open include file "
-            << (ifs.name().size() ? ifs.name() : rawFName)
-            << " while reading dictionary " << parentDict.name()
-            << exit(FatalIOError);
-
-        return false;
-    }
+    return includeEntry::execute(true, parentDict, entry, is);
 }
 
+
+bool functionEntries::sincludeEntry::execute
+(
+    dictionary& parentDict,
+    Istream& is
+)
+{
+    return includeEntry::execute(false, parentDict, is);
+}
+
+
+bool functionEntries::sincludeEntry::execute
+(
+    const dictionary& parentDict,
+    primitiveEntry& entry,
+    Istream& is
+)
+{
+    return includeEntry::execute(false, parentDict, entry, is);
+}
+
+
 // ************************************************************************* //
+
+ } // End namespace Foam

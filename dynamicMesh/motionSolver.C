@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2019-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -24,8 +27,9 @@ License
 \*---------------------------------------------------------------------------*/
 
 #include "motionSolver.H"
-#include "Time.T.H"
+#include "Time1.H"
 #include "polyMesh.H"
+#include "dictionaryEntry.H"
 #include "dlLibraryTable.H"
 #include "twoDPointCorrector.H"
 
@@ -49,9 +53,8 @@ Foam::IOobject Foam::motionSolver::stealRegistration
     {
         // De-register if necessary
         const_cast<IOdictionary&>(dict).checkOut();
-
-        io.registerObject() = true;
     }
+    io.registerObject(true);
 
     return io;
 }
@@ -92,7 +95,7 @@ Foam::motionSolver::motionSolver
 Foam::autoPtr<Foam::motionSolver> Foam::motionSolver::clone() const
 {
     NotImplemented;
-    return autoPtr<motionSolver>(nullptr);
+    return nullptr;
 }
 
 
@@ -104,16 +107,16 @@ Foam::autoPtr<Foam::motionSolver> Foam::motionSolver::New
     const IOdictionary& solverDict
 )
 {
-    const word solverTypeName
+    // The change from "solver" to "motionSolver" has not been
+    // applied consistently. Accept both without complaint.
+    const word solverName
     (
-        solverDict.found("motionSolver")
-      ? solverDict.lookup("motionSolver")
-      : solverDict.lookup("solver")
+        solverDict.getCompat<word>("motionSolver", {{"solver", -1612}})
     );
 
-    Info<< "Selecting motion solver: " << solverTypeName << endl;
+    Info<< "Selecting motion solver: " << solverName << nl;
 
-    const_cast<Time&>(mesh.time()).libs().open
+    mesh.time().libs().open
     (
         solverDict,
         "motionSolverLibs",
@@ -127,20 +130,20 @@ Foam::autoPtr<Foam::motionSolver> Foam::motionSolver::New
             << exit(FatalError);
     }
 
-    dictionaryConstructorTable::iterator cstrIter =
-        dictionaryConstructorTablePtr_->find(solverTypeName);
+    auto* ctorPtr = dictionaryConstructorTable(solverName);
 
-    if (cstrIter == dictionaryConstructorTablePtr_->end())
+    if (!ctorPtr)
     {
-        FatalErrorInFunction
-            << "Unknown solver type "
-            << solverTypeName << nl << nl
-            << "Valid solver types are:" << endl
-            << dictionaryConstructorTablePtr_->sortedToc()
-            << exit(FatalError);
+        FatalIOErrorInLookup
+        (
+            solverDict,
+            "solver",
+            solverName,
+            *dictionaryConstructorTablePtr_
+        ) << exit(FatalIOError);
     }
 
-    return autoPtr<motionSolver>(cstrIter()(mesh, solverDict));
+    return autoPtr<motionSolver>(ctorPtr(mesh, solverDict));
 }
 
 
@@ -173,7 +176,7 @@ Foam::autoPtr<Foam::motionSolver> Foam::motionSolver::iNew::operator()
     Istream& is
 ) const
 {
-    dictionaryEntry dict(dictionary::null, is);
+    dictionaryEntry dictEntry(dictionary::null, is);
 
     return motionSolver::New
     (
@@ -182,20 +185,14 @@ Foam::autoPtr<Foam::motionSolver> Foam::motionSolver::iNew::operator()
         (
             IOobject
             (
-                dict.name() + ":meshSolver",
+                dictEntry.name() + ":meshSolver",
                 mesh_.time().constant(),
                 mesh_
             ),
-            dict
+            dictEntry
         )
     );
 }
-
-
-// * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
-
-Foam::motionSolver::~motionSolver()
-{}
 
 
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
@@ -219,9 +216,7 @@ void Foam::motionSolver::updateMesh(const mapPolyMesh& mpm)
 
 bool Foam::motionSolver::writeObject
 (
-    IOstream::streamFormat fmt,
-    IOstream::versionNumber ver,
-    IOstream::compressionType cmp,
+    IOstreamOption,
     const bool valid
 ) const
 {
@@ -237,10 +232,8 @@ bool Foam::motionSolver::read()
 
         return true;
     }
-    else
-    {
-        return false;
-    }
+
+    return false;
 }
 
 

@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011 OpenFOAM Foundation
+    Copyright (C) 2019 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -38,10 +41,10 @@ SourceFiles
 
 #include "contiguous.H"
 #include "particle.H"
-#include "KinematicParcel.T.H"
-#include "ThermoParcel.T.H"
-#include "ReactingParcel.T.H"
-#include "ReactingMultiphaseParcel.T.H"
+#include "KinematicParcel.H"
+#include "ThermoParcel.H"
+#include "ReactingParcel.H"
+#include "ReactingMultiphaseParcel.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -61,11 +64,9 @@ namespace Foam
         >
     > basicReactingMultiphaseParcel;
 
+    //- Non-contiguous data for basicReactingMultiphaseParcel
     template<>
-    inline bool contiguous<basicReactingMultiphaseParcel>()
-    {
-        return false;
-    }
+    struct is_contiguous<basicReactingMultiphaseParcel> : std::false_type {};
 }
 
 

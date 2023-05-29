@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2018-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -25,15 +28,47 @@ License
 
 #include "searchableBox.H"
 #include "addToRunTimeSelectionTable.H"
-#include "SortableList.T.H"
+#include "SortableList.H"
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
 
 namespace Foam
 {
     defineTypeNameAndDebug(searchableBox, 0);
-    addToRunTimeSelectionTable(searchableSurface, searchableBox, dict);
+    addToRunTimeSelectionTable
+    (
+        searchableSurface,
+        searchableBox,
+        dict
+    );
+    addNamedToRunTimeSelectionTable
+    (
+        searchableSurface,
+        searchableBox,
+        dict,
+        box
+    );
 }
+
+
+// * * * * * * * * * * * * * * * Local Functions * * * * * * * * * * * * * * //
+
+namespace Foam
+{
+
+// Read min/max or min/span
+static void readBoxDim(const dictionary& dict, treeBoundBox& bb)
+{
+    dict.readEntry<point>("min", bb.min());
+
+    const bool hasSpan = dict.found("span");
+    if (!dict.readEntry<point>("max", bb.max(), keyType::REGEX, !hasSpan))
+    {
+        bb.max() = bb.min() + dict.get<vector>("span");
+    }
+}
+
+} // End namespace Foam
 
 
 // * * * * * * * * * * * * * Private Member Functions  * * * * * * * * * * * //
@@ -47,6 +82,7 @@ void Foam::searchableBox::projectOntoCoordPlane
 {
     // Set point
     info.rawPoint()[dir] = planePt[dir];
+
     // Set face
     if (planePt[dir] == min()[dir])
     {
@@ -61,7 +97,8 @@ void Foam::searchableBox::projectOntoCoordPlane
         FatalErrorInFunction
             << "Point on plane " << planePt
             << " is not on coordinate " << min()[dir]
-            << " nor " << max()[dir] << abort(FatalError);
+            << " nor " << max()[dir] << nl
+            << abort(FatalError);
     }
 }
 
@@ -92,7 +129,7 @@ Foam::pointIndexHit Foam::searchableBox::findNearest
     // (for internal points) per direction what nearest cube side is
     point near;
 
-    for (direction dir = 0; dir < vector::nComponents; dir++)
+    for (direction dir = 0; dir < vector::nComponents; ++dir)
     {
         if (info.rawPoint()[dir] < min()[dir])
         {
@@ -119,31 +156,26 @@ Foam::pointIndexHit Foam::searchableBox::findNearest
     // using the three near distances. Project onto the nearest plane.
     if (!outside)
     {
-        vector dist(cmptMag(info.rawPoint() - near));
+        const vector dist(cmptMag(info.point() - near));
+
+        direction projNorm(vector::Z);
 
         if (dist.x() < dist.y())
         {
             if (dist.x() < dist.z())
             {
-                // Project onto x plane
-                projectOntoCoordPlane(vector::X, near, info);
-            }
-            else
-            {
-                projectOntoCoordPlane(vector::Z, near, info);
+                projNorm = vector::X;
             }
         }
         else
         {
             if (dist.y() < dist.z())
             {
-                projectOntoCoordPlane(vector::Y, near, info);
-            }
-            else
-            {
-                projectOntoCoordPlane(vector::Z, near, info);
+                projNorm = vector::Y;
             }
         }
+
+        projectOntoCoordPlane(projNorm, near, info);
     }
 
 
@@ -170,14 +202,15 @@ Foam::searchableBox::searchableBox
     searchableSurface(io),
     treeBoundBox(bb)
 {
-    if (!contains(midpoint()))
+    if (!treeBoundBox::valid())
     {
         FatalErrorInFunction
             << "Illegal bounding box specification : "
-            << static_cast<const treeBoundBox>(*this) << exit(FatalError);
+            << static_cast<const treeBoundBox>(*this) << nl
+            << exit(FatalError);
     }
 
-    bounds() = static_cast<boundBox>(*this);
+    bounds() = static_cast<treeBoundBox>(*this);
 }
 
 
@@ -188,23 +221,20 @@ Foam::searchableBox::searchableBox
 )
 :
     searchableSurface(io),
-    treeBoundBox(dict.lookup("min"), dict.lookup("max"))
+    treeBoundBox()
 {
-    if (!contains(midpoint()))
+    readBoxDim(dict, *this);
+
+    if (!treeBoundBox::valid())
     {
         FatalErrorInFunction
             << "Illegal bounding box specification : "
-            << static_cast<const treeBoundBox>(*this) << exit(FatalError);
+            << static_cast<const treeBoundBox>(*this) << nl
+            << exit(FatalError);
     }
 
-    bounds() = static_cast<boundBox>(*this);
+    bounds() = static_cast<treeBoundBox>(*this);
 }
-
-
-// * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
-
-Foam::searchableBox::~searchableBox()
-{}
 
 
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
@@ -213,7 +243,7 @@ const Foam::wordList& Foam::searchableBox::regions() const
 {
     if (regions_.empty())
     {
-        regions_.setSize(1);
+        regions_.resize(1);
         regions_[0] = "region0";
     }
     return regions_;
@@ -222,8 +252,8 @@ const Foam::wordList& Foam::searchableBox::regions() const
 
 Foam::tmp<Foam::pointField> Foam::searchableBox::coordinates() const
 {
-    tmp<pointField> tCtrs = tmp<pointField>(new pointField(6));
-    pointField& ctrs = tCtrs.ref();
+    auto tctrs = tmp<pointField>::New(6);
+    auto& ctrs = tctrs.ref();
 
     const pointField pts(treeBoundBox::points());
     const faceList& fcs = treeBoundBox::faces;
@@ -233,7 +263,7 @@ Foam::tmp<Foam::pointField> Foam::searchableBox::coordinates() const
         ctrs[i] = fcs[i].centre(pts);
     }
 
-    return tCtrs;
+    return tctrs;
 }
 
 
@@ -245,7 +275,7 @@ void Foam::searchableBox::boundingSpheres
 {
     centres.setSize(size());
     radiusSqr.setSize(size());
-    radiusSqr = 0.0;
+    radiusSqr = Zero;
 
     const pointField pts(treeBoundBox::points());
     const faceList& fcs = treeBoundBox::faces;
@@ -255,9 +285,9 @@ void Foam::searchableBox::boundingSpheres
         const face& f = fcs[i];
 
         centres[i] = f.centre(pts);
-        forAll(f, fp)
+        for (const label pointi : f)
         {
-            const point& pt = pts[f[fp]];
+            const point& pt = pts[pointi];
 
             radiusSqr[i] = Foam::max
             (
@@ -284,7 +314,7 @@ Foam::pointIndexHit Foam::searchableBox::findNearest
     const scalar nearestDistSqr
 ) const
 {
-    return findNearest(midpoint(), sample, nearestDistSqr);
+    return findNearest(centre(), sample, nearestDistSqr);
 }
 
 
@@ -294,7 +324,7 @@ Foam::pointIndexHit Foam::searchableBox::findNearestOnEdge
     const scalar nearestDistSqr
 ) const
 {
-    const point bbMid(midpoint());
+    const point bbMid(centre());
 
     // Outside point projected onto cube. Assume faces 0..5.
     pointIndexHit info(true, sample, -1);
@@ -303,7 +333,7 @@ Foam::pointIndexHit Foam::searchableBox::findNearestOnEdge
     // (for internal points) per direction what nearest cube side is
     point near;
 
-    for (direction dir = 0; dir < vector::nComponents; dir++)
+    for (direction dir = 0; dir < vector::nComponents; ++dir)
     {
         if (info.rawPoint()[dir] < min()[dir])
         {
@@ -405,7 +435,7 @@ Foam::pointIndexHit Foam::searchableBox::findLine
     {
         info.setHit();
 
-        for (direction dir = 0; dir < vector::nComponents; dir++)
+        for (direction dir = 0; dir < vector::nComponents; ++dir)
         {
             if (info.rawPoint()[dir] == min()[dir])
             {
@@ -452,7 +482,7 @@ void Foam::searchableBox::findNearest
 {
     info.setSize(samples.size());
 
-    const point bbMid(midpoint());
+    const point bbMid(centre());
 
     forAll(samples, i)
     {
@@ -503,7 +533,7 @@ void Foam::searchableBox::findLineAll
     info.setSize(start.size());
 
     // Work array
-    DynamicList<pointIndexHit, 1, 1> hits;
+    DynamicList<pointIndexHit> hits;
 
     // Tolerances:
     // To find all intersections we add a small vector to the last intersection
@@ -515,8 +545,7 @@ void Foam::searchableBox::findLineAll
     const scalarField magSqrDirVec(magSqr(dirVec));
     const vectorField smallVec
     (
-        ROOTSMALL*dirVec
-      + vector(ROOTVSMALL,ROOTVSMALL,ROOTVSMALL)
+        ROOTSMALL*dirVec + vector::uniform(ROOTVSMALL)
     );
 
     forAll(start, pointi)
@@ -602,20 +631,23 @@ void Foam::searchableBox::getVolumeType
 ) const
 {
     volType.setSize(points.size());
-    volType = volumeType::INSIDE;
 
     forAll(points, pointi)
     {
         const point& pt = points[pointi];
 
-        for (direction dir = 0; dir < vector::nComponents; dir++)
+        volumeType vt = volumeType::INSIDE;
+
+        for (direction dir=0; dir < vector::nComponents; ++dir)
         {
             if (pt[dir] < min()[dir] || pt[dir] > max()[dir])
             {
-                volType[pointi] = volumeType::OUTSIDE;
+                vt = volumeType::OUTSIDE;
                 break;
             }
         }
+
+        volType[pointi] = vt;
     }
 }
 

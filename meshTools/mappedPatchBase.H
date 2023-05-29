@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2020-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -30,6 +33,13 @@ Description
 
     If constructed from dictionary:
     \verbatim
+        // Optional world to sample (default is all)
+        //sampleWorld solidSim;
+
+        // Optional explicit coupling (requires functionObject to synchronise
+        // databases. Default is close coupling (bc to bc)
+        //sampleDatabase true;
+
         // Region to sample (default is region0)
         sampleRegion region0;
 
@@ -69,7 +79,6 @@ Description
     Note: if offsetMode is \c normal it uses outwards pointing normals. So
     supply a negative distance if sampling inside the domain.
 
-
 Note
     Storage is not optimal. It temporary collects all (patch)face centres
     on all processors to keep the addressing calculation simple.
@@ -83,8 +92,8 @@ SourceFiles
 #define mappedPatchBase_H
 
 #include "pointField.H"
-#include "Tuple2.T.H"
-#include "pointIndexHit.H"
+#include "Tuple2.H"
+#include "pointIndexHit2.H"
 #include "AMIPatchToPatchInterpolation.H"
 #include "coupleGroupIdentifier.H"
 
@@ -103,7 +112,6 @@ class mapDistribute;
 
 class mappedPatchBase
 {
-
 public:
 
     // Type enumerations
@@ -111,25 +119,25 @@ public:
         //- Mesh items to sample
         enum sampleMode
         {
-            NEARESTCELL,         // nearest cell containing sample
-            NEARESTPATCHFACE,    // nearest face on selected patch
-            NEARESTPATCHFACEAMI, // nearest patch face + AMI interpolation
-            NEARESTPATCHPOINT,   // nearest point on selected patch
-            NEARESTFACE,         // nearest face
-            NEARESTONLYCELL      // nearest cell (even if not containing cell)
+            NEARESTCELL,         //!< nearest cell containing sample
+            NEARESTPATCHFACE,    //!< nearest face on selected patch
+            NEARESTPATCHFACEAMI, //!< nearest patch face + AMI interpolation
+            NEARESTPATCHPOINT,   //!< nearest point on selected patch
+            NEARESTFACE,         //!< nearest face
+            NEARESTONLYCELL      //!< nearest cell (even if not containing cell)
         };
 
         //- How to project face centres
         enum offsetMode
         {
-            UNIFORM,            // single offset vector
-            NONUNIFORM,         // per-face offset vector
-            NORMAL              // use face normal + distance
+            UNIFORM,            //!< single offset vector
+            NONUNIFORM,         //!< per-face offset vector
+            NORMAL              //!< use face normal + distance
         };
 
-        static const NamedEnum<sampleMode, 6> sampleModeNames_;
+        static const Enum<sampleMode> sampleModeNames_;
 
-        static const NamedEnum<offsetMode, 3> offsetModeNames_;
+        static const Enum<offsetMode> offsetModeNames_;
 
 
     //- Helper class for finding nearest
@@ -141,7 +149,6 @@ public:
 
     class nearestEqOp
     {
-
     public:
 
         void operator()(nearInfo& x, const nearInfo& y) const
@@ -162,7 +169,6 @@ public:
 
     class maxProcEqOp
     {
-
     public:
 
         void operator()(nearInfo& x, const nearInfo& y) const
@@ -182,12 +188,46 @@ public:
     };
 
 
+    //- nearest + world
+    //  Used to only look at entries from same world
+    typedef Tuple2<nearInfo, label> nearInfoWorld;
+
+    class nearestWorldEqOp
+    {
+    public:
+
+        void operator()(nearInfoWorld& x, const nearInfoWorld& y) const
+        {
+            // Is there a hit and is it sampling the same world
+            const nearInfo& xi = x.first();
+            const nearInfo& yi = y.first();
+            if (yi.first().hit())
+            {
+                if (x.second() == y.second())
+                {
+                    if (!xi.first().hit())
+                    {
+                        x = y;
+                    }
+                    else if (yi.second().first() < xi.second().first())
+                    {
+                        x = y;
+                    }
+                }
+            }
+        }
+    };
+
+
 protected:
 
-    // Protected data
+    // Protected Data
 
         //- Patch to sample
         const polyPatch& patch_;
+
+        //- World to sample
+        mutable word sampleWorld_;
 
         //- Region to sample
         mutable word sampleRegion_;
@@ -201,6 +241,9 @@ protected:
         //- PatchGroup (if in sampleMode NEARESTPATCH*)
         const coupleGroupIdentifier coupleGroup_;
 
+        //- Empty or location of database
+        const autoPtr<fileName> sampleDatabasePtr_;
+
         //- How to obtain samples
         offsetMode offsetMode_;
 
@@ -212,6 +255,9 @@ protected:
 
         //- Offset distance (normal)
         scalar distance_;
+
+        //- Communicator
+        label communicator_;
 
         //- Same region
         mutable bool sameRegion_;
@@ -229,11 +275,11 @@ protected:
 
         // AMI interpolator (only for NEARESTPATCHFACEAMI)
 
-            //- Pointer to AMI interpolator
-            mutable autoPtr<AMIPatchToPatchInterpolation> AMIPtr_;
-
             //- Flag to indicate that slave patch should be reversed for AMI
             const bool AMIReverse_;
+
+            //- Pointer to AMI interpolator
+            mutable autoPtr<AMIPatchToPatchInterpolation> AMIPtr_;
 
             //- Pointer to projection surface employed by AMI interpolator
             mutable autoPtr<searchableSurface> surfPtr_;
@@ -244,25 +290,62 @@ protected:
 
     // Protected Member Functions
 
+        //- Add a world-world connection
+        bool addWorldConnection();
+
+        //- Get the communicator for the world-world connection
+        label getWorldCommunicator() const;
+
+        //- Lookup mesh
+        const polyMesh& lookupMesh(const word& region) const;
+
+        //- Lookup patch
+        const polyPatch& lookupPatch
+        (
+            const word& sampleRegion,
+            const word& samplePatch
+        ) const;
+
+
         //- Get the points from face-centre-decomposition face centres
-        //  and project them onto the face-diagonal-decomposition triangles.
+        //- and project them onto the face-diagonal-decomposition triangles.
         tmp<pointField> facePoints(const polyPatch&) const;
 
-        //- Collect single list of samples and originating processor+face.
+        //- Collect single list of samples and originating processor+face +
+        //- wanted world
         void collectSamples
         (
+            const label mySampleWorld,  // My wanted sampling world
             const pointField& facePoints,
-            pointField&,
-            labelList& patchFaceProcs,
-            labelList& patchFaces,
+            pointField& samples,        // Per sample: coordinate
+            labelList& patchFaceWorlds, // Per sample: wanted world
+            labelList& patchFaceProcs,  // Per sample: originating proc
+            labelList& patchFaces,      // Per sample: originating face
             pointField& patchFc
         ) const;
 
-        //- Find cells/faces containing samples
+        //- Find (local) cells/faces containing samples
+        void findLocalSamples
+        (
+            const sampleMode mode,
+            const label sampleWorld,        // my world as index
+            const word& sampleRegion,
+            const word& samplePatch,
+            const pointField& samplePoints,
+
+            List<nearInfoWorld>& nearest
+        ) const;
+
+        //- Find (global) cells/faces containing samples
         void findSamples
         (
             const sampleMode mode,      // search mode
+            const label myWorldIndex,   // my world (in index form)
+
             const pointField&,
+            const labelList& wantedWorlds,
+            const labelList& origProcs, // per sample the originating proc
+
             labelList& sampleProcs,     // processor containing sample
             labelList& sampleIndices,   // local index of cell/face
             pointField& sampleLocations // actual representative location
@@ -277,14 +360,38 @@ protected:
         //- Calculate AMI interpolator
         void calcAMI() const;
 
-        //- Helper to read field or non-uniform list from dictionary
-        static tmp<pointField> readListOrField
-        (
-            const word& keyword,
-            const dictionary& dict,
-            const label size
-        );
 
+        // Database Handling
+
+            //- Read optional database name from dictionary
+            static autoPtr<fileName> readDatabase(const dictionary& dict);
+
+            //- Lookup (sub)objectRegistry by following names of sub registries.
+            //- Creates non-existing intermediate ones.
+            static const objectRegistry& subRegistry
+            (
+                const objectRegistry& obr,
+                const wordList& names,
+                const label index
+            );
+
+            //- Attempt to detect an IOField<Type> and write to dictionary
+            template<class Type>
+            static bool writeIOField
+            (
+                const regIOobject& obj,
+                dictionary& dict
+            );
+
+            //- Attempt to read an IOField<Type> and store on objectRegistry
+            template<class Type>
+            static bool constructIOField
+            (
+                const word& name,
+                token& tok,
+                Istream& is,
+                objectRegistry& obr
+            );
 
 public:
 
@@ -295,7 +402,7 @@ public:
     // Constructors
 
         //- Construct from patch
-        mappedPatchBase(const polyPatch&);
+        explicit mappedPatchBase(const polyPatch&);
 
         //- Construct with offsetMode=non-uniform
         mappedPatchBase
@@ -314,7 +421,7 @@ public:
             const word& sampleRegion,
             const sampleMode sampleMode,
             const word& samplePatch,
-            const vector& offset
+            const vector& uniformOffset
         );
 
         //- Construct from offsetMode=normal and distance
@@ -324,7 +431,7 @@ public:
             const word& sampleRegion,
             const sampleMode sampleMode,
             const word& samplePatch,
-            const scalar distance
+            const scalar normalDistance
         );
 
         //- Construct from dictionary
@@ -351,14 +458,29 @@ public:
     virtual ~mappedPatchBase();
 
 
-    // Member functions
+    // Member Functions
+
+        // Edit
 
         void clearOut();
+
+        //- Change to normal offset with given distance
+        void setOffset(const scalar normalDist);
+
+        //- Change to uniform offset with value
+        void setOffset(const vector& uniformOffset);
+
+        //- Change to non-uniform offsets
+        void setOffset(const vectorField& offsets);
+
 
         // Access
 
             //- What to sample
-            inline const sampleMode& mode() const;
+            inline sampleMode mode() const noexcept;
+
+            //- World to sample
+            inline const word& sampleWorld() const noexcept;
 
             //- Region to sample
             inline const word& sampleRegion() const;
@@ -373,13 +495,25 @@ public:
             inline label sampleSize() const;
 
             //- Offset vector (from patch faces to destination mesh objects)
-            inline const vector& offset() const;
+            inline const vector& offset() const noexcept;
 
-            //- Offset vector (from patch faces to destination mesh objects)
-            inline const vectorField& offsets() const;
+            //- Offset vectors (from patch faces to destination mesh objects)
+            inline const vectorField& offsets() const noexcept;
+
+            //- Get the communicator (worldComm or world-to-world)
+            inline label getCommunicator() const;
+
+            //- Identical to getCommunicator()
+            inline label comm() const;
+
+            //- Is sample world the local world?
+            inline bool sameWorld() const;
+
+            //- Is my world ordered before the sampleWorld?
+            inline bool masterWorld() const;
 
             //- Cached sampleRegion != mesh.name()
-            inline bool sameRegion() const;
+            inline bool sameRegion() const noexcept;
 
             //- Return reference to the parallel distribution map
             inline const mapDistribute& map() const;
@@ -389,6 +523,9 @@ public:
             (
                 const bool forceUpdate = false
             ) const;
+
+            //- Is it owner
+            inline bool owner() const;
 
             //- Return a pointer to the AMI projection surface
             const autoPtr<Foam::searchableSurface>& surfPtr() const;
@@ -419,6 +556,61 @@ public:
             );
 
 
+        // For database storage
+
+            inline const fileName& sampleDatabasePath() const
+            {
+                return *sampleDatabasePtr_;
+            }
+
+            inline bool sampleDatabase() const
+            {
+                return bool(sampleDatabasePtr_);
+            }
+
+            //- Helper: return path to store data to be sent to processor i
+            static fileName sendPath(const fileName& root, const label proci);
+
+            virtual fileName sendPath(const label proci) const;
+
+            //- Helper: return path to store data to be received from
+            //- processor i
+            static fileName receivePath
+            (
+                const fileName& root,
+                const label proci
+            );
+
+            virtual fileName receivePath(const label proci) const;
+
+            //- Lookup (sub)objectRegistry from '/' separated path (relative to
+            //- objectRegistry). Creates non-existing intermediate ones.
+            static const objectRegistry& subRegistry
+            (
+                const objectRegistry& obr,
+                const fileName& path
+            );
+
+            //- Store an IOField on the objectRegistry relative to obr
+            template<class Type>
+            static void storeField
+            (
+                objectRegistry& obr,
+                const word& fieldName,
+                const Field<Type>& values
+            );
+
+            //- Convert objectRegistry contents into dictionary
+            static void writeDict
+            (
+                const objectRegistry& obr,
+                dictionary& dict
+            );
+
+            //- (recursively) construct and register IOFields from dictionary
+            static void readDict(const dictionary& d, objectRegistry& obr);
+
+
         // Distribute
 
             //- Wrapper around map/interpolate data distribution
@@ -441,7 +633,7 @@ public:
         // I/O
 
             //- Write as a dictionary
-            virtual void write(Ostream&) const;
+            virtual void write(Ostream& os) const;
 };
 
 

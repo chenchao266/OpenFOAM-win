@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -26,54 +28,58 @@ Description
 
 \*---------------------------------------------------------------------------*/
 
-#include "spatialVector.H"
+#include "spatialVector2.H"
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
-namespace Foam {
-    template<>
-    const char* const spatialVector::vsType::typeName = "spatialVector";
 
-    template<>
-    const char* const spatialVector::vsType::componentNames[] =
-    {
-        "wx", "wy", "wz", "lx", "ly", "lz"
-    };
 
-    template<>
-    const spatialVector spatialVector::vsType::_zero
-    (
-        spatialVector::uniform(0)
-    );
+ namespace Foam{
+template<>
+const char* const spatialVector::vsType::typeName = "spatialVector";
 
-    template<>
-    const spatialVector spatialVector::vsType::one
-    (
-        spatialVector::uniform(1)
-    );
+template<>
+const char* const spatialVector::vsType::componentNames[] =
+{
+    "wx", "wy", "wz", "lx", "ly", "lz"
+};
 
-    template<>
-    const spatialVector spatialVector::vsType::max
-    (
-        spatialVector::uniform(VGREAT)
-    );
+template<>
+const spatialVector spatialVector::vsType::zero_
+(
+    spatialVector::uniform(0)
+);
 
-    template<>
-    const spatialVector spatialVector::vsType::min
-    (
-        spatialVector::uniform(-VGREAT)
-    );
+template<>
+const spatialVector spatialVector::vsType::one_
+(
+    spatialVector::uniform(1)
+);
 
-    template<>
-    const spatialVector spatialVector::vsType::rootMax
-    (
-        spatialVector::uniform(ROOTVGREAT)
-    );
+template<>
+const spatialVector spatialVector::vsType::max_
+(
+    spatialVector::uniform(VGREAT)
+);
 
-    template<>
-    const spatialVector spatialVector::vsType::rootMin
-    (
-        spatialVector::uniform(-ROOTVGREAT)
-    );
-}
+template<>
+const spatialVector spatialVector::vsType::min_
+(
+    spatialVector::uniform(-VGREAT)
+);
+
+template<>
+const spatialVector spatialVector::vsType::rootMax_
+(
+    spatialVector::uniform(ROOTVGREAT)
+);
+
+template<>
+const spatialVector spatialVector::vsType::rootMin_
+(
+    spatialVector::uniform(-ROOTVGREAT)
+);
+
 
 // ************************************************************************* //
+
+ } // End namespace Foam

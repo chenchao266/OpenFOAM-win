@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2013 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2013 OpenFOAM Foundation
+    Copyright (C) 2019 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -37,7 +40,7 @@ dynamicAlphaContactAngleFvPatchScalarField
     const DimensionedField<scalar, volMesh>& iF
 )
 :
-    alphaContactAngleFvPatchScalarField(p, iF),
+    alphaContactAngleTwoPhaseFvPatchScalarField(p, iF),
     theta0_(0.0),
     uTheta_(0.0),
     thetaA_(0.0),
@@ -54,7 +57,7 @@ dynamicAlphaContactAngleFvPatchScalarField
     const fvPatchFieldMapper& mapper
 )
 :
-    alphaContactAngleFvPatchScalarField(gcpsf, p, iF, mapper),
+    alphaContactAngleTwoPhaseFvPatchScalarField(gcpsf, p, iF, mapper),
     theta0_(gcpsf.theta0_),
     uTheta_(gcpsf.uTheta_),
     thetaA_(gcpsf.thetaA_),
@@ -70,11 +73,11 @@ dynamicAlphaContactAngleFvPatchScalarField
     const dictionary& dict
 )
 :
-    alphaContactAngleFvPatchScalarField(p, iF, dict),
-    theta0_(readScalar(dict.lookup("theta0"))),
-    uTheta_(readScalar(dict.lookup("uTheta"))),
-    thetaA_(readScalar(dict.lookup("thetaA"))),
-    thetaR_(readScalar(dict.lookup("thetaR")))
+    alphaContactAngleTwoPhaseFvPatchScalarField(p, iF, dict),
+    theta0_(dict.get<scalar>("theta0")),
+    uTheta_(dict.get<scalar>("uTheta")),
+    thetaA_(dict.get<scalar>("thetaA")),
+    thetaR_(dict.get<scalar>("thetaR"))
 {
     evaluate();
 }
@@ -86,7 +89,7 @@ dynamicAlphaContactAngleFvPatchScalarField
     const dynamicAlphaContactAngleFvPatchScalarField& gcpsf
 )
 :
-    alphaContactAngleFvPatchScalarField(gcpsf),
+    alphaContactAngleTwoPhaseFvPatchScalarField(gcpsf),
     theta0_(gcpsf.theta0_),
     uTheta_(gcpsf.uTheta_),
     thetaA_(gcpsf.thetaA_),
@@ -101,7 +104,7 @@ dynamicAlphaContactAngleFvPatchScalarField
     const DimensionedField<scalar, volMesh>& iF
 )
 :
-    alphaContactAngleFvPatchScalarField(gcpsf, iF),
+    alphaContactAngleTwoPhaseFvPatchScalarField(gcpsf, iF),
     theta0_(gcpsf.theta0_),
     uTheta_(gcpsf.uTheta_),
     thetaA_(gcpsf.thetaA_),
@@ -120,7 +123,7 @@ Foam::dynamicAlphaContactAngleFvPatchScalarField::theta
 {
     if (uTheta_ < SMALL)
     {
-        return tmp<scalarField>(new scalarField(size(), theta0_));
+        return tmp<scalarField>::New(size(), theta0_);
     }
 
     const vectorField nf(patch().nf());
@@ -145,11 +148,11 @@ Foam::dynamicAlphaContactAngleFvPatchScalarField::theta
 
 void Foam::dynamicAlphaContactAngleFvPatchScalarField::write(Ostream& os) const
 {
-    alphaContactAngleFvPatchScalarField::write(os);
-    os.writeKeyword("theta0") << theta0_ << token::END_STATEMENT << nl;
-    os.writeKeyword("uTheta") << uTheta_ << token::END_STATEMENT << nl;
-    os.writeKeyword("thetaA") << thetaA_ << token::END_STATEMENT << nl;
-    os.writeKeyword("thetaR") << thetaR_ << token::END_STATEMENT << nl;
+    alphaContactAngleTwoPhaseFvPatchScalarField::write(os);
+    os.writeEntry("theta0", theta0_);
+    os.writeEntry("uTheta", uTheta_);
+    os.writeEntry("thetaA", thetaA_);
+    os.writeEntry("thetaR", thetaR_);
     writeEntry("value", os);
 }
 

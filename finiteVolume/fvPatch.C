@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2020-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -41,6 +44,23 @@ namespace Foam
 }
 
 
+// * * * * * * * * * * * * * Static Member Functions * * * * * * * * * * * * //
+
+const Foam::fvPatch& Foam::fvPatch::lookupPatch(const polyPatch& p)
+{
+    const fvMesh* meshptr = isA<fvMesh>(p.boundaryMesh().mesh());
+
+    if (!meshptr)
+    {
+        FatalErrorInFunction
+            << "The polyPatch is not attached to a base fvMesh" << nl
+            << exit(FatalError);
+    }
+
+    return meshptr->boundary()[p.index()];
+}
+
+
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
 Foam::fvPatch::fvPatch(const polyPatch& p, const fvBoundaryMesh& bm)
@@ -53,34 +73,34 @@ Foam::fvPatch::fvPatch(const polyPatch& p, const fvBoundaryMesh& bm)
 // * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
 
 Foam::fvPatch::~fvPatch()
-{}
+{}  // fvBoundaryMesh was forward declared
 
 
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
 
 bool Foam::fvPatch::constraintType(const word& pt)
 {
-    return fvPatchField<scalar>::patchConstructorTablePtr_->found(pt);
+    return
+    (
+        fvPatchField<scalar>::patchConstructorTablePtr_
+     && fvPatchField<scalar>::patchConstructorTablePtr_->found(pt)
+    );
 }
 
 
 Foam::wordList Foam::fvPatch::constraintTypes()
 {
-    wordList cTypes(polyPatchConstructorTablePtr_->size());
+    const auto& cnstrTable = *polyPatchConstructorTablePtr_;
+
+    wordList cTypes(cnstrTable.size());
 
     label i = 0;
 
-    for
-    (
-        polyPatchConstructorTable::iterator cstrIter =
-            polyPatchConstructorTablePtr_->begin();
-        cstrIter != polyPatchConstructorTablePtr_->end();
-        ++cstrIter
-    )
+    forAllConstIters(cnstrTable, iter)
     {
-        if (constraintType(cstrIter.key()))
+        if (constraintType(iter.key()))
         {
-            cTypes[i++] = cstrIter.key();
+            cTypes[i++] = iter.key();
         }
     }
 
@@ -104,8 +124,8 @@ const Foam::vectorField& Foam::fvPatch::Cf() const
 
 Foam::tmp<Foam::vectorField> Foam::fvPatch::Cn() const
 {
-    tmp<vectorField> tcc(new vectorField(size()));
-    vectorField& cc = tcc.ref();
+    auto tcc = tmp<vectorField>::New(size());
+    auto& cc = tcc.ref();
 
     const labelUList& faceCells = this->faceCells();
 
@@ -151,6 +171,18 @@ void Foam::fvPatch::makeWeights(scalarField& w) const
 {
     w = 1.0;
 }
+
+
+void Foam::fvPatch::makeDeltaCoeffs(scalarField& w) const
+{}
+
+
+void Foam::fvPatch::makeNonOrthoDeltaCoeffs(scalarField& w) const
+{}
+
+
+void Foam::fvPatch::makeNonOrthoCorrVectors(vectorField& w) const
+{}
 
 
 void Foam::fvPatch::initMovePoints()

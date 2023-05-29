@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2018-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -32,41 +35,34 @@ License
 
 #include "addToRunTimeSelectionTable.H"
 
-// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+// * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
 
 namespace Foam
 {
-
-// * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
-
-defineTypeNameAndDebug(faceZoneSet, 0);
-
-addToRunTimeSelectionTable(topoSet, faceZoneSet, word);
-addToRunTimeSelectionTable(topoSet, faceZoneSet, size);
-addToRunTimeSelectionTable(topoSet, faceZoneSet, set);
+    defineTypeNameAndDebug(faceZoneSet, 0);
+    addToRunTimeSelectionTable(topoSet, faceZoneSet, word);
+    addToRunTimeSelectionTable(topoSet, faceZoneSet, size);
+    addToRunTimeSelectionTable(topoSet, faceZoneSet, set);
+}
 
 
 // * * * * * * * * * * * * * Private Member Functions  * * * * * * * * * * * //
 
-void faceZoneSet::updateSet()
+void Foam::faceZoneSet::updateSet()
 {
-    labelList order;
-    sortedOrder(addressing_, order);
-    addressing_ = UIndirectList<label>(addressing_, order)();
-    flipMap_ = UIndirectList<bool>(flipMap_, order)();
+    labelList order(sortedOrder(addressing_));
+    addressing_ = labelUIndList(addressing_, order)();
+    flipMap_ = boolUIndList(flipMap_, order)();
 
     faceSet::clearStorage();
     faceSet::resize(2*addressing_.size());
-    forAll(addressing_, i)
-    {
-        faceSet::insert(addressing_[i]);
-    }
+    faceSet::set(addressing_);
 }
 
 
-// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+// * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
-faceZoneSet::faceZoneSet
+Foam::faceZoneSet::faceZoneSet
 (
     const polyMesh& mesh,
     const word& name,
@@ -74,10 +70,10 @@ faceZoneSet::faceZoneSet
     writeOption w
 )
 :
-    faceSet(mesh, name, 1000),  // do not read faceSet
+    faceSet(mesh, name, 1024),  // do not read faceSet
     mesh_(mesh),
-    addressing_(0),
-    flipMap_(0)
+    addressing_(),
+    flipMap_()
 {
     const faceZoneMesh& faceZones = mesh.faceZones();
     label zoneID = faceZones.findZoneID(name);
@@ -90,7 +86,7 @@ faceZoneSet::faceZoneSet
     )
     {
         const faceZone& fz = faceZones[zoneID];
-        addressing_ = fz;
+        addressing_ = fz.addressing();
         flipMap_ = fz.flipMap();
     }
 
@@ -100,7 +96,7 @@ faceZoneSet::faceZoneSet
 }
 
 
-faceZoneSet::faceZoneSet
+Foam::faceZoneSet::faceZoneSet
 (
     const polyMesh& mesh,
     const word& name,
@@ -110,14 +106,14 @@ faceZoneSet::faceZoneSet
 :
     faceSet(mesh, name, size, w),
     mesh_(mesh),
-    addressing_(0),
-    flipMap_(0)
+    addressing_(),
+    flipMap_()
 {
     updateSet();
 }
 
 
-faceZoneSet::faceZoneSet
+Foam::faceZoneSet::faceZoneSet
 (
     const polyMesh& mesh,
     const word& name,
@@ -134,24 +130,18 @@ faceZoneSet::faceZoneSet
 }
 
 
-// * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
-
-faceZoneSet::~faceZoneSet()
-{}
-
-
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
 
-void faceZoneSet::invert(const label maxLen)
+void Foam::faceZoneSet::invert(const label maxLen)
 {
     // Count
     label n = 0;
 
-    for (label facei = 0; facei < maxLen; facei++)
+    for (label facei = 0; facei < maxLen; ++facei)
     {
         if (!found(facei))
         {
-            n++;
+            ++n;
         }
     }
 
@@ -160,20 +150,20 @@ void faceZoneSet::invert(const label maxLen)
     flipMap_.setSize(n);
     n = 0;
 
-    for (label facei = 0; facei < maxLen; facei++)
+    for (label facei = 0; facei < maxLen; ++facei)
     {
         if (!found(facei))
         {
             addressing_[n] = facei;
             flipMap_[n] = false;         //? or true?
-            n++;
+            ++n;
         }
     }
     updateSet();
 }
 
 
-void faceZoneSet::subset(const topoSet& set)
+void Foam::faceZoneSet::subset(const topoSet& set)
 {
     label nConflict = 0;
 
@@ -186,21 +176,21 @@ void faceZoneSet::subset(const topoSet& set)
         faceToIndex.insert(addressing_[i], i);
     }
 
-    const faceZoneSet& fSet = refCast<const faceZoneSet>(set);
+    const faceZoneSet& zoneSet = refCast<const faceZoneSet>(set);
 
-    forAll(fSet.addressing(), i)
+    forAll(zoneSet.addressing(), i)
     {
-        label facei = fSet.addressing()[i];
+        const label facei = zoneSet.addressing()[i];
 
-        Map<label>::const_iterator iter = faceToIndex.find(facei);
+        const auto iter = faceToIndex.cfind(facei);
 
-        if (iter != faceToIndex.end())
+        if (iter.found())
         {
-            label index = iter();
+            const label index = *iter;
 
-            if (fSet.flipMap()[i] != flipMap_[index])
+            if (zoneSet.flipMap()[i] != flipMap_[index])
             {
-                nConflict++;
+                ++nConflict;
             }
             newAddressing.append(facei);
             newFlipMap.append(flipMap_[index]);
@@ -221,7 +211,7 @@ void faceZoneSet::subset(const topoSet& set)
 }
 
 
-void faceZoneSet::addSet(const topoSet& set)
+void Foam::faceZoneSet::addSet(const topoSet& set)
 {
     label nConflict = 0;
 
@@ -234,27 +224,27 @@ void faceZoneSet::addSet(const topoSet& set)
         faceToIndex.insert(addressing_[i], i);
     }
 
-    const faceZoneSet& fSet = refCast<const faceZoneSet>(set);
+    const faceZoneSet& zoneSet = refCast<const faceZoneSet>(set);
 
-    forAll(fSet.addressing(), i)
+    forAll(zoneSet.addressing(), i)
     {
-        label facei = fSet.addressing()[i];
+        label facei = zoneSet.addressing()[i];
 
-        Map<label>::const_iterator iter = faceToIndex.find(facei);
+        const auto iter = faceToIndex.cfind(facei);
 
-        if (iter != faceToIndex.end())
+        if (iter.found())
         {
-            label index = iter();
+            const label index = *iter;
 
-            if (fSet.flipMap()[i] != flipMap_[index])
+            if (zoneSet.flipMap()[i] != flipMap_[index])
             {
-                nConflict++;
+                ++nConflict;
             }
         }
         else
         {
             newAddressing.append(facei);
-            newFlipMap.append(fSet.flipMap()[i]);
+            newFlipMap.append(zoneSet.flipMap()[i]);
         }
     }
 
@@ -272,48 +262,48 @@ void faceZoneSet::addSet(const topoSet& set)
 }
 
 
-void faceZoneSet::deleteSet(const topoSet& set)
+void Foam::faceZoneSet::subtractSet(const topoSet& set)
 {
     label nConflict = 0;
 
     DynamicList<label> newAddressing(addressing_.size());
     DynamicList<bool> newFlipMap(flipMap_.size());
 
-    const faceZoneSet& fSet = refCast<const faceZoneSet>(set);
+    const faceZoneSet& zoneSet = refCast<const faceZoneSet>(set);
 
-    Map<label> faceToIndex(fSet.addressing().size());
-    forAll(fSet.addressing(), i)
+    Map<label> faceToIndex(zoneSet.addressing().size());
+    forAll(zoneSet.addressing(), i)
     {
-        faceToIndex.insert(fSet.addressing()[i], i);
+        faceToIndex.insert(zoneSet.addressing()[i], i);
     }
 
     forAll(addressing_, i)
     {
-        label facei = addressing_[i];
+        const label facei = addressing_[i];
 
-        Map<label>::const_iterator iter = faceToIndex.find(facei);
+        const auto iter = faceToIndex.cfind(facei);
 
-        if (iter != faceToIndex.end())
+        if (iter.found())
         {
-            label index = iter();
+            const label index = *iter;
 
-            if (fSet.flipMap()[index] != flipMap_[i])
+            if (zoneSet.flipMap()[index] != flipMap_[i])
             {
-                nConflict++;
+                ++nConflict;
             }
         }
         else
         {
-            // Not found in fSet so add
+            // Not found in zoneSet so add
             newAddressing.append(facei);
-            newFlipMap.append(fSet.flipMap()[i]);
+            newFlipMap.append(zoneSet.flipMap()[i]);
         }
     }
 
     if (nConflict > 0)
     {
         WarningInFunction
-            << "deleteSet : there are " << nConflict
+            << "subtractSet : there are " << nConflict
             << " faces with different orientation in faceZonesSets "
             << name() << " and " << set.name() << endl;
     }
@@ -324,23 +314,17 @@ void faceZoneSet::deleteSet(const topoSet& set)
 }
 
 
-void faceZoneSet::sync(const polyMesh& mesh)
+void Foam::faceZoneSet::sync(const polyMesh& mesh)
 {
     // Make sure that the faceZone is consistent with the faceSet
     {
         const labelHashSet zoneSet(addressing_);
 
-        // Get elements that are in zone but not faceSet
-        labelHashSet badSet(zoneSet);
-        badSet -= *this;
+        // Elements that are in zone but not faceSet, and
+        // elements that are in faceSet but not in zone
+        labelHashSet badSet(*this ^ zoneSet);
 
-        // Add elements that are in faceSet but not in zone
-        labelHashSet fSet(*this);
-        fSet -= zoneSet;
-
-        badSet += fSet;
-
-        label nBad = returnReduce(badSet.size(), sumOp<label>());
+        const label nBad = returnReduce(badSet.size(), sumOp<label>());
 
         if (nBad)
         {
@@ -363,11 +347,11 @@ void faceZoneSet::sync(const polyMesh& mesh)
     //-1 : in faceZone and flipped
     const label UNFLIPPED = 1;
     const label FLIPPED = -1;
-    labelList myZoneFace(mesh.nFaces()-mesh.nInternalFaces(), 0);
+    labelList myZoneFace(mesh.nBoundaryFaces(), Zero);
 
     forAll(addressing_, i)
     {
-        label bFacei = addressing_[i]-mesh.nInternalFaces();
+        const label bFacei = addressing_[i]-mesh.nInternalFaces();
 
         if (bFacei >= 0)
         {
@@ -386,7 +370,7 @@ void faceZoneSet::sync(const polyMesh& mesh)
     syncTools::swapBoundaryFaceList(mesh, neiZoneFace);
 
 
-    const PackedBoolList isMasterFace(syncTools::getMasterFaces(mesh));
+    const bitSet isMasterFace(syncTools::getMasterFaces(mesh));
 
 
     // Rebuild faceZone addressing and flipMap
@@ -397,7 +381,7 @@ void faceZoneSet::sync(const polyMesh& mesh)
 
     forAll(addressing_, i)
     {
-        label facei = addressing_[i];
+        const label facei = addressing_[i];
         if (facei < mesh.nInternalFaces())
         {
             newAddressing.append(facei);
@@ -453,24 +437,22 @@ void faceZoneSet::sync(const polyMesh& mesh)
 }
 
 
-label faceZoneSet::maxSize(const polyMesh& mesh) const
+Foam::label Foam::faceZoneSet::maxSize(const polyMesh& mesh) const
 {
     return mesh.nFaces();
 }
 
 
-bool faceZoneSet::writeObject
+bool Foam::faceZoneSet::writeObject
 (
-    IOstream::streamFormat s,
-    IOstream::versionNumber v,
-    IOstream::compressionType c,
+    IOstreamOption streamOpt,
     const bool valid
 ) const
 {
     // Write shadow faceSet
     word oldTypeName = typeName;
     const_cast<word&>(type()) = faceSet::typeName;
-    bool ok = faceSet::writeObject(s, v, c, valid);
+    bool ok = faceSet::writeObject(streamOpt, valid);
     const_cast<word&>(type()) = oldTypeName;
 
     // Modify faceZone
@@ -505,11 +487,11 @@ bool faceZoneSet::writeObject
 }
 
 
-void faceZoneSet::updateMesh(const mapPolyMesh& morphMap)
+void Foam::faceZoneSet::updateMesh(const mapPolyMesh& morphMap)
 {
     // faceZone
     labelList newAddressing(addressing_.size());
-    boolList newFlipMap(flipMap_.size());
+    boolList newFlipMap(flipMap_.size(), false);
 
     label n = 0;
     forAll(addressing_, i)
@@ -533,7 +515,7 @@ void faceZoneSet::updateMesh(const mapPolyMesh& morphMap)
 }
 
 
-void faceZoneSet::writeDebug
+void Foam::faceZoneSet::writeDebug
 (
     Ostream& os,
     const primitiveMesh& mesh,
@@ -543,9 +525,5 @@ void faceZoneSet::writeDebug
     faceSet::writeDebug(os, mesh, maxLen);
 }
 
-
-// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
-
-} // End namespace Foam
 
 // ************************************************************************* //

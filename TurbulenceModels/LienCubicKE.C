@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2019-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -145,7 +148,7 @@ LienCubicKE::LienCubicKE
 
     Ceps1_
     (
-        dimensioned<scalar>::lookupOrAddToDict
+        dimensioned<scalar>::getOrAddToDict
         (
             "Ceps1",
             coeffDict_,
@@ -154,7 +157,7 @@ LienCubicKE::LienCubicKE
     ),
     Ceps2_
     (
-        dimensioned<scalar>::lookupOrAddToDict
+        dimensioned<scalar>::getOrAddToDict
         (
             "Ceps2",
             coeffDict_,
@@ -163,7 +166,7 @@ LienCubicKE::LienCubicKE
     ),
     sigmak_
     (
-        dimensioned<scalar>::lookupOrAddToDict
+        dimensioned<scalar>::getOrAddToDict
         (
             "sigmak",
             coeffDict_,
@@ -172,7 +175,7 @@ LienCubicKE::LienCubicKE
     ),
     sigmaEps_
     (
-        dimensioned<scalar>::lookupOrAddToDict
+        dimensioned<scalar>::getOrAddToDict
         (
             "sigmaEps",
             coeffDict_,
@@ -181,7 +184,7 @@ LienCubicKE::LienCubicKE
     ),
     Cmu1_
     (
-        dimensioned<scalar>::lookupOrAddToDict
+        dimensioned<scalar>::getOrAddToDict
         (
             "Cmu1",
             coeffDict_,
@@ -190,7 +193,7 @@ LienCubicKE::LienCubicKE
     ),
     Cmu2_
     (
-        dimensioned<scalar>::lookupOrAddToDict
+        dimensioned<scalar>::getOrAddToDict
         (
             "Cmu2",
             coeffDict_,
@@ -199,7 +202,7 @@ LienCubicKE::LienCubicKE
     ),
     Cbeta_
     (
-        dimensioned<scalar>::lookupOrAddToDict
+        dimensioned<scalar>::getOrAddToDict
         (
             "Cbeta",
             coeffDict_,
@@ -208,7 +211,7 @@ LienCubicKE::LienCubicKE
     ),
     Cbeta1_
     (
-        dimensioned<scalar>::lookupOrAddToDict
+        dimensioned<scalar>::getOrAddToDict
         (
             "Cbeta1",
             coeffDict_,
@@ -217,7 +220,7 @@ LienCubicKE::LienCubicKE
     ),
     Cbeta2_
     (
-        dimensioned<scalar>::lookupOrAddToDict
+        dimensioned<scalar>::getOrAddToDict
         (
             "Cbeta2",
             coeffDict_,
@@ -226,7 +229,7 @@ LienCubicKE::LienCubicKE
     ),
     Cbeta3_
     (
-        dimensioned<scalar>::lookupOrAddToDict
+        dimensioned<scalar>::getOrAddToDict
         (
             "Cbeta3",
             coeffDict_,
@@ -235,7 +238,7 @@ LienCubicKE::LienCubicKE
     ),
     Cgamma1_
     (
-        dimensioned<scalar>::lookupOrAddToDict
+        dimensioned<scalar>::getOrAddToDict
         (
             "Cgamma1",
             coeffDict_,
@@ -244,7 +247,7 @@ LienCubicKE::LienCubicKE
     ),
     Cgamma2_
     (
-        dimensioned<scalar>::lookupOrAddToDict
+        dimensioned<scalar>::getOrAddToDict
         (
             "Cgamma2",
             coeffDict_,
@@ -253,7 +256,7 @@ LienCubicKE::LienCubicKE
     ),
     Cgamma4_
     (
-        dimensioned<scalar>::lookupOrAddToDict
+        dimensioned<scalar>::getOrAddToDict
         (
             "Cgamma4",
             coeffDict_,
@@ -262,7 +265,7 @@ LienCubicKE::LienCubicKE
     ),
     Cmu_
     (
-        dimensioned<scalar>::lookupOrAddToDict
+        dimensioned<scalar>::getOrAddToDict
         (
             "Cmu",
             coeffDict_,
@@ -271,7 +274,7 @@ LienCubicKE::LienCubicKE
     ),
     kappa_
     (
-        dimensioned<scalar>::lookupOrAddToDict
+        dimensioned<scalar>::getOrAddToDict
         (
             "kappa",
             coeffDict_,
@@ -280,7 +283,7 @@ LienCubicKE::LienCubicKE
     ),
     Anu_
     (
-        dimensioned<scalar>::lookupOrAddToDict
+        dimensioned<scalar>::getOrAddToDict
         (
             "Anu",
             coeffDict_,
@@ -289,7 +292,7 @@ LienCubicKE::LienCubicKE
     ),
     AE_
     (
-        dimensioned<scalar>::lookupOrAddToDict
+        dimensioned<scalar>::getOrAddToDict
         (
             "AE",
             coeffDict_,
@@ -301,7 +304,7 @@ LienCubicKE::LienCubicKE
     (
         IOobject
         (
-            IOobject::groupName("k", U.group()),
+            IOobject::groupName("k", alphaRhoPhi.group()),
             runTime_.timeName(),
             mesh_,
             IOobject::MUST_READ,
@@ -314,7 +317,7 @@ LienCubicKE::LienCubicKE
     (
         IOobject
         (
-            IOobject::groupName("epsilon", U.group()),
+            IOobject::groupName("epsilon", alphaRhoPhi.group()),
             runTime_.timeName(),
             mesh_,
             IOobject::MUST_READ,
@@ -361,10 +364,8 @@ bool LienCubicKE::read()
 
         return true;
     }
-    else
-    {
-        return false;
-    }
+
+    return false;
 }
 
 

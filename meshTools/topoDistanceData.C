@@ -1,9 +1,12 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2013 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2013 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -23,27 +26,29 @@ License
 
 \*---------------------------------------------------------------------------*/
 
-#include "topoDistanceData.H"
+//#include "topoDistanceData.H"
 
-// * * * * * * * * * * * * * * * Friend Operators  * * * * * * * * * * * * * //
+// * * * * * * * * * * * * * * * IOstream Operators  * * * * * * * * * * * * //
 
+template<class Type>
 Foam::Ostream& Foam::operator<<
 (
     Foam::Ostream& os,
-    const Foam::topoDistanceData& wDist
+    const Foam::topoDistanceData<Type>& wDist
 )
 {
-    return os << wDist.data_ << token::SPACE << wDist.distance_;
+    return os << wDist.distance_ << token::SPACE << wDist.data_;
 }
 
 
+template<class Type>
 Foam::Istream& Foam::operator>>
 (
     Foam::Istream& is,
-    Foam::topoDistanceData& wDist
+    Foam::topoDistanceData<Type>& wDist
 )
 {
-    return is >> wDist.data_ >> wDist.distance_;
+    return is >> wDist.distance_ >> wDist.data_;
 }
 
 

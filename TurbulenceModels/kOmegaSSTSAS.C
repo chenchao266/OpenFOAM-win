@@ -1,9 +1,12 @@
-﻿/*---------------------------------------------------------------------------*\
+/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2015-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2015-2017 OpenFOAM Foundation
+    Copyright (C) 2019-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -23,7 +26,7 @@ License
 
 \*---------------------------------------------------------------------------*/
 
-//#include "kOmegaSSTSAS.H"
+#include "kOmegaSSTSAS.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -79,7 +82,7 @@ tmp<fvScalarMatrix> kOmegaSSTSAS<BasicTurbulenceModel>::Qsas
                     magSqr(fvc::grad(this->omega_)()())/sqr(this->omega_()),
                     magSqr(fvc::grad(this->k_)()())/sqr(this->k_())
                 ),
-                dimensionedScalar("0", dimensionSet(0, 0, -2, 0, 0), 0)
+                dimensionedScalar(dimensionSet(0, 0, -2, 0, 0), Zero)
             ),
             // Limit SAS production of omega for numerical stability,
             // particularly during start-up
@@ -113,12 +116,13 @@ kOmegaSSTSAS<BasicTurbulenceModel>::kOmegaSSTSAS
         alphaRhoPhi,
         phi,
         transport,
-        propertiesName
+        propertiesName,
+        type
     ),
 
     Cs_
     (
-        dimensioned<scalar>::lookupOrAddToDict
+        dimensioned<scalar>::getOrAddToDict
         (
             "Cs",
             this->coeffDict_,
@@ -127,7 +131,7 @@ kOmegaSSTSAS<BasicTurbulenceModel>::kOmegaSSTSAS
     ),
     kappa_
     (
-        dimensioned<scalar>::lookupOrAddToDict
+        dimensioned<scalar>::getOrAddToDict
         (
             "kappa",
             this->coeffDict_,
@@ -136,7 +140,7 @@ kOmegaSSTSAS<BasicTurbulenceModel>::kOmegaSSTSAS
     ),
     zeta2_
     (
-        dimensioned<scalar>::lookupOrAddToDict
+        dimensioned<scalar>::getOrAddToDict
         (
             "zeta2",
             this->coeffDict_,
@@ -145,7 +149,7 @@ kOmegaSSTSAS<BasicTurbulenceModel>::kOmegaSSTSAS
     ),
     sigmaPhi_
     (
-        dimensioned<scalar>::lookupOrAddToDict
+        dimensioned<scalar>::getOrAddToDict
         (
             "sigmaPhi",
             this->coeffDict_,
@@ -154,7 +158,7 @@ kOmegaSSTSAS<BasicTurbulenceModel>::kOmegaSSTSAS
     ),
     C_
     (
-        dimensioned<scalar>::lookupOrAddToDict
+        dimensioned<scalar>::getOrAddToDict
         (
             "C",
             this->coeffDict_,
@@ -166,12 +170,18 @@ kOmegaSSTSAS<BasicTurbulenceModel>::kOmegaSSTSAS
     (
         LESdelta::New
         (
-            IOobject::groupName("delta", U.group()),
+            IOobject::groupName("delta", alphaRhoPhi.group()),
             *this,
             this->coeffDict_
         )
     )
-{}
+{
+    if (type == typeName)
+    {
+        this->correctNut();
+        this->printCoeffs(type);
+    }
+}
 
 
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
@@ -189,10 +199,8 @@ bool kOmegaSSTSAS<BasicTurbulenceModel>::read()
 
         return true;
     }
-    else
-    {
-        return false;
-    }
+
+    return false;
 }
 
 

@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2017 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -23,6 +26,9 @@ License
 
 Class
     Foam::fv::backwardDdtScheme
+
+Group
+    grpFvDdtSchemes
 
 Description
     Second-order backward-differencing ddt using the current and
@@ -70,11 +76,11 @@ class backwardDdtScheme
         template<class GeoField>
         scalar deltaT0_(const GeoField&) const;
 
-        //- Disallow default bitwise copy construct
-        backwardDdtScheme(const backwardDdtScheme&);
+        //- No copy construct
+        backwardDdtScheme(const backwardDdtScheme&) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const backwardDdtScheme&);
+        //- No copy assignment
+        void operator=(const backwardDdtScheme&) = delete;
 
 
 public:
@@ -89,20 +95,18 @@ public:
         backwardDdtScheme(const fvMesh& mesh)
         :
             ddtScheme<Type>(mesh)
-        {
-            // Ensure the old-old-time cell volumes are available
-            // for moving meshes
-            if (mesh.moving())
-            {
-                mesh.V00();
-            }
-        }
+        {}
 
         //- Construct from mesh and Istream
         backwardDdtScheme(const fvMesh& mesh, Istream& is)
         :
             ddtScheme<Type>(mesh, is)
         {
+            if (is.good() && !is.eof())
+            {
+                is >> this->ddtPhiCoeff_;
+            }
+
             // Ensure the old-old-time cell volumes are available
             // for moving meshes
             if (mesh.moving())
@@ -120,90 +124,90 @@ public:
             return fv::ddtScheme<Type>::mesh();
         }
 
-        tmp<volFieldType<Type>> fvcDdt
+        tmp<GeometricField<Type, fvPatchField, volMesh>> fvcDdt
         (
             const dimensioned<Type>&
         );
 
-        tmp<volFieldType<Type>> fvcDdt
+        tmp<GeometricField<Type, fvPatchField, volMesh>> fvcDdt
         (
-            const volFieldType<Type>&
+            const GeometricField<Type, fvPatchField, volMesh>&
         );
 
-        tmp<volFieldType<Type>> fvcDdt
+        tmp<GeometricField<Type, fvPatchField, volMesh>> fvcDdt
         (
             const dimensionedScalar&,
-            const volFieldType<Type>&
+            const GeometricField<Type, fvPatchField, volMesh>&
         );
 
-        tmp<volFieldType<Type>> fvcDdt
+        tmp<GeometricField<Type, fvPatchField, volMesh>> fvcDdt
         (
             const volScalarField&,
-            const volFieldType<Type>&
+            const GeometricField<Type, fvPatchField, volMesh>&
         );
 
-        tmp<volFieldType<Type>> fvcDdt
+        tmp<GeometricField<Type, fvPatchField, volMesh>> fvcDdt
         (
             const volScalarField& alpha,
             const volScalarField& rho,
-            const volFieldType<Type>& psi
+            const GeometricField<Type, fvPatchField, volMesh>& psi
         );
 
         tmp<fvMatrix<Type>> fvmDdt
         (
-            const volFieldType<Type>&
+            const GeometricField<Type, fvPatchField, volMesh>&
         );
 
         tmp<fvMatrix<Type>> fvmDdt
         (
             const dimensionedScalar&,
-            const volFieldType<Type>&
+            const GeometricField<Type, fvPatchField, volMesh>&
         );
 
         tmp<fvMatrix<Type>> fvmDdt
         (
             const volScalarField&,
-            const volFieldType<Type>&
+            const GeometricField<Type, fvPatchField, volMesh>&
         );
 
         tmp<fvMatrix<Type>> fvmDdt
         (
             const volScalarField& alpha,
             const volScalarField& rho,
-            const volFieldType<Type>& psi
+            const GeometricField<Type, fvPatchField, volMesh>& psi
         );
 
         typedef typename ddtScheme<Type>::fluxFieldType fluxFieldType;
 
         tmp<fluxFieldType> fvcDdtUfCorr
         (
-            const volFieldType<Type>& U,
-            const surfaceFieldType<Type>& Uf
+            const GeometricField<Type, fvPatchField, volMesh>& U,
+            const GeometricField<Type, fvsPatchField, surfaceMesh>& Uf
         );
 
         tmp<fluxFieldType> fvcDdtPhiCorr
         (
-            const volFieldType<Type>& U,
+            const GeometricField<Type, fvPatchField, volMesh>& U,
             const fluxFieldType& phi
         );
 
         tmp<fluxFieldType> fvcDdtUfCorr
         (
             const volScalarField& rho,
-            const volFieldType<Type>& U,
-            const surfaceFieldType<Type>& Uf
+            const GeometricField<Type, fvPatchField, volMesh>& U,
+            const GeometricField<Type, fvsPatchField, surfaceMesh>& Uf
         );
 
         tmp<fluxFieldType> fvcDdtPhiCorr
         (
             const volScalarField& rho,
-            const volFieldType<Type>& U,
+            const GeometricField<Type, fvPatchField, volMesh>& U,
             const fluxFieldType& phi
         );
 
         tmp<surfaceScalarField> meshPhi
         (
-            const volFieldType<Type>&
+            const GeometricField<Type, fvPatchField, volMesh>&
         );
 };
 

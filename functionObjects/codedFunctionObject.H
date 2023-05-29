@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2019-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -22,7 +25,7 @@ License
     along with OpenFOAM.  If not, see <http://www.gnu.org/licenses/>.
 
 Class
-    Foam::codedFunctionObject
+    Foam::functionObjects::codedFunctionObject
 
 Group
     grpUtilitiesFunctionObjects
@@ -33,34 +36,41 @@ Description
     The entries are:
     \plaintable
        codeInclude | include files
-       codeOptions | include paths; inserted into EXE_INC in Make/options
-       codeLibs    | link line; inserted into LIB_LIBS in Make/options
-       codeData    | c++; local member data (null constructed);
-       localCode   | c++; local static functions;
-       codeRead    | c++; upon functionObject::read();
-       codeExecute | c++; upon functionObject::execute();
+       codeOptions | compiler line: added to EXE_INC (Make/options)
+       codeLibs    | linker line: added to LIB_LIBS (Make/options)
+       codeData    | c++; local member data (default constructed)
+       localCode   | c++; local static functions
+       codeRead    | c++; upon functionObject::read()
+       codeExecute | c++; upon functionObject::execute()
        codeWrite   | c++; upon functionObject::write()
-       codeEnd     | c++; upon functionObject::end();
+       codeEnd     | c++; upon functionObject::end()
+       codeContext | additional dictionary context for the code
     \endplaintable
 
+Usage
     Example of function object specification:
     \verbatim
     difference
     {
-        libs        ("libutilityFunctionObjects.so");
-
         type coded;
+        libs (utilityFunctionObjects);
+
         // Name of on-the-fly generated functionObject
         name writeMagU;
         codeWrite
         #{
             // Lookup U
             const volVectorField& U = mesh().lookupObject<volVectorField>("U");
+
             // Write
             mag(U)().write();
         #};
     }
     \endverbatim
+
+Note
+    The code context dictionary can be supplied separately as the
+    \c codeContext entry.
 
 See also
     Foam::functionObject
@@ -74,12 +84,14 @@ SourceFiles
 #ifndef functionObjects_codedFunctionObject_H
 #define functionObjects_codedFunctionObject_H
 
-#include "functionObject.H"
+#include "timeFunctionObject.H"
 #include "codedBase.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 namespace Foam
+{
+namespace functionObjects
 {
 
 /*---------------------------------------------------------------------------*\
@@ -88,15 +100,12 @@ namespace Foam
 
 class codedFunctionObject
 :
-    public functionObject,
+    public functionObjects::timeFunctionObject,
     public codedBase
 {
 protected:
 
-    // Protected data
-
-        //- Reference to the time database
-        const Time& time_;
+    // Protected Data
 
         //- Input dictionary
         dictionary dict_;
@@ -115,32 +124,44 @@ protected:
 
     // Protected Member Functions
 
-        //- Get the loaded dynamic libraries
+        //- Mutable access to the loaded dynamic libraries
         virtual dlLibraryTable& libs() const;
+
+        //- Description (type + name) for the output
+        virtual string description() const;
+
+        //- Clear redirected object(s)
+        virtual void clearRedirect() const;
+
+        //- Additional 'codeContext' dictionary to pass through
+        virtual const dictionary& codeContext() const;
+
+        //- The code dictionary
+        virtual const dictionary& codeDict() const;
 
         //- Adapt the context for the current object
         virtual void prepare(dynamicCode&, const dynamicCodeContext&) const;
 
-        // Return a description (type + name) for the output
-        virtual string description() const;
 
-        // Clear any redirected objects
-        virtual void clearRedirect() const;
+        //- No copy construct
+        codedFunctionObject(const codedFunctionObject&) = delete;
 
-        // Get the dictionary to initialize the codeContext
-        virtual const dictionary& codeDict() const;
-
-
-private:
-
-        //- Disallow default bitwise copy construct
-        codedFunctionObject(const codedFunctionObject&);
-
-        //- Disallow default bitwise assignment
-        void operator=(const codedFunctionObject&);
+        //- No copy assignment
+        void operator=(const codedFunctionObject&) = delete;
 
 
 public:
+
+    // Static Data Members
+
+        //- Name of the C code template to be used
+        static constexpr const char* const codeTemplateC
+            = "functionObjectTemplate.C";
+
+        //- Name of the H code template to be used
+        static constexpr const char* const codeTemplateH
+            = "functionObjectTemplate.H";
+
 
     //- Runtime type information
     TypeName("coded");
@@ -152,13 +173,13 @@ public:
         codedFunctionObject
         (
             const word& name,
-            const Time& time,
+            const Time& runTime,
             const dictionary& dict
         );
 
 
     //- Destructor
-    virtual ~codedFunctionObject();
+    virtual ~codedFunctionObject() = default;
 
 
     // Member Functions
@@ -187,6 +208,7 @@ public:
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
+} // End namespace functionObjects
 } // End namespace Foam
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //

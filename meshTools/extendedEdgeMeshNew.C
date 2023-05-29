@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2013-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2013-2017 OpenFOAM Foundation
+    Copyright (C) 2020-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -25,7 +28,6 @@ License
 
 #include "extendedEdgeMesh.H"
 
-
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
 
 namespace Foam
@@ -39,23 +41,22 @@ namespace Foam
 Foam::autoPtr<Foam::extendedEdgeMesh> Foam::extendedEdgeMesh::New
 (
     const fileName& name,
-    const word& ext
+    const word& fileType
 )
 {
-    fileExtensionConstructorTable::iterator cstrIter =
-        fileExtensionConstructorTablePtr_->find(ext);
+    auto* ctorPtr = fileExtensionConstructorTable(fileType);
 
-    if (cstrIter == fileExtensionConstructorTablePtr_->end())
+    if (!ctorPtr)
     {
         FatalErrorInFunction
-            << "Unknown file extension " << ext
-            << " for file " << name << nl << nl
-            << "Valid extensions are :" << nl
-            << fileExtensionConstructorTablePtr_->sortedToc()
+            << "Unknown edge format " << fileType
+            << " for file " << name << nl
+            << "Valid types:" << nl
+            << flatOutput(fileExtensionConstructorTablePtr_->sortedToc())
             << exit(FatalError);
     }
 
-    return autoPtr<extendedEdgeMesh>(cstrIter()(name));
+    return autoPtr<extendedEdgeMesh>(ctorPtr(name));
 }
 
 
@@ -64,7 +65,7 @@ Foam::autoPtr<Foam::extendedEdgeMesh> Foam::extendedEdgeMesh::New
     const fileName& name
 )
 {
-    word ext = name.ext();
+    word ext(name.ext());
     if (ext == "gz")
     {
         ext = name.lessExt().ext();

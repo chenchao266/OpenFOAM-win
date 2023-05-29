@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2019 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -25,9 +28,7 @@ License
 
 #include "oscillatingRotatingMotion.H"
 #include "addToRunTimeSelectionTable.H"
-#include "mathematicalConstants.H"
-
-using namespace Foam::constant::mathematical;
+#include "unitConversion.H"
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
 
@@ -61,13 +62,6 @@ oscillatingRotatingMotion
 }
 
 
-// * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
-
-Foam::solidBodyMotionFunctions::oscillatingRotatingMotion::
-~oscillatingRotatingMotion()
-{}
-
-
 // * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * * //
 
 Foam::septernion
@@ -79,7 +73,7 @@ transformation() const
     vector eulerAngles = amplitude_*sin(omega_*t);
 
     // Convert the rotational motion from deg to rad
-    eulerAngles *= pi/180.0;
+    eulerAngles *= degToRad();
 
     quaternion R(quaternion::XYZ, eulerAngles);
     septernion TR(septernion(-origin_)*R*septernion(origin_));
@@ -97,9 +91,9 @@ bool Foam::solidBodyMotionFunctions::oscillatingRotatingMotion::read
 {
     solidBodyMotionFunction::read(SBMFCoeffs);
 
-    SBMFCoeffs_.lookup("origin") >> origin_;
-    SBMFCoeffs_.lookup("amplitude") >> amplitude_;
-    SBMFCoeffs_.lookup("omega") >> omega_;
+    SBMFCoeffs_.readEntry("origin", origin_);
+    SBMFCoeffs_.readEntry("amplitude", amplitude_);
+    SBMFCoeffs_.readEntry("omega", omega_);
 
     return true;
 }

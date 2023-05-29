@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2016 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -24,8 +27,17 @@ License
 \*---------------------------------------------------------------------------*/
 
 #include "processorMeshes.H"
-#include "Time.T.H"
+#include "Time1.H"
 #include "primitiveMesh.H"
+#include "topoSet.H"
+
+// * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
+
+namespace Foam
+{
+    defineTypeNameAndDebug(processorMeshes, 0);
+}
+
 
 // * * * * * * * * * * * * * Private Member Functions  * * * * * * * * * * * //
 
@@ -195,7 +207,7 @@ Foam::fvMesh::readUpdateState Foam::processorMeshes::readUpdate()
      || stat == fvMesh::TOPO_PATCH_CHANGE
     )
     {
-        // Reread all meshes and addresssing
+        // Reread all meshes and addressing
         read();
     }
     return stat;
@@ -256,6 +268,64 @@ void Foam::processorMeshes::reconstructPoints(fvMesh& mesh)
 
     mesh.movePoints(newPoints);
     mesh.write();
+}
+
+
+void Foam::processorMeshes::removeFiles(const polyMesh& mesh)
+{
+    fileName pointPath
+    (
+        IOobject
+        (
+            "pointProcAddressing",
+            mesh.facesInstance(),
+            mesh.meshSubDir,
+            mesh
+        ).objectPath()
+    );
+    if (topoSet::debug) DebugVar(pointPath);
+    rm(pointPath);
+
+    rm
+    (
+        IOobject
+        (
+            "faceProcAddressing",
+            mesh.facesInstance(),
+            mesh.meshSubDir,
+            mesh
+        ).objectPath()
+    );
+    rm
+    (
+        IOobject
+        (
+            "cellProcAddressing",
+            mesh.facesInstance(),
+            mesh.meshSubDir,
+            mesh
+        ).objectPath()
+    );
+    rm
+    (
+        IOobject
+        (
+            "boundaryProcAddressing",
+            mesh.facesInstance(),
+            mesh.meshSubDir,
+            mesh
+        ).objectPath()
+    );
+    rm
+    (
+        IOobject
+        (
+            "procAddressing",
+            mesh.facesInstance(),
+            mesh.meshSubDir,
+            mesh
+        ).objectPath()
+    );
 }
 
 

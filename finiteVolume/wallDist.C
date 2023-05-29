@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2015-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2015-2016 OpenFOAM Foundation
+    Copyright (C) 2016-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -38,7 +41,7 @@ namespace Foam
 
 void Foam::wallDist::constructn() const
 {
-    n_ = tmp<volVectorField>
+    n_.reset
     (
         new volVectorField
         (
@@ -49,7 +52,7 @@ void Foam::wallDist::constructn() const
                 mesh()
             ),
             mesh(),
-            dimensionedVector("n" & patchTypeName_, dimless, Zero),
+            dimensionedVector(dimless, Zero),
             patchDistMethod::patchTypes<vector>(mesh(), patchIDs_)
         )
     );
@@ -58,58 +61,14 @@ void Foam::wallDist::constructn() const
 
     volVectorField::Boundary& nbf = n_.ref().boundaryFieldRef();
 
-    forAllConstIter(labelHashSet, patchIDs_, iter)
+    for (const label patchi : patchIDs_)
     {
-        label patchi = iter.key();
         nbf[patchi] == patches[patchi].nf();
     }
 }
 
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
-
-Foam::wallDist::wallDist(const fvMesh& mesh, const word& patchTypeName)
-:
-    MeshObject<fvMesh, Foam::UpdateableMeshObject, wallDist>(mesh),
-    patchIDs_(mesh.boundaryMesh().findPatchIDs<wallPolyPatch>()),
-    patchTypeName_(patchTypeName),
-    pdm_
-    (
-        patchDistMethod::New
-        (
-            static_cast<const fvSchemes&>(mesh)
-           .subDict(patchTypeName_ & "Dist"),
-            mesh,
-            patchIDs_
-        )
-    ),
-    y_
-    (
-        IOobject
-        (
-            "y" & patchTypeName_,
-            mesh.time().timeName(),
-            mesh
-        ),
-        mesh,
-        dimensionedScalar("y" & patchTypeName_, dimLength, SMALL),
-        patchDistMethod::patchTypes<scalar>(mesh, patchIDs_)
-    ),
-    nRequired_
-    (
-        static_cast<const fvSchemes&>(mesh).subDict(patchTypeName_ & "Dist")
-       .lookupOrDefault<Switch>("nRequired", false)
-    ),
-    n_(volVectorField::null())
-{
-    if (nRequired_)
-    {
-        constructn();
-    }
-
-    movePoints();
-}
-
 
 Foam::wallDist::wallDist
 (
@@ -118,17 +77,36 @@ Foam::wallDist::wallDist
     const word& patchTypeName
 )
 :
+    wallDist(mesh, word::null, patchIDs, patchTypeName)
+{}
+
+
+Foam::wallDist::wallDist
+(
+    const fvMesh& mesh,
+    const word& defaultPatchDistMethod,
+    const labelHashSet& patchIDs,
+    const word& patchTypeName
+)
+:
     MeshObject<fvMesh, Foam::UpdateableMeshObject, wallDist>(mesh),
     patchIDs_(patchIDs),
     patchTypeName_(patchTypeName),
+    dict_
+    (
+        static_cast<const fvSchemes&>(mesh).subOrEmptyDict
+        (
+            patchTypeName_ & "Dist"
+        )
+    ),
     pdm_
     (
         patchDistMethod::New
         (
-            static_cast<const fvSchemes&>(mesh)
-           .subDict(patchTypeName_ & "Dist"),
+            dict_,
             mesh,
-            patchIDs_
+            patchIDs_,
+            defaultPatchDistMethod
         )
     ),
     y_
@@ -143,12 +121,10 @@ Foam::wallDist::wallDist
         dimensionedScalar("y" & patchTypeName_, dimLength, SMALL),
         patchDistMethod::patchTypes<scalar>(mesh, patchIDs_)
     ),
-    nRequired_
-    (
-        static_cast<const fvSchemes&>(mesh).subDict(patchTypeName_ & "Dist")
-       .lookupOrDefault<Switch>("nRequired", false)
-    ),
-    n_(volVectorField::null())
+    n_(volVectorField::null()),
+    updateInterval_(dict_.getOrDefault<label>("updateInterval", 1)),
+    nRequired_(dict_.getOrDefault("nRequired", false)),
+    requireUpdate_(true)
 {
     if (nRequired_)
     {
@@ -157,6 +133,17 @@ Foam::wallDist::wallDist
 
     movePoints();
 }
+
+
+Foam::wallDist::wallDist(const fvMesh& mesh, const word& patchTypeName)
+:
+    wallDist
+    (
+        mesh,
+        mesh.boundaryMesh().findPatchIDs<wallPolyPatch>(),
+        patchTypeName
+    )
+{}
 
 
 // * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
@@ -187,8 +174,21 @@ const Foam::volVectorField& Foam::wallDist::n() const
 
 bool Foam::wallDist::movePoints()
 {
-    if (pdm_->movePoints())
+    if
+    (
+        (updateInterval_ != 0)
+     && ((mesh_.time().timeIndex() % updateInterval_) == 0)
+    )
     {
+        requireUpdate_ = true;
+    }
+
+    if (requireUpdate_ && pdm_->movePoints())
+    {
+        DebugInfo<< "Updating wall distance" << endl;
+
+        requireUpdate_ = false;
+
         if (nRequired_)
         {
             return pdm_->correct(y_, n_.ref());
@@ -198,16 +198,20 @@ bool Foam::wallDist::movePoints()
             return pdm_->correct(y_);
         }
     }
-    else
-    {
-        return false;
-    }
+
+    return false;
 }
 
 
 void Foam::wallDist::updateMesh(const mapPolyMesh& mpm)
 {
     pdm_->updateMesh(mpm);
+
+    // Force update if performing topology change
+    // Note: needed?
+    // - field would have been mapped, so if using updateInterval option (!= 1)
+    //   live with error associated of not updating and use mapped values?
+    requireUpdate_ = true;
     movePoints();
 }
 

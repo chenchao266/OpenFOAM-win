@@ -1,9 +1,12 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2018 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -50,7 +53,7 @@ SourceFiles
 #ifndef primitiveMesh_H
 #define primitiveMesh_H
 
-#include "DynamicList.T.H"
+#include "DynamicList.H"
 #include "edgeList.H"
 #include "pointField.H"
 #include "faceList.H"
@@ -58,15 +61,16 @@ SourceFiles
 #include "cellShapeList.H"
 #include "labelList.H"
 #include "boolList.H"
-#include "HashSet.T.H"
-#include "Map.T.H"
+#include "HashSet.H"
+#include "Map.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 namespace Foam
 {
 
-class PackedBoolList;
+// Forward Declarations
+class bitSet;
 
 /*---------------------------------------------------------------------------*\
                       Class primitiveMesh Declaration
@@ -90,7 +94,7 @@ class primitiveMesh
             //- Number of internal edges using 0 or 1 boundary points
             mutable label nInternal1Edges_;
 
-            //- Number of internal edges using 0,1 or 2boundary points
+            //- Number of internal edges using 0,1 or 2 boundary points
             mutable label nInternalEdges_;
 
             //- Number of edges
@@ -151,7 +155,7 @@ class primitiveMesh
             mutable labelListList* cpPtr_;
 
 
-        // On-the-fly edge addresing storage
+        // On-the-fly edge addressing storage
 
             //- Temporary storage for addressing.
             mutable DynamicList<label> labels_;
@@ -177,11 +181,11 @@ class primitiveMesh
 
     // Private Member Functions
 
-        //- Disallow construct as copy
-        primitiveMesh(const primitiveMesh&);
+        //- No copy construct
+        primitiveMesh(const primitiveMesh&) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const primitiveMesh&);
+        //- No copy assignment
+        void operator=(const primitiveMesh&) = delete;
 
 
         // Topological calculations
@@ -251,22 +255,9 @@ protected:
 
             //- Calculate face centres and areas
             void calcFaceCentresAndAreas() const;
-            void makeFaceCentresAndAreas
-            (
-                const pointField& p,
-                vectorField& fCtrs,
-                vectorField& fAreas
-            ) const;
 
             //- Calculate cell centres and volumes
             void calcCellCentresAndVols() const;
-            void makeCellCentresAndVols
-            (
-                const vectorField& fCtrs,
-                const vectorField& fAreas,
-                vectorField& cellCtrs,
-                scalarField& cellVols
-            ) const;
 
             //- Calculate edge vectors
             void calcEdgeVectors() const;
@@ -294,9 +285,9 @@ protected:
             //- Check boundary for closedness
             bool checkClosedBoundary
             (
-                const vectorField&,
-                const bool,
-                const PackedBoolList&
+                const vectorField& areas,
+                const bool report,
+                const bitSet& internalOrCoupledFaces
             ) const;
 
             //- Check cells for closedness
@@ -472,40 +463,59 @@ public:
             cellList& cells
         );
 
-
-        //- Reset this primitiveMesh given the primitive array sizes and cells
-        void reset
+        //- Reset the local geometry
+        void resetGeometry
         (
-            const label nPoints,
-            const label nInternalFaces,
-            const label nFaces,
-            const label nCells,
-            const Xfer<cellList>& cells
+            pointField&& faceCentres,
+            pointField&& faceAreas,
+            pointField&& cellCentres,
+            scalarField&& cellVolumes
         );
+
+        //- Initialise all non-demand-driven data
+        virtual bool init(const bool doInit)
+        {
+            return false;
+        }
 
 
         // Access
 
             // Mesh size parameters
 
-                inline label nPoints() const;
+                //- Number of mesh points
+                inline label nPoints() const noexcept;
+
+                //- Number of mesh edges
                 inline label nEdges() const;
-                inline label nInternalFaces() const;
-                inline label nFaces() const;
-                inline label nCells() const;
 
-                // If points are ordered (nInternalPoints != -1):
+                //- Number of mesh faces
+                inline label nFaces() const noexcept;
 
-                    //- Points not on boundary
-                    inline label nInternalPoints() const;
+                //- Number of mesh cells
+                inline label nCells() const noexcept;
 
-                    //- Internal edges (i.e. not on boundary face) using
-                    //  no boundary point
-                    inline label nInternal0Edges() const;
-                    //- Internal edges using 0 or 1 boundary point
-                    inline label nInternal1Edges() const;
-                    //- Internal edges using 0,1 or 2 boundary points
-                    inline label nInternalEdges() const;
+                //- Number of internal faces
+                inline label nInternalFaces() const noexcept;
+
+                //- Number of boundary faces (== nFaces - nInternalFaces)
+                inline label nBoundaryFaces() const noexcept;
+
+
+            // If points are ordered (nInternalPoints != -1):
+
+                //- Points not on boundary
+                inline label nInternalPoints() const noexcept;
+
+                //- Internal edges (i.e. not on boundary face) using
+                //- no boundary point
+                inline label nInternal0Edges() const;
+
+                //- Internal edges using 0 or 1 boundary point
+                inline label nInternal1Edges() const;
+
+                //- Internal edges using 0,1 or 2 boundary points
+                inline label nInternalEdges() const;
 
 
             // Primitive mesh data
@@ -516,7 +526,7 @@ public:
                 //- Return faces
                 virtual const faceList& faces() const = 0;
 
-                //- Face face-owner addresing
+                //- Face face-owner addressing
                 virtual const labelList& faceOwner() const = 0;
 
                 //- Face face-neighbour addressing
@@ -597,7 +607,7 @@ public:
 
 
             //- Return true if given face label is internal to the mesh
-            inline bool isInternalFace(const label faceIndex) const;
+            inline bool isInternalFace(const label faceIndex) const noexcept;
 
 
             // Topological checks
@@ -650,7 +660,7 @@ public:
                     const bool report = false,
                     labelHashSet* setPtr = nullptr,
                     labelHashSet* highAspectSetPtr = nullptr,
-                    const Vector<label>& solutionD = Vector<label>::one
+                    const Vector<label>& solutionD = Vector<label>::one_
                 ) const;
 
                 //- Check for negative face areas
@@ -785,23 +795,23 @@ public:
             void printAllocated() const;
 
             // Per storage whether allocated
-            inline bool hasCellShapes() const;
-            inline bool hasEdges() const;
-            inline bool hasCellCells() const;
-            inline bool hasEdgeCells() const;
-            inline bool hasPointCells() const;
-            inline bool hasCells() const;
-            inline bool hasEdgeFaces() const;
-            inline bool hasPointFaces() const;
-            inline bool hasCellEdges() const;
-            inline bool hasFaceEdges() const;
-            inline bool hasPointEdges() const;
-            inline bool hasPointPoints() const;
-            inline bool hasCellPoints() const;
-            inline bool hasCellCentres() const;
-            inline bool hasFaceCentres() const;
-            inline bool hasCellVolumes() const;
-            inline bool hasFaceAreas() const;
+            inline bool hasCellShapes() const noexcept;
+            inline bool hasEdges() const noexcept;
+            inline bool hasCellCells() const noexcept;
+            inline bool hasEdgeCells() const noexcept;
+            inline bool hasPointCells() const noexcept;
+            inline bool hasCells() const noexcept;
+            inline bool hasEdgeFaces() const noexcept;
+            inline bool hasPointFaces() const noexcept;
+            inline bool hasCellEdges() const noexcept;
+            inline bool hasFaceEdges() const noexcept;
+            inline bool hasPointEdges() const noexcept;
+            inline bool hasPointPoints() const noexcept;
+            inline bool hasCellPoints() const noexcept;
+            inline bool hasCellCentres() const noexcept;
+            inline bool hasFaceCentres() const noexcept;
+            inline bool hasCellVolumes() const noexcept;
+            inline bool hasFaceAreas() const noexcept;
 
             // On-the-fly addressing calculation. These functions return either
             // a reference to the full addressing (if already calculated) or
@@ -822,6 +832,7 @@ public:
             const labelList& cellPoints
             (
                 const label celli,
+                labelHashSet&,
                 DynamicList<label>&
             ) const;
 
@@ -876,14 +887,21 @@ public:
             const labelList& cellEdges
             (
                 const label celli,
+                labelHashSet&,
                 DynamicList<label>&
             ) const;
 
             const labelList& cellEdges(const label celli) const;
 
+            //- Update all geometric data
+            virtual void updateGeom();
 
             //- Clear geometry
             void clearGeom();
+
+            //- Clear cell-based geometry only
+            //  Use with care! currently used by cyclicACMI
+            void clearCellGeom();
 
             //- Clear topological data
             void clearAddressing();

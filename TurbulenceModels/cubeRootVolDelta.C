@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2016-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -48,7 +51,7 @@ void Foam::LESModels::cubeRootVolDelta::calcDelta()
 
     if (nD == 3)
     {
-        delta_.primitiveFieldRef() = deltaCoeff_*pow(mesh.V(), 1.0/3.0);
+        delta_.primitiveFieldRef() = deltaCoeff_ * cbrt(mesh.V());
     }
     else if (nD == 2)
     {
@@ -72,10 +75,16 @@ void Foam::LESModels::cubeRootVolDelta::calcDelta()
     }
     else
     {
-        FatalErrorInFunction
-            << "Case is not 3D or 2D, LES is not applicable"
-            << exit(FatalError);
+        if (debug)
+        {
+            FatalErrorInFunction
+                << "Case is not 3D or 2D, LES is not applicable"
+                << exit(FatalError);
+        }
     }
+
+    // Handle coupled boundaries
+    delta_.correctBoundaryConditions();
 }
 
 
@@ -91,7 +100,7 @@ Foam::LESModels::cubeRootVolDelta::cubeRootVolDelta
     LESdelta(name, turbulence),
     deltaCoeff_
     (
-        dict.optionalSubDict(type() + "Coeffs").lookupOrDefault<scalar>
+        dict.optionalSubDict(type() + "Coeffs").getOrDefault<scalar>
         (
             "deltaCoeff",
             1

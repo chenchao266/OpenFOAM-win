@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2015 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2015 OpenFOAM Foundation
+    Copyright (C) 2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -24,8 +27,26 @@ License
 \*---------------------------------------------------------------------------*/
 
 #include "makeSolidReaction.H"
+
 #include "solidArrheniusReactionRate.H"
+
 #include "solidThermoPhysicsTypes.H"
+
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+#define makeSolidReactions(Thermo)                                             \
+                                                                               \
+    typedef solidReaction<Thermo> solidReaction##Thermo;                       \
+                                                                               \
+    typedef Reaction<Thermo> Reaction##Thermo;                                 \
+                                                                               \
+    defineTemplateRunTimeSelectionTable(Reaction##Thermo, dictionary);         \
+                                                                               \
+    defineTemplateTypeNameAndDebug(solidReaction##Thermo, 0);                  \
+    defineTemplateTypeNameAndDebug(Reaction##Thermo, 0);                       \
+                                                                               \
+    makeSolidIRReactions(Thermo, solidArrheniusReactionRate)
+
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -34,19 +55,11 @@ namespace Foam
 
 // * * * * * * * * * * * * * Make Solid reactions  * * * * * * * * * * * * //
 
-makeSolidIRReactions(hConstSolidThermoPhysics, solidArrheniusReactionRate)
+makeSolidReactions(hConstSolidThermoPhysics)
 
-makeSolidIRReactions
-(
-    hPowerSolidThermoPhysics,
-    solidArrheniusReactionRate
-)
+makeSolidReactions(hPowerSolidThermoPhysics)
 
-makeSolidIRReactions
-(
-    hExpKappaConstSolidThermoPhysics,
-    solidArrheniusReactionRate
-)
+makeSolidReactions(hExpKappaConstSolidThermoPhysics)
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 

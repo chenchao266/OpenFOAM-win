@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -48,7 +50,7 @@ Foam::RBD::restraint::restraint
 )
 :
     name_(name),
-    bodyID_(model.bodyID(dict.lookup("body"))),
+    bodyID_(model.bodyID(dict.get<word>("body"))),
     bodyIndex_(model.master(bodyID_)),
     coeffs_(dict),
     model_(model)
@@ -78,10 +80,8 @@ bool Foam::RBD::restraint::read(const dictionary& dict)
 
 void Foam::RBD::restraint::write(Ostream& os) const
 {
-    os.writeKeyword("type")
-        << type() << token::END_STATEMENT << nl;
-    os.writeKeyword("body")
-        << model_.name(bodyID_) << token::END_STATEMENT << nl;
+    os.writeEntry("type", type());
+    os.writeEntry("body", model_.name(bodyID_));
 }
 
 

@@ -1,9 +1,12 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2019 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -30,7 +33,7 @@ Description
 #include "unitConversion.H"
 
 #define TEMPLATE
-#include "FieldFunctionsM.T.C"
+#include "FieldFunctionsM.C"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -67,41 +70,49 @@ void stabilise(scalarField& res, const UList<scalar>& sf, const scalar s)
 {
     TFOR_ALL_F_OP_FUNC_S_F
     (
-        scalar, res, =, ::stabilise, scalar, s, scalar, sf
+        scalar, res, =, ::Foam::stabilise, scalar, s, scalar, sf
     )
 }
 
 tmp<scalarField> stabilise(const UList<scalar>& sf, const scalar s)
 {
-    tmp<scalarField> tRes(new scalarField(sf.size()));
-    stabilise(tRes.ref(), sf, s);
-    return tRes;
+    auto tresult = tmp<scalarField>::New(sf.size());
+    stabilise(tresult.ref(), sf, s);
+    return tresult;
 }
 
 tmp<scalarField> stabilise(const tmp<scalarField>& tsf, const scalar s)
 {
-    tmp<scalarField> tRes = New(tsf);
-    stabilise(tRes.ref(), tsf(), s);
+    tmp<scalarField> tresult = New(tsf);
+    stabilise(tresult.ref(), tsf(), s);
     tsf.clear();
-    return tRes;
+    return tresult;
 }
 
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 template<>
-scalar sumProd(const UList<scalar>& f1, const UList<scalar>& f2)
+float sumProd(const UList<float>& f1, const UList<float>& f2)
 {
+    float result = 0.0;
     if (f1.size() && (f1.size() == f2.size()))
     {
-        scalar SumProd = 0.0;
-        TFOR_ALL_S_OP_F_OP_F(scalar, SumProd, +=, scalar, f1, *, scalar, f2)
-        return SumProd;
+        TFOR_ALL_S_OP_F_OP_F(float, result, +=, float, f1, *, float, f2)
     }
-    else
+    return result;
+}
+
+
+template<>
+double sumProd(const UList<double>& f1, const UList<double>& f2)
+{
+    double result = 0.0;
+    if (f1.size() && (f1.size() == f2.size()))
     {
-        return 0.0;
+        TFOR_ALL_S_OP_F_OP_F(double, result, +=, double, f1, *, double, f2)
     }
+    return result;
 }
 
 
@@ -120,6 +131,9 @@ BINARY_TYPE_FUNCTION(scalar, scalar, scalar, pow)
 
 BINARY_FUNCTION(scalar, scalar, scalar, atan2)
 BINARY_TYPE_FUNCTION(scalar, scalar, scalar, atan2)
+
+BINARY_FUNCTION(scalar, scalar, scalar, hypot)
+BINARY_TYPE_FUNCTION(scalar, scalar, scalar, hypot)
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -163,28 +177,30 @@ UNARY_FUNCTION(scalar, scalar, y1)
 UNARY_FUNCTION(scalar, scalar, degToRad)
 UNARY_FUNCTION(scalar, scalar, radToDeg)
 UNARY_FUNCTION(scalar, scalar, atmToPa)
+UNARY_FUNCTION(scalar, scalar, barToPa)
 UNARY_FUNCTION(scalar, scalar, paToAtm)
+UNARY_FUNCTION(scalar, scalar, paToBar)
 
 
 #define BesselFunc(func)                                                       \
 void func(scalarField& res, const int n, const UList<scalar>& sf)              \
 {                                                                              \
-    TFOR_ALL_F_OP_FUNC_S_F(scalar, res, =, ::func, int, n, scalar, sf)   \
+    TFOR_ALL_F_OP_FUNC_S_F(scalar, res, =, ::Foam::func, int, n, scalar, sf)   \
 }                                                                              \
                                                                                \
 tmp<scalarField> func(const int n, const UList<scalar>& sf)                    \
 {                                                                              \
-    tmp<scalarField> tRes(new scalarField(sf.size()));                         \
-    func(tRes.ref(), n, sf);                                                   \
-    return tRes;                                                               \
+    auto tresult = tmp<scalarField>::New(sf.size());                           \
+    func(tresult.ref(), n, sf);                                                \
+    return tresult;                                                            \
 }                                                                              \
                                                                                \
 tmp<scalarField> func(const int n, const tmp<scalarField>& tsf)                \
 {                                                                              \
-    tmp<scalarField> tRes = New(tsf);                                          \
-    func(tRes.ref(), n, tsf());                                                \
+    tmp<scalarField> tresult = New(tsf);                                       \
+    func(tresult.ref(), n, tsf());                                             \
     tsf.clear();                                                               \
-    return tRes;                                                               \
+    return tresult;                                                            \
 }
 
 BesselFunc(jn)

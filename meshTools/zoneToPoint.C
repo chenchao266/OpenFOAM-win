@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2015 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2018-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -25,20 +28,32 @@ License
 
 #include "zoneToPoint.H"
 #include "polyMesh.H"
-
 #include "addToRunTimeSelectionTable.H"
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
 
 namespace Foam
 {
+    defineTypeNameAndDebug(zoneToPoint, 0);
+    addToRunTimeSelectionTable(topoSetSource, zoneToPoint, word);
+    addToRunTimeSelectionTable(topoSetSource, zoneToPoint, istream);
 
-defineTypeNameAndDebug(zoneToPoint, 0);
-
-addToRunTimeSelectionTable(topoSetSource, zoneToPoint, word);
-
-addToRunTimeSelectionTable(topoSetSource, zoneToPoint, istream);
-
+    addToRunTimeSelectionTable(topoSetPointSource, zoneToPoint, word);
+    addToRunTimeSelectionTable(topoSetPointSource, zoneToPoint, istream);
+    addNamedToRunTimeSelectionTable
+    (
+        topoSetPointSource,
+        zoneToPoint,
+        word,
+        zone
+    );
+    addNamedToRunTimeSelectionTable
+    (
+        topoSetPointSource,
+        zoneToPoint,
+        istream,
+        zone
+    );
 }
 
 
@@ -53,88 +68,180 @@ Foam::topoSetSource::addToUsageTable Foam::zoneToPoint::usage_
 
 // * * * * * * * * * * * * * Private Member Functions  * * * * * * * * * * * //
 
-void Foam::zoneToPoint::combine(topoSet& set, const bool add) const
+void Foam::zoneToPoint::combine
+(
+    topoSet& set,
+    const labelUList& zoneIDs,
+    const bool add,
+    const bool verbosity
+) const
 {
-    bool hasMatched = false;
+    const label nZones = mesh_.pointZones().size();
 
-    forAll(mesh_.pointZones(), i)
+    if (zoneIDs.empty() || !nZones)
     {
-        const pointZone& zone = mesh_.pointZones()[i];
+        return;  // Nothing to do
+    }
 
-        if (zoneName_.match(zone.name()))
+    for (const label zonei : zoneIDs)
+    {
+        if (zonei < 0 || zonei >= nZones)
         {
-            const labelList& pointLabels = mesh_.pointZones()[i];
+            continue;
+        }
 
-            Info<< "    Found matching zone " << zone.name()
-                << " with " << pointLabels.size() << " points." << endl;
+        const auto& zone = mesh_.pointZones()[zonei];
 
-            hasMatched = true;
+        if (verbosity)
+        {
+            Info<< "    Using zone " << zone.name()
+                << " with " << zone.size() << " points." << endl;
+        }
 
-            forAll(pointLabels, i)
+        for (const label pointi : zone)
+        {
+            // Only do active points
+            if (pointi >= 0 && pointi < mesh_.nPoints())
             {
-                // Only do active points
-                if (pointLabels[i] < mesh_.nPoints())
-                {
-                    addOrDelete(set, pointLabels[i], add);
-                }
+                addOrDelete(set, pointi, add);
             }
         }
     }
+}
 
-    if (!hasMatched)
+
+void Foam::zoneToPoint::combine(topoSet& set, const bool add) const
+{
+    if (!zoneIDs_.empty())
+    {
+        combine(set, zoneIDs_, add, false);
+        return;
+    }
+
+    if (zoneMatcher_.empty())
+    {
+        return;  // Nothing to do
+    }
+
+    const labelList matched(mesh_.pointZones().indices(zoneMatcher_));
+
+    if (matched.empty())
     {
         WarningInFunction
-            << "Cannot find any pointZone named " << zoneName_ << endl
-            << "Valid names are " << mesh_.pointZones().names() << endl;
+            << "Cannot find any pointZone matching "
+            << flatOutput(zoneMatcher_) << nl
+            << "Valid names: " << flatOutput(mesh_.pointZones().names())
+            << endl;
+
+        return;  // Nothing to do
     }
+
+    combine(set, matched, add, verbose_);
 }
 
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
-// Construct from components
 Foam::zoneToPoint::zoneToPoint
 (
     const polyMesh& mesh,
-    const word& zoneName
+    const wordRes& zoneSelector
 )
 :
-    topoSetSource(mesh),
-    zoneName_(zoneName)
+    topoSetPointSource(mesh),
+    zoneMatcher_(zoneSelector)
 {}
 
 
-// Construct from dictionary
+Foam::zoneToPoint::zoneToPoint
+(
+    const polyMesh& mesh,
+    const wordRe& zoneName
+)
+:
+    topoSetPointSource(mesh),
+    zoneMatcher_(one{}, zoneName)
+{}
+
+
+Foam::zoneToPoint::zoneToPoint
+(
+    const polyMesh& mesh,
+    const labelUList& zoneIDs
+)
+:
+    topoSetPointSource(mesh),
+    zoneMatcher_(),
+    zoneIDs_(zoneIDs)
+{}
+
+
 Foam::zoneToPoint::zoneToPoint
 (
     const polyMesh& mesh,
     const dictionary& dict
 )
 :
-    topoSetSource(mesh),
-    zoneName_(dict.lookup("name"))
-{}
+    topoSetPointSource(mesh),
+    zoneMatcher_()
+{
+    // Look for 'zones' and 'zone', but accept 'name' as well
+    if (!dict.readIfPresent("zones", zoneMatcher_))
+    {
+        zoneMatcher_.resize(1);
+        zoneMatcher_.first() =
+            dict.getCompat<wordRe>("zone", {{"name", 1806}});
+    }
+}
 
 
-// Construct from Istream
 Foam::zoneToPoint::zoneToPoint
 (
     const polyMesh& mesh,
     Istream& is
 )
 :
-    topoSetSource(mesh),
-    zoneName_(checkIs(is))
-{}
-
-
-// * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
-
-Foam::zoneToPoint::~zoneToPoint()
+    zoneToPoint(mesh, wordRe(checkIs(is)))
 {}
 
 
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
+
+const Foam::wordRes& Foam::zoneToPoint::zones() const noexcept
+{
+    return zoneMatcher_;
+}
+
+
+void Foam::zoneToPoint::zones(const wordRes& zonesSelector)
+{
+    zoneMatcher_ = zonesSelector;
+    zoneIDs_.clear();
+}
+
+
+void Foam::zoneToPoint::zones(const wordRe& zoneName)
+{
+    zoneMatcher_.resize(1);
+    zoneMatcher_.first() = zoneName;
+    zoneIDs_.clear();
+}
+
+
+void Foam::zoneToPoint::zones(const labelUList& zoneIDs)
+{
+    zoneMatcher_.clear();
+    zoneIDs_ = zoneIDs;
+}
+
+
+void Foam::zoneToPoint::zones(const label zoneID)
+{
+    zoneMatcher_.clear();
+    zoneIDs_.resize(1);
+    zoneIDs_.first() = zoneID;
+}
+
 
 void Foam::zoneToPoint::applyToSet
 (
@@ -142,17 +249,23 @@ void Foam::zoneToPoint::applyToSet
     topoSet& set
 ) const
 {
-    if ((action == topoSetSource::NEW) || (action == topoSetSource::ADD))
+    if (action == topoSetSource::ADD || action == topoSetSource::NEW)
     {
-        Info<< "    Adding all points of pointZone " << zoneName_ << " ..."
-            << endl;
+        if (verbose_ && !zoneMatcher_.empty())
+        {
+            Info<< "    Adding all points of point zones "
+                << flatOutput(zoneMatcher_) << " ..." << endl;
+        }
 
         combine(set, true);
     }
-    else if (action == topoSetSource::DELETE)
+    else if (action == topoSetSource::SUBTRACT)
     {
-        Info<< "    Removing all points of pointZone " << zoneName_ << " ..."
-            << endl;
+        if (verbose_ && !zoneMatcher_.empty())
+        {
+            Info<< "    Removing all points of point zones "
+                << flatOutput(zoneMatcher_) << " ..." << endl;
+        }
 
         combine(set, false);
     }

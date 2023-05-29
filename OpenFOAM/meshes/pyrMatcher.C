@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -26,32 +29,112 @@ License
 #include "pyrMatcher.H"
 #include "cellMatcher.H"
 #include "primitiveMesh.H"
-#include "primitiveMesh.H"
-#include "cellModeller.H"
-#include "ListOps.T.H"
+#include "cellModel.H"
+#include "ListOps.H"
 
-// * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
-using namespace Foam;
-const label pyrMatcher::vertPerCell = 5;
-const label pyrMatcher::facePerCell = 5;
-const label pyrMatcher::maxVertPerFace = 4;
+// * * * * * * * * * * * * * * * Local Functions * * * * * * * * * * * * * * //
+
+namespace Foam
+{
+
+// Check (4 tri, 1 quad)
+static inline bool checkFaceSizeMatch(const UList<face>& faces)
+{
+    if (faces.size() != 5)  // facePerCell
+    {
+        return false;
+    }
+
+    int nTris = 0;
+    int nQuads = 0;
+
+    for (const face& f : faces)
+    {
+        const label size = f.size();
+
+        if (size == 3)
+        {
+            ++nTris;
+        }
+        else if (size == 4)
+        {
+            ++nQuads;
+        }
+        else
+        {
+            return false;
+        }
+    }
+
+    return (nTris == 4 && nQuads == 1);
+}
+
+
+// Check (4 tri, 1 quad)
+static inline bool checkFaceSizeMatch
+(
+    const UList<face>& meshFaces,
+    const labelUList& cellFaces
+)
+{
+    if (cellFaces.size() != 5)  // facePerCell
+    {
+        return false;
+    }
+
+    int nTris = 0;
+    int nQuads = 0;
+
+    for (const label facei : cellFaces)
+    {
+        const label size = meshFaces[facei].size();
+
+        if (size == 3)
+        {
+            ++nTris;
+        }
+        else if (size == 4)
+        {
+            ++nQuads;
+        }
+        else
+        {
+            return false;
+        }
+    }
+
+    return (nTris == 4 && nQuads == 1);
+}
+
+} // End namespace Foam
+
+
+// * * * * * * * * * * * * * Static Member Functions * * * * * * * * * * * * //
+
+
+ namespace Foam{
+bool pyrMatcher::test(const UList<face>& faces)
+{
+    return checkFaceSizeMatch(faces);
+}
+
+bool pyrMatcher::test(const primitiveMesh& mesh, const label celli)
+{
+    return checkFaceSizeMatch(mesh.faces(), mesh.cells()[celli]);
+}
 
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
-pyrMatcher::pyrMatcher() :    cellMatcher
+pyrMatcher::pyrMatcher()
+:
+    cellMatcher
     (
         vertPerCell,
         facePerCell,
         maxVertPerFace,
-        "pyr"
+        "pyr" // == cellModel::modelNames[cellModel::PYR]
     )
-{}
-
-
-// * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
-
-pyrMatcher::~pyrMatcher()
 {}
 
 
@@ -221,71 +304,11 @@ label pyrMatcher::faceHashValue() const
 
 bool pyrMatcher::faceSizeMatch
 (
-    const faceList& faces,
-    const labelList& myFaces
+    const faceList& meshFaces,
+    const labelList& cellFaces
 ) const
 {
-    if (myFaces.size() != 5)
-    {
-        return false;
-    }
-
-    label nTris = 0;
-    label nQuads = 0;
-
-    forAll(myFaces, myFacei)
-    {
-        label size = faces[myFaces[myFacei]].size();
-
-        if (size == 3)
-        {
-            nTris++;
-        }
-        else if (size == 4)
-        {
-            nQuads++;
-        }
-        else
-        {
-            return false;
-        }
-    }
-
-    if ((nTris == 4) && (nQuads == 1))
-    {
-        return true;
-    }
-    else
-    {
-        return false;
-    }
-}
-
-
-bool pyrMatcher::isA(const primitiveMesh& mesh, const label celli)
-{
-    return matchShape
-    (
-        true,
-        mesh.faces(),
-        mesh.faceOwner(),
-        celli,
-        mesh.cells()[celli]
-    );
-}
-
-
-bool pyrMatcher::isA(const faceList& faces)
-{
-    // Do as if mesh with one cell only
-    return matchShape
-    (
-        true,
-        faces,                      // all faces in mesh
-        labelList(faces.size(), 0), // cell 0 is owner of all faces
-        0,                          // cell label
-        identity(faces.size())      // faces of cell 0
-    );
+    return checkFaceSizeMatch(meshFaces, cellFaces);
 }
 
 
@@ -308,15 +331,14 @@ bool pyrMatcher::matches
         )
     )
     {
-        shape = cellShape(model(), vertLabels());
-
+        shape.reset(model(), vertLabels());
         return true;
     }
-    else
-    {
-        return false;
-    }
+
+    return false;
 }
 
 
 // ************************************************************************* //
+
+ } // End namespace Foam

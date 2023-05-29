@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2016-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2016-2017 OpenFOAM Foundation
+    Copyright (C) 2018-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -34,12 +37,7 @@ namespace Foam
 namespace fv
 {
     defineTypeNameAndDebug(limitVelocity, 0);
-    addToRunTimeSelectionTable
-    (
-        option,
-        limitVelocity,
-        dictionary
-    );
+    addToRunTimeSelectionTable(option, limitVelocity, dictionary);
 }
 }
 
@@ -54,12 +52,12 @@ Foam::fv::limitVelocity::limitVelocity
     const fvMesh& mesh
 )
 :
-    cellSetOption(name, modelType, dict, mesh),
-    UName_(coeffs_.lookupOrDefault<word>("U", "U")),
-    max_(readScalar(coeffs_.lookup("max")))
+    fv::cellSetOption(name, modelType, dict, mesh),
+    UName_(coeffs_.getOrDefault<word>("U", "U")),
+    max_(coeffs_.get<scalar>("max"))
 {
-    fieldNames_.setSize(1, UName_);
-    applied_.setSize(1, false);
+    fieldNames_.resize(1, UName_);
+    fv::option::resetApplied();
 }
 
 
@@ -67,16 +65,14 @@ Foam::fv::limitVelocity::limitVelocity
 
 bool Foam::fv::limitVelocity::read(const dictionary& dict)
 {
-    if (cellSetOption::read(dict))
+    if (fv::cellSetOption::read(dict))
     {
-        coeffs_.lookup("max") >> max_;
+        coeffs_.readEntry("max", max_);
 
         return true;
     }
-    else
-    {
-        return false;
-    }
+
+    return false;
 }
 
 
@@ -86,10 +82,8 @@ void Foam::fv::limitVelocity::correct(volVectorField& U)
 
     vectorField& Uif = U.primitiveFieldRef();
 
-    forAll(cells_, i)
+    for (const label celli : cells_)
     {
-        const label celli = cells_[i];
-
         const scalar magSqrUi = magSqr(Uif[celli]);
 
         if (magSqrUi > maxSqrU)
@@ -98,15 +92,11 @@ void Foam::fv::limitVelocity::correct(volVectorField& U)
         }
     }
 
-    // handle boundaries in the case of 'all'
-    if (selectionMode_ == smAll)
+    // Handle boundaries in the case of 'all'
+    if (!cellSetOption::useSubMesh())
     {
-        volVectorField::Boundary& Ubf = U.boundaryFieldRef();
-
-        forAll(Ubf, patchi)
+        for (fvPatchVectorField& Up : U.boundaryFieldRef())
         {
-            fvPatchVectorField& Up = Ubf[patchi];
-
             if (!Up.fixesValue())
             {
                 forAll(Up, facei)
@@ -121,6 +111,10 @@ void Foam::fv::limitVelocity::correct(volVectorField& U)
             }
         }
     }
+
+    // We've changed internal values so give
+    // boundary conditions opportunity to correct
+    U.correctBoundaryConditions();
 }
 
 

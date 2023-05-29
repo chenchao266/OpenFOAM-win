@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2017-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -24,26 +27,64 @@ License
 \*---------------------------------------------------------------------------*/
 
 #include "error.H"
+#include "token.H"
 #include "OSstream.H"
-#include "token.T.H"
+#include "stringOps.H"
 
-// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
-using namespace Foam;
-Ostream& OSstream::write(const token& t)
+// * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
+
+
+ namespace Foam{
+bool OSstream::write(const token& tok)
 {
-    if (t.type() == token::VERBATIMSTRING)
+    // Direct token handling only for some types
+
+    switch (tok.type())
     {
-        write(char(token::HASH));
-        write(char(token::BEGIN_BLOCK));
-        writeQuoted(t.stringToken(), false);
-        write(char(token::HASH));
-        write(char(token::END_BLOCK));
+        case token::tokenType::FLAG :
+        {
+            // silently consume the flag
+            return true;
+        }
+
+        case token::tokenType::DIRECTIVE :
+        {
+            // Token stored with leading '#' sigil - output directly
+            write(tok.wordToken());
+            return true;
+        }
+
+        case token::tokenType::EXPRESSION :
+        {
+            // Token stored with surrounding '${{ .. }}' - output directly
+            writeQuoted(tok.stringToken(), false);
+            return true;
+        }
+
+        case token::tokenType::VARIABLE :
+        {
+            // Token stored with leading '$' sigil - output directly
+            writeQuoted(tok.stringToken(), false);
+            return true;
+        }
+
+        case token::tokenType::VERBATIM :
+        {
+            // Token stored without surrounding '#{ .. #}'. Add on output
+            write(char(token::HASH));
+            write(char(token::BEGIN_BLOCK));
+            writeQuoted(tok.stringToken(), false);
+            write(char(token::HASH));
+            write(char(token::END_BLOCK));
+
+            return true;
+        }
+
+        default:
+            break;
     }
-    else if (t.type() == token::VARIABLE)
-    {
-        writeQuoted( t.stringToken(), false);
-    }
-    return *this;
+
+    return false;
 }
 
 
@@ -52,7 +93,7 @@ Ostream& OSstream::write(const char c)
     os_ << c;
     if (c == token::NL)
     {
-        lineNumber_++;
+        ++lineNumber_;
     }
     setState(os_.rdstate());
     return *this;
@@ -61,7 +102,7 @@ Ostream& OSstream::write(const char c)
 
 Ostream& OSstream::write(const char* str)
 {
-    lineNumber_ += string(str).count(token::NL);
+    lineNumber_ += stringOps::count(str, token::NL);
     os_ << str;
     setState(os_.rdstate());
     return *this;
@@ -76,36 +117,51 @@ Ostream& OSstream::write(const word& str)
 }
 
 
-Ostream& OSstream::write(const string& str)
+Ostream& OSstream::writeQuoted
+(
+    const std::string& str,
+    const bool quoted
+)
 {
-    os_ << token::BEGIN_STRING;
-
-    int backslash = 0;
-    for (string::const_iterator iter = str.begin(); iter != str.end(); ++iter)
+    if (!quoted)
     {
-        char c = *iter;
+        // Output unquoted, only advance line number on newline
+        lineNumber_ += stringOps::count(str, token::NL);
+        os_ << str;
+
+        setState(os_.rdstate());
+        return *this;
+    }
+
+
+    // Output with surrounding quotes and backslash escaping
+    os_ << token::DQUOTE;
+
+    unsigned backslash = 0;
+    for (auto iter = str.cbegin(); iter != str.cend(); ++iter)
+    {
+        const char c = *iter;
 
         if (c == '\\')
         {
-            backslash++;
-            // suppress output until we know if other characters follow
-            continue;
+            ++backslash;
+            continue; // only output after escaped character is known
         }
         else if (c == token::NL)
         {
-            lineNumber_++;
-            backslash++;    // backslash escape for newline
+            ++lineNumber_;
+            ++backslash;    // backslash escape for newline
         }
-        else if (c == token::END_STRING)
+        else if (c == token::DQUOTE)
         {
-            backslash++;    // backslash escape for quote
+            ++backslash;    // backslash escape for quote
         }
 
-        // output pending backslashes
+        // output all pending backslashes
         while (backslash)
         {
             os_ << '\\';
-            backslash--;
+            --backslash;
         }
 
         os_ << c;
@@ -113,73 +169,16 @@ Ostream& OSstream::write(const string& str)
 
     // silently drop any trailing backslashes
     // they would otherwise appear like an escaped end-quote
-
-    os_ << token::END_STRING;
+    os_ << token::DQUOTE;
 
     setState(os_.rdstate());
     return *this;
 }
 
 
-Ostream& OSstream::writeQuoted
-(
-    const std::string& str,
-    const bool quoted
-)
+Ostream& OSstream::write(const string& str)
 {
-    if (quoted)
-    {
-        os_ << token::BEGIN_STRING;
-
-        int backslash = 0;
-        for
-        (
-            string::const_iterator iter = str.begin();
-            iter != str.end();
-            ++iter
-        )
-        {
-            char c = *iter;
-
-            if (c == '\\')
-            {
-                backslash++;
-                // suppress output until we know if other characters follow
-                continue;
-            }
-            else if (c == token::NL)
-            {
-                lineNumber_++;
-                backslash++;    // backslash escape for newline
-            }
-            else if (c == token::END_STRING)
-            {
-                backslash++;    // backslash escape for quote
-            }
-
-            // output pending backslashes
-            while (backslash)
-            {
-                os_ << '\\';
-                backslash--;
-            }
-
-            os_ << c;
-        }
-
-        // silently drop any trailing backslashes
-        // they would otherwise appear like an escaped end-quote
-        os_ << token::END_STRING;
-    }
-    else
-    {
-        // output unquoted string, only advance line number on newline
-        lineNumber_ += string(str).count(token::NL);
-        os_ << str;
-    }
-
-    setState(os_.rdstate());
-    return *this;
+    return writeQuoted(str, true);
 }
 
 
@@ -215,7 +214,17 @@ Ostream& OSstream::write(const doubleScalar val)
 }
 
 
-Ostream& OSstream::write(const char* buf, std::streamsize count)
+Ostream& OSstream::write(const char* data, std::streamsize count)
+{
+    beginRawWrite(count);
+    writeRaw(data, count);
+    endRawWrite();
+
+    return *this;
+}
+
+
+bool OSstream::beginRawWrite(std::streamsize count)
 {
     if (format() != BINARY)
     {
@@ -225,9 +234,31 @@ Ostream& OSstream::write(const char* buf, std::streamsize count)
     }
 
     os_ << token::BEGIN_LIST;
-    os_.write(buf, count);
-    os_ << token::END_LIST;
+    setState(os_.rdstate());
 
+    return os_.good();
+}
+
+
+bool OSstream::endRawWrite()
+{
+    os_ << token::END_LIST;
+    setState(os_.rdstate());
+
+    return os_.good();
+}
+
+
+Ostream& OSstream::writeRaw
+(
+    const char* data,
+    std::streamsize count
+)
+{
+    // No check for format() == BINARY since this is either done in the
+    // beginRawWrite() method, or the caller knows what they are doing.
+
+    os_.write(data, count);
     setState(os_.rdstate());
 
     return *this;
@@ -236,7 +267,7 @@ Ostream& OSstream::write(const char* buf, std::streamsize count)
 
 void OSstream::indent()
 {
-    for (unsigned short i = 0; i < indentLevel_*indentSize_; i++)
+    for (unsigned short i = 0; i < indentLevel_*indentSize_; ++i)
     {
         os_ << ' ';
     }
@@ -270,6 +301,18 @@ std::ios_base::fmtflags OSstream::flags(const ios_base::fmtflags f)
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
+char OSstream::fill() const
+{
+    return os_.fill();
+}
+
+
+char OSstream::fill(const char fillch)
+{
+    return os_.fill(fillch);
+}
+
+
 int OSstream::width() const
 {
     return os_.width();
@@ -295,3 +338,5 @@ int OSstream::precision(const int p)
 
 
 // ************************************************************************* //
+
+ } // End namespace Foam

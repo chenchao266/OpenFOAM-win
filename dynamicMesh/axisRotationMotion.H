@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2012-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2012-2016 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -38,7 +41,7 @@ SourceFiles
 
 #include "solidBodyMotionFunction.H"
 #include "primitiveFields.H"
-#include "point.T.H"
+#include "point.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -55,7 +58,7 @@ class axisRotationMotion
 :
     public solidBodyMotionFunction
 {
-    // Private data
+    // Private Data
 
         //- Origin
         point origin_;
@@ -66,11 +69,11 @@ class axisRotationMotion
 
     // Private Member Functions
 
-        //- Disallow copy construct
-        axisRotationMotion(const axisRotationMotion&);
+        //- No copy construct
+        axisRotationMotion(const axisRotationMotion&) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const axisRotationMotion&);
+        //- No copy assignment
+        void operator=(const axisRotationMotion&) = delete;
 
 
 public:
@@ -103,7 +106,7 @@ public:
 
 
     //- Destructor
-    virtual ~axisRotationMotion();
+    virtual ~axisRotationMotion() = default;
 
 
     // Member Functions

@@ -1,9 +1,12 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2015 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2015 OpenFOAM Foundation
+    Copyright (C) 2015-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -40,21 +43,20 @@ SourceFiles
 #define polyPatch_H
 
 #include "patchIdentifier.H"
-#include "primitivePatch.H"
+#include "primitivePatch2.H"
 #include "typeInfo.H"
 #include "runTimeSelectionTables.H"
+#include "SubField.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 namespace Foam
 {
 
-// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
-
-// Forward declaration of friend functions and operators
-
+// Forward Declarations
 class polyBoundaryMesh;
 class polyPatch;
+class polyTopoChange;
 class PstreamBuffers;
 
 Ostream& operator<<(Ostream&, const polyPatch&);
@@ -64,10 +66,12 @@ Ostream& operator<<(Ostream&, const polyPatch&);
                            Class polyPatch Declaration
 \*---------------------------------------------------------------------------*/
 
-class polyPatch :    public patchIdentifier,
+class polyPatch
+:
+    public patchIdentifier,
     public primitivePatch
 {
-    // Private data
+    // Private Data
 
         //- Start label of this patch in the polyMesh face list
         label start_;
@@ -75,14 +79,11 @@ class polyPatch :    public patchIdentifier,
         //- Reference to boundary mesh
         const polyBoundaryMesh& boundaryMesh_;
 
+        //- Demand-driven: face-cell addressing
+        mutable labelList::subList* faceCellsPtr_;
 
-        // Demand-driven private data
-
-            //- face-cell addressing
-            mutable labelList::subList* faceCellsPtr_;
-
-            //- Global edge addressing
-            mutable labelList* mePtr_;
+        //- Demand-driven: global edge addressing
+        mutable labelList* mePtr_;
 
 
 protected:
@@ -177,6 +178,18 @@ public:
             const word& patchType
         );
 
+        //- Construct from components
+        polyPatch
+        (
+            const word& name,
+            const label size,
+            const label start,
+            const label index,
+            const polyBoundaryMesh& bm,
+            const word& physicalType,
+            const wordList& inGroups
+        );
+
         //- Construct from dictionary
         polyPatch
         (
@@ -187,11 +200,11 @@ public:
             const word& patchType
         );
 
-        //- Construct as copy, resetting the boundary mesh
+        //- Copy construct, resetting the boundary mesh
         polyPatch(const polyPatch&, const polyBoundaryMesh&);
 
         //- Construct given the original patch and resetting the
-        //  face list and boundary mesh information
+        //- face list and boundary mesh information
         polyPatch
         (
             const polyPatch& pp,
@@ -211,17 +224,28 @@ public:
             const label newStart
         );
 
-        //- Construct as copy
-        polyPatch(const polyPatch&);
+        //- Copy construct
+        polyPatch(const polyPatch& p);
+
+        //- Copy construct, setting faceCells
+        //  \note The faceCells are held by the caller
+        polyPatch(const polyPatch& p, const labelList& faceCells);
+
+        //- Construct and return a clone, setting faceCells
+        //  \note The faceCells are held by the caller
+        virtual autoPtr<polyPatch> clone(const labelList& faceCells) const
+        {
+            return autoPtr<polyPatch>::New(*this, faceCells);
+        }
 
         //- Construct and return a clone, resetting the boundary mesh
         virtual autoPtr<polyPatch> clone(const polyBoundaryMesh& bm) const
         {
-            return autoPtr<polyPatch>(new polyPatch(*this, bm));
+            return autoPtr<polyPatch>::New(*this, bm);
         }
 
-        //- Construct and return a clone, resetting the face list
-        //  and boundary mesh
+        //- Construct and return a clone,
+        //- resetting the face list and boundary mesh
         virtual autoPtr<polyPatch> clone
         (
             const polyBoundaryMesh& bm,
@@ -230,14 +254,11 @@ public:
             const label newStart
         ) const
         {
-            return autoPtr<polyPatch>
-            (
-                new polyPatch(*this, bm, index, newSize, newStart)
-            );
+            return autoPtr<polyPatch>::New(*this, bm, index, newSize, newStart);
         }
 
-        //- Construct and return a clone, resetting the face list
-        //  and boundary mesh
+        //- Construct and return a clone,
+        //- resetting the face list and boundary mesh
         virtual autoPtr<polyPatch> clone
         (
             const polyBoundaryMesh& bm,
@@ -246,17 +267,14 @@ public:
             const label newStart
         ) const
         {
-            return autoPtr<polyPatch>
-            (
-                new polyPatch(*this, bm, index, mapAddressing, newStart)
-            );
+            return autoPtr<polyPatch>::New
+                (*this, bm, index, mapAddressing, newStart);
         }
 
 
     // Selectors
 
-        //- Return a pointer to a new patch created on freestore from
-        //  components
+        //- Return pointer to a new patch created on freestore from components
         static autoPtr<polyPatch> New
         (
             const word& patchType,
@@ -267,8 +285,7 @@ public:
             const polyBoundaryMesh& bm
         );
 
-        //- Return a pointer to a new patch created on freestore from
-        //  dictionary
+        //- Return pointer to a new patch created on freestore from dictionary
         static autoPtr<polyPatch> New
         (
             const word& name,
@@ -277,8 +294,7 @@ public:
             const polyBoundaryMesh& bm
         );
 
-        //- Return a pointer to a new patch created on freestore from
-        //  dictionary
+        //- Return pointer to a new patch created on freestore from dictionary
         static autoPtr<polyPatch> New
         (
             const word& patchType,
@@ -295,10 +311,63 @@ public:
 
     // Member Functions
 
+        // Implicit treatment functions
+
+            //- Return number of new internal of this polyPatch faces
+            virtual void newInternalProcFaces(label&, label&) const
+            {
+                NotImplemented;
+            }
+
+            //- Return nbrCells
+            virtual const labelUList& nbrCells() const
+            {
+                NotImplemented
+                return labelUList::null();
+            }
+
+            //- Return nbr patchID
+            virtual label neighbPolyPatchID() const
+            {
+                NotImplemented;
+                return -1;
+            }
+
+            //- Return mapped collocated faces
+            virtual refPtr<labelListList> mapCollocatedFaces() const
+            {
+                NotImplemented;
+                return nullptr;
+            }
+
+            //- Return implicit master
+            virtual bool masterImplicit() const
+            {
+                NotImplemented;
+                return false;
+            }
+
+            //- Return neighbour region name
+            virtual word neighbRegionID() const
+            {
+                return word("none");
+            }
+
+
+        //- The offset where this patch starts in the boundary face list
+        //  The value is the same as  patch.start() - mesh.nInternalFaces()
+        label offset() const;
+
         //- Return start label of this patch in the polyMesh face list
         label start() const
         {
             return start_;
+        }
+
+        //- Return start/size range of this patch
+        labelRange range() const
+        {
+            return labelRange(start_, this->size());
         }
 
         //- Return boundaryMesh reference
@@ -343,7 +412,7 @@ public:
 
 
         //- Write the polyPatch data as a dictionary
-        virtual void write(Ostream&) const;
+        virtual void write(Ostream& os) const;
 
 
         // Geometric data; point list required
@@ -356,6 +425,10 @@ public:
 
             //- Return face cell centres
             tmp<vectorField> faceCellCentres() const;
+
+            //- Return the area fraction as the ratio of the stored face area
+            //- and the area given by the face points
+            tmp<scalarField> areaFraction() const;
 
 
         // Addressing into mesh
@@ -396,8 +469,21 @@ public:
             labelList& rotation
         ) const;
 
+        //- For dynamic mesh cases - return true if this patch will change the
+        //- topology
+        virtual bool changeTopology() const
+        {
+            return false;
+        }
 
-    // Member operators
+        //- Collect topology changes in a polyTopoChange object
+        virtual bool setTopology(polyTopoChange&)
+        {
+            return false;
+        }
+
+
+    // Member Operators
 
         //- Assignment
         void operator=(const polyPatch&);
@@ -406,6 +492,19 @@ public:
     // Ostream Operator
 
         friend Ostream& operator<<(Ostream&, const polyPatch&);
+};
+
+
+// Global Functions
+
+//- The labelRange of a polyPatch
+template<>
+struct labelRangeOp<polyPatch>
+{
+    labelRange operator()(const polyPatch& pp) const
+    {
+        return pp.range();
+    }
 };
 
 

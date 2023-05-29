@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2014 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -28,7 +30,7 @@ License
 
 #include "specie.H"
 #include "perfectGas.H"
-#include "PengRobinsonGas.T.H"
+#include "PengRobinsonGas.H"
 #include "hConstThermo.H"
 #include "eConstThermo.H"
 #include "janafThermo.H"
@@ -45,6 +47,8 @@ License
 #include "hePsiThermo.H"
 #include "pureMixture.H"
 
+#include "thermoPhysicsTypes.H"
+
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 namespace Foam
@@ -52,7 +56,7 @@ namespace Foam
 
 /* * * * * * * * * * * * * * * * * Enthalpy-based * * * * * * * * * * * * * */
 
-makeThermo
+makeThermos
 (
     psiThermo,
     hePsiThermo,
@@ -64,7 +68,7 @@ makeThermo
     specie
 );
 
-makeThermo
+makeThermos
 (
     psiThermo,
     hePsiThermo,
@@ -76,7 +80,7 @@ makeThermo
     specie
 );
 
-makeThermo
+makeThermos
 (
     psiThermo,
     hePsiThermo,
@@ -88,7 +92,7 @@ makeThermo
     specie
 );
 
-makeThermo
+makeThermos
 (
     psiThermo,
     hePsiThermo,
@@ -100,7 +104,7 @@ makeThermo
     specie
 );
 
-makeThermo
+makeThermos
 (
     psiThermo,
     hePsiThermo,
@@ -112,7 +116,7 @@ makeThermo
     specie
 );
 
-makeThermo
+makeThermos
 (
     psiThermo,
     hePsiThermo,
@@ -124,7 +128,7 @@ makeThermo
     specie
 );
 
-makeThermo
+makeThermos
 (
     psiThermo,
     hePsiThermo,
@@ -139,7 +143,7 @@ makeThermo
 
 /* * * * * * * * * * * * * * Internal-energy-based * * * * * * * * * * * * * */
 
-makeThermo
+makeThermos
 (
     psiThermo,
     hePsiThermo,
@@ -151,7 +155,7 @@ makeThermo
     specie
 );
 
-makeThermo
+makeThermos
 (
     psiThermo,
     hePsiThermo,
@@ -163,7 +167,7 @@ makeThermo
     specie
 );
 
-makeThermo
+makeThermos
 (
     psiThermo,
     hePsiThermo,
@@ -175,7 +179,7 @@ makeThermo
     specie
 );
 
-makeThermo
+makeThermos
 (
     psiThermo,
     hePsiThermo,
@@ -187,7 +191,7 @@ makeThermo
     specie
 );
 
-makeThermo
+makeThermos
 (
     psiThermo,
     hePsiThermo,
@@ -199,7 +203,7 @@ makeThermo
     specie
 );
 
-makeThermo
+makeThermos
 (
     psiThermo,
     hePsiThermo,

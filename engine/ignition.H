@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -56,18 +59,18 @@ class ignition
 
         const fvMesh& mesh_;
 
-        Switch ignite_;
+        bool ignite_;
 
         PtrList<ignitionSite> ignSites_;
 
 
     // Private Member Functions
 
-        //- Disallow default bitwise copy construct
-        ignition(const ignition&);
+        //- No copy construct
+        ignition(const ignition&) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const ignition&);
+        //- No copy assignment
+        void operator=(const ignition&) = delete;
 
 
 public:

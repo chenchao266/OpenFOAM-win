@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2016-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2012-2017 OpenFOAM Foundation
+    Copyright (C) 2015-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -34,73 +37,40 @@ namespace Foam
 }
 
 
-// * * * * * * * * * * * * * Protected Data Members * * * * * * * * * * * * * //
+// * * * * * * * * * * * * * Static Member Functions * * * * * * * * * * * * //
 
-Foam::IOobject Foam::points0MotionSolver::points0IO
-(
-    const polyMesh& mesh
-) const
+Foam::IOobject Foam::points0MotionSolver::points0IO(const polyMesh& mesh)
 {
     const word instance =
-        time().findInstance
+        mesh.time().findInstance
         (
             mesh.meshDir(),
             "points0",
             IOobject::READ_IF_PRESENT
         );
+    IOobject io
+    (
+        "points0",
+        instance,
+        polyMesh::meshSubDir,
+        mesh,
+        IOobject::MUST_READ,
+        IOobject::NO_WRITE,
+        false
+    );
 
-    if (instance != time().constant())
+    // If points0 are located in constant directory, verify their existence
+    // or fallback to a copy of the original mesh points
+    if
+    (
+        instance == mesh.time().constant()
+     && !io.typeHeaderOk<pointIOField>()
+    )
     {
-        // points0 written to a time folder
-
-        return
-            IOobject
-            (
-                "points0",
-                instance,
-                polyMesh::meshSubDir,
-                mesh,
-                IOobject::MUST_READ,
-                IOobject::NO_WRITE,
-                false
-            );
+        io.rename("points");
     }
-    else
-    {
-        // check that points0 are actually in constant directory
 
-        IOobject io
-        (
-            "points0",
-            instance,
-            polyMesh::meshSubDir,
-            mesh,
-            IOobject::MUST_READ,
-            IOobject::NO_WRITE,
-            false
-        );
-
-        if (io.typeHeaderOk<pointIOField>())
-        {
-            return io;
-        }
-        else
-        {
-            // copy of original mesh points
-
-            return
-                IOobject
-                (
-                    "points",
-                    instance,
-                    polyMesh::meshSubDir,
-                    mesh,
-                    IOobject::MUST_READ,
-                    IOobject::NO_WRITE,
-                    false
-                );
-        }
-    }
+    return io;
 }
 
 
@@ -114,9 +84,18 @@ Foam::points0MotionSolver::points0MotionSolver
 )
 :
     motionSolver(mesh, dict, type),
-    points0_(pointIOField(points0IO(mesh)))
+    zoneMotion(dict, mesh),
+    points0_(points0IO(mesh))
 {
-    if (points0_.size() != mesh.nPoints())
+    if
+    (
+        FieldBase::allowConstructFromLargerSize
+     && (points0_.size() > mesh.nPoints())
+    )
+    {
+        // Allowed
+    }
+    else if (points0_.size() != mesh.nPoints())
     {
         FatalErrorInFunction
             << "Number of points in mesh " << mesh.nPoints()
@@ -135,6 +114,29 @@ Foam::points0MotionSolver::points0MotionSolver
                         false
                     )
                 )
+            << exit(FatalError);
+    }
+}
+
+
+Foam::points0MotionSolver::points0MotionSolver
+(
+    const polyMesh& mesh,
+    const IOdictionary& dict,
+    const pointIOField& points0,
+    const word& type
+)
+:
+    motionSolver(mesh, dict, type),
+    zoneMotion(dict, mesh),
+    points0_(points0)
+{
+    if (points0_.size() != mesh.nPoints())
+    {
+        FatalErrorInFunction
+            << "Number of points in mesh " << mesh.nPoints()
+            << " differs from number of points " << points0_.size()
+            << " read from file " << points0.filePath()
             << exit(FatalError);
     }
 }
@@ -203,8 +205,8 @@ void Foam::points0MotionSolver::updateMesh(const mapPolyMesh& mpm)
         else
         {
             FatalErrorInFunction
-                << "Cannot determine co-ordinates of introduced vertices."
-                << " New vertex " << pointi << " at co-ordinate "
+                << "Cannot determine coordinates of introduced vertices."
+                << " New vertex " << pointi << " at coordinate "
                 << points[pointi] << exit(FatalError);
         }
     }
@@ -215,7 +217,7 @@ void Foam::points0MotionSolver::updateMesh(const mapPolyMesh& mpm)
 
     // points0 changed - set to write and check-in to database
     points0_.rename("points0");
-    points0_.writeOpt() = IOobject::AUTO_WRITE;
+    points0_.writeOpt(IOobject::AUTO_WRITE);
     points0_.instance() = time().timeName();
     points0_.checkIn();
 }

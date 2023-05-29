@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -183,7 +186,7 @@ thermalBaffleModel::thermalBaffleModel(const fvMesh& mesh)
 :
     regionModel1D(mesh, "thermalBaffle"),
     thickness_(),
-    delta_("delta", dimLength, 0.0),
+    delta_("delta", dimLength, Zero),
     oneD_(false),
     constantThickness_(true)
 {}
@@ -199,9 +202,9 @@ thermalBaffleModel::thermalBaffleModel
 :
     regionModel1D(mesh, "thermalBaffle", modelType, dict, true),
     thickness_(),
-    delta_("delta", dimLength, 0.0),
+    delta_("delta", dimLength, Zero),
     oneD_(false),
-    constantThickness_(dict.lookupOrDefault<bool>("constantThickness", true))
+    constantThickness_(dict.getOrDefault("constantThickness", true))
 {
     init();
 }
@@ -215,9 +218,9 @@ thermalBaffleModel::thermalBaffleModel
 :
     regionModel1D(mesh, "thermalBaffle", modelType),
     thickness_(),
-    delta_("delta", dimLength, 0.0),
+    delta_("delta", dimLength, Zero),
     oneD_(false),
-    constantThickness_(lookupOrDefault<bool>("constantThickness", true))
+    constantThickness_(getOrDefault("constantThickness", true))
 {
     init();
 }

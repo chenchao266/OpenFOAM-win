@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2016-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -24,6 +26,9 @@ License
 Class
     Foam::RBD::joints::composite
 
+Group
+    grpRigidBodyDynamicsJoints
+
 Description
     Prismatic joint for translation along the specified arbitrary axis.
 
@@ -40,8 +45,8 @@ SourceFiles
 
 \*---------------------------------------------------------------------------*/
 
-#ifndef compositeJoint_H
-#define compositeJoint_H
+#ifndef RBD_joints_composite_H
+#define RBD_joints_composite_H
 
 #include "joint.H"
 

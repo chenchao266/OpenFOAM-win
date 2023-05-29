@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2015 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2015 OpenFOAM Foundation
+    Copyright (C) 2017-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -26,180 +29,259 @@ License
 #include "error.H"
 #include "UIPstream.H"
 #include "int.H"
-#include "token.T.H"
+#include "token.H"
 #include <cctype>
+
+// * * * * * * * * * * * * * * * Local Functions * * * * * * * * * * * * * * //
+
+namespace Foam
+{
+
+// Convert a single character to a word with length 1
+inline static word charToWord(char c)
+{
+    return word(std::string(1, c), false);
+}
+
+
+// Adjust stream format based on the flagMask
+inline static void processFlags(Istream& is, int flagMask)
+{
+    if ((flagMask & token::ASCII))
+    {
+        is.format(IOstream::ASCII);
+    }
+    else if ((flagMask & token::BINARY))
+    {
+        is.format(IOstream::BINARY);
+    }
+}
+
+
+// Return the position with word boundary alignment
+inline static label byteAlign(const label pos, const size_t align)
+{
+    return
+    (
+        (align > 1)
+      ? (align + ((pos - 1) & ~(align - 1)))
+      : pos
+    );
+}
+
+} // End namespace Foam
 
 
 // * * * * * * * * * * * * * Private Member Functions  * * * * * * * * * * * //
-namespace Foam {
-    inline void UIPstream::checkEof()
+
+
+ namespace Foam{
+inline void UIPstream::checkEof()
+{
+    if (recvBufPos_ == messageSize_)
     {
-        if (externalBufPosition_ == messageSize_)
-        {
-            setEof();
-        }
+        setEof();
+    }
+}
+
+
+inline void UIPstream::prepareBuffer(const size_t align)
+{
+    recvBufPos_ = byteAlign(recvBufPos_, align);
+}
+
+
+template<class T>
+inline void UIPstream::readFromBuffer(T& val)
+{
+    prepareBuffer(sizeof(T));
+
+    val = reinterpret_cast<T&>(recvBuf_[recvBufPos_]);
+    recvBufPos_ += sizeof(T);
+    checkEof();
+}
+
+
+inline void UIPstream::readFromBuffer
+(
+    void* data,
+    const size_t count
+)
+{
+    const char* const __restrict__ buf = &recvBuf_[recvBufPos_];
+    char* const __restrict__ output = reinterpret_cast<char*>(data);
+
+    for (size_t i = 0; i < count; ++i)
+    {
+        output[i] = buf[i];
     }
 
+    recvBufPos_ += count;
+    checkEof();
+}
 
-    template<class T>
-    inline void UIPstream::readFromBuffer(T& t)
+
+inline Istream& UIPstream::readString(std::string& str)
+{
+    // Use std::string::assign() to copy content, including '\0'.
+    // Stripping (when desired) is the responsibility of the sending side.
+
+    size_t len;
+    readFromBuffer(len);
+
+    if (len)
     {
-        const size_t align = sizeof(T);
-        externalBufPosition_ = align + ((externalBufPosition_ - 1) & ~(align - 1));
-
-        t = reinterpret_cast<T&>(externalBuf_[externalBufPosition_]);
-        externalBufPosition_ += sizeof(T);
+        str.assign(&recvBuf_[recvBufPos_], len);
+        recvBufPos_ += len;
         checkEof();
     }
-
-
-    inline void UIPstream::readFromBuffer
-    (
-        void* data,
-        size_t count,
-        size_t align
-    )
+    else
     {
-        if (align > 1)
-        {
-            externalBufPosition_ =
-                align
-                + ((externalBufPosition_ - 1) & ~(align - 1));
-        }
-
-        const char* bufPtr = &externalBuf_[externalBufPosition_];
-        char* dataPtr = reinterpret_cast<char*>(data);
-        size_t i = count;
-        while (i--) *dataPtr++ = *bufPtr++;
-        externalBufPosition_ += count;
-        checkEof();
+        str.clear();
     }
 
+    return *this;
+}
 
-    // * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
 
-    UIPstream::~UIPstream()
+// * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
+
+UIPstream::~UIPstream()
+{
+    if (clearAtEnd_ && eof())
     {
-        if (clearAtEnd_ && eof())
+        if (debug)
         {
-            if (debug)
-            {
-                Pout << "UIPstream::~UIPstream() : tag:" << tag_
-                    << " fromProcNo:" << fromProcNo_
-                    << " clearing externalBuf_ of size "
-                    << externalBuf_.size()
-                    << " messageSize_:" << messageSize_ << endl;
-            }
-            externalBuf_.clearStorage();
+            Pout<< "UIPstream::~UIPstream() : tag:" << tag_
+                << " fromProcNo:" << fromProcNo_
+                << " clearing receive buffer of size "
+                << recvBuf_.size()
+                << " messageSize_:" << messageSize_ << endl;
         }
+        recvBuf_.clearStorage();
     }
+}
 
 
-    // * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * * //
+// * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * * //
 
-    Istream& UIPstream::read(token& t)
+Istream& UIPstream::read(token& t)
+{
+    // Return the put back token if it exists
+    // - with additional handling for special stream flags
+    if (Istream::getBack(t))
     {
-        // Return the put back token if it exists
-        if (Istream::getBack(t))
+        if (t.isFlag())
+        {
+            processFlags(*this, t.flagToken());
+        }
+        else
         {
             return *this;
         }
+    }
 
-        char c;
+    // Read character, return on error
+    // - with additional handling for special stream flags
 
-        // return on error
+    char c;
+    do
+    {
         if (!read(c))
         {
-            t.setBad();
+            t.setBad();   // Error
             return *this;
         }
 
-        // Set the line number of this token to the current stream line number
-        t.lineNumber() = lineNumber();
-
-        // Analyse input starting with this character.
-        switch (c)
+        if (c == token::FLAG)
         {
-            // Punctuation
-        case token::END_STATEMENT:
-        case token::BEGIN_LIST:
-        case token::END_LIST:
-        case token::BEGIN_SQR:
-        case token::END_SQR:
-        case token::BEGIN_BLOCK:
-        case token::END_BLOCK:
-        case token::COLON:
-        case token::COMMA:
-        case token::ASSIGN:
-        case token::ADD:
-        case token::SUBTRACT:
-        case token::MULTIPLY:
-        case token::DIVIDE:
+            char flagVal;
+
+            if (read(flagVal))
+            {
+                processFlags(*this, flagVal);
+            }
+            else
+            {
+                t.setBad();   // Error
+                return *this;
+            }
+        }
+    }
+    while (c == token::FLAG);
+
+
+    // Set the line number of this token to the current stream line number
+    t.lineNumber(this->lineNumber());
+
+    // Analyse input starting with this character.
+    switch (c)
+    {
+        // Punctuation
+        case token::END_STATEMENT :
+        case token::BEGIN_LIST :
+        case token::END_LIST :
+        case token::BEGIN_SQR :
+        case token::END_SQR :
+        case token::BEGIN_BLOCK :
+        case token::END_BLOCK :
+        case token::COLON :
+        case token::COMMA :
+        case token::ASSIGN :
+        case token::PLUS :
+        case token::MINUS :
+        case token::MULTIPLY :
+        case token::DIVIDE :
         {
             t = token::punctuationToken(c);
             return *this;
         }
 
-        // Word
-        case token::WORD:
+        // The word-variants
+        case token::tokenType::WORD :
+        case token::tokenType::DIRECTIVE :
         {
-            word* pval = new word;
-            if (read(*pval))
+            word val;
+            if (readString(val))
             {
-                if (token::compound::isCompound(*pval))
+                if (token::compound::isCompound(val))
                 {
-                    t = token::compound::New(*pval, *this).ptr();
-                    delete pval;
+                    t = token::compound::New(val, *this).ptr();
                 }
                 else
                 {
-                    t = pval;
+                    t = std::move(val);
+                    t.setType(token::tokenType(c));
                 }
             }
             else
             {
-                delete pval;
                 t.setBad();
             }
             return *this;
         }
 
-        // String
-        case token::VERBATIMSTRING:
+        // The string-variants
+        case token::tokenType::STRING :
+        case token::tokenType::EXPRESSION :
+        case token::tokenType::VARIABLE :
+        case token::tokenType::VERBATIM :
         {
-            // Recurse to read actual string
-            read(t);
-            t.type() = token::VERBATIMSTRING;
-            return *this;
-        }
-        case token::VARIABLE:
-        {
-            // Recurse to read actual string
-            read(t);
-            t.type() = token::VARIABLE;
-            return *this;
-        }
-        case token::STRING:
-        {
-            string* pval = new string;
-            if (read(*pval))
+            string val;
+            if (readString(val))
             {
-                t = pval;
-                if (c == token::VERBATIMSTRING)
-                {
-                    t.type() = token::VERBATIMSTRING;
-                }
+                t = std::move(val);
+                t.setType(token::tokenType(c));
             }
             else
             {
-                delete pval;
                 t.setBad();
             }
             return *this;
         }
 
         // Label
-        case token::LABEL:
+        case token::tokenType::LABEL :
         {
             label val;
             if (read(val))
@@ -213,8 +295,8 @@ namespace Foam {
             return *this;
         }
 
-        // floatScalar
-        case token::FLOAT_SCALAR:
+        // Float
+        case token::tokenType::FLOAT :
         {
             floatScalar val;
             if (read(val))
@@ -228,8 +310,8 @@ namespace Foam {
             return *this;
         }
 
-        // doubleScalar
-        case token::DOUBLE_SCALAR:
+        // Double
+        case token::tokenType::DOUBLE :
         {
             doubleScalar val;
             if (read(val))
@@ -248,7 +330,7 @@ namespace Foam {
         {
             if (isalpha(c))
             {
-                t = word(c);
+                t = charToWord(c);
                 return *this;
             }
 
@@ -257,90 +339,111 @@ namespace Foam {
 
             return *this;
         }
-        }
     }
-
-
-    Istream& UIPstream::read(char& c)
-    {
-        c = externalBuf_[externalBufPosition_];
-        externalBufPosition_++;
-        checkEof();
-        return *this;
-    }
-
-
-    Istream& UIPstream::read(word& str)
-    {
-        size_t len;
-        readFromBuffer(len);
-        str = &externalBuf_[externalBufPosition_];
-        externalBufPosition_ += len + 1;
-        checkEof();
-        return *this;
-    }
-
-
-    Istream& UIPstream::read(string& str)
-    {
-        size_t len;
-        readFromBuffer(len);
-        str = &externalBuf_[externalBufPosition_];
-        externalBufPosition_ += len + 1;
-        checkEof();
-        return *this;
-    }
-
-
-    Istream& UIPstream::read(label& val)
-    {
-        readFromBuffer(val);
-        return *this;
-    }
-
-
-    Istream& UIPstream::read(floatScalar& val)
-    {
-        readFromBuffer(val);
-        return *this;
-    }
-
-
-    Istream& UIPstream::read(doubleScalar& val)
-    {
-        readFromBuffer(val);
-        return *this;
-    }
-
-
-    Istream& UIPstream::read(char* data, std::streamsize count)
-    {
-        if (format() != BINARY)
-        {
-            FatalErrorInFunction
-                << "stream format not binary"
-                << ::Foam::abort(FatalError);
-        }
-
-        readFromBuffer(data, count, 8);
-        return *this;
-    }
-
-
-    Istream& UIPstream::rewind()
-    {
-        externalBufPosition_ = 0;
-        return *this;
-    }
-
-
-    void UIPstream::print(Ostream& os) const
-    {
-        os << "Reading from processor " << fromProcNo_
-            << " using communicator " << comm_
-            << " and tag " << tag_
-            << endl;
-    }
-
 }
+
+
+Istream& UIPstream::read(char& c)
+{
+    c = recvBuf_[recvBufPos_];
+    ++recvBufPos_;
+    checkEof();
+    return *this;
+}
+
+
+Istream& UIPstream::read(word& str)
+{
+    return readString(str);
+}
+
+
+Istream& UIPstream::read(string& str)
+{
+    return readString(str);
+}
+
+
+Istream& UIPstream::read(label& val)
+{
+    readFromBuffer(val);
+    return *this;
+}
+
+
+Istream& UIPstream::read(floatScalar& val)
+{
+    readFromBuffer(val);
+    return *this;
+}
+
+
+Istream& UIPstream::read(doubleScalar& val)
+{
+    readFromBuffer(val);
+    return *this;
+}
+
+
+Istream& UIPstream::read(char* data, std::streamsize count)
+{
+    if (count)
+    {
+        // For count == 0, a no-op
+        // - see UOPstream::write(const char*, streamsize)
+        beginRawRead();
+        readRaw(data, count);
+        endRawRead();
+    }
+
+    return *this;
+}
+
+
+Istream& UIPstream::readRaw(char* data, std::streamsize count)
+{
+    // No check for format() == BINARY since this is either done in the
+    // beginRawRead() method, or the caller knows what they are doing.
+
+    // Any alignment must have been done prior to this call
+    readFromBuffer(data, count);
+    return *this;
+}
+
+
+bool UIPstream::beginRawRead()
+{
+    if (format() != BINARY)
+    {
+        FatalErrorInFunction
+            << "stream format not binary"
+            << ::Foam::abort(FatalError);
+    }
+
+    // Align on word boundary (64-bit)
+    // - as per read(const char*, streamsize)
+    // The check for zero-size will have been done by the caller
+    prepareBuffer(8);
+
+    return true;
+}
+
+
+void UIPstream::rewind()
+{
+    recvBufPos_ = 0;
+}
+
+
+void UIPstream::print(Ostream& os) const
+{
+    os  << "Reading from processor " << fromProcNo_
+        << " using communicator " << comm_
+        <<  " and tag " << tag_
+        << endl;
+}
+
+
 // ************************************************************************* //
+
+ } // End namespace Foam

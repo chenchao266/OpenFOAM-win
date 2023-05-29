@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -23,14 +26,14 @@ License
 
 \*---------------------------------------------------------------------------*/
 
-#include "tensor.H"
+#include "tensor2.H"
 #include "cubicEqn.H"
 #include "mathematicalConstants.H"
-
-using namespace Foam::constant::mathematical;
- 
-// * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
 namespace Foam {
+    using namespace constant::mathematical;
+
+    // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
+
     template<>
     const char* const tensor::vsType::typeName = "tensor";
 
@@ -43,22 +46,22 @@ namespace Foam {
     };
 
     template<>
-    const tensor tensor::vsType::_zero(tensor::uniform(0));
+    const tensor tensor::vsType::zero_(tensor::uniform(0));
 
     template<>
-    const tensor tensor::vsType::one(tensor::uniform(1));
+    const tensor tensor::vsType::one_(tensor::uniform(1));
 
     template<>
-    const tensor tensor::vsType::max(tensor::uniform(VGREAT));
+    const tensor tensor::vsType::max_(tensor::uniform(VGREAT));
 
     template<>
-    const tensor tensor::vsType::min(tensor::uniform(-VGREAT));
+    const tensor tensor::vsType::min_(tensor::uniform(-VGREAT));
 
     template<>
-    const tensor tensor::vsType::rootMax(tensor::uniform(ROOTVGREAT));
+    const tensor tensor::vsType::rootMax_(tensor::uniform(ROOTVGREAT));
 
     template<>
-    const tensor tensor::vsType::rootMin(tensor::uniform(-ROOTVGREAT));
+    const tensor tensor::vsType::rootMin_(tensor::uniform(-ROOTVGREAT));
 
     template<>
     const tensor tensor::I
@@ -71,130 +74,173 @@ namespace Foam {
 
     // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
-    vector eigenValues(const tensor& t)
+    Vector<complex> eigenValues(const tensor& T)
     {
+        // Return diagonal if T is effectively diagonal tensor
+        if
+            (
+            (
+                sqr(T.xy()) + sqr(T.xz()) + sqr(T.yz())
+                + sqr(T.yx()) + sqr(T.zx()) + sqr(T.zy())
+                ) < ROOTSMALL
+                )
+        {
+            return Vector<complex>
+                (
+                    complex(T.xx()), complex(T.yy()), complex(T.zz())
+                    );
+        }
+
         // Coefficients of the characteristic cubic polynomial (a = 1)
-        const scalar b =
-            -t.xx() - t.yy() - t.zz();
+        const scalar b = -T.xx() - T.yy() - T.zz();
         const scalar c =
-            t.xx()*t.yy() + t.xx()*t.zz() + t.yy()*t.zz()
-            - t.xy()*t.yx() - t.yz()*t.zy() - t.zx()*t.xz();
+            T.xx()*T.yy() + T.xx()*T.zz() + T.yy()*T.zz()
+            - T.xy()*T.yx() - T.yz()*T.zy() - T.zx()*T.xz();
         const scalar d =
-            -t.xx()*t.yy()*t.zz()
-            - t.xy()*t.yz()*t.zx() - t.xz()*t.zy()*t.yx()
-            + t.xx()*t.yz()*t.zy() + t.yy()*t.zx()*t.xz() + t.zz()*t.xy()*t.yx();
+            -T.xx()*T.yy()*T.zz()
+            - T.xy()*T.yz()*T.zx() - T.xz()*T.zy()*T.yx()
+            + T.xx()*T.yz()*T.zy() + T.yy()*T.zx()*T.xz() + T.zz()*T.xy()*T.yx();
 
-        // Solve
-        Roots<3> roots = cubicEqn(1, b, c, d).roots();
-
+        // Determine the roots of the characteristic cubic polynomial
+        const Roots<3> roots(cubicEqn(1, b, c, d).roots());
         // Check the root types
-        vector lambda = vector::_zero;
+        bool isComplex = false;
         forAll(roots, i)
         {
             switch (roots.type(i))
             {
-            case roots::real:
-                lambda[i] = roots[i];
-                break;
             case roots::complex:
-                WarningInFunction
-                    << "Complex eigenvalues detected for tensor: " << t
-                    << endl;
-                lambda[i] = 0;
+                isComplex = true;
                 break;
             case roots::posInf:
-                lambda[i] = VGREAT;
-                break;
             case roots::negInf:
-                lambda[i] = -VGREAT;
-                break;
             case roots::nan:
-                FatalErrorInFunction
-                    << "Eigenvalue calculation failed for tensor: " << t
-                    << exit(FatalError);
+                WarningInFunction
+                    << "Eigenvalue computation fails for tensor: " << T
+                    << "due to the not-a-number root = " << roots[i]
+                    << endl;
+            case roots::real:
+                break;
             }
         }
 
-        // Sort the eigenvalues into ascending order
-        if (lambda.x() > lambda.y())
+        if (isComplex)
         {
-            Swap(lambda.x(), lambda.y());
-        }
-        if (lambda.y() > lambda.z())
-        {
-            Swap(lambda.y(), lambda.z());
-        }
-        if (lambda.x() > lambda.y())
-        {
-            Swap(lambda.x(), lambda.y());
+            return
+                Vector<complex>
+                (
+                    complex(roots[0], 0),
+                    complex(roots[1], roots[2]),
+                    complex(roots[1], -roots[2])
+                    );
         }
 
-        return lambda;
+        return
+            Vector<complex>
+            (
+                complex(roots[0], 0),
+                complex(roots[1], 0),
+                complex(roots[2], 0)
+                );
     }
 
 
-    vector eigenVector
+    Vector<complex> eigenVector
     (
         const tensor& T,
-        const scalar lambda,
-        const vector& direction1,
-        const vector& direction2
+        const complex& eVal,
+        const Vector<complex>& standardBasis1,
+        const Vector<complex>& standardBasis2
     )
     {
-        // Construct the linear system for this eigenvalue
-        tensor A(T - lambda * I);
+        // Construct the characteristic equation system for this eigenvalue
+        Tensor<complex> A(Zero);
+        forAll(A, i)
+        {
+            A[i] = complex(T[i], 0);
+        }
+        A.xx() -= eVal;
+        A.yy() -= eVal;
+        A.zz() -= eVal;
 
         // Determinants of the 2x2 sub-matrices used to find the eigenvectors
-        scalar sd0, sd1, sd2;
-        scalar magSd0, magSd1, magSd2;
-
-        // Sub-determinants for a unique eivenvalue
-        sd0 = A.yy()*A.zz() - A.yz()*A.zy();
-        sd1 = A.zz()*A.xx() - A.zx()*A.xz();
-        sd2 = A.xx()*A.yy() - A.xy()*A.yx();
-        magSd0 = mag(sd0);
-        magSd1 = mag(sd1);
-        magSd2 = mag(sd2);
+        // Sub-determinants for a unique eigenvenvalue
+        complex sd0 = A.yy()*A.zz() - A.yz()*A.zy();
+        complex sd1 = A.zz()*A.xx() - A.zx()*A.xz();
+        complex sd2 = A.xx()*A.yy() - A.xy()*A.yx();
+        scalar magSd0 = mag(sd0);
+        scalar magSd1 = mag(sd1);
+        scalar magSd2 = mag(sd2);
 
         // Evaluate the eigenvector using the largest sub-determinant
         if (magSd0 >= magSd1 && magSd0 >= magSd2 && magSd0 > SMALL)
         {
-            vector ev
+            const Vector<complex> eVec
             (
-                1,
+                complex(1, 0),
                 (A.yz()*A.zx() - A.zz()*A.yx()) / sd0,
                 (A.zy()*A.yx() - A.yy()*A.zx()) / sd0
             );
 
-            return ev / mag(ev);
+#ifdef FULLDEBUG
+            if (mag(eVec) < SMALL)
+            {
+                FatalErrorInFunction
+                    << "Eigenvector magnitude should be non-zero:"
+                    << "mag(eigenvector) = " << mag(eVec)
+                    << abort(FatalError);
+            }
+#endif
+
+            return eVec / mag(eVec);
         }
         else if (magSd1 >= magSd2 && magSd1 > SMALL)
         {
-            vector ev
+            const Vector<complex> eVec
             (
                 (A.xz()*A.zy() - A.zz()*A.xy()) / sd1,
-                1,
+                complex(1, 0),
                 (A.zx()*A.xy() - A.xx()*A.zy()) / sd1
             );
 
-            return ev / mag(ev);
+#ifdef FULLDEBUG
+            if (mag(eVec) < SMALL)
+            {
+                FatalErrorInFunction
+                    << "Eigenvector magnitude should be non-zero:"
+                    << "mag(eigenvector) = " << mag(eVec)
+                    << abort(FatalError);
+            }
+#endif
+
+            return eVec / mag(eVec);
         }
         else if (magSd2 > SMALL)
         {
-            vector ev
+            const Vector<complex> eVec
             (
                 (A.xy()*A.yz() - A.yy()*A.xz()) / sd2,
                 (A.yx()*A.xz() - A.xx()*A.yz()) / sd2,
-                1
+                complex(1, 0)
             );
 
-            return ev / mag(ev);
+#ifdef FULLDEBUG
+            if (mag(eVec) < SMALL)
+            {
+                FatalErrorInFunction
+                    << "Eigenvector magnitude should be non-zero:"
+                    << "mag(eigenvector) = " << mag(eVec)
+                    << abort(FatalError);
+            }
+#endif
+
+            return eVec / mag(eVec);
         }
 
         // Sub-determinants for a repeated eigenvalue
-        sd0 = A.yy()*direction1.z() - A.yz()*direction1.y();
-        sd1 = A.zz()*direction1.x() - A.zx()*direction1.z();
-        sd2 = A.xx()*direction1.y() - A.xy()*direction1.x();
+        sd0 = A.yy()*standardBasis1.z() - A.yz()*standardBasis1.y();
+        sd1 = A.zz()*standardBasis1.x() - A.zx()*standardBasis1.z();
+        sd2 = A.xx()*standardBasis1.y() - A.xy()*standardBasis1.x();
         magSd0 = mag(sd0);
         magSd1 = mag(sd1);
         magSd2 = mag(sd2);
@@ -202,90 +248,96 @@ namespace Foam {
         // Evaluate the eigenvector using the largest sub-determinant
         if (magSd0 >= magSd1 && magSd0 >= magSd2 && magSd0 > SMALL)
         {
-            vector ev
+            const Vector<complex> eVec
             (
-                1,
-                (A.yz()*direction1.x() - direction1.z()*A.yx()) / sd0,
-                (direction1.y()*A.yx() - A.yy()*direction1.x()) / sd0
+                complex(1, 0),
+                (A.yz()*standardBasis1.x() - standardBasis1.z()*A.yx()) / sd0,
+                (standardBasis1.y()*A.yx() - A.yy()*standardBasis1.x()) / sd0
             );
 
-            return ev / mag(ev);
+#ifdef FULLDEBUG
+            if (mag(eVec) < SMALL)
+            {
+                FatalErrorInFunction
+                    << "Eigenvector magnitude should be non-zero:"
+                    << "mag(eigenvector) = " << mag(eVec)
+                    << abort(FatalError);
+            }
+#endif
+
+            return eVec / mag(eVec);
         }
         else if (magSd1 >= magSd2 && magSd1 > SMALL)
         {
-            vector ev
+            const Vector<complex> eVec
             (
-                (direction1.z()*A.zy() - A.zz()*direction1.y()) / sd1,
-                1,
-                (A.zx()*direction1.y() - direction1.x()*A.zy()) / sd1
+                (standardBasis1.z()*A.zy() - A.zz()*standardBasis1.y()) / sd1,
+                complex(1, 0),
+                (A.zx()*standardBasis1.y() - standardBasis1.x()*A.zy()) / sd1
             );
 
-            return ev / mag(ev);
+#ifdef FULLDEBUG
+            if (mag(eVec) < SMALL)
+            {
+                FatalErrorInFunction
+                    << "Eigenvector magnitude should be non-zero:"
+                    << "mag(eigenvector) = " << mag(eVec)
+                    << abort(FatalError);
+            }
+#endif
+
+            return eVec / mag(eVec);
         }
         else if (magSd2 > SMALL)
         {
-            vector ev
+            const Vector<complex> eVec
             (
-                (A.xy()*direction1.z() - direction1.y()*A.xz()) / sd2,
-                (direction1.x()*A.xz() - A.xx()*direction1.z()) / sd2,
-                1
+                (A.xy()*standardBasis1.z() - standardBasis1.y()*A.xz()) / sd2,
+                (standardBasis1.x()*A.xz() - A.xx()*standardBasis1.z()) / sd2,
+                complex(1, 0)
             );
 
-            return ev / mag(ev);
+#ifdef FULLDEBUG
+            if (mag(eVec) < SMALL)
+            {
+                FatalErrorInFunction
+                    << "Eigenvector magnitude should be non-zero:"
+                    << "mag(eigenvector) = " << mag(eVec)
+                    << abort(FatalError);
+            }
+#endif
+
+            return eVec / mag(eVec);
         }
 
         // Triple eigenvalue
-        return direction1 ^ direction2;
+        return standardBasis1 ^ standardBasis2;
     }
 
 
-    tensor eigenVectors(const tensor& T, const vector& lambdas)
-    {
-        vector Ux(1, 0, 0), Uy(0, 1, 0), Uz(0, 0, 1);
-
-        Ux = eigenVector(T, lambdas.x(), Uy, Uz);
-        Uy = eigenVector(T, lambdas.y(), Uz, Ux);
-        Uz = eigenVector(T, lambdas.z(), Ux, Uy);
-
-        return tensor(Ux, Uy, Uz);
-    }
-
-
-    tensor eigenVectors(const tensor& T)
-    {
-        const vector lambdas(eigenValues(T));
-
-        return eigenVectors(T, lambdas);
-    }
-
-
-    vector eigenValues(const symmTensor& T)
-    {
-        return eigenValues(tensor(T));
-    }
-
-
-    vector eigenVector
+    Tensor<complex> eigenVectors
     (
-        const symmTensor& T,
-        const scalar lambda,
-        const vector& direction1,
-        const vector& direction2
+        const tensor& T,
+        const Vector<complex>& eVals
     )
     {
-        return eigenVector(tensor(T), lambda, direction1, direction2);
+        Vector<complex> Ux(complex(1, 0), Zero, Zero);
+        Vector<complex> Uy(Zero, complex(1, 0), Zero);
+        Vector<complex> Uz(Zero, Zero, complex(1, 0));
+
+        Ux = eigenVector(T, eVals.x(), Uy, Uz);
+        Uy = eigenVector(T, eVals.y(), Uz, Ux);
+        Uz = eigenVector(T, eVals.z(), Ux, Uy);
+
+        return Tensor<complex>(Ux, Uy, Uz);
     }
 
 
-    tensor eigenVectors(const symmTensor& T, const vector& lambdas)
+    Tensor<complex> eigenVectors(const tensor& T)
     {
-        return eigenVectors(tensor(T), lambdas);
-    }
+        const Vector<complex> eVals(eigenValues(T));
 
-
-    tensor eigenVectors(const symmTensor& T)
-    {
-        return eigenVectors(tensor(T));
+        return eigenVectors(T, eVals);
     }
 
 }

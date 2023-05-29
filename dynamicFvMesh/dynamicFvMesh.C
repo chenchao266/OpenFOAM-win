@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2012 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2012 OpenFOAM Foundation
+    Copyright (C) 2018-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -29,66 +32,153 @@ License
 
 namespace Foam
 {
-defineTypeNameAndDebug(dynamicFvMesh, 0);
+    defineTypeNameAndDebug(dynamicFvMesh, 0);
+    defineRunTimeSelectionTable(dynamicFvMesh, IOobject);
+    defineRunTimeSelectionTable(dynamicFvMesh, doInit);
+}
 
-defineRunTimeSelectionTable(dynamicFvMesh, IOobject);
+
+// * * * * * * * * * * * * * Private Member Functions  * * * * * * * * * * * //
+
+void Foam::dynamicFvMesh::readDict()
+{
+    IOobject dictHeader
+    (
+        "dynamicMeshDict",
+        thisDb().time().constant(),
+        thisDb(),
+        IOobject::MUST_READ_IF_MODIFIED,
+        IOobject::NO_WRITE,
+        false // Do not register
+    );
+
+    if (dictHeader.typeHeaderOk<IOdictionary>(false, false))
+    {
+        IOdictionary dict(dictHeader);
+        timeControl_.read(dict);
+
+        if (!timeControl_.always())
+        {
+            // Feedback about the trigger mechanism
+            Info<< "Controlled mesh update triggered on "
+                << timeControl_.type() << " interval "
+                << timeControl_.interval() << nl;
+        }
+    }
+    else
+    {
+        // Ensure it is indeed pass-through
+        timeControl_.clear();
+    }
 }
 
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
-Foam::dynamicFvMesh::dynamicFvMesh(const IOobject& io)
+Foam::dynamicFvMesh::dynamicFvMesh(const IOobject& io, const bool doInit)
 :
-    fvMesh(io)
-{}
+    fvMesh(io, doInit),
+    timeControl_(io.time(), "update")   // assume has no side effects
+{
+    if (doInit)
+    {
+        init(false);    // do not initialise lower levels
+    }
+}
+
+
+bool Foam::dynamicFvMesh::init(const bool doInit)
+{
+    if (doInit)
+    {
+        fvMesh::init(doInit);
+    }
+
+    readDict();
+
+    // Assume something changed
+    return true;
+}
 
 
 Foam::dynamicFvMesh::dynamicFvMesh
 (
     const IOobject& io,
-    const Xfer<pointField>& points,
-    const Xfer<faceList>& faces,
-    const Xfer<labelList>& allOwner,
-    const Xfer<labelList>& allNeighbour,
+    const zero,
+    const bool syncPar
+)
+:
+    fvMesh(io, Zero, syncPar),
+    timeControl_(io.time(), "update")
+{
+    readDict();
+}
+
+
+Foam::dynamicFvMesh::dynamicFvMesh
+(
+    const IOobject& io,
+    pointField&& points,
+    faceList&& faces,
+    labelList&& allOwner,
+    labelList&& allNeighbour,
     const bool syncPar
 )
 :
     fvMesh
     (
         io,
-        points,
-        faces,
-        allOwner,
-        allNeighbour,
+        std::move(points),
+        std::move(faces),
+        std::move(allOwner),
+        std::move(allNeighbour),
         syncPar
-    )
-{}
+    ),
+    timeControl_(io.time(), "update")
+{
+    readDict();
+}
 
 
 Foam::dynamicFvMesh::dynamicFvMesh
 (
     const IOobject& io,
-    const Xfer<pointField>& points,
-    const Xfer<faceList>& faces,
-    const Xfer<cellList>& cells,
+    pointField&& points,
+    faceList&& faces,
+    cellList&& cells,
     const bool syncPar
 )
 :
     fvMesh
     (
         io,
-        points,
-        faces,
-        cells,
+        std::move(points),
+        std::move(faces),
+        std::move(cells),
         syncPar
-    )
-{}
+    ),
+    timeControl_(io.time(), "update")
+{
+    readDict();
+}
 
 
-// * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
+bool Foam::dynamicFvMesh::controlledUpdate()
+{
+    if (timeControl_.execute())
+    {
+        if (!timeControl_.always())
+        {
+            // Feedback that update has been triggered
+            Info<< "Mesh update triggered based on "
+                << timeControl_.type() << nl;
+        }
 
-Foam::dynamicFvMesh::~dynamicFvMesh()
-{}
+        return this->update();
+    }
+
+    return false;
+}
 
 
 // ************************************************************************* //

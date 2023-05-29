@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -109,12 +111,12 @@ public:
 
         //- Sum vol field contributions to create face values
         template<class Type>
-        static tmp<surfaceFieldType<Type>>
+        static tmp<GeometricField<Type, fvsPatchField, surfaceMesh>>
         weightedSum
         (
             const mapDistribute& map,
             const labelListList& stencil,
-            const volFieldType<Type>& fld,
+            const GeometricField<Type, fvPatchField, volMesh>& fld,
             const List<List<scalar>>& stencilWeights
         );
 };

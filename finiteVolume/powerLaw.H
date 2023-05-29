@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2012-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2012-2017 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -43,8 +45,8 @@ SourceFiles
 
 \*---------------------------------------------------------------------------*/
 
-#ifndef powerLaw_H
-#define powerLaw_H
+#ifndef porosityModels_powerLaw_H
+#define porosityModels_powerLaw_H
 
 #include "porosityModel.H"
 
@@ -96,11 +98,11 @@ class powerLaw
             const vectorField& U
         ) const;
 
-        //- Disallow default bitwise copy construct
-        powerLaw(const powerLaw&);
+        //- No copy construct
+        powerLaw(const powerLaw&) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const powerLaw&);
+        //- No copy assignment
+        void operator=(const powerLaw&) = delete;
 
 
 public:
@@ -119,7 +121,7 @@ public:
     );
 
     //- Destructor
-    virtual ~powerLaw();
+    virtual ~powerLaw() = default;
 
 
     // Member Functions

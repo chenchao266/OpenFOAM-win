@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2016 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -92,17 +95,17 @@ void Foam::RBD::rigidBodyModel::addRestraints
 
         restraints_.setSize(restraintDict.size());
 
-        forAllConstIter(IDLList<entry>, restraintDict, iter)
+        for (const entry& dEntry : restraintDict)
         {
-            if (iter().isDict())
+            if (dEntry.isDict())
             {
                 restraints_.set
                 (
                     i++,
                     restraint::New
                     (
-                        iter().keyword(),
-                        iter().dict(),
+                        dEntry.keyword(),
+                        dEntry.dict(),
                         *this
                     )
                 );
@@ -163,43 +166,50 @@ Foam::label Foam::RBD::rigidBodyModel::join_
 
 // * * * * * * * * * * * * * * * * Constructors * * * * * * * * * * * * * * * //
 
-Foam::RBD::rigidBodyModel::rigidBodyModel()
+Foam::RBD::rigidBodyModel::rigidBodyModel(const Time& time)
 :
+    time_(time),
     g_(Zero)
 {
     initializeRootBody();
 }
 
 
-Foam::RBD::rigidBodyModel::rigidBodyModel(const dictionary& dict)
+Foam::RBD::rigidBodyModel::rigidBodyModel
+(
+    const Time& time,
+    const dictionary& dict
+)
 :
+    time_(time),
     g_(Zero)
 {
     initializeRootBody();
 
     const dictionary& bodiesDict = dict.subDict("bodies");
 
-    forAllConstIter(IDLList<entry>, bodiesDict, iter)
+    for (const entry& dEntry : bodiesDict)
     {
-        const dictionary& bodyDict = iter().dict();
+        const keyType& key = dEntry.keyword();
+        const dictionary& bodyDict = dEntry.dict();
 
         if (bodyDict.found("mergeWith"))
         {
             merge
             (
-                bodyID(bodyDict.lookup("mergeWith")),
-                bodyDict.lookup("transform"),
-                rigidBody::New(iter().keyword(), bodyDict)
+                bodyID(bodyDict.get<word>("mergeWith")),
+                bodyDict.get<spatialTransform>("transform"),
+                rigidBody::New(key, bodyDict)
             );
         }
         else
         {
             join
             (
-                bodyID(bodyDict.lookup("parent")),
-                bodyDict.lookup("transform"),
+                bodyID(bodyDict.get<word>("parent")),
+                bodyDict.get<spatialTransform>("transform"),
                 joint::New(bodyDict.subDict("joint")),
-                rigidBody::New(iter().keyword(), bodyDict)
+                rigidBody::New(key, bodyDict)
             );
         }
     }
@@ -297,7 +307,7 @@ void Foam::RBD::rigidBodyModel::makeComposite(const label bodyID)
     if (!isA<compositeBody>(bodies_[bodyID]))
     {
         // Retrieve the un-merged body
-        autoPtr<rigidBody> bodyPtr = bodies_.set(bodyID, nullptr);
+        autoPtr<rigidBody> bodyPtr = bodies_.release(bodyID);
 
         // Insert the compositeBody containing the original body
         bodies_.set
@@ -327,7 +337,7 @@ Foam::label Foam::RBD::rigidBodyModel::merge
 
         makeComposite(sBody.masterID());
 
-        sBodyPtr.set
+        sBodyPtr.reset
         (
             new subBody
             (
@@ -342,7 +352,7 @@ Foam::label Foam::RBD::rigidBodyModel::merge
     {
         makeComposite(parentID);
 
-        sBodyPtr.set
+        sBodyPtr.reset
         (
             new subBody
             (
@@ -377,17 +387,14 @@ Foam::spatialTransform Foam::RBD::rigidBodyModel::X0
         const subBody& mBody = mergedBody(bodyId);
         return mBody.masterXT() & X0_[mBody.masterID()];
     }
-    else
-    {
-        return X0_[bodyId];
-    }
+
+    return X0_[bodyId];
 }
 
 
 void Foam::RBD::rigidBodyModel::write(Ostream& os) const
 {
-    os  << indent << "bodies" << nl
-        << indent << token::BEGIN_BLOCK << incrIndent << nl;
+    os.beginBlock("bodies");
 
     // Write the moving bodies
     for (label i=1; i<nBodies(); i++)
@@ -396,61 +403,52 @@ void Foam::RBD::rigidBodyModel::write(Ostream& os) const
         // of composite joints
         if (!isType<jointBody>(bodies_[i]))
         {
-            os  << indent << bodies_[i].name() << nl
-                << indent << token::BEGIN_BLOCK << incrIndent << endl;
+            os.beginBlock(bodies_[i].name());
 
             bodies_[i].write(os);
 
-            os.writeKeyword("parent")
-                << bodies_[lambda_[i]].name() << token::END_STATEMENT << nl;
+            os.writeEntry("parent", bodies_[lambda_[i]].name());
+            os.writeEntry("transform", XT_[i]);
 
-            os.writeKeyword("transform")
-                << XT_[i] << token::END_STATEMENT << nl;
+            os  << indent << "joint" << nl
+                << joints_[i] << endl;
 
-            os  << indent << "joint" << nl << joints_[i] << endl;
-
-            os  << decrIndent << indent << token::END_BLOCK << endl;
+            os.endBlock();
         }
     }
 
     // Write the bodies merged into the parent bodies for efficiency
     forAll(mergedBodies_, i)
     {
-        os  << indent << mergedBodies_[i].name() << nl
-            << indent << token::BEGIN_BLOCK << incrIndent << endl;
+        os.beginBlock(mergedBodies_[i].name());
 
         mergedBodies_[i].body().write(os);
 
-        os.writeKeyword("transform")
-            << mergedBodies_[i].masterXT() << token::END_STATEMENT << nl;
+        os.writeEntry("transform", mergedBodies_[i].masterXT());
+        os.writeEntry("mergeWith", mergedBodies_[i].masterName());
 
-        os.writeKeyword("mergeWith")
-            << mergedBodies_[i].masterName() << token::END_STATEMENT << nl;
-
-        os  << decrIndent << indent << token::END_BLOCK << endl;
+        os.endBlock();
     }
 
-    os  << decrIndent << indent << token::END_BLOCK << nl;
+    os.endBlock();
 
 
     if (!restraints_.empty())
     {
-        os  << indent << "restraints" << nl
-            << indent << token::BEGIN_BLOCK << incrIndent << nl;
+        os.beginBlock("restraints");
 
         forAll(restraints_, ri)
         {
-            word restraintType = restraints_[ri].type();
+            // const word& restraintType(restraints_[ri].type());
 
-            os  << indent << restraints_[ri].name() << nl
-                << indent << token::BEGIN_BLOCK << incrIndent << endl;
+            os.beginBlock(restraints_[ri].name());
 
             restraints_[ri].write(os);
 
-            os  << decrIndent << indent << token::END_BLOCK << endl;
+            os.endBlock();
         }
 
-        os  << decrIndent << indent << token::END_BLOCK << nl;
+        os.endBlock();
     }
 }
 

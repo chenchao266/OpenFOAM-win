@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -28,122 +30,122 @@ License
 #include "transformField.H"
 
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
-namespace Foam {
-    template<class Type>
-    transformFvPatchField<Type>::transformFvPatchField
-    (
-        const fvPatch& p,
-        const DimensionedField<Type, volMesh>& iF
-    )
-        :
-        fvPatchField<Type>(p, iF)
-    {}
+
+template<class Type>
+Foam::transformFvPatchField<Type>::transformFvPatchField
+(
+    const fvPatch& p,
+    const DimensionedField<Type, volMesh>& iF
+)
+:
+   fvPatchField<Type>(p, iF)
+{}
 
 
-    template<class Type>
-    transformFvPatchField<Type>::transformFvPatchField
-    (
-        const transformFvPatchField<Type>& ptf,
-        const fvPatch& p,
-        const DimensionedField<Type, volMesh>& iF,
-        const fvPatchFieldMapper& mapper
-    )
-        :
-        fvPatchField<Type>(ptf, p, iF, mapper)
-    {}
+template<class Type>
+Foam::transformFvPatchField<Type>::transformFvPatchField
+(
+    const transformFvPatchField<Type>& ptf,
+    const fvPatch& p,
+    const DimensionedField<Type, volMesh>& iF,
+    const fvPatchFieldMapper& mapper
+)
+:
+    fvPatchField<Type>(ptf, p, iF, mapper)
+{}
 
 
-    template<class Type>
-    transformFvPatchField<Type>::transformFvPatchField
-    (
-        const fvPatch& p,
-        const DimensionedField<Type, volMesh>& iF,
-        const dictionary& dict
-    )
-        :
-        fvPatchField<Type>(p, iF, dict, false)
-    {}
+template<class Type>
+Foam::transformFvPatchField<Type>::transformFvPatchField
+(
+    const fvPatch& p,
+    const DimensionedField<Type, volMesh>& iF,
+    const dictionary& dict
+)
+:
+    fvPatchField<Type>(p, iF, dict, false)
+{}
 
 
-    template<class Type>
-    transformFvPatchField<Type>::transformFvPatchField
-    (
-        const transformFvPatchField<Type>& ptf
-    )
-        :
-        fvPatchField<Type>(ptf)
-    {}
+template<class Type>
+Foam::transformFvPatchField<Type>::transformFvPatchField
+(
+    const transformFvPatchField<Type>& ptf
+)
+:
+    fvPatchField<Type>(ptf)
+{}
 
 
-    template<class Type>
-    transformFvPatchField<Type>::transformFvPatchField
-    (
-        const transformFvPatchField<Type>& ptf,
-        const DimensionedField<Type, volMesh>& iF
-    )
-        :
-        fvPatchField<Type>(ptf, iF)
-    {}
+template<class Type>
+Foam::transformFvPatchField<Type>::transformFvPatchField
+(
+    const transformFvPatchField<Type>& ptf,
+    const DimensionedField<Type, volMesh>& iF
+)
+:
+    fvPatchField<Type>(ptf, iF)
+{}
 
 
-    // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
+// * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
 
-    template<class Type>
-    tmp<Field<Type>>
-        transformFvPatchField<Type>::valueInternalCoeffs
-        (
-            const tmp<scalarField>&
-        ) const
-    {
-        return pTraits<Type>::one - snGradTransformDiag();
-    }
-
-
-    template<class Type>
-    tmp<Field<Type>>
-        transformFvPatchField<Type>::valueBoundaryCoeffs
-        (
-            const tmp<scalarField>&
-        ) const
-    {
-        return
-            *this
-            - cmptMultiply
-            (
-                valueInternalCoeffs(this->patch().weights()),
-                this->patchInternalField()
-            );
-    }
-
-
-    template<class Type>
-    tmp<Field<Type>>
-        transformFvPatchField<Type>::gradientInternalCoeffs() const
-    {
-        return -this->patch().deltaCoeffs()*snGradTransformDiag();
-    }
-
-
-    template<class Type>
-    tmp<Field<Type>>
-        transformFvPatchField<Type>::gradientBoundaryCoeffs() const
-    {
-        return
-            snGrad()
-            - cmptMultiply(gradientInternalCoeffs(), this->patchInternalField());
-    }
-
-
-    // * * * * * * * * * * * * * * * Member Operators  * * * * * * * * * * * * * //
-
-    template<class Type>
-    void transformFvPatchField<Type>::operator=
-        (
-            const fvPatchField<Type>& ptf
-            )
-    {
-        this->evaluate();
-    }
-
+template<class Type>
+Foam::tmp<Foam::Field<Type>>
+Foam::transformFvPatchField<Type>::valueInternalCoeffs
+(
+    const tmp<scalarField>&
+) const
+{
+    return pTraits<Type>::one_ - snGradTransformDiag();
 }
+
+
+template<class Type>
+Foam::tmp<Foam::Field<Type>>
+Foam::transformFvPatchField<Type>::valueBoundaryCoeffs
+(
+    const tmp<scalarField>&
+) const
+{
+    return
+        *this
+      - cmptMultiply
+        (
+            valueInternalCoeffs(this->patch().weights()),
+            this->patchInternalField()
+        );
+}
+
+
+template<class Type>
+Foam::tmp<Foam::Field<Type>>
+Foam::transformFvPatchField<Type>::gradientInternalCoeffs() const
+{
+    return -this->patch().deltaCoeffs()*snGradTransformDiag();
+}
+
+
+template<class Type>
+Foam::tmp<Foam::Field<Type>>
+Foam::transformFvPatchField<Type>::gradientBoundaryCoeffs() const
+{
+    return
+        snGrad()
+      - cmptMultiply(gradientInternalCoeffs(), this->patchInternalField());
+}
+
+
+// * * * * * * * * * * * * * * * Member Operators  * * * * * * * * * * * * * //
+
+template<class Type>
+void Foam::transformFvPatchField<Type>::operator=
+(
+    const fvPatchField<Type>& ptf
+)
+{
+    this->evaluate();
+}
+
+
 // ************************************************************************* //

@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2013-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2014 OpenFOAM Foundation
+    Copyright (C) 2015 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -34,11 +37,12 @@ SourceFiles
 #ifndef surfaceZonesInfo_H
 #define surfaceZonesInfo_H
 
-#include "NamedEnum.T.H"
-#include "point.T.H"
+#include "Enum.H"
+#include "point.H"
 #include "word.H"
-#include "PtrList.T.H"
+#include "PtrList.H"
 #include "labelList.H"
+#include "boolList.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -67,7 +71,17 @@ public:
         NONE
     };
 
-    static const NamedEnum<areaSelectionAlgo, 4> areaSelectionAlgoNames;
+    static const Enum<areaSelectionAlgo> areaSelectionAlgoNames;
+
+    //- How to generate faceZone name
+    enum faceZoneNaming
+    {
+        NOZONE,
+        SINGLE,
+        REGION
+    };
+
+    static const Enum<faceZoneNaming> faceZoneNamingNames;
 
     //- What to do with faceZone faces
     enum faceZoneType
@@ -77,15 +91,15 @@ public:
         BOUNDARY
     };
 
-    static const NamedEnum<faceZoneType, 3> faceZoneTypeNames;
+    static const Enum<faceZoneType> faceZoneTypeNames;
 
 
 private:
 
     // Private data
 
-        //- Per 'interface' surface : name of faceZone to put faces into
-        word faceZoneName_;
+        //- Per 'interface' surface : names of faceZones to put faces into
+        wordList faceZoneNames_;
 
         //- Per 'interface' surface : name of cellZone to put cells into
         word cellZoneName_;
@@ -105,25 +119,27 @@ private:
 
     // Private Member Functions
 
-        //- Disallow default bitwise assignment
-        void operator=(const surfaceZonesInfo&);
+        //- No copy assignment
+        void operator=(const surfaceZonesInfo&) = delete;
 
 
 public:
 
     // Constructors
 
-        //- Construct from surfaces and dictionary
+        //- Construct from surfaces and dictionary and fully resolved
+        //  region names (for optional automatic faceZone naming)
         surfaceZonesInfo
         (
             const searchableSurface& surface,
-            const dictionary& surfacesDict
+            const dictionary& surfacesDict,
+            const wordList& regionNames
         );
 
         //- Construct from components
         surfaceZonesInfo
         (
-            const word& faceZoneNames,
+            const wordList& faceZoneNames,
             const word& cellZoneNames,
             const areaSelectionAlgo& zoneInside,
             const point& zoneInsidePoints,
@@ -136,7 +152,7 @@ public:
         //- Return clone
         autoPtr<surfaceZonesInfo> clone() const
         {
-            return autoPtr<surfaceZonesInfo>(new surfaceZonesInfo(*this));
+            return autoPtr<surfaceZonesInfo>::New(*this);
         }
 
 
@@ -144,11 +160,11 @@ public:
 
         // Access
 
-            //- Per 'interface' surface : empty or name of faceZone to put
-            //  faces into
-            const word& faceZoneName() const
+            //- Per 'interface' surface : empty or names of faceZones to put
+            //  faces into (according to region)
+            const wordList& faceZoneNames() const
             {
-                return faceZoneName_;
+                return faceZoneNames_;
             }
 
             //- Per 'interface' surface : empty or name of cellZone to put
@@ -190,6 +206,12 @@ public:
                 const PtrList<surfaceZonesInfo>& surfList
             );
 
+            //- Get indices of named surfaces without a cellZone
+            static labelList getStandaloneNamedSurfaces
+            (
+                const PtrList<surfaceZonesInfo>& surfList
+            );
+
             //- Get indices of surfaces with a cellZone that are closed and
             //  have 'inside' or 'outside' selection.
             static labelList getClosedNamedSurfaces
@@ -222,6 +244,13 @@ public:
                 const PtrList<surfaceZonesInfo>& surfList
             );
 
+            static label addCellZone
+            (
+                const word& name,
+                const labelList& addressing,
+                polyMesh& mesh
+            );
+
             static labelList addCellZonesToMesh
             (
                 const PtrList<surfaceZonesInfo>& surfList,
@@ -229,7 +258,15 @@ public:
                 polyMesh& mesh
             );
 
-            static labelList addFaceZonesToMesh
+            static label addFaceZone
+            (
+                const word& name,
+                const labelList& addressing,
+                const boolList& flipMap,
+                polyMesh& mesh
+            );
+
+            static labelListList addFaceZonesToMesh
             (
                 const PtrList<surfaceZonesInfo>& surfList,
                 const labelList& namedSurfaces,

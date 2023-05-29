@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011 OpenFOAM Foundation
+    Copyright (C) 2019 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -26,65 +29,80 @@ License
 #include "DICGaussSeidelSmoother.H"
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
-using namespace Foam;
+
 namespace Foam
 {
     defineTypeNameAndDebug(DICGaussSeidelSmoother, 0);
 
     lduMatrix::smoother::addsymMatrixConstructorToTable<DICGaussSeidelSmoother>
         addDICGaussSeidelSmootherSymMatrixConstructorToTable_;
-}
 
 
-// * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
-DICGaussSeidelSmoother::DICGaussSeidelSmoother
-(
-    const word& fieldName,
-    const lduMatrix& matrix,
-    const FieldField<Field, scalar>& interfaceBouCoeffs,
-    const FieldField<Field, scalar>& interfaceIntCoeffs,
-    const lduInterfaceFieldPtrsList& interfaces
-) :    lduMatrix::smoother
+    // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
+
+    DICGaussSeidelSmoother::DICGaussSeidelSmoother
     (
-        fieldName,
-        matrix,
-        interfaceBouCoeffs,
-        interfaceIntCoeffs,
-        interfaces
-    ),
-    dicSmoother_
-    (
-        fieldName,
-        matrix,
-        interfaceBouCoeffs,
-        interfaceIntCoeffs,
-        interfaces
-    ),
-    gsSmoother_
-    (
-        fieldName,
-        matrix,
-        interfaceBouCoeffs,
-        interfaceIntCoeffs,
-        interfaces
+        const word& fieldName,
+        const lduMatrix& matrix,
+        const FieldField<Field, scalar>& interfaceBouCoeffs,
+        const FieldField<Field, scalar>& interfaceIntCoeffs,
+        const lduInterfaceFieldPtrsList& interfaces
     )
-{}
+        :
+        lduMatrix::smoother
+        (
+            fieldName,
+            matrix,
+            interfaceBouCoeffs,
+            interfaceIntCoeffs,
+            interfaces
+        ),
+        dicSmoother_
+        (
+            fieldName,
+            matrix,
+            interfaceBouCoeffs,
+            interfaceIntCoeffs,
+            interfaces
+        ),
+        gsSmoother_
+        (
+            fieldName,
+            matrix,
+            interfaceBouCoeffs,
+            interfaceIntCoeffs,
+            interfaces
+        )
+    {}
 
 
-// * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
+    // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
 
-void DICGaussSeidelSmoother::smooth
-(
-    scalarField& psi,
-    const scalarField& source,
-    const direction cmpt,
-    const label nSweeps
-) const
-{
-    dicSmoother_.smooth(psi, source, cmpt, nSweeps);
-    gsSmoother_.smooth(psi, source, cmpt, nSweeps);
+    void DICGaussSeidelSmoother::smooth
+    (
+        solveScalarField& psi,
+        const scalarField& source,
+        const direction cmpt,
+        const label nSweeps
+    ) const
+    {
+        dicSmoother_.smooth(psi, source, cmpt, nSweeps);
+        gsSmoother_.smooth(psi, source, cmpt, nSweeps);
+    }
+
+
+    void DICGaussSeidelSmoother::scalarSmooth
+    (
+        solveScalarField& psi,
+        const solveScalarField& source,
+        const direction cmpt,
+        const label nSweeps
+    ) const
+    {
+        dicSmoother_.scalarSmooth(psi, source, cmpt, nSweeps);
+        gsSmoother_.scalarSmooth(psi, source, cmpt, nSweeps);
+    }
+
 }
-
-
 // ************************************************************************* //

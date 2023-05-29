@@ -1,9 +1,11 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -77,7 +79,7 @@ SourceFiles
 #ifndef globalPoints_H
 #define globalPoints_H
 
-#include "DynamicList.T.H"
+#include "DynamicList.H"
 #include "indirectPrimitivePatch.H"
 #include "globalIndex.H"
 #include "globalIndexAndTransform.H"
@@ -262,11 +264,11 @@ class globalPoints
             const bool mergeSeparated
         );
 
-        //- Disallow default bitwise copy construct
-        globalPoints(const globalPoints&);
+        //- No copy construct
+        globalPoints(const globalPoints&) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const globalPoints&);
+        //- No copy assignment
+        void operator=(const globalPoints&) = delete;
 
 
 public:
@@ -347,13 +349,13 @@ public:
             //- Corresponding map
             const mapDistribute& map() const
             {
-                return map_();
+                return *map_;
             }
 
             //- Corresponding map
             mapDistribute& map()
             {
-                return map_();
+                return *map_;
             }
 
             //- From (mesh or patch) point to index in procPoints

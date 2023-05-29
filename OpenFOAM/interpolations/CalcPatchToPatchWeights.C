@@ -1,9 +1,12 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -23,9 +26,9 @@ License
 
 \*---------------------------------------------------------------------------*/
 
-#include "PatchToPatchInterpolation.T.H"
+#include "PatchToPatchInterpolation.H"
 #include "objectHit.H"
-#include "pointHit.H"
+#include "pointHit2.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -52,7 +55,7 @@ void PatchToPatchInterpolation<FromPatch, ToPatch>::calcPointAddressing() const
     scalarField& pointDistance = *pointDistancePtr_;
 
     const pointField& fromPatchPoints = fromPatch_.localPoints();
-    const List<typename FromPatch::FaceType>& fromPatchFaces =
+    const List<typename FromPatch::face_type>& fromPatchFaces =
         fromPatch_.localFaces();
 
     const pointField& toPatchPoints = toPatch_.localPoints();
@@ -77,7 +80,7 @@ void PatchToPatchInterpolation<FromPatch, ToPatch>::calcPointAddressing() const
     {
         doWeights = false;
 
-        const typename FromPatch::FaceType& hitFace =
+        const typename FromPatch::face_type& hitFace =
             fromPatchFaces[proj[pointi].hitObject()];
 
         point hitPoint = Zero;
@@ -282,7 +285,7 @@ void PatchToPatchInterpolation<FromPatch, ToPatch>::calcFaceAddressing() const
             // A hit exists
             faceAddressing[facei] = proj[facei].hitObject();
 
-            const typename FromPatch::FaceType& hitFace =
+            const typename FromPatch::face_type& hitFace =
                 fromPatchFaces[faceAddressing[facei]];
 
             pointHit curHit =

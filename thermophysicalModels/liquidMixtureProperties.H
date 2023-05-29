@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -52,7 +54,7 @@ See also
 #define liquidMixtureProperties_H
 
 #include "liquidProperties.H"
-#include "PtrList.T.H"
+#include "PtrList.H"
 #include "scalarField.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
@@ -91,16 +93,12 @@ public:
         //- Construct and return a clone
         virtual autoPtr<liquidMixtureProperties> clone() const
         {
-            return autoPtr<liquidMixtureProperties>
-            (
-                new liquidMixtureProperties(*this)
-            );
+            return autoPtr<liquidMixtureProperties>::New(*this);
         }
 
 
     //- Destructor
-    virtual ~liquidMixtureProperties()
-    {}
+    virtual ~liquidMixtureProperties() = default;
 
 
     // Selectors
@@ -225,7 +223,7 @@ public:
             const scalarField& X
         ) const;
 
-        //- Vapour diffussivity [m2/s]
+        //- Vapour diffusivity [m2/s]
         scalar D
         (
             const scalar p,

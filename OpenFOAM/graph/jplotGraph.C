@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2019 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -27,7 +30,7 @@ License
 #include "addToRunTimeSelectionTable.H"
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
-using namespace Foam;
+
 namespace Foam
 {
     defineTypeNameAndDebug(jplotGraph, 0);
@@ -35,26 +38,26 @@ namespace Foam
 
     typedef graph::writer graphWriter;
     addToRunTimeSelectionTable(graphWriter, jplotGraph, word);
-}
 
 
-// * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
 
-void jplotGraph::write(const graph& g, Ostream& os) const
-{
-    os  << "# JPlot file" << nl
-        << "# column 1: " << g.xName() << endl;
+    // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
 
-    label fieldi = 0;
-
-    forAllConstIter(graph, g, iter)
+    void jplotGraph::write(const graph& g, Ostream& os) const
     {
-        os  << "# column " << fieldi + 2 << ": " << (*iter()).name() << endl;
-        fieldi++;
+        os << "# JPlot file" << nl
+            << "# column 1: " << g.xName() << endl;
+
+        label fieldi = 0;
+
+        forAllConstIters(g, iter)
+        {
+            os << "# column " << fieldi + 2 << ": " << (*iter()).name() << endl;
+            fieldi++;
+        }
+
+        g.writeTable(os);
     }
 
-    g.writeTable(os);
 }
-
-
 // ************************************************************************* //

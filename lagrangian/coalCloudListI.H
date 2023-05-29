@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2012-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2012-2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -25,7 +27,7 @@ License
 
 #include "fvMatrices.H"
 #include "volFields.H"
-#include "DimensionedField.T.H"
+#include "DimensionedField.H"
 
 Foam::tmp<Foam::DimensionedField<Foam::vector, Foam::volMesh>>
 Foam::coalCloudList::UTrans() const
@@ -43,7 +45,7 @@ Foam::coalCloudList::UTrans() const
                 IOobject::NO_WRITE
             ),
             mesh_,
-            dimensionedVector("zero", dimMass*dimVelocity, Zero)
+            dimensionedVector(dimMass*dimVelocity, Zero)
         )
     );
 
@@ -91,7 +93,7 @@ Foam::coalCloudList::hsTrans() const
                 IOobject::NO_WRITE
             ),
             mesh_,
-            dimensionedScalar("zero", dimEnergy, 0.0)
+            dimensionedScalar(dimEnergy, Zero)
         )
     );
 
@@ -157,7 +159,7 @@ Foam::coalCloudList::rhoTrans() const
                 IOobject::NO_WRITE
             ),
             mesh_,
-            dimensionedScalar("zero", dimMass, 0.0)
+            dimensionedScalar(dimMass, Zero)
         )
     );
 
@@ -193,7 +195,7 @@ Foam::coalCloudList::Srho() const
                 IOobject::NO_WRITE
             ),
             mesh_,
-            dimensionedScalar("zero", dimDensity/dimTime, 0.0)
+            dimensionedScalar(dimDensity/dimTime, Zero)
         )
     );
 
@@ -227,7 +229,7 @@ Foam::coalCloudList::Srho
                 IOobject::NO_WRITE
             ),
             mesh_,
-            dimensionedScalar("zero", dimDensity/dimTime, 0.0)
+            dimensionedScalar(dimDensity/dimTime, Zero)
         )
     );
 

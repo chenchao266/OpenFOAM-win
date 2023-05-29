@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2018-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -25,14 +28,20 @@ Class
     Foam::tmp
 
 Description
-    A class for managing temporary objects
+    A class for managing temporary objects.
+
+    This is a combination of std::shared_ptr (with intrusive ref-counting)
+    and a shared_ptr without ref-counting and null deleter.
+    This allows the tmp to double as a pointer management and an indirect
+    pointer to externally allocated objects.
 
 SourceFiles
     tmpI.H
 
 See also
-    Foam::refCount
     Foam::autoPtr
+    Foam::refPtr
+    Foam::refCount
 
 \*---------------------------------------------------------------------------*/
 
@@ -41,6 +50,7 @@ See also
 
 #include "refCount.H"
 #include "word.H"
+#include "stdFoam.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -54,116 +64,256 @@ namespace Foam
 template<class T>
 class tmp
 {
-    // Private data
+    // Private Data
 
-        //- Object types
-        enum type
+        //- The stored reference type
+        enum refType
         {
-            TMP,
-            CONST_REF
+            PTR,        //!< A managed pointer (ref-counted)
+            CREF,       //!< A const reference to an object
+            REF         //!< A non-const reference to an object
         };
 
-        //- Type of object
-        type type_;
-
-        //- Pointer to object
+        //- The managed pointer or address of the object (reference)
         mutable T* ptr_;
 
+        //- The type (managed pointer | object reference)
+        mutable refType type_;
 
-    // Private member operators
 
-        inline void operator++();
+    // Private Member Operators
+
+        //- Increment the ref-count for a managed pointer
+        //- and check that it is not oversubscribed
+        inline void incrCount();
 
 
 public:
 
-    typedef T Type;
-    typedef ::Foam::refCount refCount;
+    // STL type definitions
+
+        //- Type of object being managed or referenced
+        typedef T element_type;
+
+        //- Pointer to type of object being managed or referenced
+        typedef T* pointer;
+
+
+    //- Reference counter class
+    typedef refCount refCount;
+
+
+    // Factory Methods
+
+        //- Construct tmp of T with forwarding arguments
+        //  \param args list of arguments with which an instance of T
+        //      will be constructed.
+        //
+        //  \note Similar to std::make_shared, but the overload for
+        //      array types is not disabled.
+        template<class... Args>
+        inline static tmp<T> New(Args&&... args);
+
+        //- Construct tmp from derived type with forwarding arguments
+        //  \param args list of arguments with which an instance of U
+        //      will be constructed.
+        //
+        //  \note Similar to New but for derived types
+        template<class U, class... Args>
+        inline static tmp<T> NewFrom(Args&&... args);
 
 
     // Constructors
 
-        //- Store object pointer
-        inline explicit tmp(T* = 0);
+        //- Construct with no managed pointer.
+        inline constexpr tmp() noexcept;
 
-        //- Store object const reference
-        inline tmp(const T&);
+        //- Construct with no managed pointer (literal nullptr).
+        inline constexpr tmp(std::nullptr_t) noexcept;
 
-        //- Construct copy and increment reference count
-        inline tmp(const tmp<T>&);
+        //- Construct, taking ownership of the pointer.
+        inline explicit tmp(T* p);
 
-        //- Construct copy moving content, does not increment reference count
-        inline tmp(const tmp<T>&&);
+        //- Construct for a const reference to an object.
+        inline constexpr tmp(const T& obj) noexcept;
 
-        //- Construct copy transferring content of temporary if required
-        inline tmp(const tmp<T>&, bool allowTransfer);
+        //- Move construct, transferring ownership.
+        //  Does not affect ref-count
+        inline tmp(tmp<T>&& rhs) noexcept;
+
+        //- Move construct, transferring ownership.
+        //  Does not affect ref-count
+        //  \note Non-standard definition - should be non-const
+        inline tmp(const tmp<T>&& rhs) noexcept;
+
+        //- Copy construct, incrementing ref-count of managed pointer.
+        //  \note Non-standard definition - should be non-const
+        inline tmp(const tmp<T>& rhs);
+
+        //- Copy/move construct. Optionally reusing ref-counted pointer.
+        inline tmp(const tmp<T>& rhs, bool reuse);
 
 
-    //- Destructor: deletes temporary object when the reference count is 0
+    //- Destructor: deletes managed pointer when the ref-count is 0
     inline ~tmp();
 
 
     // Member Functions
 
-        // Access
-
-            //- Return true if this is really a temporary object
-            inline bool isTmp() const;
-
-            //- Return true if this temporary object empty,
-            //  ie, a temporary without allocation
-            inline bool empty() const;
-
-            //- Is this temporary object valid,
-            //  ie, it is a reference or a temporary that has been allocated
-            inline bool valid() const;
-
-            //- Return the type name of the tmp
-            //  constructed from the type name of T
-            inline word typeName() const;
+        //- The type-name, constructed from type-name of T
+        inline static word typeName();
 
 
-        // Edit
+    // Query
 
-            //- Return non-const reference or generate a fatal error
-            //  if the object is const.
-            inline T& ref() const;
+        //- True if pointer/reference is non-null.
+        bool good() const noexcept { return bool(ptr_); }
 
-            //- Return tmp pointer for reuse.
-            //  Returns a clone if the object is not a temporary
-            inline T* ptr() const;
+        //- If the stored/referenced content is const
+        bool is_const() const noexcept { return type_ == CREF; }
 
-            //- If object pointer points to valid object:
-            //  delete object and set pointer to nullptr
-            inline void clear() const;
+        //- True if this is a managed pointer (not a reference)
+        bool is_pointer() const noexcept { return type_ == PTR; }
+
+        //- True if this is a non-null managed pointer with a unique ref-count
+        inline bool movable() const noexcept;
 
 
-    // Member operators
+    // Access
 
-        #ifdef NON_CONST_TMP
-        //- Deprecated non-const dereference operator.
-        //  Use ref() where non-const access is required
-        inline T& operator()();
-        #endif
+        //- Return pointer without nullptr checking.
+        T* get() noexcept { return ptr_; }
 
-        //- Const dereference operator
-        inline const T& operator()() const;
+        //- Return const pointer without nullptr checking.
+        const T* get() const noexcept { return ptr_; }
 
-        //- Const cast to the underlying type reference
-        inline operator const T&() const;
+        //- Return const reference to the object or to the contents
+        //- of a (non-null) managed pointer.
+        //  Fatal for a null managed pointer
+        inline const T& cref() const;
 
-        //- Return object pointer
-        inline T* operator->();
+        //- Return non-const reference to the contents of a non-null
+        //- managed pointer.
+        //  Fatal for a null managed pointer or if the object is const.
+        inline T& ref() const;
 
-        //- Return const object pointer
+        //- Return non-const reference to the object or to the contents
+        //- of a (non-null) managed pointer, with an additional const_cast.
+        //  Fatal for a null pointer.
+        inline T& constCast() const;
+
+
+    // Edit
+
+        //- Return managed pointer for reuse, or clone() the object reference.
+        inline T* ptr() const;
+
+        //- If object pointer points to valid object:
+        //- delete object and set pointer to nullptr
+        inline void clear() const noexcept;
+
+
+        //- Clear existing and transfer ownership.
+        inline void reset(tmp<T>&& other) noexcept;
+
+        //- Delete managed temporary object and set to new given pointer
+        inline void reset(T* p = nullptr) noexcept;
+
+
+        //- Clear existing and set (const) reference from other
+        inline void cref(const tmp<T>& other) noexcept;
+
+        //- Clear existing and set (const) reference
+        inline void cref(const T& obj) noexcept;
+
+        //- Clear existing and set (const) reference to pointer content.
+        //  The pointer can be null, which is handled like a clear().
+        inline void cref(const T* p) noexcept;
+
+
+        //- Clear existing and set to (non-const) reference
+        inline void ref(T& obj) noexcept;
+
+        //- Clear existing and set (non-const) reference to pointer content.
+        //  The pointer can be null, which is handled like a clear().
+        inline void ref(T* p) noexcept;
+
+
+        //- Swaps the managed object with other.
+        inline void swap(tmp<T>& other) noexcept;
+
+
+    // Member Operators
+
+        // Note: no 'operator*()' types since there are large chunks
+        // of code that use tmp\<Field\> and Field interchangeable
+        // Eg, \code (a * b) - and the '*' would be misinterpreted
+
+        //- Dereferences (const) pointer to the managed object.
+        //  Fatal for a null managed pointer.
         inline const T* operator->() const;
 
-        //- Assignment to pointer changing this tmp to a temporary T
-        inline void operator=(T*);
+        //- Dereferences (non-const) pointer to the managed object.
+        //  Fatal for a null managed pointer or if the object is const.
+        inline T* operator->();
 
-        //- Assignment transfering the temporary T to this tmp
-        inline void operator=(const tmp<T>&);
+        //- Return const reference to the object - same as cref() method.
+        const T& operator()() const { return cref(); }
+
+
+    // Casting
+
+        //- True if pointer/reference is non-null. Same as good()
+        explicit operator bool() const noexcept { return bool(ptr_); }
+
+        //- Cast to underlying data type, using the cref() method.
+        operator const T&() const { return cref(); }
+
+
+    // Assignment
+
+        //- Transfer ownership of the managed pointer.
+        //  Fatal for a null managed pointer or if the object is const.
+        inline void operator=(const tmp<T>& other);
+
+        //- Clear existing and transfer ownership.
+        inline void operator=(tmp<T>&& other) noexcept;
+
+        //- Take ownership of the pointer.
+        //  Fatal for a null pointer, or when the pointer is non-unique.
+        inline void operator=(T* p);
+
+        //- Reset via assignment from literal nullptr
+        inline void operator=(std::nullptr_t) noexcept;
+
+
+    // Housekeeping
+
+        //- Identical to good(), or bool operator
+        bool valid() const noexcept { return bool(ptr_); }
+
+        //- Identical to is_pointer()
+        bool isTmp() const noexcept { return type_ == PTR; }
+
+        //- Deprecated(2020-07) True if a null managed pointer
+        //
+        //  \deprecated(2020-07) - use bool operator
+        FOAM_DEPRECATED_FOR(2020-07, "bool operator")
+        bool empty() const noexcept { return !ptr_; }
 };
+
+
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+// Global Functions
+
+//- Specialized Swap algorithm for tmp.
+//  Swaps the pointers and types of lhs and rhs. Calls \c lhs.swap(rhs)
+template<class T>
+void Swap(tmp<T>& lhs, tmp<T>& rhs)
+{
+    lhs.swap(rhs);
+}
 
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //

@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2019-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -24,9 +27,9 @@ License
 \*---------------------------------------------------------------------------*/
 
 #include "meshReader.H"
-#include "IOMap.T.H"
+#include "IOMap.H"
 #include "OFstream.H"
-#include "Time.T.H"
+#include "Time1.H"
 
 // * * * * * * * * * * * * * * * Static Functions  * * * * * * * * * * * * * //
 
@@ -39,26 +42,26 @@ void Foam::meshReader::warnDuplicates
     HashTable<label> hashed(list.size());
     bool duplicates = false;
 
-    forAll(list, listI)
+    for (const word& w : list)
     {
-        // check duplicate name
-        HashTable<label>::iterator iter = hashed.find(list[listI]);
-        if (iter != hashed.end())
+        // Check duplicate name
+        auto iter = hashed.find(w);
+        if (iter.found())
         {
-            (*iter)++;
+            ++(*iter);
             duplicates = true;
         }
         else
         {
-            hashed.insert(list[listI], 1);
+            hashed.insert(w, 1);
         }
     }
 
-    // warn about duplicate names
+    // Warn about duplicate names
     if (duplicates)
     {
         Info<< nl << "WARNING: " << context << " with identical names:";
-        forAllConstIter(HashTable<label>, hashed, iter)
+        forAllConstIters(hashed, iter)
         {
             if (*iter > 1)
             {
@@ -106,7 +109,7 @@ void Foam::meshReader::writeMeshLabelList
     const objectRegistry& registry,
     const word& propertyName,
     const labelList& list,
-    IOstream::streamFormat fmt
+    IOstreamOption streamOpt
 ) const
 {
     // write constant/polyMesh/propertyName
@@ -126,20 +129,14 @@ void Foam::meshReader::writeMeshLabelList
     );
 
 
-    ioObj.note() = "persistent data for star-cd <-> foam translation";
+    ioObj.note() = "persistent data for STARCD <-> OPENFOAM translation";
     Info<< "Writing " << ioObj.name() << " to " << ioObj.objectPath() << endl;
 
     // NOTE:
     // the cellTableId is an integer and almost always < 1000, thus ASCII
     // will be compacter than binary and makes external scripting easier
-    //
-    ioObj.writeObject
-    (
-        fmt,
-        IOstream::currentVersion,
-        IOstream::UNCOMPRESSED,
-        true
-    );
+
+    ioObj.writeObject(streamOpt, true);
 }
 
 
@@ -156,7 +153,7 @@ void Foam::meshReader::writeAux(const objectRegistry& registry) const
         registry,
         "origCellId",
         origCellId_,
-        IOstream::BINARY
+        IOstreamOption(IOstreamOption::BINARY)
     );
 
     // write cellTableId as List<label>
@@ -166,7 +163,7 @@ void Foam::meshReader::writeAux(const objectRegistry& registry) const
         registry,
         "cellTableId",
         cellTableId_,
-        IOstream::ASCII
+        IOstreamOption(IOstreamOption::ASCII)
     );
 }
 

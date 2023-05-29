@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2016-2019 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -24,22 +27,37 @@ License
 \*---------------------------------------------------------------------------*/
 
 #include "cloud.H"
-#include "Time.T.H"
+#include "Time1.H"
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
-using namespace Foam;
+
 namespace Foam
 {
     defineTypeNameAndDebug(cloud, 0);
-
-    const word cloud::prefix("lagrangian");
-    word cloud::defaultName("defaultCloud");
 }
+
+const word cloud::prefix("lagrangian");
+word cloud::defaultName("defaultCloud");
+
+const Enum<cloud::geometryType>
+cloud::geometryTypeNames
+({
+    { geometryType::COORDINATES, "coordinates" },
+    { geometryType::POSITIONS, "positions" }
+});
 
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
-cloud::cloud(const objectRegistry& obr, const word& cloudName) :    objectRegistry
+cloud::cloud(const objectRegistry& obr)
+:
+    cloud(obr, defaultName)
+{}
+
+
+cloud::cloud(const objectRegistry& obr, const word& cloudName)
+:
+    objectRegistry
     (
         IOobject
         (
@@ -54,15 +72,28 @@ cloud::cloud(const objectRegistry& obr, const word& cloudName) :    objectRegist
 {}
 
 
-// * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
-
-cloud::~cloud()
-{}
-
-
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
 
+label cloud::nParcels() const
+{
+    NotImplemented;
+    return 0;
+}
+
+
 void cloud::autoMap(const mapPolyMesh&)
+{
+    NotImplemented;
+}
+
+
+void cloud::readObjects(const objectRegistry& obr)
+{
+    NotImplemented;
+}
+
+
+void cloud::writeObjects(objectRegistry& obr) const
 {
     NotImplemented;
 }

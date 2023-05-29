@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2013-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2013-2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -93,8 +95,6 @@ class motionSmoother
     public motionSmootherAlgo
 
 {
-    // Private class
-
 public:
 
     ClassName("motionSmoother");
@@ -105,24 +105,25 @@ public:
         //  Reads displacement field (only boundary conditions used)
         motionSmoother
         (
-            polyMesh&,
-            pointMesh&,
-            indirectPrimitivePatch& pp,         // 'outside' points
-            const labelList& adaptPatchIDs,     // patches forming 'outside'
-            const dictionary& paramDict
+            polyMesh& mesh,
+            pointMesh& pMesh,
+            indirectPrimitivePatch& pp,         //!< 'outside' points
+            const labelList& adaptPatchIDs,     //!< patches forming 'outside'
+            const dictionary& paramDict,
+            const bool dryRun = false
         );
 
         //- Construct from mesh, patches to work on and smoothing parameters and
         //  displacementfield (only boundary conditions used)
         motionSmoother
         (
-            polyMesh&,
-            indirectPrimitivePatch& pp,         // 'outside' points
-            const labelList& adaptPatchIDs,     // patches forming 'outside'
-            const pointVectorField&,
-            const dictionary& paramDict
+            polyMesh& mesh,
+            indirectPrimitivePatch& pp,         //!< 'outside' points
+            const labelList& adaptPatchIDs,     //!< patches forming 'outside'
+            const pointVectorField& displacement,
+            const dictionary& paramDict,
+            const bool dryRun = false
         );
-
 };
 
 

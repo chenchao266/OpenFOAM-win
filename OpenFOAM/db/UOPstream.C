@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2016-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -25,279 +28,379 @@ License
 
 #include "UOPstream.H"
 #include "int.H"
-#include "token.T.H"
-
+#include "token.H"
 #include <cctype>
 
+// * * * * * * * * * * * * * * * Local Functions * * * * * * * * * * * * * * //
+
+namespace Foam
+{
+
+// Return the position with word boundary alignment
+inline static label byteAlign(const label pos, const size_t align)
+{
+    return
+    (
+        (align > 1)
+      ? (align + ((pos - 1) & ~(align - 1)))
+      : pos
+    );
+}
+
+} // End namespace Foam
+
+
 // * * * * * * * * * * * * * Private Member Functions  * * * * * * * * * * * //
-namespace Foam {
-    template<class T>
-    inline void UOPstream::writeToBuffer(const T& t)
+
+
+ namespace Foam{
+inline void UOPstream::prepareBuffer
+(
+    const size_t count,
+    const size_t align
+)
+{
+    if (!count)
     {
-        writeToBuffer(&t, sizeof(T), sizeof(T));
+        return;
     }
 
+    // Align for the next output position
+    const label pos = byteAlign(sendBuf_.size(), align);
 
-    inline void UOPstream::writeToBuffer(const char& c)
+    // Extend buffer (as required)
+    sendBuf_.reserve(max(1000, label(pos + count)));
+
+    // Move to the aligned output position. Fill any gap with nul char.
+    sendBuf_.resize(pos, '\0');
+}
+
+
+template<class T>
+inline void UOPstream::writeToBuffer(const T& val)
+{
+    writeToBuffer(&val, sizeof(T), sizeof(T));
+}
+
+
+inline void UOPstream::writeToBuffer
+(
+    const void* data,
+    const size_t count,
+    const size_t align
+)
+{
+    if (!count)
     {
-        if (!sendBuf_.capacity())
-        {
-            sendBuf_.setCapacity(1000);
-        }
-        sendBuf_.append(c);
+        return;
     }
 
+    prepareBuffer(count, align);
 
-    inline void UOPstream::writeToBuffer
-    (
-        const void* data,
-        size_t count,
-        size_t align
-    )
+    // The aligned output position
+    const label pos = sendBuf_.size();
+
+    // Extend the addressable range for direct pointer access
+    sendBuf_.resize(pos + count);
+
+    char* const __restrict__ buf = (sendBuf_.data() + pos);
+    const char* const __restrict__ input = reinterpret_cast<const char*>(data);
+
+    for (size_t i = 0; i < count; ++i)
     {
-        if (!sendBuf_.capacity())
-        {
-            sendBuf_.setCapacity(1000);
-        }
-
-        label alignedPos = sendBuf_.size();
-
-        if (align > 1)
-        {
-            // Align bufPosition. Pads sendBuf_.size() - oldPos characters.
-            alignedPos = align + ((sendBuf_.size() - 1) & ~(align - 1));
-        }
-
-        // Extend if necessary
-        sendBuf_.setSize(alignedPos + count);
-
-        const char* dataPtr = reinterpret_cast<const char*>(data);
-        size_t i = count;
-        while (i--) sendBuf_[alignedPos++] = *dataPtr++;
+        buf[i] = input[i];
     }
+}
 
 
-
-    // * * * * * * * * * * * * * * * * Constructor * * * * * * * * * * * * * * * //
-
-    UOPstream::UOPstream
-    (
-        const commsTypes commsType,
-        const int toProcNo,
-        DynamicList<char>& sendBuf,
-        const int tag,
-        const label comm,
-        const bool sendAtDestruct,
-        streamFormat format,
-        versionNumber version
-    ) : UPstream(commsType),
-        Ostream(format, version),
-        toProcNo_(toProcNo),
-        sendBuf_(sendBuf),
-        tag_(tag),
-        comm_(comm),
-        sendAtDestruct_(sendAtDestruct)
+inline void UOPstream::putChar(const char c)
+{
+    if (!sendBuf_.capacity())
     {
-        setOpened();
-        setGood();
+        sendBuf_.setCapacity(1000);
     }
+    sendBuf_.append(c);
+}
 
 
-    UOPstream::UOPstream(const int toProcNo, PstreamBuffers& buffers) : UPstream(buffers.commsType_),
-        Ostream(buffers.format_, buffers.version_),
-        toProcNo_(toProcNo),
-        sendBuf_(buffers.sendBuf_[toProcNo]),
-        tag_(buffers.tag_),
-        comm_(buffers.comm_),
-        sendAtDestruct_(buffers.commsType_ != UPstream::commsTypes::nonBlocking)
+inline void UOPstream::putString(const std::string& str)
+{
+    const size_t len = str.size();
+    writeToBuffer(len);
+    writeToBuffer(str.data(), len, 1);  // no-op when len == 0
+}
+
+
+// * * * * * * * * * * * * * * * * Constructor * * * * * * * * * * * * * * * //
+
+UOPstream::UOPstream
+(
+    const commsTypes commsType,
+    const int toProcNo,
+    DynamicList<char>& sendBuf,
+    const int tag,
+    const label comm,
+    const bool sendAtDestruct,
+    IOstreamOption::streamFormat fmt
+)
+:
+    UPstream(commsType),
+    Ostream(fmt, IOstreamOption::currentVersion),
+    toProcNo_(toProcNo),
+    sendBuf_(sendBuf),
+    tag_(tag),
+    comm_(comm),
+    sendAtDestruct_(sendAtDestruct)
+{
+    setOpened();
+    setGood();
+}
+
+
+UOPstream::UOPstream(const int toProcNo, PstreamBuffers& buffers)
+:
+    UPstream(buffers.commsType_),
+    Ostream(buffers.format_, IOstreamOption::currentVersion),
+    toProcNo_(toProcNo),
+    sendBuf_(buffers.sendBuf_[toProcNo]),
+    tag_(buffers.tag_),
+    comm_(buffers.comm_),
+    sendAtDestruct_(buffers.commsType_ != UPstream::commsTypes::nonBlocking)
+{
+    setOpened();
+    setGood();
+}
+
+
+// * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
+
+UOPstream::~UOPstream()
+{
+    if (sendAtDestruct_)
     {
-        setOpened();
-        setGood();
-    }
-
-
-    // * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
-
-    UOPstream::~UOPstream()
-    {
-        if (sendAtDestruct_)
-        {
-            if
-                (
-                    !UOPstream::write
-                    (
-                        commsType_,
-                        toProcNo_,
-                        sendBuf_.begin(),
-                        sendBuf_.size(),
-                        tag_,
-                        comm_
-                    )
-                    )
-            {
-                FatalErrorInFunction
-                    << "Failed sending outgoing message of size " << sendBuf_.size()
-                    << " to processor " << toProcNo_
-                    << ::Foam::abort(FatalError);
-            }
-        }
-    }
-
-
-    // * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * * //
-
-    Ostream& UOPstream::write(const token& t)
-    {
-        // Raw token output only supported for verbatim strings for now
-        if (t.type() == token::VERBATIMSTRING)
-        {
-            write(char(token::VERBATIMSTRING));
-            write(t.stringToken());
-        }
-        else if (t.type() == token::VARIABLE)
-        {
-            write(char(token::VARIABLE));
-            write(t.stringToken());
-        }
-        else
-        {
-            NotImplemented;
-            setBad();
-        }
-        return *this;
-    }
-
-
-    Ostream& UOPstream::write(const char c)
-    {
-        if (!isspace(c))
-        {
-            writeToBuffer(c);
-        }
-
-        return *this;
-    }
-
-
-    Ostream& UOPstream::write(const char* str)
-    {
-        word nonWhiteChars(string::validate<word>(str));
-
-        if (nonWhiteChars.size() == 1)
-        {
-            return write(nonWhiteChars[0]);
-        }
-        else if (nonWhiteChars.size())
-        {
-            return write(nonWhiteChars);
-        }
-        else
-        {
-            return *this;
-        }
-    }
-
-
-    Ostream& UOPstream::write(const word& str)
-    {
-        write(char(token::WORD));
-
-        size_t len = str.size();
-        writeToBuffer(len);
-        writeToBuffer(str.c_str(), len + 1, 1);
-
-        return *this;
-    }
-
-
-    Ostream& UOPstream::write(const string& str)
-    {
-        write(char(token::STRING));
-
-        size_t len = str.size();
-        writeToBuffer(len);
-        writeToBuffer(str.c_str(), len + 1, 1);
-
-        return *this;
-    }
-
-
-    Ostream& UOPstream::writeQuoted
-    (
-        const std::string& str,
-        const bool quoted
-    )
-    {
-        if (quoted)
-        {
-            write(char(token::STRING));
-        }
-        else
-        {
-            write(char(token::WORD));
-        }
-
-        size_t len = str.size();
-        writeToBuffer(len);
-        writeToBuffer(str.c_str(), len + 1, 1);
-
-        return *this;
-    }
-
-
-    Ostream& UOPstream::write(const int32_t val)
-    {
-        write(char(token::LABEL));
-        writeToBuffer(val);
-        return *this;
-    }
-
-
-    Ostream& UOPstream::write(const int64_t val)
-    {
-        write(char(token::LABEL));
-        writeToBuffer(val);
-        return *this;
-    }
-
-
-    Ostream& UOPstream::write(const floatScalar val)
-    {
-        write(char(token::FLOAT_SCALAR));
-        writeToBuffer(val);
-        return *this;
-    }
-
-
-    Ostream& UOPstream::write(const doubleScalar val)
-    {
-        write(char(token::DOUBLE_SCALAR));
-        writeToBuffer(val);
-        return *this;
-    }
-
-
-    Ostream& UOPstream::write(const char* data, std::streamsize count)
-    {
-        if (format() != BINARY)
+        if
+        (
+            !UOPstream::write
+            (
+                commsType_,
+                toProcNo_,
+                sendBuf_.cdata(),
+                sendBuf_.size(),
+                tag_,
+                comm_
+            )
+        )
         {
             FatalErrorInFunction
-                << "stream format not binary"
+                << "Failed sending outgoing message of size " << sendBuf_.size()
+                << " to processor " << toProcNo_
                 << ::Foam::abort(FatalError);
         }
-
-        writeToBuffer(data, count, 8);
-
-        return *this;
     }
-
-
-    void UOPstream::print(Ostream& os) const
-    {
-        os << "Writing from processor " << toProcNo_
-            << " to processor " << myProcNo() << " in communicator " << comm_
-            << " and tag " << tag_ << ::Foam::endl;
-    }
-
 }
+
+
+// * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * * //
+
+bool UOPstream::write(const token& tok)
+{
+    // Direct token handling only for some types
+
+    switch (tok.type())
+    {
+        case token::tokenType::FLAG :
+        {
+            putChar(token::tokenType::FLAG);
+            putChar(tok.flagToken());
+
+            return true;
+        }
+
+        // The word-variants
+        case token::tokenType::WORD :
+        case token::tokenType::DIRECTIVE :
+        {
+            putChar(tok.type());
+            putString(tok.wordToken());
+
+            return true;
+        }
+
+        // The string-variants
+        case token::tokenType::STRING :
+        case token::tokenType::EXPRESSION :
+        case token::tokenType::VARIABLE :
+        case token::tokenType::VERBATIM :
+        {
+            putChar(tok.type());
+            putString(tok.stringToken());
+
+            return true;
+        }
+
+        default:
+            break;
+    }
+
+    return false;
+}
+
+
+Ostream& UOPstream::write(const char c)
+{
+    if (!isspace(c))
+    {
+        putChar(c);
+    }
+
+    return *this;
+}
+
+
+Ostream& UOPstream::write(const char* str)
+{
+    const word nonWhiteChars(string::validate<word>(str));
+
+    if (nonWhiteChars.size() == 1)
+    {
+        return write(nonWhiteChars[0]);
+    }
+    else if (nonWhiteChars.size())
+    {
+        return write(nonWhiteChars);
+    }
+
+    return *this;
+}
+
+
+Ostream& UOPstream::write(const word& str)
+{
+    putChar(token::tokenType::WORD);
+    putString(str);
+
+    return *this;
+}
+
+
+Ostream& UOPstream::write(const string& str)
+{
+    putChar(token::tokenType::STRING);
+    putString(str);
+
+    return *this;
+}
+
+
+Ostream& UOPstream::writeQuoted
+(
+    const std::string& str,
+    const bool quoted
+)
+{
+    if (quoted)
+    {
+        putChar(token::tokenType::STRING);
+    }
+    else
+    {
+        putChar(token::tokenType::WORD);
+    }
+    putString(str);
+
+    return *this;
+}
+
+
+Ostream& UOPstream::write(const int32_t val)
+{
+    putChar(token::tokenType::LABEL);
+    writeToBuffer(val);
+    return *this;
+}
+
+
+Ostream& UOPstream::write(const int64_t val)
+{
+    putChar(token::tokenType::LABEL);
+    writeToBuffer(val);
+    return *this;
+}
+
+
+Ostream& UOPstream::write(const floatScalar val)
+{
+    putChar(token::tokenType::FLOAT);
+    writeToBuffer(val);
+    return *this;
+}
+
+
+Ostream& UOPstream::write(const doubleScalar val)
+{
+    putChar(token::tokenType::DOUBLE);
+    writeToBuffer(val);
+    return *this;
+}
+
+
+Ostream& UOPstream::write(const char* data, std::streamsize count)
+{
+    if (format() != BINARY)
+    {
+        FatalErrorInFunction
+            << "stream format not binary"
+            << ::Foam::abort(FatalError);
+    }
+
+    // Align on word boundary (64-bit)
+    writeToBuffer(data, count, 8);
+
+    return *this;
+}
+
+
+Ostream& UOPstream::writeRaw
+(
+    const char* data,
+    std::streamsize count
+)
+{
+    // No check for format() == BINARY since this is either done in the
+    // beginRawWrite() method, or the caller knows what they are doing.
+
+    // Previously aligned and sizes reserved via beginRawWrite()
+    writeToBuffer(data, count, 1);
+
+    return *this;
+}
+
+
+bool UOPstream::beginRawWrite(std::streamsize count)
+{
+    if (format() != BINARY)
+    {
+        FatalErrorInFunction
+            << "stream format not binary"
+            << ::Foam::abort(FatalError);
+    }
+
+    // Align on word boundary (64-bit)
+    // - as per write(const char*, streamsize)
+    prepareBuffer(count, 8);
+
+    return true;
+}
+
+
+void UOPstream::print(Ostream& os) const
+{
+    os  << "Writing from processor " << toProcNo_
+        << " to processor " << myProcNo() << " in communicator " << comm_
+        << " and tag " << tag_ << ::Foam::endl;
+}
+
+
 // ************************************************************************* //
+
+ } // End namespace Foam

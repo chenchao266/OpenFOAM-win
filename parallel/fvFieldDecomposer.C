@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -24,7 +27,6 @@ License
 \*---------------------------------------------------------------------------*/
 
 #include "fvFieldDecomposer.H"
-
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
@@ -47,21 +49,19 @@ Foam::fvFieldDecomposer::patchFieldDecomposer::patchFieldDecomposer
 Foam::fvFieldDecomposer::processorVolPatchFieldDecomposer::
 processorVolPatchFieldDecomposer
 (
-    const fvMesh& mesh,
+    const labelUList& owner,  // == mesh.faceOwner()
+    const labelUList& neigh,  // == mesh.faceNeighbour()
     const labelUList& addressingSlice
 )
 :
     directAddressing_(addressingSlice.size())
 {
-    const labelList& own = mesh.faceOwner();
-    const labelList& neighb = mesh.faceNeighbour();
-
     forAll(directAddressing_, i)
     {
         // Subtract one to align addressing.
         label ai = mag(addressingSlice[i]) - 1;
 
-        if (ai < neighb.size())
+        if (ai < neigh.size())
         {
             // This is a regular face. it has been an internal face
             // of the original mesh and now it has become a face
@@ -71,11 +71,11 @@ processorVolPatchFieldDecomposer
             if (addressingSlice[i] >= 0)
             {
                 // I have the owner so use the neighbour value
-                directAddressing_[i] = neighb[ai];
+                directAddressing_[i] = neigh[ai];
             }
             else
             {
-                directAddressing_[i] = own[ai];
+                directAddressing_[i] = owner[ai];
             }
         }
         else
@@ -86,10 +86,26 @@ processorVolPatchFieldDecomposer
             // up the different (face) list of data), so I will
             // just grab the value from the owner cell
 
-            directAddressing_[i] = own[ai];
+            directAddressing_[i] = owner[ai];
         }
     }
 }
+
+
+Foam::fvFieldDecomposer::processorVolPatchFieldDecomposer::
+processorVolPatchFieldDecomposer
+(
+    const fvMesh& mesh,
+    const labelUList& addressingSlice
+)
+:
+    processorVolPatchFieldDecomposer
+    (
+        mesh.faceOwner(),
+        mesh.faceNeighbour(),
+        addressingSlice
+    )
+{}
 
 
 Foam::fvFieldDecomposer::processorSurfacePatchFieldDecomposer::
@@ -103,13 +119,34 @@ processorSurfacePatchFieldDecomposer
 {
     forAll(addressing_, i)
     {
-        addressing_[i].setSize(1);
-        weights_[i].setSize(1);
+        addressing_[i].resize(1);
+        weights_[i].resize(1);
 
         addressing_[i][0] = mag(addressingSlice[i]) - 1;
-        weights_[i][0] = sign(addressingSlice[i]);
+        weights_[i][0] = 1;
     }
 }
+
+
+Foam::fvFieldDecomposer::fvFieldDecomposer
+(
+    const Foam::zero,
+    const fvMesh& procMesh,
+    const labelList& faceAddressing,
+    const labelList& cellAddressing,
+    const labelList& boundaryAddressing
+)
+:
+    procMesh_(procMesh),
+    faceAddressing_(faceAddressing),
+    cellAddressing_(cellAddressing),
+    boundaryAddressing_(boundaryAddressing),
+    // Mappers
+    patchFieldDecomposerPtrs_(),
+    processorVolPatchFieldDecomposerPtrs_(),
+    processorSurfacePatchFieldDecomposerPtrs_(),
+    faceSign_()
+{}
 
 
 Foam::fvFieldDecomposer::fvFieldDecomposer
@@ -121,96 +158,205 @@ Foam::fvFieldDecomposer::fvFieldDecomposer
     const labelList& boundaryAddressing
 )
 :
-    completeMesh_(completeMesh),
-    procMesh_(procMesh),
-    faceAddressing_(faceAddressing),
-    cellAddressing_(cellAddressing),
-    boundaryAddressing_(boundaryAddressing),
-    patchFieldDecomposerPtrs_
+    fvFieldDecomposer
     (
-        procMesh_.boundary().size(),
-        static_cast<patchFieldDecomposer*>(nullptr)
-    ),
-    processorVolPatchFieldDecomposerPtrs_
-    (
-        procMesh_.boundary().size(),
-        static_cast<processorVolPatchFieldDecomposer*>(nullptr)
-    ),
-    processorSurfacePatchFieldDecomposerPtrs_
-    (
-        procMesh_.boundary().size(),
-        static_cast<processorSurfacePatchFieldDecomposer*>(nullptr)
+        zero{},
+        procMesh,
+        faceAddressing,
+        cellAddressing,
+        boundaryAddressing
     )
 {
+    reset(completeMesh);
+}
+
+
+Foam::fvFieldDecomposer::fvFieldDecomposer
+(
+    const List<labelRange>& boundaryRanges,
+    const labelUList& faceOwner,
+    const labelUList& faceNeighbour,
+
+    const fvMesh& procMesh,
+    const labelList& faceAddressing,
+    const labelList& cellAddressing,
+    const labelList& boundaryAddressing
+)
+:
+    fvFieldDecomposer
+    (
+        zero{},
+        procMesh,
+        faceAddressing,
+        cellAddressing,
+        boundaryAddressing
+    )
+{
+    reset(boundaryRanges, faceOwner, faceNeighbour);
+}
+
+
+// * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
+
+bool Foam::fvFieldDecomposer::empty() const
+{
+    return patchFieldDecomposerPtrs_.empty();
+}
+
+
+void Foam::fvFieldDecomposer::clear()
+{
+    patchFieldDecomposerPtrs_.clear();
+    processorVolPatchFieldDecomposerPtrs_.clear();
+    processorSurfacePatchFieldDecomposerPtrs_.clear();
+    faceSign_.clear();
+}
+
+
+void Foam::fvFieldDecomposer::reset
+(
+    const List<labelRange>& boundaryRanges,
+    const labelUList& faceOwner,
+    const labelUList& faceNeighbour
+)
+{
+    clear();
+    const label nMappers = procMesh_.boundary().size();
+    patchFieldDecomposerPtrs_.resize(nMappers);
+    processorVolPatchFieldDecomposerPtrs_.resize(nMappers);
+    processorSurfacePatchFieldDecomposerPtrs_.resize(nMappers);
+    faceSign_.resize(nMappers);
+
     forAll(boundaryAddressing_, patchi)
     {
+        const label oldPatchi = boundaryAddressing_[patchi];
+        const fvPatch& fvp = procMesh_.boundary()[patchi];
+        const labelSubList localPatchSlice(fvp.patchSlice(faceAddressing_));
+
         if
         (
-            boundaryAddressing_[patchi] >= 0
-        && !isA<processorLduInterface>(procMesh.boundary()[patchi])
+            oldPatchi >= 0
+        && !isA<processorLduInterface>(procMesh_.boundary()[patchi])
         )
         {
-            patchFieldDecomposerPtrs_[patchi] = new patchFieldDecomposer
+            patchFieldDecomposerPtrs_.set
             (
-                procMesh_.boundary()[patchi].patchSlice(faceAddressing_),
-                completeMesh_.boundaryMesh()
-                [
-                    boundaryAddressing_[patchi]
-                ].start()
+                patchi,
+                new patchFieldDecomposer
+                (
+                    localPatchSlice,
+                    boundaryRanges[oldPatchi].start()
+                )
             );
         }
         else
         {
-            processorVolPatchFieldDecomposerPtrs_[patchi] =
+            processorVolPatchFieldDecomposerPtrs_.set
+            (
+                patchi,
                 new processorVolPatchFieldDecomposer
                 (
-                    completeMesh_,
-                    procMesh_.boundary()[patchi].patchSlice(faceAddressing_)
-                );
+                    faceOwner,
+                    faceNeighbour,
+                    localPatchSlice
+                )
+            );
 
-            processorSurfacePatchFieldDecomposerPtrs_[patchi] =
+            processorSurfacePatchFieldDecomposerPtrs_.set
+            (
+                patchi,
                 new processorSurfacePatchFieldDecomposer
                 (
-                    static_cast<const labelUList&>
-                    (
-                        procMesh_.boundary()[patchi].patchSlice
-                        (
-                            faceAddressing_
-                        )
-                    )
-                );
+                    static_cast<const labelUList&>(localPatchSlice)
+                )
+            );
+
+            faceSign_.set
+            (
+                patchi,
+                new scalarField(localPatchSlice.size())
+            );
+
+            {
+                scalarField& s = faceSign_[patchi];
+                forAll(s, i)
+                {
+                    s[i] = sign(localPatchSlice[i]);
+                }
+            }
         }
     }
 }
 
 
-// * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
-
-Foam::fvFieldDecomposer::~fvFieldDecomposer()
+void Foam::fvFieldDecomposer::reset(const fvMesh& completeMesh)
 {
-    forAll(patchFieldDecomposerPtrs_, patchi)
-    {
-        if (patchFieldDecomposerPtrs_[patchi])
-        {
-            delete patchFieldDecomposerPtrs_[patchi];
-        }
-    }
+    clear();
+    const label nMappers = procMesh_.boundary().size();
+    patchFieldDecomposerPtrs_.resize(nMappers);
+    processorVolPatchFieldDecomposerPtrs_.resize(nMappers);
+    processorSurfacePatchFieldDecomposerPtrs_.resize(nMappers);
+    faceSign_.resize(nMappers);
 
-    forAll(processorVolPatchFieldDecomposerPtrs_, patchi)
+    forAll(boundaryAddressing_, patchi)
     {
-        if (processorVolPatchFieldDecomposerPtrs_[patchi])
-        {
-            delete processorVolPatchFieldDecomposerPtrs_[patchi];
-        }
-    }
+        const label oldPatchi = boundaryAddressing_[patchi];
+        const fvPatch& fvp = procMesh_.boundary()[patchi];
+        const labelSubList localPatchSlice(fvp.patchSlice(faceAddressing_));
 
-    forAll(processorSurfacePatchFieldDecomposerPtrs_, patchi)
-    {
-        if (processorSurfacePatchFieldDecomposerPtrs_[patchi])
+        if
+        (
+            oldPatchi >= 0
+        && !isA<processorLduInterface>(procMesh_.boundary()[patchi])
+        )
         {
-            delete processorSurfacePatchFieldDecomposerPtrs_[patchi];
+            patchFieldDecomposerPtrs_.set
+            (
+                patchi,
+                new patchFieldDecomposer
+                (
+                    localPatchSlice,
+                    completeMesh.boundaryMesh()[oldPatchi].start()
+                )
+            );
+        }
+        else
+        {
+            processorVolPatchFieldDecomposerPtrs_.set
+            (
+                patchi,
+                new processorVolPatchFieldDecomposer
+                (
+                    completeMesh,
+                    localPatchSlice
+                )
+            );
+
+            processorSurfacePatchFieldDecomposerPtrs_.set
+            (
+                patchi,
+                new processorSurfacePatchFieldDecomposer
+                (
+                    static_cast<const labelUList&>(localPatchSlice)
+                )
+            );
+
+            faceSign_.set
+            (
+                patchi,
+                new scalarField(localPatchSlice.size())
+            );
+
+            {
+                scalarField& s = faceSign_[patchi];
+                forAll(s, i)
+                {
+                    s[i] = sign(localPatchSlice[i]);
+                }
+            }
         }
     }
 }
+
 
 // ************************************************************************* //

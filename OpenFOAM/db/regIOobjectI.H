@@ -1,9 +1,12 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2015 OpenFOAM Foundation
+    Copyright (C) 2018-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -24,56 +27,160 @@ License
 \*---------------------------------------------------------------------------*/
 
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
-namespace Foam {
+
+
+ namespace Foam{
 inline bool regIOobject::ownedByRegistry() const
 {
     return ownedByRegistry_;
 }
 
 
-inline void regIOobject::store()
+inline bool regIOobject::store()
 {
-    ownedByRegistry_ = true;
+    if (checkIn())
+    {
+        ownedByRegistry_ = true;
+    }
+    else
+    {
+        WarningInFunction
+            << "Refuse to store unregistered object: " << this->name() << nl;
+    }
+
+    return ownedByRegistry_;
 }
 
 
 template<class Type>
-inline Type& regIOobject::store(Type* tPtr)
+inline Type& regIOobject::store(Type* p)
 {
-    if (!tPtr)
+    if (!p)
     {
         FatalErrorInFunction
-            << "object deallocated"
+            << "Object deallocated\n"
             << abort(FatalError);
     }
 
-    tPtr->regIOobject::ownedByRegistry_ = true;
+    const bool ok = p->regIOobject::store();
 
-    return *tPtr;
+    if (!ok)
+    {
+        FatalErrorInFunction
+            << "Failed to store pointer: " << p->regIOobject::name()
+            << ". Risk of memory leakage\n"
+            << abort(FatalError);
+    }
+
+    return *p;
 }
 
 
 template<class Type>
-inline Type& regIOobject::store(autoPtr<Type>& atPtr)
+inline Type& regIOobject::store(autoPtr<Type>& ptr)
 {
-    Type* tPtr = atPtr.ptr();
-
-    if (!tPtr)
-    {
-        FatalErrorInFunction
-                << "object deallocated"
-                << abort(FatalError);
-    }
-
-    tPtr->regIOobject::ownedByRegistry_ = true;
-
-    return *tPtr;
+    // Pass management to objectRegistry
+    return store(ptr.release());
 }
 
 
-inline void regIOobject::release()
+template<class Type>
+inline Type& regIOobject::store(autoPtr<Type>&& ptr)
+{
+    // Pass management to objectRegistry
+    return store(ptr.release());
+}
+
+
+template<class Type>
+inline Type& regIOobject::store(refPtr<Type>& ptr)
+{
+    Type* p = nullptr;
+
+    if (ptr.is_pointer())
+    {
+        // Acquire ownership, pass management to objectRegistry
+        p = ptr.release();
+
+        store(p);
+
+        // Change parameter to access the stored reference
+        ptr.cref(p);
+    }
+    else
+    {
+        // Taking ownership of reference does not make much sense.
+        // - Storing the object won't actually do so, it will be removed
+        //   when the original object goes out of scope.
+        // - Storing a clone may not be what we want.
+
+        p = ptr.get();
+
+        WarningInFunction
+            << "Refuse to store reference: " << p->name()
+            << ". Likely indicates a coding error\n";
+    }
+
+    return *p;
+}
+
+
+template<class Type>
+inline Type& regIOobject::store(refPtr<Type>&& ptr)
+{
+    // Forward as named reference, which also does a move
+    return store(ptr);
+}
+
+
+template<class Type>
+inline Type& regIOobject::store(tmp<Type>& ptr)
+{
+    Type* p = nullptr;
+
+    if (ptr.is_pointer())
+    {
+        // Acquire ownership, pass management to objectRegistry
+        p = ptr.ptr();
+
+        store(p);
+
+        // Change parameter to access the stored reference
+        ptr.cref(p);
+    }
+    else
+    {
+        // Taking ownership of reference does not make much sense.
+        // - Storing the object won't actually do so, it will be removed
+        //   when the original object goes out of scope.
+        // - Storing a clone may not be what we want.
+
+        p = ptr.get();
+
+        WarningInFunction
+            << "Refuse to store reference: " << p->name()
+            << ". Likely indicates a coding error\n";
+    }
+
+    return *p;
+}
+
+
+template<class Type>
+inline Type& regIOobject::store(tmp<Type>&& ptr)
+{
+    // Forward as named reference, which also does a move
+    return store(ptr);
+}
+
+
+inline void regIOobject::release(const bool unregister)
 {
     ownedByRegistry_ = false;
+    if (unregister)
+    {
+        registered_ = false;
+    }
 }
 
 
@@ -99,5 +206,7 @@ inline labelList& regIOobject::watchIndices()
     return watchIndices_;
 }
 
-}
+
 // ************************************************************************* //
+
+ } // End namespace Foam

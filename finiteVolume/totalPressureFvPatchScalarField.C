@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -44,7 +47,7 @@ Foam::totalPressureFvPatchScalarField::totalPressureFvPatchScalarField
     rhoName_("rho"),
     psiName_("none"),
     gamma_(0.0),
-    p0_(p.size(), 0.0)
+    p0_(p.size(), Zero)
 {}
 
 
@@ -56,11 +59,11 @@ Foam::totalPressureFvPatchScalarField::totalPressureFvPatchScalarField
 )
 :
     fixedValueFvPatchScalarField(p, iF, dict, false),
-    UName_(dict.lookupOrDefault<word>("U", "U")),
-    phiName_(dict.lookupOrDefault<word>("phi", "phi")),
-    rhoName_(dict.lookupOrDefault<word>("rho", "rho")),
-    psiName_(dict.lookupOrDefault<word>("psi", "none")),
-    gamma_(psiName_ != "none" ? readScalar(dict.lookup("gamma")) : 1),
+    UName_(dict.getOrDefault<word>("U", "U")),
+    phiName_(dict.getOrDefault<word>("phi", "phi")),
+    rhoName_(dict.getOrDefault<word>("rho", "rho")),
+    psiName_(dict.getOrDefault<word>("psi", "none")),
+    gamma_(psiName_ != "none" ? dict.get<scalar>("gamma") : 1),
     p0_("p0", dict, p.size())
 {
     if (dict.found("value"))
@@ -243,11 +246,11 @@ void Foam::totalPressureFvPatchScalarField::updateCoeffs()
 void Foam::totalPressureFvPatchScalarField::write(Ostream& os) const
 {
     fvPatchScalarField::write(os);
-    writeEntryIfDifferent<word>(os, "U", "U", UName_);
-    writeEntryIfDifferent<word>(os, "phi", "phi", phiName_);
-    os.writeKeyword("rho") << rhoName_ << token::END_STATEMENT << nl;
-    os.writeKeyword("psi") << psiName_ << token::END_STATEMENT << nl;
-    os.writeKeyword("gamma") << gamma_ << token::END_STATEMENT << nl;
+    os.writeEntryIfDifferent<word>("U", "U", UName_);
+    os.writeEntryIfDifferent<word>("phi", "phi", phiName_);
+    os.writeEntry("rho", rhoName_);
+    os.writeEntry("psi", psiName_);
+    os.writeEntry("gamma", gamma_);
     p0_.writeEntry("p0", os);
     writeEntry("value", os);
 }

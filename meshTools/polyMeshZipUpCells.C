@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -25,7 +27,7 @@ License
 
 #include "polyMeshZipUpCells.H"
 #include "polyMesh.H"
-#include "Time.T.H"
+#include "Time1.H"
 
 // #define DEBUG_ZIPUP 1
 // #define DEBUG_CHAIN 1
@@ -84,7 +86,7 @@ bool Foam::polyMeshZipUpCells(polyMesh& mesh)
 
             // Find the edges used only once in the cell
 
-            labelList edgeUsage(cellEdges.size(), 0);
+            labelList edgeUsage(cellEdges.size(), Zero);
 
             forAll(curFaces, facei)
             {
@@ -177,7 +179,7 @@ bool Foam::polyMeshZipUpCells(polyMesh& mesh)
             // points marked twice are internal to edge; those marked more than
             // twice are corners
 
-            labelList pointUsage(cellPoints.size(), 0);
+            labelList pointUsage(cellPoints.size(), Zero);
 
             forAll(singleEdges, edgeI)
             {
@@ -549,7 +551,7 @@ bool Foam::polyMeshZipUpCells(polyMesh& mesh)
                     if (faceChanges)
                     {
                         nChangedFacesInMesh++;
-                        // In order to avoid loosing point from multiple
+                        // In order to avoid losing point from multiple
                         // insertions into the same face, the new face
                         // will be change incrementally.
                         // 1) Check if all the internal points of the edge
@@ -720,12 +722,9 @@ bool Foam::polyMeshZipUpCells(polyMesh& mesh)
         if (problemCells.size())
         {
             // This cycle has failed.  Print out the problem cells
-            labelList toc(problemCells.toc());
-            sort(toc);
-
             FatalErrorInFunction
                 << "Found " << problemCells.size() << " problem cells." << nl
-                << "Cells: " << toc
+                << "Cells: " << problemCells.sortedToc()
                 << abort(FatalError);
         }
 
@@ -740,8 +739,8 @@ bool Foam::polyMeshZipUpCells(polyMesh& mesh)
         // (edge, point) addressing.
 
         // Collect the patch sizes
-        labelList patchSizes(bMesh.size(), 0);
-        labelList patchStarts(bMesh.size(), 0);
+        labelList patchSizes(bMesh.size(), Zero);
+        labelList patchStarts(bMesh.size(), Zero);
 
         forAll(bMesh, patchi)
         {
@@ -753,10 +752,10 @@ bool Foam::polyMeshZipUpCells(polyMesh& mesh)
         // (patches guaranteed to be in increasing order)
         mesh.resetPrimitives
         (
-            Xfer<pointField>::null(),
-            xferMove(newFaces),
-            Xfer<labelList>::null(),
-            Xfer<labelList>::null(),
+            autoPtr<pointField>(),  // <- null: leaves points untouched
+            autoPtr<faceList>::New(std::move(newFaces)),
+            autoPtr<labelList>(),   // <- null: leaves owner untouched
+            autoPtr<labelList>(),   // <- null: leaves neighbour untouched
             patchSizes,
             patchStarts,
             true                // boundary forms valid boundary mesh.

@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2013-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2013-2017 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -51,25 +54,22 @@ addToRunTimeSelectionTable
 
 solidification::solidification
 (
-    surfaceFilmModel& film,
+    surfaceFilmRegionModel& film,
     const dictionary& dict
 )
 :
     phaseChangeModel(typeName, film, dict),
-    T0_(readScalar(coeffDict_.lookup("T0"))),
+    T0_(coeffDict_.get<scalar>("T0")),
     maxSolidificationFrac_
     (
-        coeffDict_.lookupOrDefault("maxSolidificationFrac", 0.2)
+        coeffDict_.getOrDefault<scalar>("maxSolidificationFrac", 0.2)
     ),
     maxSolidificationRate_
     (
-        dimensioned<scalar>::lookupOrDefault
-        (
-            "maxSolidificationRate",
-            coeffDict_,
-            dimless/dimTime,
-            GREAT
-        )
+        "maxSolidificationRate",
+        dimless/dimTime,
+        GREAT,
+        coeffDict_
     ),
     mass_
     (
@@ -82,7 +82,7 @@ solidification::solidification
             IOobject::AUTO_WRITE
         ),
         film.regionMesh(),
-        dimensionedScalar("zero", dimMass, 0.0),
+        dimensionedScalar(dimMass, Zero),
         zeroGradientFvPatchScalarField::typeName
     ),
     thickness_
@@ -96,7 +96,7 @@ solidification::solidification
             IOobject::AUTO_WRITE
         ),
         film.regionMesh(),
-        dimensionedScalar("zero", dimLength, 0.0),
+        dimensionedScalar(dimLength, Zero),
         zeroGradientFvPatchScalarField::typeName
     )
 {}
@@ -121,7 +121,6 @@ void solidification::correctModel
     const thermoSingleLayer& film = filmType<thermoSingleLayer>();
 
     const scalarField& T = film.T();
-    const scalarField& hs = film.hs();
     const scalarField& alpha = film.alpha();
 
     const scalar rateLimiter = min
@@ -146,7 +145,6 @@ void solidification::correctModel
 
                 // Heat is assumed to be removed by heat-transfer to the wall
                 // so the energy remains unchanged by the phase-change.
-                dEnergy[celli] += dm*hs[celli];
             }
         }
     }

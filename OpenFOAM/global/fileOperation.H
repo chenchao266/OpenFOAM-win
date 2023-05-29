@@ -1,14 +1,15 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
 -------------------------------------------------------------------------------
- 2017-09-XX blueCAPE Lda: Modifications for blueCFD-Core 2017-1
-------------------------------------------------------------------------------
+    Copyright (C) 2017 OpenFOAM Foundation
+    Copyright (C) 2020-2021 OpenCFD Ltd.
+-------------------------------------------------------------------------------
 License
-    This file is a derivative work of OpenFOAM.
+    This file is part of OpenFOAM.
 
     OpenFOAM is free software: you can redistribute it and/or modify it
     under the terms of the GNU General Public License as published by
@@ -23,14 +24,17 @@ License
     You should have received a copy of the GNU General Public License
     along with OpenFOAM.  If not, see <http://www.gnu.org/licenses/>.
 
-Modifications
-    This file has been modified by blueCAPE's unofficial mingw patches for
-    OpenFOAM.
-    For more information about these patches, visit:
-        http://bluecfd.com/Core
-
 Class
     Foam::fileOperation
+
+Description
+    An encapsulation of filesystem-related operations.
+
+Namespace
+    Foam::fileOperations
+
+Description
+    Namespace for implementations of a fileOperation
 
 \*---------------------------------------------------------------------------*/
 
@@ -38,22 +42,25 @@ Class
 #define fileOperation_H
 
 #include "ISstream.H"
-#include "Ostream.H"
+#include "_Ostream.H"
 #include "autoPtr.H"
 #include "fileNameList.H"
 #include "instantList.H"
 #include "fileMonitor.H"
-#include "labelList.H"
-
-#if defined(WIN32) || defined(WIN64)
+#include "refPtr.H"
+#include "Enum.H"
+#include "Tuple2.H"
 #include "hacks_on_mingw.h"
-#endif
+
+#define NoHashTableC
+#include "runTimeSelectionTables.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 namespace Foam
 {
 
+// Forward Declarations
 class IOobject;
 class regIOobject;
 class objectRegistry;
@@ -65,49 +72,111 @@ class Time;
 
 class fileOperation
 {
+public:
+
+        //- Enumeration for the location of an IOobject
+        enum pathType : int
+        {
+            NOTFOUND = 0,           //!< Not found
+            ABSOLUTE,               //!< instance is absolute directory
+            OBJECT,                 //!< io.objectPath() exists
+            WRITEOBJECT,            //!< write path exists
+
+            // NOTE: increasing precedence (uncollated, collated, rank-collated)
+
+            PROCUNCOLLATED,
+                        //!< objectPath exists in 'processorN'
+            PROCBASEOBJECT = PROCUNCOLLATED + 1,
+                        //!< objectPath exists in 'processorsNN'
+            PROCOBJECT = PROCBASEOBJECT + 1,
+                        //!< objectPath exists in 'processorsNN_first-last'
+
+            PARENTOBJECT,           //!< parent of object path
+            FINDINSTANCE,           //!< file found in time directory
+            PROCUNCOLLATEDINSTANCE, //!< as PROCUNCOLLATED but with instance
+            PROCBASEINSTANCE,       //!< as PROCBASEOBJECT but with instance
+            PROCINSTANCE            //!< as PROCOBJECT but with instance
+        };
+        static const Enum<pathType> pathTypeNames_;
+
+        //- Augment fileName with pathType and local offset
+        typedef Tuple2<fileName, Tuple2<pathType, int>> dirIndex;
+        typedef List<dirIndex> dirIndexList;
+
+        //- For addressing a range of processors,
+        //- identical to UPstream::rangeType
+        typedef IntRange<int> procRangeType;
+
+
 protected:
 
-    // Protected data
+    // Protected Data
 
-        //- file-change monitor for all registered files
+        //- Communicator to use
+        const label comm_;
+
+        //- Distributed roots (parallel run)
+        mutable bool distributed_;
+
+        //- Detected processors directories
+        mutable HashTable<dirIndexList> procsDirs_;
+
+        //- File-change monitor for all registered files
         mutable autoPtr<fileMonitor> monitorPtr_;
 
 
    // Protected Member Functions
 
+        //- Get or create fileMonitor singleton
         fileMonitor& monitor() const;
 
-        //- Sort directory entries according to time value
-        static instantList sortTimes(const fileNameList&, const word&);
+        //- Retrieve list of IO ranks from FOAM_IORANKS env variable
+        static labelList ioRanks();
+
+        //- Merge two times
+        static void mergeTimes
+        (
+            const instantList& extraTimes,
+            const word& constantName,
+            instantList& times
+        );
 
         //- Helper: check for file (isFile) or directory (!isFile)
         static bool isFileOrDir(const bool isFile, const fileName&);
 
+        //- Lookup name of processorsDDD using cache.
+        //  \return empty fileName if not found.
+        refPtr<dirIndexList> lookupAndCacheProcessorsPath
+        (
+            const fileName& objectPath,
+            const bool syncPar
+        ) const;
+
+        //- Lookup name of processorsDDD using cache.
+        //  \note To be called on all processors
+        //  \return empty fileName if not found.
+        virtual refPtr<dirIndexList> lookupProcessorsPath
+        (
+            const fileName& objectPath
+        ) const;
+
+        //- Does IOObject exist.
+        //- Is either a directory (empty name()) or a file
+        bool exists(IOobject& io) const;
+
+
 public:
 
-    // Static data
+    // Static Data
 
         //- Return the processors directory name (usually "processors")
-        static word processorsDir;
+        static word processorsBaseDir;
 
-        //- Default fileHandler
+        //- Name of the default fileHandler
         static word defaultFileHandler;
 
 
-    // Public data types
-
-        //- Enumeration for the location of an IOobject
-        enum pathType
-        {
-            NOTFOUND,               // not found
-            ABSOLUTE,               // instance is absolute directory
-            OBJECT,                 // objectPath exists
-            PROCESSORSOBJECT,       // objectPath exists in processors/
-            PARENTOBJECT,           // parent of object path
-            FINDINSTANCE,           // file found in time directory
-            PROCESSORSFINDINSTANCE  // as above but in processors/
-        };
-
+    // Public Data Types
 
         //- Runtime type information
         TypeName("fileOperation");
@@ -116,38 +185,73 @@ public:
     //- Static fileOperation
     static autoPtr<fileOperation> fileHandlerPtr_;
 
+    //- Static construct the commonly used uncollatedFileOperation
+    static autoPtr<fileOperation> NewUncollated();
+
 
     // Constructors
 
-        //- Construct null
-        fileOperation();
+        //- Construct from communicator, optionally with distributed roots
+        explicit fileOperation
+        (
+            const label comm,
+            const bool distributedRoots = false
+        );
 
 
     // Declare run-time constructor selection table
 
+ 
         declareRunTimeSelectionTable
         (
             autoPtr,
             fileOperation,
             word,
             (
-                const bool verbose
+                bool verbose
             ),
             (verbose)
         );
+ 
 
 
     // Selectors
 
-        //- Select type
-        static autoPtr<fileOperation> New(const word& type, const bool verbose);
+        //- Select fileHandler-type
+        static autoPtr<fileOperation> New
+        (
+            const word& handlerType,
+            bool verbose = false
+        );
 
 
     //- Destructor
-    virtual ~fileOperation();
+    virtual ~fileOperation() = default;
+
+
+   // Static Functions
+
+        //- Sort directory entries according to time value,
+        //  with "constant" appearing first (if it exists)
+        static instantList sortTimes
+        (
+            const fileNameList& dirEntries,
+            const word& constantName = "constant"
+        );
 
 
     // Member Functions
+
+        //- Distributed roots (parallel run)
+        bool distributed() const noexcept
+        {
+            return distributed_;
+        }
+
+        //- Set distributed roots on/off (mutable)
+        //  \return old value
+        bool distributed(bool on) const noexcept;
+
 
         // OSSpecific equivalents
 
@@ -197,7 +301,7 @@ public:
             ) const = 0;
 
             //- Return size of file
-            virtual offset_t fileSize
+            virtual off_t fileSize
             (
                 const fileName&,
                 const bool followLink = true
@@ -258,8 +362,13 @@ public:
             //- Remove a file, returning true if successful otherwise false
             virtual bool rm(const fileName&) const = 0;
 
-            //- Remove a dirctory and its contents
-            virtual bool rmDir(const fileName&) const = 0;
+            //- Remove a directory and its contents
+            //  \param silent do not report missing directory
+            virtual bool rmDir
+            (
+                const fileName& dir,
+                const bool silent = false
+            ) const = 0;
 
 //            //- Open a shared library. Return handle to library. Print error
 //            //  message if library cannot be loaded (check = true)
@@ -270,7 +379,7 @@ public:
 //            ) const = 0;
 
 
-        // (reg)IOobject functinality
+        // (reg)IOobject functionality
 
             //- Generate disk file name for object. Opposite of filePath.
             //  Optional wanted typeName.
@@ -286,7 +395,8 @@ public:
             (
                 const bool checkGlobal,
                 const IOobject&,
-                const word& typeName
+                const word& typeName,
+                const bool search = true
             ) const = 0;
 
             //- Search for a directory. checkGlobal : also check undecomposed
@@ -294,7 +404,8 @@ public:
             virtual fileName dirPath
             (
                 const bool checkGlobal,
-                const IOobject&
+                const IOobject& io,
+                const bool search = true
             ) const = 0;
 
             //- Search directory for objects. Used in IOobjectList.
@@ -329,7 +440,7 @@ public:
             (
                 regIOobject&,
                 const bool masterOnly,
-                const IOstream::streamFormat format,
+                const IOstreamOption::streamFormat format,
                 const word& typeName
             ) const = 0;
 
@@ -340,10 +451,8 @@ public:
             //  suppress empty local lagrangian data)
             virtual bool writeObject
             (
-                const regIOobject&,
-                IOstream::streamFormat format=IOstream::ASCII,
-                IOstream::versionNumber version=IOstream::currentVersion,
-                IOstream::compressionType compression=IOstream::UNCOMPRESSED,
+                const regIOobject& io,
+                IOstreamOption streamOpt = IOstreamOption(),
                 const bool valid = true
             ) const;
 
@@ -357,13 +466,11 @@ public:
             //- Generate an ISstream that reads a file
             virtual autoPtr<ISstream> NewIFstream(const fileName&) const = 0;
 
-            //- Generate an Ostream that writes a file
-            virtual autoPtr<Ostream> NewOFstream
+            //- Generate an OSstream that writes a file
+            virtual autoPtr<OSstream> NewOFstream
             (
                 const fileName& pathname,
-                IOstream::streamFormat format=IOstream::ASCII,
-                IOstream::versionNumber version=IOstream::currentVersion,
-                IOstream::compressionType compression=IOstream::UNCOMPRESSED,
+                IOstreamOption streamOpt = IOstreamOption(),
                 const bool valid = true
             ) const = 0;
 
@@ -405,6 +512,24 @@ public:
 
         // Other
 
+            //- Actual name of processors dir (for use in mode PROCOBJECT,
+            //  PROCINSTANCE)
+            virtual word processorsDir(const IOobject& io) const
+            {
+                return processorsBaseDir;
+            }
+
+            //- Actual name of processors dir (for use in mode PROCOBJECT,
+            //  PROCINSTANCE)
+            virtual word processorsDir(const fileName&) const
+            {
+                return processorsBaseDir;
+            }
+
+            //- Set number of processor directories/results. Only used in
+            //  decomposePar
+            virtual void setNProcs(const label nProcs);
+
             //- Get number of processor directories/results. Used for e.g.
             //  reconstructPar, argList checking
             virtual label nProcs
@@ -416,20 +541,75 @@ public:
             //- Get sorted list of times
             virtual instantList findTimes(const fileName&, const word&) const;
 
+            //- Find instance where IOobject is. Fails if cannot be found
+            //  and readOpt() is MUST_READ/MUST_READ_IF_MODIFIED. Otherwise
+            //  returns stopInstance.
+            virtual IOobject findInstance
+            (
+                const IOobject& io,
+                const scalar startValue,
+                const word& stopInstance
+            ) const;
+
             //- Callback for time change
             virtual void setTime(const Time&) const
             {}
+
+            //- Forcibly wait until all output done. Flush any cached data
+            virtual void flush() const;
+
+            //- Generate path (like io.path) from root+casename with any
+            //  'processorXXX' replaced by procDir (usually 'processsors')
+            fileName processorsCasePath
+            (
+                const IOobject&,
+                const word& procDir
+            ) const;
+
+            //- Generate path (like io.path) with provided instance and any
+            //  'processorXXX' replaced by procDir (usually 'processsors')
+            fileName processorsPath
+            (
+                const IOobject&,
+                const word& instance,
+                const word& procDir
+            ) const;
+
+            //- Operating on fileName: replace processorXXX with procDir
+            fileName processorsPath(const fileName&, const word& procDir) const;
+
+            //- Split objectPath into part before 'processor' and part after.
+            //
+            //  Returns -1 or processor number and optionally number
+            //  of processors. Use with care.
+            //  - path/"processor"+Foam::name(proci)/local reconstructs input
+            //  - path/"processors"+Foam::name(nProcs)/local reconstructs
+            //    collated processors equivalence
+            static label splitProcessorPath
+            (
+                const fileName& objectPath,
+                fileName& path,
+                fileName& procDir,
+                fileName& local,
+                procRangeType& group,
+                label& nProcs
+            );
+
+            //- Detect processor number from '/aa/bb/processorDDD/cc'
+            static label detectProcessorPath(const fileName& objPath);
 };
 
 
-// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
-// Global declarations: defined in fileOperation.C
+// * * * * * * * * * * * * * * * Global Functions  * * * * * * * * * * * * * //
+
+// Note: defined in fileOperation.C
 
 //- Get current file handler
 const fileOperation& fileHandler();
 
-//- Reset file handler
-void fileHandler(autoPtr<fileOperation>&);
+//- Replace, reset file handler.
+//  \return old handler on change, null otherwise
+autoPtr<fileOperation> fileHandler(autoPtr<fileOperation>&& newHandler);
 
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //

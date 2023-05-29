@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2013-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2013-2016 OpenFOAM Foundation
+    Copyright (C) 2016-2019 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -38,7 +41,7 @@ SourceFiles
 #ifndef functionObjects_writeDictionary_H
 #define functionObjects_writeDictionary_H
 
-#include "functionObject.H"
+#include "regionFunctionObject.H"
 #include "wordList.H"
 #include "SHA1Digest.H"
 
@@ -46,10 +49,6 @@ SourceFiles
 
 namespace Foam
 {
-
-// Forward declaration of classes
-class objectRegistry;
-
 namespace functionObjects
 {
 
@@ -59,12 +58,9 @@ namespace functionObjects
 
 class writeDictionary
 :
-    public functionObject
+    public regionFunctionObject
 {
     // Private data
-
-        //- Reference to the database
-        const objectRegistry& obr_;
 
         //- Names of dictionaries to monitor
         wordList dictNames_;
@@ -72,27 +68,27 @@ class writeDictionary
         //- List of changed dictionaries (only those registered to database)
         List<SHA1Digest> digests_;
 
+        //- Flag to indicate the first time that a dictionary is been changed
+        //- (per call to execute)
+        bool firstChange_;
+
 
     // Private Member Functions
 
-        //- Helper function to write the dictionary if found at location
-        bool tryDirectory
-        (
-            const label dictI,
-            const word& location,
-            bool& firstDict
-        );
+        //- Write the output header
+        void writeHeader();
 
+        //- Helper to check and write the dictionary if its sha1 has changed
+        void checkDictionary(const dictionary& dict, const label dicti);
 
-private:
+        //- Helper to write the dictionary if found at location
+        bool tryDirectory(const word& location, const label dicti);
 
-    // Private member functions
+        //- No copy construct
+        writeDictionary(const writeDictionary&) = delete;
 
-        //- Disallow default bitwise copy construct
-        writeDictionary(const writeDictionary&);
-
-        //- Disallow default bitwise assignment
-        void operator=(const writeDictionary&);
+        //- No copy assignment
+        void operator=(const writeDictionary&) = delete;
 
 
 public:
@@ -113,7 +109,7 @@ public:
 
 
     //- Destructor
-    virtual ~writeDictionary();
+    virtual ~writeDictionary() = default;
 
 
     // Member Functions

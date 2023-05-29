@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2019-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -60,20 +63,21 @@ namespace fv
 template<class Type>
 class gradScheme
 :
-    public tmp<gradScheme<Type>>::refCount
+    public refCount
 {
-    // Private data
+    // Private Data
 
+        //- Reference to mesh
         const fvMesh& mesh_;
 
 
     // Private Member Functions
 
-        //- Disallow copy construct
-        gradScheme(const gradScheme&);
+        //- No copy construct
+        gradScheme(const gradScheme&) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const gradScheme&);
+        //- No copy assignment
+        void operator=(const gradScheme&) = delete;
 
 
 public:
@@ -114,12 +118,12 @@ public:
 
 
     //- Destructor
-    virtual ~gradScheme();
+    virtual ~gradScheme() = default;
 
 
     // Member Functions
 
-        //- Return mesh reference
+        //- Return const reference to mesh
         const fvMesh& mesh() const
         {
             return mesh_;
@@ -139,7 +143,7 @@ public:
         ) const = 0;
 
         //- Calculate and return the grad of the given field
-        //  which may have been cached
+        //- which may have been cached
         tmp
         <
             GeometricField
@@ -151,8 +155,8 @@ public:
         ) const;
 
         //- Calculate and return the grad of the given field
-        //  with the default name
-        //  which may have been cached
+        //- with the default name
+        //- which may have been cached
         tmp
         <
             GeometricField
@@ -163,8 +167,8 @@ public:
         ) const;
 
         //- Calculate and return the grad of the given field
-        //  with the default name
-        //  which may have been cached
+        //- with the default name
+        //- which may have been cached
         tmp
         <
             GeometricField

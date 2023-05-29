@@ -1,9 +1,11 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -37,12 +39,12 @@ SourceFiles
 #define dynamicIndexedOctree_H
 
 #include "treeBoundBox.H"
-#include "pointIndexHit.H"
-#include "FixedList.T.H"
-#include "Ostream.H"
-#include "HashSet.T.H"
+#include "pointIndexHit2.H"
+#include "FixedList.H"
+#include "_Ostream.H"
+#include "HashSet.H"
 #include "labelBits.H"
-#include "PackedList.T.H"
+#include "PackedList.H"
 #include "volumeType.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
@@ -50,7 +52,7 @@ SourceFiles
 namespace Foam
 {
 
-typedef DynamicList<autoPtr<DynamicList<label >>> contentListList;
+typedef DynamicList<autoPtr<DynamicList<label>>> contentListList;
 
 // Forward declaration of classes
 template<class Type> class dynamicIndexedOctree;
@@ -76,7 +78,9 @@ TemplateName(dynamicIndexedOctree);
 \*---------------------------------------------------------------------------*/
 
 template<class Type>
-class dynamicIndexedOctree :    public dynamicIndexedOctreeName
+class dynamicIndexedOctree
+:
+    public dynamicIndexedOctreeName
 {
 public:
 
@@ -126,7 +130,7 @@ private:
 
     // Static data
 
-        //- Relative peturbation tolerance. Determines when point is
+        //- Relative perturbation tolerance. Determines when point is
         //  considered to be close to face/edge of bb of node.
         //  The tolerance is relative to the bounding box of the smallest
         //  node.
@@ -416,10 +420,7 @@ public:
         //- Clone
         autoPtr<dynamicIndexedOctree<Type>> clone() const
         {
-            return autoPtr<dynamicIndexedOctree<Type>>
-            (
-                new dynamicIndexedOctree<Type>(*this)
-            );
+            return autoPtr<dynamicIndexedOctree<Type>>::New(*this);
         }
 
 

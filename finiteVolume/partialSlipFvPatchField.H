@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -33,8 +36,11 @@ Description
 
 Usage
     \table
-        Property      | Description             | Required    | Default value
-        valueFraction | fraction od value used for boundary [0-1] | yes |
+      Property      | Description                     | Reqd | Default
+      type          | Type name: partialSlip          | yes  | -
+      refValue      | Reference value at zero slip    | no   | 0
+      valueFraction | Fraction of refValue used for boundary [0-1] | yes |
+      writeValue    | Output patch value (eg, ParaView) | no | false
     \endtable
 
     Example of the boundary condition specification:
@@ -42,6 +48,7 @@ Usage
     <patchName>
     {
         type            partialSlip;
+        refValue        uniform 0.001;
         valueFraction   uniform 0.1;
         value           uniform 0;
     }
@@ -74,10 +81,20 @@ class partialSlipFvPatchField
 :
     public transformFvPatchField<Type>
 {
-    // Private data
+    //- The parent boundary condition type
+    typedef transformFvPatchField<Type> parent_bctype;
+
+
+    // Private Data
+
+        //- Reference value
+        Field<Type> refValue_;
 
         //- Fraction (0-1) of value used for boundary condition
         scalarField valueFraction_;
+
+        //- Flag to output patch values (e.g. for ParaView)
+        bool writeValue_;
 
 
 public:
@@ -147,18 +164,38 @@ public:
         }
 
 
-    // Member functions
+    // Member Functions
 
-        // Attributes
+        // Access/attributes
 
-            //- Return false: this patch field is not altered by assignment
+            //- This patch field is not altered by assignment
             virtual bool assignable() const
             {
                 return false;
             }
 
+            virtual Field<Type>& refValue()
+            {
+                return refValue_;
+            }
 
-        // Mapping functions
+            virtual const Field<Type>& refValue() const
+            {
+                return refValue_;
+            }
+
+            virtual scalarField& valueFraction()
+            {
+                return valueFraction_;
+            }
+
+            virtual const scalarField& valueFraction() const
+            {
+                return valueFraction_;
+            }
+
+
+        // Mapping
 
             //- Map (and resize as needed) from self given a mapping object
             virtual void autoMap
@@ -174,20 +211,7 @@ public:
             );
 
 
-        // Return defining fields
-
-            virtual scalarField& valueFraction()
-            {
-                return valueFraction_;
-            }
-
-            virtual const scalarField& valueFraction() const
-            {
-                return valueFraction_;
-            }
-
-
-        // Evaluation functions
+        // Evaluation
 
             //- Return gradient at boundary
             virtual tmp<Field<Type>> snGrad() const;
@@ -207,7 +231,7 @@ public:
         virtual void write(Ostream&) const;
 
 
-    // Member operators
+    // Member Operators
 
         virtual void operator=(const UList<Type>&) {}
 

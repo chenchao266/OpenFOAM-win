@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2015 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011 OpenFOAM Foundation
+    Copyright (C) 2020-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -26,18 +29,17 @@ Class
 
 Description
     Selector class for finite volume differencing schemes.
-    fvMesh is derived from fvShemes so that all fields have access to the
+    fvMesh is derived from fvSchemes so that all fields have access to the
     fvSchemes from the mesh reference they hold.
 
 SourceFiles
-    fvSchemes.C
 
 \*---------------------------------------------------------------------------*/
 
 #ifndef fvSchemes_H
 #define fvSchemes_H
 
-#include "IOdictionary.H"
+#include "schemesLookup.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -50,107 +52,49 @@ namespace Foam
 
 class fvSchemes
 :
-    public IOdictionary
+    public schemesLookup
 {
-    // Private data
-
-        dictionary ddtSchemes_;
-        ITstream defaultDdtScheme_;
-
-        dictionary d2dt2Schemes_;
-        ITstream defaultD2dt2Scheme_;
-
-        dictionary interpolationSchemes_;
-        ITstream defaultInterpolationScheme_;
-
-        dictionary divSchemes_;
-        ITstream defaultDivScheme_;
-
-        dictionary gradSchemes_;
-        ITstream defaultGradScheme_;
-
-        dictionary snGradSchemes_;
-        ITstream defaultSnGradScheme_;
-
-        dictionary laplacianSchemes_;
-        ITstream defaultLaplacianScheme_;
-
-        mutable dictionary fluxRequired_;
-        bool defaultFluxRequired_;
-
-        //- Steady-state run indicator
-        //  Set true if the default ddtScheme is steadyState
-        bool steady_;
-
-
-    // Private Member Functions
-
-        //- Clear the dictionaries and streams before reading
-        void clear();
-
-        //- Read settings from the dictionary
-        void read(const dictionary&);
-
-        //- Disallow default bitwise copy construct
-        fvSchemes(const fvSchemes&);
-
-        //- Disallow default bitwise assignment
-        void operator=(const fvSchemes&);
-
-
 public:
-
-    //- Debug switch
-    static int debug;
-
 
     // Constructors
 
-        //- Construct for objectRegistry
-        fvSchemes(const objectRegistry& obr);
+        //- No copy construct
+        fvSchemes(const fvSchemes&) = delete;
 
+        //- No copy assignment
+        void operator=(const fvSchemes&) = delete;
 
-    // Member Functions
+        //- Construct for objectRegistry, dictionary name and optional
+        //- fallback dictionary content (for a NO_READ or missing file)
+        //  A null dictionary pointer is treated like an empty dictionary.
+        fvSchemes
+        (
+            const objectRegistry& obr,
+            const word& dictName,
+            const dictionary* fallback = nullptr
+        )
+        :
+            schemesLookup(obr, dictName, fallback)
+        {}
 
-        // Access
+        //- Construct for objectRegistry, and optional
+        //- fallback dictionary content (for a NO_READ or missing file)
+        //  A null dictionary pointer is treated like an empty dictionary.
+        explicit fvSchemes
+        (
+            const objectRegistry& obr,
+            const dictionary* fallback = nullptr
+        )
+        :
+            fvSchemes(obr, "fvSchemes", fallback)
+        {}
 
-            const dictionary& schemesDict() const;
-
-            ITstream& ddtScheme(const word& name) const;
-
-            ITstream& d2dt2Scheme(const word& name) const;
-
-            ITstream& interpolationScheme(const word& name) const;
-
-            ITstream& divScheme(const word& name) const;
-
-            ITstream& gradScheme(const word& name) const;
-
-            ITstream& snGradScheme(const word& name) const;
-
-            ITstream& laplacianScheme(const word& name) const;
-
-            void setFluxRequired(const word& name) const;
-
-            bool fluxRequired(const word& name) const;
-
-            //- Return true if the default ddtScheme is steadyState
-            bool steady() const
-            {
-                return steady_;
-            }
-
-            //- Return true if the default ddtScheme is not steadyState
-            bool transient() const
-            {
-                return !steady_;
-            }
-
-
-        // Read
-
-            //- Read the fvSchemes
-            bool read();
+        //- Construct for objectRegistry, and
+        //- fallback dictionary content (for a NO_READ or missing file)
+        fvSchemes(const objectRegistry& obr, const dictionary& dict)
+        :
+            fvSchemes(obr, "fvSchemes", &dict)
+        {}
 };
 
 

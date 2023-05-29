@@ -1,11 +1,11 @@
-#ifndef curveTools_H
+﻿#ifndef curveTools_H
 #define curveTools_H
 
 #include "scalar.H"
-#include "vector.H"
+#include "vector2.H"
 #include "curve.H"
-#include "char.T.H"
-#include "List.T.H"
+#include "_char.H"
+#include "List.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -14,10 +14,6 @@ namespace Foam
 
 #define curveSmall 1.0e-8
 #define curveGreat 1.0e8
-
-typedef List<char> charList;
-typedef List<charList> charListList;
-
 
 scalar distance(const vector&, const vector&);
 

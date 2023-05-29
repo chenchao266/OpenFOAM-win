@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2019-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -25,7 +28,7 @@ License
 
 #include "pairPotentialList.H"
 #include "OFstream.H"
-#include "Time.T.H"
+#include "Time1.H"
 
 // * * * * * * * * * * * * * Private Member Functions  * * * * * * * * * * * //
 
@@ -117,7 +120,7 @@ void Foam::pairPotentialList::readPairPotentialDict
             if ((*this)[pairPotentialIndex(a, b)].writeTables())
             {
                 fileHandler().mkDir(mesh.time().path());
-                autoPtr<Ostream> ppTabFile
+                autoPtr<OSstream> ppTabFile
                 (
                     fileHandler().NewOFstream
                     (
@@ -163,7 +166,7 @@ void Foam::pairPotentialList::readPairPotentialDict
     if (electrostaticPotential_->writeTables())
     {
         fileHandler().mkDir(mesh.time().path());
-        autoPtr<Ostream> ppTabFile
+        autoPtr<OSstream> ppTabFile
         (
             fileHandler().NewOFstream
             (
@@ -244,10 +247,8 @@ bool Foam::pairPotentialList::rCutMaxSqr(const scalar rIJMagSqr) const
     {
         return true;
     }
-    else
-    {
-        return false;
-    }
+
+    return false;
 }
 
 
@@ -262,10 +263,8 @@ bool Foam::pairPotentialList::rCutSqr
     {
         return true;
     }
-    else
-    {
-        return false;
-    }
+
+    return false;
 }
 
 

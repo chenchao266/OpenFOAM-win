@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2015 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2015 OpenFOAM Foundation
+    Copyright (C) 2018-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -25,7 +28,54 @@ Class
     Foam::nearestToPoint
 
 Description
-    A topoSetSource to select points nearest to points.
+    A \c topoSetPointSource to select points nearest to given points.
+
+    Operands:
+    \table
+      Operand   | Type     | Location
+      output    | pointSet | $FOAM_CASE/constant/polyMesh/sets/\<set\>
+    \endtable
+
+Usage
+    Minimal example by using \c system/topoSetDict.actions:
+    \verbatim
+    {
+        // Mandatory (inherited) entries
+        name        <name>;
+        type        pointSet;
+        action      <action>;
+
+        // Mandatory entries
+        source      nearestToPoint;
+        points
+        (
+            (<p1x> <p1y> <p1z>)
+            (<p2x> <p2y> <p2z>)
+            ...
+        );
+    }
+    \endverbatim
+
+    where the entries mean:
+    \table
+      Property   | Description                          | Type | Req'd | Dflt
+      name       | Name of pointSet                     | word |  yes  | -
+      type       | Type name: pointSet                  | word |  yes  | -
+      action     | Action applied on points - see below | word |  yes  | -
+      source     | Source name: nearestToPoint          | word |  yes  | -
+      points     | List of selection points      | vectorList  |  yes  | -
+    \endtable
+
+    Options for the \c action entry:
+    \verbatim
+      new      | Create a new pointSet from selected points
+      add      | Add selected points into this pointSet
+      subtract | Remove selected points from this pointSet
+    \endverbatim
+
+See also
+    - Foam::topoSetSource
+    - Foam::topoSetPointSource
 
 SourceFiles
     nearestToPoint.C
@@ -35,7 +85,7 @@ SourceFiles
 #ifndef nearestToPoint_H
 #define nearestToPoint_H
 
-#include "topoSetSource.H"
+#include "topoSetPointSource.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -48,10 +98,9 @@ namespace Foam
 
 class nearestToPoint
 :
-    public topoSetSource
+    public topoSetPointSource
 {
-
-    // Private data
+    // Private Data
 
         //- Add usage string
         static addToUsageTable usage_;
@@ -70,47 +119,33 @@ public:
     //- Runtime type information
     TypeName("nearestToPoint");
 
+
     // Constructors
 
-        //- Construct from components
-        nearestToPoint
-        (
-            const polyMesh& mesh,
-            const pointField& points
-        );
+        //- Construct from components, copying points
+        nearestToPoint(const polyMesh& mesh, const pointField& points);
+
+        //- Construct from components, moving points
+        nearestToPoint(const polyMesh& mesh, pointField&& points);
 
         //- Construct from dictionary
-        nearestToPoint
-        (
-            const polyMesh& mesh,
-            const dictionary& dict
-        );
+        nearestToPoint(const polyMesh& mesh, const dictionary& dict);
 
         //- Construct from Istream
-        nearestToPoint
-        (
-            const polyMesh& mesh,
-            Istream&
-        );
+        nearestToPoint(const polyMesh& mesh, Istream& is);
 
 
     //- Destructor
-    virtual ~nearestToPoint();
+    virtual ~nearestToPoint() = default;
 
 
     // Member Functions
 
-        virtual sourceType setType() const
-        {
-            return POINTSETSOURCE;
-        }
-
         virtual void applyToSet
         (
             const topoSetSource::setAction action,
-            topoSet&
+            topoSet& set
         ) const;
-
 };
 
 

@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -28,7 +30,7 @@ License
 #include "addToRunTimeSelectionTable.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
-using namespace Foam;
+
 namespace Foam
 {
     defineTypeNameAndDebug(emptyPointPatch, 0);
@@ -38,19 +40,19 @@ namespace Foam
         emptyPointPatch,
         polyPatch
     );
+
+
+
+    // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
+
+    void emptyPointPatch::applyConstraint
+    (
+        const label pointi,
+        pointConstraint& pc
+    ) const
+    {
+        pc.applyConstraint(pointNormals()[pointi]);
+    }
+
 }
-
-
-// * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
-
-void emptyPointPatch::applyConstraint
-(
-    const label pointi,
-    pointConstraint& pc
-) const
-{
-    pc.applyConstraint(pointNormals()[pointi]);
-}
-
-
 // ************************************************************************* //

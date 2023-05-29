@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -23,6 +26,9 @@ License
 
 Class
     Foam::fv::cellMDLimitedGrad
+
+Group
+    grpFvGradSchemes
 
 Description
     cellMDLimitedGrad gradient scheme applied to a runTime selected base
@@ -63,6 +69,7 @@ class cellMDLimitedGrad
 {
     // Private Data
 
+        //- Gradient scheme
         tmp<fv::gradScheme<Type>> basicGradScheme_;
 
         //- Limiter coefficient
@@ -71,11 +78,11 @@ class cellMDLimitedGrad
 
     // Private Member Functions
 
-        //- Disallow default bitwise copy construct
-        cellMDLimitedGrad(const cellMDLimitedGrad&);
+        //- No copy construct
+        cellMDLimitedGrad(const cellMDLimitedGrad&) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const cellMDLimitedGrad&);
+        //- No copy assignment
+        void operator=(const cellMDLimitedGrad&) = delete;
 
 
 public:
@@ -95,10 +102,8 @@ public:
         {
             if (k_ < 0 || k_ > 1)
             {
-                FatalIOErrorInFunction
-                (
-                    schemeData
-                )   << "coefficient = " << k_
+                FatalIOErrorInFunction(schemeData)
+                    << "coefficient = " << k_
                     << " should be >= 0 and <= 1"
                     << exit(FatalIOError);
             }
@@ -116,7 +121,7 @@ public:
         );
 
         //- Return the gradient of the given field to the gradScheme::grad
-        //  for optional caching
+        //- for optional caching
         virtual tmp
         <
             GeometricField
@@ -140,7 +145,7 @@ inline void cellMDLimitedGrad<scalar>::limitFace
     const vector& dcf
 )
 {
-    scalar extrapolate = dcf & g;
+    const scalar extrapolate = dcf & g;
 
     if (extrapolate > maxDelta)
     {
@@ -162,7 +167,7 @@ inline void cellMDLimitedGrad<Type>::limitFace
     const vector& dcf
 )
 {
-    for (direction cmpt=0; cmpt<Type::nComponents; cmpt++)
+    for (direction cmpt = 0; cmpt < Type::nComponents; ++cmpt)
     {
         vector gi(g[cmpt], g[cmpt+3], g[cmpt+6]);
         cellMDLimitedGrad<scalar>::limitFace

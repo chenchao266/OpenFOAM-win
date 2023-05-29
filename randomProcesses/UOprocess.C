@@ -1,9 +1,11 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -27,7 +29,7 @@ License
 
 #include "UOprocess.H"
 #include "Kmesh.H"
-#include "dictionary.H"
+#include "dictionary2.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -40,16 +42,15 @@ complexVector UOprocess::WeinerProcess()
 {
     return RootDeltaT*complexVector
     (
-        complex(GaussGen.GaussNormal(), GaussGen.GaussNormal()),
-        complex(GaussGen.GaussNormal(), GaussGen.GaussNormal()),
-        complex(GaussGen.GaussNormal(), GaussGen.GaussNormal())
+        complex(GaussGen.GaussNormal<scalar>(), GaussGen.GaussNormal<scalar>()),
+        complex(GaussGen.GaussNormal<scalar>(), GaussGen.GaussNormal<scalar>()),
+        complex(GaussGen.GaussNormal<scalar>(), GaussGen.GaussNormal<scalar>())
     );
 }
 
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
-// from components
 UOprocess::UOprocess
 (
     const Kmesh& kmesh,
@@ -57,16 +58,16 @@ UOprocess::UOprocess
     const dictionary& UOdict
 )
 :
-    GaussGen(label(0)),
+    GaussGen(),
     Mesh(kmesh),
     DeltaT(deltaT),
     RootDeltaT(sqrt(DeltaT)),
     UOfield(Mesh.size()),
 
-    Alpha(readScalar(UOdict.lookup("UOalpha"))),
-    Sigma(readScalar(UOdict.lookup("UOsigma"))),
-    Kupper(readScalar(UOdict.lookup("UOKupper"))),
-    Klower(readScalar(UOdict.lookup("UOKlower"))),
+    Alpha(UOdict.get<scalar>("UOalpha")),
+    Sigma(UOdict.get<scalar>("UOsigma")),
+    Kupper(UOdict.get<scalar>("UOKupper")),
+    Klower(UOdict.get<scalar>("UOKlower")),
     Scale((Kupper - Klower)*pow(scalar(Mesh.size()), 1.0/vector::dim))
 {
     const vectorField& K = Mesh;
@@ -83,12 +84,7 @@ UOprocess::UOprocess
         }
         else
         {
-            UOfield[i] = complexVector
-            (
-                complex(0, 0),
-                complex(0, 0),
-                complex(0, 0)
-            );
+            UOfield[i] = complexVector::zero_;
         }
     }
 }

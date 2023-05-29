@@ -1,9 +1,12 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2019 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -24,8 +27,13 @@ License
 Description
     Foam::vector2DField
 
+Note
+    There is no 'zip(const scalarField& x, const scalarField& y)'
+    function since it would not be easily distinguishable
+    between vector2DField and complexField.
+
 SourceFiles
-    vector2DField.C
+    vector2DFieldTemplates.C
 
 \*---------------------------------------------------------------------------*/
 
@@ -33,7 +41,7 @@ SourceFiles
 #define vector2DField_H
 
 #include "vector2DFieldFwd.H"
-#include "Field.T.H"
+#include "Field.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -42,11 +50,34 @@ namespace Foam
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
-tmp<vector2DField> zip(const tmp<scalarField>& x, const tmp<scalarField>& y);
+//- Zip together 2D vector field from components
+template<class Cmpt>
+void zip
+(
+    Field<Vector2D<Cmpt>>& result,
+    const UList<Cmpt>& x,
+    const UList<Cmpt>& y
+);
+
+//- Unzip 2D vector field into components
+template<class Cmpt>
+void unzip
+(
+    const UList<Vector2D<Cmpt>>& input,
+    Field<Cmpt>& x,
+    Field<Cmpt>& y
+);
+
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 } // End namespace Foam
+
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+#ifdef NoRepository
+    #include "vector2DFieldTemplates.C"
+#endif
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 

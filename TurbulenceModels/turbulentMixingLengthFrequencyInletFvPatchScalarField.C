@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -28,7 +31,7 @@ License
 #include "fvPatchFieldMapper.H"
 #include "surfaceFields.H"
 #include "volFields.H"
-#include "turbulenceModel.H"
+#include "turbulenceModel2.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -76,10 +79,10 @@ turbulentMixingLengthFrequencyInletFvPatchScalarField
 )
 :
     inletOutletFvPatchScalarField(p, iF),
-    mixingLength_(readScalar(dict.lookup("mixingLength"))),
-    kName_(dict.lookupOrDefault<word>("k", "k"))
+    mixingLength_(dict.get<scalar>("mixingLength")),
+    kName_(dict.getOrDefault<word>("k", "k"))
 {
-    this->phiName_ = dict.lookupOrDefault<word>("phi", "phi");
+    this->phiName_ = dict.getOrDefault<word>("phi", "phi");
 
     fvPatchScalarField::operator=(scalarField("value", dict, p.size()));
 
@@ -132,7 +135,7 @@ void turbulentMixingLengthFrequencyInletFvPatchScalarField::updateCoeffs()
     );
 
     const scalar Cmu =
-        turbModel.coeffDict().lookupOrDefault<scalar>("Cmu", 0.09);
+        turbModel.coeffDict().getOrDefault<scalar>("Cmu", 0.09);
 
     const scalar Cmu25 = pow(Cmu, 0.25);
 
@@ -155,10 +158,9 @@ void turbulentMixingLengthFrequencyInletFvPatchScalarField::write
 ) const
 {
     fvPatchScalarField::write(os);
-    os.writeKeyword("mixingLength")
-        << mixingLength_ << token::END_STATEMENT << nl;
-    os.writeKeyword("phi") << this->phiName_ << token::END_STATEMENT << nl;
-    os.writeKeyword("k") << kName_ << token::END_STATEMENT << nl;
+    os.writeEntry("mixingLength", mixingLength_);
+    os.writeEntry("phi", this->phiName_);
+    os.writeEntry("k", kName_);
     writeEntry("value", os);
 }
 

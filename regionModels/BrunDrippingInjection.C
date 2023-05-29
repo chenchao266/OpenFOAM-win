@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2016-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2016-2017 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -45,14 +48,14 @@ addToRunTimeSelectionTable(injectionModel, BrunDrippingInjection, dictionary);
 
 BrunDrippingInjection::BrunDrippingInjection
 (
-    surfaceFilmModel& film,
+    surfaceFilmRegionModel& film,
     const dictionary& dict
 )
 :
     injectionModel(type(), film, dict),
-    ubarStar_(coeffDict_.lookupOrDefault("ubarStar", 1.62208)),
-    dCoeff_(coeffDict_.lookupOrDefault("dCoeff", 3.3)),
-    deltaStable_(coeffDict_.lookupOrDefault("deltaStable", scalar(0))),
+    ubarStar_(coeffDict_.getOrDefault<scalar>("ubarStar", 1.62208)),
+    dCoeff_(coeffDict_.getOrDefault<scalar>("dCoeff", 3.3)),
+    deltaStable_(coeffDict_.getOrDefault<scalar>("deltaStable", 0)),
     diameter_(film.regionMesh().nCells(), -1.0)
 {}
 

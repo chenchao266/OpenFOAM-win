@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2019 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -25,11 +28,10 @@ License
 
 #include "cyclicGAMGInterface.H"
 #include "addToRunTimeSelectionTable.H"
-#include "labelPair.H"
-#include "HashTable.T.H"
+#include "labelPairHashes.H"
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
-using namespace Foam;
+
 namespace Foam
 {
     defineTypeNameAndDebug(cyclicGAMGInterface, 0);
@@ -62,141 +64,134 @@ namespace Foam
         Istream,
         cyclicSlip
     );
-}
 
 
-// * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
+    // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
-cyclicGAMGInterface::cyclicGAMGInterface
-(
-    const label index,
-    const lduInterfacePtrsList& coarseInterfaces,
-    const lduInterface& fineInterface,
-    const labelField& localRestrictAddressing,
-    const labelField& neighbourRestrictAddressing,
-    const label fineLevelIndex,
-    const label coarseComm
-) :    GAMGInterface(index, coarseInterfaces),
-    neighbPatchID_
+    cyclicGAMGInterface::cyclicGAMGInterface
     (
-        refCast<const cyclicLduInterface>(fineInterface).neighbPatchID()
-    ),
-    owner_(refCast<const cyclicLduInterface>(fineInterface).owner()),
-    forwardT_(refCast<const cyclicLduInterface>(fineInterface).forwardT()),
-    reverseT_(refCast<const cyclicLduInterface>(fineInterface).reverseT())
-{
-    // From coarse face to coarse cell
-    DynamicList<label> dynFaceCells(localRestrictAddressing.size());
-    // From fine face to coarse face
-    DynamicList<label> dynFaceRestrictAddressing
-    (
-        localRestrictAddressing.size()
-    );
-
-    // From coarse cell pair to coarse face
-    HashTable<label, labelPair, labelPair::Hash<>> cellsToCoarseFace
-    (
-        2*localRestrictAddressing.size()
-    );
-
-    forAll(localRestrictAddressing, ffi)
+        const label index,
+        const lduInterfacePtrsList& coarseInterfaces,
+        const lduInterface& fineInterface,
+        const labelField& localRestrictAddressing,
+        const labelField& neighbourRestrictAddressing,
+        const label fineLevelIndex,
+        const label coarseComm
+    )
+        :
+        GAMGInterface(index, coarseInterfaces),
+        neighbPatchID_
+        (
+            refCast<const cyclicLduInterface>(fineInterface).neighbPatchID()
+        ),
+        owner_(refCast<const cyclicLduInterface>(fineInterface).owner()),
+        forwardT_(refCast<const cyclicLduInterface>(fineInterface).forwardT()),
+        reverseT_(refCast<const cyclicLduInterface>(fineInterface).reverseT())
     {
-        labelPair cellPair;
+        // From coarse face to coarse cell
+        DynamicList<label> dynFaceCells(localRestrictAddressing.size());
+        // From fine face to coarse face
+        DynamicList<label> dynFaceRestrictAddressing
+        (
+            localRestrictAddressing.size()
+        );
 
-        // Do switching on master/slave indexes based on the owner/neighbour of
-        // the processor index such that both sides get the same answer.
-        if (owner())
+        // From coarse cell pair to coarse face
+        labelPairLookup cellsToCoarseFace(2 * localRestrictAddressing.size());
+
+        forAll(localRestrictAddressing, ffi)
         {
-            // Master side
-            cellPair = labelPair
-            (
-                localRestrictAddressing[ffi],
-                neighbourRestrictAddressing[ffi]
-            );
-        }
-        else
-        {
-            // Slave side
-            cellPair = labelPair
-            (
-                neighbourRestrictAddressing[ffi],
-                localRestrictAddressing[ffi]
-            );
+            labelPair cellPair;
+
+            // Do switching on master/slave indexes based on the owner/neighbour of
+            // the processor index such that both sides get the same answer.
+            if (owner())
+            {
+                // Master side
+                cellPair = labelPair
+                (
+                    localRestrictAddressing[ffi],
+                    neighbourRestrictAddressing[ffi]
+                );
+            }
+            else
+            {
+                // Slave side
+                cellPair = labelPair
+                (
+                    neighbourRestrictAddressing[ffi],
+                    localRestrictAddressing[ffi]
+                );
+            }
+
+            const auto fnd = cellsToCoarseFace.cfind(cellPair);
+
+            if (fnd.found())
+            {
+                // Already have coarse face
+                dynFaceRestrictAddressing.append(fnd.val());
+            }
+            else
+            {
+                // New coarse face
+                label coarseI = dynFaceCells.size();
+                dynFaceRestrictAddressing.append(coarseI);
+                dynFaceCells.append(localRestrictAddressing[ffi]);
+                cellsToCoarseFace.insert(cellPair, coarseI);
+            }
         }
 
-        HashTable<label, labelPair, labelPair::Hash<>>::const_iterator fnd =
-            cellsToCoarseFace.find(cellPair);
-
-        if (fnd == cellsToCoarseFace.end())
-        {
-            // New coarse face
-            label coarseI = dynFaceCells.size();
-            dynFaceRestrictAddressing.append(coarseI);
-            dynFaceCells.append(localRestrictAddressing[ffi]);
-            cellsToCoarseFace.insert(cellPair, coarseI);
-        }
-        else
-        {
-            // Already have coarse face
-            dynFaceRestrictAddressing.append(fnd());
-        }
+        faceCells_.transfer(dynFaceCells);
+        faceRestrictAddressing_.transfer(dynFaceRestrictAddressing);
     }
 
-    faceCells_.transfer(dynFaceCells);
-    faceRestrictAddressing_.transfer(dynFaceRestrictAddressing);
-}
+
+    cyclicGAMGInterface::cyclicGAMGInterface
+    (
+        const label index,
+        const lduInterfacePtrsList& coarseInterfaces,
+        Istream& is
+    )
+        :
+        GAMGInterface(index, coarseInterfaces, is),
+        neighbPatchID_(readLabel(is)),
+        owner_(readBool(is)),
+        forwardT_(is),
+        reverseT_(is)
+    {}
 
 
-cyclicGAMGInterface::cyclicGAMGInterface
-(
-    const label index,
-    const lduInterfacePtrsList& coarseInterfaces,
-    Istream& is
-) :    GAMGInterface(index, coarseInterfaces, is),
-    neighbPatchID_(readLabel(is)),
-    owner_(readBool(is)),
-    forwardT_(is),
-    reverseT_(is)
-{}
+    // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
 
-
-// * * * * * * * * * * * * * * * * Desstructor * * * * * * * * * * * * * * * //
-
-cyclicGAMGInterface::~cyclicGAMGInterface()
-{}
-
-
-// * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
-
-tmp<labelField> cyclicGAMGInterface::internalFieldTransfer
-(
-    const Pstream::commsTypes,
-    const labelUList& iF
-) const
-{
-    const cyclicGAMGInterface& nbr = neighbPatch();
-    const labelUList& nbrFaceCells = nbr.faceCells();
-
-    tmp<labelField> tpnf(new labelField(size()));
-    labelField& pnf = tpnf.ref();
-
-    forAll(pnf, facei)
+    tmp<labelField> cyclicGAMGInterface::internalFieldTransfer
+    (
+        const Pstream::commsTypes commsType,
+        const labelUList& iF
+    ) const
     {
-        pnf[facei] = iF[nbrFaceCells[facei]];
+        const cyclicGAMGInterface& nbr = neighbPatch();
+        const labelUList& nbrFaceCells = nbr.faceCells();
+
+        tmp<labelField> tpnf(new labelField(size()));
+        labelField& pnf = tpnf.ref();
+
+        forAll(pnf, facei)
+        {
+            pnf[facei] = iF[nbrFaceCells[facei]];
+        }
+
+        return tpnf;
     }
 
-    return tpnf;
+
+    void cyclicGAMGInterface::write(Ostream& os) const
+    {
+        GAMGInterface::write(os);
+        os << token::SPACE << neighbPatchID_
+            << token::SPACE << owner_
+            << token::SPACE << forwardT_
+            << token::SPACE << reverseT_;
+    }
+
 }
-
-
-void cyclicGAMGInterface::write(Ostream& os) const
-{
-    GAMGInterface::write(os);
-    os  << token::SPACE << neighbPatchID_
-        << token::SPACE << owner_
-        << token::SPACE << forwardT_
-        << token::SPACE << reverseT_;
-}
-
-
 // ************************************************************************* //

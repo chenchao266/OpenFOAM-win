@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2012-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2012-2017 OpenFOAM Foundation
+    Copyright (C) 2015-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -24,34 +27,204 @@ License
 \*---------------------------------------------------------------------------*/
 
 #include "meshToMesh.H"
-#include "Time.T.H"
+#include "Time1.H"
 #include "globalIndex.H"
 #include "meshToMeshMethod.H"
+#include "nearestFaceAMI.H"
+#include "faceAreaWeightAMI.H"
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
 
 namespace Foam
 {
     defineTypeNameAndDebug(meshToMesh, 0);
-
-    template<>
-    const char* Foam::NamedEnum
-    <
-        Foam::meshToMesh::interpolationMethod,
-        3
-    >::names[] =
-    {
-        "direct",
-        "mapNearest",
-        "cellVolumeWeight"
-    };
-
-    const NamedEnum<meshToMesh::interpolationMethod, 3>
-        meshToMesh::interpolationMethodNames_;
 }
 
 
+const Foam::Enum
+<
+    Foam::meshToMesh::interpolationMethod
+>
+Foam::meshToMesh::interpolationMethodNames_
+({
+    { interpolationMethod::imDirect, "direct" },
+    { interpolationMethod::imMapNearest, "mapNearest" },
+    { interpolationMethod::imCellVolumeWeight, "cellVolumeWeight" },
+    {
+        interpolationMethod::imCorrectedCellVolumeWeight,
+        "correctedCellVolumeWeight"
+    },
+});
+
+
+const Foam::Enum
+<
+    Foam::meshToMesh::procMapMethod
+>
+Foam::meshToMesh::procMapMethodNames_
+{
+    { procMapMethod::pmAABB, "AABB" },
+    { procMapMethod::pmLOD, "LOD" },
+};
+
+
 // * * * * * * * * * * * * * Private Member Functions  * * * * * * * * * * * //
+
+template<>
+void Foam::meshToMesh::mapInternalSrcToTgt
+(
+    const GeometricField<sphericalTensor, fvPatchField, volMesh>& field,
+    const plusEqOp<sphericalTensor>& cop,
+    GeometricField<sphericalTensor, fvPatchField, volMesh>& result,
+    const bool secondOrder
+) const
+{
+    mapSrcToTgt(field, cop, result.primitiveFieldRef());
+}
+
+
+template<>
+void Foam::meshToMesh::mapInternalSrcToTgt
+(
+    const GeometricField<sphericalTensor, fvPatchField, volMesh>& field,
+    const minusEqOp<sphericalTensor>& cop,
+    GeometricField<sphericalTensor, fvPatchField, volMesh>& result,
+    const bool secondOrder
+) const
+{
+    mapSrcToTgt(field, cop, result.primitiveFieldRef());
+}
+
+
+template<>
+void Foam::meshToMesh::mapInternalSrcToTgt
+(
+    const GeometricField<symmTensor, fvPatchField, volMesh>& field,
+    const plusEqOp<symmTensor>& cop,
+    GeometricField<symmTensor, fvPatchField, volMesh>& result,
+    const bool secondOrder
+) const
+{
+    mapSrcToTgt(field, cop, result.primitiveFieldRef());
+}
+
+
+template<>
+void Foam::meshToMesh::mapInternalSrcToTgt
+(
+    const GeometricField<symmTensor, fvPatchField, volMesh>& field,
+    const minusEqOp<symmTensor>& cop,
+    GeometricField<symmTensor, fvPatchField, volMesh>& result,
+    const bool secondOrder
+) const
+{
+    mapSrcToTgt(field, cop, result.primitiveFieldRef());
+}
+
+
+template<>
+void Foam::meshToMesh::mapInternalSrcToTgt
+(
+    const GeometricField<tensor, fvPatchField, volMesh>& field,
+    const plusEqOp<tensor>& cop,
+    GeometricField<tensor, fvPatchField, volMesh>& result,
+    const bool secondOrder
+) const
+{
+    mapSrcToTgt(field, cop, result.primitiveFieldRef());
+}
+
+
+template<>
+void Foam::meshToMesh::mapInternalSrcToTgt
+(
+    const GeometricField<tensor, fvPatchField, volMesh>& field,
+    const minusEqOp<tensor>& cop,
+    GeometricField<tensor, fvPatchField, volMesh>& result,
+    const bool secondOrder
+) const
+{
+    mapSrcToTgt(field, cop, result.primitiveFieldRef());
+}
+
+
+template<>
+void Foam::meshToMesh::mapInternalTgtToSrc
+(
+    const GeometricField<sphericalTensor, fvPatchField, volMesh>& field,
+    const plusEqOp<sphericalTensor>& cop,
+    GeometricField<sphericalTensor, fvPatchField, volMesh>& result,
+    const bool secondOrder
+) const
+{
+    mapTgtToSrc(field, cop, result.primitiveFieldRef());
+}
+
+
+template<>
+void Foam::meshToMesh::mapInternalTgtToSrc
+(
+    const GeometricField<sphericalTensor, fvPatchField, volMesh>& field,
+    const minusEqOp<sphericalTensor>& cop,
+    GeometricField<sphericalTensor, fvPatchField, volMesh>& result,
+    const bool secondOrder
+) const
+{
+    mapTgtToSrc(field, cop, result.primitiveFieldRef());
+}
+
+
+template<>
+void Foam::meshToMesh::mapInternalTgtToSrc
+(
+    const GeometricField<symmTensor, fvPatchField, volMesh>& field,
+    const plusEqOp<symmTensor>& cop,
+    GeometricField<symmTensor, fvPatchField, volMesh>& result,
+    const bool secondOrder
+) const
+{
+    mapTgtToSrc(field, cop, result.primitiveFieldRef());
+}
+
+
+template<>
+void Foam::meshToMesh::mapInternalTgtToSrc
+(
+    const GeometricField<symmTensor, fvPatchField, volMesh>& field,
+    const minusEqOp<symmTensor>& cop,
+    GeometricField<symmTensor, fvPatchField, volMesh>& result,
+    const bool secondOrder
+) const
+{
+    mapTgtToSrc(field, cop, result.primitiveFieldRef());
+}
+
+
+template<>
+void Foam::meshToMesh::mapInternalTgtToSrc
+(
+    const GeometricField<tensor, fvPatchField, volMesh>& field,
+    const plusEqOp<tensor>& cop,
+    GeometricField<tensor, fvPatchField, volMesh>& result,
+    const bool secondOrder
+) const
+{
+    mapTgtToSrc(field, cop, result.primitiveFieldRef());
+}
+
+
+template<>
+void Foam::meshToMesh::mapInternalTgtToSrc
+(
+    const GeometricField<tensor, fvPatchField, volMesh>& field,
+    const minusEqOp<tensor>& cop,
+    GeometricField<tensor, fvPatchField, volMesh>& result,
+    const bool secondOrder
+) const
+{
+    mapTgtToSrc(field, cop, result.primitiveFieldRef());
+}
+
 
 template<>
 void Foam::meshToMesh::mapAndOpSrcToTgt
@@ -248,8 +421,10 @@ void Foam::meshToMesh::calcAddressing
     (
         srcToTgtCellAddr_,
         srcToTgtCellWght_,
+        srcToTgtCellVec_,
         tgtToSrcCellAddr_,
-        tgtToSrcCellWght_
+        tgtToSrcCellWght_,
+        tgtToSrcCellVec_
     );
 
     V_ = methodPtr->V();
@@ -261,7 +436,7 @@ void Foam::meshToMesh::calcAddressing
 }
 
 
-void Foam::meshToMesh::calculate(const word& methodName)
+void Foam::meshToMesh::calculate(const word& methodName, const bool normalise)
 {
     Info<< "Creating mesh-to-mesh addressing for " << srcRegion_.name()
         << " and " << tgtRegion_.name() << " regions using "
@@ -308,12 +483,13 @@ void Foam::meshToMesh::calculate(const word& methodName)
                 "newTgt." + Foam::name(Pstream::myProcNo()),
                 tgtRegion_.time().timeName(),
                 tgtRegion_.time(),
-                IOobject::NO_READ
+                IOobject::NO_READ,
+                IOobject::AUTO_WRITE
             ),
-            xferMove(newTgtPoints),
-            xferMove(newTgtFaces),
-            xferMove(newTgtFaceOwners),
-            xferMove(newTgtFaceNeighbours),
+            std::move(newTgtPoints),
+            std::move(newTgtFaces),
+            std::move(newTgtFaceOwners),
+            std::move(newTgtFaceNeighbours),
             false                                   // no parallel comms
         );
 
@@ -322,7 +498,7 @@ void Foam::meshToMesh::calculate(const word& methodName)
         patches[0] = new polyPatch
         (
             "defaultFaces",
-            newTgt.nFaces() - newTgt.nInternalFaces(),
+            newTgt.nBoundaryFaces(),
             newTgt.nInternalFaces(),
             0,
             newTgt.boundaryMesh(),
@@ -354,27 +530,22 @@ void Foam::meshToMesh::calculate(const word& methodName)
 
         calcAddressing(methodName, srcRegion_, newTgt);
 
-        // per source cell the target cell address in newTgt mesh
-        forAll(srcToTgtCellAddr_, i)
+        // Per source cell the target cell address in newTgt mesh
+        for (labelList& addressing : srcToTgtCellAddr_)
         {
-            labelList& addressing = srcToTgtCellAddr_[i];
-            forAll(addressing, addrI)
+            for (label& addr : addressing)
             {
-                addressing[addrI] = newTgtCellIDs[addressing[addrI]];
+                addr = newTgtCellIDs[addr];
             }
         }
 
-        // convert target addresses in newTgtMesh into global cell numbering
-        forAll(tgtToSrcCellAddr_, i)
+        // Convert target addresses in newTgtMesh into global cell numbering
+        for (labelList& addressing : tgtToSrcCellAddr_)
         {
-            labelList& addressing = tgtToSrcCellAddr_[i];
-            forAll(addressing, addrI)
-            {
-                addressing[addrI] = globalSrcCells.toGlobal(addressing[addrI]);
-            }
+            globalSrcCells.inplaceToGlobal(addressing);
         }
 
-        // set up as a reverse distribute
+        // Set up as a reverse distribute
         mapDistributeBase::distribute
         (
             Pstream::commsTypes::nonBlocking,
@@ -385,12 +556,14 @@ void Foam::meshToMesh::calculate(const word& methodName)
             map.subMap(),
             false,
             tgtToSrcCellAddr_,
-            ListPlusEqOp<label>(),
+            labelList(),
+            ListOps::appendEqOp<label>(),
             flipOp(),
-            labelList()
+            UPstream::msgType(),
+            map.comm()
         );
 
-        // set up as a reverse distribute
+        // Set up as a reverse distribute
         mapDistributeBase::distribute
         (
             Pstream::commsTypes::nonBlocking,
@@ -401,25 +574,30 @@ void Foam::meshToMesh::calculate(const word& methodName)
             map.subMap(),
             false,
             tgtToSrcCellWght_,
-            ListPlusEqOp<scalar>(),
+            scalarList(),
+            ListOps::appendEqOp<scalar>(),
             flipOp(),
-            scalarList()
+            UPstream::msgType(),
+            map.comm()
         );
 
         // weights normalisation
-        normaliseWeights
-        (
-            "source",
-            srcToTgtCellAddr_,
-            srcToTgtCellWght_
-        );
+        if (normalise)
+        {
+            normaliseWeights
+            (
+                "source",
+                srcToTgtCellAddr_,
+                srcToTgtCellWght_
+            );
 
-        normaliseWeights
-        (
-            "target",
-            tgtToSrcCellAddr_,
-            tgtToSrcCellWght_
-        );
+            normaliseWeights
+            (
+                "target",
+                tgtToSrcCellAddr_,
+                tgtToSrcCellWght_
+            );
+        }
 
         // cache maps and reset addresses
         List<Map<label>> cMap;
@@ -439,54 +617,60 @@ void Foam::meshToMesh::calculate(const word& methodName)
     {
         calcAddressing(methodName, srcRegion_, tgtRegion_);
 
-        normaliseWeights
-        (
-            "source",
-            srcToTgtCellAddr_,
-            srcToTgtCellWght_
-        );
+        if (normalise)
+        {
+            normaliseWeights
+            (
+                "source",
+                srcToTgtCellAddr_,
+                srcToTgtCellWght_
+            );
 
-        normaliseWeights
-        (
-            "target",
-            tgtToSrcCellAddr_,
-            tgtToSrcCellWght_
-        );
+            normaliseWeights
+            (
+                "target",
+                tgtToSrcCellAddr_,
+                tgtToSrcCellWght_
+            );
+        }
     }
 
     Info<< "    Overlap volume: " << V_ << endl;
 }
 
 
-Foam::AMIPatchToPatchInterpolation::interpolationMethod
-Foam::meshToMesh::interpolationMethodAMI(const interpolationMethod method)
+Foam::word Foam::meshToMesh::interpolationMethodAMI
+(
+    const interpolationMethod method
+)
 {
     switch (method)
     {
-        case imDirect:
+        case interpolationMethod::imDirect:
         {
-            return AMIPatchToPatchInterpolation::imDirect;
+            return nearestFaceAMI::typeName;
             break;
         }
-        case imMapNearest:
+        case interpolationMethod::imMapNearest:
         {
-            return AMIPatchToPatchInterpolation::imMapNearest;
+            return nearestFaceAMI::typeName;
             break;
         }
-        case imCellVolumeWeight:
+        case interpolationMethod::imCellVolumeWeight:
+        case interpolationMethod::imCorrectedCellVolumeWeight:
         {
-            return AMIPatchToPatchInterpolation::imFaceAreaWeight;
+            return faceAreaWeightAMI::typeName;
             break;
         }
         default:
         {
             FatalErrorInFunction
-                << "Unhandled enumeration " << method
+                << "Unhandled enumeration " << interpolationMethodNames_[method]
                 << abort(FatalError);
         }
     }
 
-    return AMIPatchToPatchInterpolation::imDirect;
+    return nearestFaceAMI::typeName;
 }
 
 
@@ -519,17 +703,16 @@ void Foam::meshToMesh::calculatePatchAMIs(const word& AMIMethodName)
         patchAMIs_.set
         (
             i,
-            new AMIPatchToPatchInterpolation
+            AMIInterpolation::New
             (
-                srcPP,
-                tgtPP,
-                faceAreaIntersect::tmMesh,
-                false,
                 AMIMethodName,
-                -1,
-                true // flip target patch since patch normals are aligned
+                false, // requireMatch
+                true,  // flip target patch since patch normals are aligned
+                -1     // low weight correction
             )
         );
+
+        patchAMIs_[i].calculate(srcPP, tgtPP);
 
         Info<< decrIndent;
     }
@@ -583,7 +766,7 @@ void Foam::meshToMesh::constructNoCuttingPatches
     }
 
     // calculate volume addressing and weights
-    calculate(methodName);
+    calculate(methodName, true);
 
     // calculate patch addressing and weights
     calculatePatchAMIs(AMIMethodName);
@@ -595,39 +778,62 @@ void Foam::meshToMesh::constructFromCuttingPatches
     const word& methodName,
     const word& AMIMethodName,
     const HashTable<word>& patchMap,
-    const wordList& cuttingPatches
+    const wordList& cuttingPatches,
+    const bool normalise
 )
 {
-    srcPatchID_.setSize(patchMap.size());
-    tgtPatchID_.setSize(patchMap.size());
+    const polyBoundaryMesh& srcBm = srcRegion_.boundaryMesh();
+    const polyBoundaryMesh& tgtBm = tgtRegion_.boundaryMesh();
 
-    label i = 0;
-    forAllConstIter(HashTable<word>, patchMap, iter)
-    {
-        const word& tgtPatchName = iter.key();
-        const word& srcPatchName = iter();
-
-        const polyPatch& srcPatch = srcRegion_.boundaryMesh()[srcPatchName];
-        const polyPatch& tgtPatch = tgtRegion_.boundaryMesh()[tgtPatchName];
-
-        srcPatchID_[i] = srcPatch.index();
-        tgtPatchID_[i] = tgtPatch.index();
-        i++;
-    }
-
-    // calculate volume addressing and weights
-    calculate(methodName);
-
-    // calculate patch addressing and weights
-    calculatePatchAMIs(AMIMethodName);
-
-    // set IDs of cutting patches on target mesh
+    // set IDs of cutting patches
     cuttingPatches_.setSize(cuttingPatches.size());
     forAll(cuttingPatches_, i)
     {
         const word& patchName = cuttingPatches[i];
-        cuttingPatches_[i] = tgtRegion_.boundaryMesh().findPatchID(patchName);
+        label cuttingPatchi = srcBm.findPatchID(patchName);
+
+        if (cuttingPatchi == -1)
+        {
+            FatalErrorInFunction
+                << "Unable to find patch '" << patchName
+                << "' in mesh '" << srcRegion_.name() << "'. "
+                << " Available patches include:" << srcBm.names()
+                << exit(FatalError);
+        }
+
+        cuttingPatches_[i] = cuttingPatchi;
     }
+
+    DynamicList<label> srcIDs(patchMap.size());
+    DynamicList<label> tgtIDs(patchMap.size());
+
+    forAllConstIters(patchMap, iter)
+    {
+        const word& tgtPatchName = iter.key();
+        const word& srcPatchName = iter.val();
+
+        const polyPatch& srcPatch = srcBm[srcPatchName];
+
+        // We want to map all the global patches, including constraint
+        // patches (since they might have mappable properties, e.g.
+        // jumpCyclic). We'll fix the value afterwards.
+        if (!isA<processorPolyPatch>(srcPatch))
+        {
+            const polyPatch& tgtPatch = tgtBm[tgtPatchName];
+
+            srcIDs.append(srcPatch.index());
+            tgtIDs.append(tgtPatch.index());
+        }
+    }
+
+    srcPatchID_.transfer(srcIDs);
+    tgtPatchID_.transfer(tgtIDs);
+
+    // calculate volume addressing and weights
+    calculate(methodName, normalise);
+
+    // calculate patch addressing and weights
+    calculatePatchAMIs(AMIMethodName);
 }
 
 
@@ -638,11 +844,13 @@ Foam::meshToMesh::meshToMesh
     const polyMesh& src,
     const polyMesh& tgt,
     const interpolationMethod& method,
+    const procMapMethod& mapMethod,
     bool interpAllPatches
 )
 :
     srcRegion_(src),
     tgtRegion_(tgt),
+    procMapMethod_(mapMethod),
     srcPatchID_(),
     tgtPatchID_(),
     patchAMIs_(),
@@ -651,6 +859,8 @@ Foam::meshToMesh::meshToMesh
     tgtToSrcCellAddr_(),
     srcToTgtCellWght_(),
     tgtToSrcCellWght_(),
+    srcToTgtCellVec_(),
+    tgtToSrcCellVec_(),
     V_(0.0),
     singleMeshProc_(-1),
     srcMapPtr_(nullptr),
@@ -659,10 +869,7 @@ Foam::meshToMesh::meshToMesh
     constructNoCuttingPatches
     (
         interpolationMethodNames_[method],
-        AMIPatchToPatchInterpolation::interpolationMethodToWord
-        (
-            interpolationMethodAMI(method)
-        ),
+        interpolationMethodAMI(method),
         interpAllPatches
     );
 }
@@ -674,11 +881,13 @@ Foam::meshToMesh::meshToMesh
     const polyMesh& tgt,
     const word& methodName,
     const word& AMIMethodName,
+    const procMapMethod& mapMethod,
     bool interpAllPatches
 )
 :
     srcRegion_(src),
     tgtRegion_(tgt),
+    procMapMethod_(mapMethod),
     srcPatchID_(),
     tgtPatchID_(),
     patchAMIs_(),
@@ -687,6 +896,8 @@ Foam::meshToMesh::meshToMesh
     tgtToSrcCellAddr_(),
     srcToTgtCellWght_(),
     tgtToSrcCellWght_(),
+    srcToTgtCellVec_(),
+    tgtToSrcCellVec_(),
     V_(0.0),
     singleMeshProc_(-1),
     srcMapPtr_(nullptr),
@@ -702,11 +913,14 @@ Foam::meshToMesh::meshToMesh
     const polyMesh& tgt,
     const interpolationMethod& method,
     const HashTable<word>& patchMap,
-    const wordList& cuttingPatches
+    const wordList& cuttingPatches,
+    const procMapMethod& mapMethod,
+    const bool normalise
 )
 :
     srcRegion_(src),
     tgtRegion_(tgt),
+    procMapMethod_(mapMethod),
     srcPatchID_(),
     tgtPatchID_(),
     patchAMIs_(),
@@ -723,12 +937,10 @@ Foam::meshToMesh::meshToMesh
     constructFromCuttingPatches
     (
         interpolationMethodNames_[method],
-        AMIPatchToPatchInterpolation::interpolationMethodToWord
-        (
-            interpolationMethodAMI(method)
-        ),
+        interpolationMethodAMI(method),
         patchMap,
-        cuttingPatches
+        cuttingPatches,
+        normalise
     );
 }
 
@@ -740,11 +952,14 @@ Foam::meshToMesh::meshToMesh
     const word& methodName,     // internal mapping
     const word& AMIMethodName,  // boundary mapping
     const HashTable<word>& patchMap,
-    const wordList& cuttingPatches
+    const wordList& cuttingPatches,
+    const procMapMethod& mapMethod,
+    const bool normalise
 )
 :
     srcRegion_(src),
     tgtRegion_(tgt),
+    procMapMethod_(mapMethod),
     srcPatchID_(),
     tgtPatchID_(),
     patchAMIs_(),
@@ -763,7 +978,8 @@ Foam::meshToMesh::meshToMesh
         methodName,
         AMIMethodName,
         patchMap,
-        cuttingPatches
+        cuttingPatches,
+        normalise
     );
 }
 

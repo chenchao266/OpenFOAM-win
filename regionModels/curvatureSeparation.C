@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -26,7 +29,7 @@ License
 #include "curvatureSeparation.H"
 #include "addToRunTimeSelectionTable.H"
 #include "fvMesh.H"
-#include "Time.T.H"
+#include "Time1.H"
 #include "volFields.H"
 #include "kinematicSingleLayer.H"
 #include "surfaceInterpolate.H"
@@ -117,11 +120,11 @@ tmp<scalarField> curvatureSeparation::calcCosAngle
 {
     const fvMesh& mesh = film().regionMesh();
     const vectorField nf(mesh.Sf()/mesh.magSf());
-    const unallocLabelList& own = mesh.owner();
-    const unallocLabelList& nbr = mesh.neighbour();
+    const labelUList& own = mesh.owner();
+    const labelUList& nbr = mesh.neighbour();
 
     scalarField phiMax(mesh.nCells(), -GREAT);
-    scalarField cosAngle(mesh.nCells(), 0.0);
+    scalarField cosAngle(mesh.nCells(), Zero);
     forAll(nbr, facei)
     {
         label cellO = own[facei];
@@ -204,7 +207,7 @@ tmp<scalarField> curvatureSeparation::calcCosAngle
                 IOobject::NO_READ
             ),
             mesh,
-            dimensionedScalar("zero", dimless, 0.0),
+            dimensionedScalar(dimless, Zero),
             zeroGradientFvPatchScalarField::typeName
         );
         volCosAngle.primitiveFieldRef() = cosAngle;
@@ -220,13 +223,13 @@ tmp<scalarField> curvatureSeparation::calcCosAngle
 
 curvatureSeparation::curvatureSeparation
 (
-    surfaceFilmModel& film,
+    surfaceFilmRegionModel& film,
     const dictionary& dict
 )
 :
     injectionModel(type(), film, dict),
     gradNHat_(fvc::grad(film.nHat())),
-    deltaByR1Min_(coeffDict_.lookupOrDefault<scalar>("deltaByR1Min", 0.0)),
+    deltaByR1Min_(coeffDict_.getOrDefault<scalar>("deltaByR1Min", 0)),
     definedPatchRadii_(),
     magG_(mag(film.g().value())),
     gHat_(Zero)
@@ -249,7 +252,7 @@ curvatureSeparation::curvatureSeparation
 
     forAllReverse(prIn, i)
     {
-        labelList patchIDs = findStrings(prIn[i].first(), allPatchNames);
+        labelList patchIDs = findIndices(allPatchNames, prIn[i].first());
         forAll(patchIDs, j)
         {
             const label patchi = patchIDs[j];
@@ -299,8 +302,8 @@ void curvatureSeparation::correct
 
     // calculate force balance
     const scalar Fthreshold = 1e-10;
-    scalarField Fnet(mesh.nCells(), 0.0);
-    scalarField separated(mesh.nCells(), 0.0);
+    scalarField Fnet(mesh.nCells(), Zero);
+    scalarField separated(mesh.nCells(), Zero);
     forAll(invR1, i)
     {
         if ((invR1[i] > 0) && (delta[i]*invR1[i] > deltaByR1Min_))
@@ -346,7 +349,7 @@ void curvatureSeparation::correct
                 IOobject::NO_READ
             ),
             mesh,
-            dimensionedScalar("zero", dimForce, 0.0),
+            dimensionedScalar(dimForce, Zero),
             zeroGradientFvPatchScalarField::typeName
         );
         volFnet.primitiveFieldRef() = Fnet;

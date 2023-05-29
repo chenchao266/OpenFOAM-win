@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2015 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2015 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -33,12 +36,7 @@ namespace Foam
 namespace fv
 {
     defineTypeNameAndDebug(constantHeatTransfer, 0);
-    addToRunTimeSelectionTable
-    (
-        option,
-        constantHeatTransfer,
-        dictionary
-    );
+    addToRunTimeSelectionTable(option, constantHeatTransfer, dictionary);
 }
 }
 
@@ -96,12 +94,6 @@ Foam::fv::constantHeatTransfer::constantHeatTransfer
 }
 
 
-// * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
-
-Foam::fv::constantHeatTransfer::~constantHeatTransfer()
-{}
-
-
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
 
 void Foam::fv::constantHeatTransfer::calculateHtc()
@@ -114,10 +106,8 @@ bool Foam::fv::constantHeatTransfer::read(const dictionary& dict)
     {
         return true;
     }
-    else
-    {
-        return false;
-    }
+
+    return false;
 }
 
 

@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -22,7 +24,7 @@ License
     along with OpenFOAM.  If not, see <http://www.gnu.org/licenses/>.
 
 Class
-    Foam::injectionModelList
+    Foam::regionModels::surfaceFilmModels::injectionModelList
 
 Description
     List container for film injection models
@@ -35,7 +37,7 @@ SourceFiles
 #ifndef injectionModelList_H
 #define injectionModelList_H
 
-#include "PtrList.T.H"
+#include "PtrList.H"
 #include "injectionModel.H"
 #include "filmSubModelBase.H"
 
@@ -67,11 +69,11 @@ private:
 
     // Private Member Functions
 
-        //- Disallow default bitwise copy construct
-        injectionModelList(const injectionModelList&);
+        //- No copy construct
+        injectionModelList(const injectionModelList&) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const injectionModelList&);
+        //- No copy assignment
+        void operator=(const injectionModelList&) = delete;
 
 
 public:
@@ -79,12 +81,12 @@ public:
     // Constructors
 
         //- Construct null
-        injectionModelList(surfaceFilmModel& film);
+        injectionModelList(surfaceFilmRegionModel& film);
 
         //- Construct from type name, dictionary and surface film model
         injectionModelList
         (
-            surfaceFilmModel& film,
+            surfaceFilmRegionModel& film,
             const dictionary& dict
         );
 

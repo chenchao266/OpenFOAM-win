@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -25,25 +28,25 @@ License
 
 #include "patchEdgeFaceInfo.H"
 
-// * * * * * * * * * * * * * * * Friend Operators  * * * * * * * * * * * * * //
+// * * * * * * * * * * * * * * * IOstream Operators  * * * * * * * * * * * * //
 
 Foam::Ostream& Foam::operator<<
 (
-    Foam::Ostream& os,
-    const Foam::patchEdgeFaceInfo& wDist
+    Ostream& os,
+    const patchEdgeFaceInfo& rhs
 )
 {
-    return os << wDist.origin() << wDist.distSqr();
+    return os << rhs.origin() << rhs.distSqr();
 }
 
 
 Foam::Istream& Foam::operator>>
 (
-    Foam::Istream& is,
-    Foam::patchEdgeFaceInfo& wDist
+    Istream& is,
+    patchEdgeFaceInfo& rhs
 )
 {
-    return is >> wDist.origin_ >> wDist.distSqr_;
+    return is >> rhs.origin_ >> rhs.distSqr_;
 }
 
 

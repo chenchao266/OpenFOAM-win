@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2018-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -28,13 +31,14 @@ License
 #include "polyBoundaryMesh.H"
 #include "polyMesh.H"
 #include "primitiveMesh.H"
-#include "SubField.T.H"
+#include "SubField.H"
 #include "entry.H"
-#include "dictionary.H"
+#include "dictionary2.H"
 #include "pointPatchField.H"
+#include "demandDrivenData.H"
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
- 
+
 namespace Foam
 {
     defineTypeNameAndDebug(polyPatch, 0);
@@ -49,15 +53,16 @@ namespace Foam
 
     addToRunTimeSelectionTable(polyPatch, polyPatch, word);
     addToRunTimeSelectionTable(polyPatch, polyPatch, dictionary);
-}
 
 
-// * * * * * * * * * * * * Protected Member Functions  * * * * * * * * * * * //
-namespace Foam {
+
+    // * * * * * * * * * * * * Protected Member Functions  * * * * * * * * * * * //
+
     void polyPatch::movePoints(PstreamBuffers&, const pointField& p)
     {
         primitivePatch::movePoints(p);
     }
+
 
     void polyPatch::updateMesh(PstreamBuffers&)
     {
@@ -82,7 +87,9 @@ namespace Foam {
         const label index,
         const polyBoundaryMesh& bm,
         const word& patchType
-    ) : patchIdentifier(name, index),
+    )
+        :
+        patchIdentifier(name, index),
         primitivePatch
         (
             faceSubList(bm.mesh().faces(), size, start),
@@ -93,16 +100,35 @@ namespace Foam {
         faceCellsPtr_(nullptr),
         mePtr_(nullptr)
     {
-        if
-            (
-                patchType != word::null
-                && constraintType(patchType)
-                && findIndex(inGroups(), patchType) == -1
-                )
+        if (!patchType.empty() && constraintType(patchType))
         {
-            inGroups().append(patchType);
+            inGroups().appendUniq(patchType);
         }
     }
+
+
+    polyPatch::polyPatch
+    (
+        const word& name,
+        const label size,
+        const label start,
+        const label index,
+        const polyBoundaryMesh& bm,
+        const word& physicalType,
+        const wordList& inGroups
+    )
+        :
+        patchIdentifier(name, index, physicalType, inGroups),
+        primitivePatch
+        (
+            faceSubList(bm.mesh().faces(), size, start),
+            bm.mesh().points()
+        ),
+        start_(start),
+        boundaryMesh_(bm),
+        faceCellsPtr_(nullptr),
+        mePtr_(nullptr)
+    {}
 
 
     polyPatch::polyPatch
@@ -112,30 +138,27 @@ namespace Foam {
         const label index,
         const polyBoundaryMesh& bm,
         const word& patchType
-    ) : patchIdentifier(name, dict, index),
+    )
+        :
+        patchIdentifier(name, dict, index),
         primitivePatch
         (
             faceSubList
             (
                 bm.mesh().faces(),
-                readLabel(dict.lookup("nFaces")),
-                readLabel(dict.lookup("startFace"))
+                dict.get<label>("nFaces"),
+                dict.get<label>("startFace")
             ),
             bm.mesh().points()
         ),
-        start_(readLabel(dict.lookup("startFace"))),
+        start_(dict.get<label>("startFace")),
         boundaryMesh_(bm),
         faceCellsPtr_(nullptr),
         mePtr_(nullptr)
     {
-        if
-            (
-                patchType != word::null
-                && constraintType(patchType)
-                && findIndex(inGroups(), patchType) == -1
-                )
+        if (!patchType.empty() && constraintType(patchType))
         {
-            inGroups().append(patchType);
+            inGroups().appendUniq(patchType);
         }
     }
 
@@ -144,7 +167,9 @@ namespace Foam {
     (
         const polyPatch& pp,
         const polyBoundaryMesh& bm
-    ) : patchIdentifier(pp),
+    )
+        :
+        patchIdentifier(pp),
         primitivePatch
         (
             faceSubList
@@ -169,7 +194,9 @@ namespace Foam {
         const label index,
         const label newSize,
         const label newStart
-    ) : patchIdentifier(pp, index),
+    )
+        :
+        patchIdentifier(pp, index),
         primitivePatch
         (
             faceSubList
@@ -194,7 +221,9 @@ namespace Foam {
         const label index,
         const labelUList& mapAddressing,
         const label newStart
-    ) : patchIdentifier(pp, index),
+    )
+        :
+        patchIdentifier(pp, index),
         primitivePatch
         (
             faceSubList
@@ -212,13 +241,27 @@ namespace Foam {
     {}
 
 
-    polyPatch::polyPatch(const polyPatch& p) : patchIdentifier(p),
+    polyPatch::polyPatch(const polyPatch& p)
+        :
+        patchIdentifier(p),
         primitivePatch(p),
         start_(p.start_),
         boundaryMesh_(p.boundaryMesh_),
         faceCellsPtr_(nullptr),
         mePtr_(nullptr)
     {}
+
+
+    polyPatch::polyPatch
+    (
+        const polyPatch& p,
+        const labelList& faceCells
+    )
+        :
+        polyPatch(p)
+    {
+        faceCellsPtr_ = new labelList::subList(faceCells, faceCells.size());
+    }
 
 
     // * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
@@ -233,33 +276,39 @@ namespace Foam {
 
     bool polyPatch::constraintType(const word& pt)
     {
-        return pointPatchField<scalar>::pointPatchConstructorTablePtr_->found(pt);
+        return
+            (
+                pointPatchField<scalar>::pointPatchConstructorTablePtr_
+                && pointPatchField<scalar>::pointPatchConstructorTablePtr_->found(pt)
+                );
     }
 
 
     wordList polyPatch::constraintTypes()
     {
-        wordList cTypes(dictionaryConstructorTablePtr_->size());
+        const auto& cnstrTable = *dictionaryConstructorTablePtr_;
+
+        wordList cTypes(cnstrTable.size());
 
         label i = 0;
 
-        for
-            (
-                dictionaryConstructorTable::iterator cstrIter =
-                dictionaryConstructorTablePtr_->begin();
-                cstrIter != dictionaryConstructorTablePtr_->end();
-                ++cstrIter
-                )
+        forAllConstIters(cnstrTable, iter)
         {
-            if (constraintType(cstrIter.key()))
+            if (constraintType(iter.key()))
             {
-                cTypes[i++] = cstrIter.key();
+                cTypes[i++] = iter.key();
             }
         }
 
         cTypes.setSize(i);
 
         return cTypes;
+    }
+
+
+    label polyPatch::offset() const
+    {
+        return start_ - boundaryMesh().start();
     }
 
 
@@ -297,6 +346,25 @@ namespace Foam {
         }
 
         return tcc;
+    }
+
+
+    tmp<scalarField> polyPatch::areaFraction() const
+    {
+        tmp<scalarField> tfraction(new scalarField(size()));
+        scalarField& fraction = tfraction.ref();
+
+        const vectorField::subField faceAreas = this->faceAreas();
+        const pointField& points = this->points();
+
+        forAll(*this, facei)
+        {
+            const face& curFace = this->operator[](facei);
+            fraction[facei] =
+                mag(faceAreas[facei]) / (curFace.mag(points) + ROOTVSMALL);
+        }
+
+        return tfraction;
     }
 
 
@@ -344,10 +412,10 @@ namespace Foam {
 
     void polyPatch::write(Ostream& os) const
     {
-        os.writeKeyword("type") << type() << token::END_STATEMENT << nl;
+        os.writeEntry("type", type());
         patchIdentifier::write(os);
-        os.writeKeyword("nFaces") << size() << token::END_STATEMENT << nl;
-        os.writeKeyword("startFace") << start() << token::END_STATEMENT << nl;
+        os.writeEntry("nFaces", size());
+        os.writeEntry("startFace", start());
     }
 
 
@@ -385,7 +453,7 @@ namespace Foam {
     Ostream& operator<<(Ostream& os, const polyPatch& p)
     {
         p.write(os);
-        os.check("Ostream& operator<<(Ostream& os, const polyPatch& p");
+        os.check(FUNCTION_NAME);
         return os;
     }
 

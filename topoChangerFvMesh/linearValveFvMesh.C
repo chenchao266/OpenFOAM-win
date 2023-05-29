@@ -1,9 +1,12 @@
-﻿/*---------------------------------------------------------------------------*\
+/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2018-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -24,7 +27,7 @@ License
 \*---------------------------------------------------------------------------*/
 
 #include "linearValveFvMesh.H"
-#include "Time.T.H"
+#include "Time1.H"
 #include "slidingInterface.H"
 #include "mapPolyMesh.H"
 #include "polyTopoChange.H"
@@ -67,15 +70,8 @@ void Foam::linearValveFvMesh::addZonesAndModifiers()
     // Add zones
     List<pointZone*> pz(1);
 
-    // Add an empty zone for cut points
-
-    pz[0] = new pointZone
-    (
-        "cutPointZone",
-        labelList(0),
-        0,
-        pointZones()
-    );
+    // An empty zone for cut points
+    pz[0] = new pointZone("cutPointZone", 0, pointZones());
 
 
     // Do face zones for slider
@@ -83,54 +79,39 @@ void Foam::linearValveFvMesh::addZonesAndModifiers()
     List<faceZone*> fz(3);
 
     // Inner slider
-    const word innerSliderName(motionDict_.subDict("slider").lookup("inside"));
+    const word innerSliderName
+    (
+        motionDict_.subDict("slider").get<word>("inside")
+    );
     const polyPatch& innerSlider = boundaryMesh()[innerSliderName];
-
-    labelList isf(innerSlider.size());
-
-    forAll(isf, i)
-    {
-        isf[i] = innerSlider.start() + i;
-    }
 
     fz[0] = new faceZone
     (
         "insideSliderZone",
-        isf,
-        boolList(innerSlider.size(), false),
+        identity(innerSlider.range()),
+        false, // none are flipped
         0,
         faceZones()
     );
 
     // Outer slider
-    const word outerSliderName(motionDict_.subDict("slider").lookup("outside"));
+    const word outerSliderName
+    (
+        motionDict_.subDict("slider").get<word>("outside")
+    );
     const polyPatch& outerSlider = boundaryMesh()[outerSliderName];
-
-    labelList osf(outerSlider.size());
-
-    forAll(osf, i)
-    {
-        osf[i] = outerSlider.start() + i;
-    }
 
     fz[1] = new faceZone
     (
         "outsideSliderZone",
-        osf,
-        boolList(outerSlider.size(), false),
+        identity(outerSlider.range()),
+        false, // none are flipped
         1,
         faceZones()
     );
 
-    // Add empty zone for cut faces
-    fz[2] = new faceZone
-    (
-        "cutFaceZone",
-        labelList(0),
-        boolList(0, false),
-        2,
-        faceZones()
-    );
+    // An empty zone for cut faces
+    fz[2] = new faceZone("cutFaceZone", 2, faceZones());
 
     List<cellZone*> cz(0);
 
@@ -158,7 +139,7 @@ void Foam::linearValveFvMesh::addZonesAndModifiers()
             true                          // Attach-detach action
         )
     );
-    topoChanger_.writeOpt() = IOobject::AUTO_WRITE;
+    topoChanger_.writeOpt(IOobject::AUTO_WRITE);
 
     // Write mesh
     write();
@@ -293,7 +274,7 @@ Foam::linearValveFvMesh::~linearValveFvMesh()
 
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
 
-bool Foam::linearValveFvMesh::update()
+void Foam::linearValveFvMesh::update()
 {
     // Detaching the interface
     if (attached())
@@ -322,8 +303,8 @@ bool Foam::linearValveFvMesh::update()
     updateMesh();
 
     msPtr_->updateMesh();
-    autoPtr<mapPolyMesh> topoChangeMap = topoChanger_.changeMesh(true);//??
-    if (topoChangeMap.valid())
+
+    if (topoChangeMap)
     {
         if (topoChangeMap().hasMotionPoints())
         {
@@ -349,7 +330,6 @@ bool Foam::linearValveFvMesh::update()
     msPtr_->updateMesh();
 
     Info<< "Sliding interfaces coupled: " << attached() << endl;
-    return true;
 }
 
 

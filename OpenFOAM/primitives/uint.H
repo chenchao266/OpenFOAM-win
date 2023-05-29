@@ -1,9 +1,12 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -25,7 +28,7 @@ Primitive
     uint
 
 Description
-    System uinteger
+    System unsigned integer
 
 SourceFiles
     uintIO.C
@@ -35,6 +38,8 @@ SourceFiles
 #ifndef uint_H
 #define uint_H
 
+#include "uint8.H"
+#include "uint16.H"
 #include "uint32.H"
 #include "uint64.H"
 
@@ -43,18 +48,19 @@ SourceFiles
 namespace Foam
 {
 
-#define MAXMIN(retType, type1, type2)              \
-                                                   \
-inline retType max(const type1 s1, const type2 s2) \
-{                                                  \
-    return (s1 > s2)? s1: s2;                      \
-}                                                  \
-                                                   \
-inline retType min(const type1 s1, const type2 s2) \
-{                                                  \
-    return (s1 < s2)? s1: s2;                      \
+#define MAXMIN(retType, type1, type2)                                          \
+                                                                               \
+/*! \brief Floating/integral min. Use stdmin() to preserve references */ \
+inline retType min(const type1 s1, const type2 s2)                             \
+{                                                                              \
+    return (s1 < s2) ? s1 : s2;                                                \
+}                                                                              \
+                                                                               \
+/*! \brief Floating/integral max. Use stdmax() to preserve references */ \
+inline retType max(const type1 s1, const type2 s2)                             \
+{                                                                              \
+    return (s2 < s1) ? s1 : s2;                                                \
 }
-
 
 MAXMIN(uint8_t, uint8_t, uint8_t)
 MAXMIN(uint16_t, uint16_t, uint16_t)
@@ -67,7 +73,8 @@ MAXMIN(uint64_t, uint64_t, uint64_t)
 
 // * * * * * * * * * * * * * * * IOstream Operators  * * * * * * * * * * * * //
 
-unsigned int readUint(Istream&);
+//- Read unsigned int from stream
+unsigned int readUint(Istream& is);
 
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //

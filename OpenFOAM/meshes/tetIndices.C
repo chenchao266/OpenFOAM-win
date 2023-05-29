@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -26,69 +28,66 @@ License
 #include "tetIndices.H"
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
-namespace Foam {
-    const label tetIndices::maxNWarnings = 100;
-
-    label tetIndices::nWarnings = 0;
 
 
-    // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
+ namespace Foam{
+const label tetIndices::maxNWarnings = 100;
 
-    tetIndices::tetIndices() : celli_(-1),
-        facei_(-1),
-        tetPti_(-1)
-    {}
+label tetIndices::nWarnings = 0;
 
 
-    tetIndices::tetIndices
-    (
-        label celli,
-        label facei,
-        label tetPtI
-    ) : celli_(celli),
-        facei_(facei),
-        tetPti_(tetPtI)
-    {}
+// * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
+
+tetIndices::tetIndices()
+:
+    celli_(-1),
+    facei_(-1),
+    tetPti_(-1)
+{}
 
 
-    // * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
-
-    tetIndices::~tetIndices()
-    {}
-
-
-    // * * * * * * * * * * * * * * * IOstream Operators  * * * * * * * * * * * * //
-
-    Istream& operator>>(Istream& is, tetIndices& tI)
-    {
-        is >> tI.cell() >> tI.face() >> tI.tetPt();
-
-        // Check state of Istream
-        is.check
-        (
-            "Istream& operator>>(Istream&, tetIndices&)"
-        );
-
-        return is;
-    }
+tetIndices::tetIndices
+(
+    label celli,
+    label facei,
+    label tetPtI
+)
+:
+    celli_(celli),
+    facei_(facei),
+    tetPti_(tetPtI)
+{}
 
 
-    Ostream& operator<<(Ostream& os, const tetIndices& tI)
-    {
-        os << tI.cell() << token::SPACE
-            << tI.face() << token::SPACE
-            << tI.tetPt() << token::SPACE
-            << endl;
+// * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
 
-        // Check state of Ostream
-        os.check
-        (
-            "Ostream& operator<<(Ostream&, "
-            "const tetIndices&)"
-        );
+tetIndices::~tetIndices()
+{}
 
-        return os;
-    }
 
+// * * * * * * * * * * * * * * * IOstream Operators  * * * * * * * * * * * * //
+
+Istream& operator>>(Istream& is, tetIndices& tI)
+{
+    is  >> tI.cell() >> tI.face() >> tI.tetPt();
+
+    is.check(FUNCTION_NAME);
+    return is;
 }
+
+
+Ostream& operator<<(Ostream& os, const tetIndices& tI)
+{
+    os  << tI.cell() << token::SPACE
+        << tI.face() << token::SPACE
+        << tI.tetPt() << token::SPACE
+        << endl;
+
+    os.check(FUNCTION_NAME);
+    return os;
+}
+
+
 // ************************************************************************* //
+
+ } // End namespace Foam

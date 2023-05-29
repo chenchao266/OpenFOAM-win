@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -133,29 +135,29 @@ inline const PtrList<volScalarField>& thermoSingleLayer::YPrimary() const
 
 inline const heatTransferModel& thermoSingleLayer::htcs() const
 {
-    return htcs_();
+    return *htcs_;
 }
 
 
 inline const heatTransferModel& thermoSingleLayer::htcw() const
 {
-    return htcw_();
+    return *htcw_;
 }
 
 
 inline const phaseChangeModel& thermoSingleLayer::phaseChange() const
 {
-    return phaseChange_();
+    return *phaseChange_;
 }
 
 
 inline const filmRadiationModel& thermoSingleLayer::radiation() const
 {
-    return radiation_();
+    return *radiation_;
 }
 
 
-inline tmp<scalarField> thermoSingleLayer::Qconvw(const label patchi) const
+inline tmp<scalarField> thermoSingleLayer::qconvw(const label patchi) const
 {
     const scalarField htc(htcw_->h()().boundaryField()[patchi]);
     const scalarField& Tp = T_.boundaryField()[patchi];
@@ -165,7 +167,7 @@ inline tmp<scalarField> thermoSingleLayer::Qconvw(const label patchi) const
 }
 
 
-inline tmp<scalarField> thermoSingleLayer::Qconvp(const label patchi) const
+inline tmp<scalarField> thermoSingleLayer::qconvp(const label patchi) const
 {
     const scalarField htc(htcs_->h()().boundaryField()[patchi]);
     const scalarField& Tp = T_.boundaryField()[patchi];

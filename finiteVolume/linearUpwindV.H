@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -61,11 +63,11 @@ class linearUpwindV
 
     // Private Member Functions
 
-        //- Disallow default bitwise copy construct
-        linearUpwindV(const linearUpwindV&);
+        //- No copy construct
+        linearUpwindV(const linearUpwindV&) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const linearUpwindV&);
+        //- No copy assignment
+        void operator=(const linearUpwindV&) = delete;
 
 
 public:
@@ -142,10 +144,10 @@ public:
         }
 
         //- Return the explicit correction to the face-interpolate
-        virtual tmp<surfaceFieldType<Type>>
+        virtual tmp<GeometricField<Type, fvsPatchField, surfaceMesh>>
         correction
         (
-            const volFieldType<Type>&
+            const GeometricField<Type, fvPatchField, volMesh>&
         ) const;
 
 };

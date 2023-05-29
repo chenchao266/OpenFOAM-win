@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -60,10 +62,10 @@ Foam::APIdiffCoefFunc::APIdiffCoefFunc
 
 Foam::APIdiffCoefFunc::APIdiffCoefFunc(const dictionary& dict)
 :
-    a_(readScalar(dict.lookup("a"))),
-    b_(readScalar(dict.lookup("b"))),
-    wf_(readScalar(dict.lookup("wf"))),
-    wa_(readScalar(dict.lookup("wa"))),
+    a_(dict.get<scalar>("a")),
+    b_(dict.get<scalar>("b")),
+    wf_(dict.get<scalar>("wf")),
+    wa_(dict.get<scalar>("wa")),
     alpha_(sqrt(1/wf_ + 1/wa_)),
     beta_(sqr((cbrt(a_) + cbrt(b_))))
 {}

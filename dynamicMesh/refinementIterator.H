@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -43,7 +46,7 @@ SourceFiles
 
 #include "edgeVertex.H"
 #include "labelList.H"
-#include "Map.T.H"
+#include "Map.H"
 #include "typeInfo.H"
 
 
@@ -52,7 +55,7 @@ SourceFiles
 namespace Foam
 {
 
-// Forward declaration of classes
+// Forward Declarations
 class polyMesh;
 class refineCell;
 class undoableMeshCutter;
@@ -66,7 +69,7 @@ class refinementIterator
 :
     public edgeVertex
 {
-    // Private data
+    // Private Data
 
         //- Reference to mesh
         polyMesh& mesh_;

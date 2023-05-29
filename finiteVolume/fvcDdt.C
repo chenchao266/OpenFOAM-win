@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -23,9 +25,9 @@ License
 
 \*---------------------------------------------------------------------------*/
 
-//#include "fvcDdt.H"
+//#include "fvcDDt.H"
+#include "fvcDiv.H"
 #include "fvMesh.H"
-#include "ddtScheme.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -40,203 +42,41 @@ namespace fvc
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 template<class Type>
-tmp<volFieldType<Type>>
-ddt
+tmp<GeometricField<Type, fvPatchField, volMesh>>
+DDt
 (
-    const dimensioned<Type> dt,
-    const fvMesh& mesh
+    const surfaceScalarField& phi,
+    const GeometricField<Type, fvPatchField, volMesh>& psi
 )
 {
-    return fv::ddtScheme<Type>::New
+    tmp<GeometricField<Type, fvPatchField, volMesh>> ddtDivPhiPsi
+        = fvc::ddt(psi) + fvc::div(phi, psi);
+
+    if (phi.mesh().moving())
+    {
+        return ddtDivPhiPsi - fvc::div(phi + phi.mesh().phi())*psi;
+    }
+    else
+    {
+        return ddtDivPhiPsi - fvc::div(phi)*psi;
+    }
+}
+
+
+template<class Type>
+tmp<GeometricField<Type, fvPatchField, volMesh>>
+DDt
+(
+    const tmp<surfaceScalarField>& tphi,
+    const GeometricField<Type, fvPatchField, volMesh>& psi
+)
+{
+    tmp<GeometricField<Type, fvPatchField, volMesh>> DDtPsi
     (
-        mesh,
-        mesh.ddtScheme("ddt(" + dt.name() + ')')
-    ).ref().fvcDdt(dt);
-}
-
-
-template<class Type>
-tmp<volFieldType<Type>>
-ddt
-(
-    const volFieldType<Type>& vf
-)
-{
-    return fv::ddtScheme<Type>::New
-    (
-        vf.mesh(),
-        vf.mesh().ddtScheme("ddt(" + vf.name() + ')')
-    ).ref().fvcDdt(vf);
-}
-
-
-template<class Type>
-tmp<volFieldType<Type>>
-ddt
-(
-    const dimensionedScalar& rho,
-    const volFieldType<Type>& vf
-)
-{
-    return fv::ddtScheme<Type>::New
-    (
-        vf.mesh(),
-        vf.mesh().ddtScheme("ddt(" + rho.name() + ',' + vf.name() + ')')
-    ).ref().fvcDdt(rho, vf);
-}
-
-
-template<class Type>
-tmp<volFieldType<Type>>
-ddt
-(
-    const volScalarField& rho,
-    const volFieldType<Type>& vf
-)
-{
-    return fv::ddtScheme<Type>::New
-    (
-        vf.mesh(),
-        vf.mesh().ddtScheme("ddt(" + rho.name() + ',' + vf.name() + ')')
-    ).ref().fvcDdt(rho, vf);
-}
-
-
-template<class Type>
-tmp<volFieldType<Type>>
-ddt
-(
-    const volScalarField& alpha,
-    const volScalarField& rho,
-    const volFieldType<Type>& vf
-)
-{
-    return fv::ddtScheme<Type>::New
-    (
-        vf.mesh(),
-        vf.mesh().ddtScheme
-        (
-            "ddt("
-          + alpha.name() + ','
-          + rho.name() + ','
-          + vf.name() + ')'
-        )
-    ).ref().fvcDdt(alpha, rho, vf);
-}
-
-
-template<class Type>
-tmp<surfaceFieldType<Type>>
-ddt
-(
-    const surfaceFieldType<Type>& sf
-)
-{
-    return fv::ddtScheme<Type>::New
-    (
-        sf.mesh(),
-        sf.mesh().ddtScheme("ddt(" + sf.name() + ')')
-    ).ref().fvcDdt(sf);
-}
-
-
-template<class Type>
-tmp<volFieldType<Type>>
-ddt
-(
-    const one&,
-    const volFieldType<Type>& vf
-)
-{
-    return ddt(vf);
-}
-
-
-template<class Type>
-tmp<volFieldType<Type>>
-ddt
-(
-    const volFieldType<Type>& vf,
-    const one&
-)
-{
-    return ddt(vf);
-}
-
-
-template<class Type>
-tmp<GeometricField<typename flux<Type>::type, fvsPatchField, surfaceMesh>>
-ddtCorr
-(
-    const volFieldType<Type>& U,
-    const surfaceFieldType<Type>& Uf
-)
-{
-    return fv::ddtScheme<Type>::New
-    (
-        U.mesh(),
-        U.mesh().ddtScheme("ddt(" + U.name() + ')')
-    ).ref().fvcDdtUfCorr(U, Uf);
-}
-
-
-template<class Type>
-tmp<GeometricField<typename flux<Type>::type, fvsPatchField, surfaceMesh>>
-ddtCorr
-(
-    const volFieldType<Type>& U,
-    const GeometricField
-    <
-        typename flux<Type>::type,
-        fvsPatchField,
-        surfaceMesh
-    >& phi
-)
-{
-    return fv::ddtScheme<Type>::New
-    (
-        U.mesh(),
-        U.mesh().ddtScheme("ddt(" + U.name() + ')')
-    ).ref().fvcDdtPhiCorr(U, phi);
-}
-
-
-template<class Type>
-tmp<GeometricField<typename flux<Type>::type, fvsPatchField, surfaceMesh>>
-ddtCorr
-(
-    const volScalarField& rho,
-    const volFieldType<Type>& U,
-    const surfaceFieldType<Type>& Uf
-)
-{
-    return fv::ddtScheme<Type>::New
-    (
-        U.mesh(),
-        U.mesh().ddtScheme("ddt(" + U.name() + ')')
-    ).ref().fvcDdtUfCorr(rho, U, Uf);
-}
-
-
-template<class Type>
-tmp<GeometricField<typename flux<Type>::type, fvsPatchField, surfaceMesh>>
-ddtCorr
-(
-    const volScalarField& rho,
-    const volFieldType<Type>& U,
-    const GeometricField
-    <
-        typename flux<Type>::type,
-        fvsPatchField,
-        surfaceMesh
-    >& phi
-)
-{
-    return fv::ddtScheme<Type>::New
-    (
-        U.mesh(),
-        U.mesh().ddtScheme("ddt(" + rho.name() + ',' + U.name() + ')')
-    ).ref().fvcDdtPhiCorr(rho, U, phi);
+        fvc::DDt(tphi(), psi)
+    );
+    tphi.clear();
+    return DDtPsi;
 }
 
 

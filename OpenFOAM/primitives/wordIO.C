@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2015 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2015 OpenFOAM Foundation
+    Copyright (C) 2018-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -24,72 +27,79 @@ License
 \*---------------------------------------------------------------------------*/
 
 #include "word.H"
+#include "token.H"
 #include "IOstreams.H"
 
-// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
-namespace Foam {
-    word::word(Istream& is) : string()
+// * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
+
+
+ namespace Foam{
+word::word(Istream& is)
+{
+    is >> *this;
+}
+
+
+// * * * * * * * * * * * * * * * IOstream Operators  * * * * * * * * * * * * //
+
+Istream& operator>>(Istream& is, word& val)
+{
+    token tok(is);
+
+    if (tok.isWord())
     {
-        is >> *this;
+        val = tok.wordToken();
     }
-
-
-    Istream& operator>>(Istream& is, word& w)
+    else if (tok.isQuotedString() || tok.isVariable())
     {
-        token t(is);
+        // Try a bit harder, convert some string types to word
+        // - accept "quoted" or $tag, but not verbatim/expression
 
-        if (!t.good())
+        const auto& str = tok.stringToken();
+        val = word::validate(str);
+
+        // Flag empty strings and bad chars as an error
+        if (val.empty() || val.length() != str.length())
         {
+            FatalIOErrorInFunction(is)
+                << "Empty word or non-word characters "
+                << tok.info() << exit(FatalIOError);
             is.setBad();
             return is;
         }
-
-        if (t.isWord())
+    }
+    else
+    {
+        FatalIOErrorInFunction(is);
+        if (tok.good())
         {
-            w = t.wordToken();
-        }
-        else if (t.isString())
-        {
-            // try a bit harder and convert string to word
-            w = t.stringToken();
-            string::stripInvalid<word>(w);
-
-            // flag empty strings and bad chars as an error
-            if (w.empty() || w.size() != t.stringToken().size())
-            {
-                is.setBad();
-                FatalIOErrorInFunction(is)
-                    << "wrong token type - expected word, found "
-                    "non-word characters "
-                    << t.info()
-                    << exit(FatalIOError);
-                return is;
-            }
+            FatalIOError
+                << "Wrong token type - expected word, found "
+                << tok.info();
         }
         else
         {
-            is.setBad();
-            FatalIOErrorInFunction(is)
-                << "wrong token type - expected word, found "
-                << t.info()
-                << exit(FatalIOError);
-
-            return is;
+            FatalIOError
+                << "Bad token - could not get word";
         }
-
-        // Check state of IOstream
-        is.check("Istream& operator>>(Istream&, word&)");
-
+        FatalIOError << exit(FatalIOError);
+        is.setBad();
         return is;
     }
 
-
-    Ostream& operator<<(Ostream& os, const word& w)
-    {
-        os.write(w);
-        os.check("Ostream& operator<<(Ostream&, const word&)");
-        return os;
-    }
-
+    is.check(FUNCTION_NAME);
+    return is;
 }
+
+
+Ostream& operator<<(Ostream& os, const word& val)
+{
+    os.write(val);
+    os.check(FUNCTION_NAME);
+    return os;
+}
+
+
 // ************************************************************************* //
+
+ } // End namespace Foam

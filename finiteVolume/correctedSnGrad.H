@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -24,8 +27,20 @@ License
 Class
     Foam::fv::correctedSnGrad
 
+Group
+    grpFvSnGradSchemes
+
 Description
-    Simple central-difference snGrad scheme with non-orthogonal correction.
+    Surface gradient scheme with full explicit non-orthogonal correction.
+
+Usage
+    Minimal example by using \c system/fvSchemes:
+    \verbatim
+    snGradSchemes
+    {
+        snGrad(<term>)       corrected;
+    }
+    \endverbatim
 
 SourceFiles
     correctedSnGrad.C
@@ -48,7 +63,7 @@ namespace fv
 {
 
 /*---------------------------------------------------------------------------*\
-                 Class correctedSnGrad Declaration
+                        Class correctedSnGrad Declaration
 \*---------------------------------------------------------------------------*/
 
 template<class Type>
@@ -58,8 +73,8 @@ class correctedSnGrad
 {
     // Private Member Functions
 
-        //- Disallow default bitwise assignment
-        void operator=(const correctedSnGrad&);
+        //- No copy assignment
+        void operator=(const correctedSnGrad&) = delete;
 
 
 public:
@@ -76,7 +91,6 @@ public:
             snGradScheme<Type>(mesh)
         {}
 
-
         //- Construct from mesh and data stream
         correctedSnGrad(const fvMesh& mesh, Istream&)
         :
@@ -85,7 +99,7 @@ public:
 
 
     //- Destructor
-    virtual ~correctedSnGrad();
+    virtual ~correctedSnGrad() = default;
 
 
     // Member Functions
@@ -93,30 +107,30 @@ public:
         //- Return the interpolation weighting factors for the given field
         virtual tmp<surfaceScalarField> deltaCoeffs
         (
-            const volFieldType<Type>&
+            const GeometricField<Type, fvPatchField, volMesh>&
         ) const
         {
             return this->mesh().nonOrthDeltaCoeffs();
         }
 
         //- Return true if this scheme uses an explicit correction
-        virtual bool corrected() const
+        virtual bool corrected() const noexcept
         {
             return true;
         }
 
         //- Return the explicit correction to the correctedSnGrad
-        //  for the given field using the gradient of the field
-        tmp<surfaceFieldType<Type>>
+        //- for the given field using the gradient of the field
+        tmp<GeometricField<Type, fvsPatchField, surfaceMesh>>
         fullGradCorrection
         (
-            const volFieldType<Type>&
+            const GeometricField<Type, fvPatchField, volMesh>&
         ) const;
 
         //- Return the explicit correction to the correctedSnGrad
-        //  for the given field using the gradients of the field components
-        virtual tmp<surfaceFieldType<Type>>
-        correction(const volFieldType<Type>&) const;
+        //- for the given field using the gradients of the field components
+        virtual tmp<GeometricField<Type, fvsPatchField, surfaceMesh>>
+        correction(const GeometricField<Type, fvPatchField, volMesh>&) const;
 };
 
 

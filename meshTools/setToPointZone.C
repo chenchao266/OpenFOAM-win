@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2018 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -26,20 +29,18 @@ License
 #include "setToPointZone.H"
 #include "polyMesh.H"
 #include "pointZoneSet.H"
-
 #include "addToRunTimeSelectionTable.H"
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
 
 namespace Foam
 {
+    defineTypeNameAndDebug(setToPointZone, 0);
+    addToRunTimeSelectionTable(topoSetSource, setToPointZone, word);
+    addToRunTimeSelectionTable(topoSetSource, setToPointZone, istream);
 
-defineTypeNameAndDebug(setToPointZone, 0);
-
-addToRunTimeSelectionTable(topoSetSource, setToPointZone, word);
-
-addToRunTimeSelectionTable(topoSetSource, setToPointZone, istream);
-
+    addToRunTimeSelectionTable(topoSetPointZoneSource, setToPointZone, word);
+    addToRunTimeSelectionTable(topoSetPointZoneSource, setToPointZone, istream);
 }
 
 
@@ -53,45 +54,36 @@ Foam::topoSetSource::addToUsageTable Foam::setToPointZone::usage_
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
-// Construct from components
 Foam::setToPointZone::setToPointZone
 (
     const polyMesh& mesh,
     const word& setName
 )
 :
-    topoSetSource(mesh),
+    topoSetPointZoneSource(mesh),
     setName_(setName)
 {}
 
 
-// Construct from dictionary
 Foam::setToPointZone::setToPointZone
 (
     const polyMesh& mesh,
     const dictionary& dict
 )
 :
-    topoSetSource(mesh),
-    setName_(dict.lookup("set"))
+    topoSetPointZoneSource(mesh),
+    setName_(dict.get<word>("set"))
 {}
 
 
-// Construct from Istream
 Foam::setToPointZone::setToPointZone
 (
     const polyMesh& mesh,
     Istream& is
 )
 :
-    topoSetSource(mesh),
+    topoSetPointZoneSource(mesh),
     setName_(checkIs(is))
-{}
-
-
-// * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
-
-Foam::setToPointZone::~setToPointZone()
 {}
 
 
@@ -107,55 +99,61 @@ void Foam::setToPointZone::applyToSet
     {
         WarningInFunction
             << "Operation only allowed on a pointZoneSet." << endl;
+        return;
     }
     else
     {
-        pointZoneSet& fzSet = refCast<pointZoneSet>(set);
+        pointZoneSet& zoneSet = refCast<pointZoneSet>(set);
 
-        if ((action == topoSetSource::NEW) || (action == topoSetSource::ADD))
+        if (action == topoSetSource::ADD || action == topoSetSource::NEW)
         {
-            Info<< "    Adding all points from pointSet " << setName_
-                << " ..." << endl;
+            if (verbose_)
+            {
+                Info<< "    Adding all points from pointSet " << setName_
+                    << " ..." << endl;
+            }
 
             // Load the sets
-            pointSet fSet(mesh_, setName_);
+            pointSet loadedSet(mesh_, setName_);
+            const labelHashSet& pointLabels = loadedSet;
 
             // Start off from copy
-            DynamicList<label> newAddressing(fzSet.addressing());
+            DynamicList<label> newAddressing(zoneSet.addressing());
 
-            forAllConstIter(pointSet, fSet, iter)
+            for (const label pointi : pointLabels)
             {
-                label pointi = iter.key();
-
-                if (!fzSet.found(pointi))
+                if (!zoneSet.found(pointi))
                 {
                     newAddressing.append(pointi);
                 }
             }
 
-            fzSet.addressing().transfer(newAddressing);
-            fzSet.updateSet();
+            zoneSet.addressing().transfer(newAddressing);
+            zoneSet.updateSet();
         }
-        else if (action == topoSetSource::DELETE)
+        else if (action == topoSetSource::SUBTRACT)
         {
-            Info<< "    Removing all points from pointSet " << setName_
-                << " ..." << endl;
+            if (verbose_)
+            {
+                Info<< "    Removing all points from pointSet " << setName_
+                    << " ..." << endl;
+            }
 
             // Load the set
             pointSet loadedSet(mesh_, setName_);
 
             // Start off empty
-            DynamicList<label> newAddressing(fzSet.addressing().size());
+            DynamicList<label> newAddressing(zoneSet.addressing().size());
 
-            forAll(fzSet.addressing(), i)
+            forAll(zoneSet.addressing(), i)
             {
-                if (!loadedSet.found(fzSet.addressing()[i]))
+                if (!loadedSet.found(zoneSet.addressing()[i]))
                 {
-                    newAddressing.append(fzSet.addressing()[i]);
+                    newAddressing.append(zoneSet.addressing()[i]);
                 }
             }
-            fzSet.addressing().transfer(newAddressing);
-            fzSet.updateSet();
+            zoneSet.addressing().transfer(newAddressing);
+            zoneSet.updateSet();
         }
     }
 }

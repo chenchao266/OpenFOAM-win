@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -52,13 +54,14 @@ class closedTriSurfaceMesh
 :
     public triSurfaceMesh
 {
-private:
 
-        //- Disallow default bitwise copy construct
-        closedTriSurfaceMesh(const closedTriSurfaceMesh&);
+    // Private Member Functions
 
-        //- Disallow default bitwise assignment
-        void operator=(const closedTriSurfaceMesh&);
+        //- No copy construct
+        closedTriSurfaceMesh(const closedTriSurfaceMesh&) = delete;
+
+        //- No copy assignment
+        void operator=(const closedTriSurfaceMesh&) = delete;
 
 
 public:
@@ -76,7 +79,7 @@ public:
         closedTriSurfaceMesh(const IOobject& io);
 
         //- Construct from IO and dictionary (used by searchableSurface).
-        //  Dictionary may contain a 'scale' entry (eg, 0.001: mm -> m)
+        //  Dictionary may contain a 'scale' entry (eg, 0.001: mm to m)
         closedTriSurfaceMesh
         (
             const IOobject& io,
@@ -84,9 +87,9 @@ public:
         );
 
 
-    // Destructor
+    //- Destructor
+    virtual ~closedTriSurfaceMesh() = default;
 
-        virtual ~closedTriSurfaceMesh();
 
     // Member Functions
 

@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011 OpenFOAM Foundation
+    Copyright (C) 2018 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -25,6 +28,7 @@ InClass
     Foam::pointFields
 
 Description
+    Forwards and collection of common point field types
 
 SourceFiles
     pointFields.C
@@ -43,13 +47,15 @@ namespace Foam
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
+// Forward Declarations
 class pointMesh;
 
-template<class Type>
-class pointPatchField;
+template<class Type> class pointPatchField;
 
-template<class Type, template<class Type> class PatchField, class GeoMesh>
+template<class Type, template<class> class PatchField, class GeoMesh>
 class GeometricField;
+
+// Typedefs
 
 typedef GeometricField<scalar, pointPatchField, pointMesh> pointScalarField;
 typedef GeometricField<vector, pointPatchField, pointMesh> pointVectorField;
@@ -59,7 +65,19 @@ typedef GeometricField<symmTensor, pointPatchField, pointMesh>
     pointSymmTensorField;
 typedef GeometricField<tensor, pointPatchField, pointMesh> pointTensorField;
 
-template <typename Type> using  pointFieldType = GeometricField<Type, pointPatchField, pointMesh>;
+
+/*---------------------------------------------------------------------------*\
+                       Namespace fieldTypes Declaration
+\*---------------------------------------------------------------------------*/
+
+namespace fieldTypes
+{
+    //- Standard point field types (scalar, vector, tensor, etc)
+    extern const wordList point;
+
+} // End namespace fieldTypes
+
+
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 } // End namespace Foam

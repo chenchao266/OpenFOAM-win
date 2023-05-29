@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -27,14 +30,6 @@ License
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
-Foam::referredWallFace::referredWallFace()
-:
-    face(),
-    pts_(),
-    patchi_()
-{}
-
-
 Foam::referredWallFace::referredWallFace
 (
     const face& f,
@@ -46,34 +41,14 @@ Foam::referredWallFace::referredWallFace
     pts_(pts),
     patchi_(patchi)
 {
-    if (this->size() != pts_.size())
+    if (face::size() != pts_.size())
     {
         FatalErrorInFunction
-            << "Face and pointField are not the same size. " << nl << (*this)
+            << "Face and pointField are not the same size." << nl
+            << (*this) << nl
             << abort(FatalError);
     }
 }
-
-
-Foam::referredWallFace::referredWallFace(const referredWallFace& rWF)
-:
-    face(rWF),
-    pts_(rWF.pts_),
-    patchi_(rWF.patchi_)
-{
-    if (this->size() != pts_.size())
-    {
-        FatalErrorInFunction
-            << "Face and pointField are not the same size. " << nl << (*this)
-            << abort(FatalError);
-    }
-}
-
-
-// * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
-
-Foam::referredWallFace::~referredWallFace()
-{}
 
 
 // * * * * * * * * * * * * * * Member Operators  * * * * * * * * * * * * * * //
@@ -101,13 +76,7 @@ Foam::Istream& Foam::operator>>(Istream& is, referredWallFace& rWF)
 {
     is  >> static_cast<face&>(rWF) >> rWF.pts_ >> rWF.patchi_;
 
-    // Check state of Istream
-    is.check
-    (
-        "Foam::Istream& "
-        "Foam::operator>>(Foam::Istream&, Foam::referredWallFace&)"
-    );
-
+    is.check(FUNCTION_NAME);
     return is;
 }
 
@@ -118,13 +87,7 @@ Foam::Ostream& Foam::operator<<(Ostream& os, const referredWallFace& rWF)
         << rWF.pts_ << token::SPACE
         << rWF.patchi_;
 
-    // Check state of Ostream
-    os.check
-    (
-        "Foam::Ostream& Foam::operator<<(Foam::Ostream&, "
-        "const Foam::referredWallFace&)"
-    );
-
+    os.check(FUNCTION_NAME);
     return os;
 }
 

@@ -1,9 +1,11 @@
-﻿/*---------------------------------------------------------------------------*\
+/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -45,10 +47,9 @@ SourceFiles
 
 #include "scalarField.H"
 #include "vectorField.H"
-#include "Map.T.H"
-#include "DynamicList.T.H"
-#include "point.T.H"
-#include "pointFieldsFwd.H"
+#include "Map.H"
+#include "DynamicList.H"
+#include "point.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -57,7 +58,9 @@ namespace Foam
 
 class polyMesh;
 class pointMesh;
- 
+template<class T> class pointPatchField;
+template<class Type, template<class> class PatchField, class GeoMesh>
+class GeometricField;
 class face;
 
 /*---------------------------------------------------------------------------*\
@@ -106,7 +109,7 @@ public:
     //- Debug switch
     static int debug;
 
-    //- Tolerance used in calculating barycentric co-ordinates
+    //- Tolerance used in calculating barycentric coordinates
     //  (applied to normalised values)
     static scalar tol;
 
@@ -141,7 +144,7 @@ public:
         template<class Type>
         inline Type interpolate
         (
-            const pointFieldType<Type>& psip
+            const GeometricField<Type, pointPatchField, pointMesh>& psip
         ) const;
 };
 

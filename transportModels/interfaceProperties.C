@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -24,18 +26,13 @@ License
 \*---------------------------------------------------------------------------*/
 
 #include "interfaceProperties.H"
-#include "alphaContactAngleFvPatchScalarField.H"
+#include "alphaContactAngleTwoPhaseFvPatchScalarField.H"
 #include "mathematicalConstants.H"
 #include "surfaceInterpolate.H"
 #include "fvcDiv.H"
 #include "fvcGrad.H"
 #include "fvcSnGrad.H"
-
-// * * * * * * * * * * * * * * * Static Member Data  * * * * * * * * * * * * //
-
-const Foam::scalar Foam::interfaceProperties::convertToRad =
-    Foam::constant::mathematical::pi/180.0;
-
+#include "unitConversion.H"
 
 // * * * * * * * * * * * * * Private Member Functions  * * * * * * * * * * * //
 
@@ -58,12 +55,12 @@ void Foam::interfaceProperties::correctContactAngle
 
     forAll(boundary, patchi)
     {
-        if (isA<alphaContactAngleFvPatchScalarField>(abf[patchi]))
+        if (isA<alphaContactAngleTwoPhaseFvPatchScalarField>(abf[patchi]))
         {
-            alphaContactAngleFvPatchScalarField& acap =
-                const_cast<alphaContactAngleFvPatchScalarField&>
+            alphaContactAngleTwoPhaseFvPatchScalarField& acap =
+                const_cast<alphaContactAngleTwoPhaseFvPatchScalarField&>
                 (
-                    refCast<const alphaContactAngleFvPatchScalarField>
+                    refCast<const alphaContactAngleTwoPhaseFvPatchScalarField>
                     (
                         abf[patchi]
                     )
@@ -72,7 +69,7 @@ void Foam::interfaceProperties::correctContactAngle
             fvsPatchVectorField& nHatp = nHatb[patchi];
             const scalarField theta
             (
-                convertToRad*acap.theta(U_.boundaryField()[patchi], nHatp)
+                degToRad() * acap.theta(U_.boundaryField()[patchi], nHatp)
             );
 
             const vectorField nf
@@ -142,7 +139,7 @@ void Foam::interfaceProperties::calculateK()
     volVectorField nHat(gradAlpha/(mag(gradAlpha) + deltaN_));
     forAll(nHat.boundaryField(), patchi)
     {
-        nHat.boundaryField()[patchi] = nHatfv.boundaryField()[patchi];
+        nHat.boundaryFieldRef()[patchi] = nHatfv.boundaryField()[patchi];
     }
 
     K_ = -fvc::div(nHatf_) + (nHat & fvc::grad(nHatfv) & nHat);
@@ -162,10 +159,7 @@ Foam::interfaceProperties::interfaceProperties
     transportPropertiesDict_(dict),
     cAlpha_
     (
-        readScalar
-        (
-            alpha1.mesh().solverDict(alpha1.name()).lookup("cAlpha")
-        )
+        alpha1.mesh().solverDict(alpha1.name()).get<scalar>("cAlpha")
     ),
 
     sigmaPtr_(surfaceTensionModel::New(dict, alpha1.mesh())),
@@ -173,7 +167,7 @@ Foam::interfaceProperties::interfaceProperties
     deltaN_
     (
         "deltaN",
-        1e-8/pow(average(alpha1.mesh().V()), 1.0/3.0)
+        1e-8/cbrt(average(alpha1.mesh().V()))
     ),
 
     alpha1_(alpha1),
@@ -188,7 +182,7 @@ Foam::interfaceProperties::interfaceProperties
             alpha1_.mesh()
         ),
         alpha1_.mesh(),
-        dimensionedScalar("nHatf", dimArea, 0.0)
+        dimensionedScalar(dimArea, Zero)
     ),
 
     K_
@@ -200,7 +194,7 @@ Foam::interfaceProperties::interfaceProperties
             alpha1_.mesh()
         ),
         alpha1_.mesh(),
-        dimensionedScalar("K", dimless/dimLength, 0.0)
+        dimensionedScalar(dimless/dimLength, Zero)
     )
 {
     calculateK();
@@ -238,7 +232,7 @@ void Foam::interfaceProperties::correct()
 
 bool Foam::interfaceProperties::read()
 {
-    alpha1_.mesh().solverDict(alpha1_.name()).lookup("cAlpha") >> cAlpha_;
+    alpha1_.mesh().solverDict(alpha1_.name()).readEntry("cAlpha", cAlpha_);
     sigmaPtr_->readDict(transportPropertiesDict_);
 
     return true;

@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -29,7 +31,7 @@ InClass
 #ifndef slicedVolFields_H
 #define slicedVolFields_H
 
-#include "SlicedGeometricField.T.H"
+#include "SlicedGeometricField.H"
 #include "slicedFvPatchField.H"
 #include "volMesh.H"
 #include "slicedVolFieldsFwd.H"

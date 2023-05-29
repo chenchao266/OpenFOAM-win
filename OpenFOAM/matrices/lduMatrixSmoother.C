@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2019-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -23,148 +26,94 @@ License
 
 \*---------------------------------------------------------------------------*/
 
-#include "lduMatrix.H"
-
-// * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
-using namespace Foam;
-namespace Foam
-{
-    defineRunTimeSelectionTable(lduMatrix::smoother, symMatrix);
-    defineRunTimeSelectionTable(lduMatrix::smoother, asymMatrix);
-}
+//#include "LduMatrix.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
-word
-lduMatrix::smoother::getName
-(
-    const dictionary& solverControls
-)
-{
-    word name;
 
-    // handle primitive or dictionary entry
-    const entry& e = solverControls.lookupEntry("smoother", false, false);
-    if (e.isDict())
-    {
-        e.dict().lookup("smoother") >> name;
-    }
-    else
-    {
-        e.stream() >> name;
-    }
-
-    return name;
-}
-
-
-autoPtr<lduMatrix::smoother> lduMatrix::smoother::New
+ namespace Foam{
+template<class Type, class DType, class LUType>
+autoPtr<typename LduMatrix<Type, DType, LUType>::smoother>
+LduMatrix<Type, DType, LUType>::smoother::New
 (
     const word& fieldName,
-    const lduMatrix& matrix,
-    const FieldField<Field, scalar>& interfaceBouCoeffs,
-    const FieldField<Field, scalar>& interfaceIntCoeffs,
-    const lduInterfaceFieldPtrsList& interfaces,
-    const dictionary& solverControls
+    const LduMatrix<Type, DType, LUType>& matrix,
+    const dictionary& smootherDict
 )
 {
-    word name;
-
-    // handle primitive or dictionary entry
-    const entry& e = solverControls.lookupEntry("smoother", false, false);
-    if (e.isDict())
-    {
-        e.dict().lookup("smoother") >> name;
-    }
-    else
-    {
-        e.stream() >> name;
-    }
-
-    // not (yet?) needed:
-    // const dictionary& controls = e.isDict() ? e.dict() : dictionary::null;
+    const word smootherName(smootherDict.get<word>("smoother"));
 
     if (matrix.symmetric())
     {
-        symMatrixConstructorTable::iterator constructorIter =
-            symMatrixConstructorTablePtr_->find(name);
+        auto* ctorPtr = symMatrixConstructorTable(smootherName);
 
-        if (constructorIter == symMatrixConstructorTablePtr_->end())
+        if (!ctorPtr)
         {
-            FatalIOErrorInFunction(solverControls)
-                << "Unknown symmetric matrix smoother "
-                << name << nl << nl
-                << "Valid symmetric matrix smoothers are :" << endl
-                << symMatrixConstructorTablePtr_->sortedToc()
-                << exit(FatalIOError);
+            FatalIOErrorInLookup
+            (
+                smootherDict,
+                "symmetric matrix smoother",
+                smootherName,
+                *symMatrixConstructorTablePtr_
+            ) << exit(FatalIOError);
         }
 
-        return autoPtr<lduMatrix::smoother>
+        return autoPtr<typename LduMatrix<Type, DType, LUType>::smoother>
         (
-            constructorIter()
+            ctorPtr
             (
                 fieldName,
-                matrix,
-                interfaceBouCoeffs,
-                interfaceIntCoeffs,
-                interfaces
+                matrix
             )
         );
     }
     else if (matrix.asymmetric())
     {
-        asymMatrixConstructorTable::iterator constructorIter =
-            asymMatrixConstructorTablePtr_->find(name);
+        auto* ctorPtr = asymMatrixConstructorTable(smootherName);
 
-        if (constructorIter == asymMatrixConstructorTablePtr_->end())
+        if (!ctorPtr)
         {
-            FatalIOErrorInFunction(solverControls)
-                << "Unknown asymmetric matrix smoother "
-                << name << nl << nl
-                << "Valid asymmetric matrix smoothers are :" << endl
-                << asymMatrixConstructorTablePtr_->sortedToc()
-                << exit(FatalIOError);
+            FatalIOErrorInLookup
+            (
+                smootherDict,
+                "asymmetric matrix smoother",
+                smootherName,
+                *asymMatrixConstructorTablePtr_
+            ) << exit(FatalIOError);
         }
 
-        return autoPtr<lduMatrix::smoother>
+        return autoPtr<typename LduMatrix<Type, DType, LUType>::smoother>
         (
-            constructorIter()
+            ctorPtr
             (
                 fieldName,
-                matrix,
-                interfaceBouCoeffs,
-                interfaceIntCoeffs,
-                interfaces
+                matrix
             )
         );
     }
-    else
-    {
-        FatalIOErrorInFunction(solverControls)
-            << "cannot solve incomplete matrix, "
-               "no diagonal or off-diagonal coefficient"
-            << exit(FatalIOError);
 
-        return autoPtr<lduMatrix::smoother>(nullptr);
-    }
+    FatalIOErrorInFunction(smootherDict)
+        << "cannot solve incomplete matrix, no off-diagonal coefficients"
+        << exit(FatalIOError);
+
+    return nullptr;
 }
 
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
-lduMatrix::smoother::smoother
+template<class Type, class DType, class LUType>
+LduMatrix<Type, DType, LUType>::smoother::smoother
 (
     const word& fieldName,
-    const lduMatrix& matrix,
-    const FieldField<Field, scalar>& interfaceBouCoeffs,
-    const FieldField<Field, scalar>& interfaceIntCoeffs,
-    const lduInterfaceFieldPtrsList& interfaces
-) :    fieldName_(fieldName),
-    matrix_(matrix),
-    interfaceBouCoeffs_(interfaceBouCoeffs),
-    interfaceIntCoeffs_(interfaceIntCoeffs),
-    interfaces_(interfaces)
+    const LduMatrix<Type, DType, LUType>& matrix
+)
+:
+    fieldName_(fieldName),
+    matrix_(matrix)
 {}
 
 
 // ************************************************************************* //
+
+ } // End namespace Foam

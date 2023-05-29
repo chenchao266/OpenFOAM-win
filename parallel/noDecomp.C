@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2012 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2012 OpenFOAM Foundation
+    Copyright (C) 2017-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -26,12 +29,11 @@ License
 #include "noDecomp.H"
 #include "addToRunTimeSelectionTable.H"
 
-// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+// * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
 
 namespace Foam
 {
     defineTypeName(noDecomp);
-
     addNamedToRunTimeSelectionTable
     (
         decompositionMethod,
@@ -44,9 +46,13 @@ namespace Foam
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
-Foam::noDecomp::noDecomp(const dictionary& decompositionDict)
+Foam::noDecomp::noDecomp
+(
+    const dictionary& decompDict,
+    const word& regionName
+)
 :
-    decompositionMethod(decompositionDict)
+    decompositionMethod(decompDict, regionName)
 {}
 
 

@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2018-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -23,155 +26,207 @@ License
 
 \*---------------------------------------------------------------------------*/
 
-#include <cctype>
+#include <iostream>  // For std::cerr
 
-// * * * * * * * * * * * * * Private Member Functions  * * * * * * * * * * * //
-namespace Foam {
-    inline void word::stripInvalid()
+// * * * * * * * * * * * * * Static Member Functions * * * * * * * * * * * * //
+
+
+ namespace Foam{
+template<class PrimitiveType>
+inline word word::printf
+(
+    const char* fmt,
+    const PrimitiveType& val
+)
+{
+    word output;
+    string_printf(output, fmt, val);
+    return output;
+}
+
+
+template<class PrimitiveType>
+inline word word::printf
+(
+    const std::string& fmt,
+    const PrimitiveType& val
+)
+{
+    word output;
+    string_printf(output, fmt, val);
+    return output;
+}
+
+
+inline bool word::valid(char c)
+{
+    return
+    (
+        !isspace(c)
+     && c != '"'   // string quote
+     && c != '\''  // string quote
+     && c != '/'   // path separator
+     && c != ';'   // end statement
+     && c != '{'   // beg block (eg, subdict)
+     && c != '}'   // end block (eg, subdict)
+    );
+}
+
+
+// * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
+
+inline word::word(const string& s, bool doStrip)
+:
+    string(s)
+{
+    if (doStrip)
     {
-        // skip stripping unless debug is active to avoid
-        // costly operations
-        if (debug && string::stripInvalid<word>(*this))
+        stripInvalid();
+    }
+}
+
+
+inline word::word(string&& s, bool doStrip)
+:
+    string(std::move(s))
+{
+    if (doStrip)
+    {
+        stripInvalid();
+    }
+}
+
+
+inline word::word(std::string&& s, bool doStrip)
+:
+    string(std::move(s))
+{
+    if (doStrip)
+    {
+        stripInvalid();
+    }
+}
+
+
+inline word::word(const std::string& s, bool doStrip)
+:
+    string(s)
+{
+    if (doStrip)
+    {
+        stripInvalid();
+    }
+}
+
+
+inline word::word(const char* s, bool doStrip)
+:
+    string(s)
+{
+    if (doStrip)
+    {
+        stripInvalid();
+    }
+}
+
+
+inline word::word(const char* s, size_type len, bool doStrip)
+:
+    string(s, len)
+{
+    if (doStrip)
+    {
+        stripInvalid();
+    }
+}
+
+
+// * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
+
+inline void word::stripInvalid()
+{
+    // Only strip when debug is active (potentially costly operation)
+    if (debug && string::stripInvalid<word>(*this))
+    {
+        std::cerr
+            << "word::stripInvalid() called for word "
+            << this->c_str() << std::endl;
+
+        if (debug > 1)
         {
             std::cerr
-                << "word::stripInvalid() called for word "
-                << this->c_str() << std::endl;
-
-            if (debug > 1)
-            {
-                std::cerr
-                    << "    For debug level (= " << debug
-                    << ") > 1 this is considered fatal" << std::endl;
-                std::abort();
-            }
+                << "    For debug level (= " << debug
+                << ") > 1 this is considered fatal" << std::endl;
+            std::exit(1);
         }
     }
-
-
-    // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
-
-    inline word::word(const word& w)
-        :
-        string(w)
-    {}
-
-
-    inline word::word()
-        :
-        string()
-    {}
-
-
-    inline word::word(const string& s, const bool doStripInvalid)
-        :
-        string(s)
-    {
-        if (doStripInvalid)
-        {
-            stripInvalid();
-        }
-    }
-
-
-    inline word::word(const std::string& s, const bool doStripInvalid)
-        :
-        string(s)
-    {
-        if (doStripInvalid)
-        {
-            stripInvalid();
-        }
-    }
-
-
-    inline word::word(const char* s, const bool doStripInvalid)
-        :
-        string(s)
-    {
-        if (doStripInvalid)
-        {
-            stripInvalid();
-        }
-    }
-
-    inline word::word
-    (
-        const char* s,
-        const size_type n,
-        const bool doStripInvalid
-    )
-        :
-        string(s, n)
-    {
-        if (doStripInvalid)
-        {
-            stripInvalid();
-        }
-    }
-
-
-    // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
-
-    inline bool word::valid(char c)
-    {
-        return
-            (
-                !isspace(c)
-                && c != '"'   // string quote
-                && c != '\''  // string quote
-                && c != '/'   // path separator
-                && c != ';'   // end statement
-                && c != '{'   // beg subdict
-                && c != '}'   // end subdict
-                );
-    }
-
-
-    // * * * * * * * * * * * * * * * Member Operators  * * * * * * * * * * * * * //
-
-    inline void word::operator=(const word& q)
-    {
-        string::operator=(q);
-    }
-
-
-    inline void word::operator=(const string& q)
-    {
-        string::operator=(q);
-        stripInvalid();
-    }
-
-
-    inline void word::operator=(const std::string& q)
-    {
-        string::operator=(q);
-        stripInvalid();
-    }
-
-
-    inline void word::operator=(const char* q)
-    {
-        string::operator=(q);
-        stripInvalid();
-    }
-
-
-    // * * * * * * * * * * * * * * * Friend Operators  * * * * * * * * * * * * * //
-
-    inline word operator&(const word& a, const word& b)
-    {
-        if (b.size())
-        {
-            string ub = b;
-            ub.string::operator[](0) = char(toupper(ub.string::operator[](0)));
-
-            return a + ub;
-        }
-        else
-        {
-            return a;
-        }
-    }
-
 }
+
+
+// * * * * * * * * * * * * * * * Member Operators  * * * * * * * * * * * * * //
+
+inline word& word::operator=(const word& s)
+{
+    // Self-assignment is a no-op
+    if (this != &s)
+    {
+        assign(s);
+    }
+    return *this;
+}
+
+
+inline word& word::operator=(word&& s)
+{
+    // Self-assignment is a no-op
+    if (this != &s)
+    {
+        assign(std::move(s));
+    }
+    return *this;
+}
+
+
+inline word& word::operator=(const string& s)
+{
+    assign(s);
+    stripInvalid();
+    return *this;
+}
+
+
+inline word& word::operator=(string&& s)
+{
+    assign(std::move(s));
+    stripInvalid();
+    return *this;
+}
+
+
+inline word& word::operator=(const std::string& s)
+{
+    assign(s);
+    stripInvalid();
+    return *this;
+}
+
+
+inline word& word::operator=(std::string&& s)
+{
+    assign(std::move(s));
+    stripInvalid();
+    return *this;
+}
+
+
+inline word& word::operator=(const char* s)
+{
+    assign(s);
+    stripInvalid();
+    return *this;
+}
+
+
 // ************************************************************************* //
+
+ } // End namespace Foam

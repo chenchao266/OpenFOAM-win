@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2015 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2015 OpenFOAM Foundation
+    Copyright (C) 2017 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -28,7 +31,9 @@ License
 #include "boundBox.H"
 
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
-using namespace Foam;
+
+
+ namespace Foam{
 bool primitiveMesh::pointInCellBB
 (
     const point& p,
@@ -48,8 +53,7 @@ bool primitiveMesh::pointInCellBB
 
     if (inflationFraction > SMALL)
     {
-        vector inflation = inflationFraction*vector::one*mag(bb.span());
-        bb = boundBox(bb.min() - inflation, bb.max() + inflation);
+        bb.inflate(inflationFraction);
     }
 
     return bb.contains(p);
@@ -86,6 +90,11 @@ bool primitiveMesh::pointInCell(const point& p, label celli) const
 label primitiveMesh::findNearestCell(const point& location) const
 {
     const vectorField& centres = cellCentres();
+
+    if (!centres.size())
+    {
+        return -1;
+    }
 
     label nearestCelli = 0;
     scalar minProximity = magSqr(centres[0] - location);
@@ -150,3 +159,5 @@ label primitiveMesh::findCell(const point& location) const
 
 
 // ************************************************************************* //
+
+ } // End namespace Foam

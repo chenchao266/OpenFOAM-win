@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -27,8 +30,8 @@ License
 #include "IOstreams.H"
 #include "ISstream.H"
 
-// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
-using namespace Foam;
+// * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
+
 namespace Foam
 {
     defineMemberFunctionSelectionTable
@@ -44,17 +47,33 @@ namespace Foam
         execute,
         primitiveEntryIstream
     );
-}
+
+} // End namespace Foam
 
 
-// * * * * * * * * * * * * * Private Member Functions  * * * * * * * * * * * //
+// * * * * * * * * * * * * Protected Member Functions  * * * * * * * * * * * //
 
+
+ namespace Foam{
 token functionEntry::readLine(const word& key, Istream& is)
 {
     string s;
     dynamic_cast<ISstream&>(is).getLine(s);
 
     return token(string(key+s), is.lineNumber());
+}
+
+
+bool functionEntry::continueReadUntilRightBrace
+(
+    Istream& is,
+    std::string& str,
+    const bool stripComments
+)
+{
+    return
+        dynamic_cast<ISstream&>(is)
+            .continueReadUntilRightBrace(str, stripComments);
 }
 
 
@@ -65,9 +84,11 @@ functionEntry::functionEntry
     const word& key,
     const dictionary& dict,
     Istream& is
-) :    primitiveEntry
+)
+:
+    primitiveEntry
     (
-        word(key+dict.name()+ ::Foam::name(is.lineNumber())),
+        word(key + dict.name() + ::Foam::name(is.lineNumber())),
         readLine(key, is)
     )
 {}
@@ -82,38 +103,34 @@ bool functionEntry::execute
     Istream& is
 )
 {
-    is.fatalCheck
-    (
-        "functionEntry::execute"
-        "(const word& functionName, dictionary& parentDict, Istream&)"
-    );
+    is.fatalCheck(FUNCTION_NAME);
 
     if (!executedictionaryIstreamMemberFunctionTablePtr_)
     {
-        cerr<< "functionEntry::execute"
-            << "(const word&, dictionary&, Istream&)"
-            << " not yet initialized, function = "
+        std::cerr
+            << FUNCTION_NAME << nl
+            << "Not yet initialized, function = "
             << functionName.c_str() << std::endl;
 
         // Return true to keep reading
         return true;
     }
 
-    executedictionaryIstreamMemberFunctionTable::iterator mfIter =
-        executedictionaryIstreamMemberFunctionTablePtr_->find(functionName);
+    auto* mfuncPtr =
+        executedictionaryIstreamMemberFunctionTable(functionName);
 
-    if (mfIter == executedictionaryIstreamMemberFunctionTablePtr_->end())
+    if (!mfuncPtr)
     {
         FatalErrorInFunction
             << "Unknown functionEntry '" << functionName
-            << "' in " << is.name() << " near line " << is.lineNumber()
-            << nl << nl
-            << "Valid functionEntries are :" << endl
-            << executedictionaryIstreamMemberFunctionTablePtr_->toc()
+            << "' in " << is.relativeName()
+            << " near line " << is.lineNumber() << nl << nl
+            << "Valid functionEntries :" << nl
+            << executedictionaryIstreamMemberFunctionTablePtr_->sortedToc()
             << exit(FatalError);
     }
 
-    return mfIter()(parentDict, is);
+    return mfuncPtr(parentDict, is);
 }
 
 
@@ -125,52 +142,53 @@ bool functionEntry::execute
     Istream& is
 )
 {
-    is.fatalCheck
-    (
-        "functionEntry::execute"
-        "(const word&, const dictionary&, primitiveEntry&, Istream&)"
-    );
+    is.fatalCheck(FUNCTION_NAME);
 
     if (!executeprimitiveEntryIstreamMemberFunctionTablePtr_)
     {
-        cerr<< "functionEntry::execute"
-            << "(const word&, const dictionary&, primitiveEntry&, Istream&)"
-            << " not yet initialized, function = "
+        std::cerr
+            << FUNCTION_NAME << nl
+            << "Not yet initialized, function = "
             << functionName.c_str() << std::endl;
 
-        // return true to keep reading anyhow
+        // Return true to keep reading anyhow
         return true;
     }
 
-    executeprimitiveEntryIstreamMemberFunctionTable::iterator mfIter =
-        executeprimitiveEntryIstreamMemberFunctionTablePtr_->find(functionName);
+    auto* mfuncPtr =
+        executeprimitiveEntryIstreamMemberFunctionTable(functionName);
 
-    if (mfIter == executeprimitiveEntryIstreamMemberFunctionTablePtr_->end())
+    if (!mfuncPtr)
     {
         FatalErrorInFunction
             << "Unknown functionEntry '" << functionName
-            << "' in " << is.name() << " near line " << is.lineNumber()
-            << nl << nl
-            << "Valid functionEntries are :" << endl
-            << executeprimitiveEntryIstreamMemberFunctionTablePtr_->toc()
+            << "' in " << is.relativeName()
+            << " near line " << is.lineNumber() << nl << nl
+            << "Valid functionEntries :" << nl
+            << executeprimitiveEntryIstreamMemberFunctionTablePtr_->sortedToc()
             << exit(FatalError);
     }
 
-    return mfIter()(parentDict, entry, is);
+    return mfuncPtr(parentDict, entry, is);
 }
 
 
 void functionEntry::write(Ostream& os) const
 {
     // Contents should be single string token
-    const token& t = operator[](0);
-    const string& s = t.stringToken();
+    const token& tok = operator[](0);
+    const string& s = tok.stringToken();
 
-    for (size_t i = 0; i < s.size(); i++)
+    // Write character-wise for literal output
+    for (size_t i = 0; i < s.size(); ++i)
     {
         os.write(s[i]);
     }
+
+    os << nl;
 }
 
 
 // ************************************************************************* //
+
+ } // End namespace Foam

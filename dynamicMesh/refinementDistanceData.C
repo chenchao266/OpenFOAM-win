@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -25,27 +28,27 @@ License
 
 #include "refinementDistanceData.H"
 
-// * * * * * * * * * * * * * * * Friend Operators  * * * * * * * * * * * * * //
+// * * * * * * * * * * * * * * * IOstream Operators  * * * * * * * * * * * * //
 
 Foam::Ostream& Foam::operator<<
 (
-    Foam::Ostream& os,
-    const Foam::refinementDistanceData& wDist
+    Ostream& os,
+    const refinementDistanceData& rhs
 )
 {
     return os
-        << wDist.level0Size_ << token::SPACE << wDist.origin_
-        << token::SPACE << wDist.originLevel_;
+        << rhs.level0Size_ << token::SPACE << rhs.origin_
+        << token::SPACE << rhs.originLevel_;
 }
 
 
 Foam::Istream& Foam::operator>>
 (
-    Foam::Istream& is,
-    Foam::refinementDistanceData& wDist
+    Istream& is,
+    refinementDistanceData& rhs
 )
 {
-    return is >> wDist.level0Size_ >> wDist.origin_ >> wDist.originLevel_;
+    return is >> rhs.level0Size_ >> rhs.origin_ >> rhs.originLevel_;
 }
 
 

@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2018-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -25,19 +28,28 @@ License
 
 // * * * * * * * * * * * * Protected Member Functions  * * * * * * * * * * * //
 
-inline Foam::pointField& Foam::edgeMesh::storedPoints()
+inline Foam::pointField& Foam::edgeMesh::storedPoints() noexcept
 {
     return points_;
 }
 
 
-inline Foam::edgeList& Foam::edgeMesh::storedEdges()
+inline Foam::edgeList& Foam::edgeMesh::storedEdges() noexcept
 {
     return edges_;
 }
 
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
+
+inline Foam::edgeMesh::edgeMesh()
+:
+    fileFormats::edgeMeshFormatsCore(),
+    points_(),
+    edges_(),
+    pointEdgesPtr_(nullptr)
+{}
+
 
 inline Foam::edgeMesh::edgeMesh(const edgeMesh& em)
 :
@@ -48,15 +60,49 @@ inline Foam::edgeMesh::edgeMesh(const edgeMesh& em)
 {}
 
 
+inline Foam::edgeMesh::edgeMesh(edgeMesh&& em)
+:
+    edgeMesh()
+{
+    transfer(em);
+}
+
+
+inline Foam::edgeMesh::edgeMesh
+(
+    const pointField& points,
+    const edgeList& edges
+)
+:
+    fileFormats::edgeMeshFormatsCore(),
+    points_(points),
+    edges_(edges),
+    pointEdgesPtr_(nullptr)
+{}
+
+
+inline Foam::edgeMesh::edgeMesh
+(
+    pointField&& points,
+    edgeList&& edges
+)
+:
+    fileFormats::edgeMeshFormatsCore(),
+    points_(std::move(points)),
+    edges_(std::move(edges)),
+    pointEdgesPtr_(nullptr)
+{}
+
+
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
 
-inline const Foam::pointField& Foam::edgeMesh::points() const
+inline const Foam::pointField& Foam::edgeMesh::points() const noexcept
 {
     return points_;
 }
 
 
-inline const Foam::edgeList& Foam::edgeMesh::edges() const
+inline const Foam::edgeList& Foam::edgeMesh::edges() const noexcept
 {
     return edges_;
 }
@@ -64,21 +110,27 @@ inline const Foam::edgeList& Foam::edgeMesh::edges() const
 
 inline const Foam::labelListList& Foam::edgeMesh::pointEdges() const
 {
-    if (pointEdgesPtr_.empty())
+    if (!pointEdgesPtr_)
     {
         calcPointEdges();
     }
-    return pointEdgesPtr_();
+    return *pointEdgesPtr_;
 }
 
 
 // * * * * * * * * * * * * * * * Member Operators  * * * * * * * * * * * * * //
 
-void Foam::edgeMesh::operator=(const edgeMesh& rhs)
+inline void Foam::edgeMesh::operator=(const edgeMesh& rhs)
 {
     points_ = rhs.points_;
     edges_ = rhs.edges_;
-    pointEdgesPtr_.clear();
+    pointEdgesPtr_.reset(nullptr);
+}
+
+
+inline void Foam::edgeMesh::operator=(edgeMesh&& rhs)
+{
+    transfer(rhs);
 }
 
 

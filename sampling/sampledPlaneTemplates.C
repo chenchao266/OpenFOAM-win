@@ -1,9 +1,12 @@
-﻿/*---------------------------------------------------------------------------*\
+/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2018-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -23,55 +26,41 @@ License
 
 \*---------------------------------------------------------------------------*/
 
-//#include "sampledPlane.H"
+#include "sampledPlane.H"
 
 // * * * * * * * * * * * * * Private Member Functions  * * * * * * * * * * * //
 
 template<class Type>
 Foam::tmp<Foam::Field<Type>>
-Foam::sampledPlane::sampleField
+Foam::sampledPlane::sampleOnFaces
 (
-    const GeometricField<Type, fvPatchField, volMesh>& vField
+    const interpolation<Type>& sampler
 ) const
 {
-    return tmp<Field<Type>>(new Field<Type>(vField, meshCells()));
+    return sampledSurface::sampleOnFaces
+    (
+        sampler,
+        meshCells(),
+        faces(),
+        points()
+    );
 }
 
 
 template<class Type>
 Foam::tmp<Foam::Field<Type>>
-Foam::sampledPlane::interpolateField
+Foam::sampledPlane::sampleOnPoints
 (
     const interpolation<Type>& interpolator
 ) const
 {
-    // One value per point
-    tmp<Field<Type>> tvalues(new Field<Type>(points().size()));
-    Field<Type>& values = tvalues.ref();
-
-    boolList pointDone(points().size(), false);
-
-    forAll(faces(), cutFacei)
-    {
-        const face& f = faces()[cutFacei];
-
-        forAll(f, faceVertI)
-        {
-            label pointi = f[faceVertI];
-
-            if (!pointDone[pointi])
-            {
-                values[pointi] = interpolator.interpolate
-                (
-                    points()[pointi],
-                    meshCells()[cutFacei]
-                );
-                pointDone[pointi] = true;
-            }
-        }
-    }
-
-    return tvalues;
+    return sampledSurface::sampleOnPoints
+    (
+        interpolator,
+        meshCells(),
+        faces(),
+        points()
+    );
 }
 
 

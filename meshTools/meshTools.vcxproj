@@ -21,18 +21,18 @@
   <PropertyGroup Label="Globals">
     <VCProjectVersion>15.0</VCProjectVersion>
     <ProjectGuid>{4466874B-3060-4A66-916F-9666D6D9AEA1}</ProjectGuid>
-    <WindowsTargetPlatformVersion>8.1</WindowsTargetPlatformVersion>
+    <WindowsTargetPlatformVersion>10.0.17763.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
-    <PlatformToolset>v141</PlatformToolset>
+    <PlatformToolset>v143</PlatformToolset>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
-    <PlatformToolset>v141</PlatformToolset>
+    <PlatformToolset>v143</PlatformToolset>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
     <ConfigurationType>StaticLibrary</ConfigurationType>
@@ -69,18 +69,21 @@
       <PreprocessorDefinitions>WM_LABEL_SIZE=64;WM_DP;NoRepository;WIN32;WIN64;_WINDOWS;NOMINMAX;_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <CompileAs>CompileAsCpp</CompileAs>
       <LanguageStandard>stdcpp17</LanguageStandard>
-      <WarningLevel>Level4</WarningLevel>
     </ClCompile>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="AMIPatchToPatchInterpolation.C" />
     <ClCompile Include="axesRotation.C" />
+    <ClCompile Include="axisAngleRotation.C" />
     <ClCompile Include="booleanSurface.C" />
+    <ClCompile Include="boundaryToCell.C" />
     <ClCompile Include="boundaryToFace.C" />
+    <ClCompile Include="box.C" />
     <ClCompile Include="boxToCell.C" />
     <ClCompile Include="boxToFace.C" />
     <ClCompile Include="boxToPoint.C" />
     <ClCompile Include="cartesianCS.C" />
+    <ClCompile Include="cellBitSet.C" />
+    <ClCompile Include="cellBox.C" />
     <ClCompile Include="cellClassification.C" />
     <ClCompile Include="cellDistFuncs.C" />
     <ClCompile Include="cellFeatures.C" />
@@ -93,10 +96,10 @@
     <ClCompile Include="cellZoneSet.C" />
     <ClCompile Include="closedTriSurfaceMesh.C" />
     <ClCompile Include="coordinateRotation.C" />
-    <ClCompile Include="coordinateRotationNew.C" />
     <ClCompile Include="coordinateSystem.C" />
     <ClCompile Include="coordinateSystemNew.C" />
     <ClCompile Include="coordinateSystems.C" />
+    <ClCompile Include="coordinateSystemTransform.C" />
     <ClCompile Include="cyclicACMIGAMGInterface.C" />
     <ClCompile Include="cyclicACMIGAMGInterfaceField.C" />
     <ClCompile Include="cyclicACMILduInterface.C" />
@@ -111,20 +114,25 @@
     <ClCompile Include="cyclicAMIPointPatch.C" />
     <ClCompile Include="cyclicAMIPointPatchFields.C" />
     <ClCompile Include="cyclicAMIPolyPatch.C" />
+    <ClCompile Include="cyclicPeriodicAMIPolyPatch.C" />
     <ClCompile Include="cylinderAnnulusToCell.C" />
+    <ClCompile Include="cylinderAnnulusToFace.C" />
     <ClCompile Include="cylinderToCell.C" />
-    <ClCompile Include="cylindrical.C" />
+    <ClCompile Include="cylinderToFace.C" />
+    <ClCompile Include="cylinderToPoint.C" />
     <ClCompile Include="cylindricalCS.C" />
-    <ClCompile Include="edgeFaceCirculator.C" />
+    <ClCompile Include="cylindricalRotation.C" />
     <ClCompile Include="edgeIntersections.C" />
     <ClCompile Include="edgeMesh.C" />
+    <ClCompile Include="edgeMeshFeatureProximity.C" />
     <ClCompile Include="edgeMeshFormat.C" />
     <ClCompile Include="edgeMeshFormatRunTime.C" />
     <ClCompile Include="edgeMeshFormatsCore.C" />
     <ClCompile Include="edgeMeshIO.C" />
     <ClCompile Include="edgeMeshNew.C" />
+    <ClCompile Include="edgeMeshTools.C" />
     <ClCompile Include="edgeSurface.C" />
-    <ClCompile Include="EulerCoordinateRotation.T.C" />
+    <ClCompile Include="EulerCoordinateRotation.C" />
     <ClCompile Include="extendedEdgeMesh.C" />
     <ClCompile Include="extendedEdgeMeshFormat.C" />
     <ClCompile Include="extendedEdgeMeshFormatRunTime.C" />
@@ -133,22 +141,34 @@
     <ClCompile Include="extendedFeatureEdgeMeshFormat.C" />
     <ClCompile Include="extendedFeatureEdgeMeshFormatRunTime.C" />
     <ClCompile Include="faceAreaIntersect.C" />
-    <ClCompile Include="FaceCellWaveName.T.C" />
+    <ClCompile Include="faceBitSet.C" />
+    <ClCompile Include="faceBoolSet.C" />
+    <ClCompile Include="faceBox.C" />
+    <ClCompile Include="FaceCellWaveName.C" />
     <ClCompile Include="faceSet.C" />
     <ClCompile Include="faceToCell.C" />
     <ClCompile Include="faceToFace.C" />
     <ClCompile Include="faceToPoint.C" />
+    <ClCompile Include="faceTriangulation.C" />
     <ClCompile Include="faceZoneSet.C" />
     <ClCompile Include="faceZoneToCell.C" />
     <ClCompile Include="faceZoneToFaceZone.C" />
     <ClCompile Include="featureEdgeMesh.C" />
     <ClCompile Include="fieldToCell.C" />
+    <ClCompile Include="foamVtkWriteCellSetFaces.C" />
+    <ClCompile Include="foamVtkWriteFaceSet.C" />
+    <ClCompile Include="foamVtkWritePointSet.C" />
+    <ClCompile Include="foamVtkWriteTopoSet.C" />
     <ClCompile Include="geompack.C" />
+    <ClCompile Include="haloToCell.C" />
+    <ClCompile Include="identityRotation.C" />
+    <ClCompile Include="indirectCS.C" />
     <ClCompile Include="intersectedSurface.C" />
     <ClCompile Include="labelToCell.C" />
     <ClCompile Include="labelToFace.C" />
     <ClCompile Include="labelToPoint.C" />
     <ClCompile Include="localPointRegion.C" />
+    <ClCompile Include="makePatchFunction1s.C" />
     <ClCompile Include="mappedPatchBase.C" />
     <ClCompile Include="mappedPointPatch.C" />
     <ClCompile Include="mappedPolyPatch.C" />
@@ -160,7 +180,7 @@
     <ClCompile Include="meshSearchMeshObject.C" />
     <ClCompile Include="meshStructure.C" />
     <ClCompile Include="meshTools.C" />
-    <ClCompile Include="MeshWaveName.T.C" />
+    <ClCompile Include="MeshWaveName.C" />
     <ClCompile Include="momentOfInertia.C" />
     <ClCompile Include="NASedgeFormat.C" />
     <ClCompile Include="NASedgeFormatRunTime.C" />
@@ -174,48 +194,47 @@
     <ClCompile Include="patchEdgeFaceInfo.C" />
     <ClCompile Include="patchEdgeFaceRegion.C" />
     <ClCompile Include="patchEdgeFaceRegions.C" />
-    <ClCompile Include="PatchEdgeFaceWaveName.T.C" />
+    <ClCompile Include="PatchEdgeFaceWaveName.C" />
     <ClCompile Include="patchPatchDist.C" />
+    <ClCompile Include="patchToCell.C" />
     <ClCompile Include="patchToFace.C" />
     <ClCompile Include="patchWave.C" />
+    <ClCompile Include="pointBitSet.C" />
     <ClCompile Include="pointEdgePoint.C" />
-    <ClCompile Include="PointEdgeWaveName.T.C" />
+    <ClCompile Include="PointEdgeWaveName.C" />
     <ClCompile Include="pointSet.C" />
     <ClCompile Include="pointToCell.C" />
     <ClCompile Include="pointToFace.C" />
-    <ClCompile Include="pointTopoDistanceData.C" />
     <ClCompile Include="pointToPoint.C" />
     <ClCompile Include="pointToPointPlanarInterpolation.C" />
     <ClCompile Include="pointZoneSet.C" />
+    <ClCompile Include="polyFields.C" />
     <ClCompile Include="polyMeshZipUpCells.C" />
     <ClCompile Include="primitiveMeshGeometry.C" />
-    <ClCompile Include="regionCoupledBase.C" />
-    <ClCompile Include="regionCoupledBaseGAMGInterface.C" />
-    <ClCompile Include="regionCoupledGAMGInterface.C" />
-    <ClCompile Include="regionCoupledGAMGInterfaceField.C" />
-    <ClCompile Include="regionCoupledLduInterface.C" />
-    <ClCompile Include="regionCoupledPointPatch.C" />
-    <ClCompile Include="regionCoupledPolyPatch.C" />
-    <ClCompile Include="regionCoupledWallGAMGInterface.C" />
-    <ClCompile Include="regionCoupledWallGAMGInterfaceField.C" />
-    <ClCompile Include="regionCoupledWallPointPatch.C" />
-    <ClCompile Include="regionCoupledWallPolyPatch.C" />
+    <ClCompile Include="processorLOD.C" />
+    <ClCompile Include="regionProperties.C" />
     <ClCompile Include="regionSplit.C" />
+    <ClCompile Include="regionSplit2D.C" />
     <ClCompile Include="regionToCell.C" />
     <ClCompile Include="regionToFace.C" />
     <ClCompile Include="rotatedBoxToCell.C" />
     <ClCompile Include="searchableBox.C" />
+    <ClCompile Include="searchableCone.C" />
     <ClCompile Include="searchableCylinder.C" />
     <ClCompile Include="searchableDisk.C" />
     <ClCompile Include="searchableExtrudedCircle.C" />
     <ClCompile Include="searchablePlane.C" />
     <ClCompile Include="searchablePlate.C" />
+    <ClCompile Include="searchableRotatedBox.C" />
     <ClCompile Include="searchableSphere.C" />
     <ClCompile Include="searchableSurface.C" />
     <ClCompile Include="searchableSurfaceCollection.C" />
     <ClCompile Include="searchableSurfaces.C" />
     <ClCompile Include="searchableSurfacesQueries.C" />
+    <ClCompile Include="searchableSurfaceToCell.C" />
+    <ClCompile Include="searchableSurfaceToFace.C" />
     <ClCompile Include="searchableSurfaceToFaceZone.C" />
+    <ClCompile Include="searchableSurfaceToPoint.C" />
     <ClCompile Include="searchableSurfaceWithGaps.C" />
     <ClCompile Include="setAndNormalToFaceZone.C" />
     <ClCompile Include="setsToFaceZone.C" />
@@ -224,9 +243,12 @@
     <ClCompile Include="setToPointZone.C" />
     <ClCompile Include="shapeToCell.C" />
     <ClCompile Include="sphereToCell.C" />
+    <ClCompile Include="sphereToFace.C" />
+    <ClCompile Include="sphereToPoint.C" />
     <ClCompile Include="STARCDCoordinateRotation.C" />
     <ClCompile Include="STARCDedgeFormat.C" />
     <ClCompile Include="STARCDedgeFormatRunTime.C" />
+    <ClCompile Include="subTriSurfaceMesh.C" />
     <ClCompile Include="surfaceFeatures.C" />
     <ClCompile Include="surfaceIntersection.C" />
     <ClCompile Include="surfaceIntersectionFuncs.C" />
@@ -236,8 +258,12 @@
     <ClCompile Include="surfaceToPoint.C" />
     <ClCompile Include="targetVolumeToCell.C" />
     <ClCompile Include="tetOverlapVolume.C" />
-    <ClCompile Include="topoDistanceData.C" />
+    <ClCompile Include="topoBitSet.C" />
+    <ClCompile Include="topoBoolSet.C" />
     <ClCompile Include="topoSet.C" />
+    <ClCompile Include="topoSetCellSource.C" />
+    <ClCompile Include="topoSetFaceSource.C" />
+    <ClCompile Include="topoSetPointSource.C" />
     <ClCompile Include="topoSetSource.C" />
     <ClCompile Include="treeDataEdge.C" />
     <ClCompile Include="treeDataFace.C" />
@@ -245,6 +271,9 @@
     <ClCompile Include="treeDataPrimitivePatchName.C" />
     <ClCompile Include="treeDataTriSurface.C" />
     <ClCompile Include="triangleFuncs.C" />
+    <ClCompile Include="triSurfaceCloseness.C" />
+    <ClCompile Include="triSurfaceCurvature.C" />
+    <ClCompile Include="triSurfaceLoader.C" />
     <ClCompile Include="triSurfaceMesh.C" />
     <ClCompile Include="triSurfaceRegionSearch.C" />
     <ClCompile Include="triSurfaceSearch.C" />

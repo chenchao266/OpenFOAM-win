@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2015 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2015 OpenFOAM Foundation
+    Copyright (C) 2016-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -23,24 +26,23 @@ License
 
 \*---------------------------------------------------------------------------*/
 
-#include "keyType.H"
 #include "dictionaryEntry.H"
 #include "IOstreams.H"
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
-namespace Foam {
+
+
+ namespace Foam{
 dictionaryEntry::dictionaryEntry
 (
     const dictionary& parentDict,
     Istream& is
-) :    entry(keyType(is)),
-    dictionary(parentDict, is)
+)
+:
+    entry(keyType(is)),
+    dictionary(parentDict, dictionary(is))
 {
-    is.fatalCheck
-    (
-        "dictionaryEntry::dictionaryEntry"
-        "(const dictionary& parentDict, Istream&)"
-    );
+    is.fatalCheck(FUNCTION_NAME);
 }
 
 
@@ -49,14 +51,12 @@ dictionaryEntry::dictionaryEntry
     const keyType& key,
     const dictionary& parentDict,
     Istream& is
-) :    entry(key),
+)
+:
+    entry(key),
     dictionary(key, parentDict, is)
 {
-    is.fatalCheck
-    (
-        "dictionaryEntry::dictionaryEntry"
-        "(const keyType&, const dictionary& parentDict, Istream&)"
-    );
+    is.fatalCheck(FUNCTION_NAME);
 }
 
 
@@ -64,35 +64,34 @@ dictionaryEntry::dictionaryEntry
 
 void dictionaryEntry::write(Ostream& os) const
 {
-    // write keyword with indent but without trailing spaces
-    os.indent();
-    os.write(keyword());
-    dictionary::write(os);
+    dictionary::writeEntry(keyword(), os);
 }
 
 
 // * * * * * * * * * * * * * * Ostream operator  * * * * * * * * * * * * * * //
 
-    Ostream& operator<<(Ostream& os, const dictionaryEntry& de)
-    {
-        de.write(os);
-        return os;
-    }
-
-
-    template<>
-    Ostream& operator<<
-        (
-            Ostream& os,
-            const InfoProxy<dictionaryEntry>& ip
-            )
-    {
-        const dictionaryEntry& e = ip.t_;
-
-        os << "    dictionaryEntry '" << e.keyword() << "'" << endl;
-
-        return os;
-    }
+Ostream& operator<<(Ostream& os, const dictionaryEntry& e)
+{
+    e.write(os);
+    return os;
 }
 
+
+template<>
+Ostream& operator<<
+(
+    Ostream& os,
+    const InfoProxy<dictionaryEntry>& ip
+)
+{
+    const dictionaryEntry& e = ip.t_;
+
+    os  << "    dictionaryEntry '" << e.keyword() << "'" << endl;
+
+    return os;
+}
+
+
 // ************************************************************************* //
+
+ } // End namespace Foam

@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2013 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2018-2019 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -23,28 +26,227 @@ License
 
 \*---------------------------------------------------------------------------*/
 
-#include "MeshObject.T.H"
-
-/* * * * * * * * * * * * * * * Static Member Data  * * * * * * * * * * * * * */
-using namespace Foam;
-namespace Foam
-{
-    defineTypeNameAndDebug(meshObject, 0);
-}
-
+//#include "MeshObject.H"
+#include "objectRegistry.H"
+#include "IOstreams.H"
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
-meshObject::meshObject(const word& typeName, const objectRegistry& obr) :    regIOobject
-    (
-        IOobject
-        (
-            typeName,
-            obr.instance(),
-            obr
-        )
-    )
+
+ namespace Foam{
+template<class Mesh, template<class> class MeshObjectType, class Type>
+MeshObject<Mesh, MeshObjectType, Type>::MeshObject(const Mesh& mesh)
+:
+    MeshObjectType<Mesh>(Type::typeName, mesh.thisDb()),
+    mesh_(mesh)
 {}
 
 
+// * * * * * * * * * * * * * * * * Selectors * * * * * * * * * * * * * * * * //
+
+template<class Mesh, template<class> class MeshObjectType, class Type>
+template<class... Args>
+const Type& MeshObject<Mesh, MeshObjectType, Type>::New
+(
+    const Mesh& mesh,
+    Args&&... args
+)
+{
+    const Type* ptr =
+        mesh.thisDb().objectRegistry::template cfindObject<Type>
+        (
+            Type::typeName
+        );
+
+    if (ptr)
+    {
+        return *ptr;
+    }
+
+    if (meshObject::debug)
+    {
+        Pout<< "MeshObject::New(const " << Mesh::typeName
+            << "&, ...) : constructing " << Type::typeName
+            << " for region " << mesh.name() << endl;
+    }
+
+    Type* objectPtr = new Type(mesh, std::forward<Args>(args)...);
+
+    regIOobject::store(static_cast<MeshObjectType<Mesh>*>(objectPtr));
+
+    return *objectPtr;
+}
+
+
+// * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * //
+
+template<class Mesh, template<class> class MeshObjectType, class Type>
+bool MeshObject<Mesh, MeshObjectType, Type>::Delete(const Mesh& mesh)
+{
+    Type* ptr =
+        mesh.thisDb().objectRegistry::template getObjectPtr<Type>
+        (
+            Type::typeName
+        );
+
+    if (ptr)
+    {
+        if (meshObject::debug)
+        {
+            Pout<< "MeshObject::Delete(const Mesh&) : deleting "
+                << Type::typeName << endl;
+        }
+
+        return mesh.thisDb().checkOut(ptr);
+    }
+
+    return false;
+}
+
+
+template<class Mesh>
+void meshObject::movePoints(objectRegistry& obr)
+{
+    HashTable<GeometricMeshObject<Mesh>*> meshObjects
+    (
+        obr.lookupClass<GeometricMeshObject<Mesh>>()
+    );
+
+    if (meshObject::debug)
+    {
+        Pout<< "meshObject::movePoints(objectRegistry&) :"
+            << " moving " << Mesh::typeName
+            << " meshObjects for region " << obr.name() << endl;
+    }
+
+    forAllIters(meshObjects, iter)
+    {
+        // isA<MoveableMeshObject<Mesh>>
+        auto* objectPtr = dynamic_cast<MoveableMeshObject<Mesh>*>(*iter);
+
+        if (objectPtr)
+        {
+            if (meshObject::debug)
+            {
+                Pout<< "    Moving " << (*iter)->name() << endl;
+            }
+            objectPtr->movePoints();
+        }
+        else
+        {
+            if (meshObject::debug)
+            {
+                Pout<< "    Destroying " << (*iter)->name() << endl;
+            }
+            obr.checkOut(*iter);
+        }
+    }
+}
+
+
+template<class Mesh>
+void meshObject::updateMesh(objectRegistry& obr, const mapPolyMesh& mpm)
+{
+    HashTable<GeometricMeshObject<Mesh>*> meshObjects
+    (
+        obr.lookupClass<GeometricMeshObject<Mesh>>()
+    );
+
+    if (meshObject::debug)
+    {
+        Pout<< "meshObject::updateMesh(objectRegistry&, "
+               "const mapPolyMesh& mpm) : updating " << Mesh::typeName
+            << " meshObjects for region " << obr.name() << endl;
+    }
+
+    forAllIters(meshObjects, iter)
+    {
+        // isA<MoveableMeshObject<Mesh>>
+        auto* objectPtr = dynamic_cast<UpdateableMeshObject<Mesh>*>(*iter);
+
+        if (objectPtr)
+        {
+            if (meshObject::debug)
+            {
+                Pout<< "    Updating " << (*iter)->name() << endl;
+            }
+            objectPtr->updateMesh(mpm);
+        }
+        else
+        {
+            if (meshObject::debug)
+            {
+                Pout<< "    Destroying " << (*iter)->name() << endl;
+            }
+            obr.checkOut(*iter);
+        }
+    }
+}
+
+
+template<class Mesh, template<class> class MeshObjectType>
+void meshObject::clear(objectRegistry& obr)
+{
+    HashTable<MeshObjectType<Mesh>*> meshObjects
+    (
+        obr.lookupClass<MeshObjectType<Mesh>>()
+    );
+
+    if (meshObject::debug)
+    {
+        Pout<< "meshObject::clear(objectRegistry&) :"
+            << " clearing " << Mesh::typeName
+            << " meshObjects for region " << obr.name() << endl;
+    }
+
+    forAllIters(meshObjects, iter)
+    {
+        if (meshObject::debug)
+        {
+            Pout<< "    Destroying " << (*iter)->name() << endl;
+        }
+        obr.checkOut(*iter);
+    }
+}
+
+
+template
+<
+    class Mesh,
+    template<class> class FromType,
+    template<class> class ToType
+>
+void meshObject::clearUpto(objectRegistry& obr)
+{
+    HashTable<FromType<Mesh>*> meshObjects
+    (
+        obr.lookupClass<FromType<Mesh>>()
+    );
+
+    if (meshObject::debug)
+    {
+        Pout<< "meshObject::clearUpto(objectRegistry&) :"
+            << " clearing " << Mesh::typeName
+            << " meshObjects for region " << obr.name() << endl;
+    }
+
+    forAllIters(meshObjects, iter)
+    {
+        // isA<ToType<Mesh>
+        auto* objectPtr = dynamic_cast<ToType<Mesh>*>(*iter);
+
+        if (!objectPtr)
+        {
+            if (meshObject::debug)
+            {
+                Pout<< "    Destroying " << (*iter)->name() << endl;
+            }
+            obr.checkOut(*iter);
+        }
+    }
+}
+
+
 // ************************************************************************* //
+
+ } // End namespace Foam

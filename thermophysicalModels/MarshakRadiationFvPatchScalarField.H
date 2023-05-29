@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -59,15 +61,16 @@ SourceFiles
 
 \*---------------------------------------------------------------------------*/
 
-#ifndef MarshakRadiationMixedFvPatchField_H
-#define MarshakRadiationMixedFvPatchField_H
+#ifndef radiation_MarshakRadiationFvPatchScalarField_H
+#define radiation_MarshakRadiationFvPatchScalarField_H
 
 #include "mixedFvPatchFields.H"
-#include "radiationCoupledBase.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 namespace Foam
+{
+namespace radiation
 {
 
 /*---------------------------------------------------------------------------*\
@@ -76,8 +79,7 @@ namespace Foam
 
 class MarshakRadiationFvPatchScalarField
 :
-    public mixedFvPatchScalarField,
-    public radiationCoupledBase
+    public mixedFvPatchScalarField
 {
 
     // Private data
@@ -172,22 +174,6 @@ public:
             }
 
 
-        // Mapping functions
-
-            //- Map (and resize as needed) from self given a mapping object
-            virtual void autoMap
-            (
-                const fvPatchFieldMapper&
-            );
-
-            //- Reverse map the given fvPatchField onto this fvPatchField
-            virtual void rmap
-            (
-                const fvPatchScalarField&,
-                const labelList&
-            );
-
-
         // Evaluation functions
 
             //- Update the coefficients associated with the patch field
@@ -203,6 +189,7 @@ public:
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
+} // End namespace radiation
 } // End namespace Foam
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //

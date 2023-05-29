@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2013 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2013 OpenFOAM Foundation
+    Copyright (C) 2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -27,80 +30,84 @@ License
 #include "addToRunTimeSelectionTable.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
-using namespace Foam;
+
 namespace Foam
 {
     defineTypeNameAndDebug(wallPolyPatch, 0);
 
     addToRunTimeSelectionTable(polyPatch, wallPolyPatch, word);
     addToRunTimeSelectionTable(polyPatch, wallPolyPatch, dictionary);
-}
 
-// * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * * * * * //
 
-wallPolyPatch::wallPolyPatch
-(
-    const word& name,
-    const label size,
-    const label start,
-    const label index,
-    const polyBoundaryMesh& bm,
-    const word& patchType
-) :    polyPatch(name, size, start, index, bm, patchType)
-{
-    //  wall is not constraint type so add wall group explicitly
-    if (findIndex(inGroups(), typeName) == -1)
+    // * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * * * * * //
+
+    wallPolyPatch::wallPolyPatch
+    (
+        const word& name,
+        const label size,
+        const label start,
+        const label index,
+        const polyBoundaryMesh& bm,
+        const word& patchType
+    )
+        :
+        polyPatch(name, size, start, index, bm, patchType)
     {
-        inGroups().append(typeName);
+        //  wall is not constraint type so add wall group explicitly
+        inGroups().appendUniq(typeName);
     }
-}
 
 
-wallPolyPatch::wallPolyPatch
-(
-    const word& name,
-    const dictionary& dict,
-    const label index,
-    const polyBoundaryMesh& bm,
-    const word& patchType
-) :    polyPatch(name, dict, index, bm, patchType)
-{
-    //  wall is not constraint type so add wall group explicitly
-    if (findIndex(inGroups(), typeName) == -1)
+    wallPolyPatch::wallPolyPatch
+    (
+        const word& name,
+        const dictionary& dict,
+        const label index,
+        const polyBoundaryMesh& bm,
+        const word& patchType
+    )
+        :
+        polyPatch(name, dict, index, bm, patchType)
     {
-        inGroups().append(typeName);
+        //  wall is not constraint type so add wall group explicitly
+        inGroups().appendUniq(typeName);
     }
+
+
+    wallPolyPatch::wallPolyPatch
+    (
+        const wallPolyPatch& pp,
+        const polyBoundaryMesh& bm
+    )
+        :
+        polyPatch(pp, bm)
+    {}
+
+
+    wallPolyPatch::wallPolyPatch
+    (
+        const wallPolyPatch& pp,
+        const polyBoundaryMesh& bm,
+        const label index,
+        const label newSize,
+        const label newStart
+    )
+        :
+        polyPatch(pp, bm, index, newSize, newStart)
+    {}
+
+
+    wallPolyPatch::wallPolyPatch
+    (
+        const wallPolyPatch& pp,
+        const polyBoundaryMesh& bm,
+        const label index,
+        const labelUList& mapAddressing,
+        const label newStart
+    )
+        :
+        polyPatch(pp, bm, index, mapAddressing, newStart)
+    {}
+
 }
-
-
-wallPolyPatch::wallPolyPatch
-(
-    const wallPolyPatch& pp,
-    const polyBoundaryMesh& bm
-) :    polyPatch(pp, bm)
-{}
-
-
-wallPolyPatch::wallPolyPatch
-(
-    const wallPolyPatch& pp,
-    const polyBoundaryMesh& bm,
-    const label index,
-    const label newSize,
-    const label newStart
-) :    polyPatch(pp, bm, index, newSize, newStart)
-{}
-
-
-wallPolyPatch::wallPolyPatch
-(
-    const wallPolyPatch& pp,
-    const polyBoundaryMesh& bm,
-    const label index,
-    const labelUList& mapAddressing,
-    const label newStart
-) :    polyPatch(pp, bm, index, mapAddressing, newStart)
-{}
-
-
 // ************************************************************************* //

@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -26,40 +28,34 @@ License
 #include "intersection.H"
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
-using namespace Foam;
+
+
+ namespace Foam{
 scalar intersection::planarTol_ = 0.2;
 
-namespace Foam
-{
-    template<>
-    const char* NamedEnum
-    <
-        intersection::direction,
-        2
-    >::names[] =
-    {
-        "vector",
-        "contactSphere"
-    };
+const Enum
+<
+    intersection::direction
+>
+intersection::directionNames_
+({
+    { intersection::direction::VECTOR, "vector" },
+    { intersection::direction::CONTACT_SPHERE, "contactSphere" },
+});
 
-    template<>
-    const char* NamedEnum
-    <
-        intersection::algorithm,
-        3
-    >::names[] =
-    {
-        "fullRay",
-        "halfRay",
-        "visible"
-    };
-}
 
-const NamedEnum<intersection::direction, 2>
-intersection::directionNames_;
-
-const NamedEnum<intersection::algorithm, 3>
-intersection::algorithmNames_;
+const Enum
+<
+    intersection::algorithm
+>
+intersection::algorithmNames_
+({
+    { intersection::algorithm::FULL_RAY, "fullRay" },
+    { intersection::algorithm::HALF_RAY, "halfRay" },
+    { intersection::algorithm::VISIBLE, "visible" },
+});
 
 
 // ************************************************************************* //
+
+ } // End namespace Foam

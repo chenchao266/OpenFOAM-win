@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2012-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2012-2017 OpenFOAM Foundation
+    Copyright (C) 2018-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -27,7 +30,7 @@ License
 #include "addToRunTimeSelectionTable.H"
 #include "topoDistanceData.H"
 #include "fvMeshSubset.H"
-#include "OppositeFaceCellWave.T.H"
+#include "OppositeFaceCellWave.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -53,11 +56,11 @@ Foam::structuredRenumber::structuredRenumber
 :
     renumberMethod(renumberDict),
     methodDict_(renumberDict.optionalSubDict(typeName + "Coeffs")),
-    patches_(methodDict_.lookup("patches")),
-    nLayers_(methodDict_.lookupOrDefault<label>("nLayers", labelMax)),
-    depthFirst_(methodDict_.lookup("depthFirst")),
-    method_(renumberMethod::New(methodDict_)),
-    reverse_(methodDict_.lookup("reverse"))
+    patches_(methodDict_.get<wordRes>("patches")),
+    nLayers_(methodDict_.getOrDefault<label>("nLayers", labelMax)),
+    depthFirst_(methodDict_.get<bool>("depthFirst")),
+    reverse_(methodDict_.get<bool>("reverse")),
+    method_(renumberMethod::New(methodDict_))
 {}
 
 
@@ -69,8 +72,8 @@ bool Foam::structuredRenumber::layerLess::operator()
     const label b
 )
 {
-    const topoDistanceData& ta = distance_[a];
-    const topoDistanceData& tb = distance_[b];
+    const topoDistanceData<label>& ta = distance_[a];
+    const topoDistanceData<label>& tb = distance_[b];
 
     int dummy;
 
@@ -150,21 +153,17 @@ Foam::labelList Foam::structuredRenumber::renumber
     const labelHashSet patchIDs(pbm.patchSet(patches_));
 
     label nFaces = 0;
-    forAllConstIter(labelHashSet, patchIDs, iter)
+    for (const label patchi : patchIDs)
     {
-        nFaces += pbm[iter.key()].size();
+        nFaces += pbm[patchi].size();
     }
 
 
     // Extract a submesh.
     labelHashSet patchCells(2*nFaces);
-    forAllConstIter(labelHashSet, patchIDs, iter)
+    for (const label patchId : patchIDs)
     {
-        const labelUList& fc = pbm[iter.key()].faceCells();
-        forAll(fc, i)
-        {
-            patchCells.insert(fc[i]);
-        }
+        patchCells.insert(pbm[patchId].faceCells());
     }
 
     label nTotalSeeds = returnReduce(patchCells.size(), sumOp<label>());
@@ -183,8 +182,11 @@ Foam::labelList Foam::structuredRenumber::renumber
 
     // Subset the layer of cells next to the patch
     {
-        fvMeshSubset subsetter(dynamic_cast<const fvMesh&>(mesh));
-        subsetter.setLargeCellSubset(patchCells);
+        fvMeshSubset subsetter
+        (
+            dynamic_cast<const fvMesh&>(mesh),
+            patchCells
+        );
         const fvMesh& subMesh = subsetter.subMesh();
 
         pointField subPoints(points, subsetter.cellMap());
@@ -207,30 +209,30 @@ Foam::labelList Foam::structuredRenumber::renumber
 
     // Walk sub-ordering (=column index) out.
     labelList patchFaces(nFaces);
-    List<topoDistanceData> patchData(nFaces);
+    List<topoDistanceData<label>> patchData(nFaces);
     nFaces = 0;
-    forAllConstIter(labelHashSet, patchIDs, iter)
+    for (const label patchi : patchIDs)
     {
-        const polyPatch& pp = pbm[iter.key()];
+        const polyPatch& pp = pbm[patchi];
         const labelUList& fc = pp.faceCells();
         forAll(fc, i)
         {
             patchFaces[nFaces] = pp.start()+i;
-            patchData[nFaces] = topoDistanceData
+            patchData[nFaces] = topoDistanceData<label>
             (
-                orderedToOld[fc[i]],// passive data: global column
-                0                   // distance: layer
+                0,                  // distance: layer
+                orderedToOld[fc[i]] // passive data: global column
             );
             nFaces++;
         }
     }
 
     // Field on cells and faces.
-    List<topoDistanceData> cellData(mesh.nCells());
-    List<topoDistanceData> faceData(mesh.nFaces());
+    List<topoDistanceData<label>> cellData(mesh.nCells());
+    List<topoDistanceData<label>> faceData(mesh.nFaces());
 
     // Propagate information inwards
-    OppositeFaceCellWave<topoDistanceData> deltaCalc
+    OppositeFaceCellWave<topoDistanceData<label>> deltaCalc
     (
         mesh,
         patchFaces,
@@ -243,11 +245,11 @@ Foam::labelList Foam::structuredRenumber::renumber
     deltaCalc.iterate(nLayers_);
 
     Info<< type() << " : did not visit "
-        << deltaCalc.getUnsetCells()
+        << deltaCalc.nUnvisitedCells()
         << " cells out of " << nTotalCells
         << "; using " << method_().type() << " renumbering for these" << endl;
 
-    // Get cell order using the method(). These values will get overwitten
+    // Get cell order using the method(). These values will get overwritten
     // by any visited cell so are used only if the number of nLayers is limited.
     labelList oldToOrdered
     (

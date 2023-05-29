@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2019 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -35,10 +38,10 @@ SourceFiles
 #ifndef treeDataFace_H
 #define treeDataFace_H
 
-#include "face.T.H"
+#include "face.H"
 #include "indexedOctree.H"
 #include "treeBoundBoxList.H"
-#include "PackedBoolList.H"
+#include "bitSet.H"
 #include "primitiveMesh.H"
 #include "volumeType.H"
 
@@ -48,8 +51,6 @@ namespace Foam
 {
 
 // Forward declaration of classes
-//class primitiveMesh;
-//template<class Type> class indexedOctree;
 class polyPatch;
 
 /*---------------------------------------------------------------------------*\
@@ -58,14 +59,13 @@ class polyPatch;
 
 class treeDataFace
 {
-    // Static data
+    // Static Data
 
         //- Tolerance on linear dimensions
         static scalar tolSqr;
 
 
-
-    // Private data
+    // Private Data
 
         const primitiveMesh& mesh_;
 
@@ -73,7 +73,7 @@ class treeDataFace
         const labelList faceLabels_;
 
         //- Inverse of faceLabels. For every mesh whether face is in faceLabels.
-        PackedBoolList isTreeFace_;
+        bitSet isTreeFace_;
 
         //- Whether to precalculate and store face bounding box
         const bool cacheBb_;
@@ -132,8 +132,8 @@ public:
 
         findIntersectOp(const indexedOctree<treeDataFace>& tree);
 
-        //- Calculate intersection of triangle with ray. Sets result
-        //  accordingly
+        //- Calculate intersection of triangle with ray.
+        //  Sets result accordingly
         bool operator()
         (
             const label index,
@@ -150,27 +150,27 @@ public:
 
     // Constructors
 
-        //- Construct from mesh and subset of faces.
+        //- Construct from mesh, copying subset of faces
         treeDataFace
         (
             const bool cacheBb,
-            const primitiveMesh&,
-            const labelUList&
+            const primitiveMesh& mesh,
+            const labelUList& faceLabels
         );
 
-        //- Construct from mesh and subset of faces, transferring contents
+        //- Construct from mesh, moving subset of faces
         treeDataFace
         (
             const bool cacheBb,
-            const primitiveMesh&,
-            const Xfer<labelList>&
+            const primitiveMesh& mesh,
+            labelList&& faceLabels
         );
 
         //- Construct from mesh. Uses all faces in mesh.
-        treeDataFace(const bool cacheBb, const primitiveMesh&);
+        treeDataFace(const bool cacheBb, const primitiveMesh& mesh);
 
         //- Construct from mesh. Uses all faces in patch.
-        treeDataFace(const bool cacheBb, const polyPatch&);
+        treeDataFace(const bool cacheBb, const polyPatch& patch);
 
 
     // Member Functions
@@ -192,8 +192,8 @@ public:
                 return faceLabels_.size();
             }
 
-            //- Get representative point cloud for all shapes inside
-            //  (one point per shape)
+            //- Representative point cloud for all shapes inside
+            //- (one point per shape)
             pointField shapePoints() const;
 
 

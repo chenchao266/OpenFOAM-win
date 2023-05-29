@@ -2,15 +2,14 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2015 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
 -------------------------------------------------------------------------------
+    Copyright (C) 2011-2015 OpenFOAM Foundation
+    Copyright (C) 2017-2020 OpenCFD Ltd.
+-------------------------------------------------------------------------------
 License
-    This file is part of blueCAPE's unofficial mingw patches for OpenFOAM.
-    For more information about these patches, visit:
-         http://bluecfd.com/Core
-
-    This file is a derivative work of OpenFOAM.
+    This file is part of OpenFOAM.
 
     OpenFOAM is free software: you can redistribute it and/or modify it
     under the terms of the GNU General Public License as published by
@@ -24,18 +23,6 @@ License
 
     You should have received a copy of the GNU General Public License
     along with OpenFOAM.  If not, see <http://www.gnu.org/licenses/>.
-
-Modifications
-    This file is based on the original version for POSIX:
-        OpenFOAM/src/OSspecific/POSIX/
-
-    This file has been created by blueCAPE's unofficial mingw patches for
-    OpenFOAM.
-    For more information about these patches, visit:
-        http://bluecfd.com/Core
-
-    Modifications made:
-      - Derived from the patches for blueCFD 2.1 and 2.2.
 
 Class
     Foam::fileMonitor
@@ -58,16 +45,18 @@ SourceFiles
 #ifndef fileMonitor_H
 #define fileMonitor_H
 
-//#include <sys/types.h>
-#include "NamedEnum.T.H"
+#include "Enum.H"
 #include "className.H"
-#include "DynamicList.T.H"
+#include "DynamicList.H"
+#include <memory>
+#include <sys/types.h>
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 namespace Foam
 {
 
+// Forward Declarations
 class fileMonitor;
 class fileMonitorWatcher;
 
@@ -77,10 +66,9 @@ class fileMonitorWatcher;
 
 class fileMonitor
 {
-
 public:
 
-    // Public data types
+    // Public Data Types
 
         //- Enumeration defining the file state.
         enum fileState
@@ -90,10 +78,11 @@ public:
             DELETED = 2
         };
 
-        static const NamedEnum<fileState, 3> fileStateNames_;
+        static const Enum<fileState> fileStateNames_;
 
 private:
-    // Private data
+
+    // Private Data
 
         //- Whether to use inotify (requires -DFOAM_USE_INOTIFY, see above)
         const bool useInotify_;
@@ -119,11 +108,11 @@ private:
         //- Update localState_ from any events.
         void checkFiles() const;
 
-        //- Disallow default bitwise copy construct
-        fileMonitor(const fileMonitor&);
+        //- No copy construct
+        fileMonitor(const fileMonitor&) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const fileMonitor&);
+        //- No copy assignment
+        void operator=(const fileMonitor&) = delete;
 
 
 public:

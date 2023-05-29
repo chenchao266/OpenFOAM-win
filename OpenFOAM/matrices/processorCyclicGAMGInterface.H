@@ -1,9 +1,11 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2013 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2013 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -47,15 +49,20 @@ namespace Foam
                   Class processorCyclicGAMGInterface Declaration
 \*---------------------------------------------------------------------------*/
 
-class processorCyclicGAMGInterface :    public processorGAMGInterface
+class processorCyclicGAMGInterface
+:
+    public processorGAMGInterface
 {
     // Private Member Functions
 
-        //- Disallow default bitwise copy construct
-        processorCyclicGAMGInterface(const processorCyclicGAMGInterface&);
+        //- No copy construct
+        processorCyclicGAMGInterface
+        (
+            const processorCyclicGAMGInterface&
+        ) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const processorCyclicGAMGInterface&);
+        //- No copy assignment
+        void operator=(const processorCyclicGAMGInterface&) = delete;
 
 
 public:
@@ -87,10 +94,8 @@ public:
         );
 
 
-    // Destructor
-
-        virtual ~processorCyclicGAMGInterface();
-
+    //- Destructor
+    virtual ~processorCyclicGAMGInterface() = default;
 };
 
 

@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -50,7 +52,7 @@ namespace Foam
 {
 
 /*---------------------------------------------------------------------------*\
-                           Class interfaceProperties Declaration
+                     Class interfaceProperties Declaration
 \*---------------------------------------------------------------------------*/
 
 class interfaceProperties
@@ -77,9 +79,11 @@ class interfaceProperties
 
     // Private Member Functions
 
-        //- Disallow default bitwise copy construct and assignment
-        interfaceProperties(const interfaceProperties&);
-        void operator=(const interfaceProperties&);
+        //- No copy construct
+        interfaceProperties(const interfaceProperties&) = delete;
+
+        //- No copy assignment
+        void operator=(const interfaceProperties&) = delete;
 
         //- Correction for the boundary condition on the unit normal nHat on
         //  walls to produce the correct contact dynamic angle
@@ -95,10 +99,6 @@ class interfaceProperties
 
 
 public:
-
-    //- Conversion factor for degrees into radians
-    static const scalar convertToRad;
-
 
     // Constructors
 

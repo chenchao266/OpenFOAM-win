@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -43,7 +45,7 @@ Usage
         phi          | flux field name         | no          | phi
         rho          | density field name      | no          | rho
         origin       | origin of rotation      | no          | patch centre
-        axis         | axis of rotation        | no          | -patch normal
+        axis         | axis of rotation        | no          | -(patch normal)
         flowRate     | flow rate profile       | yes         |
         rpm          | rotational speed profile | yes        |
     \endtable
@@ -77,7 +79,7 @@ SourceFiles
 #define swirlFlowRateInletVelocityFvPatchVectorField_H
 
 #include "fixedValueFvPatchFields.H"
-#include "Function1.T.H"
+#include "Function1.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 

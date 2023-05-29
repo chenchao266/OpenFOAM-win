@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -25,14 +28,9 @@ License
 
 #include "specie.H"
 
-// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
-
-namespace Foam
-{
-
 // * * * * * * * * * * * * * Private Member Functions  * * * * * * * * * * * //
 
-inline specie::specie
+inline Foam::specie::specie
 (
     const word& name,
     const scalar Y,
@@ -45,7 +43,7 @@ inline specie::specie
 {}
 
 
-inline specie::specie
+inline Foam::specie::specie
 (
     const scalar Y,
     const scalar molWeight
@@ -58,7 +56,7 @@ inline specie::specie
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
-inline specie::specie(const word& name, const specie& st)
+inline Foam::specie::specie(const word& name, const specie& st)
 :
     name_(name),
     Y_(st.Y_),
@@ -68,25 +66,25 @@ inline specie::specie(const word& name, const specie& st)
 
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
 
-inline const word& specie::name() const
+inline const Foam::word& Foam::specie::name() const
 {
     return name_;
 }
 
 
-inline scalar specie::W() const
+inline Foam::scalar Foam::specie::W() const
 {
     return molWeight_;
 }
 
 
-inline scalar specie::Y() const
+inline Foam::scalar Foam::specie::Y() const
 {
     return Y_;
 }
 
 
-inline scalar specie::R() const
+inline Foam::scalar Foam::specie::R() const
 {
     return RR/molWeight_;
 }
@@ -94,15 +92,15 @@ inline scalar specie::R() const
 
 // * * * * * * * * * * * * * * * Member Operators  * * * * * * * * * * * * * //
 
-inline void specie::operator=(const specie& st)
+inline void Foam::specie::operator=(const specie& st)
 {
-    //name_ = st.name_;
+    // Preserve original name
     Y_ = st.Y_;
     molWeight_ = st.molWeight_;
 }
 
 
-inline void specie::operator+=(const specie& st)
+inline void Foam::specie::operator+=(const specie& st)
 {
     const scalar sumY = Y_ + st.Y_;
     if (mag(sumY) > SMALL)
@@ -114,7 +112,7 @@ inline void specie::operator+=(const specie& st)
 }
 
 
-inline void specie::operator*=(const scalar s)
+inline void Foam::specie::operator*=(const scalar s)
 {
     Y_ *= s;
 }
@@ -122,7 +120,7 @@ inline void specie::operator*=(const scalar s)
 
 // * * * * * * * * * * * * * * * Friend Operators  * * * * * * * * * * * * * //
 
-inline specie operator+(const specie& st1, const specie& st2)
+inline Foam::specie Foam::operator+(const specie& st1, const specie& st2)
 {
     const scalar sumY = max(st1.Y_ + st2.Y_, SMALL);
 
@@ -141,7 +139,7 @@ inline specie operator+(const specie& st1, const specie& st2)
 }
 
 
-inline specie operator*(const scalar s, const specie& st)
+inline Foam::specie Foam::operator*(const scalar s, const specie& st)
 {
     return specie
     (
@@ -151,7 +149,7 @@ inline specie operator*(const scalar s, const specie& st)
 }
 
 
-inline specie operator==(const specie& st1, const specie& st2)
+inline Foam::specie Foam::operator==(const specie& st1, const specie& st2)
 {
     scalar diffY = st2.Y_ - st1.Y_;
     if (mag(diffY) < SMALL)
@@ -159,21 +157,23 @@ inline specie operator==(const specie& st1, const specie& st2)
         diffY = SMALL;
     }
 
-    const scalar diffRW =
-        st2.Y_/st2.molWeight_ - st1.Y_/st1.molWeight_;
+    const scalar diffRW = st2.Y_/st2.molWeight_ - st1.Y_/st1.molWeight_;
 
+    #ifdef __clang__
+    // Using intermediate volatile bool to prevent compiler optimising out the
+    // if block (above) - CLANG 3.7.1
+    volatile const bool valid = (mag(diffRW) > SMALL);
+    const scalar molWeight = valid ? diffY/diffRW : GREAT;
+    #else
     scalar molWeight = GREAT;
     if (mag(diffRW) > SMALL)
     {
-        molWeight = diffY/diffRW;
+         molWeight = diffY/diffRW;
     }
+    #endif
 
     return specie(diffY, molWeight);
 }
 
-
-// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
-
-} // End namespace Foam
 
 // ************************************************************************* //

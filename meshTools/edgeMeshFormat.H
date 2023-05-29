@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -39,7 +42,7 @@ SourceFiles
 #define edgeMeshFormat_H
 
 #include "edgeMesh.H"
-#include "Ostream.H"
+#include "_Ostream.H"
 #include "OFstream.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
@@ -59,11 +62,11 @@ class edgeMeshFormat
 {
     // Private Member Functions
 
-        //- Disallow default bitwise copy construct
-        edgeMeshFormat(const edgeMeshFormat&);
+        //- No copy construct
+        edgeMeshFormat(const edgeMeshFormat&) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const edgeMeshFormat&);
+        //- No copy assignment
+        void operator=(const edgeMeshFormat&) = delete;
 
 
 protected:
@@ -84,7 +87,7 @@ public:
     // Constructors
 
         //- Construct from file name
-        edgeMeshFormat(const fileName&);
+        explicit edgeMeshFormat(const fileName&);
 
 
     // Selectors
@@ -92,19 +95,15 @@ public:
         //- Read file and return edgeMesh
         static autoPtr<edgeMesh> New(const fileName& name)
         {
-            return autoPtr<edgeMesh>
-            (
-                new edgeMeshFormat(name)
-            );
+            return autoPtr<edgeMesh>::NewFrom<edgeMeshFormat>(name);
         }
 
 
     //- Destructor
-    virtual ~edgeMeshFormat()
-    {}
+    virtual ~edgeMeshFormat() = default;
 
 
-    // Member Functions
+    // Static Member Functions
 
         //- Read edgeMesh components from stream
         static bool read
@@ -122,16 +121,30 @@ public:
             const edgeList&
         );
 
-        //- Write edgeMesh with a mimicked IOobject header
-        static void write(const fileName&, const edgeMesh&);
+        //- Write edge mesh to file with a mimicked IOobject header
+        static void write
+        (
+            const fileName& filename,
+            const edgeMesh& mesh,
+            IOstreamOption streamOpt = IOstreamOption(),
+            const dictionary& options = dictionary::null
+        );
+
+
+    // Member Functions
 
         //- Read from file
-        virtual bool read(const fileName&);
+        virtual bool read(const fileName& name);
 
-        //- Write object
-        virtual void write(const fileName& name) const
+        //- Write edge mesh to file
+        virtual void write
+        (
+            const fileName& name,
+            IOstreamOption streamOpt = IOstreamOption(),
+            const dictionary& options = dictionary::null
+        ) const
         {
-            write(name, *this);
+            write(name, *this, streamOpt, options);
         }
 };
 

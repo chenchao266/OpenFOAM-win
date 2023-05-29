@@ -1,9 +1,12 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2017-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -25,7 +28,10 @@ Class
     Foam::zone
 
 Description
-    Base class for zones
+    Base class for mesh zones.
+
+    A zone is a list of labels (eg, cells, faces, points) with
+    a name and associated with an index within another list.
 
 SourceFiles
     zone.C
@@ -35,10 +41,10 @@ SourceFiles
 #ifndef zone_H
 #define zone_H
 
+#include "zoneIdentifier.H"
 #include "labelList.H"
 #include "typeInfo.H"
-#include "dictionary.H"
-#include "Map.T.H"
+#include "Map.H"
 #include "pointFieldFwd.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
@@ -46,42 +52,24 @@ SourceFiles
 namespace Foam
 {
 
-// Forward declaration of friend functions and operators
-
+// Forward Declarations
 class zone;
-Ostream& operator<<(Ostream&, const zone&);
+class dictionary;
+Ostream& operator<<(Ostream& os, const zone& zn);
 
 /*---------------------------------------------------------------------------*\
                            Class zone Declaration
 \*---------------------------------------------------------------------------*/
 
-class zone :    public labelList
+class zone
+:
+    public zoneIdentifier,
+    public labelList
 {
+    // Private Data
 
-protected:
-
-    // Protected data
-
-        //- Name of zone
-        word name_;
-
-        //- Index of zone
-        label index_;
-
-
-        // Demand-driven private data
-
-            //- Map of labels in zone for fast location lookup
-            mutable Map<label>* lookupMapPtr_;
-
-
-    // Protected Member Functions
-
-        //- Construct the look-up map
-        void calcLookupMap() const;
-
-        //- Disallow default bitwise copy construct
-        zone(const zone&);
+        //- Demand-driven: map of labels in zone for fast location lookup
+        mutable Map<label>* lookupMapPtr_;
 
 
 public:
@@ -92,7 +80,13 @@ public:
 
     // Constructors
 
-        //- Construct from components
+        //- Default construct
+        zone();
+
+        //- Construct an empty zone
+        zone(const word& name, const label index);
+
+        //- Copy construct from components
         zone
         (
             const word& name,
@@ -100,11 +94,11 @@ public:
             const label index
         );
 
-        //- Construct from components, transferring contents
+        //- Move construct from components
         zone
         (
             const word& name,
-            const Xfer<labelList>& addr,
+            labelList&& addr,
             const label index
         );
 
@@ -112,26 +106,26 @@ public:
         zone
         (
             const word& name,
-            const dictionary&,
+            const dictionary& dict,
             const word& labelsName,
             const label index
         );
 
-        //- Construct given the original zone and resetting the
-        //  cell list and zone mesh information
+        //- Construct given the name of the original zone (name is used)
+        //- and resetting addressing and index.
         zone
         (
-            const zone&,
+            const zone& origZone,
             const labelUList& addr,
             const label index
         );
 
-        //- Construct given the original zone, resetting the
-        //  cell list and zone mesh information
+        //- Construct given the name of the original zone (name is used)
+        //- and (move) resetting addressing and index.
         zone
         (
-            const zone&,
-            const Xfer<labelList>& addr,
+            const zone& origZone,
+            labelList&& addr,
             const label index
         );
 
@@ -142,28 +136,23 @@ public:
 
     // Member Functions
 
-        //- Return name
-        const word& name() const
-        {
-            return name_;
-        }
+        //- Demand-driven: the look-up map from global to local id
+        const Map<label>& lookupMap() const;
 
-        //- Map storing the local index for every global index.  Used to find
-        //  the index of the item in the zone from the known global index. If
-        //  the item is not in the zone, returns -1
+        //- Lookup local address in zone for given global index.
+        //  \return the local address, or -1 if the item is not in the zone
         label localID(const label globalID) const;
 
-        //- Return the index of this zone in zone list
-        label index() const
-        {
-            return index_;
-        }
 
-        //- Return a reference to the look-up map
-        const Map<label>& lookupMap() const;
+        //- The addressing used by the zone
+        const labelList& addressing() const noexcept
+        {
+            return static_cast<const labelList&>(*this);
+        }
 
         //- Clear addressing
         virtual void clearAddressing();
+
 
         //- Check zone definition. Return true if in error.
         virtual bool checkDefinition(const bool report = false) const = 0;
@@ -176,20 +165,20 @@ public:
         ) const;
 
         //- Correct patch after moving points
-        virtual void movePoints(const pointField&)
+        virtual void movePoints(const pointField& pts)
         {}
 
         //- Write
-        virtual void write(Ostream&) const;
+        virtual void write(Ostream& os) const;
 
         //- Write dictionary
-        virtual void writeDict(Ostream&) const = 0;
+        virtual void writeDict(Ostream& os) const = 0;
 
 
     // I-O
 
         //- Ostream Operator
-        friend Ostream& operator<<(Ostream&, const zone&);
+        friend Ostream& operator<<(Ostream& os, const zone& zn);
 };
 
 

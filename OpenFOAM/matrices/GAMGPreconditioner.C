@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2013 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2013 OpenFOAM Foundation
+    Copyright (C) 2019-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -24,126 +27,133 @@ License
 \*---------------------------------------------------------------------------*/
 
 #include "GAMGPreconditioner.H"
+#include "PrecisionAdaptor.H"
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
-using namespace Foam;
+
 namespace Foam
 {
     defineTypeNameAndDebug(GAMGPreconditioner, 0);
 
     lduMatrix::preconditioner::addsymMatrixConstructorToTable
-    <GAMGPreconditioner> addGAMGPreconditionerSymMatrixConstructorToTable_;
+        <GAMGPreconditioner> addGAMGPreconditionerSymMatrixConstructorToTable_;
 
     lduMatrix::preconditioner::addasymMatrixConstructorToTable
-    <GAMGPreconditioner> addGAMGPreconditionerAsymMatrixConstructorToTable_;
-}
+        <GAMGPreconditioner> addGAMGPreconditionerAsymMatrixConstructorToTable_;
 
 
-// * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
-GAMGPreconditioner::GAMGPreconditioner
-(
-    const lduMatrix::solver& sol,
-    const dictionary& solverControls
-) :    GAMGSolver
+    // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
+
+    GAMGPreconditioner::GAMGPreconditioner
     (
-        sol.fieldName(),
-        sol.matrix(),
-        sol.interfaceBouCoeffs(),
-        sol.interfaceIntCoeffs(),
-        sol.interfaces(),
-        solverControls
-    ),
-    lduMatrix::preconditioner(sol),
-    nVcycles_(2)
-{
-    readControls();
-}
-
-
-// * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
-
-GAMGPreconditioner::~GAMGPreconditioner()
-{}
-
-
-// * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
-
-void GAMGPreconditioner::readControls()
-{
-    GAMGSolver::readControls();
-    nVcycles_ = controlDict_.lookupOrDefault<label>("nVcycles", 2);
-}
-
-
-void GAMGPreconditioner::precondition
-(
-    scalarField& wA,
-    const scalarField& rA,
-    const direction cmpt
-) const
-{
-    wA = 0.0;
-    scalarField AwA(wA.size());
-    scalarField finestCorrection(wA.size());
-    scalarField finestResidual(rA);
-
-    // Create coarse grid correction fields
-    PtrList<scalarField> coarseCorrFields;
-
-    // Create coarse grid sources
-    PtrList<scalarField> coarseSources;
-
-    // Create the smoothers for all levels
-    PtrList<lduMatrix::smoother> smoothers;
-
-    // Scratch fields if processor-agglomerated coarse level meshes
-    // are bigger than original. Usually not needed
-    scalarField ApsiScratch;
-    scalarField finestCorrectionScratch;
-
-    // Initialise the above data structures
-    initVcycle
-    (
-        coarseCorrFields,
-        coarseSources,
-        smoothers,
-        ApsiScratch,
-        finestCorrectionScratch
-    );
-
-    for (label cycle=0; cycle<nVcycles_; cycle++)
-    {
-        Vcycle
+        const lduMatrix::solver& sol,
+        const dictionary& solverControls
+    )
+        :
+        GAMGSolver
         (
-            smoothers,
-            wA,
-            rA,
-            AwA,
-            finestCorrection,
-            finestResidual,
+            sol.fieldName(),
+            sol.matrix(),
+            sol.interfaceBouCoeffs(),
+            sol.interfaceIntCoeffs(),
+            sol.interfaces(),
+            solverControls
+        ),
+        lduMatrix::preconditioner(sol),
+        nVcycles_(2)
+    {
+        readControls();
+    }
 
-            (ApsiScratch.size() ? ApsiScratch : AwA),
-            (
-                finestCorrectionScratch.size()
-              ? finestCorrectionScratch
-              : finestCorrection
-            ),
 
+    // * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
+
+    GAMGPreconditioner::~GAMGPreconditioner()
+    {}
+
+
+    // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
+
+    void GAMGPreconditioner::readControls()
+    {
+        GAMGSolver::readControls();
+        nVcycles_ = controlDict_.getOrDefault<label>("nVcycles", 2);
+    }
+
+
+    void GAMGPreconditioner::precondition
+    (
+        solveScalarField& wA,
+        const solveScalarField& rA_ss,
+        const direction cmpt
+    ) const
+    {
+        wA = 0.0;
+        solveScalarField AwA(wA.size());
+        solveScalarField finestCorrection(wA.size());
+        solveScalarField finestResidual(rA_ss);
+
+        // Create coarse grid correction fields
+        PtrList<solveScalarField> coarseCorrFields;
+
+        // Create coarse grid sources
+        PtrList<solveScalarField> coarseSources;
+
+        // Create the smoothers for all levels
+        PtrList<lduMatrix::smoother> smoothers;
+
+        // Scratch fields if processor-agglomerated coarse level meshes
+        // are bigger than original. Usually not needed
+        solveScalarField ApsiScratch;
+        solveScalarField finestCorrectionScratch;
+
+        // Initialise the above data structures
+        initVcycle
+        (
             coarseCorrFields,
             coarseSources,
-            cmpt
+            smoothers,
+            ApsiScratch,
+            finestCorrectionScratch
         );
 
-        if (cycle < nVcycles_-1)
+        // Adapt solveScalarField back to scalarField (as required)
+        ConstPrecisionAdaptor<scalar, solveScalar> rA_adaptor(rA_ss);
+        const scalarField& rA = rA_adaptor.cref();
+
+        for (label cycle = 0; cycle < nVcycles_; cycle++)
         {
-            // Calculate finest level residual field
-            matrix_.Amul(AwA, wA, interfaceBouCoeffs_, interfaces_, cmpt);
-            finestResidual = rA;
-            finestResidual -= AwA;
+            Vcycle
+            (
+                smoothers,
+                wA,
+                rA,
+                AwA,
+                finestCorrection,
+                finestResidual,
+
+                (ApsiScratch.size() ? ApsiScratch : AwA),
+                (
+                    finestCorrectionScratch.size()
+                    ? finestCorrectionScratch
+                    : finestCorrection
+                    ),
+
+                coarseCorrFields,
+                coarseSources,
+                cmpt
+            );
+
+            if (cycle < nVcycles_ - 1)
+            {
+                // Calculate finest level residual field
+                matrix_.Amul(AwA, wA, interfaceBouCoeffs_, interfaces_, cmpt);
+                finestResidual = rA_ss;
+                finestResidual -= AwA;
+            }
         }
     }
+
 }
-
-
 // ************************************************************************* //

@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2012-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2012-2016 OpenFOAM Foundation
+    Copyright (C) 2019-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -30,7 +33,7 @@ License
 #include "triSurface.H"
 #include "triSurfaceTools.H"
 #include "OBJstream.H"
-#include "Time.T.H"
+#include "Time1.H"
 #include "matchPoints.H"
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
@@ -43,7 +46,7 @@ namespace Foam
 
 // * * * * * * * * * * * * * Private Member Functions  * * * * * * * * * * * //
 
-Foam::coordinateSystem
+Foam::coordSystem::cartesian
 Foam::pointToPointPlanarInterpolation::calcCoordinateSystem
 (
     const pointField& points
@@ -63,7 +66,7 @@ Foam::pointToPointPlanarInterpolation::calcCoordinateSystem
     // Find furthest away point
     vector e1;
     label index1 = -1;
-    scalar maxDist = -GREAT;
+    scalar maxDist = ROOTVSMALL;
 
     for (label i = 1; i < points.size(); i++)
     {
@@ -77,11 +80,21 @@ Foam::pointToPointPlanarInterpolation::calcCoordinateSystem
             maxDist = magD;
         }
     }
+
+    if (index1 == -1)
+    {
+        FatalErrorInFunction
+            << "Cannot find any point that is different from first point"
+            << p0 << ". Are all your points coincident?"
+            << exit(FatalError);
+    }
+
+
     // Find point that is furthest away from line p0-p1
     const point& p1 = points[index1];
 
     label index2 = -1;
-    maxDist = -GREAT;
+    maxDist = ROOTVSMALL;
     for (label i = 1; i < points.size(); i++)
     {
         if (i != index1)
@@ -101,26 +114,21 @@ Foam::pointToPointPlanarInterpolation::calcCoordinateSystem
     if (index2 == -1)
     {
         FatalErrorInFunction
-            << "Cannot find points that make valid normal." << nl
-            << "Have so far points " << p0 << " and " << p1
-            << "Need at least three points which are not in a line."
+            << "Cannot find points that define a plane with a valid normal."
+            << nl << "Have so far points " << p0 << " and " << p1
+            << ". Are all your points on a single line instead of a plane?"
             << exit(FatalError);
     }
 
-    vector n = e1^(points[index2]-p0);
-    n /= mag(n);
+    const vector n = normalised(e1 ^ (points[index2]-p0));
 
-    if (debug)
-    {
-        InfoInFunction
-            << " Used points " << p0 << ' ' << points[index1]
-            << ' ' << points[index2]
-            << " to define coordinate system with normal " << n << endl;
-    }
+    DebugInFunction
+        << " Used points " << p0 << ' ' << points[index1]
+        << ' ' << points[index2]
+        << " to define coordinate system with normal " << n << endl;
 
-    return coordinateSystem
+    return coordSystem::cartesian
     (
-        "reference",
         p0,  // origin
         n,   // normal
         e1   // 0-axis
@@ -193,23 +201,17 @@ void Foam::pointToPointPlanarInterpolation::calcWeights
     }
     else
     {
-        tmp<vectorField> tlocalVertices
-        (
-            referenceCS_.localPosition(sourcePoints)
-        );
-        vectorField& localVertices = tlocalVertices.ref();
+        auto tlocalVertices = referenceCS_.localPosition(sourcePoints);
+        auto& localVertices = tlocalVertices.ref();
 
         const boundBox bb(localVertices, true);
-        const point bbMid(bb.midpoint());
+        const point bbMid(bb.centre());
 
-        if (debug)
-        {
-            InfoInFunction
-                << " Perturbing points with " << perturb_
-                << " fraction of a random position inside " << bb
-                << " to break any ties on regular meshes."
-                << nl << endl;
-        }
+        DebugInFunction
+            << " Perturbing points with " << perturb_
+            << " fraction of a random position inside " << bb
+            << " to break any ties on regular meshes." << nl
+            << endl;
 
         Random rndGen(123456);
         forAll(localVertices, i)
@@ -229,13 +231,7 @@ void Foam::pointToPointPlanarInterpolation::calcWeights
 
         triSurface s(triSurfaceTools::delaunay2D(localVertices2D));
 
-        tmp<pointField> tlocalFaceCentres
-        (
-            referenceCS_.localPosition
-            (
-                destPoints
-            )
-        );
+        auto tlocalFaceCentres = referenceCS_.localPosition(destPoints);
         const pointField& localFaceCentres = tlocalFaceCentres();
 
         if (debug)
@@ -272,6 +268,10 @@ void Foam::pointToPointPlanarInterpolation::calcWeights
                     << endl;
             }
 
+            OBJstream str("stencil.obj");
+            Pout<< "pointToPointPlanarInterpolation::calcWeights :"
+                << " Dumping stencil to " << str.name() << endl;
+
             forAll(destPoints, i)
             {
                 label v0 = nearestVertex_[i][0];
@@ -285,17 +285,21 @@ void Foam::pointToPointPlanarInterpolation::calcWeights
                     << " at:" << sourcePoints[v0]
                     << " weight:" << nearestVertexWeight_[i][0] << nl;
 
+                str.write(linePointRef(destPoints[i], sourcePoints[v0]));
+
                 if (v1 != -1)
                 {
                     Pout<< "    " << v1
                         << " at:" << sourcePoints[v1]
                         << " weight:" << nearestVertexWeight_[i][1] << nl;
+                    str.write(linePointRef(destPoints[i], sourcePoints[v1]));
                 }
                 if (v2 != -1)
                 {
                     Pout<< "    " << v2
                         << " at:" << sourcePoints[v2]
                         << " weight:" << nearestVertexWeight_[i][2] << nl;
+                    str.write(linePointRef(destPoints[i], sourcePoints[v2]));
                 }
 
                 Pout<< endl;
@@ -317,9 +321,13 @@ Foam::pointToPointPlanarInterpolation::pointToPointPlanarInterpolation
 :
     perturb_(perturb),
     nearestOnly_(nearestOnly),
-    referenceCS_(calcCoordinateSystem(sourcePoints)),
+    referenceCS_(),
     nPoints_(sourcePoints.size())
 {
+    if (!nearestOnly)
+    {
+        referenceCS_ = calcCoordinateSystem(sourcePoints);
+    }
     calcWeights(sourcePoints, destPoints);
 }
 
@@ -338,6 +346,40 @@ Foam::pointToPointPlanarInterpolation::pointToPointPlanarInterpolation
     nPoints_(sourcePoints.size())
 {
     calcWeights(sourcePoints, destPoints);
+}
+
+
+Foam::pointToPointPlanarInterpolation::pointToPointPlanarInterpolation
+(
+    const scalar perturb,
+    const bool nearestOnly,
+    const coordinateSystem& referenceCS,
+    const label sourceSize,
+    const List<FixedList<label, 3>>& nearestVertex,
+    const List<FixedList<scalar, 3>>& nearestVertexWeight
+)
+:
+    perturb_(perturb),
+    nearestOnly_(nearestOnly),
+    referenceCS_(referenceCS),
+    nPoints_(sourceSize),
+    nearestVertex_(nearestVertex),
+    nearestVertexWeight_(nearestVertexWeight)
+{}
+
+
+Foam::autoPtr<Foam::pointToPointPlanarInterpolation>
+Foam::pointToPointPlanarInterpolation::clone() const
+{
+    return autoPtr<pointToPointPlanarInterpolation>::New
+    (
+        perturb_,
+        nearestOnly_,
+        referenceCS_,
+        nPoints_,
+        nearestVertex_,
+        nearestVertexWeight_
+    );
 }
 
 

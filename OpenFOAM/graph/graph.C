@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2015 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2015 OpenFOAM Foundation
+    Copyright (C) 2019-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -26,233 +29,284 @@ License
 #include "graph.H"
 #include "OFstream.H"
 #include "IOmanip.H"
-#include "Pair.T.H"
+#include "Pair.H"
 #include "OSspecific.H"
+#include "SubField.H"
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
-using namespace Foam;
+
 namespace Foam
 {
     typedef graph::writer graphWriter;
     defineTypeNameAndDebug(graphWriter, 0);
     defineRunTimeSelectionTable(graphWriter, word);
-}
 
 
-// * * * * * * * * * * * * * Private Member Functions  * * * * * * * * * * * //
 
-word graph::wordify(const string& sname)
-{
-    string wname = sname;
-    wname.replace(' ', '_');
-    wname.replace('(', '_');
-    wname.replace(')', "");
+    // * * * * * * * * * * * * * Private Member Functions  * * * * * * * * * * * //
 
-    return word(wname);
-}
-
-
-void graph::readCurves(Istream& is)
-{
-    List<xy> xyData(is);
-
-    x_.setSize(xyData.size());
-    scalarField y(xyData.size());
-
-    forAll(xyData, i)
+    word graph::wordify(const string& sname)
     {
-        x_[i] = xyData[i].x_;
-        y[i] = xyData[i].y_;
+        string wname = sname;
+        wname.replace(" ", "_");
+        wname.replace("(", "_");
+        wname.replace(")", "");
+
+        return word(wname);
     }
 
-    insert
-    (
-        wordify(yName_),
-        new curve(wordify(yName_), curve::curveStyle::CONTINUOUS, y)
-    );
-}
 
-
-// * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
-
-graph::graph
-(
-    const string& title,
-    const string& xName,
-    const string& yName,
-    const scalarField& x
-) :    title_(title),
-    xName_(xName),
-    yName_(yName),
-    x_(x)
-{}
-
-
-graph::graph
-(
-    const string& title,
-    const string& xName,
-    const string& yName,
-    const scalarField& x,
-    const scalarField& y
-) :    title_(title),
-    xName_(xName),
-    yName_(yName),
-    x_(x)
-{
-    insert(wordify(yName), new curve(yName, curve::curveStyle::CONTINUOUS, y));
-}
-
-
-graph::graph
-(
-    const string& title,
-    const string& xName,
-    const string& yName,
-    Istream& is
-) :    title_(title),
-    xName_(xName),
-    yName_(yName)
-{
-    readCurves(is);
-}
-
-
-graph::graph(Istream& is) :    title_(is),
-    xName_(is),
-    yName_(is)
-{
-    readCurves(is);
-}
-
-
-const scalarField& graph::y() const
-{
-    if (size() != 1)
+    void graph::readCurves(Istream& is)
     {
-        FatalErrorInFunction
-            << "y field requested for graph containing " << size()
-            << "ys" << exit(FatalError);
-    }
+        List<xy> xyData(is);
 
-    return *begin()();
-}
+        x_.setSize(xyData.size());
+        scalarField y(xyData.size());
 
-
-scalarField& graph::y()
-{
-    if (size() != 1)
-    {
-        FatalErrorInFunction
-            << "y field requested for graph containing " << size()
-            << "ys" << exit(FatalError);
-    }
-
-    return *begin()();
-}
-
-
-autoPtr<graph::writer> graph::writer::New
-(
-    const word& graphFormat
-)
-{
-    if (!wordConstructorTablePtr_)
-    {
-        FatalErrorInFunction
-            << "Graph writer table is empty"
-            << exit(FatalError);
-    }
-
-    wordConstructorTable::iterator cstrIter =
-        wordConstructorTablePtr_->find(graphFormat);
-
-    if (cstrIter == wordConstructorTablePtr_->end())
-    {
-        FatalErrorInFunction
-            << "Unknown graph format " << graphFormat
-            << endl << endl
-            << "Valid graph formats are : " << endl
-            << wordConstructorTablePtr_->sortedToc()
-            << exit(FatalError);
-    }
-
-    return autoPtr<graph::writer>(cstrIter()());
-}
-
-
-void graph::writer::writeXY
-(
-    const scalarField& x,
-    const scalarField& y,
-    Ostream& os
-) const
-{
-    forAll(x, xi)
-    {
-        os << setw(10) << x[xi] << token::SPACE << setw(10) << y[xi]<< endl;
-    }
-}
-
-
-void graph::writeTable(Ostream& os) const
-{
-    forAll(x_, xi)
-    {
-        os  << setw(10) << x_[xi];
-
-        forAllConstIter(graph, *this, iter)
+        forAll(xyData, i)
         {
-            os  << token::SPACE << setw(10) << (*iter())[xi];
+            x_[i] = xyData[i].x_;
+            y[i] = xyData[i].y_;
         }
-        os  << endl;
+
+        set
+        (
+            wordify(yName_),
+            new curve(wordify(yName_), curve::curveStyle::CONTINUOUS, y)
+        );
     }
-}
 
 
-void graph::write(Ostream& os, const word& format) const
-{
-    writer::New(format)().write(*this, os);
-}
+    // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
+
+    graph::graph
+    (
+        const string& title,
+        const string& xName,
+        const string& yName,
+        const scalarField& x
+    )
+        :
+        title_(title),
+        xName_(xName),
+        yName_(yName),
+        x_(x)
+    {}
 
 
-void graph::write(const fileName& pName, const word& format) const
-{
-    autoPtr<writer> graphWriter(writer::New(format));
-
-    OFstream graphFile(pName + '.' + graphWriter().ext());
-
-    if (graphFile.good())
+    graph::graph
+    (
+        const string& title,
+        const string& xName,
+        const string& yName,
+        const scalarField& x,
+        const scalarField& y
+    )
+        :
+        title_(title),
+        xName_(xName),
+        yName_(yName),
+        x_(x)
     {
-        write(graphFile, format);
+        set
+        (
+            wordify(yName),
+            new curve(yName, curve::curveStyle::CONTINUOUS, y)
+        );
     }
-    else
+
+
+    graph::graph
+    (
+        const string& title,
+        const string& xName,
+        const string& yName,
+        Istream& is
+    )
+        :
+        title_(title),
+        xName_(xName),
+        yName_(yName)
     {
-        WarningInFunction
-            << "Could not open graph file " << graphFile.name()
-            << endl;
+        readCurves(is);
     }
+
+
+    graph::graph(Istream& is)
+        :
+        title_(is),
+        xName_(is),
+        yName_(is)
+    {
+        readCurves(is);
+    }
+
+
+    const scalarField& graph::y() const
+    {
+        if (size() != 1)
+        {
+            FatalErrorInFunction
+                << "y field requested for graph containing " << size()
+                << "ys" << exit(FatalError);
+        }
+
+        return *begin()();
+    }
+
+
+    scalarField& graph::y()
+    {
+        if (size() != 1)
+        {
+            FatalErrorInFunction
+                << "y field requested for graph containing " << size()
+                << "ys" << exit(FatalError);
+        }
+
+        return *begin()();
+    }
+
+
+    void graph::setXRange(const scalar x0, const scalar x1)
+    {
+        if (x1 < x0)
+        {
+            FatalErrorInFunction
+                << "When setting limits, x1 must be greater than x0" << nl
+                << "    x0: " << x0 << nl
+                << "    x1: " << x1 << nl
+                << abort(FatalError);
+        }
+
+        label i0 = 0;
+        label i1 = 0;
+
+        forAll(x_, i)
+        {
+            if (x_[i] < x0)
+            {
+                i0 = i + 1;
+            }
+            if (x_[i] < x1)
+            {
+                i1 = i;
+            }
+        }
+
+        label nX = i1 - i0 + 1;
+        scalarField xNew(SubField<scalar>(x_, nX, i0));
+        x_.transfer(xNew);
+
+        forAllIters(*this, iter)
+        {
+            curve* c = iter();
+            scalarField cNew(SubField<scalar>(*c, nX, i0));
+            c->transfer(cNew);
+        }
+    }
+
+
+    autoPtr<graph::writer> graph::writer::New
+    (
+        const word& graphFormat
+    )
+    {
+        if (!wordConstructorTablePtr_)
+        {
+            FatalErrorInFunction
+                << "Graph writer table is empty"
+                << exit(FatalError);
+        }
+
+        auto* ctorPtr = wordConstructorTable(graphFormat);
+
+        if (!ctorPtr)
+        {
+            FatalErrorInLookup
+            (
+                "graph",
+                graphFormat,
+                *wordConstructorTablePtr_
+            ) << exit(FatalError);
+        }
+
+        return autoPtr<graph::writer>(ctorPtr());
+    }
+
+
+    void graph::writer::writeXY
+    (
+        const scalarField& x,
+        const scalarField& y,
+        Ostream& os
+    ) const
+    {
+        forAll(x, xi)
+        {
+            os << setw(10) << x[xi] << token::SPACE << setw(10) << y[xi] << endl;
+        }
+    }
+
+
+    void graph::writeTable(Ostream& os) const
+    {
+        forAll(x_, xi)
+        {
+            os << setw(10) << x_[xi];
+
+            forAllConstIters(*this, iter)
+            {
+                os << token::SPACE << setw(10) << (*iter())[xi];
+            }
+            os << endl;
+        }
+    }
+
+
+    void graph::write(Ostream& os, const word& format) const
+    {
+        writer::New(format)().write(*this, os);
+    }
+
+
+    void graph::write(const fileName& pName, const word& format) const
+    {
+        autoPtr<writer> graphWriter(writer::New(format));
+
+        OFstream graphFile(pName + '.' + graphWriter().ext());
+
+        if (graphFile.good())
+        {
+            write(graphFile, format);
+        }
+        else
+        {
+            WarningInFunction
+                << "Could not open graph file " << graphFile.name()
+                << endl;
+        }
+    }
+
+
+    void graph::write
+    (
+        const fileName& path,
+        const word& name,
+        const word& format
+    ) const
+    {
+        mkDir(path);
+        write(path / name, format);
+    }
+
+
+    Ostream& operator<<(Ostream& os, const graph& g)
+    {
+        g.writeTable(os);
+        os.check(FUNCTION_NAME);
+        return os;
+    }
+
 }
-
-
-void graph::write
-(
-    const fileName& path,
-    const word& name,
-    const word& format
-) const
-{
-    mkDir(path);
-    write(path/name, format);
-}
-
-
-Ostream& operator<<(Ostream& os, const graph& g)
-{
-    g.writeTable(os);
-    os.check("Ostream& operator<<(Ostream&, const graph&)");
-    return os;
-}
-
-
 // ************************************************************************* //

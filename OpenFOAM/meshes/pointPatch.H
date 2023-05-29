@@ -1,9 +1,12 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2012 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2012 OpenFOAM Foundation
+    Copyright (C) 2019 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -44,8 +47,7 @@ SourceFiles
 namespace Foam
 {
 
-// Forward declaration of classes
-
+// Forward Declarations
 class pointBoundaryMesh;
 class pointConstraint;
 class PstreamBuffers;
@@ -56,26 +58,16 @@ class PstreamBuffers;
 
 class pointPatch
 {
-    // Private data
+    // Private Data
 
         //- Reference to boundary mesh
         const pointBoundaryMesh& boundaryMesh_;
-
-
-    // Private Member Functions
-
-        //- Disallow default bitwise copy construct
-        pointPatch(const pointPatch&);
-
-        //- Disallow default bitwise assignment
-        void operator=(const pointPatch&);
-
 
 protected:
 
     // Protected Member Functions
 
-        // The pointPatch geometry initialisation is called by pointBoundaryMesh
+        // The geometry initialisation is called by pointBoundaryMesh
         friend class pointBoundaryMesh;
 
         //- Initialise the calculation of the patch geometry
@@ -103,6 +95,13 @@ protected:
         {}
 
 
+        //- No copy construct
+        pointPatch(const pointPatch&) = delete;
+
+        //- No copy assignment
+        void operator=(const pointPatch&) = delete;
+
+
 public:
 
     //- Runtime type information
@@ -111,18 +110,15 @@ public:
 
     // Constructor
 
-        pointPatch
-        (
-            const pointBoundaryMesh& bm
-        )
+        //- Construct from boundary mesh
+        explicit pointPatch(const pointBoundaryMesh& bm)
         :
             boundaryMesh_(bm)
         {}
 
 
     //- Destructor
-    virtual ~pointPatch()
-    {}
+    virtual ~pointPatch() = default;
 
 
     // Member Functions

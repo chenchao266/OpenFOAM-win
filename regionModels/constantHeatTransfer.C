@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -51,12 +53,12 @@ addToRunTimeSelectionTable
 
 constantHeatTransfer::constantHeatTransfer
 (
-    surfaceFilmModel& film,
+    surfaceFilmRegionModel& film,
     const dictionary& dict
 )
 :
     heatTransferModel(typeName, film, dict),
-    c0_(readScalar(coeffDict_.lookup("c0")))
+    c0_(coeffDict_.get<scalar>("c0"))
 {}
 
 

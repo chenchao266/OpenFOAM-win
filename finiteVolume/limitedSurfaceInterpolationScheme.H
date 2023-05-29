@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -23,6 +25,9 @@ License
 
 Class
     Foam::limitedSurfaceInterpolationScheme
+
+Group
+    grpFvLimitedSurfaceInterpolationSchemes
 
 Description
     Abstract base class for limited surface interpolation schemes.
@@ -53,14 +58,14 @@ class limitedSurfaceInterpolationScheme
 {
     // Private Member Functions
 
-        //- Disallow copy construct
+        //- No copy construct
         limitedSurfaceInterpolationScheme
         (
             const limitedSurfaceInterpolationScheme&
-        );
+        ) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const limitedSurfaceInterpolationScheme&);
+        //- No copy assignment
+        void operator=(const limitedSurfaceInterpolationScheme&) = delete;
 
 
 protected:
@@ -165,14 +170,14 @@ public:
         //- Return the interpolation weighting factors
         virtual tmp<surfaceScalarField> limiter
         (
-            const volFieldType<Type>&
+            const GeometricField<Type, fvPatchField, volMesh>&
         ) const = 0;
 
         //- Return the interpolation weighting factors for the given field,
         //  by limiting the given weights with the given limiter
         tmp<surfaceScalarField> weights
         (
-            const volFieldType<Type>&,
+            const GeometricField<Type, fvPatchField, volMesh>&,
             const surfaceScalarField& CDweights,
             tmp<surfaceScalarField> tLimiter
         ) const;
@@ -180,14 +185,14 @@ public:
         //- Return the interpolation weighting factors for the given field
         virtual tmp<surfaceScalarField> weights
         (
-            const volFieldType<Type>&
+            const GeometricField<Type, fvPatchField, volMesh>&
         ) const;
 
         //- Return the interpolation weighting factors
-        virtual tmp<surfaceFieldType<Type>>
+        virtual tmp<GeometricField<Type, fvsPatchField, surfaceMesh>>
         flux
         (
-            const volFieldType<Type>&
+            const GeometricField<Type, fvPatchField, volMesh>&
         ) const;
 };
 

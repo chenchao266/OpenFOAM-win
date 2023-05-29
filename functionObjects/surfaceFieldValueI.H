@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2017-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -23,42 +26,85 @@ License
 
 \*---------------------------------------------------------------------------*/
 
-#include "surfaceFieldValue.H"
+#include "Time1.H"
+#include "sampledSurface.H"
 
-// * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
+// * * * * * * * * * * * * Protected Member Functions  * * * * * * * * * * * //
 
-inline const Foam::functionObjects::fieldValues::surfaceFieldValue::regionTypes&
-Foam::functionObjects::fieldValues::surfaceFieldValue::regionType() const
+inline bool Foam::functionObjects::fieldValues::surfaceFieldValue::
+withSurfaceFields() const
 {
-    return regionType_;
+    return
+    (
+        stFaceZone == regionType_
+     || stPatch == regionType_
+     || (sampledPtr_ && sampledPtr_->withSurfaceFields())
+    );
+}
+
+
+inline bool Foam::functionObjects::fieldValues::surfaceFieldValue::
+withTopologicalMerge() const noexcept
+{
+    return (stFaceZone == regionType_ || stPatch == regionType_);
 }
 
 
 inline const Foam::labelList&
-Foam::functionObjects::fieldValues::surfaceFieldValue::faceId() const
+Foam::functionObjects::fieldValues::surfaceFieldValue::faceId()
+const noexcept
 {
     return faceId_;
 }
 
 
 inline const Foam::labelList&
-Foam::functionObjects::fieldValues::surfaceFieldValue::facePatch() const
+Foam::functionObjects::fieldValues::surfaceFieldValue::facePatch()
+const noexcept
 {
     return facePatchId_;
 }
 
 
-inline const Foam::labelList&
-Foam::functionObjects::fieldValues::surfaceFieldValue::faceSign() const
+inline const Foam::boolList&
+Foam::functionObjects::fieldValues::surfaceFieldValue::faceFlip()
+const noexcept
 {
-    return faceSign_;
+    return faceFlip_;
+}
+
+
+// * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
+
+inline bool Foam::functionObjects::fieldValues::surfaceFieldValue::
+is_magOp()
+const noexcept
+{
+    // Operation specifically tagged to use mag
+    return (operation_ & typeAbsolute);
+}
+
+
+inline bool Foam::functionObjects::fieldValues::surfaceFieldValue::
+is_weightedOp() const noexcept
+{
+    // Operation specifically tagged to require a weight field
+    return (operation_ & typeWeighted);
+}
+
+
+inline Foam::functionObjects::fieldValues::surfaceFieldValue::regionTypes
+Foam::functionObjects::fieldValues::surfaceFieldValue::regionType()
+const noexcept
+{
+    return regionType_;
 }
 
 
 inline Foam::fileName
 Foam::functionObjects::fieldValues::surfaceFieldValue::outputDir() const
 {
-    return baseFileDir()/name()/"surface"/obr_.time().timeName();
+    return baseFileDir()/name()/"surface"/time_.timeName();
 }
 
 

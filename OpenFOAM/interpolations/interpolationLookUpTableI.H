@@ -1,9 +1,11 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -23,9 +25,11 @@ License
 
 \*---------------------------------------------------------------------------*/
 
+
+ namespace Foam{
 template<class Type>
-inline Foam::label
-Foam::interpolationLookUpTable<Type>::findFieldIndex
+inline label
+interpolationLookUpTable<Type>::findFieldIndex
 (
     const word& fieldName
 ) const
@@ -35,58 +39,60 @@ Foam::interpolationLookUpTable<Type>::findFieldIndex
 
 
 template<class Type>
-inline const Foam::List<Foam::dictionary>&
-Foam::interpolationLookUpTable<Type>::output() const
+inline const List<dictionary>&
+interpolationLookUpTable<Type>::output() const
 {
     return output_;
 }
 
 
 template<class Type>
-inline const Foam::List<Foam::dictionary>&
-Foam::interpolationLookUpTable<Type>::entries() const
+inline const List<dictionary>&
+interpolationLookUpTable<Type>::entries() const
 {
     return entries_;
 }
 
 
 template<class Type>
-inline const Foam::List<Foam::scalar>&
-Foam::interpolationLookUpTable<Type>::min() const
+inline const List<scalar>&
+interpolationLookUpTable<Type>::min() const
 {
     return min_;
 }
 
 
 template<class Type>
-inline const Foam::List<Foam::label>&
-Foam::interpolationLookUpTable<Type>::dim() const
+inline const List<label>&
+interpolationLookUpTable<Type>::dim() const
 {
     return dim_;
 }
 
 
 template<class Type>
-inline const Foam::List<Foam::scalar>&
-Foam::interpolationLookUpTable<Type>::delta() const
+inline const List<scalar>&
+interpolationLookUpTable<Type>::delta() const
 {
     return delta_;
 }
 
 
 template<class Type>
-inline const Foam::List<Foam::scalar>&
-Foam::interpolationLookUpTable<Type>::max() const
+inline const List<scalar>&
+interpolationLookUpTable<Type>::max() const
 {
     return max_;
 }
 
 
 template<class Type>
-inline Foam::word Foam::interpolationLookUpTable<Type>::tableName() const
+inline word interpolationLookUpTable<Type>::tableName() const
 {
     return fileName_.name();
 }
 
 
 // ************************************************************************* //
+
+ } // End namespace Foam

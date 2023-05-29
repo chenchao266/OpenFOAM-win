@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -42,7 +45,7 @@ Foam::totalTemperatureFvPatchScalarField::totalTemperatureFvPatchScalarField
     phiName_("phi"),
     psiName_("thermo:psi"),
     gamma_(0.0),
-    T0_(p.size(), 0.0)
+    T0_(p.size(), Zero)
 {}
 
 
@@ -71,10 +74,10 @@ Foam::totalTemperatureFvPatchScalarField::totalTemperatureFvPatchScalarField
 )
 :
     fixedValueFvPatchScalarField(p, iF, dict, false),
-    UName_(dict.lookupOrDefault<word>("U", "U")),
-    phiName_(dict.lookupOrDefault<word>("phi", "phi")),
-    psiName_(dict.lookupOrDefault<word>("psi", "thermo:psi")),
-    gamma_(readScalar(dict.lookup("gamma"))),
+    UName_(dict.getOrDefault<word>("U", "U")),
+    phiName_(dict.getOrDefault<word>("phi", "phi")),
+    psiName_(dict.getOrDefault<word>("psi", "thermo:psi")),
+    gamma_(dict.get<scalar>("gamma")),
     T0_("T0", dict, p.size())
 {
     if (dict.found("value"))
@@ -177,10 +180,10 @@ void Foam::totalTemperatureFvPatchScalarField::updateCoeffs()
 void Foam::totalTemperatureFvPatchScalarField::write(Ostream& os) const
 {
     fvPatchScalarField::write(os);
-    writeEntryIfDifferent<word>(os, "U", "U", UName_);
-    writeEntryIfDifferent<word>(os, "phi", "phi", phiName_);
-    writeEntryIfDifferent<word>(os, "psi", "thermo:psi", psiName_);
-    os.writeKeyword("gamma") << gamma_ << token::END_STATEMENT << nl;
+    os.writeEntryIfDifferent<word>("U", "U", UName_);
+    os.writeEntryIfDifferent<word>("phi", "phi", phiName_);
+    os.writeEntryIfDifferent<word>("psi", "thermo:psi", psiName_);
+    os.writeEntry("gamma", gamma_);
     T0_.writeEntry("T0", os);
     writeEntry("value", os);
 }

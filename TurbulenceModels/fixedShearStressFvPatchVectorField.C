@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -28,7 +31,7 @@ License
 #include "fvPatchFieldMapper.H"
 #include "volFields.H"
 #include "surfaceFields.H"
-#include "turbulenceModel.H"
+#include "turbulenceModel2.H"
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
@@ -51,7 +54,7 @@ Foam::fixedShearStressFvPatchVectorField::fixedShearStressFvPatchVectorField
 )
 :
     fixedValueFvPatchVectorField(p, iF, dict, false),
-    tau0_(dict.lookupOrDefault<vector>("tau", Zero))
+    tau0_(dict.getOrDefault<vector>("tau", Zero))
 {
     fvPatchField<vector>::operator=(patchInternalField());
 }
@@ -109,7 +112,7 @@ void Foam::fixedShearStressFvPatchVectorField::updateCoeffs()
         )
     );
 
-    scalarField nuEff(turbModel.nuEff(patch().index()));
+    tmp<scalarField> nuEff(turbModel.nuEff(patch().index()));
 
     const vectorField Uc(patchInternalField());
 
@@ -126,7 +129,7 @@ void Foam::fixedShearStressFvPatchVectorField::updateCoeffs()
 void Foam::fixedShearStressFvPatchVectorField::write(Ostream& os) const
 {
     fvPatchVectorField::write(os);
-    os.writeKeyword("tau") << tau0_ << token::END_STATEMENT << nl;
+    os.writeEntry("tau", tau0_);
     writeEntry("value", os);
 }
 

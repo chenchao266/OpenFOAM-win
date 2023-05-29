@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -23,6 +25,9 @@ License
 
 Class
     Foam::radiation::greyMeanAbsorptionEmission
+
+Group
+    grpRadiationAbsorptionEmissionSubModels
 
 Description
     greyMeanAbsorptionEmission radiation absorption and emission coefficients
@@ -87,7 +92,7 @@ SourceFiles
 
 #include "interpolationLookUpTable.H"
 #include "absorptionEmissionModel.H"
-#include "HashTable.T.H"
+#include "HashTable.H"
 #include "absorptionCoeffs.H"
 #include "fluidThermo.H"
 

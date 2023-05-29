@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2016-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2016-2017 OpenFOAM Foundation
+    Copyright (C) 2018-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -74,7 +77,8 @@ Foam::RBD::restraints::linearAxialAngularSpring::~linearAxialAngularSpring()
 void Foam::RBD::restraints::linearAxialAngularSpring::restrain
 (
     scalarField& tau,
-    Field<spatialVector>& fx
+    Field<spatialVector>& fx,
+    const rigidBodyModelState& state
 ) const
 {
     vector refDir = rotationTensor(vector(1, 0, 0), axis_) & vector(0, 1, 0);
@@ -144,9 +148,9 @@ bool Foam::RBD::restraints::linearAxialAngularSpring::read
 {
     restraint::read(dict);
 
-    refQ_ = coeffs_.lookupOrDefault<tensor>("referenceOrientation", I);
+    refQ_ = coeffs_.getOrDefault<tensor>("referenceOrientation", I);
 
-    if (mag(mag(refQ_) - sqrt(3.0)) > 1e-9)
+    if (mag(mag(refQ_) - sqrt(3.0)) > ROOTSMALL)
     {
         FatalErrorInFunction
             << "referenceOrientation " << refQ_ << " is not a rotation tensor. "
@@ -155,9 +159,9 @@ bool Foam::RBD::restraints::linearAxialAngularSpring::read
             << exit(FatalError);
     }
 
-    axis_ = coeffs_.lookup("axis");
+    coeffs_.readEntry("axis", axis_);
 
-    scalar magAxis(mag(axis_));
+    const scalar magAxis(mag(axis_));
 
     if (magAxis > VSMALL)
     {
@@ -170,8 +174,8 @@ bool Foam::RBD::restraints::linearAxialAngularSpring::read
             << abort(FatalError);
     }
 
-    coeffs_.lookup("stiffness") >> stiffness_;
-    coeffs_.lookup("damping") >> damping_;
+    coeffs_.readEntry("stiffness", stiffness_);
+    coeffs_.readEntry("damping", damping_);
 
     return true;
 }
@@ -184,17 +188,10 @@ void Foam::RBD::restraints::linearAxialAngularSpring::write
 {
     restraint::write(os);
 
-    os.writeKeyword("referenceOrientation")
-        << refQ_ << token::END_STATEMENT << nl;
-
-    os.writeKeyword("axis")
-        << axis_ << token::END_STATEMENT << nl;
-
-    os.writeKeyword("stiffness")
-        << stiffness_ << token::END_STATEMENT << nl;
-
-    os.writeKeyword("damping")
-        << damping_ << token::END_STATEMENT << nl;
+    os.writeEntry("referenceOrientation", refQ_);
+    os.writeEntry("axis", axis_);
+    os.writeEntry("stiffness", stiffness_);
+    os.writeEntry("damping", damping_);
 }
 
 

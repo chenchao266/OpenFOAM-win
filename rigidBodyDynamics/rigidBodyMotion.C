@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2016-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2016-2017 OpenFOAM Foundation
+    Copyright (C) 2020-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -42,12 +45,12 @@ void Foam::RBD::rigidBodyMotion::initialize()
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
-Foam::RBD::rigidBodyMotion::rigidBodyMotion()
+Foam::RBD::rigidBodyMotion::rigidBodyMotion(const Time& time)
 :
-    rigidBodyModel(),
+    rigidBodyModel(time),
     motionState_(*this),
     motionState0_(*this),
-    aRelax_(1.0),
+    aRelax_(nullptr),
     aDamp_(1.0),
     report_(false),
     solver_(nullptr)
@@ -55,21 +58,31 @@ Foam::RBD::rigidBodyMotion::rigidBodyMotion()
 
 Foam::RBD::rigidBodyMotion::rigidBodyMotion
 (
+    const Time& time,
     const dictionary& dict
 )
 :
-    rigidBodyModel(dict),
+    rigidBodyModel(time, dict),
     motionState_(*this, dict),
     motionState0_(motionState_),
     X00_(X0_.size()),
-    aRelax_(dict.lookupOrDefault<scalar>("accelerationRelaxation", 1.0)),
-    aDamp_(dict.lookupOrDefault<scalar>("accelerationDamping", 1.0)),
-    report_(dict.lookupOrDefault<Switch>("report", false)),
+    aRelax_
+    (
+        Function1<scalar>::NewIfPresent
+        (
+            "accelerationRelaxation",
+            dict,
+            word::null,
+            &time
+        )
+    ),
+    aDamp_(dict.getOrDefault<scalar>("accelerationDamping", 1)),
+    report_(dict.getOrDefault<Switch>("report", false)),
     solver_(rigidBodySolver::New(*this, dict.subDict("solver")))
 {
     if (dict.found("g"))
     {
-        g() = vector(dict.lookup("g"));
+        g() = dict.get<vector>("g");
     }
 
     initialize();
@@ -78,22 +91,32 @@ Foam::RBD::rigidBodyMotion::rigidBodyMotion
 
 Foam::RBD::rigidBodyMotion::rigidBodyMotion
 (
+    const Time& time,
     const dictionary& dict,
     const dictionary& stateDict
 )
 :
-    rigidBodyModel(dict),
+    rigidBodyModel(time, dict),
     motionState_(*this, stateDict),
     motionState0_(motionState_),
     X00_(X0_.size()),
-    aRelax_(dict.lookupOrDefault<scalar>("accelerationRelaxation", 1.0)),
-    aDamp_(dict.lookupOrDefault<scalar>("accelerationDamping", 1.0)),
-    report_(dict.lookupOrDefault<Switch>("report", false)),
+    aRelax_
+    (
+        Function1<scalar>::NewIfPresent
+        (
+            "accelerationRelaxation",
+            dict,
+            word::null,
+            &time
+        )
+    ),
+    aDamp_(dict.getOrDefault<scalar>("accelerationDamping", 1)),
+    report_(dict.getOrDefault<Switch>("report", false)),
     solver_(rigidBodySolver::New(*this, dict.subDict("solver")))
 {
     if (dict.found("g"))
     {
-        g() = vector(dict.lookup("g"));
+        g() = dict.get<vector>("g");
     }
 
     initialize();
@@ -134,7 +157,14 @@ void Foam::RBD::rigidBodyMotion::forwardDynamics
 {
     scalarField qDdotPrev = state.qDdot();
     rigidBodyModel::forwardDynamics(state, tau, fx);
-    state.qDdot() = aDamp_*(aRelax_*state.qDdot() + (1 - aRelax_)*qDdotPrev);
+
+    scalar aRelax = 1;
+    if (aRelax_)
+    {
+        aRelax = aRelax_->value(motionState_.t());
+    }
+
+    state.qDdot() = aDamp_*(aRelax*state.qDdot() + (1 - aRelax)*qDdotPrev);
 }
 
 
@@ -179,6 +209,23 @@ void Foam::RBD::rigidBodyMotion::status(const label bodyID) const
         << "    Angular velocity: " << vCofR.w()
         << endl;
 }
+
+
+const Foam::vector Foam::RBD::rigidBodyMotion::vCofR(const label bodyID) const
+{
+    const spatialVector velCofR(v(bodyID, Zero));
+
+    return velCofR.l();
+}
+
+
+const Foam::vector Foam::RBD::rigidBodyMotion::cCofR(const label bodyID) const
+{
+    const spatialTransform CofR(X0(bodyID));
+
+    return CofR.r();
+}
+
 
 
 Foam::tmp<Foam::pointField> Foam::RBD::rigidBodyMotion::transformPoints

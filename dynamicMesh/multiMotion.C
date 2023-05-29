@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -57,12 +59,6 @@ Foam::solidBodyMotionFunctions::multiMotion::multiMotion
 }
 
 
-// * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
-
-Foam::solidBodyMotionFunctions::multiMotion::~multiMotion()
-{}
-
-
 // * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * * //
 
 Foam::septernion
@@ -93,18 +89,18 @@ bool Foam::solidBodyMotionFunctions::multiMotion::read
     label i = 0;
     SBMFs_.setSize(SBMFCoeffs_.size());
 
-    forAllConstIter(IDLList<entry>, SBMFCoeffs_, iter)
+    for (const entry& dEntry : SBMFCoeffs_)
     {
-        if (iter().isDict())
+        if (dEntry.isDict())
         {
             SBMFs_.set
             (
                 i,
-                solidBodyMotionFunction::New(iter().dict(), time_)
+                solidBodyMotionFunction::New(dEntry.dict(), time_)
             );
 
             Info<< "Constructed SBMF " << i << " : "
-                << iter().keyword() << " of type "
+                << dEntry.keyword() << " of type "
                 << SBMFs_[i].type() << endl;
 
             i++;

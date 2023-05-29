@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2019 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -23,10 +26,10 @@ License
 
 \*---------------------------------------------------------------------------*/
 
-#include "AMIInterpolation.T.H"
+#include "AMIInterpolation.H"
 #include "cyclicAMIGAMGInterface.H"
 #include "addToRunTimeSelectionTable.H"
-#include "Map.T.H"
+#include "Map.H"
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
 
@@ -78,27 +81,22 @@ Foam::cyclicAMIGAMGInterface::cyclicAMIGAMGInterface
 
         Map<label> masterToCoarseFace(localRestrictAddressing.size());
 
-        forAll(localRestrictAddressing, ffi)
+        for (const label curMaster : localRestrictAddressing)
         {
-            label curMaster = localRestrictAddressing[ffi];
+            const auto iter = masterToCoarseFace.cfind(curMaster);
 
-            Map<label>::const_iterator fnd = masterToCoarseFace.find
-            (
-                curMaster
-            );
-
-            if (fnd == masterToCoarseFace.end())
+            if (iter.found())
             {
-                // New coarse face
-                label coarseI = dynFaceCells.size();
-                dynFaceRestrictAddressing.append(coarseI);
-                dynFaceCells.append(curMaster);
-                masterToCoarseFace.insert(curMaster, coarseI);
+                // Already have coarse face
+                dynFaceRestrictAddressing.append(iter.val());
             }
             else
             {
-                // Already have coarse face
-                dynFaceRestrictAddressing.append(fnd());
+                // New coarse face
+                const label coarseI = dynFaceCells.size();
+                dynFaceRestrictAddressing.append(coarseI);
+                dynFaceCells.append(curMaster);
+                masterToCoarseFace.insert(curMaster, coarseI);
             }
         }
 
@@ -125,26 +123,21 @@ Foam::cyclicAMIGAMGInterface::cyclicAMIGAMGInterface
 
             Map<label> masterToCoarseFace(neighbourRestrictAddressing.size());
 
-            forAll(neighbourRestrictAddressing, ffi)
+            for (const label curMaster : neighbourRestrictAddressing)
             {
-                label curMaster = neighbourRestrictAddressing[ffi];
+                const auto iter = masterToCoarseFace.cfind(curMaster);
 
-                Map<label>::const_iterator fnd = masterToCoarseFace.find
-                (
-                    curMaster
-                );
-
-                if (fnd == masterToCoarseFace.end())
+                if (iter.found())
                 {
-                    // New coarse face
-                    label coarseI = masterToCoarseFace.size();
-                    dynNbrFaceRestrictAddressing.append(coarseI);
-                    masterToCoarseFace.insert(curMaster, coarseI);
+                    // Already have coarse face
+                    dynNbrFaceRestrictAddressing.append(iter.val());
                 }
                 else
                 {
-                    // Already have coarse face
-                    dynNbrFaceRestrictAddressing.append(fnd());
+                    // New coarse face
+                    const label coarseI = masterToCoarseFace.size();
+                    dynNbrFaceRestrictAddressing.append(coarseI);
+                    masterToCoarseFace.insert(curMaster, coarseI);
                 }
             }
 
@@ -164,7 +157,7 @@ Foam::cyclicAMIGAMGInterface::cyclicAMIGAMGInterface
 }
 
 
-// * * * * * * * * * * * * * * * * Desstructor * * * * * * * * * * * * * * * //
+// * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
 
 Foam::cyclicAMIGAMGInterface::~cyclicAMIGAMGInterface()
 {}
@@ -174,7 +167,7 @@ Foam::cyclicAMIGAMGInterface::~cyclicAMIGAMGInterface()
 
 Foam::tmp<Foam::labelField> Foam::cyclicAMIGAMGInterface::internalFieldTransfer
 (
-    const Pstream::commsTypes,
+    const Pstream::commsTypes commsType,
     const labelUList& iF
 ) const
 {
@@ -192,6 +185,5 @@ Foam::tmp<Foam::labelField> Foam::cyclicAMIGAMGInterface::internalFieldTransfer
 
     return tpnf;
 }
-
 
 // ************************************************************************* //

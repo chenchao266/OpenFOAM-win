@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011 OpenFOAM Foundation
+    Copyright (C) 2018-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -25,7 +28,51 @@ Class
     Foam::setToCellZone
 
 Description
-    A topoSetSource to select cells based on usage in a cellSet.
+    A \c topoSetSource to convert a \c cellSet
+    to a \c cellZone (and associated \c cellSet).
+
+    Operands:
+    \table
+      Operand   | Type     | Location
+      input     | cellSet  | $FOAM_CASE/constant/polyMesh/sets/\<set\>
+      output 1  | cellSet  | $FOAM_CASE/constant/polyMesh/sets/\<set\>
+      output 2  | cellZone | $FOAM_CASE/constant/polyMesh/cellZones
+    \endtable
+
+Usage
+    Minimal example by using \c system/topoSetDict.actions:
+    \verbatim
+    {
+        // Mandatory (inherited) entries
+        name        <name>;
+        type        cellZoneSet;
+        action      <action>;
+
+        // Mandatory entries
+        source      setToCellZone;
+        set         <cellSetName>;
+    }
+    \endverbatim
+
+    where the entries mean:
+    \table
+      Property   | Description                         | Type | Req'd | Dflt
+      name       | Name of cellZone                    | word |  yes  | -
+      type       | Type name: cellZoneSet              | word |  yes  | -
+      action     | Action applied on cells - see below | word |  yes  | -
+      source     | Source name: setToCellZone          | word |  yes  | -
+      set        | Name of input cellSet               | word |  yes  | -
+    \endtable
+
+    Options for the \c action entry:
+    \verbatim
+      new      | Create a new cellZone from selected cells of a cellSet
+      add      | Add selected cells of a cellSet into this cellZone
+      subtract | Remove selected cells of a cellSet from this cellZone
+    \endverbatim
+
+See also
+    - Foam::topoSetSource
 
 SourceFiles
     setToCellZone.C
@@ -35,7 +82,7 @@ SourceFiles
 #ifndef setToCellZone_H
 #define setToCellZone_H
 
-#include "topoSetSource.H"
+#include "topoSetCellZoneSource.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -48,62 +95,46 @@ namespace Foam
 
 class setToCellZone
 :
-    public topoSetSource
+    public topoSetCellZoneSource
 {
-    // Private data
+    // Private Data
 
         //- Add usage string
         static addToUsageTable usage_;
 
-        //- Name of set to use
+        //- Name of cellSet to use
         word setName_;
+
 
 public:
 
     //- Runtime type information
     TypeName("setToCellZone");
 
+
     // Constructors
 
         //- Construct from components
-        setToCellZone
-        (
-            const polyMesh& mesh,
-            const word& setName
-        );
+        setToCellZone(const polyMesh& mesh, const word& setName);
 
         //- Construct from dictionary
-        setToCellZone
-        (
-            const polyMesh& mesh,
-            const dictionary& dict
-        );
+        setToCellZone(const polyMesh& mesh, const dictionary& dict);
 
         //- Construct from Istream
-        setToCellZone
-        (
-            const polyMesh& mesh,
-            Istream&
-        );
+        setToCellZone(const polyMesh& mesh, Istream& is);
 
 
     //- Destructor
-    virtual ~setToCellZone();
+    virtual ~setToCellZone() = default;
 
 
     // Member Functions
 
-        virtual sourceType setType() const
-        {
-            return CELLZONESOURCE;
-        }
-
         virtual void applyToSet
         (
             const topoSetSource::setAction action,
-            topoSet&
+            topoSet& set
         ) const;
-
 };
 
 

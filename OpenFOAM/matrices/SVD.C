@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -26,11 +28,15 @@ License
 #include "SVD.H"
 #include "scalarList.H"
 #include "scalarMatrices.H"
-#include "ListOps.T.H"
+#include "ListOps.H"
 
 // * * * * * * * * * * * * * * * * Constructor  * * * * * * * * * * * * * * //
-using namespace Foam;
-SVD::SVD(const scalarRectangularMatrix& A, const scalar minCondition) :    U_(A),
+
+
+ namespace Foam{
+SVD::SVD(const scalarRectangularMatrix& A, const scalar minCondition)
+:
+    U_(A),
     V_(A.n(), A.n()),
     S_(A.n()),
     converged_(true),
@@ -389,3 +395,5 @@ scalarRectangularMatrix SVD::VSinvUt() const
 
 
 // ************************************************************************* //
+
+ } // End namespace Foam

@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2015-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2015-2017 OpenFOAM Foundation
+    Copyright (C) 2018-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -44,12 +47,12 @@ addToRunTimeSelectionTable(injectionModel, patchInjection, dictionary);
 
 patchInjection::patchInjection
 (
-    surfaceFilmModel& film,
+    surfaceFilmRegionModel& film,
     const dictionary& dict
 )
 :
     injectionModel(type(), film, dict),
-    deltaStable_(coeffDict_.lookupOrDefault<scalar>("deltaStable", 0.0))
+    deltaStable_(coeffDict_.getOrDefault<scalar>("deltaStable", 0))
 {
     const polyBoundaryMesh& pbm = film.regionMesh().boundaryMesh();
     patchIDs_.setSize
@@ -57,17 +60,16 @@ patchInjection::patchInjection
         pbm.size() - film.regionMesh().globalData().processorPatches().size()
     );
 
-    if (coeffDict_.found("patches"))
+    wordRes patchNames;
+    if (coeffDict_.readIfPresent("patches", patchNames))
     {
-        wordReList patchNames(coeffDict_.lookup("patches"));
         const labelHashSet patchSet = pbm.patchSet(patchNames);
 
         Info<< "        applying to patches:" << nl;
 
         label pidi = 0;
-        forAllConstIter(labelHashSet, patchSet, iter)
+        for (const label patchi : patchSet)
         {
-            label patchi = iter.key();
             patchIDs_[pidi++] = patchi;
             Info<< "            " << pbm[patchi].name() << endl;
         }
@@ -181,7 +183,7 @@ void patchInjection::patchInjectedMassTotals(scalarField& patchMasses) const
         getModelProperty<scalarField>
         (
             "patchInjectedMasses",
-            scalarField(patchInjectedMasses_.size(), 0)
+            scalarField(patchInjectedMasses_.size(), Zero)
         )
     );
 

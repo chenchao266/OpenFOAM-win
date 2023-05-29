@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2018-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -25,7 +28,22 @@ Class
     Foam::searchableSphere
 
 Description
-    Searching on sphere
+    Searching on general spheroid.
+
+    \heading Dictionary parameters
+    \table
+        Property    | Description                           | Required | Default
+        type        | sphere                                | selector |
+        origin      | The origin (centre) of the sphere     | yes |
+        radius      | The (outside) radius/radiii of sphere | yes |
+        centre      | Alternative name for 'origin'         | no  |
+    \endtable
+
+Note
+    The \c radius can be specified as a single \em scalar (for a sphere)
+    or a \em vector of three values (for a general spheroid).
+
+    Longer type name : \c searchableSphere
 
 SourceFiles
     searchableSphere.C
@@ -43,25 +61,52 @@ SourceFiles
 namespace Foam
 {
 
-// Forward declaration of classes
-
 /*---------------------------------------------------------------------------*\
-                           Class searchableSphere Declaration
+                      Class searchableSphere Declaration
 \*---------------------------------------------------------------------------*/
 
 class searchableSphere
 :
     public searchableSurface
 {
+public:
+
+    // Public Types
+
+        //- The type of shape
+        enum shapeType : uint8_t
+        {
+            SPHERE = 0,     //!< Sphere (all components equal)
+            OBLATE = 1,     //!< Oblate (major = mezzo > minor)
+            PROLATE = 2,    //!< Prolate (major > mezzo = minor)
+            GENERAL = 3     //!< General spheroid
+        };
+
+
 private:
 
-    // Private Member Data
+    // Private Types
 
-        //- Centre point
-        const point centre_;
+        //- Component order (largest to smallest)
+        struct componentOrder
+        {
+            uint8_t major;      //!< Component with major radius
+            uint8_t mezzo;      //!< Component with intermediate radius
+            uint8_t minor;      //!< Component with minor radius
+            shapeType shape;    //!< The type of shape
+        };
 
-        //- Radius
-        const scalar radius_;
+
+    // Private Data
+
+        //- Centre point of the sphere
+        const point origin_;
+
+        //- The outer radii of the spheroid
+        const vector radii_;
+
+        //- The canonical (sorted) order and shape
+        const struct componentOrder order_;
 
         //- Names of regions
         mutable wordList regions_;
@@ -69,17 +114,45 @@ private:
 
     // Private Member Functions
 
+        //- Determine sorted order and classify the shape
+        inline static componentOrder getOrdering(const vector& radii);
+
+        //- Shift point relative to origin
+        //- and scale relative to spheroid dimensions
+        inline point scalePoint(const point& p) const
+        {
+            return point
+            (
+                (p.x() - origin_.x()) / radii_.x(),
+                (p.y() - origin_.y()) / radii_.y(),
+                (p.z() - origin_.z()) / radii_.z()
+            );
+        }
+
+        //- Undo scalePoint(): unscale point and unshift relative to origin
+        inline point unscalePoint(const point& p) const
+        {
+            return point
+            (
+                p.x() * radii_.x() + origin_.x(),
+                p.y() * radii_.y() + origin_.y(),
+                p.z() * radii_.z() + origin_.z()
+            );
+        }
+
+
         //- Inherit findNearest from searchableSurface
         using searchableSurface::findNearest;
 
-        //- Find nearest point on sphere.
+        //- Find nearest point on general spheroid.
+        //  With some optimization for special shapes
         pointIndexHit findNearest
         (
             const point& sample,
             const scalar nearestDistSqr
         ) const;
 
-        //- Find intersection with sphere
+        //- Find intersection with general spheroid
         void findLineAll
         (
             const point& start,
@@ -89,11 +162,11 @@ private:
         ) const;
 
 
-        //- Disallow default bitwise copy construct
-        searchableSphere(const searchableSphere&);
+        //- No copy construct
+        searchableSphere(const searchableSphere&) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const searchableSphere&);
+        //- No copy assignment
+        void operator=(const searchableSphere&) = delete;
 
 
 public:
@@ -104,8 +177,21 @@ public:
 
     // Constructors
 
-        //- Construct from components
-        searchableSphere(const IOobject& io, const point&, const scalar radius);
+        //- Construct a sphere from components
+        searchableSphere
+        (
+            const IOobject& io,
+            const point& origin,
+            const scalar radius
+        );
+
+        //- Construct a spheroid from components
+        searchableSphere
+        (
+            const IOobject& io,
+            const point& centre,
+            const vector& radii
+        );
 
         //- Construct from dictionary (used by searchableSurface)
         searchableSphere
@@ -114,18 +200,64 @@ public:
             const dictionary& dict
         );
 
+
     //- Destructor
-    virtual ~searchableSphere();
+    virtual ~searchableSphere() = default;
 
 
     // Member Functions
 
+    // Geometric
+
+        //- The centre (origin) of the sphere
+        const point& centre() const noexcept
+        {
+             return origin_;
+        }
+
+        //- The radius of the sphere, or major radius of the spheroid
+        scalar radius() const noexcept
+        {
+            return radii_[order_.major];
+        }
+
+        //- The radii of the spheroid
+        const vector& radii() const noexcept
+        {
+            return radii_;
+        }
+
+        //- The type of shape
+        enum shapeType shape() const noexcept
+        {
+            return order_.shape;
+        }
+
+        //- A point on the sphere at given location
+        //  theta [-pi,pi], phi [0,pi]
+        point surfacePoint(const scalar theta, const scalar phi) const;
+
+        //- Surface normal on the sphere at given location
+        //  theta [-pi,pi], phi [0,pi]
+        vector surfaceNormal(const scalar theta, const scalar phi) const;
+
+
+
+    // Searching
+
+        //- Names of regions
         virtual const wordList& regions() const;
 
-        //- Whether supports volume type below
+        //- Whether supports volume type (below)
         virtual bool hasVolumeType() const
         {
             return true;
+        }
+
+        //- What is type of points outside bounds
+        virtual volumeType outsideVolumeType() const
+        {
+            return volumeType::OUTSIDE;
         }
 
         //- Range of local indices that can be returned.
@@ -138,8 +270,7 @@ public:
         //  Usually the element centres (should be of length size()).
         virtual tmp<pointField> coordinates() const
         {
-            tmp<pointField> tCtrs(new pointField(1, centre_));
-            return tCtrs;
+            return tmp<pointField>::New(1, origin_);
         }
 
         //- Get bounding spheres (centre and radius squared), one per element.
@@ -205,23 +336,22 @@ public:
                 vectorField& normal
             ) const;
 
-            //- Determine type (inside/outside/mixed) for point. unknown if
-            //  cannot be determined (e.g. non-manifold surface)
+            //- Determine type (inside/outside/mixed) for point.
             virtual void getVolumeType
             (
-                const pointField&,
-                List<volumeType>&
+                const pointField& points,
+                List<volumeType>& volType
             ) const;
 
 
-        // regIOobject implementation
+    // Output
 
-            bool writeData(Ostream&) const
-            {
-                NotImplemented;
-                return false;
-            }
-
+        // Implementation for regIOobject. NotImplemented
+        bool writeData(Ostream&) const
+        {
+            NotImplemented;
+            return false;
+        }
 };
 
 

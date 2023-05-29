@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2019 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -26,7 +29,7 @@ License
 inline const Foam::radiation::radiativeIntensityRay&
 Foam::radiation::fvDOM::IRay(const label rayI) const
 {
-    return  IRay_[rayI];
+    return IRay_[rayI];
 }
 
 
@@ -64,6 +67,11 @@ inline Foam::label Foam::radiation::fvDOM::nLambda() const
     return nLambda_;
 }
 
+
+inline Foam::label Foam::radiation::fvDOM::nBands() const
+{
+    return nLambda_;
+}
 
 inline const Foam::volScalarField& Foam::radiation::fvDOM::a() const
 {
@@ -113,6 +121,31 @@ Foam::radiation::fvDOM::blackBody() const
 inline Foam::scalar Foam::radiation::fvDOM::omegaMax() const
 {
     return omegaMax_;
+}
+
+
+inline Foam::vector Foam::radiation::fvDOM::meshOrientation() const
+{
+    return meshOrientation_;
+}
+
+
+inline bool Foam::radiation::fvDOM::useSolarLoad() const
+{
+    return useSolarLoad_;
+}
+
+
+inline bool Foam::radiation::fvDOM::useExternalBeam() const
+{
+    return useExternalBeam_;
+}
+
+
+inline const Foam::scalarList& Foam::radiation::fvDOM::
+spectralDistribution() const
+{
+    return spectralDistribution_;
 }
 
 

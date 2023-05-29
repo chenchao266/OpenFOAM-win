@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2015 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2015 OpenFOAM Foundation
+    Copyright (C) 2019-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -25,7 +28,7 @@ License
 
 #include "pyrolysisModel.H"
 #include "fvMesh.H"
-#include "Time.T.H"
+#include "Time1.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -44,38 +47,37 @@ autoPtr<pyrolysisModel> pyrolysisModel::New
     const word& regionType
 )
 {
-    // get model name, but do not register the dictionary
-    const word modelType
+    const IOdictionary dict
     (
-        IOdictionary
+        IOobject
         (
-            IOobject
-            (
-                regionType + "Properties",
-                mesh.time().constant(),
-                mesh,
-                IOobject::MUST_READ,
-                IOobject::NO_WRITE,
-                false
-            )
-        ).lookup("pyrolysisModel")
+            regionType + "Properties",
+            mesh.time().constant(),
+            mesh,
+            IOobject::MUST_READ,
+            IOobject::NO_WRITE,
+            false // Do not register
+        )
     );
+
+    const word modelType(dict.get<word>("pyrolysisModel"));
 
     Info<< "Selecting pyrolysisModel " << modelType << endl;
 
-    meshConstructorTable::iterator cstrIter =
-        meshConstructorTablePtr_->find(modelType);
+    auto* ctorPtr = meshConstructorTable(modelType);
 
-    if (cstrIter == meshConstructorTablePtr_->end())
+    if (!ctorPtr)
     {
-        FatalErrorInFunction
-            << "Unknown pyrolysisModel type " << modelType
-            << nl << nl << "Valid pyrolisisModel types are:" << nl
-            << meshConstructorTablePtr_->sortedToc()
-            << exit(FatalError);
+        FatalIOErrorInLookup
+        (
+            dict,
+            "pyrolysisModel",
+            modelType,
+            *meshConstructorTablePtr_
+        ) << exit(FatalIOError);
     }
 
-    return autoPtr<pyrolysisModel>(cstrIter()(modelType, mesh, regionType));
+    return autoPtr<pyrolysisModel>(ctorPtr(modelType, mesh, regionType));
 }
 
 
@@ -87,25 +89,26 @@ autoPtr<pyrolysisModel> pyrolysisModel::New
 )
 {
 
-    const word modelType = dict.lookup("pyrolysisModel");
+    const word modelType(dict.get<word>("pyrolysisModel"));
 
     Info<< "Selecting pyrolysisModel " << modelType << endl;
 
-    dictionaryConstructorTable::iterator cstrIter =
-        dictionaryConstructorTablePtr_->find(modelType);
+    auto* ctorPtr = dictionaryConstructorTable(modelType);
 
-    if (cstrIter == dictionaryConstructorTablePtr_->end())
+    if (!ctorPtr)
     {
-        FatalErrorInFunction
-            << "Unknown pyrolysisModel type " << modelType
-            << nl << nl << "Valid pyrolisisModel types are:" << nl
-            << dictionaryConstructorTablePtr_->sortedToc()
-            << exit(FatalError);
+        FatalIOErrorInLookup
+        (
+            dict,
+            "pyrolysisModel",
+            modelType,
+            *dictionaryConstructorTablePtr_
+        ) << exit(FatalIOError);
     }
 
     return autoPtr<pyrolysisModel>
     (
-        cstrIter()
+        ctorPtr
         (
             modelType,
             mesh,

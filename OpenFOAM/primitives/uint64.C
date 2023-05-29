@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2014-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2014-2016 OpenFOAM Foundation
+    Copyright (C) 2017-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -25,24 +28,33 @@ License
 
 #include "uint64.H"
 
-// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
-namespace Foam {
-    const uint64_t pTraits<uint64_t>::_zero = 0;
-    const uint64_t pTraits<uint64_t>::one = 1;
-    const uint64_t pTraits<uint64_t>::min = 0;
-    const uint64_t pTraits<uint64_t>::max = UINT64_MAX;
-    const uint64_t pTraits<uint64_t>::rootMin = 0;
-    const uint64_t pTraits<uint64_t>::rootMax = pTraits<uint64_t>::max;
+// * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
 
-    const char* const pTraits<uint64_t>::componentNames[] = { "" };
 
-    pTraits<uint64_t>::pTraits(const uint64_t& p) : p_(p)
-    {}
+ namespace Foam{
+const char* const pTraits<uint64_t>::componentNames[] = { "" };
 
-    pTraits<uint64_t>::pTraits(Istream& is)
-    {
-        is >> p_;
-    }
+const uint64_t pTraits<uint64_t>::zero_ = 0;
+const uint64_t pTraits<uint64_t>::one_ = 1;
+const uint64_t pTraits<uint64_t>::min_ = 0;
+const uint64_t pTraits<uint64_t>::max_ = UINT64_MAX;
+const uint64_t pTraits<uint64_t>::rootMin_ = 0;
+const uint64_t pTraits<uint64_t>::rootMax_ = pTraits<uint64_t>::max_;
+
+
+// * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
+
+pTraits<uint64_t>::pTraits(const uint64_t& val) noexcept
+:
+    p_(val)
+{}
+
+pTraits<uint64_t>::pTraits(Istream& is)
+{
+    is >> p_;
 }
 
+
 // ************************************************************************* //
+
+ } // End namespace Foam

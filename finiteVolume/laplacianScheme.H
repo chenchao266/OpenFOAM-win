@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -23,6 +25,9 @@ License
 
 Class
     Foam::fv::laplacianScheme
+
+Group
+    grpFvLaplacianSchemes
 
 Description
     Abstract base class for laplacian schemes.
@@ -65,7 +70,7 @@ namespace fv
 template<class Type, class GType>
 class laplacianScheme
 :
-    public tmp<laplacianScheme<Type, GType>>::refCount
+    public refCount
 {
 
 protected:
@@ -81,11 +86,11 @@ private:
 
     // Private Member Functions
 
-        //- Disallow copy construct
-        laplacianScheme(const laplacianScheme&);
+        //- No copy construct
+        laplacianScheme(const laplacianScheme&) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const laplacianScheme&);
+        //- No copy assignment
+        void operator=(const laplacianScheme&) = delete;
 
 
 public:
@@ -159,7 +164,7 @@ public:
 
 
     //- Destructor
-    virtual ~laplacianScheme();
+    virtual ~laplacianScheme() = default;
 
 
     // Member Functions

@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2013-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2013-2017 OpenFOAM Foundation
+    Copyright (C) 2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -24,179 +27,218 @@ License
 \*---------------------------------------------------------------------------*/
 
 #include "GAMGProcAgglomeration.H"
-#include "GAMGAgglomeration.T.H"
+#include "GAMGAgglomeration.H"
 #include "lduMesh.H"
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
-using namespace Foam;
+
 namespace Foam
 {
     defineTypeNameAndDebug(GAMGProcAgglomeration, 0);
     defineRunTimeSelectionTable(GAMGProcAgglomeration, GAMGAgglomeration);
-}
 
 
-// * * * * * * * * * * * * Protected Member Functions  * * * * * * * * * * * //
 
-void GAMGProcAgglomeration::printStats
-(
-    Ostream& os,
-    GAMGAgglomeration& agglom
-) const
-{
-    for (label levelI = 0; levelI <= agglom.size(); levelI++)
+    // * * * * * * * * * * * * Protected Member Functions  * * * * * * * * * * * //
+
+    void GAMGProcAgglomeration::printStats
+    (
+        Ostream& os,
+        GAMGAgglomeration& agglom
+    ) const
     {
-        if (agglom.hasMeshLevel(levelI))
+        for (label levelI = 0; levelI <= agglom.size(); levelI++)
         {
-            os  << agglom.meshLevel(levelI).info() << endl;
-        }
-        else
-        {
-            os  << "Level " << levelI << " has no fine mesh:" << endl;
-        }
-
-        if
-        (
-            levelI < agglom.restrictAddressing_.size()
-         && agglom.restrictAddressing_.set(levelI)
-        )
-        {
-            const labelList& cellRestrict =
-                agglom.restrictAddressing(levelI);
-            const labelList& faceRestrict =
-                agglom.faceRestrictAddressing(levelI);
-
-            os  << "Level " << levelI << " agglomeration:" << nl
-                << "    nCoarseCells:" << agglom.nCells(levelI) << nl
-                << "    nCoarseFaces:" << agglom.nFaces(levelI) << nl
-                << "    cellRestriction:"
-                << " size:" << cellRestrict.size()
-                << " max:" << max(cellRestrict)
-                << nl
-                << "    faceRestriction:"
-                << " size:" << faceRestrict.size()
-                << " max:" << max(faceRestrict)
-                << nl;
-
-            const labelListList& patchFaceRestrict =
-                agglom.patchFaceRestrictAddressing(levelI);
-            forAll(patchFaceRestrict, i)
+            if (agglom.hasMeshLevel(levelI))
             {
-                if (patchFaceRestrict[i].size())
+                os << agglom.meshLevel(levelI).info() << endl;
+            }
+            else
+            {
+                os << "Level " << levelI << " has no fine mesh:" << endl;
+            }
+
+            if
+                (
+                    levelI < agglom.restrictAddressing_.size()
+                    && agglom.restrictAddressing_.set(levelI)
+                    )
+            {
+                const labelList& cellRestrict =
+                    agglom.restrictAddressing(levelI);
+                const labelList& faceRestrict =
+                    agglom.faceRestrictAddressing(levelI);
+
+                os << "Level " << levelI << " agglomeration:" << nl
+                    << "    nCoarseCells:" << agglom.nCells(levelI) << nl
+                    << "    nCoarseFaces:" << agglom.nFaces(levelI) << nl
+                    << "    cellRestriction:"
+                    << " size:" << cellRestrict.size()
+                    << " max:" << max(cellRestrict)
+                    << nl
+                    << "    faceRestriction:"
+                    << " size:" << faceRestrict.size()
+                    << " max:" << max(faceRestrict)
+                    << nl;
+
+                const labelListList& patchFaceRestrict =
+                    agglom.patchFaceRestrictAddressing(levelI);
+                forAll(patchFaceRestrict, i)
                 {
-                    const labelList& faceRestrict =
-                        patchFaceRestrict[i];
-                    os  << "        " << i
-                        << " size:" << faceRestrict.size()
-                        << " max:" << max(faceRestrict)
-                        << nl;
+                    if (patchFaceRestrict[i].size())
+                    {
+                        const labelList& faceRestrict =
+                            patchFaceRestrict[i];
+                        os << "        " << i
+                            << " size:" << faceRestrict.size()
+                            << " max:" << max(faceRestrict)
+                            << nl;
+                    }
+                }
+            }
+            if
+                (
+                    levelI < agglom.procCellOffsets_.size()
+                    && agglom.procCellOffsets_.set(levelI)
+                    )
+            {
+                os << "    procCellOffsets:" << agglom.procCellOffsets_[levelI]
+                    << nl
+                    << "    procAgglomMap:" << agglom.procAgglomMap_[levelI]
+                    << nl
+                    << "    procIDs:" << agglom.agglomProcIDs_[levelI]
+                    << nl
+                    << "    comm:" << agglom.procCommunicator_[levelI]
+                    << endl;
+            }
+
+            os << endl;
+        }
+        os << endl;
+    }
+
+
+    labelListList GAMGProcAgglomeration::globalCellCells
+    (
+        const lduMesh& mesh
+    )
+    {
+        const lduAddressing& addr = mesh.lduAddr();
+        lduInterfacePtrsList interfaces = mesh.interfaces();
+
+        const label myProcID = Pstream::myProcNo(mesh.comm());
+
+        globalIndex globalNumbering
+        (
+            addr.size(),
+            Pstream::msgType(),
+            mesh.comm(),
+            Pstream::parRun()
+        );
+
+        labelList globalIndices
+        (
+            identity
+            (
+                globalNumbering.localSize(myProcID),
+                globalNumbering.localStart(myProcID)
+            )
+        );
+
+        // Get the interface cells
+        PtrList<labelList> nbrGlobalCells(interfaces.size());
+        {
+            const label nReq = Pstream::nRequests();
+
+            // Initialise transfer of restrict addressing on the interface
+            forAll(interfaces, inti)
+            {
+                if (interfaces.set(inti))
+                {
+                    interfaces[inti].initInternalFieldTransfer
+                    (
+                        Pstream::commsTypes::nonBlocking,
+                        globalIndices
+                    );
+                }
+            }
+
+            if (Pstream::parRun())
+            {
+                Pstream::waitRequests(nReq);
+            }
+
+            forAll(interfaces, inti)
+            {
+                if (interfaces.set(inti))
+                {
+                    nbrGlobalCells.set
+                    (
+                        inti,
+                        new labelList
+                        (
+                            interfaces[inti].internalFieldTransfer
+                            (
+                                Pstream::commsTypes::nonBlocking,
+                                globalIndices
+                            )
+                        )
+                    );
                 }
             }
         }
-        if
-        (
-            levelI < agglom.procCellOffsets_.size()
-         && agglom.procCellOffsets_.set(levelI)
-        )
+
+
+        // Scan the neighbour list to find out how many times the cell
+        // appears as a neighbour of the face. Done this way to avoid guessing
+        // and resizing list
+        labelList nNbrs(addr.size(), 1);
+
+        const labelUList& nbr = addr.upperAddr();
+        const labelUList& own = addr.lowerAddr();
+
         {
-            os  << "    procCellOffsets:" << agglom.procCellOffsets_[levelI]
-                << nl
-                << "    procAgglomMap:" << agglom.procAgglomMap_[levelI]
-                << nl
-                << "    procIDs:" << agglom.agglomProcIDs_[levelI]
-                << nl
-                << "    comm:" << agglom.procCommunicator_[levelI]
-                << endl;
-        }
-
-        os  << endl;
-    }
-    os  << endl;
-}
-
-
-labelListList GAMGProcAgglomeration::globalCellCells
-(
-    const lduMesh& mesh
-)
-{
-    const lduAddressing& addr = mesh.lduAddr();
-    lduInterfacePtrsList interfaces = mesh.interfaces();
-
-    const label myProcID = Pstream::myProcNo(mesh.comm());
-
-    globalIndex globalNumbering
-    (
-        addr.size(),
-        Pstream::msgType(),
-        mesh.comm(),
-        Pstream::parRun()
-    );
-
-    labelList globalIndices(addr.size());
-    forAll(globalIndices, celli)
-    {
-        globalIndices[celli] = globalNumbering.toGlobal(myProcID, celli);
-    }
-
-
-    // Get the interface cells
-    PtrList<labelList> nbrGlobalCells(interfaces.size());
-    {
-        // Initialise transfer of restrict addressing on the interface
-        forAll(interfaces, inti)
-        {
-            if (interfaces.set(inti))
+            forAll(nbr, facei)
             {
-                interfaces[inti].initInternalFieldTransfer
-                (
-                    Pstream::commsTypes::nonBlocking,
-                    globalIndices
-                );
+                nNbrs[nbr[facei]]++;
+                nNbrs[own[facei]]++;
+            }
+
+            forAll(interfaces, inti)
+            {
+                if (interfaces.set(inti))
+                {
+                    const labelUList& faceCells = interfaces[inti].faceCells();
+
+                    forAll(faceCells, i)
+                    {
+                        nNbrs[faceCells[i]]++;
+                    }
+                }
             }
         }
 
-        if (Pstream::parRun())
+
+        // Create cell-cells addressing
+        labelListList cellCells(addr.size());
+
+        forAll(cellCells, celli)
         {
-            Pstream::waitRequests();
+            cellCells[celli].setSize(nNbrs[celli], -1);
         }
 
-        forAll(interfaces, inti)
-        {
-            if (interfaces.set(inti))
-            {
-                nbrGlobalCells.set
-                (
-                    inti,
-                    new labelList
-                    (
-                        interfaces[inti].internalFieldTransfer
-                        (
-                            Pstream::commsTypes::nonBlocking,
-                            globalIndices
-                        )
-                    )
-                );
-            }
-        }
-    }
+        // Reset the list of number of neighbours to zero
+        nNbrs = 0;
 
-
-    // Scan the neighbour list to find out how many times the cell
-    // appears as a neighbour of the face. Done this way to avoid guessing
-    // and resizing list
-    labelList nNbrs(addr.size(), 1);
-
-    const labelUList& nbr = addr.upperAddr();
-    const labelUList& own = addr.lowerAddr();
-
-    {
+        // Scatter the neighbour faces
         forAll(nbr, facei)
         {
-            nNbrs[nbr[facei]]++;
-            nNbrs[own[facei]]++;
-        }
+            label c0 = own[facei];
+            label c1 = nbr[facei];
 
+            cellCells[c0][nNbrs[c0]++] = globalIndices[c1];
+            cellCells[c1][nNbrs[c1]++] = globalIndices[c0];
+        }
         forAll(interfaces, inti)
         {
             if (interfaces.set(inti))
@@ -205,181 +247,144 @@ labelListList GAMGProcAgglomeration::globalCellCells
 
                 forAll(faceCells, i)
                 {
-                    nNbrs[faceCells[i]]++;
+                    label c0 = faceCells[i];
+                    cellCells[c0][nNbrs[c0]++] = nbrGlobalCells[inti][i];
                 }
             }
         }
-    }
 
-
-    // Create cell-cells addressing
-    labelListList cellCells(addr.size());
-
-    forAll(cellCells, celli)
-    {
-        cellCells[celli].setSize(nNbrs[celli], -1);
-    }
-
-    // Reset the list of number of neighbours to zero
-    nNbrs = 0;
-
-    // Scatter the neighbour faces
-    forAll(nbr, facei)
-    {
-        label c0 = own[facei];
-        label c1 = nbr[facei];
-
-        cellCells[c0][nNbrs[c0]++] = globalIndices[c1];
-        cellCells[c1][nNbrs[c1]++] = globalIndices[c0];
-    }
-    forAll(interfaces, inti)
-    {
-        if (interfaces.set(inti))
+        forAll(cellCells, celli)
         {
-            const labelUList& faceCells = interfaces[inti].faceCells();
-
-            forAll(faceCells, i)
-            {
-                label c0 = faceCells[i];
-                cellCells[c0][nNbrs[c0]++] = nbrGlobalCells[inti][i];
-            }
+            stableSort(cellCells[celli]);
         }
-    }
 
-    forAll(cellCells, celli)
-    {
-        stableSort(cellCells[celli]);
-    }
-
-    // Replace the initial element (always -1) with the local cell
-    forAll(cellCells, celli)
-    {
-        cellCells[celli][0] = globalIndices[celli];
-    }
-
-    return cellCells;
-}
-
-
-bool GAMGProcAgglomeration::agglomerate
-(
-    const label fineLevelIndex,
-    const labelList& procAgglomMap,
-    const labelList& masterProcs,
-    const List<label>& agglomProcIDs,
-    const label procAgglomComm
-)
-{
-    const lduMesh& levelMesh = agglom_.meshLevels_[fineLevelIndex];
-    label levelComm = levelMesh.comm();
-
-    if (Pstream::myProcNo(levelComm) != -1)
-    {
-        // Collect meshes and restrictAddressing onto master
-        // Overwrites the fine mesh (meshLevels_[index-1]) and addressing
-        // from fine mesh to coarse mesh (restrictAddressing_[index]).
-        agglom_.procAgglomerateLduAddressing
-        (
-            levelComm,
-            procAgglomMap,
-            agglomProcIDs,
-            procAgglomComm,
-
-            fineLevelIndex               //fine level index
-        );
-
-        // Combine restrict addressing only onto master
-        for
-        (
-            label levelI = fineLevelIndex+1;
-            levelI < agglom_.meshLevels_.size();
-            levelI++
-        )
+        // Replace the initial element (always -1) with the local cell
+        forAll(cellCells, celli)
         {
-            agglom_.procAgglomerateRestrictAddressing
+            cellCells[celli][0] = globalIndices[celli];
+        }
+
+        return cellCells;
+    }
+
+
+    bool GAMGProcAgglomeration::agglomerate
+    (
+        const label fineLevelIndex,
+        const labelList& procAgglomMap,
+        const labelList& masterProcs,
+        const List<label>& agglomProcIDs,
+        const label procAgglomComm
+    )
+    {
+        const lduMesh& levelMesh = agglom_.meshLevels_[fineLevelIndex];
+        label levelComm = levelMesh.comm();
+
+        if (Pstream::myProcNo(levelComm) != -1)
+        {
+            // Collect meshes and restrictAddressing onto master
+            // Overwrites the fine mesh (meshLevels_[index-1]) and addressing
+            // from fine mesh to coarse mesh (restrictAddressing_[index]).
+            agglom_.procAgglomerateLduAddressing
             (
                 levelComm,
+                procAgglomMap,
                 agglomProcIDs,
-                levelI
+                procAgglomComm,
+
+                fineLevelIndex               //fine level index
             );
-        }
 
-        if (Pstream::myProcNo(levelComm) == agglomProcIDs[0])
-        {
-            // On master. Recreate coarse meshes from restrict addressing
+            // Combine restrict addressing only onto master
             for
-            (
-                label levelI = fineLevelIndex;
-                levelI < agglom_.meshLevels_.size();
-                levelI++
-            )
+                (
+                    label levelI = fineLevelIndex + 1;
+                    levelI < agglom_.meshLevels_.size();
+                    levelI++
+                    )
             {
-                agglom_.agglomerateLduAddressing(levelI);
+                agglom_.procAgglomerateRestrictAddressing
+                (
+                    levelComm,
+                    agglomProcIDs,
+                    levelI
+                );
+            }
+
+            if (Pstream::myProcNo(levelComm) == agglomProcIDs[0])
+            {
+                // On master. Recreate coarse meshes from restrict addressing
+                for
+                    (
+                        label levelI = fineLevelIndex;
+                        levelI < agglom_.meshLevels_.size();
+                        levelI++
+                        )
+                {
+                    agglom_.agglomerateLduAddressing(levelI);
+                }
+            }
+            else
+            {
+                // Agglomerated away. Clear mesh storage.
+                for
+                    (
+                        label levelI = fineLevelIndex + 1;
+                        levelI <= agglom_.size();
+                        levelI++
+                        )
+                {
+                    agglom_.clearLevel(levelI);
+                }
             }
         }
-        else
+
+        // Should check!
+        return true;
+    }
+
+
+    // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
+
+    GAMGProcAgglomeration::GAMGProcAgglomeration
+    (
+        GAMGAgglomeration& agglom,
+        const dictionary& controlDict
+    )
+        :
+        agglom_(agglom)
+    {}
+
+
+    autoPtr<GAMGProcAgglomeration> GAMGProcAgglomeration::New
+    (
+        const word& type,
+        GAMGAgglomeration& agglom,
+        const dictionary& controlDict
+    )
+    {
+        DebugInFunction << "Constructing GAMGProcAgglomeration" << endl;
+
+        auto* ctorPtr = GAMGAgglomerationConstructorTable(type);
+
+        if (!ctorPtr)
         {
-            // Agglomerated away. Clear mesh storage.
-            for
-            (
-                label levelI = fineLevelIndex+1;
-                levelI <= agglom_.size();
-                levelI++
-            )
-            {
-                agglom_.clearLevel(levelI);
-            }
+            FatalErrorInFunction
+                << "Unknown GAMGProcAgglomeration type "
+                << type << " for GAMGAgglomeration " << agglom.type() << nl << nl
+                << "Valid GAMGProcAgglomeration types :" << endl
+                << GAMGAgglomerationConstructorTablePtr_->sortedToc()
+                << exit(FatalError);
         }
+
+        return autoPtr<GAMGProcAgglomeration>(ctorPtr(agglom, controlDict));
     }
 
-    // Should check!
-    return true;
+
+    // * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
+
+    GAMGProcAgglomeration::~GAMGProcAgglomeration()
+    {}
+
 }
-
-
-// * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
-
-GAMGProcAgglomeration::GAMGProcAgglomeration
-(
-    GAMGAgglomeration& agglom,
-    const dictionary& controlDict
-) :    agglom_(agglom)
-{}
-
-
-autoPtr<GAMGProcAgglomeration> GAMGProcAgglomeration::New
-(
-    const word& type,
-    GAMGAgglomeration& agglom,
-    const dictionary& controlDict
-)
-{
-    if (debug)
-    {
-        InfoInFunction << "Constructing GAMGProcAgglomeration" << endl;
-    }
-
-    GAMGAgglomerationConstructorTable::iterator cstrIter =
-        GAMGAgglomerationConstructorTablePtr_->find(type);
-
-    if (cstrIter == GAMGAgglomerationConstructorTablePtr_->end())
-    {
-        FatalErrorInFunction
-            << "Unknown GAMGProcAgglomeration type "
-            << type << " for GAMGAgglomeration " << agglom.type() << nl << nl
-            << "Valid GAMGProcAgglomeration types are :" << endl
-            << GAMGAgglomerationConstructorTablePtr_->sortedToc()
-            << exit(FatalError);
-    }
-
-    return autoPtr<GAMGProcAgglomeration>(cstrIter()(agglom, controlDict));
-}
-
-
-// * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
-
-GAMGProcAgglomeration::~GAMGProcAgglomeration()
-{}
-
-
 // ************************************************************************* //

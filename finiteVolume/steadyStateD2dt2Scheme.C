@@ -1,9 +1,11 @@
-﻿/*---------------------------------------------------------------------------*\
+/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -23,7 +25,7 @@ License
 
 \*---------------------------------------------------------------------------*/
 
-//#include "steadyStateD2dt2Scheme.H"
+#include "steadyStateD2dt2Scheme.H"
 #include "fvcDiv.H"
 #include "fvMatrices.H"
 
@@ -59,12 +61,7 @@ steadyStateD2dt2Scheme<Type>::fvcD2dt2
                 IOobject::NO_WRITE
             ),
             mesh(),
-            dimensioned<Type>
-            (
-                "0",
-                vf.dimensions()/dimTime/dimTime,
-                Zero
-            )
+            dimensioned<Type>(vf.dimensions()/dimTime/dimTime, Zero)
         )
     );
 }
@@ -78,25 +75,21 @@ steadyStateD2dt2Scheme<Type>::fvcD2dt2
     const GeometricField<Type, fvPatchField, volMesh>& vf
 )
 {
-    return tmp<GeometricField<Type, fvPatchField, volMesh>>
+    return tmp<GeometricField<Type, fvPatchField, volMesh>>::New
     (
-        new GeometricField<Type, fvPatchField, volMesh>
+        IOobject
         (
-            IOobject
-            (
-                "d2dt2("+rho.name()+','+vf.name()+')',
-                mesh().time().timeName(),
-                mesh(),
-                IOobject::NO_READ,
-                IOobject::NO_WRITE
-            ),
+            "d2dt2("+rho.name()+','+vf.name()+')',
+            mesh().time().timeName(),
             mesh(),
-            dimensioned<Type>
-            (
-                "0",
-                rho.dimensions()*vf.dimensions()/dimTime/dimTime,
-                Zero
-            )
+            IOobject::NO_READ,
+            IOobject::NO_WRITE
+        ),
+        mesh(),
+        dimensioned<Type>
+        (
+            rho.dimensions()*vf.dimensions()/dimTime/dimTime,
+            Zero
         )
     );
 }

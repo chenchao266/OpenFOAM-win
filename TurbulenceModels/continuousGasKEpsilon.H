@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2013-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2013-2016 OpenFOAM Foundation
+    Copyright (C) 2019 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -89,9 +92,11 @@ class continuousGasKEpsilon
 
     // Private Member Functions
 
-        // Disallow default bitwise copy construct and assignment
-        continuousGasKEpsilon(const continuousGasKEpsilon&);
-        void operator=(const continuousGasKEpsilon&);
+        //- No copy construct
+        continuousGasKEpsilon(const continuousGasKEpsilon&) = delete;
+
+        //- No copy assignment
+        void operator=(const continuousGasKEpsilon&) = delete;
 
 
 protected:
@@ -139,8 +144,7 @@ public:
 
 
     //- Destructor
-    virtual ~continuousGasKEpsilon()
-    {}
+    virtual ~continuousGasKEpsilon() = default;
 
 
     // Member Functions

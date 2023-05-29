@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2014 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2014 OpenFOAM Foundation
+    Copyright (C) 2015-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -24,70 +27,139 @@ License
 \*---------------------------------------------------------------------------*/
 
 #include "error.H"
-#include "OStringStream.H"
 #include "fileName.H"
-#include "dictionary.H"
+#include "dictionary2.H"
 #include "JobInfo.H"
-#include "Pstream.T.H"
+#include "Pstream.H"
+#include "StringStream.H"
+#include "foamVersion.H"
 #include "OSspecific.H"
+#include "Switch.H"
 
-// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
-using namespace Foam;
-error::error(const string& title) :    std::exception(),
+// * * * * * * * * * * * * * Static Member Functions * * * * * * * * * * * * //
+
+
+ namespace Foam{
+bool error::master(const label communicator)
+{
+    // Trap negative value for comm as 'default'. This avoids direct use
+    // of Pstream::worldComm which may not have been initialised
+
+    return
+    (
+        UPstream::parRun()
+      ? (communicator < 0 ? UPstream::master() : UPstream::master(communicator))
+      : true
+    );
+}
+
+
+bool error::warnAboutAge(const int version) noexcept
+{
+    // No warning for 0 (unversioned) or -ve values (silent versioning)
+    return ((version > 0) && (version < foamVersion::api));
+}
+
+
+bool error::warnAboutAge(const char* what, const int version)
+{
+    // No warning for 0 (unversioned) or -ve values (silent versioning).
+    // Also no warning for (version >= foamVersion::api), which
+    // can be used to denote future expiry dates of transition features.
+
+    const bool old = ((version > 0) && (version < foamVersion::api));
+
+    if (old)
+    {
+        const int months =
+        (
+            // YYMM -> months
+            (12 * (foamVersion::api/100) + (foamVersion::api % 100))
+          - (12 * (version/100)  + (version % 100))
+        );
+
+        if (version < 1000)
+        {
+            // For things that predate YYMM versioning (eg, 240 for version 2.4)
+            std::cerr
+                << "    This " << what << " is very old.\n"
+                << std::endl;
+        }
+        else
+        {
+            std::cerr
+                << "    This " << what << " is " << months << " months old.\n"
+                << std::endl;
+        }
+    }
+
+    return old;
+}
+
+
+bool error::useAbort()
+{
+    // FOAM_ABORT env set and contains bool-type value
+    return static_cast<bool>(Switch::find(getEnv("FOAM_ABORT")));
+}
+
+
+// * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
+
+error::error(const string& title)
+:
+    std::exception(),
     messageStream(title, messageStream::FATAL),
     functionName_("unknown"),
     sourceFileName_("unknown"),
     sourceFileLineNumber_(0),
-    abort_(env("FOAM_ABORT")),
-    throwExceptions_(false),
+    throwing_(false),
     messageStreamPtr_(new OStringStream())
-{
-    if (!messageStreamPtr_->good())
-    {
-        Perr<< endl
-            << "error::error(const string& title) : cannot open error stream"
-            << endl;
-        exit(1);
-    }
-}
+{}
 
 
-error::error(const dictionary& errDict) :    std::exception(),
+error::error(const dictionary& errDict)
+:
+    std::exception(),
     messageStream(errDict),
-    functionName_(errDict.lookup("functionName")),
-    sourceFileName_(errDict.lookup("sourceFileName")),
-    sourceFileLineNumber_(readLabel(errDict.lookup("sourceFileLineNumber"))),
-    abort_(env("FOAM_ABORT")),
-    throwExceptions_(false),
+    functionName_(errDict.get<string>("functionName")),
+    sourceFileName_(errDict.get<string>("sourceFileName")),
+    sourceFileLineNumber_(errDict.get<label>("sourceFileLineNumber")),
+    throwing_(false),
     messageStreamPtr_(new OStringStream())
-{
-    if (!messageStreamPtr_->good())
-    {
-        Perr<< endl
-            << "error::error(const dictionary& errDict) : "
-               "cannot open error stream"
-            << endl;
-        exit(1);
-    }
-}
+{}
 
 
-error::error(const error& err) :    std::exception(),
+error::error(const error& err)
+:
+    std::exception(),
     messageStream(err),
     functionName_(err.functionName_),
     sourceFileName_(err.sourceFileName_),
     sourceFileLineNumber_(err.sourceFileLineNumber_),
-    abort_(err.abort_),
-    throwExceptions_(err.throwExceptions_),
+    throwing_(err.throwing_),
     messageStreamPtr_(new OStringStream(*err.messageStreamPtr_))
-{
-    //*messageStreamPtr_ << err.message();
-}
+{}
 
 
-error::~error() throw()
+// * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
+
+error::~error() noexcept
+{}
+
+
+// * * * * * * * * * * * * * * * Member Operators  * * * * * * * * * * * * * //
+
+OSstream& error::operator()
+(
+    const string& functionName
+)
 {
-    delete messageStreamPtr_;
+    functionName_ = functionName;
+    sourceFileName_.clear();
+    sourceFileLineNumber_ = -1;
+
+    return operator OSstream&();
 }
 
 
@@ -98,11 +170,22 @@ OSstream& error::operator()
     const int sourceFileLineNumber
 )
 {
-    functionName_ = functionName;
-    sourceFileName_ = sourceFileName;
+    functionName_.clear();
+    sourceFileName_.clear();
+
+    if (functionName)
+    {
+        // With nullptr protection
+        functionName_.assign(functionName);
+    }
+    if (sourceFileName)
+    {
+        // With nullptr protection
+        sourceFileName_.assign(sourceFileName);
+    }
     sourceFileLineNumber_ = sourceFileLineNumber;
 
-    return operator OSstream&();
+    return this->stream();
 }
 
 
@@ -122,26 +205,12 @@ OSstream& error::operator()
 }
 
 
-error::operator OSstream&()
-{
-    if (!messageStreamPtr_->good())
-    {
-        Perr<< endl
-            << "error::operator OSstream&() : error stream has failed"
-            << endl;
-        abort();
-    }
-
-    return *messageStreamPtr_;
-}
-
-
 error::operator dictionary() const
 {
     dictionary errDict;
 
     string oneLineMessage(message());
-    oneLineMessage.replaceAll('\n', ' ');
+    oneLineMessage.replaceAll("\n", " ");
 
     errDict.add("type", word("error"));
     errDict.add("message", oneLineMessage);
@@ -153,113 +222,174 @@ error::operator dictionary() const
 }
 
 
+// * * * * * * * * * * * * * Private Member Functions  * * * * * * * * * * * //
+
+void error::exiting(const int errNo, const bool isAbort)
+{
+    if (throwing_)
+    {
+        if (!isAbort)
+        {
+            // Make a copy of the error to throw
+            error errorException(*this);
+
+            // Reset the message buffer for the next error message
+            messageStreamPtr_->reset();
+
+            throw errorException;
+            return;
+        }
+    }
+    else if (JobInfo::constructed)
+    {
+        jobInfo.add("FatalError", operator dictionary());
+        JobInfo::shutdown(isAbort || error::useAbort());
+    }
+
+    simpleExit(errNo, isAbort);
+}
+
+
+// * * * * * * * * * * * * Protected Member Functions  * * * * * * * * * * * //
+
+void error::simpleExit(const int errNo, const bool isAbort)
+{
+    if (error::useAbort())
+    {
+        Perr<< nl << *this << nl
+            << "\nFOAM aborting (FOAM_ABORT set)\n" << endl;
+        error::printStack(Perr);
+        std::abort();
+    }
+    else if (UPstream::parRun())
+    {
+        if (isAbort)
+        {
+            Perr<< nl << *this << nl
+                << "\nFOAM parallel run aborting\n" << endl;
+            error::printStack(Perr);
+            UPstream::abort();
+        }
+        else
+        {
+            Perr<< nl << *this << nl
+                << "\nFOAM parallel run exiting\n" << endl;
+            UPstream::exit(errNo);
+        }
+    }
+    else
+    {
+        if (isAbort)
+        {
+            Perr<< nl << *this << nl
+                << "\nFOAM aborting\n" << endl;
+            error::printStack(Perr);
+
+            #ifdef _WIN32
+            std::exit(1);  // Prefer exit() to avoid unnecessary warnings
+            #else
+            std::abort();
+            #endif
+        }
+        else
+        {
+            Perr<< nl << *this << nl
+                << "\nFOAM exiting\n" << endl;
+            std::exit(errNo);
+        }
+    }
+}
+
+
+// * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
+
+OSstream& error::stream()
+{
+    // Don't need (messageStreamPtr_) check - always allocated
+    if (!messageStreamPtr_->good())
+    {
+        Perr<< nl
+            << "error::stream() : error stream has failed"
+            << endl;
+        abort();
+    }
+
+    return *messageStreamPtr_;
+}
+
+
 string error::message() const
 {
     return messageStreamPtr_->str();
 }
 
 
+void error::clear() const
+{
+    return messageStreamPtr_->reset();
+}
+
+
 void error::exit(const int errNo)
 {
-    if (!throwExceptions_ && JobInfo::constructed)
-    {
-        jobInfo.add("FatalError", operator dictionary());
-        jobInfo.exit();
-    }
-
-    if (abort_)
-    {
-        abort();
-    }
-
-    if (Pstream::parRun())
-    {
-        Perr<< endl << *this << endl
-            << "\nFOAM parallel run exiting\n" << endl;
-        Pstream::exit(errNo);
-    }
-    else
-    {
-        if (throwExceptions_)
-        {
-            // Make a copy of the error to throw
-            error errorException(*this);
-
-            // Rewind the message buffer for the next error message
-            messageStreamPtr_->rewind();
-
-            throw errorException;
-        }
-        else
-        {
-            Perr<< endl << *this << endl
-                << "\nFOAM exiting\n" << endl;
-            ::exit(1);
-        }
-    }
+    exiting(errNo, false);
 }
 
 
 void error::abort()
 {
-    if (!throwExceptions_ && JobInfo::constructed)
+    exiting(1, true);
+}
+
+
+void error::write(Ostream& os, const bool withTitle) const
+{
+    if (os.bad())
     {
-        jobInfo.add("FatalError", operator dictionary());
-        jobInfo.abort();
+        return;
     }
 
-    if (abort_)
+    os  << nl;
+    if (withTitle && !title().empty())
     {
-        Perr<< endl << *this << endl
-            << "\nFOAM aborting (FOAM_ABORT set)\n" << endl;
-        printStack(Perr);
-        ::abort();
-    }
+        os  << title().c_str()
+            << "(openfoam-" << foamVersion::api;
 
-    if (Pstream::parRun())
-    {
-        Perr<< endl << *this << endl
-            << "\nFOAM parallel run aborting\n" << endl;
-        printStack(Perr);
-        Pstream::abort();
-    }
-    else
-    {
-        if (throwExceptions_)
+        if (foamVersion::patched())
         {
-            // Make a copy of the error to throw
-            error errorException(*this);
-
-            // Rewind the message buffer for the next error message
-            messageStreamPtr_->rewind();
-
-            throw errorException;
+            // Patch-level, when defined
+            os  << " patch=" << foamVersion::patch.c_str();
         }
-        else
+        os  << ')' << nl;
+    }
+    os  << message().c_str();
+
+
+    const label lineNo = sourceFileLineNumber();
+
+    if (error::level >= 2 && lineNo && !functionName().empty())
+    {
+        os  << nl << nl
+            << "    From " << functionName().c_str() << nl;
+
+        if (!sourceFileName().empty())
         {
-            Perr<< endl << *this << endl
-                << "\nFOAM aborting\n" << endl;
-            printStack(Perr);
-            ::abort();
+            os << "    in file " << sourceFileName().c_str();
+
+            if (lineNo > 0)
+            {
+                os  << " at line " << lineNo << '.';
+            }
         }
     }
 }
 
 
-Ostream& operator<<(Ostream& os, const error& fErr)
+// * * * * * * * * * * * * * * * IOstream Operators  * * * * * * * * * * * * //
+
+Ostream& operator<<(Ostream& os, const error& err)
 {
-    os  << endl
-        << fErr.title().c_str() << endl
-        << fErr.message().c_str();
-
-    if (error::level >= 2 && fErr.sourceFileLineNumber())
-    {
-        os  << endl << endl
-            << "    From function " << fErr.functionName().c_str() << endl
-            << "    in file " << fErr.sourceFileName().c_str()
-            << " at line " << fErr.sourceFileLineNumber() << '.';
-    }
-
+    err.write(os);
     return os;
 }
 
@@ -269,4 +399,7 @@ Ostream& operator<<(Ostream& os, const error& fErr)
 
 error FatalError("--> FOAM FATAL ERROR: ");
 
+
 // ************************************************************************* //
+
+ } // End namespace Foam

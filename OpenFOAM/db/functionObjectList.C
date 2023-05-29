@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2015-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -24,123 +27,207 @@ License
 \*---------------------------------------------------------------------------*/
 
 #include "functionObjectList.H"
-#include "Time.T.H"
+#include "Time1.h"
 #include "mapPolyMesh.H"
+#include "profiling.H"
 #include "argList.H"
 #include "timeControlFunctionObject.H"
-//#include "IFstream.H"
 #include "dictionaryEntry.H"
 #include "stringOps.H"
-#include "Tuple2.T.H"
+#include "Switch.H"
+#include "Tuple2.H"
 #include "etcFiles.H"
 #include "IOdictionary.H"
+#include "Pstream.H"
+#include "OSspecific.H"
 
 /* * * * * * * * * * * * * * * Static Member Data  * * * * * * * * * * * * * */
-using namespace Foam;
+
+//- Max number of warnings (per functionObject)
+static constexpr const uint32_t maxWarnings = 10u;
+
+
+ namespace Foam{
 fileName functionObjectList::functionObjectDictPath
 (
     "caseDicts/postProcessing"
 );
 
 
+const Enum
+<
+    functionObjectList::errorHandlingType
+>
+functionObjectList::errorHandlingNames_
+({
+    { errorHandlingType::DEFAULT, "default" },
+    { errorHandlingType::WARN, "warn" },
+    { errorHandlingType::IGNORE, "ignore" },
+    { errorHandlingType::STRICT, "strict" },
+});
+
+
+// * * * * * * * * * * * * * * * Local Functions * * * * * * * * * * * * * * //
+
+
+ } // End namespace Foam
+namespace Foam
+{
+    //- Mimic exit handling of the error class
+    static void exitNow(const error& err)
+    {
+        if (error::useAbort())
+        {
+            Perr<< nl << err << nl
+                << "\nFOAM aborting (FOAM_ABORT set)\n" << endl;
+            error::printStack(Perr);
+            std::abort();
+        }
+        else if (Pstream::parRun())
+        {
+            Perr<< nl << err << nl
+                << "\nFOAM parallel run exiting\n" << endl;
+            Pstream::exit(1);
+        }
+        else
+        {
+            Perr<< nl << err << nl
+                << "\nFOAM exiting\n" << endl;
+            std::exit(1);
+        }
+    }
+
+} // End namespace Foam
+
+
 // * * * * * * * * * * * * Private Member Functions  * * * * * * * * * * * * //
 
-functionObject* functionObjectList::remove
+
+ namespace Foam{
+void functionObjectList::createPropertiesDict() const
+{
+    // Cannot set the properties dictionary on construction since Time has not
+    // been fully initialised
+    propsDictPtr_.reset
+    (
+        new functionObjects::properties
+        (
+            IOobject
+            (
+                "functionObjectProperties",
+                time_.timeName(),
+                "uniform"/word("functionObjects"),
+                time_,
+                IOobject::READ_IF_PRESENT,
+                IOobject::NO_WRITE
+            )
+        )
+    );
+}
+
+
+void functionObjectList::createOutputRegistry() const
+{
+    objectsRegistryPtr_.reset
+    (
+        new objectRegistry
+        (
+            IOobject
+            (
+                "functionObjectObjects",
+                time_.timeName(),
+                time_,
+                IOobject::NO_READ,
+                IOobject::NO_WRITE
+            )
+        )
+    );
+}
+
+
+autoPtr<functionObject> functionObjectList::remove
 (
     const word& key,
     label& oldIndex
 )
 {
-    functionObject* ptr = 0;
+    autoPtr<functionObject> oldptr;
 
-    // Find index of existing functionObject
-    HashTable<label>::iterator fnd = indices_.find(key);
+    auto iter = indices_.find(key);  // Index of existing functionObject
 
-    if (fnd != indices_.end())
+    if (iter.found())
     {
-        oldIndex = fnd();
+        oldIndex = *iter;
 
-        // Retrieve the pointer and remove it from the old list
-        ptr = this->set(oldIndex, 0).ptr();
-        indices_.erase(fnd);
+        // Remove pointer from the old list
+        oldptr = this->release(oldIndex);
+        indices_.erase(iter);
     }
     else
     {
         oldIndex = -1;
     }
 
-    return ptr;
+    return oldptr;
 }
 
 
 void functionObjectList::listDir
 (
     const fileName& dir,
-    HashSet<word>& foMap
+    wordHashSet& available
 )
 {
     // Search specified directory for functionObject configuration files
+    for (const fileName& f : fileHandler().readDir(dir))
     {
-        fileNameList foFiles(fileHandler().readDir(dir));
-        forAll(foFiles, f)
+        if (f.ext().empty())
         {
-            if (foFiles[f].ext().empty())
-            {
-                foMap.insert(foFiles[f]);
-            }
+            available.insert(f);
         }
     }
 
     // Recurse into sub-directories
+    for (const fileName& d : fileHandler().readDir(dir, fileName::DIRECTORY))
     {
-        fileNameList foDirs(fileHandler().readDir(dir, fileName::DIRECTORY));
-        forAll(foDirs, fd)
-        {
-            listDir(dir/foDirs[fd], foMap);
-        }
+        listDir(dir/d, available);
     }
 }
 
 
 void functionObjectList::list()
 {
-    HashSet<word> foMap;
+    wordHashSet available;
 
-    fileNameList etcDirs(findEtcDirs(functionObjectDictPath));
-
-    forAll(etcDirs, ed)
+    for (const fileName& d : findEtcDirs(functionObjectDictPath))
     {
-        listDir(etcDirs[ed], foMap);
+        listDir(d, available);
     }
 
     Info<< nl
         << "Available configured functionObjects:"
-        << foMap.sortedToc()
+        << available.sortedToc()
         << nl;
 }
 
 
 fileName functionObjectList::findDict(const word& funcName)
 {
-    // First check if there is a functionObject dictionary file in the
-    // case system directory
-    fileName dictFile = stringOps::expand("$FOAM_CASE")/"system"/funcName;
+    // First check for functionObject dictionary file in globalCase system/
+
+    fileName dictFile = stringOps::expand("<system>")/funcName;
 
     if (isFile(dictFile))
     {
         return dictFile;
     }
-    else
-    {
-        fileNameList etcDirs(findEtcDirs(functionObjectDictPath));
 
-        forAll(etcDirs, i)
+    for (const fileName& d : findEtcDirs(functionObjectDictPath))
+    {
+        dictFile = search(funcName, d);
+        if (!dictFile.empty())
         {
-            dictFile = search(funcName, etcDirs[i]);
-            if (!dictFile.empty())
-            {
-                return dictFile;
-            }
+            return dictFile;
         }
     }
 
@@ -152,7 +239,7 @@ bool functionObjectList::readFunctionObject
 (
     const string& funcNameArgs,
     dictionary& functionsDict,
-    HashSet<word>& requiredFields,
+    HashSet<wordRe>& requiredFields,
     const word& region
 )
 {
@@ -163,85 +250,46 @@ bool functionObjectList::readFunctionObject
     //     'patchAverage(patch=inlet, p)' -> funcName = patchAverage;
     //         args = (patch=inlet, p); field = p
 
-    word funcName(funcNameArgs);
-
-    int argLevel = 0;
-    wordList args;
-
+    word funcName;
+    wordRes args;
     List<Tuple2<word, string>> namedArgs;
-    bool namedArg = false;
-    word argName;
 
-    word::size_type start = 0;
-    word::size_type i = 0;
-
-    for
-    (
-        word::const_iterator iter = funcNameArgs.begin();
-        iter != funcNameArgs.end();
-        ++iter
-    )
     {
-        char c = *iter;
-
-        if (c == '(')
+        const auto argsBeg = funcNameArgs.find('(');
+        if (argsBeg == std::string::npos)
         {
-            if (argLevel == 0)
-            {
-                funcName = funcNameArgs(start, i - start);
-                start = i+1;
-            }
-            ++argLevel;
+            // Function name only, no args
+            funcName = word::validate(funcNameArgs);
         }
-        else if (c == ',' || c == ')')
+        else
         {
-            if (argLevel == 1)
-            {
-                if (namedArg)
-                {
-                    namedArgs.append
+            // Leading function name
+            funcName = word::validate(funcNameArgs.substr(0, argsBeg));
+
+            const auto argsEnd = funcNameArgs.rfind(')');
+
+            stringOps::splitFunctionArgs
+            (
+                funcNameArgs.substr
+                (
+                    (argsBeg + 1),
                     (
-                        Tuple2<word, string>
-                        (
-                            argName,
-                            funcNameArgs(start, i - start)
-                        )
-                    );
-                    namedArg = false;
-                }
-                else
-                {
-                    args.append
-                    (
-                        string::validate<word>(funcNameArgs(start, i - start))
-                    );
-                }
-                start = i+1;
-            }
-
-            if (c == ')')
-            {
-                if (argLevel == 1)
-                {
-                    break;
-                }
-                --argLevel;
-            }
+                        (argsEnd != std::string::npos && argsBeg < argsEnd)
+                      ? (argsEnd - argsBeg - 1)
+                      : std::string::npos
+                    )
+                ),
+                args,
+                namedArgs
+            );
         }
-        else if (c == '=')
-        {
-            argName = string::validate<word>(funcNameArgs(start, i - start));
-            start = i+1;
-            namedArg = true;
-        }
-
-        ++i;
     }
 
-    // Search for the functionObject dictionary
-    fileName path = findDict(funcName);
 
-    if (path == fileName::null)
+    // Search for the functionObject dictionary
+    fileName path = functionObjectList::findDict(funcName);
+
+    if (path.empty())
     {
         WarningInFunction
             << "Cannot find functionObject file " << funcName << endl;
@@ -249,19 +297,13 @@ bool functionObjectList::readFunctionObject
     }
 
     // Read the functionObject dictionary
-    //IFstream fileStream(path);
     autoPtr<ISstream> fileStreamPtr(fileHandler().NewIFstream(path));
-    ISstream& fileStream = fileStreamPtr();
+    ISstream& fileStream = *fileStreamPtr;
 
     dictionary funcsDict(fileStream);
-    dictionary* funcDictPtr = &funcsDict;
+    dictionary* funcDictPtr = funcsDict.findDict(funcName);
+    dictionary& funcDict = (funcDictPtr ? *funcDictPtr : funcsDict);
 
-    if (funcsDict.found(funcName) && funcsDict.isDict(funcName))
-    {
-        funcDictPtr = &funcsDict.subDict(funcName);
-    }
-
-    dictionary& funcDict = *funcDictPtr;
 
     // Insert the 'field' and/or 'fields' entry corresponding to the optional
     // arguments or read the 'field' or 'fields' entry and add the required
@@ -279,35 +321,75 @@ bool functionObjectList::readFunctionObject
     }
     else if (funcDict.found("field"))
     {
-        requiredFields.insert(word(funcDict.lookup("field")));
+        requiredFields.insert(funcDict.get<wordRe>("field"));
     }
     else if (funcDict.found("fields"))
     {
-        requiredFields.insert(wordList(funcDict.lookup("fields")));
+        requiredFields.insert(funcDict.get<wordRes>("fields"));
     }
 
     // Insert named arguments
-    forAll(namedArgs, i)
+    for (const Tuple2<word, string>& namedArg : namedArgs)
     {
         IStringStream entryStream
         (
-            namedArgs[i].first() + ' ' + namedArgs[i].second() + ';'
+            namedArg.first() + ' ' + namedArg.second() + ';'
         );
+
         funcDict.set(entry::New(entryStream).ptr());
     }
 
     // Insert the region name if specified
-    if (region != word::null)
+    if (!region.empty())
     {
         funcDict.set("region", region);
     }
 
     // Merge this functionObject dictionary into functionsDict
     dictionary funcArgsDict;
-    funcArgsDict.add(string::validate<word>(funcNameArgs), funcDict);
+    funcArgsDict.add(word::validate(funcNameArgs), funcDict);
     functionsDict.merge(funcArgsDict);
 
     return true;
+}
+
+
+functionObjectList::errorHandlingType
+functionObjectList::getOrDefaultErrorHandling
+(
+    const word& key,
+    const dictionary& dict,
+    const errorHandlingType deflt
+) const
+{
+    const entry* eptr = dict.findEntry(key, keyType::LITERAL);
+
+    if (eptr)
+    {
+        if (eptr->isDict())
+        {
+            Warning
+                << "The sub-dictionary '" << key
+                << "' masks error handling for functions" << endl;
+        }
+        else
+        {
+            const word enumName(eptr->get<word>());
+
+            if (!errorHandlingNames_.found(enumName))
+            {
+                // Failed the name lookup
+                FatalIOErrorInFunction(dict)
+                    << enumName << " is not in enumeration: "
+                    << errorHandlingNames_ << nl
+                    << exit(FatalIOError);
+            }
+
+            return errorHandlingNames_.get(enumName);
+        }
+    }
+
+    return deflt;
 }
 
 
@@ -315,28 +397,30 @@ bool functionObjectList::readFunctionObject
 
 functionObjectList::functionObjectList
 (
-    const Time& t,
+    const Time& runTime,
     const bool execution
-) :    PtrList<functionObject>(),
-    digests_(),
-    indices_(),
-    time_(t),
-    parentDict_(t.controlDict()),
-    execution_(execution),
-    updated_(false)
+)
+:
+    functionObjectList(runTime, runTime.controlDict(), execution)
 {}
 
 
 functionObjectList::functionObjectList
 (
-    const Time& t,
+    const Time& runTime,
     const dictionary& parentDict,
     const bool execution
-) :    PtrList<functionObject>(),
+)
+:
+    PtrList<functionObject>(),
+    errorHandling_(),
     digests_(),
     indices_(),
-    time_(t),
+    warnings_(),
+    time_(runTime),
     parentDict_(parentDict),
+    propsDictPtr_(nullptr),
+    objectsRegistryPtr_(nullptr),
     execution_(execution),
     updated_(false)
 {}
@@ -347,76 +431,74 @@ autoPtr<functionObjectList> functionObjectList::New
     const argList& args,
     const Time& runTime,
     dictionary& controlDict,
-    HashSet<word>& requiredFields
+    HashSet<wordRe>& requiredFields
 )
 {
-    autoPtr<functionObjectList> functionsPtr;
-
+    // Merge any functions from the provided controlDict
     controlDict.add
     (
-        dictionaryEntry("functions", controlDict, dictionary::null)
+        dictionaryEntry("functions", controlDict, dictionary::null),
+        true
     );
 
     dictionary& functionsDict = controlDict.subDict("functions");
 
-    word region = word::null;
+    const word regionName = args.getOrDefault<word>("region", "");
 
-    // Set the region name if specified
-    if (args.optionFound("region"))
+    bool modifiedControlDict = false;
+
+    if (args.found("dict"))
     {
-        region = args["region"];
+        modifiedControlDict = true;
+
+        controlDict.merge
+        (
+            IOdictionary
+            (
+                IOobject
+                (
+                    args["dict"],
+                    runTime,
+                    IOobject::MUST_READ_IF_MODIFIED
+                )
+            )
+        );
     }
 
-    if
-    (
-        args.optionFound("dict")
-     || args.optionFound("func")
-     || args.optionFound("funcs")
-    )
+    if (args.found("func"))
     {
-        if (args.optionFound("dict"))
-        {
-            controlDict.merge
-            (
-                IOdictionary
-                (
-                    IOobject
-                    (
-                        args["dict"],
-                        runTime,
-                        IOobject::MUST_READ_IF_MODIFIED
-                    )
-                )
-            );
-        }
+        modifiedControlDict = true;
 
-        if (args.optionFound("func"))
+        readFunctionObject
+        (
+            args["func"],
+            functionsDict,
+            requiredFields,
+            regionName
+        );
+    }
+
+    if (args.found("funcs"))
+    {
+        modifiedControlDict = true;
+
+        for (const word& funcName : args.getList<word>("funcs"))
         {
             readFunctionObject
             (
-                args["func"],
+                funcName,
                 functionsDict,
                 requiredFields,
-                region
+                regionName
             );
         }
+    }
 
-        if (args.optionFound("funcs"))
-        {
-            wordList funcs(args.optionLookup("funcs")());
 
-            forAll(funcs, i)
-            {
-                readFunctionObject
-                (
-                    funcs[i],
-                    functionsDict,
-                    requiredFields,
-                    region
-                );
-            }
-        }
+    autoPtr<functionObjectList> functionsPtr;
 
+    if (modifiedControlDict)
+    {
         functionsPtr.reset(new functionObjectList(runTime, controlDict));
     }
     else
@@ -430,31 +512,90 @@ autoPtr<functionObjectList> functionObjectList::New
 }
 
 
-// * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
-
-functionObjectList::~functionObjectList()
-{}
-
-
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
+
+label functionObjectList::triggerIndex() const
+{
+    return propsDict().getTrigger();
+}
+
+
+void functionObjectList::resetPropertiesDict()
+{
+    // Reset (re-read) the properties dictionary
+    propsDictPtr_.reset(nullptr);
+    createPropertiesDict();
+}
+
+
+functionObjects::properties& functionObjectList::propsDict()
+{
+    if (!propsDictPtr_)
+    {
+        createPropertiesDict();
+    }
+
+    return *propsDictPtr_;
+}
+
+
+const functionObjects::properties&
+functionObjectList::propsDict() const
+{
+    if (!propsDictPtr_)
+    {
+        createPropertiesDict();
+    }
+
+    return *propsDictPtr_;
+}
+
+
+objectRegistry& functionObjectList::storedObjects()
+{
+    if (!objectsRegistryPtr_)
+    {
+        createOutputRegistry();
+    }
+
+    return *objectsRegistryPtr_;
+}
+
+
+const objectRegistry& functionObjectList::storedObjects() const
+{
+    if (!objectsRegistryPtr_)
+    {
+        createOutputRegistry();
+    }
+
+    return *objectsRegistryPtr_;
+}
+
 
 void functionObjectList::clear()
 {
     PtrList<functionObject>::clear();
+    errorHandling_.clear();
     digests_.clear();
     indices_.clear();
+    warnings_.clear();
     updated_ = false;
 }
 
 
-label functionObjectList::findObjectID(const word& name) const
+label functionObjectList::findObjectID(const word& objName) const
 {
-    forAll(*this, objectI)
+    label id = 0;
+
+    for (const functionObject& funcObj : functions())
     {
-        if (operator[](objectI).name() == name)
+        if (funcObj.name() == objName)
         {
-            return objectI;
+            return id;
         }
+
+        ++id;
     }
 
     return -1;
@@ -469,7 +610,7 @@ void functionObjectList::on()
 
 void functionObjectList::off()
 {
-    // For safety, also force a read() when execution is turned back on
+    // For safety, also force a read() when execution is resumed
     updated_ = execution_ = false;
 }
 
@@ -497,10 +638,199 @@ bool functionObjectList::execute()
             read();
         }
 
-        forAll(*this, objectI)
+        auto errIter = errorHandling_.cbegin();
+
+        for (functionObject& funcObj : functions())
         {
-            ok = operator[](objectI).execute() && ok;
-            ok = operator[](objectI).write() && ok;
+            const errorHandlingType errorHandling = *errIter;
+            ++errIter;
+
+            const word& objName = funcObj.name();
+
+            if
+            (
+                errorHandling == errorHandlingType::WARN
+             || errorHandling == errorHandlingType::IGNORE
+            )
+            {
+                // Throw FatalError, FatalIOError as exceptions
+
+                const bool oldThrowingError = FatalError.throwing(true);
+                const bool oldThrowingIOerr = FatalIOError.throwing(true);
+
+                bool hadError = false;
+
+                // execute()
+                try
+                {
+                    addProfiling
+                    (
+                        fo,
+                        "functionObject::" + objName + "::execute"
+                    );
+
+                    ok = funcObj.execute() && ok;
+                }
+                catch (const error& err)
+                {
+                    // Treat IOerror and error identically
+                    uint32_t nWarnings;
+                    hadError = true;
+
+                    if
+                    (
+                        errorHandling != errorHandlingType::IGNORE
+                     && (nWarnings = ++warnings_(objName)) <= maxWarnings
+                    )
+                    {
+                        // Trickery to get original message
+                        err.write(Warning, false);
+                        Info<< nl
+                            << "--> execute() function object '"
+                            << objName << "'";
+
+                        if (nWarnings == maxWarnings)
+                        {
+                            Info<< nl << "... silencing further warnings";
+                        }
+
+                        Info<< nl << endl;
+                    }
+                }
+
+                if (hadError)
+                {
+                    // Restore previous state
+                    FatalError.throwing(oldThrowingError);
+                    FatalIOError.throwing(oldThrowingIOerr);
+                    continue;
+                }
+
+                // write()
+                try
+                {
+                    addProfiling
+                    (
+                        fo,
+                        "functionObject::" + objName + ":write"
+                    );
+
+                    ok = funcObj.write() && ok;
+                }
+                catch (const error& err)
+                {
+                    // Treat IOerror and error identically
+                    uint32_t nWarnings;
+
+                    if
+                    (
+                        errorHandling != errorHandlingType::IGNORE
+                     && (nWarnings = ++warnings_(objName)) <= maxWarnings
+                    )
+                    {
+                        // Trickery to get original message
+                        err.write(Warning, false);
+                        Info<< nl
+                            << "--> write() function object '"
+                            << objName << "'";
+
+                        if (nWarnings == maxWarnings)
+                        {
+                            Info<< nl << "... silencing further warnings";
+                        }
+
+                        Info<< nl << endl;
+                    }
+                }
+
+                // Restore previous state
+                FatalError.throwing(oldThrowingError);
+                FatalIOError.throwing(oldThrowingIOerr);
+            }
+            else
+            {
+                // No special trapping of errors
+
+                // execute()
+                {
+                    addProfiling
+                    (
+                        fo,
+                        "functionObject::" + objName + "::execute"
+                    );
+
+                    ok = funcObj.execute() && ok;
+                }
+
+                // write()
+                {
+                    addProfiling
+                    (
+                        fo,
+                        "functionObject::" + objName + ":write"
+                    );
+
+                    ok = funcObj.write() && ok;
+                }
+            }
+        }
+    }
+
+    // Force writing of properties dictionary after function object execution
+    if (time_.writeTime())
+    {
+        const auto oldPrecision = IOstream::precision_;
+        IOstream::precision_ = 16;
+
+        propsDictPtr_->writeObject
+        (
+            IOstreamOption(IOstream::ASCII, time_.writeCompression()),
+            true
+        );
+
+        IOstream::precision_ = oldPrecision;
+    }
+
+    return ok;
+}
+
+
+bool functionObjectList::execute(const label subIndex)
+{
+    bool ok = execution_;
+
+    if (ok)
+    {
+        for (functionObject& funcObj : functions())
+        {
+            // Probably do not need try/catch...
+
+            ok = funcObj.execute(subIndex) && ok;
+        }
+    }
+
+    return ok;
+}
+
+
+bool functionObjectList::execute
+(
+    const UList<wordRe>& functionNames,
+    const label subIndex
+)
+{
+    bool ok = execution_;
+
+    if (ok && functionNames.size())
+    {
+        for (functionObject& funcObj : functions())
+        {
+            if (stringOps::match(functionNames, funcObj.name()))
+            {
+                // Probably do not need try/catch...
+
+                ok = funcObj.execute(subIndex) && ok;
+            }
         }
     }
 
@@ -519,9 +849,55 @@ bool functionObjectList::end()
             read();
         }
 
-        forAll(*this, objectI)
+        auto errIter = errorHandling_.cbegin();
+
+        for (functionObject& funcObj : functions())
         {
-            ok = operator[](objectI).end() && ok;
+            const errorHandlingType errorHandling = *errIter;
+            ++errIter;
+
+            const word& objName = funcObj.name();
+
+            // Ignore failure on end() - not much we can do anyhow
+
+            // Throw FatalError, FatalIOError as exceptions
+            const bool oldThrowingError = FatalError.throwing(true);
+            const bool oldThrowingIOerr = FatalIOError.throwing(true);
+
+            try
+            {
+                addProfiling(fo, "functionObject::" + objName + "::end");
+                ok = funcObj.end() && ok;
+            }
+            catch (const error& err)
+            {
+                // Treat IOerror and error identically
+                uint32_t nWarnings;
+
+                if
+                (
+                    errorHandling != errorHandlingType::IGNORE
+                 && (nWarnings = ++warnings_(objName)) <= maxWarnings
+                )
+                {
+                    // Trickery to get original message
+                    err.write(Warning, false);
+                    Info<< nl
+                        << "--> end() function object '"
+                        << objName << "'";
+
+                    if (nWarnings == maxWarnings)
+                    {
+                        Info<< nl << "... silencing further warnings";
+                    }
+
+                    Info<< nl << endl;
+                }
+            }
+
+            // Restore previous state
+            FatalError.throwing(oldThrowingError);
+            FatalIOError.throwing(oldThrowingIOerr);
         }
     }
 
@@ -540,9 +916,19 @@ bool functionObjectList::adjustTimeStep()
             read();
         }
 
-        forAll(*this, objectI)
+        for (functionObject& funcObj : functions())
         {
-            ok = operator[](objectI).adjustTimeStep() && ok;
+            const word& objName = funcObj.name();
+
+            // Probably do not need try/catch...
+
+            addProfiling
+            (
+                fo,
+                "functionObject::" + objName + "::adjustTimeStep"
+            );
+
+            ok = funcObj.adjustTimeStep() && ok;
         }
     }
 
@@ -552,7 +938,11 @@ bool functionObjectList::adjustTimeStep()
 
 bool functionObjectList::read()
 {
-    bool ok = true;
+    if (!propsDictPtr_)
+    {
+        createPropertiesDict();
+    }
+
     updated_ = execution_;
 
     // Avoid reading/initializing if execution is off
@@ -562,153 +952,274 @@ bool functionObjectList::read()
     }
 
     // Update existing and add new functionObjects
-    const entry* entryPtr = parentDict_.lookupEntryPtr
-    (
-        "functions",
-        false,
-        false
-    );
+    const entry* entryPtr =
+        parentDict_.findEntry("functions", keyType::LITERAL);
 
-    if (entryPtr)
+    bool ok = true;
+
+    if (!entryPtr)
     {
-        PtrList<functionObject> newPtrs;
-        List<SHA1Digest> newDigs;
-        HashTable<label> newIndices;
-
-        label nFunc = 0;
-
-        if (!entryPtr->isDict())
-        {
-            FatalIOErrorInFunction(parentDict_)
-                << "'functions' entry is not a dictionary"
-                << exit(FatalIOError);
-        }
-
+        // No functions
+        PtrList<functionObject>::clear();
+        errorHandling_.clear();
+        digests_.clear();
+        indices_.clear();
+        warnings_.clear();
+    }
+    else if (!entryPtr->isDict())
+    {
+        // Bad entry type
+        ok = false;
+        FatalIOErrorInFunction(parentDict_)
+            << "'functions' entry is not a dictionary"
+            << exit(FatalIOError);
+    }
+    else
+    {
         const dictionary& functionsDict = entryPtr->dict();
 
-        const_cast<Time&>(time_).libs().open
+        PtrList<functionObject> newPtrs(functionsDict.size());
+        List<SHA1Digest> newDigs(functionsDict.size());
+
+        errorHandling_.resize
+        (
+            functionsDict.size(),
+            errorHandlingType::DEFAULT
+        );
+
+        HashTable<label> newIndices;
+
+        addProfiling(fo, "functionObjects::read");
+
+        // Top-level "libs" specification (optional)
+        time_.libs().open
         (
             functionsDict,
             "libs",
             functionObject::dictionaryConstructorTablePtr_
         );
 
-        newPtrs.setSize(functionsDict.size());
-        newDigs.setSize(functionsDict.size());
+        // Top-level "errors" specification (optional)
+        const errorHandlingType errorHandlingFallback =
+            getOrDefaultErrorHandling
+            (
+                "errors",
+                functionsDict,
+                errorHandlingType::DEFAULT
+            );
 
-        forAllConstIter(dictionary, functionsDict, iter)
+        label nFunc = 0;
+
+        for (const entry& dEntry : functionsDict)
         {
-            const word& key = iter().keyword();
+            const word& key = dEntry.keyword();
 
-            if (!iter().isDict())
+            if (!dEntry.isDict())
             {
-                if (key != "libs")
+                // Handle or ignore some known/expected keywords
+
+                if (key == "useNamePrefix")  // As per functionObject
+                {
+                    Switch sw(dEntry.stream().peekFirst());
+                    if (sw.good())
+                    {
+                        functionObject::defaultUseNamePrefix = sw;
+                    }
+                    else
+                    {
+                        IOWarningInFunction(parentDict_)
+                            << "Entry '" << key << "' is not a valid switch"
+                            << endl;
+                    }
+                }
+                else if (key != "errors" && key != "libs")
                 {
                     IOWarningInFunction(parentDict_)
-                        << "Entry " << key << " is not a dictionary" << endl;
+                        << "Entry '" << key << "' is not a dictionary"
+                        << endl;
                 }
 
                 continue;
             }
 
-            const dictionary& dict = iter().dict();
-            bool enabled = dict.lookupOrDefault("enabled", true);
+            const dictionary& dict = dEntry.dict();
+
+            bool enabled = dict.getOrDefault("enabled", true);
+
+            // Per-function "errors" specification
+            const errorHandlingType errorHandling =
+                getOrDefaultErrorHandling
+                (
+                    "errors",
+                    dict,
+                    errorHandlingFallback
+                );
+
+            errorHandling_[nFunc] = errorHandling;
 
             newDigs[nFunc] = dict.digest();
 
-            label oldIndex;
-            functionObject* objPtr = remove(key, oldIndex);
+            label oldIndex = -1;
+            autoPtr<functionObject> objPtr = remove(key, oldIndex);
+
+            const bool needsTimeControl =
+                functionObjects::timeControl::entriesPresent(dict);
 
             if (objPtr)
             {
-                if (enabled)
+                // Existing functionObject:
+                // Re-read if dictionary content changed and did not
+                // change timeControl <-> regular
+
+                if (enabled && newDigs[nFunc] != digests_[oldIndex])
                 {
-                    // Dictionary changed for an existing functionObject
-                    if (newDigs[nFunc] != digests_[oldIndex])
+                    const bool wasTimeControl =
+                        isA<functionObjects::timeControl>(*objPtr);
+
+                    if (needsTimeControl != wasTimeControl)
                     {
-                        ok = objPtr->read(dict) && ok;
+                        // Changed from timeControl <-> regular
+
+                        // Fallthrough to 'new'
+                        objPtr.reset(nullptr);
+                    }
+                    else
+                    {
+                        // Normal read. Assume no errors to trap
+
+                        addProfiling
+                        (
+                            fo,
+                            "functionObject::" + objPtr->name() + "::read"
+                        );
+
+                        enabled = objPtr->read(dict);
                     }
                 }
-                else
+
+                if (!enabled)
                 {
-                    // Delete the disabled functionObject
-                    delete objPtr;
-                    objPtr = nullptr;
+                    // Delete disabled or an invalid(read) functionObject
+                    objPtr.reset(nullptr);
                     continue;
                 }
             }
-            else if (enabled)
-            {
-                autoPtr<functionObject> foPtr;
 
-                FatalError.throwExceptions();
-                FatalIOError.throwExceptions();
+            if (enabled && !objPtr)
+            {
+                // Throw FatalError, FatalIOError as exceptions
+                const bool oldThrowingError = FatalError.throwing(true);
+                const bool oldThrowingIOerr = FatalIOError.throwing(true);
+
                 try
                 {
-                    if
+                    // New functionObject
+                    addProfiling
                     (
-                        dict.found("writeControl")
-                     || dict.found("outputControl")
-                    )
+                        fo,
+                        "functionObject::" + key + "::new"
+                    );
+                    if (needsTimeControl)
                     {
-                        foPtr.set
+                        objPtr.reset
                         (
                             new functionObjects::timeControl(key, time_, dict)
                         );
                     }
                     else
                     {
-                        foPtr = functionObject::New(key, time_, dict);
+                        objPtr = functionObject::New(key, time_, dict);
                     }
                 }
-                catch (IOerror& ioErr)
+                catch (const error& err)
                 {
-                    Info<< ioErr << nl << endl;
-                    ::exit(1);
-                }
-                catch (error& err)
-                {
-                    WarningInFunction
-                        << "Caught FatalError " << err << nl << endl;
-                }
-                FatalError.dontThrowExceptions();
-                FatalIOError.dontThrowExceptions();
+                    objPtr.reset(nullptr);  // extra safety
 
-                if (foPtr.valid())
-                {
-                    objPtr = foPtr.ptr();
+                    switch (errorHandling)
+                    {
+                        case errorHandlingType::IGNORE:
+                            break;
+
+                        case errorHandlingType::STRICT:
+                        {
+                            exitNow(err);
+                            break;
+                        }
+
+                        case errorHandlingType::DEFAULT:
+                        {
+                            if (isA<IOerror>(err))
+                            {
+                                // Fatal for Foam::IOerror
+                                exitNow(err);
+                                break;
+                            }
+
+                            // Emit warning otherwise
+                            [[fallthrough]];
+                        }
+
+                        case errorHandlingType::WARN:
+                        {
+                            // Trickery to get original message
+                            err.write(Warning, false);
+                            Info<< nl
+                                << "--> loading function object '"
+                                << key << "'"
+                                << nl << endl;
+                            break;
+                        }
+                    }
                 }
-                else
+
+                // Restore previous state
+                FatalError.throwing(oldThrowingError);
+                FatalIOError.throwing(oldThrowingIOerr);
+
+                // Require valid functionObject on all processors
+                if (!returnReduce(bool(objPtr), andOp<bool>()))
                 {
+                    objPtr.reset(nullptr);
                     ok = false;
                 }
             }
 
-            // Insert active functionObjects into the list
+            // Insert active functionObject into the list
             if (objPtr)
             {
                 newPtrs.set(nFunc, objPtr);
                 newIndices.insert(key, nFunc);
-                nFunc++;
+                ++nFunc;
             }
         }
 
-        newPtrs.setSize(nFunc);
-        newDigs.setSize(nFunc);
+        newPtrs.resize(nFunc);
+        newDigs.resize(nFunc);
+        errorHandling_.resize(nFunc);
 
-        // Updating the PtrList of functionObjects deletes any
+        // Updating PtrList of functionObjects deletes any
         // existing unused functionObjects
         PtrList<functionObject>::transfer(newPtrs);
         digests_.transfer(newDigs);
         indices_.transfer(newIndices);
-    }
-    else
-    {
-        PtrList<functionObject>::clear();
-        digests_.clear();
-        indices_.clear();
+        warnings_.clear();
     }
 
+    return ok;
+}
+
+
+bool functionObjectList::filesModified() const
+{
+    bool ok = false;
+    if (execution_)
+    {
+        for (const functionObject& funcObj : functions())
+        {
+            bool changed = funcObj.filesModified();
+            ok = ok || changed;
+        }
+    }
     return ok;
 }
 
@@ -717,9 +1228,9 @@ void functionObjectList::updateMesh(const mapPolyMesh& mpm)
 {
     if (execution_)
     {
-        forAll(*this, objectI)
+        for (functionObject& funcObj : functions())
         {
-            operator[](objectI).updateMesh(mpm);
+            funcObj.updateMesh(mpm);
         }
     }
 }
@@ -729,12 +1240,14 @@ void functionObjectList::movePoints(const polyMesh& mesh)
 {
     if (execution_)
     {
-        forAll(*this, objectI)
+        for (functionObject& funcObj : functions())
         {
-            operator[](objectI).movePoints(mesh);
+            funcObj.movePoints(mesh);
         }
     }
 }
 
 
 // ************************************************************************* //
+
+ } // End namespace Foam

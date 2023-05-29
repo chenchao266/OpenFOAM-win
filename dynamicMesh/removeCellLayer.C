@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2018-2019 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -153,9 +156,9 @@ void Foam::layerAdditionRemoval::removeCellLayer
         }
     }
 
-    forAllConstIter(labelHashSet, facesToRemoveMap, iter)
+    for (const label facei : facesToRemoveMap)
     {
-        ref.setAction(polyRemoveFace(iter.key()));
+        ref.setAction(polyRemoveFace(facei));
     }
 
     // Remove all points that will be collapsed
@@ -219,10 +222,9 @@ void Foam::layerAdditionRemoval::removeCellLayer
 
         forAll(newFace, pointi)
         {
-            Map<label>::iterator rpmIter =
-                removedPointMap.find(newFace[pointi]);
+            const auto rpmIter = removedPointMap.cfind(newFace[pointi]);
 
-            if (rpmIter != removedPointMap.end())
+            if (rpmIter.found())
             {
                 // Point mapped. Replace it
                 newFace[pointi] = rpmIter();
@@ -394,8 +396,12 @@ void Foam::layerAdditionRemoval::removeCellLayer
                 << " flipFace: " << flipFace
                 << " newPatchID: " << newPatchID
                 << " newZoneID: " << newZoneID << nl
-                << " oldOwn: " << own[mf[facei]]
-                << " oldNei: " << nei[mf[facei]] << endl;
+                << " oldOwn: " << own[mf[facei]];
+            if (newPatchID == -1)
+            {
+                Pout<< " oldNei: " << nei[mf[facei]];
+            }
+            Pout<< endl;
         }
 
         ref.setAction

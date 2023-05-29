@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2019 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -27,26 +30,25 @@ License
 #include "addToRunTimeSelectionTable.H"
 #include "polyBoundaryMesh.H"
 #include "polyMesh.H"
-#include "demandDrivenData.H"
 #include "OFstream.H"
 #include "patchZones.H"
 #include "matchPoints.H"
-#include "Time.T.H"
+#include "Time1.h"
 #include "transformList.H"
 #include "cyclicPolyPatch.H"
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
- 
+
 namespace Foam
 {
     defineTypeNameAndDebug(oldCyclicPolyPatch, 0);
 
     addToRunTimeSelectionTable(polyPatch, oldCyclicPolyPatch, word);
     addToRunTimeSelectionTable(polyPatch, oldCyclicPolyPatch, dictionary);
-}
+ 
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
-namespace Foam {
+
 pointField oldCyclicPolyPatch::calcFaceCentres
 (
     const UList<face>& faces,
@@ -92,9 +94,9 @@ label oldCyclicPolyPatch::findMaxArea
 
     forAll(faces, facei)
     {
-        scalar areaSqr = magSqr(faces[facei].normal(points));
+        scalar areaSqr = magSqr(faces[facei].areaNormal(points));
 
-        if (areaSqr > maxAreaSqr)
+        if (maxAreaSqr < areaSqr)
         {
             maxAreaSqr = areaSqr;
             maxI = facei;
@@ -276,10 +278,8 @@ bool oldCyclicPolyPatch::getGeometricHalves
 
         return false;
     }
-    else
-    {
-        return true;
-    }
+
+    return true;
 }
 
 
@@ -308,10 +308,17 @@ void oldCyclicPolyPatch::getCentresAndAnchors
             label face0 = getConsistentRotationFace(half0Ctrs);
             label face1 = getConsistentRotationFace(half1Ctrs);
 
-            vector n0 = ((half0Ctrs[face0] - rotationCentre_) ^ rotationAxis_);
-            vector n1 = ((half1Ctrs[face1] - rotationCentre_) ^ -rotationAxis_);
-            n0 /= mag(n0) + VSMALL;
-            n1 /= mag(n1) + VSMALL;
+            const vector n0 =
+                normalised
+                (
+                    (half0Ctrs[face0] - rotationCentre_) ^ rotationAxis_
+                );
+
+            const vector n1 =
+                normalised
+                (
+                    (half1Ctrs[face1] - rotationCentre_) ^ -rotationAxis_
+                );
 
             if (debug)
             {
@@ -359,12 +366,10 @@ void oldCyclicPolyPatch::getCentresAndAnchors
             // Determine the face with max area on both halves. These
             // two faces are used to determine the transformation tensors
             label max0I = findMaxArea(pp.points(), half0Faces);
-            vector n0 = half0Faces[max0I].normal(pp.points());
-            n0 /= mag(n0) + VSMALL;
+            const vector n0 = half0Faces[max0I].unitNormal(pp.points());
 
             label max1I = findMaxArea(pp.points(), half1Faces);
-            vector n1 = half1Faces[max1I].normal(pp.points());
-            n1 /= mag(n1) + VSMALL;
+            const vector n1 = half1Faces[max1I].unitNormal(pp.points());
 
             if (mag(n0 & n1) < 1-matchTolerance())
             {
@@ -497,7 +502,7 @@ bool oldCyclicPolyPatch::matchAnchors
                     << "Patch:" << name() << " : "
                     << "Cannot find point on face " << f
                     << " with vertices:"
-                    << UIndirectList<point>(pp.points(), f)()
+                    << UIndirectList<point>(pp.points(), f)
                     << " that matches point " << wantedAnchor
                     << " when matching the halves of cyclic patch " << name()
                     << endl
@@ -567,7 +572,9 @@ oldCyclicPolyPatch::oldCyclicPolyPatch
     const polyBoundaryMesh& bm,
     const word& patchType,
     const transformType transform
-) :    coupledPolyPatch(name, size, start, index, bm, patchType, transform),
+)
+:
+    coupledPolyPatch(name, size, start, index, bm, patchType, transform),
     featureCos_(0.9),
     rotationAxis_(Zero),
     rotationCentre_(Zero),
@@ -582,7 +589,9 @@ oldCyclicPolyPatch::oldCyclicPolyPatch
     const label index,
     const polyBoundaryMesh& bm,
     const word& patchType
-) :    coupledPolyPatch(name, dict, index, bm, patchType),
+)
+:
+    coupledPolyPatch(name, dict, index, bm, patchType),
     featureCos_(0.9),
     rotationAxis_(Zero),
     rotationCentre_(Zero),
@@ -590,10 +599,8 @@ oldCyclicPolyPatch::oldCyclicPolyPatch
 {
     if (dict.found("neighbourPatch"))
     {
-        FatalIOErrorInFunction
-        (
-            dict
-        )   << "Found \"neighbourPatch\" entry when reading cyclic patch "
+        FatalIOErrorInFunction(dict)
+            << "Found \"neighbourPatch\" entry when reading cyclic patch "
             << name << endl
             << "Is this mesh already with split cyclics?" << endl
             << "If so run a newer version that supports it"
@@ -607,13 +614,13 @@ oldCyclicPolyPatch::oldCyclicPolyPatch
     {
         case ROTATIONAL:
         {
-            dict.lookup("rotationAxis") >> rotationAxis_;
-            dict.lookup("rotationCentre") >> rotationCentre_;
+            dict.readEntry("rotationAxis", rotationAxis_);
+            dict.readEntry("rotationCentre", rotationCentre_);
             break;
         }
         case TRANSLATIONAL:
         {
-            dict.lookup("separationVector") >> separationVector_;
+            dict.readEntry("separationVector", separationVector_);
             break;
         }
         default:
@@ -628,7 +635,9 @@ oldCyclicPolyPatch::oldCyclicPolyPatch
 (
     const oldCyclicPolyPatch& pp,
     const polyBoundaryMesh& bm
-) :    coupledPolyPatch(pp, bm),
+)
+:
+    coupledPolyPatch(pp, bm),
     featureCos_(pp.featureCos_),
     rotationAxis_(pp.rotationAxis_),
     rotationCentre_(pp.rotationCentre_),
@@ -643,7 +652,9 @@ oldCyclicPolyPatch::oldCyclicPolyPatch
     const label index,
     const label newSize,
     const label newStart
-) :    coupledPolyPatch(pp, bm, index, newSize, newStart),
+)
+:
+    coupledPolyPatch(pp, bm, index, newSize, newStart),
     featureCos_(pp.featureCos_),
     rotationAxis_(pp.rotationAxis_),
     rotationCentre_(pp.rotationCentre_),
@@ -1196,7 +1207,7 @@ bool oldCyclicPolyPatch::order
         rotation
     );
 
-    // Return false if no change neccesary, true otherwise.
+    // Return false if no change necessary, true otherwise.
 
     forAll(faceMap, facei)
     {
@@ -1213,28 +1224,24 @@ bool oldCyclicPolyPatch::order
 void oldCyclicPolyPatch::write(Ostream& os) const
 {
     // Replacement of polyPatch::write to write 'cyclic' instead of type():
-    os.writeKeyword("type") << cyclicPolyPatch::typeName
-        << token::END_STATEMENT << nl;
+    os.writeEntry("type", cyclicPolyPatch::typeName);
     patchIdentifier::write(os);
-    os.writeKeyword("nFaces") << size() << token::END_STATEMENT << nl;
-    os.writeKeyword("startFace") << start() << token::END_STATEMENT << nl;
+    os.writeEntry("nFaces", size());
+    os.writeEntry("startFace", start());
 
 
-    os.writeKeyword("featureCos") << featureCos_ << token::END_STATEMENT << nl;
+    os.writeEntry("featureCos", featureCos_);
     switch (transform())
     {
         case ROTATIONAL:
         {
-            os.writeKeyword("rotationAxis") << rotationAxis_
-                << token::END_STATEMENT << nl;
-            os.writeKeyword("rotationCentre") << rotationCentre_
-                << token::END_STATEMENT << nl;
+            os.writeEntry("rotationAxis", rotationAxis_);
+            os.writeEntry("rotationCentre", rotationCentre_);
             break;
         }
         case TRANSLATIONAL:
         {
-            os.writeKeyword("separationVector") << separationVector_
-                << token::END_STATEMENT << nl;
+            os.writeEntry("separationVector", separationVector_);
             break;
         }
         default:

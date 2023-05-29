@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2013 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2013 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -57,22 +59,13 @@ void fvMatrix<scalar>::setComponentReference
 );
 
 template<>
-autoPtr<fvMatrix<scalar>::fvSolver> fvMatrix<scalar>::solver
-(
-    const dictionary&
-);
+autoPtr<fvMatrix<scalar>::fvSolver> fvMatrix<scalar>::solver(const dictionary&);
 
 template<>
-solverPerformance fvMatrix<scalar>::fvSolver::solve
-(
-    const dictionary&
-);
+solverPerformance fvMatrix<scalar>::fvSolver::solve(const dictionary&);
 
 template<>
-solverPerformance fvMatrix<scalar>::solveSegregated
-(
-    const dictionary&
-);
+solverPerformance fvMatrix<scalar>::solveSegregated(const dictionary&);
 
 template<>
 tmp<scalarField> fvMatrix<scalar>::residual() const;

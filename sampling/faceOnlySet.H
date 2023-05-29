@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -25,6 +27,16 @@ Class
     Foam::faceOnlySet
 
 Description
+    Sample on faces along a specified path
+
+    For a dictionary specification:
+    \table
+        Property | Description                             | Required | Default
+        type     | face                                    | yes      |
+        axis     | x, y, z, xyz, distance                  | yes      |
+        start    | The start point                         | yes      |
+        end      | The end point                           | yes      |
+    \endtable
 
 SourceFiles
     faceOnlySet.C
@@ -35,7 +47,7 @@ SourceFiles
 #define faceOnlySet_H
 
 #include "sampledSet.H"
-#include "DynamicList.T.H"
+#include "DynamicList.H"
 #include "passiveParticleCloud.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
@@ -129,7 +141,7 @@ public:
 
 
     //- Destructor
-    virtual ~faceOnlySet();
+    virtual ~faceOnlySet() = default;
 
 
     // Member Functions

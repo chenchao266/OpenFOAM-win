@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2014-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2014-2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -25,13 +27,14 @@ Class
     Foam::fixedNormalInletOutletVelocityFvPatchVectorField
 
 Group
-    grpInletletBoundaryConditions grpOutletBoundaryConditions
+    grpInletBoundaryConditions grpOutletBoundaryConditions
 
 Description
-
     This velocity inlet/outlet boundary condition combines a fixed normal
     component obtained from the "normalVelocity" patchField supplied with a
-    fixed or zero-gradiented tangential component depending on the direction
+    fixed or zero-gradiented tangential component.
+
+    The tangential component is set depending on the direction
     of the flow and the setting of "fixTangentialInflow":
     - Outflow: apply zero-gradient condition to tangential components
     - Inflow:
@@ -103,7 +106,9 @@ class fixedNormalInletOutletVelocityFvPatchVectorField
 :
     public directionMixedFvPatchVectorField
 {
-    // Private data
+protected:
+
+    // Protected data
 
         //- Flux field name
         word phiName_;

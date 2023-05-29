@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -25,7 +28,6 @@ License
 
 #include "meshToMesh0.H"
 #include "processorFvPatch.H"
-#include "demandDrivenData.H"
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
 
@@ -55,7 +57,7 @@ Foam::meshToMesh0::meshToMesh0
     inverseDistanceWeightsPtr_(nullptr),
     inverseVolumeWeightsPtr_(nullptr),
     cellToCellAddressingPtr_(nullptr),
-    V_(0.0)
+    V_(0)
 {
     forAll(fromMesh_.boundaryMesh(), patchi)
     {
@@ -123,7 +125,7 @@ Foam::meshToMesh0::meshToMesh0
     inverseDistanceWeightsPtr_(nullptr),
     inverseVolumeWeightsPtr_(nullptr),
     cellToCellAddressingPtr_(nullptr),
-    V_(0.0)
+    V_(0)
 {
     // check whether both meshes have got the same number
     // of boundary patches
@@ -186,16 +188,6 @@ Foam::meshToMesh0::meshToMesh0
     }
 
     calcAddressing();
-}
-
-
-// * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
-
-Foam::meshToMesh0::~meshToMesh0()
-{
-    deleteDemandDrivenData(inverseDistanceWeightsPtr_);
-    deleteDemandDrivenData(inverseVolumeWeightsPtr_);
-    deleteDemandDrivenData(cellToCellAddressingPtr_);
 }
 
 

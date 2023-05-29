@@ -1,9 +1,12 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2015-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2015-2017 OpenFOAM Foundation
+    Copyright (C) 2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -44,34 +47,48 @@ namespace Foam
 {
 
 /*---------------------------------------------------------------------------*\
-                           Class localIOdictionary Declaration
+                      Class localIOdictionary Declaration
 \*---------------------------------------------------------------------------*/
 
-class localIOdictionary :    public baseIOdictionary
+class localIOdictionary
+:
+    public baseIOdictionary
 {
-
 public:
 
     // Constructors
 
         //- Construct given an IOobject
-        localIOdictionary(const IOobject& io);
+        //- and optional fallback dictionary content
+        //  A null dictionary pointer is treated like an empty dictionary.
+        explicit localIOdictionary
+        (
+            const IOobject& io,
+            const dictionary* fallback = nullptr
+        );
 
-        //- Construct given an IOobject and dictionary
+        //- Construct given an IOobject and fallback dictionary content
         localIOdictionary(const IOobject& io, const dictionary& dict);
+
+        //- Construct given an IOobject, wanted typeName
+        //- and optional fallback dictionary content
+        //  A null dictionary pointer is treated like an empty dictionary.
+        localIOdictionary
+        (
+            const IOobject& io,
+            const word& wantedType,
+            const dictionary* fallback = nullptr
+        );
 
         //- Construct given an IOobject and Istream
         localIOdictionary(const IOobject& io, Istream& is);
 
-        //- Construct given an IOobject, supply wanted typeName
-        localIOdictionary(const IOobject& io, const word& wantedType);
-
 
     //- Destructor
-    virtual ~localIOdictionary();
+    virtual ~localIOdictionary() = default;
 
 
-    // Member functions
+    // Member Functions
 
         //- Is object global
         virtual bool global() const
@@ -86,7 +103,6 @@ public:
             // Use default (local only) search strategy
             return localFilePath(type());
         }
-
 };
 
 

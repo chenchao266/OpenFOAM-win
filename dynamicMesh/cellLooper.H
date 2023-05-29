@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -49,17 +52,17 @@ SourceFiles
 #define cellLooper_H
 
 #include "edgeVertex.H"
-#include "vector.H"
+#include "vector2.H"
 #include "boolList.H"
 #include "scalarField.H"
-#include "DynamicList.T.H"
+#include "DynamicList.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 namespace Foam
 {
 
-// Forward declaration of classes
+// Forward Declarations
 class polyMesh;
 class plane;
 
@@ -71,7 +74,6 @@ class cellLooper
 :
     public edgeVertex
 {
-
 protected:
 
     // Protected Member Functions
@@ -104,15 +106,11 @@ protected:
         label getMisAlignedEdge(const vector& refDir, const label celli) const;
 
 
-private:
+        //- No copy construct
+        cellLooper(const cellLooper&) = delete;
 
-    // Private Member Functions
-
-        //- Disallow default bitwise copy construct
-        cellLooper(const cellLooper&);
-
-        //- Disallow default bitwise assignment
-        void operator=(const cellLooper&);
+        //- No copy assignment
+        void operator=(const cellLooper&) = delete;
 
 
 public:
@@ -138,14 +136,14 @@ public:
 
     // Constructors
 
-        //- Construct from components
-        cellLooper(const polyMesh& mesh);
+        //- Construct from mesh
+        explicit cellLooper(const polyMesh& mesh);
 
         //- Clone
         autoPtr<cellLooper> clone() const
         {
             NotImplemented;
-            return autoPtr<cellLooper>(nullptr);
+            return nullptr;
         }
 
 
@@ -160,7 +158,7 @@ public:
 
 
     //- Destructor
-    virtual ~cellLooper();
+    virtual ~cellLooper() = default;
 
 
     // Member Functions
@@ -168,7 +166,7 @@ public:
         //- Create cut along circumference of celli. Gets current mesh cuts
         //  vertIsCut, edgeIsCut, edgeWeight).
         //  Cut along circumference is expressed as cellVertCut,
-        //  cellEdgeToWeight. Returns true if succesfull. Still might not
+        //  cellEdgeToWeight. Returns true if successful. Still might not
         //  be compatible with existing cuts but this should be handled by
         //  caller).
         virtual bool cut
@@ -196,7 +194,6 @@ public:
             labelList& loop,
             scalarField& loopWeights
         ) const = 0;
-
 };
 
 

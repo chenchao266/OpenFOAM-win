@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2018 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -25,14 +28,10 @@ Class
     Foam::cuttingPlane
 
 Description
-    Constructs plane through mesh.
+    Constructs cutting plane through a mesh.
 
-    No attempt at resolving degenerate cases. Since the cut faces are
-    usually quite ugly, they will always be triangulated.
-
-Note
-    When the cutting plane coincides with a mesh face, the cell edge on the
-    positive side of the plane is taken.
+    No attempt at resolving degenerate cases.
+    Since the cut faces can be quite ugly, they will often be triangulated.
 
 SourceFiles
     cuttingPlane.C
@@ -43,71 +42,41 @@ SourceFiles
 #define cuttingPlane_H
 
 #include "plane.H"
-#include "pointField.H"
-#include "faceList.H"
-#include "MeshedSurface.T.H"
+#include "cuttingSurfaceBase.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 namespace Foam
 {
 
-class primitiveMesh;
+// Forward declarations
+class polyMesh;
 
 /*---------------------------------------------------------------------------*\
-                       Class cuttingPlane Declaration
+                        Class cuttingPlane Declaration
 \*---------------------------------------------------------------------------*/
 
 class cuttingPlane
 :
     public plane,
-    public MeshedSurface<face>
+    public cuttingSurfaceBase
 {
-    //- Private typedef for convenience
-    typedef MeshedSurface<face> MeshStorage;
-
-
-    // Private data
-
-        //- List of cells cut by the plane
-        labelList cutCells_;
-
-
     // Private Member Functions
 
         //- Determine cut cells, possibly restricted to a list of cells
-        void calcCutCells
-        (
-            const primitiveMesh&,
-            const scalarField& dotProducts,
-            const labelUList& cellIdLabels = labelUList::null()
-        );
-
-        //- Determine intersection points (cutPoints).
-        void intersectEdges
-        (
-            const primitiveMesh&,
-            const scalarField& dotProducts,
-            List<label>& edgePoint
-        );
-
-        //- Walk circumference of cell, starting from startEdgeI crossing
-        //  only cut edges. Record cutPoint labels in faceVerts.
-        static bool walkCell
-        (
-            const primitiveMesh&,
-            const labelUList& edgePoint,
-            const label celli,
-            const label startEdgeI,
-            DynamicList<label>& faceVerts
-        );
-
-        //- Determine cuts for all cut cells.
-        void walkCellCuts
+        //
+        //  \param sides [out] For each mesh point, the encoded side of the
+        //      plane (0=BACK, 1=ONPLANE, 2=FRONT).
+        //  \param cellCuts [in,out] On input an empty set (ie, no restriction)
+        //      or subsetted cells. On output, the cells cut according to the
+        //      plane-sides detection.
+        //
+        //  \return number of faces cut
+        label calcCellCuts
         (
             const primitiveMesh& mesh,
-            const bool triangulate,
-            const labelUList& edgePoint
+            PackedList<2>& sides,
+            bitSet& cellCuts
         );
 
 
@@ -115,22 +84,52 @@ protected:
 
     // Constructors
 
-        //- Construct plane description without cutting
-        cuttingPlane(const plane&);
+        //- Construct from a plane description without any cutting
+        cuttingPlane(const plane& pln);
 
 
     // Protected Member Functions
 
-        //- Recut mesh with existing planeDesc, restricted to a list of cells
-        void reCut
+        //- Cut mesh, restricted to a list of cells
+        using cuttingSurfaceBase::performCut;
+
+        //- Cut mesh, restricted to a list of cells
+        //  Reclaim memory for cellIdLabels
+        virtual void performCut
         (
-            const primitiveMesh&,
+            const primitiveMesh& mesh,
             const bool triangulate,
-            const labelUList& cellIdLabels = labelUList::null()
+            bitSet&& cellIdLabels
         );
 
-        //- Remap action on triangulation or cleanup
-        virtual void remapFaces(const labelUList& faceMap);
+
+        //- Check and warn if bounding boxes do not intersect,
+        //- and if the plane does not intersect the bounding boxes
+        void checkOverlap
+        (
+            const word callerName,
+            const boundBox& meshBounds,
+            const boundBox& userBounds
+        ) const;
+
+        //- Define cell selection from bounding-box and zones.
+        //
+        //  \param userBounds Optionally user-specified bounding box
+        //  \param zoneNames  Optionally user-specified zone names
+        //  \param warn Check and warn if the plane does not
+        //      intersect with the bounds of the mesh (or submesh) or
+        //      if the bounding box does not overlap with the mesh (or submesh)
+        //
+        //  \return A set of nCells size with the selected cells or an empty
+        //      set if no bounding-box or zones were specified.
+        bitSet cellSelection
+        (
+            const polyMesh& mesh,
+            const boundBox& userBounds,
+            const wordRes& zoneNames,
+            const word callerName,
+            const bool warn
+        ) const;
 
 
 public:
@@ -138,59 +137,61 @@ public:
     // Constructors
 
         //- Construct from plane and mesh reference,
-        //  possibly restricted to a list of cells
+        //- possibly restricted to a list of cells
         cuttingPlane
         (
-            const plane&,
-            const primitiveMesh&,
+            const plane& pln,
+            const primitiveMesh& mesh,
             const bool triangulate,
-            const labelUList& cellIdLabels = labelUList::null()
+            const bitSet& cellIdLabels = bitSet()
+        );
+
+        //- Construct from plane and mesh reference,
+        //- possibly restricted to a list of cells
+        cuttingPlane
+        (
+            const plane& pln,
+            const primitiveMesh& mesh,
+            const bool triangulate,
+            bitSet&& cellIdLabels
+        );
+
+        //- Construct from plane and mesh reference,
+        //- possibly restricted to a list of cells
+        cuttingPlane
+        (
+            const plane& pln,
+            const primitiveMesh& mesh,
+            const bool triangulate,
+            const labelUList& cellIdLabels
         );
 
 
     // Member Functions
 
-        //- Return plane used
+        //- The plane used.
         const plane& planeDesc() const
         {
-            return static_cast<const plane&>(*this);
+            return *this;
         }
 
-        //- Return List of cells cut by the plane
-        const labelList& cutCells() const
+        //- The plane used. Non-const access.
+        plane& planeDesc()
         {
-            return cutCells_;
+            return *this;
         }
-
-        //- Return true or false to question: have any cells been cut?
-        bool cut() const
-        {
-            return cutCells_.size();
-        }
-
-        //- Sample the cell field
-        template<class Type>
-        tmp<Field<Type>> sample(const Field<Type>&) const;
-
-        template<class Type>
-        tmp<Field<Type>> sample(const tmp<Field<Type>>&) const;
 
 
     // Member Operators
 
-        void operator=(const cuttingPlane&);
+        //- Copy assignment
+        void operator=(const cuttingPlane& rhs);
 };
 
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 } // End namespace Foam
-
-// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
-
-#ifdef NoRepository
-    #include "cuttingPlaneTemplates.C"
-#endif
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 

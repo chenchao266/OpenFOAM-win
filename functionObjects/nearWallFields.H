@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2015-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -28,51 +31,62 @@ Group
     grpFieldFunctionObjects
 
 Description
-    Samples near-patch volume fields.
+    Samples near-patch volume fields within an input distance range.
 
-    Fields are stored
-    - every time step the field is updated with new values
-    - at output it writes the fields
+    Operands:
+    \table
+      Operand        | Type             | Location
+      input          | vol\<Type\>Field | $FOAM_CASE/\<time\>/\<inpField\>
+      output file    | -                | -
+      output field   | vol\<Type\>Field | $FOAM_CASE/\<time\>/\<outField\>
+    \endtable
 
-    This functionObject can either be used
-    - to calculate a new field as a  post-processing step or
-    - since the fields are registered, used in another functionObject
+    where \c \<Type\>=Scalar/Vector/SphericalTensor/SymmTensor/Tensor.
 
-    Example of function object specification:
+Usage
+    Minimal example by using \c system/controlDict.functions:
     \verbatim
     nearWallFields1
     {
-        type        nearWallFields;
-        libs        ("libfieldFunctionObjects.so");
-
-        writeControl writeTime;
-
+        // Mandatory entries (unmodifiable)
+        type            nearWallFields;
+        libs            (fieldFunctionObjects);
         fields
         (
-            (p pNear)
-            (U UNear)
+            (<field1> <outField1>)
+            (<field2> <outField2>)
         );
+        patches         (<patch1> <patch2> ... <patchN>);
+        distance        0.01;
 
-        patches     (movingWall);
-
-        distance    0.13;
+        // Optional (inherited) entries
+        ...
     }
     \endverbatim
 
-Usage
+    where the entries mean:
     \table
-        Property | Description               | Required    | Default value
-        type     | type name: nearWallFields | yes         |
-        fields   | list of fields with correspoding output field names | yes |
-        patches  | list of patches to sample | yes         |
-        distance | distance from patch to sample | yes     |
+      Property     | Description                        | Type | Req'd  | Dflt
+      type         | Type name: nearWallFields          | word |  yes   | -
+      libs         | Library name: fieldFunctionObjects | word |  yes   | -
+      fields       | Names of input-output fields | wordHashTable | yes | -
+      patches      | Names of patches to sample       | wordList | yes  | -
+      distance | Wall-normal distance from patch to sample | scalar | yes  | -
     \endtable
 
+    The inherited entries are elaborated in:
+     - \link functionObject.H \endlink
+
+    Usage by the \c postProcess utility is not available.
+
 See also
-    Foam::functionObjects::fvMeshFunctionObject
+    - Foam::functionObject
+    - Foam::functionObjects::fvMeshFunctionObject
+    - ExtendedCodeGuide::functionObjects::field::nearWallFields
 
 SourceFiles
     nearWallFields.C
+    nearWallFieldsTemplates.C
 
 \*---------------------------------------------------------------------------*/
 
@@ -81,7 +95,7 @@ SourceFiles
 
 #include "fvMeshFunctionObject.H"
 #include "volFields.H"
-#include "Tuple2.T.H"
+#include "Tuple2.H"
 #include "interpolationCellPoint.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
@@ -101,11 +115,11 @@ class nearWallFields
 {
 protected:
 
-    // Protected member data
+    // Protected Data
 
         // Read from dictionary
 
-            //- Fields to process
+            //- Fields to process (input-name output-name)
             List<Tuple2<word, word>> fieldSet_;
 
             //- Patches to sample
@@ -168,14 +182,6 @@ protected:
         ) const;
 
 
-private:
-
-        //- Disallow default bitwise copy construct
-        nearWallFields(const nearWallFields&);
-
-        //- Disallow default bitwise assignment
-        void operator=(const nearWallFields&);
-
 public:
 
     //- Runtime type information
@@ -193,15 +199,21 @@ public:
             const dictionary& dict
         );
 
+        //- No copy construct
+        nearWallFields(const nearWallFields&) = delete;
+
+        //- No copy assignment
+        void operator=(const nearWallFields&) = delete;
+
 
     //- Destructor
-    virtual ~nearWallFields();
+    virtual ~nearWallFields() = default;
 
 
     // Member Functions
 
         //- Read the controls
-        virtual bool read(const dictionary&);
+        virtual bool read(const dictionary& dict);
 
         //- Calculate the near-wall fields
         virtual bool execute();

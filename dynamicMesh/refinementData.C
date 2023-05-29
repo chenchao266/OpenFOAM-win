@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011 OpenFOAM Foundation
+    Copyright (C) 2019-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -25,50 +28,53 @@ License
 
 #include "refinementData.H"
 
-// * * * * * * * * * * * * * * * Friend Operators  * * * * * * * * * * * * * //
+// * * * * * * * * * * * * * * * IOstream Operators  * * * * * * * * * * * * //
 
 Foam::Ostream& Foam::operator<<
 (
-    Foam::Ostream& os,
-    const Foam::refinementData& wDist
+    Ostream& os,
+    const refinementData& rhs
 )
 {
     if (os.format() == IOstream::ASCII)
     {
-        os << wDist.refinementCount_ << token::SPACE << wDist.count_;
+        os << rhs.refinementCount_ << token::SPACE << rhs.count_;
     }
     else
     {
         os.write
         (
-            reinterpret_cast<const char*>(&wDist.refinementCount_),
+            reinterpret_cast<const char*>(&rhs.refinementCount_),
             sizeof(refinementData)
         );
     }
 
-    // Check state of Ostream
-    os.check("Ostream& operator<<(Ostream&, const refinementData&)");
+    os.check(FUNCTION_NAME);
     return os;
 }
 
 
-Foam::Istream& Foam::operator>>(Foam::Istream& is, Foam::refinementData& wDist)
+Foam::Istream& Foam::operator>>
+(
+    Istream& is,
+    refinementData& rhs
+)
 {
     if (is.format() == IOstream::ASCII)
     {
-        is >> wDist.refinementCount_ >> wDist.count_;
+        is >> rhs.refinementCount_ >> rhs.count_;
     }
     else
     {
-        is.read
+        Detail::readContiguous<refinementData>
         (
-            reinterpret_cast<char*>(&wDist.refinementCount_),
+            is,
+            reinterpret_cast<char*>(&rhs.refinementCount_),
             sizeof(refinementData)
         );
     }
 
-    // Check state of Istream
-    is.check("Istream& operator>>(Istream&, refinementData&)");
+    is.check(FUNCTION_NAME);
     return is;
 }
 

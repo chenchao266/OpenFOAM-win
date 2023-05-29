@@ -1,9 +1,11 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -21,20 +23,22 @@ License
     You should have received a copy of the GNU General Public License
     along with OpenFOAM.  If not, see <http://www.gnu.org/licenses/>.
 
-Description
-
 \*---------------------------------------------------------------------------*/
 
 #include "IOstreams.H"
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
-namespace Foam {
+
+
+ namespace Foam{
 template<class Point, class PointRef, class polygonRef>
 inline pyramid<Point, PointRef, polygonRef>::pyramid
 (
     polygonRef base,
     const Point& apex
-) :    base_(base),
+)
+:
+    base_(base),
     apex_(apex)
 {}
 
@@ -43,7 +47,7 @@ template<class Point, class PointRef, class polygonRef>
 inline pyramid<Point, PointRef, polygonRef>::pyramid(Istream& is)
 {
     is >> base_ >> apex_;
-    is.check("pyramid::pyramid(Istream&)");
+    is.check(FUNCTION_NAME);
 }
 
 
@@ -65,7 +69,7 @@ inline polygonRef pyramid<Point, PointRef, polygonRef>::base() const
 template<class Point, class PointRef, class polygonRef>
 inline Point pyramid<Point, PointRef, polygonRef>::centre
 (
-    const pointField& points
+    const UList<point>& points
 ) const
 {
     return (3.0/4.0)*base_.centre(points) + (1.0/4.0)*apex_;
@@ -75,7 +79,7 @@ inline Point pyramid<Point, PointRef, polygonRef>::centre
 template<class Point, class PointRef, class polygonRef>
 inline vector pyramid<Point, PointRef, polygonRef>::height
 (
-    const pointField& points
+    const UList<point>& points
 ) const
 {
     // Height = apex - baseCentroid
@@ -86,10 +90,10 @@ inline vector pyramid<Point, PointRef, polygonRef>::height
 template<class Point, class PointRef, class polygonRef>
 inline scalar pyramid<Point, PointRef, polygonRef>::mag
 (
-    const pointField& points
+    const UList<point>& points
 ) const
 {
-    return (1.0/3.0)*(base_.normal(points)&(height(points)));
+    return (1.0/3.0)*(base_.areaNormal(points) & (height(points)));
 }
 
 
@@ -103,7 +107,7 @@ inline Istream& operator>>
 )
 {
     is  >> p.base_ >> p.apex_;
-    is.check("Istream& operator>>(Istream&, pyramid&)");
+    is.check(FUNCTION_NAME);
     return is;
 }
 
@@ -118,6 +122,8 @@ inline Ostream& operator<<
     os  << p.base_ << tab << p.apex_ << nl;
     return os;
 }
-}
+
 
 // ************************************************************************* //
+
+ } // End namespace Foam

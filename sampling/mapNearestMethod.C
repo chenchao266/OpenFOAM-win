@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2013-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2013-2016 OpenFOAM Foundation
+    Copyright (C) 2015-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -24,7 +27,7 @@ License
 \*---------------------------------------------------------------------------*/
 
 #include "mapNearestMethod.H"
-#include "pointIndexHit.H"
+#include "pointIndexHit2.H"
 #include "indexedOctree.H"
 #include "treeDataCell.H"
 #include "addToRunTimeSelectionTable.H"
@@ -287,8 +290,8 @@ Foam::label Foam::mapNearestMethod::findMappedSrcCell
     const List<DynamicList<label>>& tgtToSrc
 ) const
 {
-    DynamicList<label> testCells(10);
-    DynamicList<label> visitedCells(10);
+    DynamicList<label> testCells(16);
+    DynamicList<label> visitedCells(16);
 
     testCells.append(tgtCelli);
 
@@ -297,7 +300,7 @@ Foam::label Foam::mapNearestMethod::findMappedSrcCell
         // search target tgtCelli neighbours for match with source cell
         label tgtI = testCells.remove();
 
-        if (findIndex(visitedCells, tgtI) == -1)
+        if (!visitedCells.found(tgtI))
         {
             visitedCells.append(tgtI);
 
@@ -309,11 +312,11 @@ Foam::label Foam::mapNearestMethod::findMappedSrcCell
             {
                 const labelList& nbrCells = tgt_.cellCells()[tgtI];
 
-                forAll(nbrCells, i)
+                for (const label nbrCelli : nbrCells)
                 {
-                    if (findIndex(visitedCells, nbrCells[i]) == -1)
+                    if (!visitedCells.found(nbrCelli))
                     {
-                        testCells.append(nbrCells[i]);
+                        testCells.append(nbrCelli);
                     }
                 }
             }
@@ -349,8 +352,10 @@ void Foam::mapNearestMethod::calculate
 (
     labelListList& srcToTgtAddr,
     scalarListList& srcToTgtWght,
+    pointListList& srcToTgtVec,
     labelListList& tgtToSrcAddr,
-    scalarListList& tgtToSrcWght
+    scalarListList& tgtToSrcWght,
+    pointListList& tgtToSrcVec
 )
 {
     bool ok = initialise
@@ -371,7 +376,7 @@ void Foam::mapNearestMethod::calculate
 
     // list to keep track of whether src cell can be mapped
     boolList mapFlag(src_.nCells(), false);
-    UIndirectList<bool>(mapFlag, srcCellIDs) = true;
+    boolUIndList(mapFlag, srcCellIDs) = true;
 
     // find initial point in tgt mesh
     label srcSeedI = -1;

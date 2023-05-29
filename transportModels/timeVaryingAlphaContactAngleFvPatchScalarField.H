@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2013 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2013 OpenFOAM Foundation
+    Copyright (C) 2019 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -26,7 +29,7 @@ Class
 
 Description
     A time-varying alphaContactAngle scalar boundary condition
-    (alphaContactAngleFvPatchScalarField)
+    (alphaContactAngleTwoPhaseFvPatchScalarField)
 
 SourceFiles
     timeVaryingAlphaContactAngleFvPatchScalarField.C
@@ -36,7 +39,7 @@ SourceFiles
 #ifndef timeVaryingAlphaContactAngleFvPatchScalarField_H
 #define timeVaryingAlphaContactAngleFvPatchScalarField_H
 
-#include "alphaContactAngleFvPatchScalarField.H"
+#include "alphaContactAngleTwoPhaseFvPatchScalarField.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -49,7 +52,7 @@ namespace Foam
 
 class timeVaryingAlphaContactAngleFvPatchScalarField
 :
-    public alphaContactAngleFvPatchScalarField
+    public alphaContactAngleTwoPhaseFvPatchScalarField
 {
     // Private data
 
@@ -122,7 +125,7 @@ public:
         }
 
 
-    // Member functions
+    // Member Functions
 
         //- Evaluate and return the time-varying equilibrium contact-angle
         virtual tmp<scalarField> theta

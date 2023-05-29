@@ -1,9 +1,12 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2017-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -42,7 +45,6 @@ SourceFiles
 
 #include "zone.H"
 #include "faceZoneMeshFwd.H"
-#include "boolList.H"
 #include "primitiveFacePatch.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
@@ -50,69 +52,49 @@ SourceFiles
 namespace Foam
 {
 
+// Forward Declarations
 class mapPolyMesh;
-
-// Forward declaration of friend functions and operators
-
 class faceZone;
-Ostream& operator<<(Ostream&, const faceZone&);
+Ostream& operator<<(Ostream& os, const faceZone& zn);
 
 
 /*---------------------------------------------------------------------------*\
                           Class faceZone Declaration
 \*---------------------------------------------------------------------------*/
 
-class faceZone :    public zone
+class faceZone
+:
+    public zone
 {
-    // Private data
+    // Private Data
 
-        //- The name associated with the zone-labels dictionary entry
-        static const word labelsName_;
-
-
-    // Private Member Functions
-
-        //- Disallow default bitwise copy construct
-        faceZone(const faceZone&);
-
-        //- Disallow default bitwise assignment
-        void operator=(const faceZone&);
-
-
-protected:
-
-    // Protected data
-
-        //- Flip map for all faces in the zone.  Set to true if the
-        //  face needs to be flipped to achieve the correct orientation.
+        //- Flip map for all faces in the zone.
+        //  True if the face needs flipping for the correct orientation.
         boolList flipMap_;
 
         //- Reference to zone list
         const faceZoneMesh& zoneMesh_;
 
+        //- Demand-driven: Primitive patch of correctly flipped faces
+        mutable primitiveFacePatch* patchPtr_;
 
-        // Demand-driven private data
+        //- Demand-driven: Master cell layer
+        mutable labelList* masterCellsPtr_;
 
-            //- Primitive patch made out of correctly flipped faces
-            mutable primitiveFacePatch* patchPtr_;
+        //- Demand-driven: Slave cell layer
+        mutable labelList* slaveCellsPtr_;
 
-            //- Master cell layer
-            mutable labelList* masterCellsPtr_;
-
-            //- Slave cell layer
-            mutable labelList* slaveCellsPtr_;
-
-            //- Global edge addressing
-            mutable labelList* mePtr_;
+        //- Demand-driven: Global edge addressing
+        mutable labelList* mePtr_;
 
 
-    // Protected Member Functions
+    // Private Member Functions
+
+        //- Set flip-map to uniform value
+        void setFlipMap(const bool val);
 
         //- Build primitive patch
         void calcFaceZonePatch() const;
-
-        //- Return map of local face indices
-        const Map<label>& faceLookupMap() const;
 
         //- Calculate master and slave face layer
         void calcCellLayers() const;
@@ -121,11 +103,19 @@ protected:
         void checkAddressing() const;
 
 
+        //- No copy construct
+        faceZone(const faceZone&) = delete;
+
+        //- No copy assignment
+        void operator=(const faceZone&) = delete;
+
+
 public:
 
-    // Static data members
+    // Static Data Members
 
         //- The name associated with the zone-labels dictionary entry
+        //- ("faceLabels")
         static const char * const labelsName;
 
 
@@ -152,93 +142,118 @@ public:
 
     // Constructors
 
+        //- Construct an empty zone
+        faceZone
+        (
+            const word& name,
+            const label index,
+            const faceZoneMesh& zm
+        );
+
+        //- Construct from components with uniform flip map value
+        faceZone
+        (
+            const word& name,
+            const labelUList& addr,
+            const bool flipMapValue,
+            const label index,
+            const faceZoneMesh& zm
+        );
+
+        //- Construct from components with uniform flip map value,
+        //- transferring addressing.
+        faceZone
+        (
+            const word& name,
+            labelList&& addr,
+            const bool flipMapValue,
+            const label index,
+            const faceZoneMesh& zm
+        );
+
         //- Construct from components
         faceZone
         (
             const word& name,
             const labelUList& addr,
-            const boolList& fm,
+            const boolUList& fm,
             const label index,
             const faceZoneMesh& zm
         );
 
-        //- Construct from components, transferring contents
+        //- Construct from components, transferring addressing
         faceZone
         (
             const word& name,
-            const Xfer<labelList>& addr,
-            const Xfer<boolList>& fm,
+            labelList&& addr,
+            boolList&& fm,
             const label index,
-            const faceZoneMesh&
+            const faceZoneMesh& zm
         );
 
         //- Construct from dictionary
         faceZone
         (
             const word& name,
-            const dictionary&,
+            const dictionary& dict,
             const label index,
-            const faceZoneMesh&
+            const faceZoneMesh& zm
         );
 
-        //- Construct given the original zone and resetting the
-        //  face list and zone mesh information
+        //- Construct with a new index and zone mesh information, the name
+        //- of the original zone, resetting the face addressing
+        //- and flip-map.
         faceZone
         (
-            const faceZone&,
+            const faceZone& origZone,
             const labelUList& addr,
-            const boolList& fm,
+            const boolUList& fm,
             const label index,
-            const faceZoneMesh&
+            const faceZoneMesh& zm
         );
 
-        //- Construct given the original zone, resetting the
-        //  face list and zone mesh information
+        //- Construct with a new index and zone mesh information, the name
+        //- of the original zone, (move) resetting the face addressing
+        //- and flip-map.
         faceZone
         (
-            const faceZone&,
-            const Xfer<labelList>& addr,
-            const Xfer<boolList>& fm,
+            const faceZone& origZone,
+            labelList&& addr,
+            boolList&& fm,
             const label index,
-            const faceZoneMesh&
+            const faceZoneMesh& zm
         );
 
         //- Construct and return a clone, resetting the zone mesh
         virtual autoPtr<faceZone> clone(const faceZoneMesh& zm) const
         {
-            return autoPtr<faceZone>
-            (
-                new faceZone(*this, *this, flipMap(), index(), zm)
-            );
+            return autoPtr<faceZone>::New(*this, *this, flipMap(), index(), zm);
         }
 
-        //- Construct and return a clone, resetting the face list
-        //  and zone mesh
+        //- Construct and return a clone,
+        //- resetting the face list and zone mesh
         virtual autoPtr<faceZone> clone
         (
             const labelUList& addr,
-            const boolList& fm,
+            const boolUList& fm,
             const label index,
             const faceZoneMesh& zm
         ) const
         {
-            return autoPtr<faceZone>
-            (
-                new faceZone(*this, addr, fm, index, zm)
-            );
+            return autoPtr<faceZone>::New(*this, addr, fm, index, zm);
         }
 
 
     // Selectors
 
         //- Return a pointer to a new face zone
-        //  created on freestore from dictionary
+        //- created on freestore from dictionary
         static autoPtr<faceZone> New
         (
             const word& name,
-            const dictionary&,
+            const dictionary& dict,
             const label index,
-            const faceZoneMesh&
+            const faceZoneMesh& zm
         );
 
 
@@ -248,8 +263,14 @@ public:
 
     // Member Functions
 
+        //- Return reference to the zone mesh
+        const faceZoneMesh& zoneMesh() const noexcept
+        {
+            return zoneMesh_;
+        }
+
         //- Return face flip map
-        const boolList& flipMap() const
+        const boolList& flipMap() const noexcept
         {
             return flipMap_;
         }
@@ -260,52 +281,72 @@ public:
         //- Return reference to primitive patch
         const primitiveFacePatch& operator()() const;
 
-        //- Return zoneMesh reference
-        const faceZoneMesh& zoneMesh() const;
 
+    // Addressing into mesh
 
-        // Addressing into mesh
+        //- Return labels of master cells (cells next to the master face
+        //- zone in the prescribed direction)
+        const labelList& masterCells() const;
 
-            //- Return labels of master cells (cells next to the master face
-            //  zone in the prescribed direction)
-            const labelList& masterCells() const;
+        //- Return labels of slave cells
+        const labelList& slaveCells() const;
 
-            //- Return labels of slave cells
-            const labelList& slaveCells() const;
-
-            //- Return global edge index for local edges
-            const labelList& meshEdges() const;
+        //- Return global edge index for local edges
+        const labelList& meshEdges() const;
 
 
         //- Clear addressing
         virtual void clearAddressing();
 
-        //- Reset addressing and flip map (clearing demand-driven data)
-        virtual void resetAddressing(const labelUList&, const boolList&);
+        //- Reset addressing - use uniform flip map value
+        //  Clears demand-driven data.
+        virtual void resetAddressing
+        (
+            const labelUList& addr,
+            const bool flipMapValue
+        );
+
+        //- Reset addressing and flip map.
+        //  Clears demand-driven data.
+        virtual void resetAddressing
+        (
+            const labelUList& addr,
+            const boolUList& flipMap
+        );
+
+        //- Move reset addressing - use uniform flip map value
+        //  Clears demand-driven data.
+        virtual void resetAddressing
+        (
+            labelList&& addr,
+            const bool flipMapValue
+        );
+
 
         //- Check zone definition. Return true if in error.
         virtual bool checkDefinition(const bool report = false) const;
 
-        //- Check whether all procs have faces synchronised. Return
-        //  true if in error.
+        //- Check whether all procs have faces synchronised.
+        //  \return True if any errors.
         virtual bool checkParallelSync(const bool report = false) const;
 
         //- Correct patch after moving points
-        virtual void movePoints(const pointField&);
+        virtual void movePoints(const pointField& pts);
 
         //- Update for changes in topology
-        virtual void updateMesh(const mapPolyMesh&);
+        virtual void updateMesh(const mapPolyMesh& mpm);
 
         //- Write
-        virtual void write(Ostream&) const;
+        virtual void write(Ostream& os) const;
 
         //- Write dictionary
-        virtual void writeDict(Ostream&) const;
+        virtual void writeDict(Ostream& os) const;
+
 
     // I-O
 
         //- Ostream Operator
-        friend Ostream& operator<<(Ostream&, const faceZone&);
+        friend Ostream& operator<<(Ostream& os, const faceZone& zn);
 };
 
 

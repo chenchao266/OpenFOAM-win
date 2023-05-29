@@ -1,9 +1,11 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -71,8 +73,8 @@ class procLduInterface
 
     // Private Member Functions
 
-        //- Dissallow construction as copy
-        procLduInterface(const procLduInterface&);
+        //- No copy construct
+        procLduInterface(const procLduInterface&) = delete;
 
 
 public:
@@ -93,12 +95,12 @@ public:
         autoPtr<procLduInterface> clone()
         {
             NotImplemented;
-            return autoPtr<procLduInterface>(nullptr);
+            return nullptr;
         }
 
         static autoPtr<procLduInterface> New(Istream& is)
         {
-            return autoPtr<procLduInterface>(new procLduInterface(is));
+            return autoPtr<procLduInterface>::New(is);
         }
 
 

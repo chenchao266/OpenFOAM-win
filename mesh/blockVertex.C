@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2016 OpenFOAM Foundation
+    Copyright (C) 2019-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -38,14 +41,10 @@ namespace Foam
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
-Foam::blockVertex::blockVertex()
-{}
-
-
 Foam::autoPtr<Foam::blockVertex> Foam::blockVertex::clone() const
 {
     NotImplemented;
-    return autoPtr<blockVertex>(nullptr);
+    return nullptr;
 }
 
 
@@ -57,14 +56,11 @@ Foam::autoPtr<Foam::blockVertex> Foam::blockVertex::New
     Istream& is
 )
 {
-    if (debug)
-    {
-        InfoInFunction << "Constructing blockVertex" << endl;
-    }
+    DebugInFunction << "Constructing blockVertex" << endl;
 
     token firstToken(is);
 
-    if (firstToken.isPunctuation() && firstToken.pToken() == token::BEGIN_LIST)
+    if (firstToken.isPunctuation(token::BEGIN_LIST))
     {
         // Putback the opening bracket
         is.putBack(firstToken);
@@ -78,36 +74,38 @@ Foam::autoPtr<Foam::blockVertex> Foam::blockVertex::New
     {
         const word faceType(firstToken.wordToken());
 
-        IstreamConstructorTable::iterator cstrIter =
-            IstreamConstructorTablePtr_->find(faceType);
+        auto* ctorPtr = IstreamConstructorTable(faceType);
 
-        if (cstrIter == IstreamConstructorTablePtr_->end())
+        if (!ctorPtr)
         {
-            FatalErrorInFunction
-                << "Unknown blockVertex type "
-                << faceType << nl << nl
-                << "Valid blockVertex types are" << endl
-                << IstreamConstructorTablePtr_->sortedToc()
-                << abort(FatalError);
+            FatalIOErrorInLookup
+            (
+                dict,
+                "blockVertex",
+                faceType,
+                *IstreamConstructorTablePtr_
+            ) << abort(FatalIOError);
         }
 
-        return autoPtr<blockVertex>(cstrIter()(dict, index, geometry, is));
+        return autoPtr<blockVertex>(ctorPtr(dict, index, geometry, is));
     }
-    else
-    {
-        FatalIOErrorInFunction(is)
-            << "incorrect first token, expected <word> or '(', found "
-            << firstToken.info()
-            << exit(FatalIOError);
 
-        return autoPtr<blockVertex>(nullptr);
-    }
+    FatalIOErrorInFunction(is)
+        << "incorrect first token, expected <word> or '(', found "
+        << firstToken.info() << nl
+        << exit(FatalIOError);
+
+    return nullptr;
 }
 
 
-Foam::label Foam::blockVertex::read(Istream& is, const dictionary& dict)
+Foam::label Foam::blockVertex::read
+(
+    Istream& is,
+    const dictionary& dict
+)
 {
-    const dictionary* varDictPtr = dict.subDictPtr("namedVertices");
+    const dictionary* varDictPtr = dict.findDict("namedVertices");
     if (varDictPtr)
     {
         return blockMeshTools::read(is, *varDictPtr);
@@ -123,7 +121,7 @@ void Foam::blockVertex::write
     const dictionary& d
 )
 {
-    const dictionary* varDictPtr = d.subDictPtr("namedVertices");
+    const dictionary* varDictPtr = d.findDict("namedVertices");
     if (varDictPtr)
     {
         blockMeshTools::write(os, val, *varDictPtr);

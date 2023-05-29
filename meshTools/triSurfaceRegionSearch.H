@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -37,11 +40,11 @@ SourceFiles
 #define triSurfaceRegionSearch_H
 
 #include "pointField.H"
-#include "pointIndexHit.H"
+#include "pointIndexHit2.H"
 #include "triSurfaceSearch.H"
 #include "labelledTri.H"
-#include "IndirectList.T.H"
-#include "PtrList.T.H"
+#include "IndirectList.H"
+#include "PtrList.H"
 #include "indexedOctree.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
@@ -57,14 +60,10 @@ class triSurfaceRegionSearch
 :
     public triSurfaceSearch
 {
-    // Private typedefs
+    // Private Typedefs
 
-        typedef PrimitivePatch
-        <
-            labelledTri,
-            IndirectList,
-            const pointField&
-        > indirectTriSurface;
+        typedef PrimitivePatch<IndirectList<labelledTri>, const pointField&>
+            indirectTriSurface;
 
         typedef treeDataPrimitivePatch<indirectTriSurface>
             treeDataIndirectTriSurface;
@@ -83,11 +82,11 @@ class triSurfaceRegionSearch
 
     // Private Member Functions
 
-        //- Disallow default bitwise copy construct
-        triSurfaceRegionSearch(const triSurfaceRegionSearch&);
+        //- No copy construct
+        triSurfaceRegionSearch(const triSurfaceRegionSearch&) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const triSurfaceRegionSearch&);
+        //- No copy assignment
+        void operator=(const triSurfaceRegionSearch&) = delete;
 
 
 public:

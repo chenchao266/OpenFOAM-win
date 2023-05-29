@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2015 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2015 OpenFOAM Foundation
+    Copyright (C) 2019-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -32,30 +35,29 @@ License
 Foam::autoPtr<Foam::viscosityModel> Foam::viscosityModel::New
 (
     const word& name,
-    const dictionary& viscosityProperties,
+    const dictionary& dict,
     const volVectorField& U,
     const surfaceScalarField& phi
 )
 {
-    const word modelType(viscosityProperties.lookup("transportModel"));
+    const word modelType(dict.get<word>("transportModel"));
 
     Info<< "Selecting incompressible transport model " << modelType << endl;
 
-    dictionaryConstructorTable::iterator cstrIter =
-        dictionaryConstructorTablePtr_->find(modelType);
+    auto* ctorPtr = dictionaryConstructorTable(modelType);
 
-    if (cstrIter == dictionaryConstructorTablePtr_->end())
+    if (!ctorPtr)
     {
-        FatalErrorInFunction
-            << "Unknown viscosityModel type "
-            << modelType << nl << nl
-            << "Valid viscosityModels are : " << endl
-            << dictionaryConstructorTablePtr_->sortedToc()
-            << exit(FatalError);
+        FatalIOErrorInLookup
+        (
+            dict,
+            "viscosityModel",
+            modelType,
+            *dictionaryConstructorTablePtr_
+        ) << exit(FatalIOError);
     }
 
-    return autoPtr<viscosityModel>
-        (cstrIter()(name, viscosityProperties, U, phi));
+    return autoPtr<viscosityModel>(ctorPtr(name, dict, U, phi));
 }
 
 

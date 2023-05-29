@@ -1,9 +1,12 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2013 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2013 OpenFOAM Foundation
+    Copyright (C) 2019 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -35,7 +38,7 @@ SourceFiles
 #ifndef cyclicGAMGInterface_H
 #define cyclicGAMGInterface_H
 
-#include "GAMGInterface.T.H"
+#include "GAMGInterface.H"
 #include "cyclicLduInterface.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
@@ -47,12 +50,14 @@ namespace Foam
                   Class cyclicGAMGInterface Declaration
 \*---------------------------------------------------------------------------*/
 
-class cyclicGAMGInterface :    public GAMGInterface,
+class cyclicGAMGInterface
+:
+    public GAMGInterface,
     virtual public cyclicLduInterface
 {
     // Private data
 
-        //- Neigbour patch number
+        //- Neighbour patch number
         label neighbPatchID_;
 
         //- Am I owner?
@@ -67,11 +72,11 @@ class cyclicGAMGInterface :    public GAMGInterface,
 
     // Private Member Functions
 
-        //- Disallow default bitwise copy construct
-        cyclicGAMGInterface(const cyclicGAMGInterface&);
+        //- No copy construct
+        cyclicGAMGInterface(const cyclicGAMGInterface&) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const cyclicGAMGInterface&);
+        //- No copy assignment
+        void operator=(const cyclicGAMGInterface&) = delete;
 
 
 public:
@@ -105,7 +110,7 @@ public:
 
 
     //- Destructor
-    virtual ~cyclicGAMGInterface();
+    virtual ~cyclicGAMGInterface() = default;
 
 
     // Member Functions
@@ -122,7 +127,7 @@ public:
 
         //- Cyclic interface functions
 
-            //- Return neigbour processor number
+            //- Return neighbour processor number
             virtual label neighbPatchID() const
             {
                 return neighbPatchID_;
@@ -157,7 +162,7 @@ public:
         // I/O
 
             //- Write to stream
-            virtual void write(Ostream&) const;
+            virtual void write(Ostream& os) const;
 };
 
 

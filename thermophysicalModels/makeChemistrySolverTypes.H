@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -28,71 +30,68 @@ License
 
 #include "chemistrySolver.H"
 
-#include "chemistryModel.H"
-#include "TDACChemistryModel.T.H"
+#include "StandardChemistryModel.H"
+#include "TDACChemistryModel.H"
 
 #include "noChemistrySolver.H"
-#include "EulerImplicit.T.H"
-#include "ode.T.H"
+#include "EulerImplicit.H"
+#include "ode.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 #define makeChemistrySolverType(SS, Comp, Thermo)                              \
                                                                                \
-    typedef SS<chemistryModel<Comp, Thermo>> SS##Comp##Thermo;                 \
+    typedef SS<StandardChemistryModel<Comp, Thermo>> SS##Comp##Thermo;         \
+                                                                               \
+    defineTemplateTypeNameAndDebugWithName                                     \
+    (                                                                          \
+        SS##Comp##Thermo,                                                      \
+        (#SS"<" + word(StandardChemistryModel<Comp, Thermo>::typeName_()) + "<"\
+        + word(Comp::typeName_()) + "," + Thermo::typeName() + ">>").c_str(),  \
+        0                                                                      \
+    );                                                                         \
+                                                                               \
+    BasicChemistryModel<Comp>::                                                \
+        add##thermo##ConstructorToTable<SS##Comp##Thermo>                      \
+        add##SS##Comp##Thermo##thermo##ConstructorTo##BasicChemistryModel##Comp\
+##Table_; \
+                                                                               \
     typedef SS<TDACChemistryModel<Comp, Thermo>> TDAC##SS##Comp##Thermo;       \
                                                                                \
     defineTemplateTypeNameAndDebugWithName                                     \
     (                                                                          \
-        SS##Comp##Thermo,                                                      \
-        (#SS"<chemistryModel<" + word(Comp::typeName_())                       \
-      + "," + Thermo::typeName() + ">>").c_str(),                              \
+        TDAC##SS##Comp##Thermo,                                                \
+        (#SS"<" + word(TDACChemistryModel<Comp, Thermo>::typeName_()) + "<"    \
+        + word(Comp::typeName_()) + "," + Thermo::typeName() + ">>").c_str(),  \
         0                                                                      \
     );                                                                         \
                                                                                \
-    addToRunTimeSelectionTable                                                 \
-    (                                                                          \
-        Comp,                                                                  \
-        SS##Comp##Thermo,                                                      \
-        fvMesh                                                                 \
-    );                                                                         \
-                                                                               \
-    defineTemplateTypeNameAndDebugWithName                                     \
-    (                                                                          \
-        TDAC##SS##Comp##Thermo,                                                \
-        (#SS"<TDACChemistryModel<" + word(Comp::typeName_())                   \
-      + "," + Thermo::typeName() + ">>").c_str(),                              \
-        0                                                                      \
-    );                                                                         \
-                                                                               \
-    addToRunTimeSelectionTable                                                 \
-    (                                                                          \
-        Comp,                                                                  \
-        TDAC##SS##Comp##Thermo,                                                \
-        fvMesh                                                                 \
-    );
+    BasicChemistryModel<Comp>::                                                \
+        add##thermo##ConstructorToTable<TDAC##SS##Comp##Thermo>                \
+        add##TDAC##SS##Comp##Thermo##thermo##ConstructorTo##BasicChemistryModel\
+##Comp##Table_;
 
 
-#define makeChemistrySolverTypes(CompChemModel,Thermo)                         \
+#define makeChemistrySolverTypes(Comp, Thermo)                                 \
                                                                                \
     makeChemistrySolverType                                                    \
     (                                                                          \
         noChemistrySolver,                                                     \
-        CompChemModel,                                                         \
+        Comp,                                                                  \
         Thermo                                                                 \
     );                                                                         \
                                                                                \
     makeChemistrySolverType                                                    \
     (                                                                          \
         EulerImplicit,                                                         \
-        CompChemModel,                                                         \
+        Comp,                                                                  \
         Thermo                                                                 \
     );                                                                         \
                                                                                \
     makeChemistrySolverType                                                    \
     (                                                                          \
         ode,                                                                   \
-        CompChemModel,                                                         \
+        Comp,                                                                  \
         Thermo                                                                 \
     );                                                                         \
 

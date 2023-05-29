@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -41,8 +43,8 @@ Description
 #include "fvcSurfaceIntegrate.H"
 #include "fvcAverage.H"
 #include "fvcReconstruct.H"
-#include "fvcDdt.H"
-#include "fvcDDt.T.H"
+#include "fvcDdt2.H"
+#include "fvcDDt.H"
 #include "fvcD2dt2.H"
 #include "fvcDiv.H"
 #include "fvcFlux.H"

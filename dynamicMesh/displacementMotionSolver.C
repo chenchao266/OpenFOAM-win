@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2012-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2012-2016 OpenFOAM Foundation
+    Copyright (C) 2016-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -30,6 +33,7 @@ License
 namespace Foam
 {
     defineTypeNameAndDebug(displacementMotionSolver, 0);
+    defineRunTimeSelectionTable(displacementMotionSolver, displacement);
 }
 
 
@@ -56,6 +60,78 @@ Foam::displacementMotionSolver::displacementMotionSolver
         pointMesh::New(mesh)
     )
 {}
+
+
+Foam::displacementMotionSolver::displacementMotionSolver
+(
+    const polyMesh& mesh,
+    const IOdictionary& dict,
+    const pointVectorField& pointDisplacement,
+    const pointIOField& points0,
+    const word& type
+)
+:
+    points0MotionSolver(mesh, dict, points0, type),
+    pointDisplacement_
+    (
+        IOobject(pointDisplacement, "pointDisplacement"),
+        pointDisplacement
+    )
+{}
+
+
+// * * * * * * * * * * * * * * * * Selectors * * * * * * * * * * * * * * * * //
+
+Foam::autoPtr<Foam::displacementMotionSolver>
+Foam::displacementMotionSolver::New
+(
+    const word& solverTypeName,
+    const polyMesh& mesh,
+    const IOdictionary& solverDict,
+    const pointVectorField& pointDisplacement,
+    const pointIOField& points0
+)
+{
+    Info<< "Selecting motion solver: " << solverTypeName << endl;
+
+    mesh.time().libs().open
+    (
+        solverDict,
+        "motionSolverLibs",
+        displacementConstructorTablePtr_
+    );
+
+    if (!displacementConstructorTablePtr_)
+    {
+        FatalErrorInFunction
+            << "solver table is empty"
+            << exit(FatalError);
+    }
+
+    auto* ctorPtr = displacementConstructorTable(solverTypeName);
+
+    if (!ctorPtr)
+    {
+        FatalIOErrorInLookup
+        (
+            solverDict,
+            "solver",
+            solverTypeName,
+            *displacementConstructorTablePtr_
+        ) << exit(FatalIOError);
+    }
+
+    return autoPtr<displacementMotionSolver>
+    (
+        ctorPtr
+        (
+            mesh,
+            solverDict,
+            pointDisplacement,
+            points0
+        )
+    );
+}
 
 
 // * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //

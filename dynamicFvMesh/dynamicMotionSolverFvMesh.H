@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -59,11 +62,11 @@ class dynamicMotionSolverFvMesh
 
     // Private Member Functions
 
-        //- Disallow default bitwise copy construct
-        dynamicMotionSolverFvMesh(const dynamicMotionSolverFvMesh&);
+        //- No copy construct
+        dynamicMotionSolverFvMesh(const dynamicMotionSolverFvMesh&) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const dynamicMotionSolverFvMesh&);
+        //- No copy assignment
+        void operator=(const dynamicMotionSolverFvMesh&) = delete;
 
 
 public:
@@ -75,7 +78,19 @@ public:
     // Constructors
 
         //- Construct from IOobject
-        dynamicMotionSolverFvMesh(const IOobject& io);
+        dynamicMotionSolverFvMesh(const IOobject& io, const bool doInit=true);
+
+        //- Construct from components without boundary.
+        //  Boundary is added using addFvPatches() member function
+        dynamicMotionSolverFvMesh
+        (
+            const IOobject& io,
+            pointField&& points,
+            faceList&& faces,
+            labelList&& allOwner,
+            labelList&& allNeighbour,
+            const bool syncPar = true
+        );
 
 
     //- Destructor
@@ -83,6 +98,12 @@ public:
 
 
     // Member Functions
+
+        //- Initialise all non-demand-driven data
+        virtual bool init(const bool doInit);
+
+        //- Return the motionSolver
+        const motionSolver& motion() const;
 
         //- Update the mesh for both mesh motion and topology change
         virtual bool update();

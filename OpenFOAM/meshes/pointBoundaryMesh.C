@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2018-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -27,17 +30,21 @@ License
 #include "polyBoundaryMesh.H"
 #include "facePointPatch.H"
 #include "pointMesh.H"
-#include "PstreamBuffers.T.H"
+#include "PstreamBuffers.H"
 #include "lduSchedule.H"
 #include "globalMeshData.H"
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
-using namespace Foam;
+
+
+ namespace Foam{
 pointBoundaryMesh::pointBoundaryMesh
 (
     const pointMesh& m,
     const polyBoundaryMesh& basicBdry
-) :    pointPatchList(basicBdry.size()),
+)
+:
+    pointPatchList(basicBdry.size()),
     mesh_(m)
 {
     // Set boundary patches
@@ -56,19 +63,29 @@ pointBoundaryMesh::pointBoundaryMesh
 
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
 
-label pointBoundaryMesh::findPatchID(const word& patchName) const
+labelList pointBoundaryMesh::indices
+(
+    const wordRe& matcher,
+    const bool useGroups
+) const
 {
-    return mesh()().boundaryMesh().findPatchID(patchName);
+    return mesh()().boundaryMesh().indices(matcher, useGroups);
 }
 
 
-labelList pointBoundaryMesh::findIndices
+labelList pointBoundaryMesh::indices
 (
-    const keyType& key,
-    const bool usePatchGroups
+    const wordRes& matcher,
+    const bool useGroups
 ) const
 {
-    return mesh()().boundaryMesh().findIndices(key, usePatchGroups);
+    return mesh()().boundaryMesh().indices(matcher, useGroups);
+}
+
+
+label pointBoundaryMesh::findPatchID(const word& patchName) const
+{
+    return mesh()().boundaryMesh().findPatchID(patchName);
 }
 
 
@@ -211,3 +228,5 @@ void pointBoundaryMesh::updateMesh()
 
 
 // ************************************************************************* //
+
+ } // End namespace Foam

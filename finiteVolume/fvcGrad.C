@@ -1,9 +1,11 @@
-﻿/*---------------------------------------------------------------------------*\
+/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -23,7 +25,7 @@ License
 
 \*---------------------------------------------------------------------------*/
 
-//#include "fvcGrad.H"
+#include "fvcGrad.H"
 #include "fvcSurfaceIntegrate.H"
 #include "fvMesh.H"
 #include "gaussGrad.H"
@@ -50,7 +52,7 @@ tmp
 >
 grad
 (
-    const surfaceFieldType<Type>& ssf
+    const GeometricField<Type, fvsPatchField, surfaceMesh>& ssf
 )
 {
     return fv::gaussGrad<Type>::gradf(ssf, "grad(" + ssf.name() + ')');
@@ -67,7 +69,7 @@ tmp
 >
 grad
 (
-    const tmp<surfaceFieldType<Type>>& tssf
+    const tmp<GeometricField<Type, fvsPatchField, surfaceMesh>>& tssf
 )
 {
     typedef typename outerProduct<vector, Type>::type GradType;
@@ -90,7 +92,7 @@ tmp
 >
 grad
 (
-    const volFieldType<Type>& vf,
+    const GeometricField<Type, fvPatchField, volMesh>& vf,
     const word& name
 )
 {
@@ -112,7 +114,7 @@ tmp
 >
 grad
 (
-    const tmp<volFieldType<Type>>& tvf,
+    const tmp<GeometricField<Type, fvPatchField, volMesh>>& tvf,
     const word& name
 )
 {
@@ -141,7 +143,7 @@ tmp
 >
 grad
 (
-    const volFieldType<Type>& vf
+    const GeometricField<Type, fvPatchField, volMesh>& vf
 )
 {
     return fvc::grad(vf, "grad(" + vf.name() + ')');
@@ -158,7 +160,7 @@ tmp
 >
 grad
 (
-    const tmp<volFieldType<Type>>& tvf
+    const tmp<GeometricField<Type, fvPatchField, volMesh>>& tvf
 )
 {
     typedef typename outerProduct<vector, Type>::type GradType;

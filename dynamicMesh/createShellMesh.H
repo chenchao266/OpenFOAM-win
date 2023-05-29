@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -40,7 +42,7 @@ SourceFiles
 #define createShellMesh_H
 
 #include "primitiveFacePatch.H"
-#include "PackedBoolList.H"
+#include "bitSet.H"
 #include "labelPair.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
@@ -48,7 +50,7 @@ SourceFiles
 namespace Foam
 {
 
-// Forward declaration of classes
+// Forward Declarations
 class mapPolyMesh;
 class polyTopoChange;
 class globalMeshData;
@@ -59,7 +61,7 @@ class globalMeshData;
 
 class createShellMesh
 {
-    // Private data
+    // Private Data
 
         //- Reference to patch to extrude
         const primitiveFacePatch& patch_;
@@ -87,20 +89,20 @@ class createShellMesh
             const globalMeshData&,
             const labelList&,
             const labelList&,
-            const PackedBoolList& sameEdgeOrientation,
+            const bitSet& sameEdgeOrientation,
             const bool syncNonCollocated,
 
-            PackedBoolList& isChangedEdge,
+            bitSet& isChangedEdge,
             DynamicList<label>& changedEdges,
             labelPairList& allEdgeData
         );
 
 
-        //- Disallow default bitwise copy construct
-        createShellMesh(const createShellMesh&);
+        //- No copy construct
+        createShellMesh(const createShellMesh&) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const createShellMesh&);
+        //- No copy assignment
+        void operator=(const createShellMesh&) = delete;
 
 
 public:
@@ -111,7 +113,7 @@ public:
 
     // Constructors
 
-        //- Construct from mesh.
+        //- Construct from face patch
         createShellMesh
         (
             const primitiveFacePatch& patch,
@@ -121,7 +123,6 @@ public:
 
 
     // Member Functions
-
 
         // Access
 
@@ -172,7 +173,7 @@ public:
             (
                 const globalMeshData& globalData,
                 const primitiveFacePatch& patch,
-                const PackedBoolList& nonManifoldEdge,
+                const bitSet& nonManifoldEdge,
                 const bool syncNonCollocated,
                 faceList& pointGlobalRegions,
                 faceList& pointLocalRegions,

@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -23,6 +25,9 @@ License
 
 Class
     Foam::singleStepReactingMixture
+
+Group
+    grpReactionThermophysicalMixtures
 
 Description
     Single step reacting mixture
@@ -101,11 +106,11 @@ private:
 
     // Private member functions
 
-        //- Disallow default bitwise copy construct
-        singleStepReactingMixture(const singleStepReactingMixture&);
+        //- No copy construct
+        singleStepReactingMixture(const singleStepReactingMixture&) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const singleStepReactingMixture&);
+        //- No copy assignment
+        void operator=(const singleStepReactingMixture&) = delete;
 
 
 public:
@@ -126,11 +131,16 @@ public:
 
 
     //- Destructor
-    virtual ~singleStepReactingMixture()
-    {}
+    virtual ~singleStepReactingMixture() = default;
 
 
     // Member functions
+
+        //- Return the instantiated type name
+        static word typeName()
+        {
+            return "singleStepReactingMixture<" + ThermoType::typeName() + '>';
+        }
 
         //- Calculates the residual for all components
         void fresCorrect();

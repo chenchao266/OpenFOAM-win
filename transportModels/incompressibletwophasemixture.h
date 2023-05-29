@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2019 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -94,8 +97,7 @@ public:
 
 
     //- Destructor
-    virtual ~incompressibleTwoPhaseMixture()
-    {}
+    virtual ~incompressibleTwoPhaseMixture() = default;
 
 
     // Member Functions
@@ -103,13 +105,13 @@ public:
         //- Return const-access to phase1 viscosityModel
         const viscosityModel& nuModel1() const
         {
-            return nuModel1_();
+            return *nuModel1_;
         }
 
         //- Return const-access to phase2 viscosityModel
         const viscosityModel& nuModel2() const
         {
-            return nuModel2_();
+            return *nuModel2_;
         }
 
         //- Return const-access to phase1 density
@@ -132,6 +134,9 @@ public:
 
         //- Return the dynamic laminar viscosity
         tmp<volScalarField> mu() const;
+
+        //- Return the dynamic laminar viscosity on patch
+        tmp<scalarField> mu(const label patchI) const;
 
         //- Return the face-interpolated dynamic laminar viscosity
         tmp<surfaceScalarField> muf() const;

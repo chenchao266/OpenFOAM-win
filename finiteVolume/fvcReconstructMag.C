@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2013-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2013-2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -66,12 +68,7 @@ tmp<volScalarField> reconstructMag(const surfaceScalarField& ssf)
                 IOobject::NO_WRITE
             ),
             mesh,
-            dimensionedScalar
-            (
-                "0",
-                ssf.dimensions()/dimArea,
-                scalar(0)
-            ),
+            dimensionedScalar(ssf.dimensions()/dimArea, Zero),
             extrapolatedCalculatedFvPatchScalarField::typeName
         )
     );

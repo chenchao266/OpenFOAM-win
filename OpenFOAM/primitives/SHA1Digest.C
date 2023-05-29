@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2015 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2015 OpenFOAM Foundation
+    Copyright (C) 2019 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -25,257 +28,264 @@ License
 
 #include "SHA1Digest.H"
 #include "IOstreams.H"
-
+#include "token.H"
 #include <cstring>
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
-namespace Foam {
-    const SHA1Digest SHA1Digest::null;
-
-    //! \cond fileScope
-    static const char hexChars[] = "0123456789abcdef";
-    //! \endcond
 
 
-    // * * * * * * * * * * * * * Private Member Functions  * * * * * * * * * * * //
+ namespace Foam{
+const SHA1Digest SHA1Digest::null;
 
-    unsigned char SHA1Digest::readHexDigit(Istream& is)
+static const char hexChars[] = "0123456789abcdef";
+
+// The char '0' == 0
+static constexpr int offsetZero = int('0');
+
+// The char 'A' (or 'a') == 10
+static constexpr int offsetUpper = int('A') - 10;
+
+
+// * * * * * * * * * * * * * * * Local Functions * * * * * * * * * * * * * * //
+
+
+ } // End namespace Foam
+namespace Foam
+{
+
+// Read hexadecimal value, ignoring leading or intermediate '_'
+static unsigned char readHexDigit(Istream& is)
+{
+    // Silently ignore leading or intermediate '_'
+    char c = 0;
+    do
     {
-        // Takes into account that 'a' (or 'A') is 10
-        static const int alphaOffset = toupper('A') - 10;
-        // Takes into account that '0' is 0
-        static const int zeroOffset = int('0');
+        is.read(c);
+    }
+    while (c == '_');
 
-
-        // silently ignore leading or intermediate '_'
-        char c = 0;
-        do
-        {
-            is.read(c);
-        } while (c == '_');
-
-        if (!isxdigit(c))
-        {
-            FatalIOErrorInFunction(is)
-                << "Illegal hex digit: '" << c << "'"
-                << exit(FatalIOError);
-        }
-
-        if (isdigit(c))
-        {
-            return int(c) - zeroOffset;
-        }
-        else
-        {
-            return toupper(c) - alphaOffset;
-        }
+    if (isdigit(c))
+    {
+        return int(c) - offsetZero;
+    }
+    else if (!isxdigit(c))
+    {
+        FatalIOErrorInFunction(is)
+            << "Illegal hex digit: '" << c << "'"
+            << ::Foam::exit(FatalIOError);
     }
 
-
-    // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
-
-    SHA1Digest::SHA1Digest()
-    {
-        clear();
-    }
-
-
-    SHA1Digest::SHA1Digest(Istream& is)
-    {
-        is >> *this;
-    }
-
-
-    // * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * * //
-
-    void SHA1Digest::clear()
-    {
-        memset(v_, 0, length);
-    }
-
-
-    bool SHA1Digest::empty() const
-    {
-        for (unsigned i = 0; i < length; ++i)
-        {
-            if (v_[i])
-            {
-                return false;
-            }
-        }
-
-        return true;
-    }
-
-
-    std::string SHA1Digest::str(const bool prefixed) const
-    {
-        std::string buf;
-        unsigned nChar = 0;
-
-        if (prefixed)
-        {
-            buf.resize(1 + length * 2);
-            buf[nChar++] = '_';
-        }
-        else
-        {
-            buf.resize(length * 2);
-        }
-
-        for (unsigned i = 0; i < length; ++i)
-        {
-            buf[nChar++] = hexChars[((v_[i] >> 4) & 0xF)];
-            buf[nChar++] = hexChars[(v_[i] & 0xF)];
-        }
-
-        return buf;
-    }
-
-
-    Ostream& SHA1Digest::write(Ostream& os, const bool prefixed) const
-    {
-        if (prefixed)
-        {
-            os.write('_');
-        }
-
-        for (unsigned i = 0; i < length; ++i)
-        {
-            os.write(hexChars[((v_[i] >> 4) & 0xF)]);
-            os.write(hexChars[(v_[i] & 0xF)]);
-        }
-
-        os.check("SHA1Digest::write(Ostream&, const bool)");
-        return os;
-    }
-
-
-    // * * * * * * * * * * * * * * Member Operators  * * * * * * * * * * * * * * //
-
-    bool SHA1Digest::operator==(const SHA1Digest& rhs) const
-    {
-        for (unsigned i = 0; i < length; ++i)
-        {
-            if (v_[i] != rhs.v_[i])
-            {
-                return false;
-            }
-        }
-
-        return true;
-    }
-
-
-    bool SHA1Digest::operator==(const std::string& hexdigits) const
-    {
-        // null or empty string is not an error - interpret as '0000..'
-        if (hexdigits.empty())
-        {
-            return empty();
-        }
-
-        // skip possible '_' prefix
-        unsigned charI = 0;
-        if (hexdigits[0] == '_')
-        {
-            ++charI;
-        }
-
-        // incorrect length - can never match
-        if (hexdigits.size() != charI + length * 2)
-        {
-            return false;
-        }
-
-        for (unsigned i = 0; i < length; ++i)
-        {
-            const char c1 = hexChars[((v_[i] >> 4) & 0xF)];
-            const char c2 = hexChars[(v_[i] & 0xF)];
-
-            if (c1 != hexdigits[charI++]) return false;
-            if (c2 != hexdigits[charI++]) return false;
-        }
-
-        return true;
-    }
-
-
-    bool SHA1Digest::operator==(const char* hexdigits) const
-    {
-        // null or empty string is not an error - interpret as '0000..'
-        if (!hexdigits || !*hexdigits)
-        {
-            return empty();
-        }
-
-        // skip possible '_' prefix
-        unsigned charI = 0;
-        if (hexdigits[0] == '_')
-        {
-            ++charI;
-        }
-
-        // incorrect length - can never match
-        if (strlen(hexdigits) != charI + length * 2)
-        {
-            return false;
-        }
-
-        for (unsigned i = 0; i < length; ++i)
-        {
-            const char c1 = hexChars[((v_[i] >> 4) & 0xF)];
-            const char c2 = hexChars[(v_[i] & 0xF)];
-
-            if (c1 != hexdigits[charI++]) return false;
-            if (c2 != hexdigits[charI++]) return false;
-        }
-
-        return true;
-    }
-
-
-    bool SHA1Digest::operator!=(const SHA1Digest& rhs) const
-    {
-        return !operator==(rhs);
-    }
-
-
-    bool SHA1Digest::operator!=(const std::string& rhs) const
-    {
-        return !operator==(rhs);
-    }
-
-
-    bool SHA1Digest::operator!=(const char* rhs) const
-    {
-        return !operator==(rhs);
-    }
-
-
-    // * * * * * * * * * * * * * * Friend Operators * * * * * * * * * * * * * * //
-
-    Istream& operator>>(Istream& is, SHA1Digest& dig)
-    {
-        unsigned char *v = dig.v_;
-
-        for (unsigned i = 0; i < dig.length; ++i)
-        {
-            unsigned char c1 = SHA1Digest::readHexDigit(is);
-            unsigned char c2 = SHA1Digest::readHexDigit(is);
-
-            v[i] = (c1 << 4) + c2;
-        }
-
-        is.check("Istream& operator>>(Istream&, SHA1Digest&)");
-        return is;
-    }
-
-
-    Ostream& operator<<(Ostream& os, const SHA1Digest& dig)
-    {
-        return dig.write(os);
-    }
-
+    return toupper(c) - offsetUpper;
 }
+
+} // End namespace Foam
+
+
+// * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
+
+
+ namespace Foam{
+SHA1Digest::SHA1Digest()
+{
+    clear();
+}
+
+
+SHA1Digest::SHA1Digest(Istream& is)
+{
+    clear();
+    read(is);
+}
+
+
+// * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * * //
+
+void SHA1Digest::clear()
+{
+    dig_.fill(0);  // Same as memset(dig_.data(), 0, dig_.size());
+}
+
+
+bool SHA1Digest::empty() const
+{
+    for (const auto& byteVal : dig_)
+    {
+        if (byteVal)
+        {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+
+std::string SHA1Digest::str(const bool prefixed) const
+{
+    std::string buf;
+    unsigned nChar = 0;
+
+    if (prefixed)
+    {
+        buf.resize(1 + 2*dig_.size());
+        buf[nChar++] = '_';
+    }
+    else
+    {
+        buf.resize(2*dig_.size());
+    }
+
+    for (const auto& byteVal : dig_)
+    {
+        buf[nChar++] = hexChars[((byteVal >> 4) & 0xF)];  // Upper nibble
+        buf[nChar++] = hexChars[(byteVal & 0xF)];         // Lower nibble
+    }
+
+    return buf;
+}
+
+
+Istream& SHA1Digest::read(Istream& is)
+{
+    for (auto& byteVal : dig_)
+    {
+        const unsigned char upp = readHexDigit(is);
+        const unsigned char low = readHexDigit(is);
+
+        byteVal = (upp << 4) + low;
+    }
+
+    is.check(FUNCTION_NAME);
+    return is;
+}
+
+
+Ostream& SHA1Digest::write(Ostream& os, const bool prefixed) const
+{
+    if (prefixed)
+    {
+        os.write('_');
+    }
+
+    for (const auto& byteVal : dig_)
+    {
+        os.write(hexChars[((byteVal >> 4) & 0xF)]);  // Upper nibble
+        os.write(hexChars[(byteVal & 0xF)]);         // Lower nibble
+    }
+
+    os.check(FUNCTION_NAME);
+    return os;
+}
+
+
+// * * * * * * * * * * * * * * Member Operators  * * * * * * * * * * * * * * //
+
+bool SHA1Digest::operator==(const SHA1Digest& rhs) const
+{
+    return (dig_ == rhs.dig_);
+}
+
+
+bool SHA1Digest::operator==(const std::string& hexdigits) const
+{
+    // Null or empty string is not an error - interpret as '0000..'
+    if (hexdigits.empty())
+    {
+        return empty();
+    }
+
+    // Skip possible '_' prefix
+    unsigned nChar = 0;
+    if (hexdigits[0] == '_')
+    {
+        ++nChar;
+    }
+
+    // Incorrect length - can never match
+    if (hexdigits.size() != nChar + 2*dig_.size())
+    {
+        return false;
+    }
+
+    for (const auto& byteVal : dig_)
+    {
+        const char upp = hexChars[((byteVal >> 4) & 0xF)];  // Upper nibble
+        const char low = hexChars[(byteVal & 0xF)];         // Lower nibble
+
+        if (upp != hexdigits[nChar++]) return false;
+        if (low != hexdigits[nChar++]) return false;
+    }
+
+    return true;
+}
+
+
+bool SHA1Digest::operator==(const char* hexdigits) const
+{
+    // Null or empty string is not an error - interpret as '0000..'
+    if (!hexdigits || !*hexdigits)
+    {
+        return empty();
+    }
+
+    // Skip possible '_' prefix
+    unsigned nChar = 0;
+    if (hexdigits[0] == '_')
+    {
+        ++nChar;
+    }
+
+    // Incorrect length - can never match
+    if (strlen(hexdigits) != nChar + 2*dig_.size())
+    {
+        return false;
+    }
+
+    for (const auto& byteVal : dig_)
+    {
+        const char upp = hexChars[((byteVal >> 4) & 0xF)];
+        const char low = hexChars[(byteVal & 0xF)];
+
+        if (upp != hexdigits[nChar++]) return false;
+        if (low != hexdigits[nChar++]) return false;
+    }
+
+    return true;
+}
+
+
+bool SHA1Digest::operator!=(const SHA1Digest& rhs) const
+{
+    return !operator==(rhs);
+}
+
+
+bool SHA1Digest::operator!=(const std::string& rhs) const
+{
+    return !operator==(rhs);
+}
+
+
+bool SHA1Digest::operator!=(const char* rhs) const
+{
+    return !operator==(rhs);
+}
+
+
+// * * * * * * * * * * * * * * * IOstream Operators  * * * * * * * * * * * * //
+
+Istream& operator>>(Istream& is, SHA1Digest& dig)
+{
+    return dig.read(is);
+}
+
+
+Ostream& operator<<(Ostream& os, const SHA1Digest& dig)
+{
+    return dig.write(os);
+}
+
+
 // ************************************************************************* //
+
+ } // End namespace Foam

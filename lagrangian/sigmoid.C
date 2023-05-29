@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -72,8 +74,8 @@ sigmoid::sigmoid
     (
         energyScalingFunctionProperties.subDict(typeName + "Coeffs")
     ),
-    shift_(readScalar(sigmoidCoeffs_.lookup("shift"))),
-    scale_(readScalar(sigmoidCoeffs_.lookup("scale")))
+    shift_(sigmoidCoeffs_.get<scalar>("shift")),
+    scale_(sigmoidCoeffs_.get<scalar>("scale"))
 {}
 
 
@@ -92,8 +94,8 @@ bool sigmoid::read(const dictionary& energyScalingFunctionProperties)
     sigmoidCoeffs_ =
         energyScalingFunctionProperties.subDict(typeName + "Coeffs");
 
-    sigmoidCoeffs_.lookup("shift") >> shift_;
-    sigmoidCoeffs_.lookup("scale") >> shift_;
+    sigmoidCoeffs_.readEntry("shift", shift_);
+    sigmoidCoeffs_.readEntry("scale", shift_);
 
     return true;
 }

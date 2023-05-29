@@ -1,9 +1,12 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2019 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -50,7 +53,7 @@ namespace Foam
 
 class processorLduInterface
 {
-    // Private data
+    // Private Data
 
         //- Send buffer.
         //  Only sized and used when compressed or non-blocking comms used.
@@ -60,8 +63,11 @@ class processorLduInterface
         //  Only sized and used when compressed or non-blocking comms used.
         mutable List<char> receiveBuf_;
 
-        //- Resize the buffer if required
-        void resizeBuf(List<char>& buf, const label size) const;
+
+    // Private Member Functions
+
+        //- Increase buffer size if required
+        static void resizeBuf(List<char>& buf, const label size);
 
 
 public:
@@ -73,11 +79,11 @@ public:
     // Constructors
 
         //- Construct null
-        processorLduInterface();
+        processorLduInterface() = default;
 
 
     //- Destructor
-    virtual ~processorLduInterface();
+    virtual ~processorLduInterface() = default;
 
 
     // Member Functions
@@ -90,7 +96,7 @@ public:
             //- Return processor number (rank in communicator)
             virtual int myProcNo() const = 0;
 
-            //- Return neigbour processor number (rank in communicator)
+            //- Return neighbour processor number (rank in communicator)
             virtual int neighbProcNo() const = 0;
 
             //- Return face transformation tensor
@@ -99,25 +105,26 @@ public:
             //- Return message tag used for sending
             virtual int tag() const = 0;
 
-        // Transfer functions
+
+        // Transfer Functions
 
             //- Raw send function
             template<class Type>
             void send
             (
                 const Pstream::commsTypes commsType,
-                const UList<Type>&
+                const UList<Type>& f
             ) const;
 
-            //- Raw field receive function
+            //- Raw receive function
             template<class Type>
             void receive
             (
                 const Pstream::commsTypes commsType,
-                UList<Type>&
+                UList<Type>& f
             ) const;
 
-            //- Raw field receive function returning field
+            //- Raw receive function returning field
             template<class Type>
             tmp<Field<Type>> receive
             (
@@ -126,23 +133,23 @@ public:
             ) const;
 
 
-            //- Raw field send function with data compression
+            //- Raw send function with data compression
             template<class Type>
             void compressedSend
             (
                 const Pstream::commsTypes commsType,
-                const UList<Type>&
+                const UList<Type>& f
             ) const;
 
-            //- Raw field receive function with data compression
+            //- Raw receive function with data compression
             template<class Type>
             void compressedReceive
             (
                 const Pstream::commsTypes commsType,
-                UList<Type>&
+                UList<Type>& f
             ) const;
 
-            //- Raw field receive function with data compression returning field
+            //- Raw receive function with data compression returning field
             template<class Type>
             tmp<Field<Type>> compressedReceive
             (

@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2019-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -24,10 +27,12 @@ License
 \*---------------------------------------------------------------------------*/
 
 #include "faceZone.H"
-#include "dictionary.H"
+#include "dictionary2.H"
 
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
-using namespace Foam;
+
+
+ namespace Foam{
 autoPtr<faceZone> faceZone::New
 (
     const word& name,
@@ -36,30 +41,27 @@ autoPtr<faceZone> faceZone::New
     const faceZoneMesh& zm
 )
 {
-    if (debug)
+    DebugInFunction << "Constructing faceZone " << name << endl;
+
+    const word zoneType(dict.get<word>("type"));
+
+    auto* ctorPtr = dictionaryConstructorTable(zoneType);
+
+    if (!ctorPtr)
     {
-        InfoInFunction << "Constructing faceZone " << name << endl;
-    }
-
-    const word zoneType(dict.lookup("type"));
-
-    dictionaryConstructorTable::iterator cstrIter =
-        dictionaryConstructorTablePtr_->find(zoneType);
-
-    if (cstrIter == dictionaryConstructorTablePtr_->end())
-    {
-        FatalIOErrorInFunction
+        FatalIOErrorInLookup
         (
-            dict
-        )   << "Unknown faceZone type "
-            << zoneType << nl << nl
-            << "Valid faceZone types are:" << nl
-            << dictionaryConstructorTablePtr_->sortedToc()
-            << exit(FatalIOError);
+            dict,
+            "faceZone",
+            zoneType,
+            *dictionaryConstructorTablePtr_
+        ) << exit(FatalIOError);
     }
 
-    return autoPtr<faceZone>(cstrIter()(name, dict, index, zm));
+    return autoPtr<faceZone>(ctorPtr(name, dict, index, zm));
 }
 
 
 // ************************************************************************* //
+
+ } // End namespace Foam

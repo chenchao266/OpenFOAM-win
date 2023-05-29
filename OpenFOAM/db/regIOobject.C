@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2018-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -24,429 +27,449 @@ License
 \*---------------------------------------------------------------------------*/
 
 #include "regIOobject.H"
-#include "Time.T.H"
+#include "Time1.h"
 #include "polyMesh.H"
-#include "registerSwitch.H"
+#include "dictionary2.H"
 #include "fileOperation.H"
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
-using namespace Foam;
+
 namespace Foam
 {
     defineTypeNameAndDebug(regIOobject, 0);
-}
-
-float regIOobject::fileModificationSkew
-(
-    debug::floatOptimisationSwitch("fileModificationSkew", 30)
-);
-registerOptSwitch
-(
-    "fileModificationSkew",
-    float,
-    regIOobject::fileModificationSkew
-);
 
 
-bool regIOobject::masterOnlyReading = false;
+    bool regIOobject::masterOnlyReading = false;
 
 
-// * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
+    // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
-regIOobject::regIOobject(const IOobject& io, const bool isTime) :    IOobject(io),
-    registered_(false),
-    ownedByRegistry_(false),
-    watchIndices_(),
-    eventNo_                // Do not get event for top level Time database
-    (
-        isTime
-      ? 0
-      : db().getEvent()
-    )
-{
-    // Register with objectRegistry if requested
-    if (registerObject())
+    regIOobject::regIOobject(const IOobject& io, const bool isTimeObject)
+        :
+        IOobject(io),
+        registered_(false),
+        ownedByRegistry_(false),
+        watchIndices_(),
+        eventNo_(isTimeObject ? 0 : db().getEvent()), // No event for top-level Time
+        metaDataPtr_(nullptr),
+        isPtr_(nullptr)
     {
-        checkIn();
-    }
-}
-
-
-regIOobject::regIOobject(const regIOobject& rio) :    IOobject(rio),
-    registered_(false),
-    ownedByRegistry_(false),
-    watchIndices_(rio.watchIndices_),
-    eventNo_(db().getEvent())
-{
-    // Do not register copy with objectRegistry
-}
-
-
-regIOobject::regIOobject(const regIOobject& rio, bool registerCopy) :    IOobject(rio),
-    registered_(false),
-    ownedByRegistry_(false),
-    watchIndices_(),
-    eventNo_(db().getEvent())
-{
-    if (registerCopy && rio.registered_)
-    {
-        const_cast<regIOobject&>(rio).checkOut();
-        checkIn();
-    }
-}
-
-
-regIOobject::regIOobject
-(
-    const word& newName,
-    const regIOobject& rio,
-    bool registerCopy
-) :    IOobject(newName, rio.instance(), rio.local(), rio.db()),
-    registered_(false),
-    ownedByRegistry_(false),
-    watchIndices_(),
-    eventNo_(db().getEvent())
-{
-    if (registerCopy)
-    {
-        checkIn();
-    }
-}
-
-
-regIOobject::regIOobject
-(
-    const IOobject& io,
-    const regIOobject& rio
-) :    IOobject(io),
-    registered_(false),
-    ownedByRegistry_(false),
-    watchIndices_(),
-    eventNo_(db().getEvent())
-{
-    if (registerObject())
-    {
-        checkIn();
-    }
-}
-
-
-// * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
-
-regIOobject::~regIOobject()
-{
-    if (objectRegistry::debug)
-    {
-        Pout<< "Destroying regIOobject called " << name()
-            << " of type " << type()
-            << " in directory " << path()
-            << endl;
-    }
-
-    // Check out of objectRegistry if not owned by the registry
-
-    if (!ownedByRegistry_)
-    {
-        checkOut();
-    }
-}
-
-
-// * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
-
-bool regIOobject::checkIn()
-{
-    if (!registered_)
-    {
-        // multiple checkin of same object is disallowed - this would mess up
-        // any mapping
-        registered_ = db().checkIn(*this);
-
-        // check-in on defaultRegion is allowed to fail, since subsetted meshes
-        // are created with the same name as their originating mesh
-        if (!registered_ && debug && name() != polyMesh::defaultRegion)
+        if (registerObject())
         {
-            if (debug == 2)
-            {
-                // for ease of finding where attempted duplicate check-in
-                // originated
-                FatalErrorInFunction
-                    << "failed to register object " << objectPath()
-                    << " the name already exists in the objectRegistry" << endl
-                    << "Contents:" << db().sortedToc()
-                    << abort(FatalError);
-            }
-            else
-            {
-                WarningInFunction
-                    << "failed to register object " << objectPath()
-                    << " the name already exists in the objectRegistry"
-                    << endl;
-            }
+            // Register (check-in) with objectRegistry if requested
+            checkIn();
         }
     }
 
-    return registered_;
-}
 
-
-bool regIOobject::checkOut()
-{
-    if (registered_)
+    regIOobject::regIOobject(const regIOobject& rio)
+        :
+        IOobject(rio),
+        registered_(false),
+        ownedByRegistry_(false),
+        watchIndices_(rio.watchIndices_),
+        eventNo_(db().getEvent()),
+        metaDataPtr_(rio.metaDataPtr_.clone()),
+        isPtr_(nullptr)
     {
-        registered_ = false;
+        // Do not register copy with objectRegistry
+    }
 
+
+    regIOobject::regIOobject(const regIOobject& rio, bool registerCopy)
+        :
+        IOobject(rio),
+        registered_(false),
+        ownedByRegistry_(false),
+        watchIndices_(),
+        eventNo_(db().getEvent()),
+        metaDataPtr_(rio.metaDataPtr_.clone()),
+        isPtr_(nullptr)
+    {
+        if (registerCopy)
+        {
+            if (rio.registered_)
+            {
+                // Unregister the original object
+                const_cast<regIOobject&>(rio).checkOut();
+            }
+            checkIn();
+        }
+    }
+
+
+    regIOobject::regIOobject
+    (
+        const word& newName,
+        const regIOobject& rio,
+        bool registerCopy
+    )
+        :
+        IOobject(newName, rio.instance(), rio.local(), rio.db()),
+        registered_(false),
+        ownedByRegistry_(false),
+        watchIndices_(),
+        eventNo_(db().getEvent()),
+        metaDataPtr_(rio.metaDataPtr_.clone()),
+        isPtr_(nullptr)
+    {
+        if (registerCopy)
+        {
+            // NOTE: could also unregister the original object
+            // if (rio.registered_ && newName == rio.name()) ...
+
+            checkIn();
+        }
+    }
+
+
+    regIOobject::regIOobject
+    (
+        const IOobject& io,
+        const regIOobject& rio
+    )
+        :
+        IOobject(io),
+        registered_(false),
+        ownedByRegistry_(false),
+        watchIndices_(),
+        eventNo_(db().getEvent()),
+        metaDataPtr_(rio.metaDataPtr_.clone()),
+        isPtr_(nullptr)
+    {
+        if (registerObject())
+        {
+            checkIn();
+        }
+    }
+
+
+    // * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
+
+    regIOobject::~regIOobject()
+    {
+        if (objectRegistry::debug)
+        {
+            Pout << "Destroy regIOobject: " << name()
+                << " type=" << type()
+                << " registered=" << registered_
+                << " owned=" << ownedByRegistry_
+                << " directory=" << path()
+                << endl;
+        }
+
+        // Deletion of a regIOobject should remove itself from its registry
+        // (ie, checkOut), but there are different paths for destruction to occur.
+        // The complications are only when the object is ownedByRegistry.
+        //
+        // 1. The objectRegistry clear()/erase() is called (and object is
+        //    'ownedByRegistry').
+        //
+        //  - Mark as unowned/unregistered prior to deletion.
+        //    This ensures that this checkOut() only clears file watches and
+        //    does nothing else.
+        //
+        // 2. The regIOobject is deleted directly (and also 'ownedByRegistry').
+        //
+        //  - Mark as unowned (but keep as registered) prior to triggering
+        //    checkOut(). By being 'unowned', the registry will not attempt a
+        //    second deletion when the object name is removed from the registry.
+
+        // Revoke any registry ownership: we are already deleting
+        ownedByRegistry_ = false;
+
+        // Remove registered object from objectRegistry
+        checkOut();
+    }
+
+
+    // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
+
+    bool regIOobject::checkIn()
+    {
+        if (!registered_)
+        {
+            // multiple checkin of same object is disallowed - this would mess up
+            // any mapping
+            registered_ = db().checkIn(*this);
+
+            // check-in on defaultRegion is allowed to fail, since subsetted meshes
+            // are created with the same name as their originating mesh
+            if (!registered_ && debug && name() != polyMesh::defaultRegion)
+            {
+                if (debug == 2)
+                {
+                    // for ease of finding where attempted duplicate check-in
+                    // originated
+                    FatalErrorInFunction
+                        << "failed to register object " << objectPath()
+                        << " the name already exists in the objectRegistry" << endl
+                        << "Contents:" << db().sortedToc()
+                        << abort(FatalError);
+                }
+                else
+                {
+                    WarningInFunction
+                        << "failed to register object " << objectPath()
+                        << " the name already exists in the objectRegistry"
+                        << endl;
+                }
+            }
+        }
+
+        return registered_;
+    }
+
+
+    bool regIOobject::checkOut()
+    {
         forAllReverse(watchIndices_, i)
         {
             fileHandler().removeWatch(watchIndices_[i]);
         }
         watchIndices_.clear();
-        return db().checkOut(*this);
+
+        if (registered_)
+        {
+            registered_ = false;
+
+            return db().checkOut(this);
+        }
+
+        return false;
     }
 
-    return false;
-}
 
-
-label regIOobject::addWatch(const fileName& f)
-{
-    label index = -1;
-
-    if
-    (
-        registered_
-     && readOpt() == MUST_READ_IF_MODIFIED
-     && time().runTimeModifiable()
-    )
+    label regIOobject::addWatch(const fileName& f)
     {
-        index = fileHandler().findWatch(watchIndices_, f);
+        label index = -1;
 
-        if (index == -1)
+        if
+            (
+                registered_
+                && readOpt() == MUST_READ_IF_MODIFIED
+                && time().runTimeModifiable()
+                )
         {
-            index = watchIndices_.size();
+            index = fileHandler().findWatch(watchIndices_, f);
+
+            if (index == -1)
+            {
+                index = watchIndices_.size();
+                watchIndices_.append(fileHandler().addWatch(f));
+            }
+        }
+
+        return index;
+    }
+
+
+    void regIOobject::addWatch()
+    {
+        if
+            (
+                registered_
+                && readOpt() == MUST_READ_IF_MODIFIED
+                && time().runTimeModifiable()
+                )
+        {
+            fileName f = filePath();
+            if (!f.size())
+            {
+                // We don't have this file but would like to re-read it.
+                // Possibly if master-only reading mode.
+                f = objectPath();
+            }
+
+            label index = fileHandler().findWatch(watchIndices_, f);
+            if (index != -1)
+            {
+                FatalErrorInFunction
+                    << "Object " << objectPath() << " of type " << type()
+                    << " already watched with index " << watchIndices_[index]
+                    << abort(FatalError);
+            }
+
+            // If master-only reading only the master will have all dependencies
+            // so scatter these to slaves
+            bool masterOnly =
+                global()
+                && (
+                    IOobject::fileModificationChecking == IOobject::timeStampMaster
+                    || IOobject::fileModificationChecking == IOobject::inotifyMaster
+                    );
+
+            if (masterOnly && Pstream::parRun())
+            {
+                // Get master watched files
+                fileNameList watchFiles;
+                if (Pstream::master())
+                {
+                    watchFiles.setSize(watchIndices_.size());
+                    forAll(watchIndices_, i)
+                    {
+                        watchFiles[i] = fileHandler().getFile(watchIndices_[i]);
+                    }
+                }
+                Pstream::scatter(watchFiles);
+
+                if (!Pstream::master())
+                {
+                    // unregister current ones
+                    forAllReverse(watchIndices_, i)
+                    {
+                        fileHandler().removeWatch(watchIndices_[i]);
+                    }
+
+                    watchIndices_.clear();
+                    forAll(watchFiles, i)
+                    {
+                        watchIndices_.append(fileHandler().addWatch(watchFiles[i]));
+                    }
+                }
+            }
+
             watchIndices_.append(fileHandler().addWatch(f));
         }
     }
-    return index;
-}
 
 
-void regIOobject::addWatch()
-{
-    if
-    (
-        registered_
-     && readOpt() == MUST_READ_IF_MODIFIED
-     && time().runTimeModifiable()
-    )
+    bool regIOobject::upToDate(const regIOobject& a) const
     {
-        fileName f = filePath();
-        if (!f.size())
+        label da = a.eventNo() - eventNo_;
+
+        // In case of overflow *this.event() might be 2G but a.event() might
+        // have overflowed to 0.
+        // Detect this by detecting a massive difference (labelMax/2) between
+        // the two events.
+        //
+        //  a       *this   return
+        //  -       -----   ------
+        // normal operation:
+        //  11      10      false
+        //  11      11      false
+        //  10      11      true
+        // overflow situation:
+        //  0       big     false
+        //  big     0       true
+
+        if (da > labelMax / 2)
         {
-            // We don't have this file but would like to re-read it.
-            // Possibly if master-only reading mode.
-            f = objectPath();
+            // *this.event overflowed but a.event not yet
+            return true;
+        }
+        else if (da < -labelMax / 2)
+        {
+            // a.event overflowed but *this not yet
+            return false;
+        }
+        else if (da < 0)
+        {
+            // My event number higher than a
+            return true;
         }
 
-        label index = fileHandler().findWatch(watchIndices_, f);
-        if (index != -1)
+        return false;
+    }
+
+
+    bool regIOobject::upToDate
+    (
+        const regIOobject& a,
+        const regIOobject& b
+    ) const
+    {
+        return upToDate(a) && upToDate(b);
+    }
+
+
+    bool regIOobject::upToDate
+    (
+        const regIOobject& a,
+        const regIOobject& b,
+        const regIOobject& c
+    ) const
+    {
+        return upToDate(a) && upToDate(b) && upToDate(c);
+    }
+
+
+    bool regIOobject::upToDate
+    (
+        const regIOobject& a,
+        const regIOobject& b,
+        const regIOobject& c,
+        const regIOobject& d
+    ) const
+    {
+        return upToDate(a) && upToDate(b) && upToDate(c) && upToDate(d);
+    }
+
+
+    void regIOobject::setUpToDate()
+    {
+        eventNo_ = db().getEvent();
+    }
+
+
+    void regIOobject::rename(const word& newName)
+    {
+        // Check out of objectRegistry
+        checkOut();
+
+        IOobject::rename(newName);
+
+        if (registerObject())
         {
-            FatalErrorIn("regIOobject::addWatch()")
-                << "Object " << objectPath() << " of type " << type()
-                << " already watched with index " << watchIndices_[index]
-                << abort(FatalError);
+            // Re-register object with objectRegistry
+            checkIn();
+        }
+    }
+
+
+    fileName regIOobject::filePath() const
+    {
+        return localFilePath(type());
+    }
+
+
+    bool regIOobject::headerOk()
+    {
+        // Note: Should be consistent with IOobject::typeHeaderOk(false)
+
+        bool ok = true;
+
+        fileName fName(filePath());
+
+        ok = fileHandler().readHeader(*this, fName, type());
+
+        if (!ok && IOobject::debug)
+        {
+            IOWarningInFunction(fName)
+                << "failed to read header of file " << objectPath()
+                << endl;
         }
 
-        // If master-only reading only the master will have all dependencies
-        // so scatter these to slaves
-        bool masterOnly =
-            global()
-         && (
-                regIOobject::fileModificationChecking == timeStampMaster
-             || regIOobject::fileModificationChecking == inotifyMaster
-            );
+        return ok;
+    }
 
-        if (masterOnly && Pstream::parRun())
+
+    void regIOobject::operator=(const IOobject& io)
+    {
+        // Close any file
+        isPtr_.reset(nullptr);
+
+        // Check out of objectRegistry
+        checkOut();
+
+        IOobject::operator=(io);
+
+        if (registerObject())
         {
-            // Get master watched files
-            fileNameList watchFiles;
-            if (Pstream::master())
-            {
-                watchFiles.setSize(watchIndices_.size());
-                forAll(watchIndices_, i)
-                {
-                    watchFiles[i] = fileHandler().getFile(watchIndices_[i]);
-                }
-            }
-            Pstream::scatter(watchFiles);
-
-            if (!Pstream::master())
-            {
-                // unregister current ones
-                forAllReverse(watchIndices_, i)
-                {
-                    fileHandler().removeWatch(watchIndices_[i]);
-                }
-
-                watchIndices_.clear();
-                forAll(watchFiles, i)
-                {
-                    watchIndices_.append(fileHandler().addWatch(watchFiles[i]));
-                }
-            }
+            // Re-register object with objectRegistry
+            checkIn();
         }
-
-        watchIndices_.append(fileHandler().addWatch(f));
     }
+
 }
-
-
-bool regIOobject::upToDate(const regIOobject& a) const
-{
-    if (a.eventNo() >= eventNo_)
-    {
-        return false;
-    }
-    else
-    {
-        return true;
-    }
-}
-
-
-bool regIOobject::upToDate
-(
-    const regIOobject& a,
-    const regIOobject& b
-) const
-{
-    if
-    (
-        a.eventNo() >= eventNo_
-     || b.eventNo() >= eventNo_
-    )
-    {
-        return false;
-    }
-    else
-    {
-        return true;
-    }
-}
-
-
-bool regIOobject::upToDate
-(
-    const regIOobject& a,
-    const regIOobject& b,
-    const regIOobject& c
-) const
-{
-    if
-    (
-        a.eventNo() >= eventNo_
-     || b.eventNo() >= eventNo_
-     || c.eventNo() >= eventNo_
-    )
-    {
-        return false;
-    }
-    else
-    {
-        return true;
-    }
-}
-
-
-bool regIOobject::upToDate
-(
-    const regIOobject& a,
-    const regIOobject& b,
-    const regIOobject& c,
-    const regIOobject& d
-) const
-{
-    if
-    (
-        a.eventNo() >= eventNo_
-     || b.eventNo() >= eventNo_
-     || c.eventNo() >= eventNo_
-     || d.eventNo() >= eventNo_
-    )
-    {
-        return false;
-    }
-    else
-    {
-        return true;
-    }
-}
-
-
-void regIOobject::setUpToDate()
-{
-    eventNo_ = db().getEvent();
-}
-
-
-void regIOobject::rename(const word& newName)
-{
-    // Check out of objectRegistry
-    checkOut();
-
-    IOobject::rename(newName);
-
-    if (registerObject())
-    {
-        // Re-register object with objectRegistry
-        checkIn();
-    }
-}
-
-
-fileName regIOobject::filePath() const
-{
-    return localFilePath(type());
-}
-
-
-bool regIOobject::headerOk()
-{
-    // Note: Should be consistent with IOobject::typeHeaderOk(false)
-
-    bool ok = true;
-
-    fileName fName(filePath());
-
-    ok = fileHandler().readHeader(*this, fName, type());
-
-    if (!ok && IOobject::debug)
-    {
-        IOWarningInFunction(fName)
-            << "failed to read header of file " << objectPath()
-            << endl;
-    }
-
-    return ok;
-}
-
-
-void regIOobject::operator=(const IOobject& io)
-{
-    // Close any file
-    isPtr_.clear();
-
-    // Check out of objectRegistry
-    checkOut();
-
-    IOobject::operator=(io);
-
-    if (registerObject())
-    {
-        // Re-register object with objectRegistry
-        checkIn();
-    }
-}
-
-
 // ************************************************************************* //

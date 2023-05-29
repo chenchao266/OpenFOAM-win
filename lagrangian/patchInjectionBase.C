@@ -1,9 +1,11 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2013-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2013-2017 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -25,8 +27,8 @@ License
 
 #include "patchInjectionBase.H"
 #include "polyMesh.H"
-#include "SubField.T.H"
-#include "cachedRandom.H"
+#include "SubField.H"
+#include "Random.H"
 #include "triPointRef.H"
 #include "volFields.H"
 #include "polyMeshTetDecomposition.H"
@@ -47,7 +49,7 @@ Foam::patchInjectionBase::patchInjectionBase
     triFace_(),
     triToFace_(),
     triCumulativeMagSf_(),
-    sumTriMagSf_(Pstream::nProcs() + 1, 0.0)
+    sumTriMagSf_(Pstream::nProcs() + 1, Zero)
 {
     if (patchId_ < 0)
     {
@@ -72,12 +74,6 @@ Foam::patchInjectionBase::patchInjectionBase(const patchInjectionBase& pib)
     triToFace_(pib.triToFace_),
     triCumulativeMagSf_(pib.triCumulativeMagSf_),
     sumTriMagSf_(pib.sumTriMagSf_)
-{}
-
-
-// * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
-
-Foam::patchInjectionBase::~patchInjectionBase()
 {}
 
 
@@ -148,33 +144,28 @@ void Foam::patchInjectionBase::updateMesh(const polyMesh& mesh)
 }
 
 
-void Foam::patchInjectionBase::setPositionAndCell
+Foam::label Foam::patchInjectionBase::setPositionAndCell
 (
     const fvMesh& mesh,
-    cachedRandom& rnd,
+    const scalar fraction01,
+    Random& rnd,
     vector& position,
     label& cellOwner,
     label& tetFacei,
     label& tetPti
 )
 {
-    scalar areaFraction = rnd.globalPosition(scalar(0), patchArea_);
+    label facei = -1;
 
     if (cellOwners_.size() > 0)
     {
         // Determine which processor to inject from
-        label proci = 0;
-        forAllReverse(sumTriMagSf_, i)
-        {
-            if (areaFraction >= sumTriMagSf_[i])
-            {
-                proci = i;
-                break;
-            }
-        }
+        const label proci = whichProc(fraction01);
 
         if (Pstream::myProcNo() == proci)
         {
+            const scalar areaFraction = fraction01*patchArea_;
+
             // Find corresponding decomposed face triangle
             label trii = 0;
             scalar offset = sumTriMagSf_[proci];
@@ -188,7 +179,7 @@ void Foam::patchInjectionBase::setPositionAndCell
             }
 
             // Set cellOwner
-            label facei = triToFace_[trii];
+            facei = triToFace_[trii];
             cellOwner = cellOwners_[facei];
 
             // Find random point in triangle
@@ -228,7 +219,7 @@ void Foam::patchInjectionBase::setPositionAndCell
                     polyMeshTetDecomposition::cellTetIndices(mesh, cellOwner);
 
                 // Construct cell tet volume fractions
-                scalarList cTetVFrac(cellTetIs.size(), 0.0);
+                scalarList cTetVFrac(cellTetIs.size(), Zero);
                 for (label teti=1; teti<cellTetIs.size()-1; teti++)
                 {
                     cTetVFrac[teti] =
@@ -260,7 +251,7 @@ void Foam::patchInjectionBase::setPositionAndCell
             tetPti = -1;
 
             // Dummy position
-            position = pTraits<vector>::max;
+            position = pTraits<vector>::max_;
         }
     }
     else
@@ -270,8 +261,52 @@ void Foam::patchInjectionBase::setPositionAndCell
         tetPti = -1;
 
         // Dummy position
-        position = pTraits<vector>::max;
+        position = pTraits<vector>::max_;
     }
+
+    return facei;
+}
+
+
+Foam::label Foam::patchInjectionBase::setPositionAndCell
+(
+    const fvMesh& mesh,
+    Random& rnd,
+    vector& position,
+    label& cellOwner,
+    label& tetFacei,
+    label& tetPti
+)
+{
+    scalar fraction01 = rnd.globalSample01<scalar>();
+
+    return setPositionAndCell
+    (
+        mesh,
+        fraction01,
+        rnd,
+        position,
+        cellOwner,
+        tetFacei,
+        tetPti
+    );
+}
+
+
+Foam::label Foam::patchInjectionBase::whichProc(const scalar fraction01) const
+{
+    const scalar areaFraction = fraction01*patchArea_;
+
+    // Determine which processor to inject from
+    forAllReverse(sumTriMagSf_, i)
+    {
+        if (areaFraction >= sumTriMagSf_[i])
+        {
+            return i;
+        }
+    }
+
+    return 0;
 }
 
 

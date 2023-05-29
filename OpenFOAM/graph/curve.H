@@ -1,9 +1,11 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -35,7 +37,7 @@ SourceFiles
 #ifndef curve_H
 #define curve_H
 
-#include "string.T.H"
+#include "_string.H"
 #include "primitiveFields.H"
 #include "autoPtr.H"
 
@@ -54,7 +56,9 @@ Ostream& operator<<(Ostream&, const curve&);
                            Class curve Declaration
 \*---------------------------------------------------------------------------*/
 
-class curve :    public scalarField
+class curve
+:
+    public scalarField
 {
 
 public:
@@ -143,7 +147,7 @@ public:
 
         autoPtr<curve> clone() const
         {
-            return autoPtr<curve>(new curve(*this));
+            return autoPtr<curve>::New(*this);
         }
 
 

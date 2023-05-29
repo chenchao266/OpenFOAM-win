@@ -1,9 +1,12 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2013 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2013 OpenFOAM Foundation
+    Copyright (C) 2019 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -35,9 +38,9 @@ SourceFiles
 #ifndef graph_H
 #define graph_H
 
-#include "string.T.H"
-#include "point.T.H"
-#include "HashPtrTable.T.H"
+#include "_string.H"
+#include "point.H"
+#include "HashPtrTable.H"
 #include "curve.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
@@ -56,7 +59,9 @@ Ostream& operator<<(Ostream&, const graph&);
                            Class graph Declaration
 \*---------------------------------------------------------------------------*/
 
-class graph :    public HashPtrTable<curve>
+class graph
+:
+    public HashPtrTable<curve>
 {
     // private data
 
@@ -176,6 +181,9 @@ public:
 
             scalarField& y();
 
+            // Limit the data for all axes based on x-limits
+            void setXRange(const scalar x0, const scalar x1);
+
 
         // Write
 
@@ -225,8 +233,7 @@ public:
 
 
                 //- Destructor
-                virtual ~writer()
-                {}
+                virtual ~writer() = default;
 
 
                 // Member Functions

@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2013-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2013-2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -75,10 +77,10 @@ bool Foam::directMethod::findInitialSeeds
             const point srcCtr(srcCells[srcI].centre(srcPts, srcFaces));
             label tgtI = tgt_.cellTree().findInside(srcCtr);
 
-                if (tgtI != -1 && intersect(srcI, tgtI))
-                {
-                    srcSeedI = srcI;
-                    tgtSeedI = tgtI;
+            if (tgtI != -1 && intersect(srcI, tgtI))
+            {
+                srcSeedI = srcI;
+                tgtSeedI = tgtI;
 
                 return true;
             }
@@ -180,7 +182,7 @@ void Foam::directMethod::appendToDirectSeeds
         {
             // source cell srcI not yet mapped
 
-            // identfy if target cell exists for source cell srcI
+            // identify if target cell exists for source cell srcI
             bool found = false;
             forAll(tgtNbr, j)
             {
@@ -235,14 +237,17 @@ Foam::directMethod::directMethod
 Foam::directMethod::~directMethod()
 {}
 
+
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
 
 void Foam::directMethod::calculate
 (
     labelListList& srcToTgtAddr,
     scalarListList& srcToTgtWght,
+    pointListList& srcToTgtVec,
     labelListList& tgtToSrcAddr,
-    scalarListList& tgtToSrcWght
+    scalarListList& tgtToSrcWght,
+    pointListList& tgtToSrcVec
 )
 {
     bool ok = initialise
@@ -263,7 +268,7 @@ void Foam::directMethod::calculate
 
     // list to keep track of whether src cell can be mapped
     boolList mapFlag(src_.nCells(), false);
-    UIndirectList<bool>(mapFlag, srcCellIDs) = true;
+    boolUIndList(mapFlag, srcCellIDs) = true;
 
     // find initial point in tgt mesh
     label srcSeedI = -1;

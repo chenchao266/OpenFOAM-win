@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -26,28 +29,43 @@ License
 #include "staticFvMesh.H"
 #include "addToRunTimeSelectionTable.H"
 
-// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
-
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
 
 namespace Foam
 {
     defineTypeNameAndDebug(staticFvMesh, 0);
     addToRunTimeSelectionTable(dynamicFvMesh, staticFvMesh, IOobject);
+    addToRunTimeSelectionTable(dynamicFvMesh, staticFvMesh, doInit);
 }
 
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
-Foam::staticFvMesh::staticFvMesh(const IOobject& io)
+Foam::staticFvMesh::staticFvMesh(const IOobject& io, const bool doInit)
 :
-    dynamicFvMesh(io)
+    dynamicFvMesh(io, doInit)
 {}
 
 
-// * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
-
-Foam::staticFvMesh::~staticFvMesh()
+Foam::staticFvMesh::staticFvMesh
+(
+    const IOobject& io,
+    pointField&& points,
+    faceList&& faces,
+    labelList&& allOwner,
+    labelList&& allNeighbour,
+    const bool syncPar
+)
+:
+    dynamicFvMesh
+    (
+        io,
+        std::move(points),
+        std::move(faces),
+        std::move(allOwner),
+        std::move(allNeighbour),
+        syncPar
+    )
 {}
 
 

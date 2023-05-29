@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2012-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2012-2016 OpenFOAM Foundation
+    Copyright (C) 2016-2019 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -25,6 +28,7 @@ License
 
 #include "volFields.H"
 #include "surfaceFields.H"
+#include "polySurfaceFields.H"
 
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
 
@@ -33,8 +37,9 @@ bool Foam::functionObjects::mag::calcMag()
 {
     typedef GeometricField<Type, fvPatchField, volMesh> VolFieldType;
     typedef GeometricField<Type, fvsPatchField, surfaceMesh> SurfaceFieldType;
+    typedef DimensionedField<Type, polySurfaceGeoMesh> SurfFieldType;
 
-    if (foundObject<VolFieldType>(fieldName_))
+    if (foundObject<VolFieldType>(fieldName_, false))
     {
         return store
         (
@@ -42,7 +47,7 @@ bool Foam::functionObjects::mag::calcMag()
             Foam::mag(lookupObject<VolFieldType>(fieldName_))
         );
     }
-    else if (foundObject<SurfaceFieldType>(fieldName_))
+    else if (foundObject<SurfaceFieldType>(fieldName_, false))
     {
         return store
         (
@@ -50,10 +55,16 @@ bool Foam::functionObjects::mag::calcMag()
             Foam::mag(lookupObject<SurfaceFieldType>(fieldName_))
         );
     }
-    else
+    else if (foundObject<SurfFieldType>(fieldName_, false))
     {
-        return false;
+        return store
+        (
+            resultName_,
+            Foam::mag(lookupObject<SurfFieldType>(fieldName_))
+        );
     }
+
+    return false;
 }
 
 

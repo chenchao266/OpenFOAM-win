@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2013-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2013-2017 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -22,7 +24,7 @@ License
     along with OpenFOAM.  If not, see <http://www.gnu.org/licenses/>.
 
 Class
-    Foam::thixotropicViscosity
+    Foam::regionModels::surfaceFilmModels::thixotropicViscosity
 
 Description
     Thixotropic viscosity model based on the evolution of the structural
@@ -91,11 +93,11 @@ class thixotropicViscosity
 {
     // Private member functions
 
-        //- Disallow default bitwise copy construct
-        thixotropicViscosity(const thixotropicViscosity&);
+        //- No copy construct
+        thixotropicViscosity(const thixotropicViscosity&) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const thixotropicViscosity&);
+        //- No copy assignment
+        void operator=(const thixotropicViscosity&) = delete;
 
 
 protected:
@@ -120,7 +122,7 @@ protected:
         //- Limiting viscosity when lambda = 0
         dimensionedScalar muInf_;
 
-        //- Model coeffiicient
+        //- Model coefficient
         dimensionedScalar K_;
 
         //- Structural parameter
@@ -140,7 +142,7 @@ public:
         //- Construct from surface film model
         thixotropicViscosity
         (
-            surfaceFilmModel& film,
+            surfaceFilmRegionModel& film,
             const dictionary& dict,
             volScalarField& mu
         );

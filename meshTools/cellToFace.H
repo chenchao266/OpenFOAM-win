@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011 OpenFOAM Foundation
+    Copyright (C) 2018-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -25,11 +28,81 @@ Class
     Foam::cellToFace
 
 Description
-    A topoSetSource to select a faceSet from cells.
+    A \c topoSetFaceSource to select all the faces from given \c cellSet(s).
 
-    Either all faces of cell or some other criterion.
-    See implementation.
-    Note: when picking up coupled faces uses cells on neighbouring processors.
+    Operands:
+    \table
+      Operand   | Type       | Location
+      input     | cellSet(s) | $FOAM_CASE/constant/polyMesh/sets/\<set\>
+      output    | faceSet    | $FOAM_CASE/constant/polyMesh/sets/\<set\>
+    \endtable
+
+Usage
+    Minimal example by using \c system/topoSetDict.actions:
+    \verbatim
+    {
+        // Mandatory (inherited) entries
+        name        <name>;
+        type        faceSet;
+        action      <action>;
+
+        // Mandatory entries
+        source      cellToFace;
+        option      <option>;
+
+        // Conditional mandatory entries
+        // Select either of the below
+
+        // Option-1
+        sets
+        (
+            <cellSetName1>
+            <cellSetName2>
+            ...
+        );
+
+        // Option-2
+        set <cellSetName>;
+    }
+    \endverbatim
+
+    where the entries mean:
+    \table
+      Property   | Description                         | Type | Req'd | Dflt
+      name       | Name of faceSet                     | word |  yes  | -
+      type       | Type name: faceSet                  | word |  yes  | -
+      action     | Action applied on faces - see below | word |  yes  | -
+      source     | Source name: cellToFace             | word |  yes  | -
+      option     | Selection type - see below          | word |  yes  | -
+    \endtable
+
+    Options for the \c action entry:
+    \verbatim
+      new      | Create a new faceSet from selected cells of cellSet(s)
+      add      | Add selected faces of cellSet(s) into this faceSet
+      subtract | Remove selected faces of cellSet(s) from this faceSet
+    \endverbatim
+
+    Options for the \c option entry:
+    \verbatim
+      all     | All faces of cells in the cellSet
+      both    | Faces where both neighbours are in the cellSet
+    \endverbatim
+
+    Options for the conditional mandatory entries:
+    \verbatim
+      Entry    | Description                    | Type     | Req'd  | Dflt
+      sets     | Names of input cellSets        | wordList | cond'l | -
+      set      | Name of input cellSet          | word     | cond'l | -
+    \endverbatm
+
+Note
+    The order of precedence among the conditional mandatory entries from the
+    highest to the lowest is \c sets, and \c set.
+
+See also
+    - Foam::topoSetSource
+    - Foam::topoSetFaceSource
 
 SourceFiles
     cellToFace.C
@@ -39,8 +112,8 @@ SourceFiles
 #ifndef cellToFace_H
 #define cellToFace_H
 
-#include "topoSetSource.H"
-#include "NamedEnum.T.H"
+#include "topoSetFaceSource.H"
+#include "Enum.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -53,7 +126,7 @@ namespace Foam
 
 class cellToFace
 :
-    public topoSetSource
+    public topoSetFaceSource
 {
 public:
         //- Enumeration defining the valid options
@@ -66,28 +139,31 @@ public:
 
 private:
 
+    // Private Data
+
         //- Add usage string
         static addToUsageTable usage_;
 
-        static const NamedEnum<cellAction, 2> cellActionNames_;
+        static const Enum<cellAction> cellActionNames_;
 
-        //- Name of set to use
-        word setName_;
+        //- Names of cellSets to use
+        wordList names_;
 
-        //- Option
+        //- Selection type
         cellAction option_;
 
 
     // Private Member Functions
 
         //- Depending on face to cell option add to or delete from cellSet.
-        void combine(topoSet& set, const bool add) const;
+        void combine(topoSet& set, const bool add, const word& setName) const;
 
 
 public:
 
     //- Runtime type information
     TypeName("cellToFace");
+
 
     // Constructors
 
@@ -100,37 +176,23 @@ public:
         );
 
         //- Construct from dictionary
-        cellToFace
-        (
-            const polyMesh& mesh,
-            const dictionary& dict
-        );
+        cellToFace(const polyMesh& mesh, const dictionary& dict);
 
         //- Construct from Istream
-        cellToFace
-        (
-            const polyMesh& mesh,
-            Istream&
-        );
+        cellToFace(const polyMesh& mesh, Istream& is);
 
 
     //- Destructor
-    virtual ~cellToFace();
+    virtual ~cellToFace() = default;
 
 
     // Member Functions
 
-        virtual sourceType setType() const
-        {
-            return FACESETSOURCE;
-        }
-
         virtual void applyToSet
         (
             const topoSetSource::setAction action,
-            topoSet&
+            topoSet& set
         ) const;
-
 };
 
 

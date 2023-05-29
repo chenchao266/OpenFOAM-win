@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2015-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -34,20 +37,18 @@ License
 
 namespace Foam
 {
-
-defineTypeNameAndDebug(regionToCell, 0);
-
-addToRunTimeSelectionTable(topoSetSource, regionToCell, word);
-
-addToRunTimeSelectionTable(topoSetSource, regionToCell, istream);
-
+    defineTypeNameAndDebug(regionToCell, 0);
+    addToRunTimeSelectionTable(topoSetSource, regionToCell, word);
+    addToRunTimeSelectionTable(topoSetSource, regionToCell, istream);
+    addToRunTimeSelectionTable(topoSetCellSource, regionToCell, word);
+    addToRunTimeSelectionTable(topoSetCellSource, regionToCell, istream);
 }
 
 
 Foam::topoSetSource::addToUsageTable Foam::regionToCell::usage_
 (
     regionToCell::typeName,
-    "\n    Usage: regionToCell subCellSet (pt0 .. ptn)\n\n"
+    "\n    Usage: regionToCell subCellSet (pt0 .. ptn) nErode\n\n"
     "    Select all cells in the connected region containing"
     " points (pt0..ptn).\n"
 );
@@ -90,11 +91,7 @@ void Foam::regionToCell::markRegionFaces
         {
             label facei = pp.start()+i;
             label bFacei = facei-mesh_.nInternalFaces();
-            if
-            (
-                selectedCell[faceCells[i]]
-             != selectedCell[nbrSelected[bFacei]]
-            )
+            if (selectedCell[faceCells[i]] != nbrSelected[bFacei])
             {
                 regionFace[facei] = true;
             }
@@ -163,7 +160,7 @@ void Foam::regionToCell::unselectOutsideRegions
     regionSplit cellRegion(mesh_, blockedFace);
 
     // Determine regions containing insidePoints_
-    boolList keepRegion(findRegions(true, cellRegion));
+    boolList keepRegion(findRegions(verbose_, cellRegion));
 
     // Go back to bool per cell
     forAll(cellRegion, celli)
@@ -240,7 +237,8 @@ void Foam::regionToCell::shrinkRegions
             }
         }
     }
-    Info<< "    Eroded " << returnReduce(nChanged, sumOp<label>())
+    Info<< "    Eroded "
+        << returnReduce(nChanged, sumOp<label>())
         << " cells." << endl;
 }
 
@@ -265,7 +263,6 @@ void Foam::regionToCell::erode
     //generateField("shrunkSelectedCell", shrunkSelectedCell)().write();
 
 
-
     // Determine faces on the edge of shrunkSelectedCell
     boolList blockedFace(mesh_.nFaces(), false);
     markRegionFaces(shrunkSelectedCell, blockedFace);
@@ -274,7 +271,7 @@ void Foam::regionToCell::erode
     regionSplit cellRegion(mesh_, blockedFace);
 
     // Determine regions containing insidePoints
-    boolList keepRegion(findRegions(true, cellRegion));
+    boolList keepRegion(findRegions(verbose_, cellRegion));
 
 
     // Extract cells in regions that are not to be kept.
@@ -289,7 +286,6 @@ void Foam::regionToCell::erode
 
     //Info<< "removeCell before:" << count(removeCell) << endl;
     //generateField("removeCell_before", removeCell)().write();
-
 
 
     // Grow removeCell
@@ -353,14 +349,16 @@ void Foam::regionToCell::combine(topoSet& set, const bool add) const
 
     if (setName_.size() && setName_ != "none")
     {
-        Info<< "    Loading subset " << setName_ << " to delimit search region."
+        Info<< "    Loading subset " << setName_
+            << " to delimit search region."
             << endl;
+
         cellSet subSet(mesh_, setName_);
 
         selectedCell = false;
-        forAllConstIter(cellSet, subSet, iter)
+        for (const label celli : subSet)
         {
-            selectedCell[iter.key()] = true;
+            selectedCell[celli] = true;
         }
     }
 
@@ -385,7 +383,6 @@ void Foam::regionToCell::combine(topoSet& set, const bool add) const
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
-// Construct from components
 Foam::regionToCell::regionToCell
 (
     const polyMesh& mesh,
@@ -394,49 +391,39 @@ Foam::regionToCell::regionToCell
     const label nErode
 )
 :
-    topoSetSource(mesh),
+    topoSetCellSource(mesh),
     setName_(setName),
     insidePoints_(insidePoints),
     nErode_(nErode)
 {}
 
 
-// Construct from dictionary
 Foam::regionToCell::regionToCell
 (
     const polyMesh& mesh,
     const dictionary& dict
 )
 :
-    topoSetSource(mesh),
-    setName_(dict.lookupOrDefault<word>("set", "none")),
+    topoSetCellSource(mesh),
+    setName_(dict.getOrDefault<word>("set", "none")),
     insidePoints_
     (
-        dict.found("insidePoints")
-      ? dict.lookup("insidePoints")
-      : dict.lookup("insidePoint")
+        dict.getCompat<pointField>("insidePoints", {{ "insidePoint", 0 }})
     ),
-    nErode_(dict.lookupOrDefault("nErode", 0))
+    nErode_(dict.getCheckOrDefault<label>("nErode", 0, labelMinMax::ge(0)))
 {}
 
 
-// Construct from Istream
 Foam::regionToCell::regionToCell
 (
     const polyMesh& mesh,
     Istream& is
 )
 :
-    topoSetSource(mesh),
+    topoSetCellSource(mesh),
     setName_(checkIs(is)),
     insidePoints_(checkIs(is)),
-    nErode_(0)
-{}
-
-
-// * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
-
-Foam::regionToCell::~regionToCell()
+    nErode_(readLabel(checkIs(is)))
 {}
 
 
@@ -448,17 +435,25 @@ void Foam::regionToCell::applyToSet
     topoSet& set
 ) const
 {
-    if ((action == topoSetSource::NEW) || (action == topoSetSource::ADD))
+    if (action == topoSetSource::ADD || action == topoSetSource::NEW)
     {
-        Info<< "    Adding all cells of connected region containing points "
-            << insidePoints_ << " ..." << endl;
+        if (verbose_)
+        {
+            Info<< "    Adding all cells of connected region "
+                << "containing points "
+                << insidePoints_ << " ..." << endl;
+        }
 
         combine(set, true);
     }
-    else if (action == topoSetSource::DELETE)
+    else if (action == topoSetSource::SUBTRACT)
     {
-        Info<< "    Removing all cells of connected region containing points "
-            << insidePoints_ << " ..." << endl;
+        if (verbose_)
+        {
+            Info<< "    Removing all cells of connected region "
+                << "containing points "
+                << insidePoints_ << " ..." << endl;
+        }
 
         combine(set, false);
     }

@@ -1,9 +1,12 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -23,76 +26,15 @@ License
 
 \*---------------------------------------------------------------------------*/
 
-#include "geometricOneField.H"
-
-// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
-namespace Foam {
-inline const dimensionSet& geometricOneField::dimensions() const
+namespace Foam
 {
-    return dimless;
-}
 
-
-inline one geometricOneField::operator[](const label) const
-{
-    return one();
-}
-
-
-inline oneField geometricOneField::field() const
-{
-    return oneField();
-}
-
-
-inline oneField geometricOneField::oldTime() const
-{
-    return oneField();
-}
-
-
-inline geometricOneField::Internal
-geometricOneField::operator()() const
-{
-    return Internal();
-}
-
-
-inline geometricOneField::Internal
-geometricOneField::v() const
-{
-    return Internal();
-}
-
-
-inline typename geometricOneField::Internal::FieldType
-geometricOneField::primitiveField() const
-{
-    return typename Internal::FieldType();
-}
-
-
-inline geometricOneField::Boundary
-geometricOneField::boundaryField() const
-{
-    return Boundary();
-}
-
+// * * * * * * * * * * * * * * * Global Operators  * * * * * * * * * * * * * //
 
 inline const geometricOneField& operator*
 (
-    const geometricOneField& gof,
-    const geometricOneField&
-)
-{
-    return gof;
-}
-
-
-inline const geometricOneField::Internal& operator*
-(
-    const geometricOneField::Internal& of,
-    const geometricOneField&
+    const geometricOneField& of,
+    const geometricOneField& /*ignore*/
 )
 {
     return of;
@@ -101,7 +43,17 @@ inline const geometricOneField::Internal& operator*
 
 inline const geometricOneField::Internal& operator*
 (
-    const geometricOneField&,
+    const geometricOneField::Internal& of,
+    const geometricOneField& /*ignore*/
+)
+{
+    return of;
+}
+
+
+inline const geometricOneField::Internal& operator*
+(
+    const geometricOneField& /*ignore*/,
     const geometricOneField::Internal& of
 )
 {
@@ -111,18 +63,18 @@ inline const geometricOneField::Internal& operator*
 
 inline const geometricOneField& operator/
 (
-    const geometricOneField& gof,
-    const geometricOneField&
+    const geometricOneField& of,
+    const geometricOneField& /*ignore*/
 )
 {
-    return gof;
+    return of;
 }
 
 
 inline const geometricOneField::Internal& operator/
 (
     const geometricOneField::Internal& of,
-    const geometricOneField&
+    const geometricOneField& /*ignore*/
 )
 {
     return of;
@@ -131,12 +83,16 @@ inline const geometricOneField::Internal& operator/
 
 inline const geometricOneField::Internal& operator/
 (
-    const geometricOneField&,
+    const geometricOneField& /*ignore*/,
     const geometricOneField::Internal& of
 )
 {
     return of;
 }
 
-}
+
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+} // End namespace Foam
+
 // ************************************************************************* //

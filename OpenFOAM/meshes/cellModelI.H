@@ -1,9 +1,12 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -21,119 +24,132 @@ License
     You should have received a copy of the GNU General Public License
     along with OpenFOAM.  If not, see <http://www.gnu.org/licenses/>.
 
-Description
-
 \*---------------------------------------------------------------------------*/
-
-#include "error.H"
-#include "cellModel.H"
-
-// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
-
-namespace Foam
-{
 
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
 
-inline const word& cellModel::name() const
+
+ namespace Foam{
+inline const word& cellModel::name() const noexcept
 {
     return name_;
 }
 
 
-inline label cellModel::index() const
+inline label cellModel::index() const noexcept
 {
     return index_;
 }
 
 
-inline label cellModel::nPoints() const
+inline label cellModel::nPoints() const noexcept
 {
     return nPoints_;
 }
 
 
-inline label cellModel::nEdges() const
+inline label cellModel::nEdges() const noexcept
 {
     return edges_.size();
 }
 
 
-inline label cellModel::nFaces() const
+inline label cellModel::nFaces() const noexcept
 {
     return faces_.size();
 }
 
 
-//  Return the faces of a cellModel by untangling the geometry
-//  supplied in terms of the face labels
-inline edgeList cellModel::edges(const labelList& pointLabels) const
+inline const edgeList& cellModel::modelEdges() const noexcept
 {
-    edgeList e(edges_.size());
-
-    // Translate model lebels into global labels
-    forAll(edges_, edgeI)
-    {
-         e[edgeI] =
-             edge
-             (
-                 pointLabels[edges_[edgeI].start()],
-                 pointLabels[edges_[edgeI].end()]
-             );
-    }
-
-    return e;
+    return edges_;
 }
 
 
-// Return a raw list of model faces
-inline const faceList& cellModel::modelFaces() const
+inline const faceList& cellModel::modelFaces() const noexcept
 {
     return faces_;
 }
 
-//  Return the faces of a cellModel by untangling the geometry
-//  supplied in terms of the face labels
-inline faceList cellModel::faces(const labelList& pointLabels) const
+
+inline edgeList cellModel::edges
+(
+    const labelUList& pointLabels
+) const
 {
-    faceList f(faces_.size());
+    edgeList theEdges(edges_.size());
 
-    // Translate model lebels into global labels
-    forAll(faces_, facei)
+    forAll(edges_, edgei)
     {
-         const labelList& curModelLabels = faces_[facei];
-
-         face& curFace = f[facei];
-
-         curFace.setSize(curModelLabels.size());
-
-         forAll(curModelLabels, labelI)
-         {
-             curFace[labelI] = pointLabels[curModelLabels[labelI]];
-         }
+        // From model labels to global labels
+        theEdges[edgei] = ::Foam::edge(pointLabels, edges_[edgei]);
     }
 
-    return f;
+    return theEdges;
 }
 
 
-// * * * * * * * * * * * * * * * Friend Operators  * * * * * * * * * * * * * //
-
-// Equality operator: true => ptr to models are equal !
-inline bool operator==(const cellModel& m1, const cellModel& m2)
+inline ::Foam::edge cellModel::edge
+(
+    const label modelEdgei,
+    const labelUList& pointLabels
+) const
 {
-    return (&m1 == &m2);
+    // From model labels to global labels
+    return ::Foam::edge(pointLabels, edges_[modelEdgei]);
 }
 
-// Inequality operator: true => ptr to models are not equal !
-inline bool operator!=(const cellModel& m1, const cellModel& m2)
+
+inline faceList cellModel::faces
+(
+    const labelUList& pointLabels
+) const
 {
-    return (&m1 != &m2);
+    faceList theFaces(faces_.size());
+
+    forAll(faces_, facei)
+    {
+        // From model labels to global labels
+        theFaces[facei] = ::Foam::face(pointLabels, faces_[facei]);
+    }
+
+    return theFaces;
 }
 
 
-// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+inline ::Foam::face cellModel::face
+(
+    const label modelFacei,
+    const labelUList& pointLabels
+) const
+{
+    // From model labels to global labels
+    return ::Foam::face(pointLabels, faces_[modelFacei]);
+}
 
-} // End namespace Foam
+
+// * * * * * * * * * * * * * * * Global Operators  * * * * * * * * * * * * * //
+
+inline bool operator==
+(
+    const cellModel& lhs,
+    const cellModel& rhs
+) noexcept
+{
+    return (&lhs == &rhs);
+}
+
+
+inline bool operator!=
+(
+    const cellModel& lhs,
+    const cellModel& rhs
+) noexcept
+{
+    return (&lhs != &rhs);
+}
+
 
 // ************************************************************************* //
+
+ } // End namespace Foam

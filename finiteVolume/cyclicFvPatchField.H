@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2019 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -90,6 +93,7 @@ class cyclicFvPatchField
 
 public:
 
+
     //- Runtime type information
     TypeName(cyclicFvPatch::typeName_());
 
@@ -108,7 +112,8 @@ public:
         (
             const fvPatch&,
             const DimensionedField<Type, volMesh>&,
-            const dictionary&
+            const dictionary&,
+            const bool valueRequired = true
         );
 
         //- Construct by mapping given cyclicFvPatchField onto a new patch
@@ -177,8 +182,11 @@ public:
             //- Update result field based on interface functionality
             virtual void updateInterfaceMatrix
             (
-                scalarField& result,
-                const scalarField& psiInternal,
+                solveScalarField& result,
+                const bool add,
+                const lduAddressing& lduAddr,
+                const label patchId,
+                const solveScalarField& psiInternal,
                 const scalarField& coeffs,
                 const direction cmpt,
                 const Pstream::commsTypes commsType
@@ -188,10 +196,23 @@ public:
             virtual void updateInterfaceMatrix
             (
                 Field<Type>& result,
+                const bool add,
+                const lduAddressing& lduAddr,
+                const label patchId,
                 const Field<Type>& psiInternal,
                 const scalarField& coeffs,
                 const Pstream::commsTypes commsType
             ) const;
+
+
+            //- Manipulate matrix
+            virtual void manipulateMatrix
+            (
+                fvMatrix<Type>& m,
+                const label iMatrix,
+                const direction cmp
+            );
+
 
 
         // Cyclic coupled interface functions

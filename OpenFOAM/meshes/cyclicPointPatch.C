@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -32,7 +34,7 @@ License
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
-using namespace Foam;
+
 namespace Foam
 {
     defineTypeNameAndDebug(cyclicPointPatch, 0);
@@ -42,63 +44,64 @@ namespace Foam
         cyclicPointPatch,
         polyPatch
     );
+
+    // * * * * * * * * * * * * * Protected Member Functions  * * * * * * * * * * //
+
+    void cyclicPointPatch::initGeometry(PstreamBuffers&)
+    {}
+
+
+    void cyclicPointPatch::calcGeometry(PstreamBuffers&)
+    {}
+
+
+    void cyclicPointPatch::initMovePoints(PstreamBuffers&, const pointField&)
+    {}
+
+
+    void cyclicPointPatch::movePoints(PstreamBuffers&, const pointField&)
+    {}
+
+
+    void cyclicPointPatch::initUpdateMesh(PstreamBuffers& pBufs)
+    {
+        facePointPatch::initUpdateMesh(pBufs);
+        cyclicPointPatch::initGeometry(pBufs);
+    }
+
+
+    void cyclicPointPatch::updateMesh(PstreamBuffers& pBufs)
+    {
+        facePointPatch::updateMesh(pBufs);
+        cyclicPointPatch::calcGeometry(pBufs);
+    }
+
+
+    // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
+
+    cyclicPointPatch::cyclicPointPatch
+    (
+        const polyPatch& patch,
+        const pointBoundaryMesh& bm
+    )
+        :
+        coupledFacePointPatch(patch, bm),
+        cyclicPolyPatch_(refCast<const cyclicPolyPatch>(patch))
+    {}
+
+
+    // * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
+
+    cyclicPointPatch::~cyclicPointPatch()
+    {}
+
+
+    // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
+
+    const edgeList& cyclicPointPatch::transformPairs() const
+    {
+        return cyclicPolyPatch_.coupledPoints();
+    }
+
 }
-
-// * * * * * * * * * * * * * Protected Member Functions  * * * * * * * * * * //
-
-void cyclicPointPatch::initGeometry(PstreamBuffers&)
-{}
-
-
-void cyclicPointPatch::calcGeometry(PstreamBuffers&)
-{}
-
-
-void cyclicPointPatch::initMovePoints(PstreamBuffers&, const pointField&)
-{}
-
-
-void cyclicPointPatch::movePoints(PstreamBuffers&, const pointField&)
-{}
-
-
-void cyclicPointPatch::initUpdateMesh(PstreamBuffers& pBufs)
-{
-    facePointPatch::initUpdateMesh(pBufs);
-    cyclicPointPatch::initGeometry(pBufs);
-}
-
-
-void cyclicPointPatch::updateMesh(PstreamBuffers& pBufs)
-{
-    facePointPatch::updateMesh(pBufs);
-    cyclicPointPatch::calcGeometry(pBufs);
-}
-
-
-// * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
-
-cyclicPointPatch::cyclicPointPatch
-(
-    const polyPatch& patch,
-    const pointBoundaryMesh& bm
-) :    coupledFacePointPatch(patch, bm),
-    cyclicPolyPatch_(refCast<const cyclicPolyPatch>(patch))
-{}
-
-
-// * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
-
-cyclicPointPatch::~cyclicPointPatch()
-{}
-
-
-// * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
-
-const edgeList& cyclicPointPatch::transformPairs() const
-{
-    return cyclicPolyPatch_.coupledPoints();
-}
-
-
 // ************************************************************************* //

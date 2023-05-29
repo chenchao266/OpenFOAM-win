@@ -1,9 +1,12 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2018-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -25,7 +28,8 @@ Class
     Foam::polyBoundaryMesh
 
 Description
-    Foam::polyBoundaryMesh
+    A polyBoundaryMesh is a polyPatch list with additional search methods
+    and registered IO.
 
 SourceFiles
     polyBoundaryMesh.C
@@ -38,52 +42,61 @@ SourceFiles
 #include "polyPatchList.H"
 #include "regIOobject.H"
 #include "labelPair.H"
-#include "HashSet.T.H"
+#include "HashSet.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 namespace Foam
 {
 
-// Forward declaration of classes
+// Forward Declarations
 class polyMesh;
 class wordRe;
+class wordRes;
 
-// Forward declaration of friend functions and operators
-
-Ostream& operator<<(Ostream&, const polyBoundaryMesh&);
+Ostream& operator<<(Ostream& os, const polyBoundaryMesh& pbm);
 
 
 /*---------------------------------------------------------------------------*\
                       Class polyBoundaryMesh Declaration
 \*---------------------------------------------------------------------------*/
 
-class polyBoundaryMesh :    public polyPatchList,
+class polyBoundaryMesh
+:
+    public polyPatchList,
     public regIOobject
 {
-    // private data
+    // Private Data
 
         //- Reference to mesh
         const polyMesh& mesh_;
 
+        //- Demand-driven: list of patch ids per face.
         mutable autoPtr<labelList> patchIDPtr_;
 
-        mutable autoPtr<HashTable<labelList, word>> groupPatchIDsPtr_;
+        //- Demand-driven: list of patch ids per group
+        mutable autoPtr<HashTable<labelList>> groupIDsPtr_;
 
-        //- Edges of neighbouring patches
+        //- Demand-driven: edges of neighbouring patches
         mutable autoPtr<List<labelPairList>> neighbourEdgesPtr_;
 
 
     // Private Member Functions
 
-        //- Calculate the geometry for the patches (transformation tensors etc.)
+        //- Calculate geometry for the patches (transformation tensors etc.)
         void calcGeometry();
 
-        //- Disallow construct as copy
-        polyBoundaryMesh(const polyBoundaryMesh&);
+        //- Some patches have inGroup entries
+        bool hasGroupIDs() const;
 
-        //- Disallow assignment
-        void operator=(const polyBoundaryMesh&);
+        //- Calculate group name to patch ids lookup
+        void calcGroupIDs() const;
+
+        //- No copy construct
+        polyBoundaryMesh(const polyBoundaryMesh&) = delete;
+
+        //- No copy assignment
+        void operator=(const polyBoundaryMesh&) = delete;
 
 
 public:
@@ -102,29 +115,30 @@ public:
         //  Note point pointers are unset, only used in copying meshes
         polyBoundaryMesh
         (
-            const IOobject&,
-            const polyMesh&
+            const IOobject& io,
+            const polyMesh& mesh
         );
 
         //- Construct given size
         polyBoundaryMesh
         (
-            const IOobject&,
-            const polyMesh&,
+            const IOobject& io,
+            const polyMesh& mesh,
             const label size
         );
 
         //- Construct given polyPatchList
         polyBoundaryMesh
         (
-            const IOobject&,
-            const polyMesh&,
-            const polyPatchList&
+            const IOobject& io,
+            const polyMesh& mesh,
+            const polyPatchList& ppl
         );
 
 
     //- Destructor
-    ~polyBoundaryMesh();
+    ~polyBoundaryMesh() = default;
+
 
         //- Clear geometry at this level and at patches
         void clearGeom();
@@ -136,18 +150,25 @@ public:
     // Member Functions
 
         //- Return the mesh reference
-        const polyMesh& mesh() const
+        const polyMesh& mesh() const noexcept
         {
             return mesh_;
         }
 
-        //- Per patch the edges on the neighbouring patch. Is for every external
-        //  edge the neighbouring patch and neighbouring (external) patch edge
-        //  label. Note that edge indices are offset by nInternalEdges to keep
-        //  it as much as possible consistent with coupled patch addressing
-        //  (where coupling is by local patch face index).
-        //  Only valid for singly connected polyBoundaryMesh and not parallel
+        //- Return a list of faceCells for each patch
+        UPtrList<const labelUList> faceCells() const;
+
+        //- Per patch the edges on the neighbouring patch.
+        //  Is for every external edge the neighbouring patch and
+        //  neighbouring (external) patch edge label. Note that edge indices
+        //  are offset by nInternalEdges to keep it as much as possible
+        //  consistent with coupled patch addressing (where coupling is by
+        //  local patch face index). Only valid for singly connected
+        //  polyBoundaryMesh and not parallel
         const List<labelPairList>& neighbourEdges() const;
+
+        //- The number of patches before the first processor patch.
+        label nNonProcessor() const;
 
         //- Return a list of patch names
         wordList names() const;
@@ -158,18 +179,62 @@ public:
         //- Return a list of physical types
         wordList physicalTypes() const;
 
-        //- Return patch indices for all matches. Optionally matches patchGroups
-        labelList findIndices
+        //- Return a list of patch start face indices
+        labelList patchStarts() const;
+
+        //- Return a list of patch sizes
+        labelList patchSizes() const;
+
+        //- Return a list of patch ranges
+        List<labelRange> patchRanges() const;
+
+        //- The start label of the boundary faces in the polyMesh face list
+        //  Same as mesh.nInternalFaces()
+        label start() const;
+
+        //- The number of boundary faces in the underlying mesh
+        //  Same as mesh.nBoundaryFaces()
+        label nFaces() const;
+
+        //- The face range for all boundary faces
+        //  Spans [nInternalFaces, nFaces) of the underlying mesh
+        labelRange range() const;
+
+        //- Return the range used for boundary faces on patchi.
+        //  Always returns an empty range for negative values of patchi,
+        //  which allows safe use with findIndex or findPatchID.
+        labelRange range(const label patchi) const;
+
+
+        //- Return (sorted) patch indices for all matches.
+        //  Optionally matches patch groups.
+        //  A no-op (returns empty list) for an empty matcher
+        labelList indices
         (
-            const keyType&,
-            const bool usePatchGroups = true
+            const wordRe& matcher,
+            const bool useGroups = true
+        ) const;
+
+        //- Return (sorted) patch indices for all matches.
+        //  Optionally matches patch groups.
+        //  A no-op (returns empty list) for an empty matcher
+        labelList indices
+        (
+            const wordRes& matcher,
+            const bool useGroups = true
         ) const;
 
         //- Return patch index for the first match, return -1 if not found
-        label findIndex(const keyType&) const;
+        //  A no-op (returns -1) for an empty key
+        label findIndex(const wordRe& key) const;
 
-        //- Find patch index given a name
-        label findPatchID(const word& patchName) const;
+        //- Find patch index given a name, return -1 if not found
+        //  A no-op (returns -1) for an empty patchName
+        label findPatchID
+        (
+            const word& patchName,
+            const bool allowNotFound = true
+        ) const;
 
         //- Find patch indices for a given polyPatch type
         template<class Type>
@@ -181,24 +246,25 @@ public:
         //- Per boundary face label the patch index
         const labelList& patchID() const;
 
-        //- Per patch group the patch indices
-        const HashTable<labelList, word>& groupPatchIDs() const;
+        //- The patch indices per patch group
+        const HashTable<labelList>& groupPatchIDs() const;
 
         //- Set/add group with patches
-        void setGroup(const word& groupName, const labelList& patchIDs);
+        void setGroup(const word& groupName, const labelUList& patchIDs);
 
         //- Return the set of patch IDs corresponding to the given names
-        //  By default warns if given names are not found. Optionally
-        //  matches to patchGroups as well as patchNames
+        //  By default warns if given names are not found.
+        //  Optionally matches to patchGroups as well as patchNames.
         labelHashSet patchSet
         (
             const UList<wordRe>& patchNames,
             const bool warnNotFound = true,
-            const bool usePatchGroups = true
+            const bool useGroups = true
         ) const;
 
-        //- Match the patches to groups. Returns all the (fully matched) groups
-        //  and any remaining unmatched patches.
+        //- Match the patches to groups.
+        //  Returns all the (fully matched) groups and any remaining
+        //  unmatched patches.
         void matchGroups
         (
             const labelUList& patchIDs,
@@ -214,7 +280,7 @@ public:
         bool checkDefinition(const bool report = false) const;
 
         //- Correct polyBoundaryMesh after moving points
-        void movePoints(const pointField&);
+        void movePoints(const pointField& p);
 
         //- Correct polyBoundaryMesh after topology update
         void updateMesh();
@@ -224,17 +290,15 @@ public:
         //  (is shuffle) If validBoundary calls updateMesh()
         //  after reordering to recalculate data (so call needs to be parallel
         //  sync in that case)
-        void reorder(const labelUList&, const bool validBoundary);
+        void reorder(const labelUList& oldToNew, const bool validBoundary);
 
         //- writeData member function required by regIOobject
-        bool writeData(Ostream&) const;
+        virtual bool writeData(Ostream& os) const;
 
-        //- Write using given format, version and form uncompression
-        bool writeObject
+        //- Write using stream options
+        virtual bool writeObject
         (
-            IOstream::streamFormat fmt,
-            IOstream::versionNumber ver,
-            IOstream::compressionType cmp,
+            IOstreamOption streamOpt,
             const bool valid
         ) const;
 
@@ -245,15 +309,25 @@ public:
         using polyPatchList::operator[];
 
         //- Return const reference to polyPatch by name.
-        const polyPatch& operator[](const word&) const;
+        const polyPatch& operator[](const word& patchName) const;
 
         //- Return reference to polyPatch by name.
-        polyPatch& operator[](const word&);
+        polyPatch& operator[](const word& patchName);
 
 
-    // Ostream operator
+    // Ostream Operator
 
-        friend Ostream& operator<<(Ostream&, const polyBoundaryMesh&);
+        friend Ostream& operator<<(Ostream& os, const polyBoundaryMesh& pbm);
+
+
+    // Housekeeping
+
+        //- Identical to the indices() method (AUG-2018)
+        FOAM_DEPRECATED_FOR(2018-08, "indices() method")
+        labelList findIndices(const wordRe& key, bool useGroups=true) const
+        {
+            return this->indices(key, useGroups);
+        }
 };
 
 

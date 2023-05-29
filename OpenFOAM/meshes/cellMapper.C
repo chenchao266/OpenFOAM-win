@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -29,7 +31,9 @@ License
 #include "mapPolyMesh.H"
 
 // * * * * * * * * * * * * * Private Member Functions  * * * * * * * * * * * //
-using namespace Foam;
+
+
+ namespace Foam{
 void cellMapper::calcAddressing() const
 {
     if
@@ -262,8 +266,8 @@ void cellMapper::calcAddressing() const
             if (addr[celli].empty())
             {
                 // Mapped from a dummy cell
-                addr[celli] = labelList(1, label(0));
-                w[celli] = scalarList(1, 1.0);
+                addr[celli] = labelList(1, Zero);
+                w[celli] = scalarList(1, scalar(1));
 
                 insertedCells[nInsertedCells] = celli;
                 nInsertedCells++;
@@ -286,7 +290,9 @@ void cellMapper::clearOut()
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
-cellMapper::cellMapper(const mapPolyMesh& mpm) :    mesh_(mpm.mesh()),
+cellMapper::cellMapper(const mapPolyMesh& mpm)
+:
+    mesh_(mpm.mesh()),
     mpm_(mpm),
     insertedCells_(true),
     direct_(false),
@@ -465,3 +471,5 @@ const labelList& cellMapper::insertedObjectLabels() const
 
 
 // ************************************************************************* //
+
+ } // End namespace Foam

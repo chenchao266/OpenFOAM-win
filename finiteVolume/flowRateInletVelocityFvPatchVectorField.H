@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2019 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -64,7 +67,7 @@ Usage
     \endverbatim
 
     Example of the boundary condition specification for a mass flow rate:
-     \verbatim
+    \verbatim
     <patchName>
     {
         type                flowRateInletVelocity;
@@ -99,7 +102,7 @@ SourceFiles
 #define flowRateInletVelocityFvPatchVectorField_H
 
 #include "fixedValueFvPatchFields.H"
-#include "Function1.T.H"
+#include "Function1.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -114,13 +117,10 @@ class flowRateInletVelocityFvPatchVectorField
 :
     public fixedValueFvPatchVectorField
 {
-    // Private data
+    // Private Data
 
         //- Inlet integral flow rate
         autoPtr<Function1<scalar>> flowRate_;
-
-        //- Is volumetric?
-        bool volumetric_;
 
         //- Name of the density field used to normalize the mass flux
         word rhoName_;
@@ -128,11 +128,14 @@ class flowRateInletVelocityFvPatchVectorField
         //- Rho initialisation value (for start; if value not supplied)
         scalar rhoInlet_;
 
+        //- Is volumetric?
+        bool volumetric_;
+
         //- Set true to extrapolate the velocity profile from the interior
         Switch extrapolateProfile_;
 
 
-    // Private member functions
+    // Private Member Functions
 
         //- Update the patch values given the appropriate density type and value
         template<class RhoType>
@@ -208,7 +211,7 @@ public:
         }
 
 
-    // Member functions
+    // Member Functions
 
         //- Update the coefficients associated with the patch field
         virtual void updateCoeffs();

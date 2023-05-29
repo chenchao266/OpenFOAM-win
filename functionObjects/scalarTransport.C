@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2012-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2012-2017 OpenFOAM Foundation
+    Copyright (C) 2015-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -29,6 +32,7 @@ License
 #include "fvmDiv.H"
 #include "fvmLaplacian.H"
 #include "fvmSup.H"
+#include "CMULES.H"
 #include "turbulentTransportModel.H"
 #include "turbulentFluidThermoModel.H"
 #include "addToRunTimeSelectionTable.H"
@@ -53,72 +57,117 @@ namespace functionObjects
 
 // * * * * * * * * * * * * * Private Member Functions  * * * * * * * * * * * //
 
+Foam::volScalarField& Foam::functionObjects::scalarTransport::transportedField()
+{
+    if (!foundObject<volScalarField>(fieldName_))
+    {
+        auto tfldPtr = tmp<volScalarField>::New
+        (
+            IOobject
+            (
+                fieldName_,
+                mesh_.time().timeName(),
+                mesh_,
+                IOobject::MUST_READ,
+                IOobject::AUTO_WRITE
+            ),
+            mesh_
+        );
+        store(fieldName_, tfldPtr);
+
+        if (phaseName_ != "none")
+        {
+            mesh_.setFluxRequired(fieldName_);
+        }
+    }
+
+    return lookupObjectRef<volScalarField>(fieldName_);
+}
+
+
 Foam::tmp<Foam::volScalarField> Foam::functionObjects::scalarTransport::D
 (
+    const volScalarField& s,
     const surfaceScalarField& phi
 ) const
 {
-    typedef incompressible::turbulenceModel icoModel;
-    typedef compressible::turbulenceModel cmpModel;
-
-    word Dname("D" + s_.name());
+    const word Dname("D" + s.name());
 
     if (constantD_)
     {
-        return tmp<volScalarField>
+        return tmp<volScalarField>::New
         (
-            new volScalarField
+            IOobject
             (
-                IOobject
-                (
-                    Dname,
-                    mesh_.time().timeName(),
-                    mesh_.time(),
-                    IOobject::NO_READ,
-                    IOobject::NO_WRITE
-                ),
-                mesh_,
-                dimensionedScalar(Dname, phi.dimensions()/dimLength, D_)
-            )
+                Dname,
+                mesh_.time().timeName(),
+                mesh_.time(),
+                IOobject::NO_READ,
+                IOobject::NO_WRITE
+            ),
+            mesh_,
+            dimensionedScalar(Dname, phi.dimensions()/dimLength, D_)
         );
     }
-    else if (mesh_.foundObject<icoModel>(turbulenceModel::propertiesName))
-    {
-        const icoModel& model = mesh_.lookupObject<icoModel>
-        (
-            turbulenceModel::propertiesName
-        );
 
-        return alphaD_*model.nu() + alphaDt_*model.nut();
-    }
-    else if (mesh_.foundObject<cmpModel>(turbulenceModel::propertiesName))
+    if (nutName_ != "none")
     {
-        const cmpModel& model = mesh_.lookupObject<cmpModel>
-        (
-            turbulenceModel::propertiesName
-        );
+        const volScalarField& nutMean =
+            mesh_.lookupObject<volScalarField>(nutName_);
 
-        return alphaD_*model.mu() + alphaDt_*model.mut();
+        return tmp<volScalarField>::New(Dname, nutMean);
     }
-    else
+
+    // Incompressible
     {
-        return tmp<volScalarField>
-        (
-            new volScalarField
+        const auto* turb =
+            findObject<incompressible::turbulenceModel>
             (
-                IOobject
-                (
-                    Dname,
-                    mesh_.time().timeName(),
-                    mesh_.time(),
-                    IOobject::NO_READ,
-                    IOobject::NO_WRITE
-                ),
-                mesh_,
-                dimensionedScalar(Dname, phi.dimensions()/dimLength, 0.0)
-            )
-        );
+                turbulenceModel::propertiesName
+            );
+
+        if (turb)
+        {
+            return tmp<volScalarField>::New
+            (
+                Dname,
+                alphaD_ * turb->nu() + alphaDt_ * turb->nut()
+            );
+        }
     }
+
+    // Compressible
+    {
+        const auto* turb =
+            findObject<compressible::turbulenceModel>
+            (
+                turbulenceModel::propertiesName
+            );
+
+        if (turb)
+        {
+            return tmp<volScalarField>::New
+            (
+                Dname,
+                alphaD_ * turb->mu() + alphaDt_ * turb->mut()
+            );
+        }
+    }
+
+
+    return tmp<volScalarField>::New
+    (
+        IOobject
+        (
+            Dname,
+            mesh_.time().timeName(),
+            mesh_.time(),
+            IOobject::NO_READ,
+            IOobject::NO_WRITE
+        ),
+        mesh_,
+        dimensionedScalar(phi.dimensions()/dimLength, Zero)
+    );
 }
 
 
@@ -132,24 +181,33 @@ Foam::functionObjects::scalarTransport::scalarTransport
 )
 :
     fvMeshFunctionObject(name, runTime, dict),
-    fieldName_(dict.lookupOrDefault<word>("field", "s")),
-    D_(0),
-    nCorr_(0),
-    fvOptions_(mesh_),
-    s_
+    fieldName_(dict.getOrDefault<word>("field", "s")),
+    phiName_(dict.getOrDefault<word>("phi", "phi")),
+    rhoName_(dict.getOrDefault<word>("rho", "rho")),
+    nutName_(dict.getOrDefault<word>("nut", "none")),
+    phaseName_(dict.getOrDefault<word>("phase", "none")),
+    phasePhiCompressedName_
     (
-        IOobject
-        (
-            fieldName_,
-            mesh_.time().timeName(),
-            mesh_,
-            IOobject::MUST_READ,
-            IOobject::AUTO_WRITE
-        ),
-        mesh_
-    )
+        dict.getOrDefault<word>("phasePhiCompressed", "alphaPhiUn")
+    ),
+    D_(0),
+    constantD_(false),
+    nCorr_(0),
+    resetOnStartUp_(false),
+    schemesField_("unknown-schemesField"),
+    fvOptions_(mesh_),
+    bounded01_(dict.getOrDefault("bounded01", true))
 {
     read(dict);
+
+    // Force creation of transported field so any BCs using it can
+    // look it up
+    volScalarField& s = transportedField();
+
+    if (resetOnStartUp_)
+    {
+        s == dimensionedScalar(dimless, Zero);
+    }
 }
 
 
@@ -165,15 +223,19 @@ bool Foam::functionObjects::scalarTransport::read(const dictionary& dict)
 {
     fvMeshFunctionObject::read(dict);
 
-    phiName_ = dict.lookupOrDefault<word>("phi", "phi");
-    rhoName_ = dict.lookupOrDefault<word>("rho", "rho");
-    schemesField_ = dict.lookupOrDefault<word>("schemesField", fieldName_);
+    dict.readIfPresent("phi", phiName_);
+    dict.readIfPresent("rho", rhoName_);
+    dict.readIfPresent("nut", nutName_);
+    dict.readIfPresent("phase", phaseName_);
+    dict.readIfPresent("bounded01", bounded01_);
 
+    schemesField_ = dict.getOrDefault("schemesField", fieldName_);
     constantD_ = dict.readIfPresent("D", D_);
-    alphaD_ = dict.lookupOrDefault("alphaD", 1.0);
-    alphaDt_ = dict.lookupOrDefault("alphaDt", 1.0);
+    alphaD_ = dict.getOrDefault<scalar>("alphaD", 1);
+    alphaDt_ = dict.getOrDefault<scalar>("alphaDt", 1);
 
     dict.readIfPresent("nCorr", nCorr_);
+    dict.readIfPresent("resetOnStartUp", resetOnStartUp_);
 
     if (dict.found("fvOptions"))
     {
@@ -186,13 +248,15 @@ bool Foam::functionObjects::scalarTransport::read(const dictionary& dict)
 
 bool Foam::functionObjects::scalarTransport::execute()
 {
-    Info<< type() << " write:" << endl;
+    volScalarField& s = transportedField();
+
+    Log << type() << " execute: " << s.name() << endl;
 
     const surfaceScalarField& phi =
         mesh_.lookupObject<surfaceScalarField>(phiName_);
 
     // Calculate the diffusivity
-    volScalarField D(this->D(phi));
+    volScalarField D(this->D(s, phi));
 
     word divScheme("div(phi," + schemesField_ + ")");
     word laplacianScheme("laplacian(" + D.name() + "," + schemesField_ + ")");
@@ -204,20 +268,67 @@ bool Foam::functionObjects::scalarTransport::execute()
         relaxCoeff = mesh_.equationRelaxationFactor(schemesField_);
     }
 
-    if (phi.dimensions() == dimMass/dimTime)
+    // Two phase scalar transport
+    if (phaseName_ != "none")
     {
-        const volScalarField& rho =
-            mesh_.lookupObject<volScalarField>(rhoName_);
+        const volScalarField& alpha =
+            mesh_.lookupObject<volScalarField>(phaseName_);
 
+        const surfaceScalarField& limitedPhiAlpha =
+            mesh_.lookupObject<surfaceScalarField>(phasePhiCompressedName_);
+
+        D *= pos(alpha - 0.99);
+
+        // Reset D dimensions consistent with limitedPhiAlpha
+        D.dimensions().reset(limitedPhiAlpha.dimensions()/dimLength);
+
+        // Solve
+        tmp<surfaceScalarField> tTPhiUD;
         for (label i = 0; i <= nCorr_; i++)
         {
             fvScalarMatrix sEqn
             (
-                fvm::ddt(rho, s_)
-              + fvm::div(phi, s_, divScheme)
-              - fvm::laplacian(D, s_, laplacianScheme)
+                fvm::ddt(s)
+              + fvm::div(limitedPhiAlpha, s, divScheme)
+              - fvm::laplacian(D, s, laplacianScheme)
+              ==
+                alpha*fvOptions_(s)
+            );
+
+            sEqn.relax(relaxCoeff);
+            fvOptions_.constrain(sEqn);
+            sEqn.solve(mesh_.solverDict(schemesField_));
+
+            tTPhiUD = sEqn.flux();
+        }
+
+        if (bounded01_)
+        {
+            MULES::explicitSolve
+            (
+                geometricOneField(),
+                s,
+                phi,
+                tTPhiUD.ref(),
+                oneField(),
+                zeroField()
+            );
+        }
+    }
+    else if (phi.dimensions() == dimMass/dimTime)
+    {
+        const volScalarField& rho = lookupObject<volScalarField>(rhoName_);
+
+        for (label i = 0; i <= nCorr_; i++)
+        {
+
+            fvScalarMatrix sEqn
+            (
+                fvm::ddt(rho, s)
+              + fvm::div(phi, s, divScheme)
+              - fvm::laplacian(D, s, laplacianScheme)
              ==
-                fvOptions_(rho, s_)
+                fvOptions_(rho, s)
             );
 
             sEqn.relax(relaxCoeff);
@@ -233,11 +344,11 @@ bool Foam::functionObjects::scalarTransport::execute()
         {
             fvScalarMatrix sEqn
             (
-                fvm::ddt(s_)
-              + fvm::div(phi, s_, divScheme)
-              - fvm::laplacian(D, s_, laplacianScheme)
+                fvm::ddt(s)
+              + fvm::div(phi, s, divScheme)
+              - fvm::laplacian(D, s, laplacianScheme)
              ==
-                fvOptions_(s_)
+                fvOptions_(s)
             );
 
             sEqn.relax(relaxCoeff);
@@ -255,7 +366,7 @@ bool Foam::functionObjects::scalarTransport::execute()
             << dimVolume/dimTime << exit(FatalError);
     }
 
-    Info<< endl;
+    Log << endl;
 
     return true;
 }

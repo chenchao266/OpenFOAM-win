@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2015-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2015 OpenFOAM Foundation
+    Copyright (C) 2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -25,117 +28,130 @@ License
 
 #include "unwatchedIOdictionary.H"
 #include "objectRegistry.H"
-#include "Pstream.T.H"
-#include "Time.T.H"
+#include "Pstream.H"
+#include "Time1.h"
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
-namespace Foam
+
+
+ namespace Foam{
+unwatchedIOdictionary::unwatchedIOdictionary
+(
+    const IOobject& io,
+    const dictionary* fallback
+)
+:
+    unwatchedIOdictionary(io, typeName, fallback)
+{}
+
+
+unwatchedIOdictionary::unwatchedIOdictionary
+(
+    const IOobject& io,
+    const dictionary& dict
+)
+:
+    unwatchedIOdictionary(io, typeName, &dict)
+{}
+
+
+unwatchedIOdictionary::unwatchedIOdictionary
+(
+    const IOobject& io,
+    const word& wantedType,
+    const dictionary* fallback
+)
+:
+    baseIOdictionary(io, fallback)
 {
-    unwatchedIOdictionary::unwatchedIOdictionary(const IOobject& io) : baseIOdictionary(io)
+    if (!readHeaderOk(IOstream::ASCII, wantedType) && fallback)
     {
-        readHeaderOk(IOstream::ASCII, typeName);
-
-        // For if MUST_READ_IF_MODIFIED
-        addWatch();
+        dictionary::operator=(*fallback);
     }
 
-
-    unwatchedIOdictionary::unwatchedIOdictionary
-    (
-        const IOobject& io,
-        const dictionary& dict
-    ) : baseIOdictionary(io, dict)
-    {
-        if (!readHeaderOk(IOstream::ASCII, typeName))
-        {
-            dictionary::operator=(dict);
-        }
-
-        // For if MUST_READ_IF_MODIFIED
-        addWatch();
-    }
-
-
-    unwatchedIOdictionary::unwatchedIOdictionary
-    (
-        const IOobject& io,
-        Istream& is
-    ) : baseIOdictionary(io, is)
-    {
-        // Note that we do construct the dictionary null and read in
-        // afterwards
-        // so that if there is some fancy massaging due to a
-        // functionEntry in
-        // the dictionary at least the type information is already complete.
-        is >> *this;
-
-        // For if MUST_READ_IF_MODIFIED
-        addWatch();
-    }
-
-
-    // * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * * //
-
-    unwatchedIOdictionary::~unwatchedIOdictionary()
-    {}
-
-
-    // * * * * * * * * * * * * * * * Members Functions * * * * * * * * * * * * * //
-
-    label unwatchedIOdictionary::addWatch(const fileName& f)
-    {
-        label index = -1;
-
-        if (readOpt() == MUST_READ_IF_MODIFIED)
-        {
-            index = findIndex(files_, f);
-
-            if (index == -1)
-            {
-                index = files_.size();
-                files_.append(f);
-            }
-        }
-        return index;
-    }
-
-
-    void unwatchedIOdictionary::addWatch()
-    {
-        if (readOpt() == MUST_READ_IF_MODIFIED)
-        {
-            fileName f = filePath();
-            if (!f.size())
-            {
-                // We don't have this file but would like to re-read it.
-                // Possibly if master-only reading mode.
-                f = objectPath();
-            }
-
-            if (findIndex(files_, f) != -1)
-            {
-                FatalErrorIn("regIOobject::addWatch()")
-                    << "Object " << objectPath() << " of type " << type()
-                    << " already watched" << abort(FatalError);
-            }
-
-            // If master-only reading only the master will have all dependencies
-            // so scatter these to slaves
-            bool masterOnly =
-                global()
-                && (
-                    regIOobject::fileModificationChecking == timeStampMaster
-                    || regIOobject::fileModificationChecking == inotifyMaster
-                    );
-
-            if (masterOnly && Pstream::parRun())
-            {
-                Pstream::scatter(files_);
-            }
-
-            addWatch(f);
-        }
-    }
-
+    // For if MUST_READ_IF_MODIFIED
+    addWatch();
 }
+
+
+unwatchedIOdictionary::unwatchedIOdictionary
+(
+    const IOobject& io,
+    Istream& is
+)
+:
+    baseIOdictionary(io, is)
+{
+    // Default construct dictionary and read in afterwards
+    // so that if there is some fancy massaging due to a
+    // functionEntry in
+    // the dictionary at least the type information is already complete.
+    is  >> *this;
+
+    // For if MUST_READ_IF_MODIFIED
+    addWatch();
+}
+
+
+// * * * * * * * * * * * * * * * Members Functions * * * * * * * * * * * * * //
+
+label unwatchedIOdictionary::addWatch(const fileName& f)
+{
+    label index = -1;
+
+    if (readOpt() == MUST_READ_IF_MODIFIED)
+    {
+        index = files_.find(f);
+
+        if (index == -1)
+        {
+            index = files_.size();
+            files_.append(f);
+        }
+    }
+    return index;
+}
+
+
+void unwatchedIOdictionary::addWatch()
+{
+    if (readOpt() == MUST_READ_IF_MODIFIED)
+    {
+        fileName f = filePath();
+        if (f.empty())
+        {
+            // We don't have this file but would like to re-read it.
+            // Possibly if master-only reading mode.
+            f = objectPath();
+        }
+
+        if (files_.found(f))
+        {
+            FatalErrorInFunction
+                << "Object " << objectPath() << " of type " << type()
+                << " already watched" << nl
+                << abort(FatalError);
+        }
+
+        // If master-only reading only the master will have all dependencies
+        // so scatter these to slaves
+        bool masterOnly =
+            global()
+         && (
+                IOobject::fileModificationChecking == IOobject::timeStampMaster
+             || IOobject::fileModificationChecking == IOobject::inotifyMaster
+            );
+
+        if (masterOnly && Pstream::parRun())
+        {
+            Pstream::scatter(files_);
+        }
+
+        addWatch(f);
+    }
+}
+
+
 // ************************************************************************* //
+
+ } // End namespace Foam

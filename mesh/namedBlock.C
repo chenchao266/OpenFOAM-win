@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2016 OpenFOAM Foundation
+    Copyright (C) 2019 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -32,7 +35,7 @@ namespace Foam
 {
 namespace blocks
 {
-    defineTypeNameAndDebug(namedBlock, 0);
+    defineTypeName(namedBlock);
     addToRunTimeSelectionTable(block, namedBlock, Istream);
 }
 }
@@ -54,10 +57,11 @@ Foam::blocks::namedBlock::namedBlock
     block(dict, index, vertices, edges, faces, is)
 {
     dictionary& d = const_cast<dictionary&>(dict);
-    dictionary* varDictPtr = d.subDictPtr("namedBlocks");
+    dictionary* varDictPtr = d.findDict("namedBlocks");
+
     if (varDictPtr)
     {
-        const_cast<dictionary&>(*varDictPtr).add(*this, index);
+        varDictPtr->add(*this, index);
     }
     else
     {

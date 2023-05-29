@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -33,12 +35,14 @@ Description
 #include "bandCompression.H"
 #include "SLList.H"
 #include "IOstreams.H"
-#include "DynamicList.T.H"
-#include "ListOps.T.H"
-#include "PackedBoolList.H"
+#include "DynamicList.H"
+#include "ListOps.H"
+#include "bitSet.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
-using namespace Foam;
+
+
+ namespace Foam{
 labelList bandCompression(const labelListList& cellCellAddressing)
 {
     labelList newOrder(cellCellAddressing.size());
@@ -46,7 +50,7 @@ labelList bandCompression(const labelListList& cellCellAddressing)
     // the business bit of the renumbering
     SLList<label> nextCell;
 
-    PackedBoolList visited(cellCellAddressing.size());
+    bitSet visited(cellCellAddressing.size());
 
     label cellInOrder = 0;
 
@@ -103,9 +107,9 @@ labelList bandCompression(const labelListList& cellCellAddressing)
         {
             currentCell = nextCell.removeHead();
 
-            if (!visited[currentCell])
+            if (visited.set(currentCell))
             {
-                visited[currentCell] = 1;
+                // On first visit...
 
                 // add into cellOrder
                 newOrder[cellInOrder] = currentCell;
@@ -152,7 +156,7 @@ labelList bandCompression
 )
 {
     // Count number of neighbours
-    labelList numNbrs(offsets.size()-1, 0);
+    labelList numNbrs(offsets.size()-1, Zero);
     forAll(numNbrs, celli)
     {
         label start = offsets[celli];
@@ -171,7 +175,7 @@ labelList bandCompression
     // the business bit of the renumbering
     SLList<label> nextCell;
 
-    PackedBoolList visited(offsets.size()-1);
+    bitSet visited(offsets.size()-1);
 
     label cellInOrder = 0;
 
@@ -230,7 +234,7 @@ labelList bandCompression
 
             if (!visited[currentCell])
             {
-                visited[currentCell] = 1;
+                visited.set(currentCell);
 
                 // add into cellOrder
                 newOrder[cellInOrder] = currentCell;
@@ -271,3 +275,5 @@ labelList bandCompression
 
 
 // ************************************************************************* //
+
+ } // End namespace Foam

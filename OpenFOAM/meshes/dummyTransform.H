@@ -1,9 +1,12 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -51,10 +54,12 @@ public:
         const bool forward,
         List<T>& fld
     ) const
-    {};
+    {}
+
     template<class T>
     void operator()(const coupledPolyPatch& cpp, Field<T>& fld) const
     {}
+
     template<class T, template<class> class Container>
     void operator()(const coupledPolyPatch& cpp, Container<T>& map) const
     {}
@@ -62,48 +67,56 @@ public:
 
 
 template<class T>
-class pTraits<List<T>> :    public List<T>
+class pTraits<List<T>>
+:
+    public List<T>
 {
 public:
     typedef label cmptType;
 
-    pTraits(Istream& is)
+    explicit pTraits(Istream& is)
     :
         List<T>(is)
     {}
 };
 
 template<class T>
-class pTraits<UList<T>> :    public UList<T>
+class pTraits<UList<T>>
+:
+    public UList<T>
 {
 public:
     typedef label cmptType;
 
-    pTraits(Istream& is)
+    explicit pTraits(Istream& is)
     :
         UList<T>(is)
     {}
 };
 
 template<class T>
-class pTraits<Field<T>> :    public Field<T>
+class pTraits<Field<T>>
+:
+    public Field<T>
 {
 public:
     typedef label cmptType;
 
-    pTraits(Istream& is)
+    explicit pTraits(Istream& is)
     :
         Field<T>(is)
     {}
 };
 
 template<>
-class pTraits<face> :    public face
+class pTraits<face>
+:
+    public face
 {
 public:
     typedef label cmptType;
 
-    pTraits(Istream& is)
+    explicit pTraits(Istream& is)
     :
         face(is)
     {}

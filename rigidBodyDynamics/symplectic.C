@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -81,7 +83,7 @@ void Foam::RBD::rigidBodySolvers::symplectic::solve
     // Accumulate the restraint forces
     scalarField rtau(tau);
     Field<spatialVector> rfx(fx);
-    model_.applyRestraints(rtau, rfx);
+    model_.applyRestraints(rtau, rfx, state());
 
     // Calculate the body acceleration for the given state
     // and restraint forces

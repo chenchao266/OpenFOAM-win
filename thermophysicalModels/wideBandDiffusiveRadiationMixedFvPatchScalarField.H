@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -59,7 +61,7 @@ SourceFiles
 #define wideBandDiffusiveRadiationMixedFvPatchScalarField_H
 
 #include "mixedFvPatchFields.H"
-#include "radiationCoupledBase.H"
+
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -73,15 +75,8 @@ namespace radiation
 
 class wideBandDiffusiveRadiationMixedFvPatchScalarField
 :
-    public mixedFvPatchScalarField,
-    public radiationCoupledBase
+    public mixedFvPatchScalarField
 {
-    // Private data
-
-        //- Name of temperature field
-        word TName_;
-
-
 public:
 
     //- Runtime type information
@@ -152,20 +147,6 @@ public:
 
     // Member functions
 
-        // Access
-
-            //- Return the temperature field name
-            const word& TName() const
-            {
-                return TName_;
-            }
-
-            //- Return reference to the temperature field name to allow
-            //  adjustment
-            word& TName()
-            {
-                return TName_;
-            }
 
 
         // Evaluation functions

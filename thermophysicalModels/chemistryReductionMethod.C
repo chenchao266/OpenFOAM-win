@@ -1,9 +1,12 @@
-﻿/*---------------------------------------------------------------------------*\
+/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2016 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -23,8 +26,8 @@ License
 
 \*---------------------------------------------------------------------------*/
 
-//#include "chemistryReductionMethod.H"
-#include "TDACChemistryModel.T.H"
+#include "chemistryReductionMethod.H"
+#include "TDACChemistryModel.H"
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
@@ -37,13 +40,13 @@ Foam::chemistryReductionMethod<CompType, ThermoType>::chemistryReductionMethod
 :
     dict_(dict),
     coeffsDict_(dict.subDict("reduction")),
-    active_(coeffsDict_.lookupOrDefault<Switch>("active", false)),
-    log_(coeffsDict_.lookupOrDefault<Switch>("log", false)),
+    active_(coeffsDict_.getOrDefault<Switch>("active", false)),
+    log_(coeffsDict_.getOrDefault<Switch>("log", false)),
     chemistry_(chemistry),
     activeSpecies_(chemistry.nSpecie(), false),
     NsSimp_(chemistry.nSpecie()),
     nSpecie_(chemistry.nSpecie()),
-    tolerance_(coeffsDict_.lookupOrDefault<scalar>("tolerance", 1e-4))
+    tolerance_(coeffsDict_.getOrDefault<scalar>("tolerance", 1e-4))
 {}
 
 

@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2016-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -28,79 +31,92 @@ Group
     grpFieldFunctionObjects
 
 Description
-    Provides a 'volRegion' specialization of the fieldValue function object.
+    Provides a 'volRegion' specialization of the \c fieldValue function object.
 
     Given a list of user-specified fields and a 'volRegion', a number of
     operations can be performed, such as sums, averages and integrations.
 
-    Example of function object specification:
+Usage
+    Minimal example by using \c system/controlDict.functions:
     \verbatim
     volFieldValue1
     {
+        // Mandatory entries (unmodifiable)
         type            volFieldValue;
-        libs            ("libfieldFunctionObjects.so");
+        libs            (fieldFunctionObjects);
 
-        log             true;
-        writeControl    writeTime;
-        writeFields     true;
+        // Mandatory entries (runtime modifiable)
+        fields          (<field1> <field2> ... <fieldN>);
+        operation       <operationType>;
+        regionType      <volRegion>;
 
-        regionType      cellZone;
-        name            c0;
-        operation       volAverage;
-
+        // Optional entries (runtime modifiable)
+        postOperation   none;
         weightField     alpha1;
 
-        fields
-        (
-            p
-            U
-        );
+        // Optional (inherited) entries
+        ...
     }
     \endverbatim
 
-Usage
+    where the entries mean:
     \table
-        Property     | Description              | Required    | Default value
-        type         | Type name: volFieldValue            | yes   |
-        log          | Write data to standard output       | no    | no
-        writeFields  | Write the region field values       | yes   |
-        regionType   | volRegion type: see below           | yes   |
-        name         | Name of volRegion if required       | no    |
-        operation    | Operation to perform                | yes   |
-        weightField  | Name of field to apply weighting    | no    |
-        fields       | List of fields to operate on        | yes   |
+      Property     | Description                        | Type | Req'd | Dflt
+      type         | Type name: volFieldValue           | word |  yes  | -
+      libs         | Library name: fieldFunctionObjects | word |  yes  | -
+      fields       | Names of operand fields            | wordList | yes | -
+      regionType   | Face regionType: see below         | word |  yes  | -
+      name         | Name for regionType                | word |  yes  | -
+      operation    | Operation type: see below          | word |  yes  | -
+      postOperation | Post-operation type: see below    | word |  no   | none
+      weightField   | Name of field to apply weighting   | word |  maybe |
+      weightFields  | Names of fields to apply weighting | wordList | maybe |
     \endtable
 
-    Where \c regionType is defined by
+    The inherited entries are elaborated in:
+     - \link fieldValue.H \endlink
+     - \link volRegion.H \endlink
+
+    Options for the \c regionType entry:
     \plaintable
-        cellZone     | requires a 'name' entry to specify the cellZone
-        all          | all cells
+      cellZone     | requires a 'name' entry to specify the cellZone
+      all          | all cells
     \endplaintable
 
-    The \c operation is one of:
+    Options for the \c operation entry:
     \plaintable
-       none                 | No operation
-       sum                  | Sum
-       weightedSum          | Weighted sum
-       sumMag               | Sum of component magnitudes
-       average              | Ensemble average
-       weightedAverage      | Weighted average
-       volAverage           | Volume weighted average
-       weightedVolAverage   | Weighted volume average
-       volIntegrate         | Volume integral
-       weightedVolIntegrate | Weighted volume integral
-       min                  | Minimum
-       max                  | Maximum
-       CoV                  | Coefficient of variation: standard deviation/mean
+      none                 | No operation
+      min                  | Minimum
+      max                  | Maximum
+      sum                  | Sum
+      sumMag               | Sum of component magnitudes
+      average              | Ensemble average
+      volAverage           | Volume weighted average
+      volIntegrate         | Volume integral
+      CoV                  | Coefficient of variation: standard deviation/mean
+      weightedSum          | Weighted sum
+      weightedAverage      | Weighted average
+      weightedVolAverage   | Weighted volume average
+      weightedVolIntegrate | Weighted volume integral
     \endplaintable
+
+    Options for the \c postOperation entry:
+    \plaintable
+      none          | No additional operation after calculation
+      mag           | Component-wise \c mag() after normal operation
+      sqrt          | Component-wise \c sqrt() after normal operation
+    \endplaintable
+
+    Usage by the \c postProcess utility is not available.
 
 See also
-    Foam::functionObjects::fieldValues::fieldValue
-    Foam::functionObjects::volRegion
-    Foam::functionObject
+    - Foam::functionObject
+    - Foam::functionObjects::fieldValues::fieldValue
+    - Foam::functionObjects::volRegion
 
 SourceFiles
     volFieldValue.C
+    volFieldValueTemplates.C
 
 \*---------------------------------------------------------------------------*/
 
@@ -120,7 +136,7 @@ namespace fieldValues
 {
 
 /*---------------------------------------------------------------------------*\
-                         Class volFieldValue Declaration
+                        Class volFieldValue Declaration
 \*---------------------------------------------------------------------------*/
 
 class volFieldValue
@@ -128,48 +144,94 @@ class volFieldValue
     public fieldValue,
     public volRegion
 {
-
 public:
 
-    // Public data types
+    // Public Data Types
+
+        //- Bitmask values for operation variants
+        enum operationVariant
+        {
+            typeBase = 0,         //!< Base operation
+            typeScalar = 0x100,   //!< Operation returns a scalar
+            typeWeighted = 0x200, //!< Operation using weighting
+            typeAbsolute = 0x400, //!< Operation using mag (eg, for weighting)
+        };
 
         //- Operation type enumeration
         enum operationType
         {
-            opNone,
-            opSum,
-            opWeightedSum,
-            opSumMag,
-            opAverage,
-            opWeightedAverage,
-            opVolAverage,
-            opWeightedVolAverage,
-            opVolIntegrate,
-            opWeightedVolIntegrate,
-            opMin,
-            opMax,
-            opCoV
+            // Normal operations
+
+            opNone = 0,             //!< No operation
+            opMin,                  //!< Minimum value
+            opMax,                  //!< Maximum value
+            opSum,                  //!< Sum of values
+            opSumMag,               //!< Sum of component magnitudes
+            opAverage,              //!< Ensemble average
+            opVolAverage,           //!< Volume average
+            opVolIntegrate,         //!< Volume integral
+            opCoV,                  //!< Coefficient of variation
+
+            // Weighted variants
+
+            //! Weighted sum
+            opWeightedSum = (opSum | typeWeighted),
+
+            //! Weighted average
+            opWeightedAverage = (opAverage | typeWeighted),
+
+            //! Weighted volume average
+            opWeightedVolAverage = (opVolAverage | typeWeighted),
+
+            //! Weighted volume integral
+            opWeightedVolIntegrate = (opVolIntegrate | typeWeighted),
+
+            // Variants using absolute weighting
         };
 
         //- Operation type names
-        static const NamedEnum<operationType, 13> operationTypeNames_;
+        static const Enum<operationType> operationTypeNames_;
+
+
+        //- Post-operation type enumeration
+        enum postOperationType
+        {
+            postOpNone,   //!< No additional operation after calculation
+            postOpMag,    //!< Component-wise mag after normal operation
+            postOpSqrt    //!< Component-wise sqrt after normal operation
+        };
+
+        //- Operation type names
+        static const Enum<postOperationType> postOperationTypeNames_;
 
 
 protected:
 
-    // Protected data
+    // Protected Data
 
         //- Operation to apply to values
         operationType operation_;
 
-        //- Weight field name - only used for weighted modes
-        word weightFieldName_;
+        //- Optional post-evaluation operation
+        postOperationType postOperation_;
+
+        //- Weight field name(s) - optional
+        wordList weightFieldNames_;
 
 
     // Protected Member Functions
 
-        //- Initialise, e.g. cell addressing
-        void initialise(const dictionary& dict);
+        //- True if the operation needs the cell-volume
+        bool usesVol() const noexcept;
+
+        //- True if the operation variant uses mag
+        inline bool is_magOp() const noexcept;
+
+        //- True if the operation variant uses a weight-field
+        inline bool is_weightedOp() const noexcept;
+
+        //- True if field is non-empty on any processor.
+        inline bool canWeight(const scalarField& fld) const;
 
         //- Return true if the field name is valid
         template<class Type>
@@ -177,10 +239,10 @@ protected:
 
         //- Insert field values into values list
         template<class Type>
-        tmp<Field<Type>> setFieldValues
+        tmp<Field<Type>> getFieldValues
         (
             const word& fieldName,
-            const bool mustGet = false
+            const bool mandatory = false
         ) const;
 
         //- Apply the 'operation' to the values
@@ -192,13 +254,33 @@ protected:
             const scalarField& weightField
         ) const;
 
+        //- Helper function to output field values
+        label writeAll
+        (
+            const scalarField& V,
+            const scalarField& weightField
+        );
+
+        //- Templated helper function to output field values
+        template<class Type>
+        bool writeValues
+        (
+            const word& fieldName,
+            const scalarField& V,
+            const scalarField& weightField
+        );
+
+        //- Filter a field according to cellIds
+        template<class Type>
+        tmp<Field<Type>> filterField(const Field<Type>& field) const;
+
         //- Output file header information
-        virtual void writeFileHeader(const label i);
+        virtual void writeFileHeader(Ostream& os) const;
 
 
 public:
 
-    //- Run-time type information
+    //- Declare type-name, virtual type (with debug switch)
     TypeName("volFieldValue");
 
 
@@ -220,23 +302,21 @@ public:
             const dictionary& dict
         );
 
+        //- No copy construct
+        volFieldValue(const volFieldValue&) = delete;
+
+        //- No copy assignment
+        void operator=(const volFieldValue&) = delete;
+
 
     //- Destructor
-    virtual ~volFieldValue();
+    virtual ~volFieldValue() = default;
 
 
-    // Public Member Functions
-
-        //- Templated helper function to output field values
-        template<class Type>
-        bool writeValues(const word& fieldName);
-
-        //- Filter a field according to cellIds
-        template<class Type>
-        tmp<Field<Type>> filterField(const Field<Type>& field) const;
+    // Member Functions
 
         //- Read from dictionary
-        virtual bool read(const dictionary&);
+        virtual bool read(const dictionary& dict);
 
         //- Calculate and write
         virtual bool write();
@@ -248,6 +328,10 @@ public:
 } // End namespace fieldValues
 } // End namespace functionObjects
 } // End namespace Foam
+
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+#include "volFieldValueI.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 

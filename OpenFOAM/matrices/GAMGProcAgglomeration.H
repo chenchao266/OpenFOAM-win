@@ -1,9 +1,11 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2013-2014 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2013-2014 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -84,11 +86,11 @@ private:
 
     // Private Member Functions
 
-        //- Disallow default bitwise copy construct
-        GAMGProcAgglomeration(const GAMGProcAgglomeration&);
+        //- No copy construct
+        GAMGProcAgglomeration(const GAMGProcAgglomeration&) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const GAMGProcAgglomeration&);
+        //- No copy assignment
+        void operator=(const GAMGProcAgglomeration&) = delete;
 
 
 public:

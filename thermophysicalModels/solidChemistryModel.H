@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2013-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2013-2017 OpenFOAM Foundation
+    Copyright (C) 2016 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -27,6 +30,7 @@ Class
 Description
     Extends base solid chemistry model by adding a thermo package, and ODE
     functions.
+
     Introduces chemistry equation system and evaluation of chemical source
     terms.
 
@@ -39,7 +43,7 @@ SourceFiles
 #ifndef solidChemistryModel_H
 #define solidChemistryModel_H
 
-#include "Reaction.T.H"
+#include "Reaction.H"
 #include "ODESystem.H"
 #include "volFields.H"
 #include "simpleMatrix.H"
@@ -53,7 +57,7 @@ namespace Foam
 class fvMesh;
 
 /*---------------------------------------------------------------------------*\
-                   Class solidChemistryModel Declaration
+                     Class solidChemistryModel Declaration
 \*---------------------------------------------------------------------------*/
 
 template<class CompType, class SolidThermo>
@@ -64,11 +68,11 @@ class solidChemistryModel
 {
     // Private Member Functions
 
-        //- Disallow copy constructor
-        solidChemistryModel(const solidChemistryModel&);
+        //- No copy construct
+        solidChemistryModel(const solidChemistryModel&) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const solidChemistryModel&);
+        //- No copy assignment
+        void operator=(const solidChemistryModel&) = delete;
 
 
 protected:
@@ -112,8 +116,8 @@ public:
 
     // Constructors
 
-        //- Construct from mesh and phase name
-        solidChemistryModel(const fvMesh& mesh, const word& phaseName);
+        //- Construct from thermo
+        solidChemistryModel(typename CompType::reactionThermo& thermo);
 
 
     //- Destructor
@@ -139,7 +143,7 @@ public:
         ) const = 0;
 
         //- Return the reaction rate for reaction r and the reference
-        //  species and charateristic times
+        //  species and characteristic times
         virtual scalar omega
         (
             const Reaction<SolidThermo>& r,
@@ -156,7 +160,7 @@ public:
 
 
         //- Return the reaction rate for iReaction and the reference
-        //  species and charateristic times
+        //  species and characteristic times
         virtual scalar omegaI
         (
             label iReaction,
@@ -185,6 +189,9 @@ public:
 
             //- Return total solid source term
             inline tmp<volScalarField::Internal> RRs() const;
+
+            //- Return net solid sensible enthalpy
+            inline tmp<DimensionedField<scalar, volMesh>> RRsHs() const;
 
             //- Solve the reaction system for the given time step
             //  and return the characteristic time
@@ -238,7 +245,7 @@ public:
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
-    #include "solidChemistryModelI.H"
+#include "solidChemistryModelI.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 

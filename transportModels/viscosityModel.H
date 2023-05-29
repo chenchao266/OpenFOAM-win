@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011 OpenFOAM Foundation
+    Copyright (C) 2019 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -47,7 +50,7 @@ SourceFiles
 #ifndef viscosityModel_H
 #define viscosityModel_H
 
-#include "dictionary.H"
+#include "dictionary2.H"
 #include "volFieldsFwd.H"
 #include "surfaceFieldsFwd.H"
 #include "dimensionedScalar.H"
@@ -78,11 +81,11 @@ protected:
 
     // Private Member Functions
 
-        //- Disallow copy construct
-        viscosityModel(const viscosityModel&);
+        //- No copy construct
+        viscosityModel(const viscosityModel&) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const viscosityModel&);
+        //- No copy assignment
+        void operator=(const viscosityModel&) = delete;
 
 
 public:
@@ -133,8 +136,7 @@ public:
 
 
     //- Destructor
-    virtual ~viscosityModel()
-    {}
+    virtual ~viscosityModel() = default;
 
 
     // Member Functions

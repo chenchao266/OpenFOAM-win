@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2012 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2012 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -40,7 +42,7 @@ inline Ostream& operator<<
 )
 {
     OStringStream reaction;
-    os << r.solidReactionStr(reaction)<< token::END_STATEMENT <<nl;
+    os << r.solidReactionStr(reaction) << token::END_STATEMENT <<nl;
     return os;
 }
 

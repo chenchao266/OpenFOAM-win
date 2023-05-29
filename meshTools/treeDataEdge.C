@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -84,12 +86,12 @@ Foam::treeDataEdge::treeDataEdge
     const bool cacheBb,
     const edgeList& edges,
     const pointField& points,
-    const Xfer<labelList>& edgeLabels
+    labelList&& edgeLabels
 )
 :
     edges_(edges),
     points_(points),
-    edgeLabels_(edgeLabels),
+    edgeLabels_(std::move(edgeLabels)),
     cacheBb_(cacheBb)
 {
     update();
@@ -168,12 +170,7 @@ bool Foam::treeDataEdge::overlaps
 
     const scalar distSqr = sqr(nearHit.distance());
 
-    if (distSqr <= radiusSqr)
-    {
-        return true;
-    }
-
-    return false;
+    return (distSqr <= radiusSqr);
 }
 
 
@@ -189,15 +186,13 @@ void Foam::treeDataEdge::findNearestOp::operator()
 {
     const treeDataEdge& shape = tree_.shapes();
 
-    forAll(indices, i)
+    for (const label index : indices)
     {
-        const label index = indices[i];
-
         const edge& e = shape.edges()[shape.edgeLabels()[index]];
 
         pointHit nearHit = e.line(shape.points()).nearestDist(sample);
 
-        scalar distSqr = sqr(nearHit.distance());
+        const scalar distSqr = sqr(nearHit.distance());
 
         if (distSqr < nearestDistSqr)
         {
@@ -225,10 +220,8 @@ void Foam::treeDataEdge::findNearestOp::operator()
     // Best so far
     scalar nearestDistSqr = magSqr(linePoint - nearestPoint);
 
-    forAll(indices, i)
+    for (const label index : indices)
     {
-        const label index = indices[i];
-
         const edge& e = shape.edges()[shape.edgeLabels()[index]];
 
         // Note: could do bb test ? Worthwhile?

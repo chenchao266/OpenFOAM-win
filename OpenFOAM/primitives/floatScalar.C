@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2013 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2013 OpenFOAM Foundation
+    Copyright (C) 2017 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -24,24 +27,33 @@ License
 \*---------------------------------------------------------------------------*/
 
 #include "floatScalar.H"
+#include "error.H"
+#include "parsing.H"
 #include "IOstreams.H"
 
 #include <sstream>
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
-using namespace Foam;
+
+// Scalar.C is used for template-like substitution
+
 #define Scalar floatScalar
 #define ScalarVGREAT floatScalarVGREAT
 #define ScalarVSMALL floatScalarVSMALL
 #define ScalarROOTVGREAT floatScalarROOTVGREAT
 #define ScalarROOTVSMALL floatScalarROOTVSMALL
-#define readScalar readFloatScalar
-#include "Scalar.T.C"
+#define ScalarRead readFloat
+// Convert using larger representation to properly capture underflow
+#define ScalarConvert ::strtod
+
+#include "Scalar2.C"
+
 #undef Scalar
-#undef ScalarVSMALL
+#undef ScalarVGREAT
 #undef ScalarVSMALL
 #undef ScalarROOTVGREAT
 #undef ScalarROOTVSMALL
-#undef readScalar
+#undef ScalarRead
+#undef ScalarConvert
 
 // ************************************************************************* //

@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -30,12 +32,16 @@ inline Foam::hConstThermo<EquationOfState>::hConstThermo
 (
     const EquationOfState& st,
     const scalar cp,
-    const scalar hf
+    const scalar hf,
+    const scalar Tref,
+    const scalar Href
 )
 :
     EquationOfState(st),
     Cp_(cp),
-    Hf_(hf)
+    Hf_(hf),
+    Tref_(Tref),
+    Hsref_(Href)
 {}
 
 
@@ -50,7 +56,9 @@ inline Foam::hConstThermo<EquationOfState>::hConstThermo
 :
     EquationOfState(name, ct),
     Cp_(ct.Cp_),
-    Hf_(ct.Hf_)
+    Hf_(ct.Hf_),
+    Tref_(ct.Tref_),
+    Hsref_(ct.Hsref_)
 {}
 
 
@@ -58,10 +66,7 @@ template<class EquationOfState>
 inline Foam::autoPtr<Foam::hConstThermo<EquationOfState>>
 Foam::hConstThermo<EquationOfState>::clone() const
 {
-    return autoPtr<hConstThermo<EquationOfState>>
-    (
-        new hConstThermo<EquationOfState>(*this)
-    );
+    return autoPtr<hConstThermo<EquationOfState>>::New(*this);
 }
 
 
@@ -69,10 +74,7 @@ template<class EquationOfState>
 inline Foam::autoPtr<Foam::hConstThermo<EquationOfState>>
 Foam::hConstThermo<EquationOfState>::New(const dictionary& dict)
 {
-    return autoPtr<hConstThermo<EquationOfState>>
-    (
-        new hConstThermo<EquationOfState>(dict)
-    );
+    return autoPtr<hConstThermo<EquationOfState>>::New(dict);
 }
 
 
@@ -105,7 +107,7 @@ inline Foam::scalar Foam::hConstThermo<EquationOfState>::Ha
     const scalar p, const scalar T
 ) const
 {
-    return Cp_*T + Hf_ + EquationOfState::H(p, T);
+    return Hs(p, T) + Hc();
 }
 
 
@@ -115,7 +117,7 @@ inline Foam::scalar Foam::hConstThermo<EquationOfState>::Hs
     const scalar p, const scalar T
 ) const
 {
-    return Cp_*T + EquationOfState::H(p, T);
+    return Cp_*(T - Tref_) + Hsref_ + EquationOfState::H(p, T);
 }
 
 
@@ -136,6 +138,25 @@ inline Foam::scalar Foam::hConstThermo<EquationOfState>::S
 }
 
 
+template<class EquationOfState>
+inline Foam::scalar Foam::hConstThermo<EquationOfState>::Gstd
+(
+    const scalar T
+) const
+{
+    return Cp_*(T - Tref_) + Hsref_ + Hc() - Cp_*T*log(T/Tstd);
+}
+
+
+template<class EquationOfState>
+inline Foam::scalar Foam::hConstThermo<EquationOfState>::dCpdT
+(
+    const scalar p, const scalar T
+) const
+{
+    return 0;
+}
+
 // * * * * * * * * * * * * * * * Member Operators  * * * * * * * * * * * * * //
 
 template<class EquationOfState>
@@ -155,6 +176,7 @@ inline void Foam::hConstThermo<EquationOfState>::operator+=
 
         Cp_ = Y1*Cp_ + Y2*ct.Cp_;
         Hf_ = Y1*Hf_ + Y2*ct.Hf_;
+        Hsref_ = Y1*Hsref_ + Y2*ct.Hsref_;
     }
 }
 
@@ -180,7 +202,9 @@ inline Foam::hConstThermo<EquationOfState> Foam::operator+
         (
             eofs,
             ct1.Cp_,
-            ct1.Hf_
+            ct1.Hf_,
+            ct1.Tref_,
+            ct1.Hsref_
         );
     }
     else
@@ -191,7 +215,10 @@ inline Foam::hConstThermo<EquationOfState> Foam::operator+
             ct1.Y()/eofs.Y()*ct1.Cp_
           + ct2.Y()/eofs.Y()*ct2.Cp_,
             ct1.Y()/eofs.Y()*ct1.Hf_
-          + ct2.Y()/eofs.Y()*ct2.Hf_
+          + ct2.Y()/eofs.Y()*ct2.Hf_,
+            ct1.Tref_,
+            ct1.Y()/eofs.Y()*ct1.Hsref_
+          + ct2.Y()/eofs.Y()*ct2.Hsref_
         );
     }
 }
@@ -208,7 +235,9 @@ inline Foam::hConstThermo<EquationOfState> Foam::operator*
     (
         s*static_cast<const EquationOfState&>(ct),
         ct.Cp_,
-        ct.Hf_
+        ct.Hf_,
+        ct.Tref_,
+        ct.Hsref_
     );
 }
 
@@ -232,7 +261,10 @@ inline Foam::hConstThermo<EquationOfState> Foam::operator==
         ct2.Y()/eofs.Y()*ct2.Cp_
       - ct1.Y()/eofs.Y()*ct1.Cp_,
         ct2.Y()/eofs.Y()*ct2.Hf_
-      - ct1.Y()/eofs.Y()*ct1.Hf_
+      - ct1.Y()/eofs.Y()*ct1.Hf_,
+        ct1.Tref_,
+        ct2.Y()/eofs.Y()*ct2.Hsref_
+      - ct1.Y()/eofs.Y()*ct1.Hsref_
     );
 }
 

@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2015 OpenFOAM Foundation
+    Copyright (C) 2015-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -24,8 +27,11 @@ License
 Class
     Foam::displacementInterpolationMotionSolver
 
+Group
+    grpMeshMotionSolvers
+
 Description
-    Mesh motion solver for a polyMesh.
+    Mesh motion solver for an fvMesh.
 
     Scales inbetween motion prescribed on faceZones. Works out per point
     the distance between the bounding face zones (in all three directions)
@@ -59,7 +65,7 @@ class displacementInterpolationMotionSolver
 :
     public displacementMotionSolver
 {
-    // Private data
+    // Private Data
 
         // Face zone information (note: could pack these to only contain
         // used zones)
@@ -86,14 +92,17 @@ class displacementInterpolationMotionSolver
 
     // Private Member Functions
 
-        //- Disallow default bitwise copy construct
+        //- Read settings
+        void calcInterpolation();
+
+        //- No copy construct
         displacementInterpolationMotionSolver
         (
             const displacementInterpolationMotionSolver&
-        );
+        ) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const displacementInterpolationMotionSolver&);
+        //- No copy assignment
+        void operator=(const displacementInterpolationMotionSolver&) = delete;
 
 
 public:
@@ -111,9 +120,18 @@ public:
             const IOdictionary& dict
         );
 
+        //- Construct from components
+        displacementInterpolationMotionSolver
+        (
+            const polyMesh& mesh,
+            const IOdictionary& dict,
+            const pointVectorField& pointDisplacement,
+            const pointIOField& points0
+        );
+
 
     //- Destructor
-    ~displacementInterpolationMotionSolver();
+    ~displacementInterpolationMotionSolver() = default;
 
 
     // Member Functions

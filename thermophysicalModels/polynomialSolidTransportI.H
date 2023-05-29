@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2013-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2013-2017 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -57,10 +59,7 @@ template<class Thermo, int PolySize>
 inline Foam::autoPtr<Foam::polynomialSolidTransport<Thermo, PolySize>>
 Foam::polynomialSolidTransport<Thermo, PolySize>::clone() const
 {
-    return autoPtr<polynomialSolidTransport<Thermo, PolySize>>
-    (
-        new polynomialSolidTransport<Thermo, PolySize>(*this)
-    );
+    return autoPtr<polynomialSolidTransport<Thermo, PolySize>>::New(*this);
 }
 
 
@@ -68,10 +67,7 @@ template<class Thermo, int PolySize>
 inline Foam::autoPtr<Foam::polynomialSolidTransport<Thermo, PolySize>>
 Foam::polynomialSolidTransport<Thermo, PolySize>::New(const dictionary& dict)
 {
-    return autoPtr<polynomialSolidTransport<Thermo, PolySize>>
-    (
-        new polynomialSolidTransport<Thermo, PolySize>(dict)
-    );
+    return autoPtr<polynomialSolidTransport<Thermo, PolySize>>::New(dict);
 }
 
 
@@ -85,7 +81,7 @@ inline Foam::scalar Foam::polynomialSolidTransport<Thermo, PolySize>::mu
 ) const
 {
     NotImplemented;
-    return scalar(0);
+    return 0;
 }
 
 
@@ -123,18 +119,6 @@ inline Foam::scalar Foam::polynomialSolidTransport<Thermo, PolySize>::alphah
 
 
 // * * * * * * * * * * * * * * * Member Operators  * * * * * * * * * * * * * //
-
-template<class Thermo, int PolySize>
-inline void Foam::polynomialSolidTransport<Thermo, PolySize>::operator=
-(
-    const polynomialSolidTransport<Thermo, PolySize>& pt
-)
-{
-    Thermo::operator=(pt);
-
-    kappaCoeffs_ = pt.kappaCoeffs_;
-}
-
 
 template<class Thermo, int PolySize>
 inline void Foam::polynomialSolidTransport<Thermo, PolySize>::operator+=

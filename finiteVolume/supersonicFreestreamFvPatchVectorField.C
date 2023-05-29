@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2017-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -61,14 +64,16 @@ supersonicFreestreamFvPatchVectorField
 )
 :
     mixedFvPatchVectorField(p, iF),
-    TName_(dict.lookupOrDefault<word>("T", "T")),
-    pName_(dict.lookupOrDefault<word>("p", "p")),
-    psiName_(dict.lookupOrDefault<word>("psi", "thermo:psi")),
+    TName_(dict.getOrDefault<word>("T", "T")),
+    pName_(dict.getOrDefault<word>("p", "p")),
+    psiName_(dict.getOrDefault<word>("psi", "thermo:psi")),
     UInf_(dict.lookup("UInf")),
-    pInf_(readScalar(dict.lookup("pInf"))),
-    TInf_(readScalar(dict.lookup("TInf"))),
-    gamma_(readScalar(dict.lookup("gamma")))
+    pInf_(dict.get<scalar>("pInf")),
+    TInf_(dict.get<scalar>("TInf")),
+    gamma_(dict.get<scalar>("gamma"))
 {
+    patchType() = dict.getOrDefault<word>("patchType", word::null);
+
     if (dict.found("value"))
     {
         fvPatchField<vector>::operator=
@@ -87,10 +92,8 @@ supersonicFreestreamFvPatchVectorField
 
     if (pInf_ < SMALL)
     {
-        FatalIOErrorInFunction
-        (
-            dict
-        )   << "    unphysical pInf specified (pInf <= 0.0)"
+        FatalIOErrorInFunction(dict)
+            << "    unphysical pInf specified (pInf <= 0.0)"
             << "\n    on patch " << this->patch().name()
             << " of field " << this->internalField().name()
             << " in file " << this->internalField().objectPath()
@@ -295,13 +298,13 @@ void Foam::supersonicFreestreamFvPatchVectorField::updateCoeffs()
 void Foam::supersonicFreestreamFvPatchVectorField::write(Ostream& os) const
 {
     fvPatchVectorField::write(os);
-    writeEntryIfDifferent<word>(os, "T", "T", TName_);
-    writeEntryIfDifferent<word>(os, "p", "p", pName_);
-    writeEntryIfDifferent<word>(os, "psi", "thermo:psi", psiName_);
-    os.writeKeyword("UInf") << UInf_ << token::END_STATEMENT << nl;
-    os.writeKeyword("pInf") << pInf_ << token::END_STATEMENT << nl;
-    os.writeKeyword("TInf") << TInf_ << token::END_STATEMENT << nl;
-    os.writeKeyword("gamma") << gamma_ << token::END_STATEMENT << nl;
+    os.writeEntryIfDifferent<word>("T", "T", TName_);
+    os.writeEntryIfDifferent<word>("p", "p", pName_);
+    os.writeEntryIfDifferent<word>("psi", "thermo:psi", psiName_);
+    os.writeEntry("UInf", UInf_);
+    os.writeEntry("pInf", pInf_);
+    os.writeEntry("TInf", TInf_);
+    os.writeEntry("gamma", gamma_);
     writeEntry("value", os);
 }
 

@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2015 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2015 OpenFOAM Foundation
+    Copyright (C) 2019-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -30,28 +33,28 @@ License
 Foam::autoPtr<Foam::tetherPotential> Foam::tetherPotential::New
 (
     const word& name,
-    const dictionary& propDict
+    const dictionary& dict
 )
 {
-    const word potentialType(propDict.lookup("tetherPotential"));
+    const word modelType(dict.get<word>("tetherPotential"));
 
-    Info<< nl << "Selecting tether potential " << potentialType
+    Info<< nl << "Selecting tether potential " << modelType
         << " for " << name << endl;
 
-    dictionaryConstructorTable::iterator cstrIter =
-        dictionaryConstructorTablePtr_->find(potentialType);
+    auto* ctorPtr = dictionaryConstructorTable(modelType);
 
-    if (cstrIter == dictionaryConstructorTablePtr_->end())
+    if (!ctorPtr)
     {
-        FatalErrorInFunction
-            << "Unknown tetherPotential type "
-            << potentialType << nl << nl
-            << "Valid tetherPotentials are:" << nl
-            << dictionaryConstructorTablePtr_->sortedToc()
-            << exit(FatalError);
+        FatalIOErrorInLookup
+        (
+            dict,
+            "tetherPotential",
+            modelType,
+            *dictionaryConstructorTablePtr_
+        ) << exit(FatalIOError);
     }
 
-    return autoPtr<tetherPotential>(cstrIter()(name, propDict));
+    return autoPtr<tetherPotential>(ctorPtr(name, dict));
 }
 
 

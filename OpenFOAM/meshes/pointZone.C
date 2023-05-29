@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2017-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -28,30 +31,30 @@ License
 #include "pointZoneMesh.H"
 #include "polyMesh.H"
 #include "primitiveMesh.H"
-#include "demandDrivenData.H"
 #include "syncTools.H"
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
- 
+
 namespace Foam
 {
     defineTypeNameAndDebug(pointZone, 0);
     defineRunTimeSelectionTable(pointZone, dictionary);
     addToRunTimeSelectionTable(pointZone, pointZone, dictionary);
-}
-namespace Foam {
+
 
     const char* const pointZone::labelsName = "pointLabels";
+
 
     // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
     pointZone::pointZone
     (
         const word& name,
-        const labelUList& addr,
         const label index,
         const pointZoneMesh& zm
-    ) : zone(name, addr, index),
+    )
+        :
+        zone(name, index),
         zoneMesh_(zm)
     {}
 
@@ -59,10 +62,25 @@ namespace Foam {
     pointZone::pointZone
     (
         const word& name,
-        const Xfer<labelList>& addr,
+        const labelUList& addr,
         const label index,
         const pointZoneMesh& zm
-    ) : zone(name, addr, index),
+    )
+        :
+        zone(name, addr, index),
+        zoneMesh_(zm)
+    {}
+
+
+    pointZone::pointZone
+    (
+        const word& name,
+        labelList&& addr,
+        const label index,
+        const pointZoneMesh& zm
+    )
+        :
+        zone(name, std::move(addr), index),
         zoneMesh_(zm)
     {}
 
@@ -73,46 +91,40 @@ namespace Foam {
         const dictionary& dict,
         const label index,
         const pointZoneMesh& zm
-    ) : zone(name, dict, this->labelsName, index),
+    )
+        :
+        zone(name, dict, this->labelsName, index),
         zoneMesh_(zm)
     {}
 
 
     pointZone::pointZone
     (
-        const pointZone& pz,
+        const pointZone& origZone,
         const labelUList& addr,
         const label index,
         const pointZoneMesh& zm
-    ) : zone(pz, addr, index),
+    )
+        :
+        zone(origZone, addr, index),
         zoneMesh_(zm)
     {}
 
 
     pointZone::pointZone
     (
-        const pointZone& pz,
-        const Xfer<labelList>& addr,
+        const pointZone& origZone,
+        labelList&& addr,
         const label index,
         const pointZoneMesh& zm
-    ) : zone(pz, addr, index),
+    )
+        :
+        zone(origZone, std::move(addr), index),
         zoneMesh_(zm)
-    {}
-
-
-    // * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
-
-    pointZone::~pointZone()
     {}
 
 
     // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
-
-    const pointZoneMesh& pointZone::zoneMesh() const
-    {
-        return zoneMesh_;
-    }
-
 
     label pointZone::whichPoint(const label globalPointID) const
     {
@@ -130,18 +142,20 @@ namespace Foam {
     {
         const polyMesh& mesh = zoneMesh().mesh();
 
-        labelList maxZone(mesh.nPoints(), -1);
+        labelList maxZone(mesh.nPoints(), label(-1));
         labelList minZone(mesh.nPoints(), labelMax);
-        forAll(*this, i)
+
+        const labelList& addr = *this;
+
+        for (const label pointi : addr)
         {
-            label pointi = operator[](i);
             maxZone[pointi] = index();
             minZone[pointi] = index();
         }
         syncTools::syncPointList(mesh, maxZone, maxEqOp<label>(), label(-1));
         syncTools::syncPointList(mesh, minZone, minEqOp<label>(), labelMax);
 
-        bool error = false;
+        bool hasError = false;
 
         forAll(maxZone, pointi)
         {
@@ -155,7 +169,8 @@ namespace Foam {
                     && (maxZone[pointi] != minZone[pointi])
                     )
             {
-                if (report && !error)
+                hasError = true;
+                if (report)
                 {
                     Info << " ***Problem with pointZone " << index()
                         << " named " << name()
@@ -169,22 +184,23 @@ namespace Foam {
                         << "(suppressing further warnings)"
                         << endl;
                 }
-                error = true;
+                break;  // Only report once
             }
         }
 
-        return error;
+        return hasError;
     }
 
 
     void pointZone::writeDict(Ostream& os) const
     {
-        os << nl << name_ << nl << token::BEGIN_BLOCK << nl
-            << "    type " << type() << token::END_STATEMENT << nl;
+        os.beginBlock(name());
 
+        os.writeEntry("type", type());
+        zoneIdentifier::write(os);
         writeEntry(this->labelsName, os);
 
-        os << token::END_BLOCK << endl;
+        os.endBlock();
     }
 
 
@@ -204,10 +220,10 @@ namespace Foam {
     }
 
 
-    void pointZone::operator=(const Xfer<labelList>& addr)
+    void pointZone::operator=(labelList&& addr)
     {
         clearAddressing();
-        labelList::operator=(addr);
+        labelList::transfer(addr);
     }
 
 
@@ -216,7 +232,7 @@ namespace Foam {
     Ostream& operator<<(Ostream& os, const pointZone& zn)
     {
         zn.write(os);
-        os.check("Ostream& operator<<(Ostream&, const pointZone&");
+        os.check(FUNCTION_NAME);
         return os;
     }
 

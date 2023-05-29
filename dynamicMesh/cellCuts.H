@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -88,7 +90,7 @@ SourceFiles
 #include "boolList.H"
 #include "scalarField.H"
 #include "pointField.H"
-#include "DynamicList.T.H"
+#include "DynamicList.H"
 #include "typeInfo.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
@@ -96,7 +98,7 @@ SourceFiles
 namespace Foam
 {
 
-// Forward declaration of classes
+// Forward Declarations
 class polyMesh;
 class cellLooper;
 class refineCell;
@@ -110,7 +112,11 @@ class cellCuts
 :
     public edgeVertex
 {
-    // Private data
+    // Private Data
+
+        //- Warn for illegal cuts
+        const bool verbose_;
+
 
         // Per point/edge status
 
@@ -128,7 +134,7 @@ class cellCuts
 
             //- Cuts per existing face (includes those along edge of face)
             //  Cuts in no particular order.
-            mutable autoPtr<labelListList> faceCutsPtr_;
+            mutable unique_ptr<labelListList> faceCutsPtr_;
 
             //- Per face : cut across edge (so not along existing edge)
             //  (can only be one per face)
@@ -177,6 +183,7 @@ class cellCuts
             const labelList& lst,
             const Map<label>&
         );
+
 
     // Private Member Functions
 
@@ -442,7 +449,7 @@ class cellCuts
             //- Set orientation of loops
             void orientPlanesAndLoops();
 
-            //- Top level driver: adressing calculation and loop detection
+            //- Top level driver: addressing calculation and loop detection
             //  (loops splitting cells).
             void calcLoopsAndAddressing(const labelList& cutCells);
 
@@ -450,11 +457,11 @@ class cellCuts
             void check() const;
 
 
-        //- Disallow default bitwise copy construct
-        cellCuts(const cellCuts&);
+        //- No copy construct
+        cellCuts(const cellCuts&) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const cellCuts&);
+        //- No copy assignment
+        void operator=(const cellCuts&) = delete;
 
 
 public:
@@ -472,7 +479,8 @@ public:
             const labelList& cutCells,
             const labelList& meshVerts,
             const labelList& meshEdges,
-            const scalarField& meshEdgeWeights
+            const scalarField& meshEdgeWeights,
+            const bool verbose = true
         );
 
         //- Construct from pattern of cuts. Detect cells to cut.
@@ -481,7 +489,8 @@ public:
             const polyMesh& mesh,
             const labelList& meshVerts,
             const labelList& meshEdges,
-            const scalarField& meshEdgeWeights
+            const scalarField& meshEdgeWeights,
+            const bool verbose = true
         );
 
         //- Construct from complete cellLoops through specified cells.
@@ -492,7 +501,8 @@ public:
             const polyMesh& mesh,
             const labelList& cellLabels,
             const labelListList& cellLoops,
-            const List<scalarField>& cellEdgeWeights
+            const List<scalarField>& cellEdgeWeights,
+            const bool verbose = true
         );
 
         //- Construct from list of cells to cut and direction to cut in
@@ -501,7 +511,8 @@ public:
         (
             const polyMesh& mesh,
             const cellLooper& cellCutter,
-            const List<refineCell>& refCells
+            const List<refineCell>& refCells,
+            const bool verbose = true
         );
 
         //- Construct from list of cells to cut and plane to cut with and
@@ -511,7 +522,8 @@ public:
             const polyMesh& mesh,
             const cellLooper& cellCutter,
             const labelList& cellLabels,
-            const List<plane>& cutPlanes
+            const List<plane>& cutPlanes,
+            const bool verbose = true
         );
 
         //- Construct from components
@@ -524,14 +536,15 @@ public:
             const Map<edge>& faceSplitCut,
             const labelListList& cellLoops,
             const label nLoops,
-            const labelListList& cellAnchorPoints
+            const labelListList& cellAnchorPoints,
+            const bool verbose = true
         );
 
 
     //- Destructor
-    ~cellCuts();
+    ~cellCuts() = default;
 
-        //- Clear out demand driven storage
+        //- Clear out demand-driven storage
         void clearOut();
 
 
@@ -561,11 +574,11 @@ public:
             //  Cuts in no particular order
             const labelListList& faceCuts() const
             {
-                if (!faceCutsPtr_.valid())
+                if (!faceCutsPtr_)
                 {
                     calcFaceCuts();
                 }
-                return faceCutsPtr_();
+                return *faceCutsPtr_;
             }
 
             //- Gives for split face the two cuts that split the face into two.
@@ -630,7 +643,6 @@ public:
 
             //- debugging:Write edges of cell and loop
             void writeCellOBJ(const fileName& dir, const label celli) const;
-
 };
 
 

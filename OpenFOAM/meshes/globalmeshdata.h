@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2018-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -81,7 +84,7 @@ SourceFiles
 #ifndef globalMeshData_H
 #define globalMeshData_H
 
-#include "processorTopology.H"
+#include "processorTopology2.H"
 #include "labelPair.H"
 #include "indirectPrimitivePatch.H"
 
@@ -90,23 +93,23 @@ SourceFiles
 namespace Foam
 {
 
-// Forward declaration of friend functions and operators
-
+// Forward Declarations
 class polyMesh;
 class mapDistribute;
 template<class T> class EdgeMap;
 class globalIndex;
 class globalIndexAndTransform;
-class PackedBoolList;
+class bitSet;
 
 /*---------------------------------------------------------------------------*\
                       Class globalMeshData Declaration
 \*---------------------------------------------------------------------------*/
 
-class globalMeshData :    public processorTopology
+class globalMeshData
+:
+    public processorTopology
 {
-
-    // Private data
+    // Private Data
 
         //- Reference to mesh
         const polyMesh& mesh_;
@@ -169,7 +172,7 @@ class globalMeshData :    public processorTopology
             mutable autoPtr<globalIndex> globalEdgeNumberingPtr_;
             mutable autoPtr<labelListList> globalEdgeSlavesPtr_;
             mutable autoPtr<labelListList> globalEdgeTransformedSlavesPtr_;
-            mutable autoPtr<PackedBoolList> globalEdgeOrientationPtr_;
+            mutable autoPtr<bitSet> globalEdgeOrientationPtr_;
             mutable autoPtr<mapDistribute> globalEdgeSlavesMapPtr_;
 
 
@@ -249,7 +252,7 @@ class globalMeshData :    public processorTopology
         //- Calculate shared edge addressing
         void calcSharedEdges() const;
 
-       //- Calculate global point addressing.
+        //- Calculate global point addressing.
         void calcGlobalPointSlaves() const;
 
         // Global edge addressing
@@ -302,37 +305,14 @@ class globalMeshData :    public processorTopology
             void calcGlobalCoPointSlaves() const;
 
 
-        //- Disallow default bitwise copy construct
-        globalMeshData(const globalMeshData&);
+        //- No copy construct
+        globalMeshData(const globalMeshData&) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const globalMeshData&);
+        //- No copy assignment
+        void operator=(const globalMeshData&) = delete;
 
 
 public:
-
-    // Public class
-
-        // To combineReduce a List. Just appends all lists.
-        template<class T>
-        class ListPlusEqOp
-        {
-
-        public:
-
-            void operator()(T& x, const T& y) const
-            {
-                label n = x.size();
-
-                x.setSize(x.size() + y.size());
-
-                forAll(y, i)
-                {
-                    x[n++] = y[i];
-                }
-            }
-        };
-
 
     //- Runtime type information
     ClassName("globalMeshData");
@@ -341,7 +321,7 @@ public:
     // Static data members
 
         //- Geometric tolerance (fraction of bounding box)
-        static const ::Foam::scalar matchTol_;
+        static const scalar matchTol_;
 
 
     // Constructors
@@ -362,7 +342,7 @@ public:
         // Access
 
             //- Return the mesh reference
-            const polyMesh& mesh() const
+            const polyMesh& mesh() const noexcept
             {
                 return mesh_;
             }
@@ -371,25 +351,25 @@ public:
             //  not running parallel)
             bool parallel() const
             {
-                return processorPatches_.size() > 0;
+                return !processorPatches_.empty();
             }
 
             //- Return total number of points in decomposed mesh. Not
             //  compensated for duplicate points!
-            label nTotalPoints() const
+            label nTotalPoints() const noexcept
             {
                 return nTotalPoints_;
             }
 
             //- Return total number of faces in decomposed mesh. Not
             //  compensated for duplicate faces!
-            label nTotalFaces() const
+            label nTotalFaces() const noexcept
             {
                 return nTotalFaces_;
             }
 
             //- Return total number of cells in decomposed mesh.
-            label nTotalCells() const
+            label nTotalCells() const noexcept
             {
                 return nTotalCells_;
             }
@@ -399,7 +379,7 @@ public:
 
             //- Return list of processor patch labels
             //  (size of list = number of processor patches)
-            const labelList& processorPatches() const
+            const labelList& processorPatches() const noexcept
             {
                 return processorPatches_;
             }
@@ -407,14 +387,14 @@ public:
             //- Return list of indices into processorPatches_ for each patch.
             //  Index = -1 for non-processor parches.
             //  (size of list = number of patches)
-            const labelList& processorPatchIndices() const
+            const labelList& processorPatchIndices() const noexcept
             {
                 return processorPatchIndices_;
             }
 
             //- Return processorPatchIndices of the neighbours
             //  processor patches. -1 if not running parallel.
-            const labelList& processorPatchNeighbours() const
+            const labelList& processorPatchNeighbours() const noexcept
             {
                 return processorPatchNeighbours_;
             }
@@ -498,7 +478,7 @@ public:
             template<class Type, class CombineOp, class TransformOp>
             static void syncData
             (
-                List<Type>& pointData,
+                List<Type>& elems,
                 const labelListList& slaves,
                 const labelListList& transformedSlaves,
                 const mapDistribute& slavesMap,
@@ -511,7 +491,7 @@ public:
             template<class Type, class CombineOp>
             static void syncData
             (
-                List<Type>& pointData,
+                List<Type>& elems,
                 const labelListList& slaves,
                 const labelListList& transformedSlaves,
                 const mapDistribute& slavesMap,
@@ -543,7 +523,7 @@ public:
                 const labelListList& globalEdgeTransformedSlaves() const;
                 const mapDistribute& globalEdgeSlavesMap() const;
                 //- Is my edge same orientation as master edge
-                const PackedBoolList& globalEdgeOrientation() const;
+                const bitSet& globalEdgeOrientation() const;
 
             // Collocated point to collocated point
 
@@ -597,7 +577,7 @@ public:
                 autoPtr<globalIndex> mergePoints
                 (
                     const labelList& meshPoints,
-                    const Map<label>& meshPointMap,
+                    const Map<label>& meshPointMap,  //!< currently unused
                     labelList& pointToGlobal,
                     labelList& uniqueMeshPoints
                 ) const;
@@ -612,6 +592,34 @@ public:
             //  full parallel analysis to determine shared points and
             //  boundaries.
             void updateMesh();
+
+
+    // Housekeeping
+
+        //- Deprecated(2020-09) use ListOps::appendEqOp
+        //  Uses a different template parameter
+        //  \code
+        //      globalMeshData::ListPlusEqOp<labelList>()
+        //      ListOps::appendEqOp<label>()
+        //  \endcode
+        //
+        //  \deprecated(2020-09) - use ListOps::appendEqOp
+        template<class T>
+        struct ListPlusEqOp
+        {
+            FOAM_DEPRECATED_FOR(2020-09, "ListOps::appendEqOp")
+            void operator()(T& x, const T& y) const
+            {
+                label n = x.size();
+
+                x.setSize(x.size() + y.size());
+
+                forAll(y, i)
+                {
+                    x[n++] = y[i];
+                }
+            }
+        };
 };
 
 

@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2016-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -25,7 +28,7 @@ License
 
 #include "smoothDelta.H"
 #include "addToRunTimeSelectionTable.H"
-#include "FaceCellWave.T.H"
+#include "FaceCellWave.H"
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
 
@@ -134,6 +137,9 @@ void Foam::LESModels::smoothDelta::calcDelta()
     {
         delta_[celli] = cellDeltaData[celli].delta();
     }
+
+    // Handle coupled boundaries
+    delta_.correctBoundaryConditions();
 }
 
 
@@ -151,17 +157,14 @@ Foam::LESModels::smoothDelta::smoothDelta
     (
         LESdelta::New
         (
-            "geometricDelta",
+            IOobject::groupName("geometricDelta", turbulence.U().group()),
             turbulence,
             dict.optionalSubDict(type() + "Coeffs")
         )
     ),
     maxDeltaRatio_
     (
-        readScalar
-        (
-            dict.optionalSubDict(type() + "Coeffs").lookup("maxDeltaRatio")
-        )
+        dict.optionalSubDict(type() + "Coeffs").get<scalar>("maxDeltaRatio")
     )
 {
     calcDelta();
@@ -175,7 +178,7 @@ void Foam::LESModels::smoothDelta::read(const dictionary& dict)
     const dictionary& coeffsDict(dict.optionalSubDict(type() + "Coeffs"));
 
     geometricDelta_().read(coeffsDict);
-    coeffsDict.lookup("maxDeltaRatio") >> maxDeltaRatio_;
+    coeffsDict.readEntry("maxDeltaRatio", maxDeltaRatio_);
     calcDelta();
 }
 

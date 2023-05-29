@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2019 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -28,10 +31,10 @@ License
 #include "polyMesh.H"
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
-using namespace Foam;
+
 namespace Foam
 {
-defineTypeNameAndDebug(treeDataCell, 0);
+    defineTypeNameAndDebug(treeDataCell, 0);
 }
 
 
@@ -89,7 +92,9 @@ treeDataCell::treeDataCell
     const polyMesh& mesh,
     const labelUList& cellLabels,
     const polyMesh::cellDecomposition decompMode
-) :    mesh_(mesh),
+)
+:
+    mesh_(mesh),
     cellLabels_(cellLabels),
     cacheBb_(cacheBb),
     decompMode_(decompMode)
@@ -102,10 +107,12 @@ treeDataCell::treeDataCell
 (
     const bool cacheBb,
     const polyMesh& mesh,
-    const Xfer<labelList>& cellLabels,
+    labelList&& cellLabels,
     const polyMesh::cellDecomposition decompMode
-) :    mesh_(mesh),
-    cellLabels_(cellLabels),
+)
+:
+    mesh_(mesh),
+    cellLabels_(std::move(cellLabels)),
     cacheBb_(cacheBb),
     decompMode_(decompMode)
 {
@@ -118,7 +125,9 @@ treeDataCell::treeDataCell
     const bool cacheBb,
     const polyMesh& mesh,
     const polyMesh::cellDecomposition decompMode
-) :    mesh_(mesh),
+)
+:
+    mesh_(mesh),
     cellLabels_(identity(mesh_.nCells())),
     cacheBb_(cacheBb),
     decompMode_(decompMode)
@@ -130,14 +139,18 @@ treeDataCell::treeDataCell
 treeDataCell::findNearestOp::findNearestOp
 (
     const indexedOctree<treeDataCell>& tree
-) :    tree_(tree)
+)
+:
+    tree_(tree)
 {}
 
 
 treeDataCell::findIntersectOp::findIntersectOp
 (
     const indexedOctree<treeDataCell>& tree
-) :    tree_(tree)
+)
+:
+    tree_(tree)
 {}
 
 
@@ -166,10 +179,8 @@ bool treeDataCell::overlaps
     {
         return cubeBb.overlaps(bbs_[index]);
     }
-    else
-    {
-        return cubeBb.overlaps(calcCellBb(cellLabels_[index]));
-    }
+
+    return cubeBb.overlaps(calcCellBb(cellLabels_[index]));
 }
 
 

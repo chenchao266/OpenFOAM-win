@@ -1,9 +1,12 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2015-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2015-2017 OpenFOAM Foundation
+    Copyright (C) 2015-2016 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -72,9 +75,9 @@ SourceFiles
 
 #include "labelList.H"
 #include "labelPair.H"
-#include "Pstream.T.H"
+#include "Pstream.H"
 #include "boolList.H"
-#include "Map.T.H"
+#include "Map.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -119,6 +122,8 @@ protected:
         //- Whether constructMap includes flip or not
         bool constructHasFlip_;
 
+        //- Communicator to use for parallel operations
+        label comm_;
 
         //- Schedule
         mutable autoPtr<List<labelPair>> schedulePtr_;
@@ -139,7 +144,7 @@ protected:
         void calcCompactAddressing
         (
             const globalIndex& globalNumbering,
-            const labelList& elements,
+            const labelUList& elements,
             List<Map<label>>& compactMap
         ) const;
 
@@ -170,7 +175,7 @@ protected:
         template<class T, class CombineOp, class negateOp>
         static void flipAndCombine
         (
-            const UList<label>& map,
+            const labelUList& map,
             const bool hasFlip,
             const UList<T>& rhs,
             const CombineOp& cop,
@@ -196,16 +201,23 @@ public:
     // Constructors
 
         //- Construct null
-        mapDistributeBase();
+        mapDistributeBase(const label comm = UPstream::worldComm);
+
+        //- Copy construct
+        mapDistributeBase(const mapDistributeBase& map);
+
+        //- Move construct
+        mapDistributeBase(mapDistributeBase&& map);
 
         //- Construct from components
         mapDistributeBase
         (
             const label constructSize,
-            const Xfer<labelListList>& subMap,
-            const Xfer<labelListList>& constructMap,
+            labelListList&& subMap,
+            labelListList&& constructMap,
             const bool subHasFlip = false,
-            const bool constructHasFlip = false
+            const bool constructHasFlip = false,
+            const label comm = UPstream::worldComm
         );
 
         //- Construct from reverse addressing: per data item the send
@@ -213,8 +225,9 @@ public:
         //  sorted per processor so cannot use printLayout).
         mapDistributeBase
         (
-            const labelList& sendProcs,
-            const labelList& recvProcs
+            const labelUList& sendProcs,
+            const labelUList& recvProcs,
+            const label comm = UPstream::worldComm
         );
 
         //- Construct from list of (possibly) remote elements in globalIndex
@@ -226,7 +239,8 @@ public:
             const globalIndex&,
             labelList& elements,
             List<Map<label>>& compactMap,
-            const int tag = Pstream::msgType()
+            const int tag = Pstream::msgType(),
+            const label comm = UPstream::worldComm
         );
 
         //- Special variant that works with the info sorted into bins
@@ -237,17 +251,23 @@ public:
             const globalIndex&,
             labelListList& cellCells,
             List<Map<label>>& compactMap,
-            const int tag = Pstream::msgType()
+            const int tag = Pstream::msgType(),
+            const label comm = UPstream::worldComm
         );
 
-        //- Construct by transferring parameter content
-        mapDistributeBase(const Xfer<mapDistributeBase>&);
-
-        //- Construct copy
-        mapDistributeBase(const mapDistributeBase&);
+        //- Construct from my elements to send. Assumes layout is my elements
+        //  first followed by elements from all other processors in consecutive
+        //  order
+        explicit mapDistributeBase
+        (
+            labelListList&& subMap,
+            const bool subHasFlip = false,
+            const bool constructHasFlip = false,
+            const label comm = UPstream::worldComm
+        );
 
         //- Construct from Istream
-        mapDistributeBase(Istream&);
+        mapDistributeBase(Istream& is);
 
 
     // Member Functions
@@ -314,12 +334,18 @@ public:
                 return constructHasFlip_;
             }
 
+            label comm() const
+            {
+                return comm_;
+            }
+
             //- Calculate a schedule. See above.
             static List<labelPair> schedule
             (
                 const labelListList& subMap,
                 const labelListList& constructMap,
-                const int tag
+                const int tag,
+                const label comm = UPstream::worldComm
             );
 
             //- Return a schedule. Demand driven. See above.
@@ -329,10 +355,7 @@ public:
         // Other
 
             //- Transfer the contents of the argument and annul the argument.
-            void transfer(mapDistributeBase&);
-
-            //- Transfer contents to the Xfer container
-            Xfer<mapDistributeBase> xfer();
+            void transfer(mapDistributeBase& rhs);
 
             //- Helper for construct from globalIndex. Renumbers element
             //  (in globalIndex numbering) into compact indices.
@@ -379,7 +402,8 @@ public:
                 const bool constructHasFlip,
                 List<T>&,
                 const negateOp& negOp,
-                const int tag = UPstream::msgType()
+                const int tag = UPstream::msgType(),
+                const label comm = UPstream::worldComm
             );
 
             //- Distribute data. If multiple processors writing to same
@@ -395,10 +419,11 @@ public:
                 const labelListList& constructMap,
                 const bool constructHasFlip,
                 List<T>&,
+                const T& nullValue,
                 const CombineOp& cop,
                 const negateOp& negOp,
-                const T& nullValue,
-                const int tag = UPstream::msgType()
+                const int tag = UPstream::msgType(),
+                const label comm = UPstream::worldComm
             );
 
             //- Distribute data using default commsType.
@@ -464,9 +489,15 @@ public:
                 NotImplemented;
             }
 
+
     // Member Operators
 
-        void operator=(const mapDistributeBase&);
+        //- Copy assignment
+        void operator=(const mapDistributeBase& rhs);
+
+        //- Move assignment
+        void operator=(mapDistributeBase&& rhs);
+
 
     // IOstream operators
 

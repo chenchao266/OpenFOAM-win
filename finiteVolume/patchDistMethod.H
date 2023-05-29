@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2015-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2015-2016 OpenFOAM Foundation
+    Copyright (C) 2017-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -35,8 +38,8 @@ SourceFiles
 #ifndef patchDistMethod_H
 #define patchDistMethod_H
 
-#include "dictionary.H"
-#include "HashSet.T.H"
+#include "dictionary2.H"
+#include "HashSet.H"
 #include "volFieldsFwd.H"
 #include "mapPolyMesh.H"
 #include "fixedValueFvPatchFields.H"
@@ -56,7 +59,6 @@ class fvMesh;
 
 class patchDistMethod
 {
-
 protected:
 
     // Protected Member Data
@@ -67,15 +69,14 @@ protected:
         //- Set of patch IDs
         const labelHashSet patchIDs_;
 
-private:
 
-    // Private Member Functions
+    // Protected Member Functions
 
-        //- Disallow default bitwise copy construct
-        patchDistMethod(const patchDistMethod&);
+        //- No copy construct
+        patchDistMethod(const patchDistMethod&) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const patchDistMethod&);
+        //- No copy assignment
+        void operator=(const patchDistMethod&) = delete;
 
 public:
 
@@ -111,11 +112,13 @@ public:
 
     // Selectors
 
+        // Use "method" from dictionary, or defaultPatchDistMethod
         static autoPtr<patchDistMethod> New
         (
             const dictionary& dict,
             const fvMesh& mesh,
-            const labelHashSet& patchIDs
+            const labelHashSet& patchIDs,
+            const word& defaultPatchDistMethod = word::null
         );
 
 

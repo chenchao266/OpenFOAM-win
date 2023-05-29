@@ -1,9 +1,12 @@
-﻿/*---------------------------------------------------------------------------*\
+/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2019-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -23,7 +26,7 @@ License
 
 \*---------------------------------------------------------------------------*/
 
-//#include "chemistryReader.H"
+#include "chemistryReader.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -35,31 +38,30 @@ Foam::chemistryReader<ThermoType>::New
     speciesTable& species
 )
 {
-    // Let the chemistry reader type default to CHEMKIN
-    // for backward compatibility
-    word chemistryReaderTypeName("chemkinReader");
+    // Use specified reader or default to CHEMKIN for backward compatibility
+    const word readerName
+    (
+        thermoDict.getOrDefault<word>("chemistryReader", "chemkinReader")
+    );
 
-    // otherwise use the specified reader
-    thermoDict.readIfPresent("chemistryReader", chemistryReaderTypeName);
+    Info<< "Selecting chemistryReader " << readerName << endl;
 
-    Info<< "Selecting chemistryReader " << chemistryReaderTypeName << endl;
+    auto* ctorPtr = dictionaryConstructorTable(readerName);
 
-    typename dictionaryConstructorTable::iterator cstrIter =
-        dictionaryConstructorTablePtr_->find(chemistryReaderTypeName);
-
-    if (cstrIter == dictionaryConstructorTablePtr_->end())
+    if (!ctorPtr)
     {
-        FatalErrorInFunction
-            << "Unknown chemistryReader type "
-            << chemistryReaderTypeName << nl << nl
-            << "Valid chemistryReader types are:" << nl
-            << dictionaryConstructorTablePtr_->sortedToc()
-            << exit(FatalError);
+        FatalIOErrorInLookup
+        (
+            thermoDict,
+            "chemistryReader",
+            readerName,
+            *dictionaryConstructorTablePtr_
+        ) << exit(FatalIOError);
     }
 
     return autoPtr<chemistryReader<ThermoType>>
     (
-        cstrIter()(thermoDict, species)
+        ctorPtr(thermoDict, species)
     );
 }
 

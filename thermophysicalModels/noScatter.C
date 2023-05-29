@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2012-2015 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2012-2015 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -50,12 +52,6 @@ Foam::radiation::noScatter::noScatter
 {}
 
 
-// * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
-
-Foam::radiation::noScatter::~noScatter()
-{}
-
-
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
 
 Foam::tmp<Foam::volScalarField> Foam::radiation::noScatter::sigmaEff() const
@@ -74,7 +70,7 @@ Foam::tmp<Foam::volScalarField> Foam::radiation::noScatter::sigmaEff() const
                 false
             ),
             mesh_,
-            dimensionedScalar("zero", dimless/dimLength, 0.0)
+            dimensionedScalar(dimless/dimLength, Zero)
         )
     );
 }

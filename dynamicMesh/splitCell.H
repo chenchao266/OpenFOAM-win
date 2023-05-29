@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -43,24 +45,22 @@ SourceFiles
 namespace Foam
 {
 
-// Forward declaration of classes
-
 /*---------------------------------------------------------------------------*\
                            Class splitCell Declaration
 \*---------------------------------------------------------------------------*/
 
 class splitCell
 {
-    // Private data
+    // Private Data
 
-        //- Unsplit cell label. Only uptodate if this cell is 'live'
-        //  (i.e. no master or slave)
+        //- Unsplit cell label.
+        //  Only uptodate if this cell is 'live' (i.e. no master or slave)
         label celli_;
 
-        //- Parent splitCell or null
+        //- Parent splitCell or nullptr
         splitCell* parent_;
 
-        //- Cells replacing this or null
+        //- Cells replacing this or nullptr
         splitCell* master_;
 
         splitCell* slave_;
@@ -68,11 +68,11 @@ class splitCell
 
     // Private Member Functions
 
-        //- Disallow default bitwise copy construct
-        splitCell(const splitCell&);
+        //- No copy construct
+        splitCell(const splitCell&) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const splitCell&);
+        //- No copy assignment
+        void operator=(const splitCell&) = delete;
 
 
 public:

@@ -1,9 +1,12 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2013 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2014 OpenFOAM Foundation
+    Copyright (C) 2015-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -25,6 +28,8 @@ Class
     Foam::volumeType
 
 Description
+    An enumeration wrapper for classification of a location as being
+    inside/outside of a volume.
 
 SourceFiles
     volumeType.C
@@ -34,18 +39,19 @@ SourceFiles
 #ifndef volumeType_H
 #define volumeType_H
 
-#include "NamedEnum.T.H"
+#include "contiguous.H"
+#include "Enum.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 namespace Foam
 {
 
-// Forward declaration of friend functions and operators
-
+// Forward Declarations
+class dictionary;
 class volumeType;
-Istream& operator>>(Istream& is, volumeType&);
-Ostream& operator<<(Ostream& os, const volumeType& C);
+Istream& operator>>(Istream& is, volumeType& vt);
+Ostream& operator<<(Ostream& os, const volumeType& vt);
 
 
 /*---------------------------------------------------------------------------*\
@@ -56,14 +62,19 @@ class volumeType
 {
 public:
 
-    //- Volume types
-    enum type
+    //- Volume classification types
+    enum type : char
     {
-        UNKNOWN = 0,
-        MIXED   = 1,
-        INSIDE  = 2,
-        OUTSIDE = 3
+        UNKNOWN = 0,    //!< Unknown state
+        INSIDE  = 0x1,  //!< A location inside the volume
+        OUTSIDE = 0x2,  //!< A location outside the volume
+        MIXED   = 0x3   //!< A location that is partly inside and outside
     };
+
+    // Static data
+
+    //- Names for the classification enumeration
+    static const Enum<volumeType::type> names;
 
 
 private:
@@ -76,32 +87,40 @@ private:
 
 public:
 
-    // Static data
-
-        static const NamedEnum<volumeType, 4> names;
-
-
     // Constructors
 
-        //- Construct null
+        //- Construct null as UNKNOWN state
         volumeType()
         :
             t_(UNKNOWN)
         {}
 
-        //- Construct from components
+        //- Construct from enumeration
         volumeType(type t)
         :
             t_(t)
         {}
 
+        //- Construct as getOrDefault by name from dictionary
+        volumeType(const word& key, const dictionary& dict, const type deflt);
+
+        //- Construct from integer
+        explicit volumeType(const int t)
+        :
+            t_(static_cast<volumeType::type>(t))
+        {}
+
 
     // Member Functions
 
+        //- Return the enumeration
         operator type() const
         {
             return t_;
         }
+
+        //- The string representation of the volume type enumeration
+        const word& str() const;
 
 
     // IOstream operators
@@ -111,9 +130,10 @@ public:
 };
 
 
-//- Data associated with volumeType type are contiguous
-template<>
-inline bool contiguous<volumeType>() {return true;}
+// * * * * * * * * * * * * * * * * * Traits  * * * * * * * * * * * * * * * * //
+
+//- Contiguous data for volumeType
+template<> struct is_contiguous<volumeType> : std::true_type {};
 
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //

@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2012-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2012-2017 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -23,6 +26,9 @@ License
 
 Class
     Foam::incompressiblePerfectGas
+
+Group
+    grpSpecieEquationOfState
 
 Description
     Incompressible gas equation of state using a constant reference pressure in
@@ -45,7 +51,7 @@ SourceFiles
 namespace Foam
 {
 
-// Forward declaration of friend functions and operators
+// Forward Declarations
 
 template<class Specie> class incompressiblePerfectGas;
 
@@ -87,7 +93,7 @@ class incompressiblePerfectGas
 :
     public Specie
 {
-    // Private data
+    // Private Data
 
         //- Reference pressure
         scalar pRef_;
@@ -95,13 +101,16 @@ class incompressiblePerfectGas
 
 public:
 
+    // Generated Methods: copy construct, copy assignment
+
+
     // Constructors
 
         //- Construct from components
         inline incompressiblePerfectGas(const Specie& sp, const scalar pRef);
 
         //- Construct from dictionary
-        incompressiblePerfectGas(const dictionary& dict);
+        explicit incompressiblePerfectGas(const dictionary& dict);
 
         //- Construct as named copy
         inline incompressiblePerfectGas
@@ -120,7 +129,7 @@ public:
         );
 
 
-    // Member functions
+    // Member Functions
 
         //- Return the instantiated type name
         static word typeName()
@@ -148,6 +157,12 @@ public:
             //- Return Cp departure [J/(kg K]
             inline scalar Cp(scalar p, scalar T) const;
 
+            //- Return internal energy departure [J/kg]
+            inline scalar E(const scalar p, const scalar T) const;
+
+            //- Return Cv departure [J/(kg K]
+            inline scalar Cv(scalar p, scalar T) const;
+
             //- Return entropy [J/(kg K)]
             inline scalar S(const scalar p, const scalar T) const;
 
@@ -167,14 +182,13 @@ public:
             void write(Ostream& os) const;
 
 
-    // Member operators
+    // Member Operators
 
-        inline void operator=(const incompressiblePerfectGas&);
         inline void operator+=(const incompressiblePerfectGas&);
         inline void operator*=(const scalar);
 
 
-    // Friend operators
+    // Friend Operators
 
         friend incompressiblePerfectGas operator+ <Specie>
         (
@@ -195,7 +209,7 @@ public:
         );
 
 
-    // Ostream Operator
+    // IOstream Operators
 
         friend Ostream& operator<< <Specie>
         (

@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2016 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -50,8 +53,8 @@ Foam::RBD::rigidBodySolvers::CrankNicolson::CrankNicolson
 )
 :
     rigidBodySolver(body),
-    aoc_(dict.lookupOrDefault<scalar>("aoc", 0.5)),
-    voc_(dict.lookupOrDefault<scalar>("voc", 0.5))
+    aoc_(dict.getOrDefault<scalar>("aoc", 0.5)),
+    voc_(dict.getOrDefault<scalar>("voc", 0.5))
 {}
 
 
@@ -72,7 +75,7 @@ void Foam::RBD::rigidBodySolvers::CrankNicolson::solve
     // Accumulate the restraint forces
     scalarField rtau(tau);
     Field<spatialVector> rfx(fx);
-    model_.applyRestraints(rtau, rfx);
+    model_.applyRestraints(rtau, rfx, state());
 
     // Calculate the accelerations for the given state and forces
     model_.forwardDynamics(state(), rtau, rfx);

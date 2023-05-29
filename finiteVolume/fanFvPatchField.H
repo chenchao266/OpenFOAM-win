@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2017-2019 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -32,15 +35,42 @@ Description
     condition as a base.
 
     The jump is specified as a \c Function1 type, to enable the use of, e.g.
-    contant, polynomial, table values.
+    constant, polynomial, table values.
+
+    The switch nonDimensional can be used for a non-dimensional table,
+    in combination with uniformJump = true.
+    As inputs it needs the fan RPM (rpm) and the mean diameter (dm).
+
+    The non-dimensional U for the table is calculated as follows:
+
+    \verbatim
+        phi = 120*Un/(PI^3*dm*rpm)
+        where:
+            dm is the mean diameter.
+            rpm is the RPM of the fan.
+    \endverbatim
+
+    The non-dimensional pressure:
+
+    \verbatim
+        Psi = 2 deltaP/(rho*(sqr(PI*omega*dm)))
+        where:
+            deltaP is the pressure drop
+    \endverbatim
+
+    The non-dimensional table should be given as Psi = F(phi).
 
 Usage
     \table
-        Property     | Description             | Required    | Default value
-        patchType    | underlying patch type should be \c cyclic| yes |
-        jumpTable    | jump data, e.g. \c csvFile | yes      |
-        phi          | flux field name         | no          | phi
-        rho          | density field name      | no          | none
+        Property    | Description                           | Required | Default
+        patchType   | underlying patch type should be \c cyclic | yes |
+        jumpTable   | jump data, e.g. \c csvFile            | yes |
+        phi         | flux field name                       | no  | phi
+        rho         | density field name                    | no  | rho
+        uniformJump | apply uniform pressure based on avg velocity | no | false
+        nonDimensional | use non-dimensional table          | no | false
+        rpm         | fan rpm (non-dimensional table)       | no |
+        dm          | mean diameter (non-dimensional table) | no |
     \endtable
 
     Example of the boundary condition specification:
@@ -50,13 +80,15 @@ Usage
         type            fan;
         patchType       cyclic;
         jumpTable       csvFile;
-        csvFileCoeffs
+
+        jumpTableCoeffs
         {
-            hasHeaderLine   1;
+            nHeaderLine     1;
             refColumn       0;
             componentColumns 1(1);
             separator       ",";
-            fileName        "$FOAM_CASE/constant/pressureVsU";
+            mergeSeparators no;
+            file            "<constant>/UvsPressure";
         }
         value           uniform 0;
     }
@@ -66,7 +98,7 @@ Usage
     the jump condition.
 
 Note
-     The underlying \c patchType should be set to \c cyclic
+    The underlying \c patchType should be set to \c cyclic
 
 See also
     Foam::Function1Types
@@ -83,7 +115,7 @@ SourceFiles
 #define fanFvPatchField_H
 
 #include "uniformJumpFvPatchField.H"
-#include "Function1.T.H"
+#include "Function1.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -99,14 +131,25 @@ class fanFvPatchField
 :
     public uniformJumpFvPatchField<Type>
 {
-    // Private data
+    // Private Data
 
         //- Name of the flux transporting the field
         word phiName_;
 
-        //- Name of the density field used to normalise the mass flux
-        //  if neccessary
+        //- Name of the density field for normalising the mass flux if necessary
         word rhoName_;
+
+        //- Apply uniform pressure drop
+        bool uniformJump_;
+
+        //- Use non-dimensional curve
+        bool nonDimensional_;
+
+        //- Fan rpm (for non-dimensional curve)
+        autoPtr<Function1<scalar>> rpm_;
+
+        //- Fan mean diameter (for non-dimensional curve)
+        autoPtr<Function1<scalar>> dm_;
 
 
     // Private Member Functions
@@ -188,21 +231,13 @@ public:
         virtual void updateCoeffs();
 
         //- Write
-        virtual void write(Ostream&) const;
+        virtual void write(Ostream& os) const;
 };
 
 
 //- Specialisation of the jump-condition for the pressure
 template<>
 void fanFvPatchField<scalar>::calcFanJump();
-
-template<>
-fanFvPatchField<scalar>::fanFvPatchField
-(
-    const fvPatch&,
-    const DimensionedField<scalar, volMesh>&,
-    const dictionary&
-);
 
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //

@@ -1,9 +1,12 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011 OpenFOAM Foundation
+    Copyright (C) 2020-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -25,7 +28,7 @@ Class
     Foam::pTraits
 
 Description
-    Traits class for primitives.
+    A traits class, which is primarily used for primitives.
 
     All primitives need a specialised version of this class. The
     specialised version will normally also require a conversion
@@ -35,36 +38,40 @@ Description
 
 #ifndef pTraits_H
 #define pTraits_H
-
+#define __restrict__ __restrict
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 namespace Foam
 {
 
+// Forward Declarations
 class Istream;
 
 /*---------------------------------------------------------------------------*\
                            Class pTraits Declaration
 \*---------------------------------------------------------------------------*/
 
-template<class PrimitiveType>
-class pTraits :    public PrimitiveType
+// The base implementation is a pass-through to the base class.
+// Accordingly it inherits all static methods (eg, typeName etc).
+template<class Base>
+class pTraits
+:
+    public Base
 {
-
 public:
 
     // Constructors
 
-        //- Construct from primitive
-        pTraits(const PrimitiveType& p)
+        //- Copy construct from base class
+        explicit pTraits(const Base& obj)
         :
-            PrimitiveType(p)
+            Base(obj)
         {}
 
         //- Construct from Istream
-        pTraits(Istream& is)
+        explicit pTraits(Istream& is)
         :
-            PrimitiveType(is)
+            Base(is)
         {}
 };
 

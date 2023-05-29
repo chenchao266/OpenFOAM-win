@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2019-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -24,7 +27,8 @@ License
 \*---------------------------------------------------------------------------*/
 
 #include "blockMesh.H"
-#include "cellModeller.H"
+#include "cellModel.H"
+#include "emptyPolyPatch.H"
 
 // * * * * * * * * * * * * * Private Member Functions  * * * * * * * * * * * //
 
@@ -32,101 +36,121 @@ void Foam::blockMesh::createPoints() const
 {
     const blockList& blocks = *this;
 
-    if (verboseOutput)
+    const vector scaleTot
+    (
+        prescaling_.x() * scaling_.x(),
+        prescaling_.y() * scaling_.y(),
+        prescaling_.z() * scaling_.z()
+    );
+
+    if (verbose_)
     {
-        Info<< "Creating points with scale " << scaleFactor_ << endl;
+        Info<< "Creating points with scale " << scaleTot << endl;
     }
 
-    points_.setSize(nPoints_);
+    points_.resize(nPoints_);
 
     forAll(blocks, blocki)
     {
         const pointField& blockPoints = blocks[blocki].points();
 
-        if (verboseOutput)
+        const labelSubList pointAddr
+        (
+            mergeList_,
+            blockPoints.size(),
+            blockOffsets_[blocki]
+        );
+
+        UIndirectList<point>(points_, pointAddr) = blockPoints;
+
+        if (verbose_)
         {
-            const Vector<label>& density = blocks[blocki].density();
+            Info<< "    Block " << blocki << " cell size :" << nl;
 
-            label v0 = blocks[blocki].pointLabel(0, 0, 0);
-            label vi1 = blocks[blocki].pointLabel(1, 0, 0);
-            scalar diStart = mag(blockPoints[vi1] - blockPoints[v0]);
+            const label v0 = blocks[blocki].pointLabel(0, 0, 0);
 
-            label vinM1 = blocks[blocki].pointLabel(density.x()-1, 0, 0);
-            label vin = blocks[blocki].pointLabel(density.x(), 0, 0);
-            scalar diFinal = mag(blockPoints[vin] - blockPoints[vinM1]);
+            {
+                const label nx = blocks[blocki].density().x();
+                const label v1 = blocks[blocki].pointLabel(1, 0, 0);
+                const label vn = blocks[blocki].pointLabel(nx, 0, 0);
+                const label vn1 = blocks[blocki].pointLabel(nx-1, 0, 0);
 
-            label vj1 = blocks[blocki].pointLabel(0, 1, 0);
-            scalar djStart = mag(blockPoints[vj1] - blockPoints[v0]);
-            label vjnM1 = blocks[blocki].pointLabel(0, density.y()-1, 0);
-            label vjn = blocks[blocki].pointLabel(0, density.y(), 0);
-            scalar djFinal = mag(blockPoints[vjn] - blockPoints[vjnM1]);
+                const scalar cwBeg = mag(blockPoints[v1] - blockPoints[v0]);
+                const scalar cwEnd = mag(blockPoints[vn] - blockPoints[vn1]);
 
-            label vk1 = blocks[blocki].pointLabel(0, 0, 1);
-            scalar dkStart = mag(blockPoints[vk1] - blockPoints[v0]);
-            label vknM1 = blocks[blocki].pointLabel(0, 0, density.z()-1);
-            label vkn = blocks[blocki].pointLabel(0, 0, density.z());
-            scalar dkFinal = mag(blockPoints[vkn] - blockPoints[vknM1]);
+                Info<< "        i : "
+                    << cwBeg*scaleTot.x() << " .. "
+                    << cwEnd*scaleTot.x() << nl;
+            }
 
-            Info<< "    Block " << blocki << " cell size :" << nl
-                << "        i : " << scaleFactor_*diStart << " .. "
-                << scaleFactor_*diFinal << nl
-                << "        j : " << scaleFactor_*djStart << " .. "
-                << scaleFactor_*djFinal << nl
-                << "        k : " << scaleFactor_*dkStart << " .. "
-                << scaleFactor_*dkFinal << nl
-                << endl;
-        }
+            {
+                const label ny = blocks[blocki].density().y();
+                const label v1 = blocks[blocki].pointLabel(0, 1, 0);
+                const label vn = blocks[blocki].pointLabel(0, ny, 0);
+                const label vn1 = blocks[blocki].pointLabel(0, ny-1, 0);
 
-        forAll(blockPoints, blockPointi)
-        {
-            points_
-            [
-                mergeList_
-                [
-                    blockOffsets_[blocki] + blockPointi
-                ]
-            ] = scaleFactor_ * blockPoints[blockPointi];
+                const scalar cwBeg = mag(blockPoints[v1] - blockPoints[v0]);
+                const scalar cwEnd = mag(blockPoints[vn] - blockPoints[vn1]);
+
+                Info<< "        j : "
+                    << cwBeg*scaleTot.y() << " .. "
+                    << cwEnd*scaleTot.y() << nl;
+            }
+
+            {
+                const label nz = blocks[blocki].density().z();
+                const label v1 = blocks[blocki].pointLabel(0, 0, 1);
+                const label vn = blocks[blocki].pointLabel(0, 0, nz);
+                const label vn1 = blocks[blocki].pointLabel(0, 0, nz-1);
+
+                const scalar cwBeg = mag(blockPoints[v1] - blockPoints[v0]);
+                const scalar cwEnd = mag(blockPoints[vn] - blockPoints[vn1]);
+
+                Info<< "        k : "
+                    << cwBeg*scaleTot.z() << " .. "
+                    << cwEnd*scaleTot.z() << nl;
+            }
+            Info<< endl;
         }
     }
+
+    inplacePointTransforms(points_);
 }
 
 
 void Foam::blockMesh::createCells() const
 {
     const blockList& blocks = *this;
-    const cellModel& hex = *(cellModeller::lookup("hex"));
+    const cellModel& hex = cellModel::ref(cellModel::HEX);
 
-    if (verboseOutput)
+    if (verbose_)
     {
         Info<< "Creating cells" << endl;
     }
 
-    cells_.setSize(nCells_);
+    cells_.resize(nCells_);
 
-    label cellLabel = 0;
+    label celli = 0;
+
+    labelList cellPoints(8);  // Hex cells - 8 points
 
     forAll(blocks, blocki)
     {
-        const List<FixedList<label, 8>> blockCells(blocks[blocki].cells());
-
-        forAll(blockCells, blockCelli)
+        for (const hexCell& blockCell : blocks[blocki].cells())
         {
-            labelList cellPoints(blockCells[blockCelli].size());
-
             forAll(cellPoints, cellPointi)
             {
                 cellPoints[cellPointi] =
                     mergeList_
                     [
-                        blockCells[blockCelli][cellPointi]
+                        blockCell[cellPointi]
                       + blockOffsets_[blocki]
                     ];
             }
 
             // Construct collapsed cell and add to list
-            cells_[cellLabel] = cellShape(hex, cellPoints, true);
-
-            cellLabel++;
+            cells_[celli].reset(hex, cellPoints, true);
+            ++celli;
         }
     }
 }
@@ -165,7 +189,7 @@ Foam::faceList Foam::blockMesh::createPatchFaces
 
 
     faceList patchFaces(nFaces);
-    face quadFace(4);
+    face quad(4);
     label faceLabel = 0;
 
     forAll(patchTopologyFaces, patchTopologyFaceLabel)
@@ -190,7 +214,7 @@ Foam::faceList Foam::blockMesh::createPatchFaces
                     // Lookup the face points
                     // and collapse duplicate point labels
 
-                    quadFace[0] =
+                    quad[0] =
                         mergeList_
                         [
                             blockPatchFaces[blockFaceLabel][0]
@@ -206,33 +230,33 @@ Foam::faceList Foam::blockMesh::createPatchFaces
                         facePointLabel++
                     )
                     {
-                        quadFace[nUnique] =
+                        quad[nUnique] =
                             mergeList_
                             [
                                 blockPatchFaces[blockFaceLabel][facePointLabel]
                               + blockOffsets_[blocki]
                             ];
 
-                        if (quadFace[nUnique] != quadFace[nUnique-1])
+                        if (quad[nUnique] != quad[nUnique-1])
                         {
                             nUnique++;
                         }
                     }
 
-                    if (quadFace[nUnique-1] == quadFace[0])
+                    if (quad[nUnique-1] == quad[0])
                     {
                         nUnique--;
                     }
 
                     if (nUnique == 4)
                     {
-                        patchFaces[faceLabel++] = quadFace;
+                        patchFaces[faceLabel++] = quad;
                     }
                     else if (nUnique == 3)
                     {
                         patchFaces[faceLabel++] = face
                         (
-                            labelList::subList(quadFace, 3)
+                            labelList::subList(quad, 3)
                         );
                     }
                     // else the face has collapsed to an edge or point
@@ -241,7 +265,7 @@ Foam::faceList Foam::blockMesh::createPatchFaces
         }
     }
 
-    patchFaces.setSize(faceLabel);
+    patchFaces.resize(faceLabel);
 
     return patchFaces;
 }
@@ -251,17 +275,202 @@ void Foam::blockMesh::createPatches() const
 {
     const polyPatchList& topoPatches = topology().boundaryMesh();
 
-    if (verboseOutput)
+    if (verbose_)
     {
         Info<< "Creating patches" << endl;
     }
 
-    patches_.setSize(topoPatches.size());
+    patches_.resize(topoPatches.size());
 
     forAll(topoPatches, patchi)
     {
         patches_[patchi] = createPatchFaces(topoPatches[patchi]);
     }
+}
+
+
+// * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
+
+const Foam::polyMesh& Foam::blockMesh::topology() const
+{
+    if (!topologyPtr_)
+    {
+        FatalErrorInFunction
+            << "topology not allocated"
+            << exit(FatalError);
+    }
+
+    return *topologyPtr_;
+}
+
+
+Foam::refPtr<Foam::polyMesh>
+Foam::blockMesh::topology(bool applyTransform) const
+{
+    const polyMesh& origTopo = topology();
+
+    if (applyTransform && hasPointTransforms())
+    {
+        // Copy mesh components
+
+        IOobject newIO(origTopo, IOobject::NO_READ, IOobject::NO_WRITE);
+        newIO.registerObject(false);
+
+        pointField newPoints(origTopo.points());
+        inplacePointTransforms(newPoints);
+
+        auto ttopoMesh = refPtr<polyMesh>::New
+        (
+            newIO,
+            std::move(newPoints),
+            faceList(origTopo.faces()),
+            labelList(origTopo.faceOwner()),
+            labelList(origTopo.faceNeighbour())
+        );
+        auto& topoMesh = ttopoMesh.ref();
+
+        // Patches
+        const polyBoundaryMesh& pbmOld = origTopo.boundaryMesh();
+        const polyBoundaryMesh& pbmNew = topoMesh.boundaryMesh();
+
+        PtrList<polyPatch> newPatches(pbmOld.size());
+
+        forAll(pbmOld, patchi)
+        {
+            newPatches.set(patchi, pbmOld[patchi].clone(pbmNew));
+        }
+
+        topoMesh.addPatches(newPatches);
+
+        return ttopoMesh;
+    }
+    else
+    {
+        return origTopo;
+    }
+}
+
+
+Foam::autoPtr<Foam::polyMesh>
+Foam::blockMesh::mesh(const IOobject& io) const
+{
+    const blockMesh& blkMesh = *this;
+
+    if (verbose_)
+    {
+        Info<< nl << "Creating polyMesh from blockMesh" << endl;
+    }
+
+    auto meshPtr = autoPtr<polyMesh>::New
+    (
+        io,
+        pointField(blkMesh.points()),   // Use a copy of the block points
+        blkMesh.cells(),
+        blkMesh.patches(),
+        blkMesh.patchNames(),
+        blkMesh.patchDicts(),
+        "defaultFaces",                 // Default patch name
+        emptyPolyPatch::typeName        // Default patch type
+    );
+
+
+    // Set any cellZones
+    const label nZones = blkMesh.numZonedBlocks();
+
+    if (nZones)
+    {
+        polyMesh& pmesh = *meshPtr;
+
+        if (verbose_)
+        {
+            Info<< "Adding cell zones" << endl;
+        }
+
+        // Map from zoneName to cellZone index
+        HashTable<label> zoneMap(2*nZones);
+
+        // Cells per zone
+        List<DynamicList<label>> zoneCells(nZones);
+
+        // Running cell counter
+        label celli = 0;
+
+        // Largest zone so far
+        label freeZonei = 0;
+
+        for (const block& b : blkMesh)
+        {
+            const word& zoneName = b.zoneName();
+            const label nCellsInBlock = b.cells().size();
+
+            if (zoneName.size())
+            {
+                const auto iter = zoneMap.cfind(zoneName);
+
+                label zonei = freeZonei;
+
+                if (iter.found())
+                {
+                    zonei = *iter;
+                }
+                else
+                {
+                    zoneMap.insert(zoneName, zonei);
+                    ++freeZonei;
+
+                    if (verbose_)
+                    {
+                        Info<< "    " << zonei << '\t' << zoneName << endl;
+                    }
+                }
+
+
+                // Fill with cell ids
+
+                zoneCells[zonei].reserve
+                (
+                    zoneCells[zonei].size() + nCellsInBlock
+                );
+
+                const label endOfFill = celli + nCellsInBlock;
+
+                for (; celli < endOfFill; ++celli)
+                {
+                    zoneCells[zonei].append(celli);
+                }
+            }
+            else
+            {
+                celli += nCellsInBlock;
+            }
+        }
+
+        List<cellZone*> cz(zoneMap.size());
+        forAllConstIters(zoneMap, iter)
+        {
+            const word& zoneName = iter.key();
+            const label zonei = iter.val();
+
+            cz[zonei] = new cellZone
+            (
+                zoneName,
+                zoneCells[zonei].shrink(),
+                zonei,
+                pmesh.cellZones()
+            );
+        }
+
+        pmesh.pointZones().clear();
+        pmesh.faceZones().clear();
+        pmesh.cellZones().clear();
+        pmesh.addZones(List<pointZone*>(), List<faceZone*>(), cz);
+    }
+
+
+    // Merge patch pairs, cyclic must be done elsewhere
+    // - requires libdynamicMesh
+
+    return meshPtr;
 }
 
 

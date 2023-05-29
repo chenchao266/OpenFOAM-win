@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -24,29 +27,30 @@ License
 \*---------------------------------------------------------------------------*/
 
 #include "boundaryMesh.H"
-#include "Time.T.H"
+#include "Time1.H"
 #include "polyMesh.H"
 #include "repatchPolyTopoChanger.H"
 #include "faceList.H"
 #include "indexedOctree.H"
 #include "treeDataPrimitivePatch.H"
 #include "triSurface.H"
-#include "SortableList.T.H"
+#include "SortableList.H"
 #include "OFstream.H"
+#include "primitiveFacePatch.H"
 #include "uindirectPrimitivePatch.H"
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
 
 namespace Foam
 {
-defineTypeNameAndDebug(boundaryMesh, 0);
+    defineTypeNameAndDebug(boundaryMesh, 0);
+}
 
 // Normal along which to divide faces into categories (used in getNearest)
-const vector boundaryMesh::splitNormal_(3, 2, 1);
+const Foam::vector Foam::boundaryMesh::splitNormal_(3, 2, 1);
 
 // Distance to face tolerance for getNearest
-const scalar boundaryMesh::distanceTol_ = 1e-2;
-}
+const Foam::scalar Foam::boundaryMesh::distanceTol_ = 1e-2;
 
 
 // * * * * * * * * * * * * * Private Member Functions  * * * * * * * * * * * //
@@ -433,7 +437,6 @@ void Foam::boundaryMesh::markZone
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
-// Null constructor
 Foam::boundaryMesh::boundaryMesh()
 :
     meshPtr_(nullptr),
@@ -448,26 +451,13 @@ Foam::boundaryMesh::boundaryMesh()
 {}
 
 
-// * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
-
-Foam::boundaryMesh::~boundaryMesh()
-{
-    clearOut();
-}
-
+// * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
 
 void Foam::boundaryMesh::clearOut()
 {
-    if (meshPtr_)
-    {
-        delete meshPtr_;
-
-        meshPtr_ = nullptr;
-    }
+    meshPtr_.reset(nullptr);
 }
 
-
-// * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
 
 void Foam::boundaryMesh::read(const polyMesh& mesh)
 {
@@ -476,7 +466,7 @@ void Foam::boundaryMesh::read(const polyMesh& mesh)
     patches_.setSize(mesh.boundaryMesh().size());
 
     // Number of boundary faces
-    label nBFaces = mesh.nFaces() - mesh.nInternalFaces();
+    const label nBFaces = mesh.nBoundaryFaces();
 
     faceList bFaces(nBFaces);
 
@@ -535,17 +525,15 @@ void Foam::boundaryMesh::read(const polyMesh& mesh)
     //
 
     // Temporary primitivePatch to calculate compact points & faces.
-    PrimitivePatch<face, List, const pointField&> globalPatch
-    (
-        bFaces,
-        mesh.points()
-    );
+    primitiveFacePatch globalPatch(bFaces, mesh.points());
 
     // Store in local(compact) addressing
     clearOut();
 
-    meshPtr_ = new bMesh(globalPatch.localFaces(), globalPatch.localPoints());
-
+    meshPtr_.reset
+    (
+        new bMesh(globalPatch.localFaces(), globalPatch.localPoints())
+    );
 
     if (debug & 2)
     {
@@ -586,16 +574,15 @@ void Foam::boundaryMesh::read(const polyMesh& mesh)
     }
 
     // Clear edge storage
-    featurePoints_.setSize(0);
-    featureEdges_.setSize(0);
+    featurePoints_.clear();
+    featureEdges_.clear();
 
-    featureToEdge_.setSize(0);
-    edgeToFeature_.setSize(meshPtr_->nEdges());
+    featureToEdge_.clear();
+    edgeToFeature_.resize(meshPtr_->nEdges());
     edgeToFeature_ = -1;
 
-    featureSegments_.setSize(0);
-
-    extraEdges_.setSize(0);
+    featureSegments_.clear();
+    extraEdges_.clear();
 }
 
 
@@ -677,11 +664,11 @@ void Foam::boundaryMesh::readTriSurface(const fileName& fName)
                 patchi,
                 new boundaryPatch
                 (
-                    "patch" + name(patchi),
+                    geometricSurfacePatch::defaultName(patchi),
                     patchi,
                     0,
                     0,
-                    "empty"
+                    geometricSurfacePatch::emptyType
                 )
             );
         }
@@ -752,19 +739,18 @@ void Foam::boundaryMesh::readTriSurface(const fileName& fName)
     clearOut();
 
     // Store compact.
-    meshPtr_ = new bMesh(bFaces, surf.localPoints());
+    meshPtr_.reset(new bMesh(bFaces, surf.localPoints()));
 
     // Clear edge storage
-    featurePoints_.setSize(0);
-    featureEdges_.setSize(0);
+    featurePoints_.clear();
+    featureEdges_.clear();
 
-    featureToEdge_.setSize(0);
-    edgeToFeature_.setSize(meshPtr_->nEdges());
+    featureToEdge_.clear();
+    edgeToFeature_.resize(meshPtr_->nEdges());
     edgeToFeature_ = -1;
 
-    featureSegments_.setSize(0);
-
-    extraEdges_.setSize(0);
+    featureSegments_.clear();
+    extraEdges_.clear();
 }
 
 
@@ -779,9 +765,9 @@ void Foam::boundaryMesh::writeTriSurface(const fileName& fName) const
         surfPatches[patchi] =
             geometricSurfacePatch
             (
-                bp.physicalType(),
                 bp.name(),
-                patchi
+                patchi,
+                bp.physicalType()
             );
     }
 
@@ -848,7 +834,7 @@ void Foam::boundaryMesh::writeTriSurface(const fileName& fName) const
 
 // Get index in this (boundaryMesh) of face nearest to each boundary face in
 // pMesh.
-// Origininally all triangles/faces of boundaryMesh would be bunged into
+// Originally all triangles/faces of boundaryMesh would be bunged into
 // one big octree. Problem was that faces on top of each other, differing
 // only in sign of normal, could not be found separately. It would always
 // find only one. We could detect that it was probably finding the wrong one
@@ -976,7 +962,7 @@ Foam::labelList Foam::boundaryMesh::getNearest
     // Search nearest triangle centre for every polyMesh boundary face
     //
 
-    labelList nearestBFacei(pMesh.nFaces() - pMesh.nInternalFaces());
+    labelList nearestBFacei(pMesh.nBoundaryFaces());
 
     treeBoundBox tightest;
 
@@ -1168,7 +1154,7 @@ void Foam::boundaryMesh::patchify
     label meshFacei = newMesh.nInternalFaces();
 
     // First patch gets all non-coupled faces
-    label facesToBeDone = newMesh.nFaces() - newMesh.nInternalFaces();
+    label facesToBeDone = newMesh.nBoundaryFaces();
 
     forAll(patches_, bPatchi)
     {
@@ -1262,9 +1248,7 @@ void Foam::boundaryMesh::patchify
         List<DynamicList<label>> patchFaces(nNewPatches);
 
         // Give reasonable estimate for size of patches
-        label nAvgFaces =
-            (newMesh.nFaces() - newMesh.nInternalFaces())
-          / nNewPatches;
+        label nAvgFaces = newMesh.nBoundaryFaces() / nNewPatches;
 
         forAll(patchFaces, newPatchi)
         {
@@ -1727,7 +1711,7 @@ void Foam::boundaryMesh::changeFaces
 
     // Count number of faces for each patch
 
-    labelList nFaces(patches_.size(), 0);
+    labelList nFaces(patches_.size(), Zero);
 
     forAll(patchIDs, facei)
     {
@@ -1815,7 +1799,8 @@ void Foam::boundaryMesh::changeFaces
     }
 
     // Reconstruct 'mesh' from new faces and (copy of) existing points.
-    bMesh* newMeshPtr_ = new bMesh(newFaces, mesh().points());
+
+    unique_ptr<bMesh> newMeshPtr(new bMesh(newFaces, mesh().points()));
 
     // Reset meshFace_ to new ordering.
     meshFace_.transfer(newMeshFace);
@@ -1825,7 +1810,7 @@ void Foam::boundaryMesh::changeFaces
     clearOut();
 
     // And insert new 'mesh'.
-    meshPtr_ = newMeshPtr_;
+    meshPtr_ = std::move(newMeshPtr);
 }
 
 

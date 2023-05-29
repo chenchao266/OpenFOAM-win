@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2015-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -30,26 +33,25 @@ License
 #include "demandDrivenData.H"
 #include "OFstream.H"
 #include "matchPoints.H"
-#include "EdgeMap.T.H"
-#include "Time.T.H"
+#include "edgeHashes.H"
+#include "Time1.h"
 #include "transformField.H"
-#include "SubField.T.H"
+#include "SubField.H"
 #include "unitConversion.H"
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
- 
+
 namespace Foam
 {
     defineTypeNameAndDebug(cyclicPolyPatch, 0);
 
     addToRunTimeSelectionTable(polyPatch, cyclicPolyPatch, word);
     addToRunTimeSelectionTable(polyPatch, cyclicPolyPatch, dictionary);
-}
+ 
 
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
-namespace Foam
-{
+
 label cyclicPolyPatch::findMaxArea
 (
     const pointField& points,
@@ -61,9 +63,9 @@ label cyclicPolyPatch::findMaxArea
 
     forAll(faces, facei)
     {
-        scalar areaSqr = magSqr(faces[facei].normal(points));
+        scalar areaSqr = magSqr(faces[facei].areaNormal(points));
 
-        if (areaSqr > maxAreaSqr)
+        if (maxAreaSqr < areaSqr)
         {
             maxAreaSqr = areaSqr;
             maxI = facei;
@@ -82,7 +84,7 @@ void cyclicPolyPatch::calcTransforms()
         vectorField half0Areas(half0.size());
         forAll(half0, facei)
         {
-            half0Areas[facei] = half0[facei].normal(half0.points());
+            half0Areas[facei] = half0[facei].areaNormal(half0.points());
         }
 
         // Half1
@@ -90,7 +92,7 @@ void cyclicPolyPatch::calcTransforms()
         vectorField half1Areas(half1.size());
         forAll(half1, facei)
         {
-            half1Areas[facei] = half1[facei].normal(half1.points());
+            half1Areas[facei] = half1[facei].areaNormal(half1.points());
         }
 
         calcTransforms
@@ -261,19 +263,17 @@ void cyclicPolyPatch::calcTransforms
             // use calculated normals.
             vector n0 = findFaceMaxRadius(half0Ctrs);
             vector n1 = -findFaceMaxRadius(half1Ctrs);
-            n0 /= mag(n0) + VSMALL;
-            n1 /= mag(n1) + VSMALL;
+            n0.normalise();
+            n1.normalise();
 
             if (debug)
             {
-                scalar theta = radToDeg(acos(n0 & n1));
-
                 Pout<< "cyclicPolyPatch::calcTransforms :"
                     << " patch:" << name()
                     << " Specified rotation :"
                     << " n0:" << n0 << " n1:" << n1
-                    << " swept angle: " << theta << " [deg]"
-                    << endl;
+                    << " swept angle: " << radToDeg(acos(n0 & n1))
+                    << " [deg]" << endl;
             }
 
             // Extended tensor from two local coordinate systems calculated
@@ -421,18 +421,17 @@ void cyclicPolyPatch::getCentresAndAnchors
             {
                 vector n0 = findFaceMaxRadius(half0Ctrs);
                 vector n1 = -findFaceMaxRadius(half1Ctrs);
-                n0 /= mag(n0) + VSMALL;
-                n1 /= mag(n1) + VSMALL;
+                n0.normalise();
+                n1.normalise();
 
                 if (debug)
                 {
-                    scalar theta = radToDeg(acos(n0 & n1));
-
                     Pout<< "cyclicPolyPatch::getCentresAndAnchors :"
                         << " patch:" << name()
                         << " Specified rotation :"
                         << " n0:" << n0 << " n1:" << n1
-                        << " swept angle: " << theta << " [deg]"
+                        << " swept angle: "
+                        << radToDeg(acos(n0 & n1)) << " [deg]"
                         << endl;
                 }
 
@@ -500,12 +499,10 @@ void cyclicPolyPatch::getCentresAndAnchors
                 // Determine the face with max area on both halves. These
                 // two faces are used to determine the transformation tensors
                 label max0I = findMaxArea(pp0.points(), pp0);
-                vector n0 = pp0[max0I].normal(pp0.points());
-                n0 /= mag(n0) + VSMALL;
+                const vector n0 = pp0[max0I].unitNormal(pp0.points());
 
                 label max1I = findMaxArea(pp1.points(), pp1);
-                vector n1 = pp1[max1I].normal(pp1.points());
-                n1 /= mag(n1) + VSMALL;
+                const vector n1 = pp1[max1I].unitNormal(pp1.points());
 
                 if (mag(n0 & n1) < 1-matchTolerance())
                 {
@@ -601,7 +598,9 @@ cyclicPolyPatch::cyclicPolyPatch
     const polyBoundaryMesh& bm,
     const word& patchType,
     const transformType transform
-) :    coupledPolyPatch(name, size, start, index, bm, patchType, transform),
+)
+:
+    coupledPolyPatch(name, size, start, index, bm, patchType, transform),
     neighbPatchName_(word::null),
     neighbPatchID_(-1),
     rotationAxis_(Zero),
@@ -627,7 +626,9 @@ cyclicPolyPatch::cyclicPolyPatch
     const vector& rotationAxis,
     const point& rotationCentre,
     const vector& separationVector
-) :    coupledPolyPatch(name, size, start, index, bm, typeName, transform),
+)
+:
+    coupledPolyPatch(name, size, start, index, bm, typeName, transform),
     neighbPatchName_(neighbPatchName),
     neighbPatchID_(-1),
     rotationAxis_(rotationAxis),
@@ -648,8 +649,10 @@ cyclicPolyPatch::cyclicPolyPatch
     const label index,
     const polyBoundaryMesh& bm,
     const word& patchType
-) :    coupledPolyPatch(name, dict, index, bm, patchType),
-    neighbPatchName_(dict.lookupOrDefault("neighbourPatch", word::null)),
+)
+:
+    coupledPolyPatch(name, dict, index, bm, patchType),
+    neighbPatchName_(dict.getOrDefault("neighbourPatch", word::null)),
     coupleGroup_(dict),
     neighbPatchID_(-1),
     rotationAxis_(Zero),
@@ -660,10 +663,8 @@ cyclicPolyPatch::cyclicPolyPatch
 {
     if (neighbPatchName_ == word::null && !coupleGroup_.valid())
     {
-        FatalIOErrorInFunction
-        (
-            dict
-        )   << "No \"neighbourPatch\" provided." << endl
+        FatalIOErrorInFunction(dict)
+            << "No \"neighbourPatch\" provided." << endl
             << "Is your mesh uptodate with split cyclics?" << endl
             << "Run foamUpgradeCyclics to convert mesh and fields"
             << " to split cyclics." << exit(FatalIOError);
@@ -681,8 +682,8 @@ cyclicPolyPatch::cyclicPolyPatch
     {
         case ROTATIONAL:
         {
-            dict.lookup("rotationAxis") >> rotationAxis_;
-            dict.lookup("rotationCentre") >> rotationCentre_;
+            dict.readEntry("rotationAxis", rotationAxis_);
+            dict.readEntry("rotationCentre", rotationCentre_);
 
             scalar magRot = mag(rotationAxis_);
             if (magRot < SMALL)
@@ -698,7 +699,7 @@ cyclicPolyPatch::cyclicPolyPatch
         }
         case TRANSLATIONAL:
         {
-            dict.lookup("separationVector") >> separationVector_;
+            dict.readEntry("separationVector", separationVector_);
             break;
         }
         default:
@@ -716,10 +717,34 @@ cyclicPolyPatch::cyclicPolyPatch
 (
     const cyclicPolyPatch& pp,
     const polyBoundaryMesh& bm
-) :    coupledPolyPatch(pp, bm),
+)
+:
+    coupledPolyPatch(pp, bm),
     neighbPatchName_(pp.neighbPatchName_),
     coupleGroup_(pp.coupleGroup_),
     neighbPatchID_(-1),
+    rotationAxis_(pp.rotationAxis_),
+    rotationCentre_(pp.rotationCentre_),
+    separationVector_(pp.separationVector_),
+    coupledPointsPtr_(nullptr),
+    coupledEdgesPtr_(nullptr)
+{
+    // Neighbour patch might not be valid yet so no transformation
+    // calculation possible.
+}
+
+
+cyclicPolyPatch::cyclicPolyPatch
+(
+    const cyclicPolyPatch& pp,
+    const label nrbPatchID,
+    const labelList& faceCells
+)
+:
+    coupledPolyPatch(pp, faceCells),
+    neighbPatchName_(pp.neighbPatchName_),
+    coupleGroup_(pp.coupleGroup_),
+    neighbPatchID_(nrbPatchID),
     rotationAxis_(pp.rotationAxis_),
     rotationCentre_(pp.rotationCentre_),
     separationVector_(pp.separationVector_),
@@ -739,7 +764,9 @@ cyclicPolyPatch::cyclicPolyPatch
     const label newSize,
     const label newStart,
     const word& neighbName
-) :    coupledPolyPatch(pp, bm, index, newSize, newStart),
+)
+:
+    coupledPolyPatch(pp, bm, index, newSize, newStart),
     neighbPatchName_(neighbName),
     coupleGroup_(pp.coupleGroup_),
     neighbPatchID_(-1),
@@ -769,7 +796,9 @@ cyclicPolyPatch::cyclicPolyPatch
     const label index,
     const labelUList& mapAddressing,
     const label newStart
-) :    coupledPolyPatch(pp, bm, index, mapAddressing, newStart),
+)
+:
+    coupledPolyPatch(pp, bm, index, mapAddressing, newStart),
     neighbPatchName_(pp.neighbPatchName_),
     coupleGroup_(pp.coupleGroup_),
     neighbPatchID_(-1),
@@ -1088,10 +1117,8 @@ const edgeList& cyclicPolyPatch::coupledEdges() const
         // Build map from points on *this (A) to points on neighbourpatch (B)
         Map<label> aToB(2*pointCouples.size());
 
-        forAll(pointCouples, i)
+        for (const edge& e : pointCouples)
         {
-            const edge& e = pointCouples[i];
-
             aToB.insert(e[0], e[1]);
         }
 
@@ -1102,18 +1129,16 @@ const edgeList& cyclicPolyPatch::coupledEdges() const
         {
             const labelList& fEdges = faceEdges()[patchFacei];
 
-            forAll(fEdges, i)
+            for (const label edgeI : fEdges)
             {
-                label edgeI = fEdges[i];
-
                 const edge& e = edges()[edgeI];
 
                 // Convert edge end points to corresponding points on B side.
-                Map<label>::const_iterator fnd0 = aToB.find(e[0]);
-                if (fnd0 != aToB.end())
+                const auto fnd0 = aToB.cfind(e[0]);
+                if (fnd0.found())
                 {
-                    Map<label>::const_iterator fnd1 = aToB.find(e[1]);
-                    if (fnd1 != aToB.end())
+                    const auto fnd1 = aToB.cfind(e[1]);
+                    if (fnd1.found())
                     {
                         edgeMap.insert(edge(fnd0(), fnd1()), edgeI);
                     }
@@ -1128,7 +1153,6 @@ const edgeList& cyclicPolyPatch::coupledEdges() const
         const labelList& mp = meshPoints();
 
 
-
         coupledEdgesPtr_ = new edgeList(edgeMap.size());
         edgeList& coupledEdges = *coupledEdgesPtr_;
         label coupleI = 0;
@@ -1137,18 +1161,16 @@ const edgeList& cyclicPolyPatch::coupledEdges() const
         {
             const labelList& fEdges = neighbPatch.faceEdges()[patchFacei];
 
-            forAll(fEdges, i)
+            for (const label edgeI : fEdges)
             {
-                label edgeI = fEdges[i];
-
                 const edge& e = neighbPatch.edges()[edgeI];
 
                 // Look up A edge from HashTable.
-                EdgeMap<label>::iterator iter = edgeMap.find(e);
+                auto iter = edgeMap.find(e);
 
-                if (iter != edgeMap.end())
+                if (iter.found())
                 {
-                    label edgeA = iter();
+                    const label edgeA = iter.val();
                     const edge& eA = edges()[edgeA];
 
                     // Store correspondence. Filter out edges on wedge axis.
@@ -1196,10 +1218,8 @@ const edgeList& cyclicPolyPatch::coupledEdges() const
             Pout<< "Writing file " << str.name() << " with centres of "
                 << "coupled edges" << endl;
 
-            forAll(coupledEdges, i)
+            for (const edge& e : coupledEdges)
             {
-                const edge& e = coupledEdges[i];
-
                 const point& a = edges()[e[0]].centre(localPoints());
                 const point& b = neighbPatch.edges()[e[1]].centre
                 (
@@ -1374,7 +1394,7 @@ bool cyclicPolyPatch::order
                 << "    Continuing with incorrect face ordering from now on!"
                 << endl;
 
-                return false;
+            return false;
         }
 
 
@@ -1404,7 +1424,7 @@ bool cyclicPolyPatch::order
                     << " : "
                     << "Cannot find point on face " << pp[oldFacei]
                     << " with vertices "
-                    << IndirectList<point>(pp.points(), pp[oldFacei])()
+                    << UIndirectList<point>(pp.points(), pp[oldFacei])
                     << " that matches point " << wantedAnchor
                     << " when matching the halves of processor patch " << name()
                     << "Continuing with incorrect face ordering from now on!"
@@ -1416,7 +1436,7 @@ bool cyclicPolyPatch::order
 
         ownerPatchPtr_.clear();
 
-        // Return false if no change neccesary, true otherwise.
+        // Return false if no change necessary, true otherwise.
 
         forAll(faceMap, facei)
         {
@@ -1436,24 +1456,20 @@ void cyclicPolyPatch::write(Ostream& os) const
     coupledPolyPatch::write(os);
     if (!neighbPatchName_.empty())
     {
-        os.writeKeyword("neighbourPatch") << neighbPatchName_
-            << token::END_STATEMENT << nl;
+        os.writeEntry("neighbourPatch", neighbPatchName_);
     }
     coupleGroup_.write(os);
     switch (transform())
     {
         case ROTATIONAL:
         {
-            os.writeKeyword("rotationAxis") << rotationAxis_
-                << token::END_STATEMENT << nl;
-            os.writeKeyword("rotationCentre") << rotationCentre_
-                << token::END_STATEMENT << nl;
+            os.writeEntry("rotationAxis", rotationAxis_);
+            os.writeEntry("rotationCentre", rotationCentre_);
             break;
         }
         case TRANSLATIONAL:
         {
-            os.writeKeyword("separationVector") << separationVector_
-                << token::END_STATEMENT << nl;
+            os.writeEntry("separationVector", separationVector_);
             break;
         }
         case NOORDERING:
@@ -1466,6 +1482,6 @@ void cyclicPolyPatch::write(Ostream& os) const
         }
     }
 }
-}
 
+}
 // ************************************************************************* //

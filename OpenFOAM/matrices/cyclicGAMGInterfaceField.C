@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2013 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2013 OpenFOAM Foundation
+    Copyright (C) 2019 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -25,10 +28,10 @@ License
 
 #include "cyclicGAMGInterfaceField.H"
 #include "addToRunTimeSelectionTable.H"
-#include "lduMatrix.H"
+#include "lduMatrix2.H"
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
-using namespace Foam;
+
 namespace Foam
 {
     defineTypeNameAndDebug(cyclicGAMGInterfaceField, 0);
@@ -60,72 +63,74 @@ namespace Foam
         lduInterfaceField,
         cyclicSlip
     );
-}
 
 
-// * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
-cyclicGAMGInterfaceField::cyclicGAMGInterfaceField
-(
-    const GAMGInterface& GAMGCp,
-    const lduInterfaceField& fineInterface
-) :    GAMGInterfaceField(GAMGCp, fineInterface),
-    cyclicInterface_(refCast<const cyclicGAMGInterface>(GAMGCp)),
-    doTransform_(false),
-    rank_(0)
-{
-    const cyclicLduInterfaceField& p =
-        refCast<const cyclicLduInterfaceField>(fineInterface);
+    // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
-    doTransform_ = p.doTransform();
-    rank_ = p.rank();
-}
-
-
-cyclicGAMGInterfaceField::cyclicGAMGInterfaceField
-(
-    const GAMGInterface& GAMGCp,
-    const bool doTransform,
-    const int rank
-) :    GAMGInterfaceField(GAMGCp, doTransform, rank),
-    cyclicInterface_(refCast<const cyclicGAMGInterface>(GAMGCp)),
-    doTransform_(doTransform),
-    rank_(rank)
-{}
-
-
-// * * * * * * * * * * * * * * * * Desstructor * * * * * * * * * * * * * * * //
-
-cyclicGAMGInterfaceField::~cyclicGAMGInterfaceField()
-{}
-
-
-// * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
-
-void cyclicGAMGInterfaceField::updateInterfaceMatrix
-(
-    scalarField& result,
-    const scalarField& psiInternal,
-    const scalarField& coeffs,
-    const direction cmpt,
-    const Pstream::commsTypes
-) const
-{
-    // Get neighbouring field
-    scalarField pnf
+    cyclicGAMGInterfaceField::cyclicGAMGInterfaceField
     (
-        cyclicInterface_.neighbPatch().interfaceInternalField(psiInternal)
-    );
-
-    transformCoupleField(pnf, cmpt);
-
-    const labelUList& faceCells = cyclicInterface_.faceCells();
-
-    forAll(faceCells, elemI)
+        const GAMGInterface& GAMGCp,
+        const lduInterfaceField& fineInterface
+    )
+        :
+        GAMGInterfaceField(GAMGCp, fineInterface),
+        cyclicInterface_(refCast<const cyclicGAMGInterface>(GAMGCp)),
+        doTransform_(false),
+        rank_(0)
     {
-        result[faceCells[elemI]] -= coeffs[elemI]*pnf[elemI];
+        const cyclicLduInterfaceField& p =
+            refCast<const cyclicLduInterfaceField>(fineInterface);
+
+        doTransform_ = p.doTransform();
+        rank_ = p.rank();
     }
+
+
+    cyclicGAMGInterfaceField::cyclicGAMGInterfaceField
+    (
+        const GAMGInterface& GAMGCp,
+        const bool doTransform,
+        const int rank
+    )
+        :
+        GAMGInterfaceField(GAMGCp, doTransform, rank),
+        cyclicInterface_(refCast<const cyclicGAMGInterface>(GAMGCp)),
+        doTransform_(doTransform),
+        rank_(rank)
+    {}
+
+
+    // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
+
+    void cyclicGAMGInterfaceField::updateInterfaceMatrix
+    (
+        solveScalarField& result,
+        const bool add,
+        const lduAddressing& lduAddr,
+        const label patchId,
+        const solveScalarField& psiInternal,
+        const scalarField& coeffs,
+        const direction cmpt,
+        const Pstream::commsTypes
+    ) const
+    {
+        // Get neighbouring field
+
+        const labelList& nbrFaceCells =
+            lduAddr.patchAddr
+            (
+                cyclicInterface_.neighbPatchID()
+            );
+
+        solveScalarField pnf(psiInternal, nbrFaceCells);
+
+        transformCoupleField(pnf, cmpt);
+
+        const labelList& faceCells = lduAddr.patchAddr(patchId);
+
+        this->addToInternalField(result, !add, faceCells, coeffs, pnf);
+    }
+
 }
-
-
 // ************************************************************************* //

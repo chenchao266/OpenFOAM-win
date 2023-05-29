@@ -1,9 +1,12 @@
-﻿/*---------------------------------------------------------------------------*\
+/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -24,10 +27,11 @@ License
 \*---------------------------------------------------------------------------*/
 
 #include "fv.H"
-//#include "limitedSnGrad.H"
+#include "limitedSnGrad.H"
 #include "volFields.H"
 #include "surfaceFields.H"
 #include "localMax.H"
+#include "fvcCellReduce.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -39,23 +43,16 @@ namespace Foam
 namespace fv
 {
 
-// * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
-
-template<class Type>
-limitedSnGrad<Type>::~limitedSnGrad()
-{}
-
-
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
 
 template<class Type>
-tmp<surfaceFieldType<Type>>
+tmp<GeometricField<Type, fvsPatchField, surfaceMesh>>
 limitedSnGrad<Type>::correction
 (
-    const volFieldType<Type>& vf
+    const GeometricField<Type, fvPatchField, volMesh>& vf
 ) const
 {
-    const surfaceFieldType<Type> corr
+    const GeometricField<Type, fvsPatchField, surfaceMesh> corr
     (
         correctedScheme_().correction(vf)
     );
@@ -80,6 +77,40 @@ limitedSnGrad<Type>::correction
             << "limiter min: " << min(limiter.primitiveField())
             << " max: "<< max(limiter.primitiveField())
             << " avg: " << average(limiter.primitiveField()) << endl;
+
+
+        if (fv::debug & 2)
+        {
+            static scalar oldTime = -1;
+            static label subIter = 0;
+            if (vf.mesh().time().value() != oldTime)
+            {
+                oldTime = vf.mesh().time().value();
+                subIter = 0;
+            }
+            else
+            {
+                ++subIter;
+            }
+            word fieldName("limiter_" + Foam::name(subIter));
+
+            GeometricField<scalar, fvPatchField, volMesh> volLimiter
+            (
+                IOobject
+                (
+                    fieldName,
+                    vf.mesh().time().timeName(),
+                    vf.mesh(),
+                    IOobject::NO_READ,
+                    IOobject::NO_WRITE,
+                    false
+                ),
+                fvc::cellReduce(limiter, minEqOp<scalar>(), scalar(1.0))
+            );
+            Info<< "Writing limiter field to " << volLimiter.objectPath()
+                << endl;
+            volLimiter.write();
+        }
     }
 
     return limiter*corr;

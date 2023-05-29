@@ -1,9 +1,12 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2019-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -27,8 +30,9 @@ Class
 Description
     A tetrahedral cell primitive.
 
-    It is important that the ordering of edges is the same for a tetrahedron
-    class, a tetrahedron cell shape model and a tetCell
+    It is important that the face/edge ordering is identical for
+    a tetrahedron class,
+    a tetrahedron cell shape model and a tetCell
 
 SourceFiles
     tetCell.C
@@ -39,9 +43,10 @@ SourceFiles
 #ifndef tetCell_H
 #define tetCell_H
 
-#include "FixedList.T.H"
+#include "FixedList.H"
 #include "triFace.H"
-#include "edge.H"
+#include "faceList.H"
+#include "edgeList.H"
 #include "pointField.H"
 #include "tetPointRef.H"
 
@@ -50,23 +55,34 @@ SourceFiles
 namespace Foam
 {
 
+// Forward Declarations
 class cellShape;
 
 /*---------------------------------------------------------------------------*\
-                           class tetCell Declaration
+                           Class tetCell Declaration
 \*---------------------------------------------------------------------------*/
 
-class tetCell :    public FixedList<label, 4>
+class tetCell
+:
+    public FixedList<label, 4>
 {
+    // Static Data Members
+
+        //- The model faces for TET
+        static const label modelFaces_[4][3];
+
+        //- The model edges for TET
+        static const label modelEdges_[6][2];
+
 
 public:
 
     // Constructors
 
-        //- Construct null
+        //- Default construct, with invalid point labels (-1)
         inline tetCell();
 
-        //- Construct from four points
+        //- Construct from four point labels
         inline tetCell
         (
             const label a,
@@ -75,49 +91,107 @@ public:
             const label d
         );
 
-        //- Construct from FixedList
-        inline tetCell(const FixedList<label, 4>&);
+        //- Construct from an initializer list of four point labels
+        inline explicit tetCell(std::initializer_list<label> list);
+
+        //- Construct from FixedList of four point labels
+        inline tetCell(const FixedList<label, 4>& list);
+
+        //- Copy construct from a subset of point labels
+        inline tetCell
+        (
+            const labelUList& list,
+            const FixedList<label, 4>& indices
+        );
+
+        //- Copy construct from a subset of point labels
+        template<unsigned AnyNum>
+        inline tetCell
+        (
+            const FixedList<label, AnyNum>& list,
+            const FixedList<label, 4>& indices
+        );
 
         //- Construct from Istream
-        inline tetCell(Istream&);
+        inline explicit tetCell(Istream& is);
 
 
     // Member Functions
 
-        // Access
+        //- Number of points for TET
+        static constexpr label nPoints() noexcept
+        {
+            return 4;
+        }
 
-            //- Return i-th face
-            inline triFace face(const label facei) const;
+        //- Number of edges for TET
+        static constexpr label nEdges() noexcept
+        {
+            return 6;
+        }
 
-            //- Return first face adjacent to the given edge
-            inline label edgeFace(const label edgeI) const;
+        //- Number of faces for TET
+        static constexpr label nFaces() noexcept
+        {
+            return 4;
+        }
 
-            //- Return face adjacent to the given face sharing the same edge
-            inline label edgeAdjacentFace
-            (
-                const label edgeI,
-                const label facei
-            ) const;
+        //- Return the model faces
+        static const faceList& modelFaces();
 
-            //- Return i-th edge
-            inline edge tetEdge(const label edgeI) const;
+        //- Return the model edges
+        static const edgeList& modelEdges();
 
 
-        // Operations
+        //- Return i-th face
+        inline triFace face(const label facei) const;
 
-            //- Return tet shape cell
-            cellShape tetCellShape() const;
+        //- Return first face adjacent to the given edge
+        inline label edgeFace(const label edgei) const;
 
-            //- Return the tetrahedron
-            inline tetPointRef tet(const pointField&) const;
+        //- Return face adjacent to the given face sharing the same edge
+        inline label edgeAdjacentFace
+        (
+            const label edgei,
+            const label facei
+        ) const;
+
+        //- Return i-th edge
+        inline ::Foam::edge edge(const label edgei) const;
+
+        //- Return i-th edge reversed
+        inline ::Foam::edge reverseEdge(const label edgei) const;
+
+        //- The points corresponding to this shape
+        inline pointField points(const UList<point>& meshPoints) const;
+
+
+    // Operations
+
+        //- Return TET shape cell
+        cellShape shape() const;
+
+        //- Return the tetrahedron
+        inline tetPointRef tet(const UList<point>& meshPoints) const;
+
+
+    // Housekeeping
+
+        //- Identical to edge()
+        ::Foam::edge tetEdge(label edgei) const { return this->edge(edgei); }
+
+        //- Identical to shape()
+        cellShape tetCellShape() const;
 };
 
 
-// * * * * * * * * * * * * * * * Global Functions  * * * * * * * * * * * * * //
+// * * * * * * * * * * * * * * * * * Traits  * * * * * * * * * * * * * * * * //
 
-//- Data associated with the type are contiguous
-template<>
-inline bool contiguous<tetCell>() {return true;}
+//- Contiguous data for tetCell
+template<> struct is_contiguous<tetCell> : std::true_type {};
+
+//- Contiguous label data for tetCell
+template<> struct is_contiguous_label<tetCell> : std::true_type {};
 
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //

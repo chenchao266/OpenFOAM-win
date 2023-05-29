@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2013 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2013 OpenFOAM Foundation
+    Copyright (C) 2017-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -24,54 +27,68 @@ License
 \*---------------------------------------------------------------------------*/
 
 #include "coordinateRotation.H"
-#include "dictionary.H"
 #include "addToRunTimeSelectionTable.H"
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
 
 namespace Foam
 {
-    defineTypeNameAndDebug(coordinateRotation, 0);
+    defineTypeName(coordinateRotation);
     defineRunTimeSelectionTable(coordinateRotation, dictionary);
-    defineRunTimeSelectionTable(coordinateRotation, objectRegistry);
 }
 
 
-// * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * * //
+// * * * * * * * * * * * * * Static Member Functions * * * * * * * * * * * * //
 
-Foam::symmTensor Foam::coordinateRotation::transformPrincipal
-(
-    const tensor& tt,
-    const vector& st
-) const
+Foam::vector Foam::coordinateRotation::findOrthogonal(const vector& axis)
 {
-    return symmTensor
-    (
-        tt.xx()*st.x()*tt.xx()
-      + tt.xy()*st.y()*tt.xy()
-      + tt.xz()*st.z()*tt.xz(),
+    direction maxCmpt = 0;
+    scalar maxVal = mag(axis[maxCmpt]);
 
-        tt.xx()*st.x()*tt.yx()
-      + tt.xy()*st.y()*tt.yy()
-      + tt.xz()*st.z()*tt.yz(),
+    for (direction cmpt=1; cmpt < vector::nComponents; ++cmpt)
+    {
+        const scalar val = mag(axis[cmpt]);
 
-        tt.xx()*st.x()*tt.zx()
-      + tt.xy()*st.y()*tt.zy()
-      + tt.xz()*st.z()*tt.zz(),
+        if (maxVal < val)
+        {
+            maxVal  = val;
+            maxCmpt = cmpt;
+        }
+    }
 
-        tt.yx()*st.x()*tt.yx()
-      + tt.yy()*st.y()*tt.yy()
-      + tt.yz()*st.z()*tt.yz(),
+    direction cmpt = ((maxCmpt == vector::nComponents-1) ? 0 : (maxCmpt+1));
 
-        tt.yx()*st.x()*tt.zx()
-      + tt.yy()*st.y()*tt.zy()
-      + tt.yz()*st.z()*tt.zz(),
+    vector dirn(Zero);
+    dirn.component(cmpt) = ((axis[maxCmpt] < 0) ? -1 : 1);
 
-        tt.zx()*st.x()*tt.zx()
-      + tt.zy()*st.y()*tt.zy()
-      + tt.zz()*st.z()*tt.zz()
-    );
-
+    return dirn;
 }
+
+
+// * * * * * * * * * * * * * * * * Selectors * * * * * * * * * * * * * * * * //
+
+Foam::autoPtr<Foam::coordinateRotation> Foam::coordinateRotation::New
+(
+    const dictionary& dict
+)
+{
+    const word modelType(dict.get<word>("type"));
+
+    auto* ctorPtr = dictionaryConstructorTable(modelType);
+
+    if (!ctorPtr)
+    {
+        FatalIOErrorInLookup
+        (
+            dict,
+            "coordinateRotation",
+            modelType,
+            *dictionaryConstructorTablePtr_
+        ) << exit(FatalIOError);
+    }
+
+    return autoPtr<coordinateRotation>(ctorPtr(dict));
+}
+
 
 // ************************************************************************* //

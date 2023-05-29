@@ -1,9 +1,12 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2012-2013 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2012-2013 OpenFOAM Foundation
+    Copyright (C) 2019 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -33,7 +36,7 @@ Description
 #define wordIOList_H
 
 #include "wordList.H"
-#include "IOList.T.H"
+#include "IOList.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -42,9 +45,22 @@ namespace Foam
     typedef IOList<word> wordIOList;
     typedef IOList<wordList> wordListIOList;
 
-    // Print word list list as a table
-    void printTable(const List<wordList>&, List<string::size_type>&, Ostream&);
-    void printTable(const List<wordList>&, Ostream&);
+    //- Print a List of wordList as a table
+    Ostream& printTable
+    (
+        const UList<wordList>& tbl,
+        List<std::string::size_type>& columnWidths,
+        Ostream& os,
+        bool headerSeparator = true
+    );
+
+    //- Print a List of wordList as a table
+    Ostream& printTable
+    (
+        const UList<wordList>& tbl,
+        Ostream& os,
+        bool headerSeparator = true
+    );
 }
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //

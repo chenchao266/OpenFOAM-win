@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -44,11 +46,11 @@ inline Foam::SRIFallOffFunction::SRIFallOffFunction
 
 inline Foam::SRIFallOffFunction::SRIFallOffFunction(const dictionary& dict)
 :
-    a_(readScalar(dict.lookup("a"))),
-    b_(readScalar(dict.lookup("b"))),
-    c_(readScalar(dict.lookup("c"))),
-    d_(readScalar(dict.lookup("d"))),
-    e_(readScalar(dict.lookup("e")))
+    a_(dict.get<scalar>("a")),
+    b_(dict.get<scalar>("b")),
+    c_(dict.get<scalar>("c")),
+    d_(dict.get<scalar>("d")),
+    e_(dict.get<scalar>("e"))
 {}
 
 
@@ -67,11 +69,11 @@ inline Foam::scalar Foam::SRIFallOffFunction::operator()
 
 inline void Foam::SRIFallOffFunction::write(Ostream& os) const
 {
-    os.writeKeyword("a") << a_ << token::END_STATEMENT << nl;
-    os.writeKeyword("b") << b_ << token::END_STATEMENT << nl;
-    os.writeKeyword("c") << c_ << token::END_STATEMENT << nl;
-    os.writeKeyword("d") << d_ << token::END_STATEMENT << nl;
-    os.writeKeyword("e") << e_ << token::END_STATEMENT << nl;
+    os.writeEntry("a", a_);
+    os.writeEntry("b", b_);
+    os.writeEntry("c", c_);
+    os.writeEntry("d", d_);
+    os.writeEntry("e", e_);
 }
 
 

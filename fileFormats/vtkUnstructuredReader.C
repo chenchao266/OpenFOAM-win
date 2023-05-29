@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2012-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2012-2016 OpenFOAM Foundation
+    Copyright (C) 2018-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -27,331 +30,402 @@ License
 #include "labelIOField.H"
 #include "scalarIOField.H"
 #include "stringIOList.H"
-#include "cellModeller.H"
+#include "cellModel.H"
 #include "vectorIOField.H"
+#include "triPointRef.H"
+#include "stringOps.H"
 
 /* * * * * * * * * * * * * * * Static Member Data  * * * * * * * * * * * * * */
 
 namespace Foam
 {
     defineTypeNameAndDebug(vtkUnstructuredReader, 1);
+}
 
-    template<>
-    const char*
-    NamedEnum<vtkUnstructuredReader::vtkDataType, 8>::names[] =
+const Foam::Enum
+<
+    Foam::vtkUnstructuredReader::vtkDataType
+>
+Foam::vtkUnstructuredReader::vtkDataTypeNames
+({
+    { vtkDataType::VTK_INT, "int" },
+    // Not yet required: { vtkDataType::VTK_INT64, "vtktypeint64" },
+    { vtkDataType::VTK_UINT, "unsigned_int" },
+    { vtkDataType::VTK_LONG, "long" },
+    { vtkDataType::VTK_ULONG, "unsigned_long" },
+    { vtkDataType::VTK_FLOAT, "float" },
+    { vtkDataType::VTK_DOUBLE, "double" },
+    { vtkDataType::VTK_STRING, "string" },
+    { vtkDataType::VTK_ID, "vtkIdType" },
+});
+
+
+const Foam::Enum
+<
+    Foam::vtkUnstructuredReader::vtkDataSetType
+>
+Foam::vtkUnstructuredReader::vtkDataSetTypeNames
+({
+    { vtkDataSetType::VTK_FIELD, "FIELD" },
+    { vtkDataSetType::VTK_SCALARS, "SCALARS" },
+    { vtkDataSetType::VTK_VECTORS, "VECTORS" },
+});
+
+
+const Foam::Enum
+<
+    Foam::vtkUnstructuredReader::parseMode
+>
+Foam::vtkUnstructuredReader::parseModeNames
+({
+    { parseMode::NOMODE, "NOMODE" },
+    { parseMode::UNSTRUCTURED_GRID, "UNSTRUCTURED_GRID" },
+    { parseMode::POLYDATA, "POLYDATA" },
+    { parseMode::CELL_DATA, "CELL_DATA" },
+    { parseMode::POINT_DATA, "POINT_DATA" },
+});
+
+
+// * * * * * * * * * * * * * * * Local Functions * * * * * * * * * * * * * * //
+
+namespace Foam
+{
+
+// Read N elements into List
+template<class T>
+static inline void readBlock(Istream& is, const label n, List<T>& list)
+{
+    list.resize(n);
+    for (T& val : list)
     {
-        "int",
-        "unsigned_int",
-        "long",
-        "unsigned_long",
-        "float",
-        "double",
-        "string",
-        "vtkIdType"
-    };
-    const NamedEnum<vtkUnstructuredReader::vtkDataType, 8>
-    vtkUnstructuredReader::vtkDataTypeNames;
+        is >> val;
+    }
+}
+
+} // End namespace Foam
 
 
-    template<>
-    const char*
-    NamedEnum<vtkUnstructuredReader::vtkDataSetType, 3>::names[] =
+// * * * * * * * * * * * * * Static Member Functions * * * * * * * * * * * * //
+
+void Foam::vtkUnstructuredReader::warnUnhandledType
+(
+    const Istream& is,
+    const label type,
+    labelHashSet& warningGiven
+)
+{
+    if (warningGiven.insert(type))
     {
-        "FIELD",
-        "SCALARS",
-        "VECTORS"
-    };
-    const NamedEnum<vtkUnstructuredReader::vtkDataSetType, 3>
-    vtkUnstructuredReader::vtkDataSetTypeNames;
-
-
-    template<>
-    const char*
-    NamedEnum<vtkUnstructuredReader::parseMode, 5>::names[] =
-    {
-        "NOMODE",
-        "UNSTRUCTURED_GRID",
-        "POLYDATA",
-        "CELL_DATA",
-        "POINT_DATA"
-    };
-    const NamedEnum<vtkUnstructuredReader::parseMode, 5>
-    vtkUnstructuredReader::parseModeNames;
+        IOWarningInFunction(is)
+            << "Skipping unknown cell type " << type << nl;
+    }
 }
 
 
 // * * * * * * * * * * * * * Private Member Functions  * * * * * * * * * * * //
 
-void Foam::vtkUnstructuredReader::warnUnhandledType
+void Foam::vtkUnstructuredReader::readOffsetsConnectivity
 (
-    Istream& inFile,
-    const label type,
-    labelHashSet& warningGiven
-) const
+    ISstream& is,
+    const char* entryName,
+    const label nOffsets,
+    labelList& offsets,
+    const label nConnectivity,
+    labelList& connectivity
+)
 {
-    if (warningGiven.insert(type))
+    token tok;
+
+    is.read(tok);
+    if (!tok.isWord("OFFSETS"))
     {
-        IOWarningInFunction(inFile)
-            << "Skipping unknown cell type " << type << endl;
+        FatalIOErrorInFunction(is)
+            << "Expected OFFSETS for " << entryName
+            << ", found "
+            << tok.info() << nl
+            << exit(FatalIOError);
     }
+    is.getLine(nullptr);  // Consume rest of line
+    readBlock(is, nOffsets, offsets);
+
+    is.read(tok);
+    if (!tok.isWord("CONNECTIVITY"))
+    {
+        FatalIOErrorInFunction(is)
+            << "Expected CONNECTIVITY for " << entryName
+            << ", found " << tok.info() << nl
+            << exit(FatalIOError);
+    }
+    is.getLine(nullptr);  // Consume rest of line
+    readBlock(is, nConnectivity, connectivity);
 }
 
 
 void Foam::vtkUnstructuredReader::extractCells
 (
-    Istream& inFile,
-    const labelList& cellTypes,
-    const labelList& cellVertData
+    const Istream& is,
+    const labelUList& cellTypes,
+    const labelUList& elemOffsets,
+    const labelUList& elemVerts
 )
 {
-    const cellModel& hex = *(cellModeller::lookup("hex"));
-    const cellModel& prism = *(cellModeller::lookup("prism"));
-    const cellModel& pyr = *(cellModeller::lookup("pyr"));
-    const cellModel& tet = *(cellModeller::lookup("tet"));
+    const cellModel& hex = cellModel::ref(cellModel::HEX);
+    const cellModel& prism = cellModel::ref(cellModel::PRISM);
+    const cellModel& pyr = cellModel::ref(cellModel::PYR);
+    const cellModel& tet = cellModel::ref(cellModel::TET);
 
-    labelList tetPoints(4);
-    labelList pyrPoints(5);
-    labelList prismPoints(6);
-    labelList hexPoints(8);
-
-    label celli = cells_.size();
-    cells_.setSize(celli+cellTypes.size());
-    cellMap_.setSize(cells_.size(), -1);
-
-    label facei = faces_.size();
-    faces_.setSize(facei+cellTypes.size());
-    faceMap_.setSize(faces_.size(), -1);
-
-    label lineI = lines_.size();
-    lines_.setSize(lineI+cellTypes.size());
-    lineMap_.setSize(lines_.size(), -1);
-
-    label dataIndex = 0;
-
-
-    // To mark whether unhandled type has been visited.
-    labelHashSet warningGiven;
-
-    forAll(cellTypes, i)
+    // Pass 0: sizing
+    label nCells = 0, nFaces = 0, nLines = 0;
+    forAll(cellTypes, elemi)
     {
-        switch (cellTypes[i])
+        switch (cellTypes[elemi])
         {
-            case VTK_VERTEX:
+            case vtk::cellType::VTK_LINE:
+            case vtk::cellType::VTK_POLY_LINE:
             {
-                warnUnhandledType(inFile, cellTypes[i], warningGiven);
-                label nRead = cellVertData[dataIndex++];
-                if (nRead != 1)
-                {
-                    FatalIOErrorInFunction
-                    (
-                        inFile
-                    )   << "Expected size 1 for VTK_VERTEX but found "
-                        << nRead << exit(FatalIOError);
-                }
-                dataIndex += nRead;
+                ++nLines;
             }
             break;
 
-            case VTK_POLY_VERTEX:
+            case vtk::cellType::VTK_TRIANGLE:
+            case vtk::cellType::VTK_QUAD:
+            case vtk::cellType::VTK_POLYGON:
             {
-                warnUnhandledType(inFile, cellTypes[i], warningGiven);
-                label nRead = cellVertData[dataIndex++];
-                dataIndex += nRead;
+                ++nFaces;
             }
             break;
 
-            case VTK_LINE:
+            case vtk::cellType::VTK_TETRA:
+            case vtk::cellType::VTK_PYRAMID:
+            case vtk::cellType::VTK_WEDGE:
+            case vtk::cellType::VTK_HEXAHEDRON:
             {
-                //warnUnhandledType(inFile, cellTypes[i], warningGiven);
-                label nRead = cellVertData[dataIndex++];
-                if (nRead != 2)
-                {
-                    FatalIOErrorInFunction
-                    (
-                        inFile
-                    )   << "Expected size 2 for VTK_LINE but found "
-                        << nRead << exit(FatalIOError);
-                }
-                lineMap_[lineI] = i;
-                labelList& segment = lines_[lineI++];
-                segment.setSize(2);
-                segment[0] = cellVertData[dataIndex++];
-                segment[1] = cellVertData[dataIndex++];
-            }
-            break;
-
-            case VTK_POLY_LINE:
-            {
-                //warnUnhandledType(inFile, cellTypes[i], warningGiven);
-                label nRead = cellVertData[dataIndex++];
-                lineMap_[lineI] = i;
-                labelList& segment = lines_[lineI++];
-                segment.setSize(nRead);
-                forAll(segment, i)
-                {
-                    segment[i] = cellVertData[dataIndex++];
-                }
-            }
-            break;
-
-            case VTK_TRIANGLE:
-            {
-                faceMap_[facei] = i;
-                face& f = faces_[facei++];
-                f.setSize(3);
-                label nRead = cellVertData[dataIndex++];
-                if (nRead != 3)
-                {
-                    FatalIOErrorInFunction
-                    (
-                        inFile
-                    )   << "Expected size 3 for VTK_TRIANGLE but found "
-                        << nRead << exit(FatalIOError);
-                }
-                f[0] = cellVertData[dataIndex++];
-                f[1] = cellVertData[dataIndex++];
-                f[2] = cellVertData[dataIndex++];
-            }
-            break;
-
-            case VTK_QUAD:
-            {
-                faceMap_[facei] = i;
-                face& f = faces_[facei++];
-                f.setSize(4);
-                label nRead = cellVertData[dataIndex++];
-                if (nRead != 4)
-                {
-                    FatalIOErrorInFunction
-                    (
-                        inFile
-                    )   << "Expected size 4 for VTK_QUAD but found "
-                        << nRead << exit(FatalIOError);
-                }
-                f[0] = cellVertData[dataIndex++];
-                f[1] = cellVertData[dataIndex++];
-                f[2] = cellVertData[dataIndex++];
-                f[3] = cellVertData[dataIndex++];
-            }
-            break;
-
-            case VTK_POLYGON:
-            {
-                faceMap_[facei] = i;
-                face& f = faces_[facei++];
-                label nRead = cellVertData[dataIndex++];
-                f.setSize(nRead);
-                forAll(f, fp)
-                {
-                    f[fp] = cellVertData[dataIndex++];
-                }
-            }
-            break;
-
-            case VTK_TETRA:
-            {
-                label nRead = cellVertData[dataIndex++];
-                if (nRead != 4)
-                {
-                    FatalIOErrorInFunction
-                    (
-                        inFile
-                    )   << "Expected size 4 for VTK_TETRA but found "
-                        << nRead << exit(FatalIOError);
-                }
-                tetPoints[0] = cellVertData[dataIndex++];
-                tetPoints[1] = cellVertData[dataIndex++];
-                tetPoints[2] = cellVertData[dataIndex++];
-                tetPoints[3] = cellVertData[dataIndex++];
-                cellMap_[celli] = i;
-                cells_[celli++] = cellShape(tet, tetPoints, true);
-            }
-            break;
-
-            case VTK_PYRAMID:
-            {
-                label nRead = cellVertData[dataIndex++];
-                if (nRead != 5)
-                {
-                    FatalIOErrorInFunction
-                    (
-                        inFile
-                    )   << "Expected size 5 for VTK_PYRAMID but found "
-                        << nRead << exit(FatalIOError);
-                }
-                pyrPoints[0] = cellVertData[dataIndex++];
-                pyrPoints[1] = cellVertData[dataIndex++];
-                pyrPoints[2] = cellVertData[dataIndex++];
-                pyrPoints[3] = cellVertData[dataIndex++];
-                pyrPoints[4] = cellVertData[dataIndex++];
-                cellMap_[celli] = i;
-                cells_[celli++] = cellShape(pyr, pyrPoints, true);
-            }
-            break;
-
-            case VTK_WEDGE:
-            {
-                label nRead = cellVertData[dataIndex++];
-                if (nRead != 6)
-                {
-                    FatalIOErrorInFunction
-                    (
-                        inFile
-                    )   << "Expected size 6 for VTK_WEDGE but found "
-                        << nRead << exit(FatalIOError);
-                }
-                prismPoints[0] = cellVertData[dataIndex++];
-                prismPoints[2] = cellVertData[dataIndex++];
-                prismPoints[1] = cellVertData[dataIndex++];
-                prismPoints[3] = cellVertData[dataIndex++];
-                prismPoints[5] = cellVertData[dataIndex++];
-                prismPoints[4] = cellVertData[dataIndex++];
-                cellMap_[celli] = i;
-                cells_[celli++] = cellShape(prism, prismPoints, true);
-            }
-            break;
-
-            case VTK_HEXAHEDRON:
-            {
-                label nRead = cellVertData[dataIndex++];
-                if (nRead != 8)
-                {
-                    FatalIOErrorInFunction
-                    (
-                        inFile
-                    )   << "Expected size 8 for VTK_HEXAHEDRON but found "
-                        << nRead << exit(FatalIOError);
-                }
-                hexPoints[0] = cellVertData[dataIndex++];
-                hexPoints[1] = cellVertData[dataIndex++];
-                hexPoints[2] = cellVertData[dataIndex++];
-                hexPoints[3] = cellVertData[dataIndex++];
-                hexPoints[4] = cellVertData[dataIndex++];
-                hexPoints[5] = cellVertData[dataIndex++];
-                hexPoints[6] = cellVertData[dataIndex++];
-                hexPoints[7] = cellVertData[dataIndex++];
-                cellMap_[celli] = i;
-                cells_[celli++] = cellShape(hex, hexPoints, true);
+                ++nCells;
             }
             break;
 
             default:
-                warnUnhandledType(inFile, cellTypes[i], warningGiven);
-                label nRead = cellVertData[dataIndex++];
-                dataIndex += nRead;
+                break;
         }
     }
 
-    if (debug)
+    label celli = cells_.size();
+    cells_.resize(celli + nCells);
+    cellMap_.resize(cells_.size(), -1);
+
+    label facei = faces_.size();
+    faces_.resize(facei + nFaces);
+    faceMap_.resize(faces_.size(), -1);
+
+    label linei = lines_.size();
+    lines_.resize(linei + nLines);
+    lineMap_.resize(lines_.size(), -1);
+
+    // General scratch space for cell vertices
+    labelList cellPoints(16);
+
+    label dataIndex = 0;  // Addressing into vertices stream
+
+    // To mark whether unhandled type has been visited.
+    labelHashSet warningGiven;
+
+
+    forAll(cellTypes, elemi)
     {
-        Info<< "Read " << celli << " cells;" << facei << " faces." << endl;
+        // Vertices per element - from offsets or embedded size
+        const label nVerts =
+        (
+            elemOffsets.empty()
+          ? elemVerts[dataIndex++]
+          : (elemOffsets[elemi+1] - elemOffsets[elemi])
+        );
+
+        // The addresseed vertices
+        const labelSubList verts(elemVerts, nVerts, dataIndex);
+        dataIndex += nVerts;
+
+        switch (cellTypes[elemi])
+        {
+            case vtk::cellType::VTK_VERTEX:
+            {
+                warnUnhandledType(is, cellTypes[elemi], warningGiven);
+                if (nVerts != 1)
+                {
+                    FatalIOErrorInFunction(is)
+                        << "Expected size 1 for VTK_VERTEX, found "
+                        << nVerts << nl
+                        << exit(FatalIOError);
+                }
+            }
+            break;
+
+            case vtk::cellType::VTK_POLY_VERTEX:
+            {
+                warnUnhandledType(is, cellTypes[elemi], warningGiven);
+            }
+            break;
+
+            case vtk::cellType::VTK_LINE:
+            {
+                if (nVerts != 2)
+                {
+                    FatalIOErrorInFunction(is)
+                        << "Expected size 2 for VTK_LINE, found "
+                        << nVerts << nl
+                        << exit(FatalIOError);
+                }
+                lineMap_[linei] = elemi;
+
+                // Same vertex ordering
+                lines_[linei++] = verts;
+            }
+            break;
+
+            case vtk::cellType::VTK_POLY_LINE:
+            {
+                lineMap_[linei] = elemi;
+
+                // Same vertex ordering
+                lines_[linei++] = verts;
+            }
+            break;
+
+            case vtk::cellType::VTK_TRIANGLE:
+            {
+                if (nVerts != 3)
+                {
+                    FatalIOErrorInFunction(is)
+                        << "Expected size 3 for VTK_TRIANGLE, found "
+                        << nVerts << nl
+                        << exit(FatalIOError);
+                }
+                faceMap_[facei] = elemi;
+
+                // Same vertex ordering
+                static_cast<labelList&>(faces_[facei++]) = verts;
+            }
+            break;
+
+            case vtk::cellType::VTK_QUAD:
+            {
+                if (nVerts != 4)
+                {
+                    FatalIOErrorInFunction(is)
+                        << "Expected size 4 for VTK_QUAD, found "
+                        << nVerts << nl
+                        << exit(FatalIOError);
+                }
+                faceMap_[facei] = elemi;
+
+                // Same vertex ordering
+                static_cast<labelList&>(faces_[facei++]) = verts;
+            }
+            break;
+
+            case vtk::cellType::VTK_POLYGON:
+            {
+                faceMap_[facei] = elemi;
+
+                // Same vertex ordering
+                static_cast<labelList&>(faces_[facei++]) = verts;
+            }
+            break;
+
+            case vtk::cellType::VTK_TETRA:
+            {
+                if (nVerts != 4)
+                {
+                    FatalIOErrorInFunction(is)
+                        << "Expected size 4 for VTK_TETRA, found "
+                        << nVerts << nl
+                        << exit(FatalIOError);
+                }
+                cellMap_[celli] = elemi;
+
+                // Same vertex ordering
+                cells_[celli++].reset(tet, verts, true);
+            }
+            break;
+
+            case vtk::cellType::VTK_PYRAMID:
+            {
+                if (nVerts != 5)
+                {
+                    FatalIOErrorInFunction(is)
+                        << "Expected size 5 for VTK_PYRAMID, found "
+                        << nVerts << nl
+                        << exit(FatalIOError);
+                }
+                cellMap_[celli] = elemi;
+
+                // Same vertex ordering
+                cells_[celli++].reset(pyr, verts, true);
+            }
+            break;
+
+            case vtk::cellType::VTK_WEDGE:
+            {
+                if (nVerts != 6)
+                {
+                    FatalIOErrorInFunction(is)
+                        << "Expected size 6 for VTK_WEDGE, found "
+                        << nVerts << nl
+                        << exit(FatalIOError);
+                }
+                cellMap_[celli] = elemi;
+
+                // VTK_WEDGE triangles point outwards (swap 1<->2, 4<->5)
+                labelSubList shape(cellPoints, nVerts);
+                shape[0] = verts[0];
+                shape[2] = verts[1];
+                shape[1] = verts[2];
+                shape[3] = verts[3];
+                shape[5] = verts[4];
+                shape[4] = verts[5];
+
+                cells_[celli++].reset(prism, shape, true);
+            }
+            break;
+
+            case vtk::cellType::VTK_HEXAHEDRON:
+            {
+                if (nVerts != 8)
+                {
+                    FatalIOErrorInFunction(is)
+                        << "Expected size 8 for VTK_HEXAHEDRON, found "
+                        << nVerts << nl
+                        << exit(FatalIOError);
+                }
+                cellMap_[celli] = elemi;
+
+                // Same vertex ordering
+                cells_[celli++].reset(hex, verts, true);
+            }
+            break;
+
+            default:
+            {
+                warnUnhandledType(is, cellTypes[elemi], warningGiven);
+            }
+            break;
+        }
     }
-    cells_.setSize(celli);
-    cellMap_.setSize(celli);
-    faces_.setSize(facei);
-    faceMap_.setSize(facei);
-    lines_.setSize(lineI);
-    lineMap_.setSize(lineI);
+
+    DebugInfo
+        << "Read"
+        << " cells:" << celli
+        << " faces:" << facei
+        << " lines:" << linei
+        << nl;
+
+    cells_.resize(celli);
+    cellMap_.resize(celli);
+
+    faces_.resize(facei);
+    faceMap_.resize(facei);
+
+    lines_.resize(linei);
+    lineMap_.resize(linei);
 }
 
 
@@ -364,94 +438,82 @@ void Foam::vtkUnstructuredReader::readField
     const label size
 ) const
 {
-    switch (vtkDataTypeNames[dataType])
+    if (vtkDataTypeNames.found(dataType))
     {
-        case VTK_INT:
-        case VTK_UINT:
-        case VTK_LONG:
-        case VTK_ULONG:
-        case VTK_ID:
+        switch (vtkDataTypeNames[dataType])
         {
-            autoPtr<labelIOField> fieldVals
-            (
-                new labelIOField
-                (
-                    IOobject
-                    (
-                        arrayName,
-                        "",
-                        obj
-                    ),
-                    size
-                )
-            );
-            readBlock(inFile, fieldVals().size(), fieldVals());
-            regIOobject::store(fieldVals);
-        }
-        break;
-
-        case VTK_FLOAT:
-        case VTK_DOUBLE:
-        {
-            autoPtr<scalarIOField> fieldVals
-            (
-                new scalarIOField
-                (
-                    IOobject
-                    (
-                        arrayName,
-                        "",
-                        obj
-                    ),
-                    size
-                )
-            );
-            readBlock(inFile, fieldVals().size(), fieldVals());
-            regIOobject::store(fieldVals);
-        }
-        break;
-
-        case VTK_STRING:
-        {
-            if (debug)
+            case VTK_INT:
+            case VTK_INT64:
+            case VTK_UINT:
+            case VTK_LONG:
+            case VTK_ULONG:
+            case VTK_ID:
             {
-                Info<< "Reading strings:" << size << endl;
-            }
-            autoPtr<stringIOList> fieldVals
-            (
-                new stringIOList
+                auto fieldVals = autoPtr<labelIOField>::New
                 (
-                    IOobject
-                    (
-                        arrayName,
-                        "",
-                        obj
-                    ),
+                    IOobject(arrayName, "", obj),
                     size
-                )
-            );
-            // Consume current line.
-            inFile.getLine(fieldVals()[0]);
-
-            // Read without parsing
-            forAll(fieldVals(), i)
-            {
-                inFile.getLine(fieldVals()[i]);
+                );
+                readBlock(inFile, fieldVals().size(), fieldVals());
+                regIOobject::store(fieldVals);
             }
-            regIOobject::store(fieldVals);
-        }
-        break;
+            break;
 
-        default:
-        {
-            IOWarningInFunction(inFile)
-                << "Unhandled type " << vtkDataTypeNames[dataType] << endl
-                << "Skipping " << size
-                << " words." << endl;
-            scalarField fieldVals;
-            readBlock(inFile, size, fieldVals);
+            case VTK_FLOAT:
+            case VTK_DOUBLE:
+            {
+                auto fieldVals = autoPtr<scalarIOField>::New
+                (
+                    IOobject(arrayName, "", obj),
+                    size
+                );
+                readBlock(inFile, fieldVals().size(), fieldVals());
+                regIOobject::store(fieldVals);
+            }
+            break;
+
+            case VTK_STRING:
+            {
+                DebugInfo
+                    << "Reading strings:" << size << nl;
+
+                auto fieldVals = autoPtr<stringIOList>::New
+                (
+                    IOobject(arrayName, "", obj),
+                    size
+                );
+                // Consume current line.
+                inFile.getLine(fieldVals()[0]);
+
+                // Read without parsing
+                for (string& s : fieldVals())
+                {
+                    inFile.getLine(s);
+                }
+                regIOobject::store(fieldVals);
+            }
+            break;
+
+            default:
+            {
+                IOWarningInFunction(inFile)
+                    << "Unhandled type " << dataType << nl
+                    << "Skipping " << size
+                    << " words." << nl;
+                scalarField fieldVals;
+                readBlock(inFile, size, fieldVals);
+            }
+            break;
         }
-        break;
+    }
+    else
+    {
+        IOWarningInFunction(inFile)
+            << "Unhandled type " << dataType << nl
+            << "Skipping " << size
+            << " words." << nl;
+        scalarField fieldVals;
+        readBlock(inFile, size, fieldVals);
     }
 }
 
@@ -466,14 +528,14 @@ Foam::wordList Foam::vtkUnstructuredReader::readFieldArray
     DynamicList<word> fields;
 
     word dataName(inFile);
-    if (debug)
-    {
-        Info<< "dataName:" << dataName << endl;
-    }
+
+    DebugInfo
+        << "dataName:" << dataName << nl;
+
     label numArrays(readLabel(inFile));
     if (debug)
     {
-        Pout<< "numArrays:" << numArrays << endl;
+        Pout<< "numArrays:" << numArrays << nl;
     }
     for (label i = 0; i < numArrays; i++)
     {
@@ -482,17 +544,16 @@ Foam::wordList Foam::vtkUnstructuredReader::readFieldArray
         label numTuples(readLabel(inFile));
         word dataType(inFile);
 
-        if (debug)
-        {
-            Info<< "Reading field " << arrayName
-                << " of " << numTuples << " tuples of rank " << numComp << endl;
-        }
+        DebugInfo
+            << "Reading field " << arrayName
+            << " of " << numTuples << " tuples of rank " << numComp << nl;
 
         if (wantedSize != -1 && numTuples != wantedSize)
         {
             FatalIOErrorInFunction(inFile)
                 << "Expected " << wantedSize << " tuples but only have "
-                << numTuples << exit(FatalIOError);
+                << numTuples << nl
+                << exit(FatalIOError);
         }
 
         readField
@@ -522,10 +583,8 @@ Foam::objectRegistry& Foam::vtkUnstructuredReader::selectRegistry
     {
         return pointData_;
     }
-    else
-    {
-        return otherData_;
-    }
+
+    return otherData_;
 }
 
 
@@ -534,180 +593,260 @@ Foam::objectRegistry& Foam::vtkUnstructuredReader::selectRegistry
 Foam::vtkUnstructuredReader::vtkUnstructuredReader
 (
     const objectRegistry& obr,
-    ISstream& inFile
+    ISstream& is
 )
 :
+    version_(2.0),
     cellData_(IOobject("cellData", obr)),
     pointData_(IOobject("pointData", obr)),
     otherData_(IOobject("otherData", obr))
 {
-    read(inFile);
+    read(is);
 }
 
 
 void Foam::vtkUnstructuredReader::read(ISstream& inFile)
 {
     inFile.getLine(header_);
-    if (debug)
+    DebugInfo<< "Header   : " << header_ << nl;
+
+    // Extract version number from "# vtk DataFile Version 5.1"
+    const auto split = stringOps::splitSpace(header_);
+    if (split.size() >= 4 && split[split.size() - 2] == "Version")
     {
-        Info<< "Header   : " << header_ << endl;
+        float ver(0);
+        if (readFloat(split[split.size() - 1], ver))
+        {
+            version_ = ver;
+            DebugInfo<< "Version  : " << version_ << nl;
+        }
     }
+
     inFile.getLine(title_);
-    if (debug)
-    {
-        Info<< "Title    : " << title_ << endl;
-    }
+    DebugInfo<< "Title    : " << title_ << nl;
+
     inFile.getLine(dataType_);
-    if (debug)
-    {
-        Info<< "dataType : " << dataType_ << endl;
-    }
+    DebugInfo<< "dataType : " << dataType_ << nl;
 
     if (dataType_ == "BINARY")
     {
         FatalIOErrorInFunction(inFile)
-            << "Binary reading not supported " << exit(FatalIOError);
+            << "Binary reading not supported" << nl
+            << exit(FatalIOError);
     }
 
     parseMode readMode = NOMODE;
     label wantedSize = -1;
 
 
-    // Temporary storage for vertices of cells.
-    labelList cellVerts;
+    // Intermediate storage for vertices of cells.
+    labelList cellOffsets, cellVerts;
 
-    while (inFile.good())
+    token tok;
+
+    while (inFile.read(tok).good() && tok.isWord())
     {
-        word tag(inFile);
+        const word tag = tok.wordToken();
 
-        if (!inFile.good())
-        {
-            break;
-        }
-
-        if (debug)
-        {
-            Info<< "line:" << inFile.lineNumber()
-                << " tag:" << tag << endl;
-        }
+        DebugInfo
+            << "line:" << inFile.lineNumber()
+            << " tag:" << tag << nl;
 
         if (tag == "DATASET")
         {
             word geomType(inFile);
-            if (debug)
-            {
-                Info<< "geomType : " << geomType << endl;
-            }
+            DebugInfo<< "geomType : " << geomType << nl;
+
             readMode = parseModeNames[geomType];
             wantedSize = -1;
         }
         else if (tag == "POINTS")
         {
-            label nPoints(readLabel(inFile));
-            points_.setSize(nPoints);    ///3);
-            if (debug)
-            {
-                Info<< "Reading " << nPoints << " numbers representing "
-                    << points_.size() << " coordinates." << endl;
-            }
+            const label nPoints(readLabel(inFile));
+            points_.resize(nPoints);
+
+            DebugInfo
+                << "Reading " << nPoints << " coordinates" << nl;
 
             word primitiveTag(inFile);
             if (primitiveTag != "float" && primitiveTag != "double")
             {
                 FatalIOErrorInFunction(inFile)
-                    << "Expected 'float' entry but found "
-                    << primitiveTag
+                    << "Expected 'float' entry, found "
+                    << primitiveTag << nl
                     << exit(FatalIOError);
             }
-            forAll(points_, i)
+            for (point& p : points_)
             {
-                inFile >> points_[i].x() >> points_[i].y() >> points_[i].z();
+                inFile >> p.x() >> p.y() >> p.z();
             }
         }
         else if (tag == "CELLS")
         {
             label nCells(readLabel(inFile));
-            label nNumbers(readLabel(inFile));
-            if (debug)
+            const label nNumbers(readLabel(inFile));
+
+            if (version_ < 5.0)
             {
-                Info<< "Reading " << nCells << " cells or faces." << endl;
+                // VTK 4.2 and earlier (single-block)
+                DebugInfo
+                    << "Reading " << nCells
+                    << " cells/faces (single block)" << nl;
+
+                cellOffsets.clear();
+                readBlock(inFile, nNumbers, cellVerts);
             }
-            readBlock(inFile, nNumbers, cellVerts);
+            else
+            {
+                // VTK 5.0 and later (OFFSETS and CONNECTIVITY)
+
+                const label nOffsets(nCells);
+                --nCells;
+
+                DebugInfo
+                    << "Reading offsets/connectivity for "
+                    << nCells << " cells/faces" << nl;
+
+                readOffsetsConnectivity
+                (
+                    inFile,
+                    "CELLS",
+                    nOffsets, cellOffsets,
+                    nNumbers, cellVerts
+                );
+            }
         }
         else if (tag == "CELL_TYPES")
         {
-            label nCellTypes(readLabel(inFile));
+            const label nCellTypes(readLabel(inFile));
 
             labelList cellTypes;
             readBlock(inFile, nCellTypes, cellTypes);
 
-            if (cellTypes.size() > 0 && cellVerts.size() == 0)
+            if (!cellTypes.empty() && cellVerts.empty())
             {
                 FatalIOErrorInFunction(inFile)
                     << "Found " << cellTypes.size()
-                    << " cellTypes but no cells."
+                    << " cellTypes but no cells." << nl
                     << exit(FatalIOError);
             }
 
-            extractCells(inFile, cellTypes, cellVerts);
+            extractCells(inFile, cellTypes, cellOffsets, cellVerts);
+            cellOffsets.clear();
             cellVerts.clear();
         }
         else if (tag == "LINES")
         {
             label nLines(readLabel(inFile));
-            label nNumbers(readLabel(inFile));
-            if (debug)
+            const label nNumbers(readLabel(inFile));
+
+            labelList elemOffsets, elemVerts;
+
+            if (version_ < 5.0)
             {
-                Info<< "Reading " << nLines << " lines." << endl;
+                // VTK 4.2 and earlier (single-block)
+                DebugInfo
+                    << "Reading " << nLines
+                    << " lines (single block)" << nl;
+
+                readBlock(inFile, nNumbers, elemVerts);
             }
-            labelList lineVerts;
-            readBlock(inFile, nNumbers, lineVerts);
+            else
+            {
+                // VTK 5.0 and later (OFFSETS and CONNECTIVITY)
 
-            label lineI = lines_.size();
-            lines_.setSize(lineI+nLines);
-            lineMap_.setSize(lines_.size());
+                const label nOffsets(nLines);
+                --nLines;
 
-            label elemI = 0;
+                DebugInfo
+                    << "Reading offsets/connectivity for "
+                    << nLines << " lines" << nl;
+
+                readOffsetsConnectivity
+                (
+                    inFile,
+                    "LINES",
+                    nOffsets, elemOffsets,
+                    nNumbers, elemVerts
+                );
+            }
+
+            // Append into lines
+            label linei = lines_.size();
+            lines_.resize(linei+nLines);
+            lineMap_.resize(lines_.size());
+
+            label dataIndex = 0;
             for (label i = 0; i < nLines; i++)
             {
-                lineMap_[lineI] = lineI;
-                labelList& f = lines_[lineI];
-                f.setSize(lineVerts[elemI++]);
-                forAll(f, fp)
-                {
-                    f[fp] = lineVerts[elemI++];
-                }
-                lineI++;
+                const label nVerts =
+                (
+                    elemOffsets.empty()
+                  ? elemVerts[dataIndex++]
+                  : (elemOffsets[i+1] - elemOffsets[i])
+                );
+                const labelSubList verts(elemVerts, nVerts, dataIndex);
+                dataIndex += nVerts;
+
+                lineMap_[linei] = linei;
+                lines_[linei++] = verts;
             }
         }
         else if (tag == "POLYGONS")
         {
-            // If in polydata mode
-
             label nFaces(readLabel(inFile));
-            label nNumbers(readLabel(inFile));
-            if (debug)
+            const label nNumbers(readLabel(inFile));
+
+            labelList elemOffsets, elemVerts;
+
+            if (version_ < 5.0)
             {
-                Info<< "Reading " << nFaces << " faces." << endl;
+                // VTK 4.2 and earlier (single-block)
+                DebugInfo
+                    << "Reading " << nFaces
+                    << " faces (single block)" << nl;
+
+                readBlock(inFile, nNumbers, elemVerts);
             }
-            labelList faceVerts;
-            readBlock(inFile, nNumbers, faceVerts);
-
-            label facei = faces_.size();
-            faces_.setSize(facei+nFaces);
-            faceMap_.setSize(faces_.size());
-
-            label elemI = 0;
-            for (label i = 0; i < nFaces; i++)
+            else
             {
+                // VTK 5.0 and later (OFFSETS and CONNECTIVITY)
+
+                const label nOffsets(nFaces);
+                --nFaces;
+
+                DebugInfo
+                    << "Reading offsets/connectivity for "
+                    << nFaces << " faces" << nl;
+
+                readOffsetsConnectivity
+                (
+                    inFile,
+                    "POLYGONS",
+                    nOffsets, elemOffsets,
+                    nNumbers, elemVerts
+                );
+            }
+
+            // Append into faces
+            label facei = faces_.size();
+            faces_.resize(facei+nFaces);
+            faceMap_.resize(faces_.size());
+
+            label dataIndex = 0;
+            for (label i = 0; i < nFaces; ++i)
+            {
+                const label nVerts =
+                (
+                    elemOffsets.empty()
+                  ? elemVerts[dataIndex++]
+                  : (elemOffsets[i+1] - elemOffsets[i])
+                );
+                const labelSubList verts(elemVerts, nVerts, dataIndex);
+                dataIndex += nVerts;
+
                 faceMap_[facei] = facei;
-                face& f = faces_[facei];
-                f.setSize(faceVerts[elemI++]);
-                forAll(f, fp)
-                {
-                    f[fp] = faceVerts[elemI++];
-                }
-                facei++;
+                static_cast<labelList&>(faces_[facei++]) = verts;
             }
         }
         else if (tag == "POINT_DATA")
@@ -721,7 +860,8 @@ void Foam::vtkUnstructuredReader::read(ISstream& inFile)
             {
                 FatalIOErrorInFunction(inFile)
                     << "Reading POINT_DATA : expected " << wantedSize
-                    << " but read " << nPoints << exit(FatalIOError);
+                    << " but read " << nPoints << nl
+                    << exit(FatalIOError);
             }
         }
         else if (tag == "CELL_DATA")
@@ -735,7 +875,8 @@ void Foam::vtkUnstructuredReader::read(ISstream& inFile)
                 FatalIOErrorInFunction(inFile)
                     << "Reading CELL_DATA : expected "
                     << wantedSize
-                    << " but read " << nCells << exit(FatalIOError);
+                    << " but read " << nCells << nl
+                    << exit(FatalIOError);
             }
         }
         else if (tag == "FIELD")
@@ -752,19 +893,17 @@ void Foam::vtkUnstructuredReader::read(ISstream& inFile)
             word dataType(is);
             //label numComp(readLabel(inFile));
 
-            if (debug)
-            {
-                Info<< "Reading scalar " << dataName
-                    << " of type " << dataType
-                    << " from lookup table" << endl;
-            }
+            DebugInfo
+                << "Reading scalar " << dataName
+                << " of type " << dataType
+                << " from lookup table" << nl;
 
             word lookupTableTag(inFile);
             if (lookupTableTag != "LOOKUP_TABLE")
             {
                 FatalIOErrorInFunction(inFile)
                     << "Expected tag LOOKUP_TABLE but read "
-                    << lookupTableTag
+                    << lookupTableTag << nl
                     << exit(FatalIOError);
             }
 
@@ -787,11 +926,9 @@ void Foam::vtkUnstructuredReader::read(ISstream& inFile)
             IStringStream is(line);
             word dataName(is);
             word dataType(is);
-            if (debug)
-            {
-                Info<< "Reading vector " << dataName
-                    << " of type " << dataType << endl;
-            }
+            DebugInfo
+                << "Reading vector " << dataName
+                << " of type " << dataType << nl;
 
             objectRegistry& reg = selectRegistry(readMode);
 
@@ -813,26 +950,18 @@ void Foam::vtkUnstructuredReader::read(ISstream& inFile)
                 objectRegistry::iterator iter = reg.find(dataName);
                 scalarField s(*dynamic_cast<const scalarField*>(iter()));
                 reg.erase(iter);
-                autoPtr<vectorIOField> fieldVals
+                auto fieldVals = autoPtr<vectorIOField>::New
                 (
-                    new vectorIOField
-                    (
-                        IOobject
-                        (
-                            dataName,
-                            "",
-                            reg
-                        ),
-                        s.size()/3
-                    )
+                    IOobject(dataName, "", reg),
+                    s.size()/3
                 );
 
                 label elemI = 0;
-                forAll(fieldVals(), i)
+                for (vector& val : fieldVals())
                 {
-                    fieldVals()[i].x() = s[elemI++];
-                    fieldVals()[i].y() = s[elemI++];
-                    fieldVals()[i].z() = s[elemI++];
+                    val.x() = s[elemI++];
+                    val.y() = s[elemI++];
+                    val.z() = s[elemI++];
                 }
                 regIOobject::store(fieldVals);
             }
@@ -847,12 +976,10 @@ void Foam::vtkUnstructuredReader::read(ISstream& inFile)
             label dim(readLabel(is));
             word dataType(is);
 
-            if (debug)
-            {
-                Info<< "Reading texture coords " << dataName
-                    << " dimension " << dim
-                    << " of type " << dataType << endl;
-            }
+            DebugInfo
+                << "Reading texture coords " << dataName
+                << " dimension " << dim
+                << " of type " << dataType << nl;
 
             scalarField coords(dim*points_.size());
             readBlock(inFile, coords.size(), coords);
@@ -860,84 +987,205 @@ void Foam::vtkUnstructuredReader::read(ISstream& inFile)
         else if (tag == "TRIANGLE_STRIPS")
         {
             label nStrips(readLabel(inFile));
-            label nNumbers(readLabel(inFile));
-            if (debug)
+            const label nNumbers(readLabel(inFile));
+
+            labelList elemOffsets, elemVerts;
+
+            // Total number of faces in strips
+            label nFaces = 0;
+
+            if (version_ < 5.0)
             {
-                Info<< "Reading " << nStrips << " triangle strips." << endl;
-            }
-            labelList faceVerts;
-            readBlock(inFile, nNumbers, faceVerts);
+                // VTK 4.2 and earlier (single-block)
+                DebugInfo
+                    << "Reading " << nStrips
+                    << " strips (single block)" << nl;
 
-            // Count number of triangles
-            label elemI = 0;
-            label nTris = 0;
-            for (label i = 0; i < nStrips; i++)
+                readBlock(inFile, nNumbers, elemVerts);
+
+                // Count number of faces (triangles)
+                {
+                    label dataIndex = 0;
+                    for (label i = 0; i < nStrips; ++i)
+                    {
+                        const label nVerts = elemVerts[dataIndex++];
+                        nFaces += nVerts-2;
+                        dataIndex += nVerts;
+                    }
+                }
+            }
+            else
             {
-                label nVerts = faceVerts[elemI++];
-                nTris += nVerts-2;
-                elemI += nVerts;
+                // VTK 5.0 and later (OFFSETS and CONNECTIVITY)
+
+                const label nOffsets(nStrips);
+                --nStrips;
+
+                DebugInfo
+                    << "Reading offsets/connectivity for "
+                    << nStrips << " triangle strips." << nl;
+
+                readOffsetsConnectivity
+                (
+                    inFile,
+                    "TRIANGLE_STRIPS",
+                    nOffsets, elemOffsets,
+                    nNumbers, elemVerts
+                );
+
+                // Count number of faces (triangles)
+                for (label i = 0; i < nStrips; ++i)
+                {
+                    const label nVerts = (elemOffsets[i+1] - elemOffsets[i]);
+                    nFaces += nVerts-2;
+                }
             }
 
-
-            // Store
+            // Append into faces
             label facei = faces_.size();
-            faces_.setSize(facei+nTris);
-            faceMap_.setSize(faces_.size());
-            elemI = 0;
-            for (label i = 0; i < nStrips; i++)
-            {
-                label nVerts = faceVerts[elemI++];
-                label nTris = nVerts-2;
+            faces_.resize(facei+nFaces);
+            faceMap_.resize(faces_.size());
 
-                // Read first triangle
-                faceMap_[facei] = facei;
-                face& f = faces_[facei++];
-                f.setSize(3);
-                f[0] = faceVerts[elemI++];
-                f[1] = faceVerts[elemI++];
-                f[2] = faceVerts[elemI++];
-                for (label triI = 1; triI < nTris; triI++)
+            label dataIndex = 0;
+            for (label i = 0; i < nStrips; ++i)
+            {
+                const label nVerts =
+                (
+                    elemOffsets.empty()
+                  ? elemVerts[dataIndex++]
+                  : (elemOffsets[i+1] - elemOffsets[i])
+                );
+                const label nTris = nVerts-2;
+
+                // Advance before the first triangle
+                if (nTris > 0)
+                {
+                    dataIndex += 2;
+                }
+
+                for (label triI = 0; triI < nTris; ++triI)
                 {
                     faceMap_[facei] = facei;
                     face& f = faces_[facei++];
-                    f.setSize(3);
-                    f[0] = faceVerts[elemI-1];
-                    f[1] = faceVerts[elemI-2];
-                    f[2] = faceVerts[elemI++];
+
+                    f.resize(3);
+
+                    // NOTE: not clear if the orientation is correct
+                    if ((triI % 2) == 0)
+                    {
+                        // Even (eg, 0-1-2, 2-3-4)
+                        f[0] = elemVerts[dataIndex-2];
+                        f[1] = elemVerts[dataIndex-1];
+                    }
+                    else
+                    {
+                        // Odd (eg, 2-1-3, 4-3-5)
+                        f[0] = elemVerts[dataIndex-1];
+                        f[1] = elemVerts[dataIndex-2];
+                    }
+                    f[2] = elemVerts[dataIndex++];
                 }
+            }
+        }
+        else if (tag == "METADATA")
+        {
+            word infoTag(inFile);
+            if (infoTag != "INFORMATION")
+            {
+                FatalIOErrorInFunction(inFile)
+                    << "Unsupported tag "
+                    << infoTag << nl
+                    << exit(FatalIOError);
+            }
+            label nInfo(readLabel(inFile));
+            DebugInfo
+                << "Ignoring " << nInfo << " metadata information." << nl;
+
+            // Consume rest of line
+            inFile.getLine(nullptr);
+            for (label i = 0; i < 2*nInfo; i++)
+            {
+                inFile.getLine(nullptr);
             }
         }
         else
         {
             FatalIOErrorInFunction(inFile)
                 << "Unsupported tag "
-                << tag << exit(FatalIOError);
+                << tag << nl
+                << exit(FatalIOError);
+        }
+    }
+
+
+    // There is some problem with orientation of prisms - the point
+    // ordering seems to be different for some exports (e.g. of cgns)
+    {
+        const cellModel& prism = cellModel::ref(cellModel::PRISM);
+
+        label nSwapped = 0;
+
+        for (cellShape& shape : cells_)
+        {
+            if (shape.model() == prism)
+            {
+                const triPointRef bottom
+                (
+                    points_[shape[0]],
+                    points_[shape[1]],
+                    points_[shape[2]]
+                );
+                const triPointRef top
+                (
+                    points_[shape[3]],
+                    points_[shape[4]],
+                    points_[shape[5]]
+                );
+
+                const point bottomCc(bottom.centre());
+                const vector bottomNormal(bottom.areaNormal());
+                const point topCc(top.centre());
+
+                if (((topCc - bottomCc) & bottomNormal) < 0)
+                {
+                    // Flip top and bottom
+                    std::swap(shape[0], shape[3]);
+                    std::swap(shape[1], shape[4]);
+                    std::swap(shape[2], shape[5]);
+                    ++nSwapped;
+                }
+            }
+        }
+        if (nSwapped)
+        {
+            WarningInFunction << "Swapped " << nSwapped
+                << " prismatic cells" << nl;
         }
     }
 
     if (debug)
     {
         Info<< "Read points:" << points_.size()
-            << " cellShapes:" << cells_.size()
+            << " cells:" << cells_.size()
             << " faces:" << faces_.size()
             << " lines:" << lines_.size()
-            << nl << endl;
+            << nl << nl;
 
-        Info<< "Cell fields:" << endl;
+        Info<< "Cell fields:" << nl;
         printFieldStats<vectorIOField>(cellData_);
         printFieldStats<scalarIOField>(cellData_);
         printFieldStats<labelIOField>(cellData_);
         printFieldStats<stringIOList>(cellData_);
-        Info<< nl << endl;
+        Info<< nl << nl;
 
-        Info<< "Point fields:" << endl;
+        Info<< "Point fields:" << nl;
         printFieldStats<vectorIOField>(pointData_);
         printFieldStats<scalarIOField>(pointData_);
         printFieldStats<labelIOField>(pointData_);
         printFieldStats<stringIOList>(pointData_);
-        Info<< nl << endl;
+        Info<< nl << nl;
 
-        Info<< "Other fields:" << endl;
+        Info<< "Other fields:" << nl;
         printFieldStats<vectorIOField>(otherData_);
         printFieldStats<scalarIOField>(otherData_);
         printFieldStats<labelIOField>(otherData_);

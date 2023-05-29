@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -21,12 +24,9 @@ License
     You should have received a copy of the GNU General Public License
     along with OpenFOAM.  If not, see <http://www.gnu.org/licenses/>.
 
-Description
-    A mesh which allows changes in the patch distribution of the
-    faces.  The change in patching is set using changePatchID.  For a
-    boundary face, a new patch ID is given.  If the face is internal,
-    it will be added to the first patch and its opposite to the second
-    patch (take care with face orientation!).
+Note
+    If the face is internal, it will be added to the first patch and
+    its opposite to the second patch (take care with face orientation!).
 
 \*---------------------------------------------------------------------------*/
 
@@ -39,11 +39,11 @@ Description
 
 Foam::polyTopoChange& Foam::repatchPolyTopoChanger::meshMod()
 {
-    if (meshModPtr_.empty())
+    if (!meshModPtr_)
     {
         meshModPtr_.reset(new polyTopoChange(mesh_));
     }
-    return meshModPtr_();
+    return *meshModPtr_;
 }
 
 
@@ -63,14 +63,14 @@ void Foam::repatchPolyTopoChanger::changePatches
     const List<polyPatch*>& patches
 )
 {
-    if (meshModPtr_.valid())
+    if (meshModPtr_)
     {
         FatalErrorInFunction
             << "Cannot change patches after having changed faces. " << nl
             << "Please call changePatches first."
             << exit(FatalError);
     }
-    meshModPtr_.clear();
+    meshModPtr_.reset(nullptr);
     mesh_.removeBoundary();
     mesh_.addPatches(patches);
 }
@@ -267,7 +267,7 @@ void Foam::repatchPolyTopoChanger::repatch()
     meshMod().changeMesh(mesh_, false);
 
     // Clear topo change for the next operation
-    meshModPtr_.clear();
+    meshModPtr_.reset(nullptr);
 }
 
 

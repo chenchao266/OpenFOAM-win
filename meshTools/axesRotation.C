@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2017-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -24,283 +27,312 @@ License
 \*---------------------------------------------------------------------------*/
 
 #include "axesRotation.H"
-#include "dictionary.H"
+#include "dictionary2.H"
 #include "addToRunTimeSelectionTable.H"
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
 
 namespace Foam
 {
-    defineTypeNameAndDebug(axesRotation, 0);
-    addToRunTimeSelectionTable(coordinateRotation, axesRotation, dictionary);
-    addToRunTimeSelectionTable
-    (
-        coordinateRotation,
-        axesRotation,
-        objectRegistry
-    );
+    namespace coordinateRotations
+    {
+        defineTypeName(axes);
+
+        // Standard short name
+        addNamedToRunTimeSelectionTable
+        (
+            coordinateRotation,
+            axes,
+            dictionary,
+            axes
+        );
+
+        // Longer name - Compat 1806
+        addNamedToRunTimeSelectionTable
+        (
+            coordinateRotation,
+            axes,
+            dictionary,
+            axesRotation
+        );
+    }
 }
 
-// * * * * * * * * * * * * * Private Member Functions  * * * * * * * * * * * //
 
-void Foam::axesRotation::calcTransform
+// * * * * * * * * * * * * * Static Member Functions * * * * * * * * * * * * //
+
+Foam::tensor Foam::coordinateRotations::axes::rotation
 (
     const vector& axis1,
     const vector& axis2,
-    const axisOrder& order
+    axisOrder order
 )
 {
-    vector a = axis1/mag(axis1);
-    vector b = axis2;
+    const scalar magAxis1(mag(axis1));
+    scalar magAxis2(mag(axis2));
 
-    b = b - (b & a)*a;
-
-    if (mag(b) < SMALL)
+    if (magAxis1 < ROOTVSMALL)
     {
         FatalErrorInFunction
-            << "axis1, axis2 appear co-linear: "
-            << axis1 << ", " << axis2 << endl
+            << "Dominant coordinate axis cannot have zero length"
+            << nl << endl
             << abort(FatalError);
     }
 
-    b = b/mag(b);
-    vector c = a^b;
+    const vector ax1(axis1 / magAxis1);  // normalise
+    vector ax2(axis2);
 
-    tensor Rtr;
-    switch (order)
+    if (magAxis2 < ROOTVSMALL)
     {
-        case e1e2:
-        {
-            Rtr = tensor(a, b, c);
-            break;
-        }
-        case e2e3:
-        {
-            Rtr = tensor(c, a, b);
-            break;
-        }
-        case e3e1:
-        {
-            Rtr = tensor(b, c, a);
-            break;
-        }
-        default:
+        // axis2 == Zero : Use best-guess for the second axis.
+        ax2 = findOrthogonal(axis1);
+    }
+
+    // Remove colinear component
+    ax2 -= ((ax1 & ax2) * ax1);
+
+    magAxis2 = mag(ax2);
+
+    if (magAxis2 < SMALL)
+    {
+        WarningInFunction
+            << "axis1, axis2 appear to be co-linear: "
+            << axis1 << ", " << axis2 << "  Revert to guessing axis2"
+            << nl << endl;
+
+        ax2 = findOrthogonal(axis1);
+
+        // Remove colinear component
+        ax2 -= ((ax1 & ax2) * ax1);
+
+        magAxis2 = mag(ax2);
+
+        if (magAxis2 < SMALL)
         {
             FatalErrorInFunction
-                << "Unhandled axes specifictation" << endl
+                << "Could not find an appropriate second axis"
+                << nl << endl
                 << abort(FatalError);
+        }
+    }
 
-            Rtr = Zero;
+    ax2 /= magAxis2;  // normalise
+
+
+    // The local axes are columns of the rotation matrix
+
+    tensor rotTensor;
+
+    switch (order)
+    {
+        case E1_E2:
+        {
+            rotTensor.col<0>(ax1);
+            rotTensor.col<1>(ax2);
+            rotTensor.col<2>(ax1^ax2);
+            break;
+        }
+        case E2_E3:
+        {
+            rotTensor.col<0>(ax1^ax2);
+            rotTensor.col<1>(ax1);
+            rotTensor.col<2>(ax2);
+            break;
+        }
+        case E3_E1:
+        case E3_E1_COMPAT:
+        {
+            rotTensor.col<0>(ax2);
+            rotTensor.col<1>(ax1^ax2);
+            rotTensor.col<2>(ax1);
             break;
         }
     }
 
-    // Global->local transformation
-    Rtr_ = Rtr;
+    return rotTensor;
+}
 
-    // Local->global transformation
-    R_ = Rtr.T();
+
+// * * * * * * * * * * * * Protected Member Functions  * * * * * * * * * * * //
+
+void Foam::coordinateRotations::axes::read(const dictionary& dict)
+{
+    if
+    (
+        dict.readIfPresent("e1", axis1_)
+     && dict.readIfPresent("e2", axis2_)
+    )
+    {
+        order_ = E1_E2;
+    }
+    else if
+    (
+        dict.readIfPresent("e2", axis1_)
+     && dict.readIfPresent("e3", axis2_)
+    )
+    {
+        order_ = E2_E3;
+    }
+    else if
+    (
+        dict.readIfPresent("e3", axis1_)
+     && dict.readIfPresent("e1", axis2_)
+    )
+    {
+        order_ = E3_E1;
+    }
+    else if
+    (
+        dict.readIfPresent("axis", axis1_)
+     && dict.readIfPresent("direction", axis2_)
+    )
+    {
+        order_ = E3_E1_COMPAT;
+    }
+    else
+    {
+        FatalIOErrorInFunction(dict)
+            << "No entries of the type (e1, e2) or (e2, e3) or (e3, e1) found"
+            << exit(FatalIOError);
+    }
 }
 
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
-Foam::axesRotation::axesRotation()
+Foam::coordinateRotations::axes::axes()
 :
-    R_(sphericalTensor::I),
-    Rtr_(R_)
+    coordinateRotation(),
+    axis1_(0,0,1),  // e3 = global Z
+    axis2_(1,0,0),  // e1 = global X
+    order_(E3_E1)
 {}
 
 
-Foam::axesRotation::axesRotation
-(
-    const vector& axis,
-    const vector& dir
-)
+Foam::coordinateRotations::axes::axes(const axes& crot)
 :
-    R_(sphericalTensor::I),
-    Rtr_(R_)
-{
-    calcTransform(axis, dir, e3e1);
-}
-
-
-Foam::axesRotation::axesRotation
-(
-    const dictionary& dict
-)
-:
-    R_(sphericalTensor::I),
-    Rtr_(R_)
-{
-    operator=(dict);
-}
-
-
-Foam::axesRotation::axesRotation
-(
-    const dictionary& dict,
-    const objectRegistry& obr
-)
-:
-    R_(sphericalTensor::I),
-    Rtr_(R_)
-{
-    operator=(dict);
-}
-
-
-Foam::axesRotation::axesRotation(const tensor& R)
-:
-    R_(R),
-    Rtr_(R_.T())
+    coordinateRotation(),
+    axis1_(crot.axis1_),
+    axis2_(crot.axis2_),
+    order_(crot.order_)
 {}
+
+
+Foam::coordinateRotations::axes::axes
+(
+    const vector& axis1,
+    const vector& axis2,
+    axisOrder order
+)
+:
+    coordinateRotation(),
+    axis1_(axis1),
+    axis2_(axis2),
+    order_(order)
+{}
+
+
+Foam::coordinateRotations::axes::axes(const vector& axis)
+:
+    coordinateRotations::axes(axis, Zero, E3_E1_COMPAT)  // Guess second axis
+{}
+
+
+Foam::coordinateRotations::axes::axes(const dictionary& dict)
+:
+    coordinateRotations::axes()
+{
+    read(dict);
+}
 
 
 // * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * * //
 
-const Foam::tensorField& Foam::axesRotation::Tr() const
+void Foam::coordinateRotations::axes::clear()
 {
-    NotImplemented;
-    return NullObjectRef<tensorField>();
+    axis1_ = vector(0,0,1);  // primary axis (e3, global Z)
+    axis2_ = vector(1,0,0);  // secondary axis (e1, global X)
+    order_ = E3_E1;
 }
 
 
-Foam::tmp<Foam::vectorField> Foam::axesRotation::transform
+Foam::tensor Foam::coordinateRotations::axes::R() const
+{
+    return axes::rotation(axis1_, axis2_, order_);
+}
+
+
+// * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * * //
+
+void Foam::coordinateRotations::axes::write(Ostream& os) const
+{
+    switch (order_)
+    {
+        case E1_E2:
+            os << "e1: " << axis1_ << " e2: " << axis2_;
+            break;
+        case E2_E3:
+            os << "e2: " << axis1_ << " e3: " << axis2_;
+            break;
+        case E3_E1:
+            os << "e1: " << axis2_ << " e3: " << axis1_;
+            break;
+        case E3_E1_COMPAT:
+            os << "axis: " << axis1_ << " direction: " << axis2_;
+            break;
+    }
+}
+
+
+void Foam::coordinateRotations::axes::writeEntry
 (
-    const vectorField& st
+    const word& keyword,
+    Ostream& os
 ) const
 {
-    return (R_ & st);
-}
+    // We permit direct embedding of the axes specification without
+    // requiring a sub-dictionary.
 
+    const bool subDict = !keyword.empty();
 
-Foam::vector Foam::axesRotation::transform(const vector& st) const
-{
-    return (R_ & st);
-}
-
-
-Foam::tmp<Foam::vectorField> Foam::axesRotation::invTransform
-(
-    const vectorField& st
-) const
-{
-    return (Rtr_ & st);
-}
-
-
-Foam::vector Foam::axesRotation::invTransform(const vector& st) const
-{
-    return (Rtr_ & st);
-}
-
-
-Foam::tmp<Foam::tensorField> Foam::axesRotation::transformTensor
-(
-    const tensorField& st
-) const
-{
-    NotImplemented;
-    return tmp<tensorField>(nullptr);
-}
-
-
-Foam::tensor Foam::axesRotation::transformTensor
-(
-    const tensor& st
-) const
-{
-    return (R_ & st & Rtr_);
-}
-
-
-Foam::tmp<Foam::tensorField> Foam::axesRotation::transformTensor
-(
-    const tensorField& st,
-    const labelList& cellMap
-) const
-{
-    NotImplemented;
-    return tmp<tensorField>(nullptr);
-}
-
-
-Foam::tmp<Foam::symmTensorField> Foam::axesRotation::transformVector
-(
-    const vectorField& st
-) const
-{
-    tmp<symmTensorField> tfld(new symmTensorField(st.size()));
-    symmTensorField& fld = tfld.ref();
-
-    forAll(fld, i)
+    if (subDict)
     {
-        fld[i] = transformPrincipal(R_, st[i]);
-    }
-    return tfld;
-}
-
-
-Foam::symmTensor Foam::axesRotation::transformVector
-(
-    const vector& st
-) const
-{
-    return transformPrincipal(R_, st);
-}
-
-
-// * * * * * * * * * * * * * * * Member Operators  * * * * * * * * * * * * * //
-
-void Foam::axesRotation::operator=(const dictionary& dict)
-{
-    if (debug)
-    {
-        Pout<< "axesRotation::operator=(const dictionary&) : "
-            << "assign from " << dict << endl;
+        os.beginBlock(keyword);
+        os.writeEntry("type", type());
     }
 
-    vector axis1, axis2;
-    axisOrder order(e3e1);
-
-    if (dict.readIfPresent("e1", axis1) && dict.readIfPresent("e2", axis2))
+    switch (order_)
     {
-        order = e1e2;
-    }
-    else if (dict.readIfPresent("e2", axis1)&& dict.readIfPresent("e3", axis2))
-    {
-        order = e2e3;
-    }
-    else if (dict.readIfPresent("e3", axis1)&& dict.readIfPresent("e1", axis2))
-    {
-        order = e3e1;
-    }
-    else if (dict.found("axis") || dict.found("direction"))
-    {
-        // Both "axis" and "direction" are required
-        // If one is missing the appropriate error message will be generated
-        order = e3e1;
-        dict.lookup("axis") >> axis1;
-        dict.lookup("direction") >> axis2;
-    }
-    else
-    {
-        FatalErrorInFunction
-            << "not entry of the type (e1, e2) or (e2, e3) or (e3, e1) "
-            << "found "
-            << exit(FatalError);
+        case E1_E2:
+        {
+            os.writeEntry("e1", axis1_);
+            os.writeEntry("e2", axis2_);
+            break;
+        }
+        case E2_E3:
+        {
+            os.writeEntry("e2", axis1_);
+            os.writeEntry("e3", axis2_);
+            break;
+        }
+        case E3_E1:
+        {
+            os.writeEntry("e1", axis2_);
+            os.writeEntry("e3", axis1_);
+            break;
+        }
+        case E3_E1_COMPAT:
+        {
+            os.writeEntry("axis", axis1_);
+            os.writeEntry("direction", axis2_);
+            break;
+        }
     }
 
-    calcTransform(axis1, axis2, order);
-}
-
-
-void Foam::axesRotation::write(Ostream& os) const
-{
-     os.writeKeyword("e1") << e1() << token::END_STATEMENT << nl;
-     os.writeKeyword("e2") << e2() << token::END_STATEMENT << nl;
-     os.writeKeyword("e3") << e3() << token::END_STATEMENT << nl;
+    if (subDict)
+    {
+        os.endBlock();
+    }
 }
 
 

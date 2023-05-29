@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2019-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -23,127 +26,83 @@ License
 
 \*---------------------------------------------------------------------------*/
 
-#include "lduMatrix.H"
-
-// * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
-using namespace Foam;
-namespace Foam
-{
-    defineRunTimeSelectionTable(lduMatrix::preconditioner, symMatrix);
-    defineRunTimeSelectionTable(lduMatrix::preconditioner, asymMatrix);
-}
-
+//#include "LduMatrix.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
-word lduMatrix::preconditioner::getName
-(
-    const dictionary& solverControls
-)
-{
-    word name;
 
-    // handle primitive or dictionary entry
-    const entry& e = solverControls.lookupEntry("preconditioner", false, false);
-    if (e.isDict())
-    {
-        e.dict().lookup("preconditioner") >> name;
-    }
-    else
-    {
-        e.stream() >> name;
-    }
-
-    return name;
-}
-
-
-autoPtr<lduMatrix::preconditioner>
-lduMatrix::preconditioner::New
+ namespace Foam{
+template<class Type, class DType, class LUType>
+autoPtr<typename LduMatrix<Type, DType, LUType>::preconditioner>
+LduMatrix<Type, DType, LUType>::preconditioner::New
 (
     const solver& sol,
-    const dictionary& solverControls
+    const dictionary& preconditionerDict
 )
 {
-    word name;
-
-    // handle primitive or dictionary entry
-    const entry& e = solverControls.lookupEntry("preconditioner", false, false);
-    if (e.isDict())
-    {
-        e.dict().lookup("preconditioner") >> name;
-    }
-    else
-    {
-        e.stream() >> name;
-    }
-
-    const dictionary& controls = e.isDict() ? e.dict() : dictionary::null;
+    const word preconditionerName
+    (
+        preconditionerDict.get<word>("preconditioner")
+    );
 
     if (sol.matrix().symmetric())
     {
-        symMatrixConstructorTable::iterator constructorIter =
-            symMatrixConstructorTablePtr_->find(name);
+        auto* ctorPtr = symMatrixConstructorTable(preconditionerName);
 
-        if (constructorIter == symMatrixConstructorTablePtr_->end())
+        if (!ctorPtr)
         {
-            FatalIOErrorInFunction
+            FatalIOErrorInLookup
             (
-                controls
-            )   << "Unknown symmetric matrix preconditioner "
-                << name << nl << nl
-                << "Valid symmetric matrix preconditioners :" << endl
-                << symMatrixConstructorTablePtr_->sortedToc()
-                << exit(FatalIOError);
+                preconditionerDict,
+                "symmetric matrix preconditioner",
+                preconditionerName,
+                *symMatrixConstructorTablePtr_
+            ) << exit(FatalIOError);
         }
 
-        return autoPtr<lduMatrix::preconditioner>
+        return autoPtr<typename LduMatrix<Type, DType, LUType>::preconditioner>
         (
-            constructorIter()
+            ctorPtr
             (
                 sol,
-                controls
+                preconditionerDict
             )
         );
     }
     else if (sol.matrix().asymmetric())
     {
-        asymMatrixConstructorTable::iterator constructorIter =
-            asymMatrixConstructorTablePtr_->find(name);
+        auto* ctorPtr = asymMatrixConstructorTable(preconditionerName);
 
-        if (constructorIter == asymMatrixConstructorTablePtr_->end())
+        if (!ctorPtr)
         {
-            FatalIOErrorInFunction
+            FatalIOErrorInLookup
             (
-                controls
-            )   << "Unknown asymmetric matrix preconditioner "
-                << name << nl << nl
-                << "Valid asymmetric matrix preconditioners :" << endl
-                << asymMatrixConstructorTablePtr_->sortedToc()
-                << exit(FatalIOError);
+                preconditionerDict,
+                "asymmetric matrix preconditioner",
+                preconditionerName,
+                *asymMatrixConstructorTablePtr_
+            ) << exit(FatalIOError);
         }
 
-        return autoPtr<lduMatrix::preconditioner>
+        return autoPtr<typename LduMatrix<Type, DType, LUType>::preconditioner>
         (
-            constructorIter()
+            ctorPtr
             (
                 sol,
-                controls
+                preconditionerDict
             )
         );
     }
-    else
-    {
-        FatalIOErrorInFunction
-        (
-            controls
-        )   << "cannot solve incomplete matrix, "
-               "no diagonal or off-diagonal coefficient"
-            << exit(FatalIOError);
 
-        return autoPtr<lduMatrix::preconditioner>(nullptr);
-    }
+    FatalIOErrorInFunction(preconditionerDict)
+        << "Cannot precondition incomplete matrix, "
+           "no diagonal or off-diagonal coefficient"
+        << exit(FatalIOError);
+
+    return nullptr;
 }
 
 
 // ************************************************************************* //
+
+ } // End namespace Foam

@@ -2,13 +2,12 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
 -------------------------------------------------------------------------------
- 2011 blueCAPE: Avoid defining 'GNU_SOURCE' for MinGW builds.
- 2014-02-21 blueCAPE Lda: Modifications for blueCFD-Core 2.3
- 2016-07-26 blueCAPE Lda: Modifications for blueCFD-Core 2016-1
-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2015-2021 OpenCFD Ltd.
+-------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
 
@@ -25,44 +24,43 @@ License
     You should have received a copy of the GNU General Public License
     along with OpenFOAM.  If not, see <http://www.gnu.org/licenses/>.
 
-Modifications
-    This file has been modified by blueCAPE's unofficial mingw patches for
-    OpenFOAM.
-    For more information about these patches, visit:
-        http://bluecfd.com/Core
-
 \*---------------------------------------------------------------------------*/
 
 #include "scotchDecomp.H"
 #include "addToRunTimeSelectionTable.H"
 #include "floatScalar.H"
-#include "Time.T.H"
+#include "Time1.H"
+#include "PrecisionAdaptor.H"
 #include "OFstream.H"
-#include "globalIndex.H"
-#include "SubField.T.H"
+#include <limits>
 
-extern "C"
-{
+// Probably not needed, but in case we pickup a ptscotch.h ...
+#define MPICH_SKIP_MPICXX
+#define OMPI_SKIP_MPICXX
+
 #include "scotch.h"
-}
 
-
-// Hack: scotch generates floating point errors so need to switch of error
+// Hack: scotch generates floating point errors so need to switch off error
 //       trapping!
-#if defined(__GLIBC__) && (!defined(WIN32) && !defined(WIN64))
+#ifdef __GLIBC__
     #ifndef _GNU_SOURCE
         #define _GNU_SOURCE
     #endif
     #include <fenv.h>
 #endif
 
+// Error if we attempt narrowing
+static_assert
+(
+    sizeof(Foam::label) <= sizeof(SCOTCH_Num),
+    "SCOTCH_Num is too small for Foam::label, check your scotch headers"
+);
 
-// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+// * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
 
 namespace Foam
 {
     defineTypeNameAndDebug(scotchDecomp, 0);
-
     addToRunTimeSelectionTable
     (
         decompositionMethod,
@@ -71,299 +69,236 @@ namespace Foam
     );
 }
 
-// * * * * * * * * * * * * * Private Member Functions  * * * * * * * * * * * //
 
-void Foam::scotchDecomp::check(const int retVal, const char* str)
+// * * * * * * * * * * * * * * * Local Functions * * * * * * * * * * * * * * //
+
+namespace Foam
+{
+
+// Check and print error message
+static inline void check(const int retVal, const char* what)
 {
     if (retVal)
     {
         FatalErrorInFunction
-            << "Call to scotch routine " << str << " failed."
+            << "Call to scotch routine " << what
+            << " failed (" << retVal << ")\n"
             << exit(FatalError);
     }
 }
 
 
-Foam::label Foam::scotchDecomp::decompose
-(
-    const fileName& meshPath,
-    const List<label>& adjncy,
-    const List<label>& xadj,
-    const scalarField& cWeights,
-
-    List<label>& finalDecomp
-)
+// The mesh-relative graph path/name (without extension)
+static inline Foam::fileName getGraphPathBase(const polyMesh& mesh)
 {
-    if (!Pstream::parRun())
-    {
-        decomposeOneProc
-        (
-            meshPath,
-            adjncy,
-            xadj,
-            cWeights,
-            finalDecomp
-        );
-    }
-    else
-    {
-        if (debug)
-        {
-            Info<< "scotchDecomp : running in parallel."
-                << " Decomposing all of graph on master processor." << endl;
-        }
-        globalIndex globalCells(xadj.size()-1);
-        label nTotalConnections = returnReduce(adjncy.size(), sumOp<label>());
-
-        // Send all to master. Use scheduled to save some storage.
-        if (Pstream::master())
-        {
-            Field<label> allAdjncy(nTotalConnections);
-            Field<label> allXadj(globalCells.size()+1);
-            scalarField allWeights(globalCells.size());
-
-            // Insert my own
-            label nTotalCells = 0;
-            forAll(cWeights, celli)
-            {
-                allXadj[nTotalCells] = xadj[celli];
-                allWeights[nTotalCells++] = cWeights[celli];
-            }
-            nTotalConnections = 0;
-            forAll(adjncy, i)
-            {
-                allAdjncy[nTotalConnections++] = adjncy[i];
-            }
-
-            for (int slave=1; slave<Pstream::nProcs(); slave++)
-            {
-                IPstream fromSlave(Pstream::commsTypes::scheduled, slave);
-                Field<label> nbrAdjncy(fromSlave);
-                Field<label> nbrXadj(fromSlave);
-                scalarField nbrWeights(fromSlave);
-
-                // Append.
-                //label procStart = nTotalCells;
-                forAll(nbrXadj, celli)
-                {
-                    allXadj[nTotalCells] = nTotalConnections+nbrXadj[celli];
-                    allWeights[nTotalCells++] = nbrWeights[celli];
-                }
-                // No need to renumber xadj since already global.
-                forAll(nbrAdjncy, i)
-                {
-                    allAdjncy[nTotalConnections++] = nbrAdjncy[i];
-                }
-            }
-            allXadj[nTotalCells] = nTotalConnections;
-
-
-            Field<label> allFinalDecomp;
-            decomposeOneProc
-            (
-                meshPath,
-                allAdjncy,
-                allXadj,
-                allWeights,
-                allFinalDecomp
-            );
-
-
-            // Send allFinalDecomp back
-            for (int slave=1; slave<Pstream::nProcs(); slave++)
-            {
-                OPstream toSlave(Pstream::commsTypes::scheduled, slave);
-                toSlave << SubField<label>
-                (
-                    allFinalDecomp,
-                    globalCells.localSize(slave),
-                    globalCells.offset(slave)
-                );
-            }
-            // Get my own part (always first)
-            finalDecomp = SubField<label>
-            (
-                allFinalDecomp,
-                globalCells.localSize()
-            );
-        }
-        else
-        {
-            // Send my part of the graph (already in global numbering)
-            {
-                OPstream toMaster
-                (
-                    Pstream::commsTypes::scheduled,
-                    Pstream::masterNo()
-                );
-                toMaster<< adjncy << SubField<label>(xadj, xadj.size()-1)
-                    << cWeights;
-            }
-
-            // Receive back decomposition
-            IPstream fromMaster
-            (
-                Pstream::commsTypes::scheduled,
-                Pstream::masterNo()
-            );
-            fromMaster >> finalDecomp;
-        }
-    }
-    return 0;
+    return mesh.time().path()/mesh.name();
 }
 
 
-// Call scotch with options from dictionary.
-Foam::label Foam::scotchDecomp::decomposeOneProc
+} // End namespace Foam
+
+
+// * * * * * * * * * * * * Protected Member Functions  * * * * * * * * * * * //
+
+Foam::label Foam::scotchDecomp::decomposeSerial
 (
-    const fileName& meshPath,
-    const List<label>& adjncy,
-    const List<label>& xadj,
-    const scalarField& cWeights,
-
-    List<label>& finalDecomp
-)
+    const labelList& adjncy,
+    const labelList& xadj,
+    const List<scalar>& cWeights,
+    labelList& decomp
+) const
 {
-    // Dump graph
-    if (decompositionDict_.found("scotchCoeffs"))
+    const SCOTCH_Num numCells = max(0, (xadj.size()-1));
+
+    // Addressing
+    ConstPrecisionAdaptor<SCOTCH_Num, label, List> adjncy_param(adjncy);
+    ConstPrecisionAdaptor<SCOTCH_Num, label, List> xadj_param(xadj);
+
+    // Output: cell -> processor addressing
+    decomp.resize(numCells);
+    decomp = 0;
+    PrecisionAdaptor<SCOTCH_Num, label, List> decomp_param(decomp, false);
+
+    // Avoid potential nullptr issues with zero-sized arrays
+    labelList adjncy_dummy, xadj_dummy, decomp_dummy;
+    if (!numCells)
     {
-        const dictionary& scotchCoeffs =
-            decompositionDict_.subDict("scotchCoeffs");
+        adjncy_dummy.resize(1, 0);
+        adjncy_param.set(adjncy_dummy);
 
-        if (scotchCoeffs.lookupOrDefault("writeGraph", false))
+        xadj_dummy.resize(2, 0);
+        xadj_param.set(xadj_dummy);
+
+        decomp_dummy.resize(1, 0);
+        decomp_param.clear();  // Avoid propagating spurious values
+        decomp_param.set(decomp_dummy);
+    }
+
+
+    // Dump graph
+    if (coeffsDict_.getOrDefault("writeGraph", false))
+    {
+        OFstream str(graphPath_ + ".grf");
+
+        Info<< "Dumping Scotch graph file to " << str.name() << nl
+            << "Use this in combination with gpart." << endl;
+
+        const label numConnect = adjncy.size();
+
+        // Version 0 = Graph file (.grf)
+        str << "0" << nl;
+
+        // Number of vertices,
+        // number of edges (connections)
+        str << numCells << ' ' << numConnect << nl;
+
+        // Numbering starts from 0
+        // 100*hasVertlabels+10*hasEdgeWeights+1*hasVertWeights
+        str << "0 000" << nl;
+
+        for (label celli = 0; celli < numCells; ++celli)
         {
-            OFstream str(meshPath + ".grf");
+            const label beg = xadj[celli];
+            const label end = xadj[celli+1];
 
-            Info<< "Dumping Scotch graph file to " << str.name() << endl
-                << "Use this in combination with gpart." << endl;
+            str << (end-beg);  // size
 
-            label version = 0;
-            str << version << nl;
-            // Numer of vertices
-            str << xadj.size()-1 << ' ' << adjncy.size() << nl;
-            // Numbering starts from 0
-            label baseval = 0;
-            // Has weights?
-            label hasEdgeWeights = 0;
-            label hasVertexWeights = 0;
-            label numericflag = 10*hasEdgeWeights+hasVertexWeights;
-            str << baseval << ' ' << numericflag << nl;
-            for (label celli = 0; celli < xadj.size()-1; celli++)
+            for (label i = beg; i < end; ++i)
             {
-                label start = xadj[celli];
-                label end = xadj[celli+1];
-                str << end-start;
-
-                for (label i = start; i < end; i++)
-                {
-                    str << ' ' << adjncy[i];
-                }
-                str << nl;
+                str << ' ' << adjncy[i];
             }
+            str << nl;
         }
     }
 
+
+    // Make repeatable
+    SCOTCH_randomReset();
 
     // Strategy
     // ~~~~~~~~
 
     // Default.
     SCOTCH_Strat stradat;
-    check(SCOTCH_stratInit(&stradat), "SCOTCH_stratInit");
+    check
+    (
+        SCOTCH_stratInit(&stradat),
+        "SCOTCH_stratInit"
+    );
 
-    if (decompositionDict_.found("scotchCoeffs"))
+    string strategy;
+    if (coeffsDict_.readIfPresent("strategy", strategy))
     {
-        const dictionary& scotchCoeffs =
-            decompositionDict_.subDict("scotchCoeffs");
+        DebugInfo << "scotchDecomp : Using strategy " << strategy << endl;
 
-        string strategy;
-        if (scotchCoeffs.readIfPresent("strategy", strategy))
-        {
-            if (debug)
-            {
-                Info<< "scotchDecomp : Using strategy " << strategy << endl;
-            }
-            SCOTCH_stratGraphMap(&stradat, strategy.c_str());
-            //fprintf(stdout, "S\tStrat=");
-            //SCOTCH_stratSave(&stradat, stdout);
-            //fprintf(stdout, "\n");
-        }
+        SCOTCH_stratGraphMap(&stradat, strategy.c_str());
+        //fprintf(stdout, "S\tStrat=");
+        //SCOTCH_stratSave(&stradat, stdout);
+        //fprintf(stdout, "\n");
     }
 
 
     // Graph
     // ~~~~~
 
-    List<label> velotab;
-
-
     // Check for externally provided cellweights and if so initialise weights
+
+    bool hasWeights = !cWeights.empty();
+
     // Note: min, not gMin since routine runs on master only.
-    scalar minWeights = min(cWeights);
-    if (!cWeights.empty())
+    const scalar minWeights = hasWeights ? min(cWeights) : scalar(1);
+
+    if (minWeights <= 0)
     {
-        if (minWeights <= 0)
-        {
-            WarningInFunction
-                << "Illegal minimum weight " << minWeights
-                << endl;
-        }
+        hasWeights = false;
+        WarningInFunction
+            << "Illegal minimum weight " << minWeights
+            << " ... ignoring"
+            << endl;
+    }
+    else if (hasWeights && (cWeights.size() != numCells))
+    {
+        FatalErrorInFunction
+            << "Number of cell weights " << cWeights.size()
+            << " does not equal number of cells " << numCells
+            << exit(FatalError);
+    }
 
-        if (cWeights.size() != xadj.size()-1)
-        {
-            FatalErrorInFunction
-                << "Number of cell weights " << cWeights.size()
-                << " does not equal number of cells " << xadj.size()-1
-                << exit(FatalError);
-        }
 
-        scalar velotabSum = sum(cWeights)/minWeights;
+    List<SCOTCH_Num> velotab;
 
-        scalar rangeScale(1.0);
+    if (hasWeights)
+    {
+        scalar rangeScale(1);
 
-        if (velotabSum > scalar(labelMax - 1))
+        const scalar velotabSum = sum(cWeights)/minWeights;
+
+        const scalar upperRange = static_cast<scalar>
+        (
+            std::numeric_limits<SCOTCH_Num>::max()-1
+        );
+
+        if (velotabSum > upperRange)
         {
             // 0.9 factor of safety to avoid floating point round-off in
             // rangeScale tipping the subsequent sum over the integer limit.
-            rangeScale = 0.9*scalar(labelMax - 1)/velotabSum;
+            rangeScale = 0.9*upperRange/velotabSum;
 
             WarningInFunction
-                << "Sum of weights has overflowed integer: " << velotabSum
-                << ", compressing weight scale by a factor of " << rangeScale
-                << endl;
+                << "Sum of weights overflows SCOTCH_Num: " << velotabSum
+                << ", compressing by factor " << rangeScale << endl;
         }
 
-        // Convert to integers.
-        velotab.setSize(cWeights.size());
-
-        forAll(velotab, i)
         {
-            velotab[i] = int((cWeights[i]/minWeights - 1)*rangeScale) + 1;
+            // Convert to integers.
+            velotab.resize(cWeights.size());
+
+            forAll(velotab, i)
+            {
+                velotab[i] = static_cast<SCOTCH_Num>
+                (
+                    ((cWeights[i]/minWeights - 1)*rangeScale) + 1
+                );
+            }
         }
     }
 
 
+    //
+    // Decomposition graph
+    //
 
     SCOTCH_Graph grafdat;
-    check(SCOTCH_graphInit(&grafdat), "SCOTCH_graphInit");
+    check
+    (
+        SCOTCH_graphInit(&grafdat),
+        "SCOTCH_graphInit"
+    );
     check
     (
         SCOTCH_graphBuild
         (
-            &grafdat,
-            0,                      // baseval, c-style numbering
-            xadj.size()-1,          // vertnbr, nCells
-            xadj.begin(),           // verttab, start index per cell into adjncy
-            &xadj[1],               // vendtab, end index  ,,
-            velotab.begin(),        // velotab, vertex weights
-            nullptr,                   // vlbltab
-            adjncy.size(),          // edgenbr, number of arcs
-            adjncy.begin(),         // edgetab
-            nullptr                    // edlotab, edge weights
+            &grafdat,               // Graph to build
+            0,                      // Base for indexing (C-style)
+
+            numCells,               // Number of vertices [== nCells]
+            xadj_param().cdata(),   // verttab, start index per cell into adjncy
+            nullptr,                // vendtab, end index (nullptr == automatic)
+
+            velotab.cdata(),        // velotab, vertex weights
+            nullptr,                // Vertex labels (nullptr == ignore)
+
+            adjncy.size(),          // Number of graph edges
+            adjncy_param().cdata(), // Edge array
+            nullptr                 // Edge weights (nullptr == ignore)
         ),
         "SCOTCH_graphBuild"
     );
-    check(SCOTCH_graphCheck(&grafdat), "SCOTCH_graphCheck");
+    check
+    (
+        SCOTCH_graphCheck(&grafdat),
+        "SCOTCH_graphCheck"
+    );
 
 
     // Architecture
@@ -371,26 +306,34 @@ Foam::label Foam::scotchDecomp::decomposeOneProc
     // (fully connected network topology since using switch)
 
     SCOTCH_Arch archdat;
-    check(SCOTCH_archInit(&archdat), "SCOTCH_archInit");
+    check
+    (
+        SCOTCH_archInit(&archdat),
+        "SCOTCH_archInit"
+    );
 
-    List<label> processorWeights;
-    if (decompositionDict_.found("scotchCoeffs"))
+    List<SCOTCH_Num> procWeights;
+    if
+    (
+        coeffsDict_.readIfPresent("processorWeights", procWeights)
+     && !procWeights.empty()
+    )
     {
-        const dictionary& scotchCoeffs =
-            decompositionDict_.subDict("scotchCoeffs");
-
-        scotchCoeffs.readIfPresent("processorWeights", processorWeights);
-    }
-    if (processorWeights.size())
-    {
-        if (debug)
+        if (procWeights.size() != nDomains_)
         {
-            Info<< "scotchDecomp : Using procesor weights " << processorWeights
-                << endl;
+            FatalIOErrorInFunction(coeffsDict_)
+                << "processorWeights (" << procWeights.size()
+                << ") != number of domains (" << nDomains_ << ")" << nl
+                << exit(FatalIOError);
         }
+
+        DebugInfo
+            << "scotchDecomp : Using procesor weights "
+            << procWeights << endl;
+
         check
         (
-            SCOTCH_archCmpltw(&archdat, nProcessors_, processorWeights.begin()),
+            SCOTCH_archCmpltw(&archdat, nDomains_, procWeights.cdata()),
             "SCOTCH_archCmpltw"
         );
     }
@@ -398,12 +341,12 @@ Foam::label Foam::scotchDecomp::decomposeOneProc
     {
         check
         (
-            SCOTCH_archCmplt(&archdat, nProcessors_),
+            SCOTCH_archCmplt(&archdat, nDomains_),
             "SCOTCH_archCmplt"
         );
 
 
-        //- Hack to test clustering. Note that finalDecomp is non-compact
+        //- Hack to test clustering. Note that decomp is non-compact
         //  numbers!
         //
         ////- Set up variable sizes architecture
@@ -454,8 +397,6 @@ Foam::label Foam::scotchDecomp::decomposeOneProc
     );
     #endif
 
-    finalDecomp.setSize(xadj.size()-1);
-    finalDecomp = 0;
     check
     (
         SCOTCH_graphMap
@@ -463,7 +404,7 @@ Foam::label Foam::scotchDecomp::decomposeOneProc
             &grafdat,
             &archdat,
             &stradat,           // const SCOTCH_Strat *
-            finalDecomp.begin() // parttab
+            decomp_param.ref().data() // parttab
         ),
         "SCOTCH_graphMap"
     );
@@ -472,27 +413,22 @@ Foam::label Foam::scotchDecomp::decomposeOneProc
     feenableexcept(oldExcepts);
     #endif
 
-
-
-    //finalDecomp.setSize(xadj.size()-1);
+    //decomp.resize(numCells);
     //check
     //(
     //    SCOTCH_graphPart
     //    (
     //        &grafdat,
-    //        nProcessors_,       // partnbr
-    //        &stradat,           // const SCOTCH_Strat *
-    //        finalDecomp.begin() // parttab
+    //        nDomains_,           // partnbr
+    //        &stradat,            // const SCOTCH_Strat *
+    //        decomp_param.ref().data()  // parttab
     //    ),
     //    "SCOTCH_graphPart"
     //);
 
-    // Release storage for graph
-    SCOTCH_graphExit(&grafdat);
-    // Release storage for strategy
-    SCOTCH_stratExit(&stradat);
-    // Release storage for network topology
-    SCOTCH_archExit(&archdat);
+    SCOTCH_graphExit(&grafdat);     // Release storage for graph
+    SCOTCH_stratExit(&stradat);     // Release storage for strategy
+    SCOTCH_archExit(&archdat);      // Release storage for network topology
 
     return 0;
 }
@@ -500,9 +436,13 @@ Foam::label Foam::scotchDecomp::decomposeOneProc
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
-Foam::scotchDecomp::scotchDecomp(const dictionary& decompositionDict)
+Foam::scotchDecomp::scotchDecomp
+(
+    const dictionary& decompDict,
+    const word& regionName
+)
 :
-    decompositionMethod(decompositionDict)
+    metisLikeDecomp(typeName, decompDict, regionName, selectionType::NULL_DICT)
 {}
 
 
@@ -513,48 +453,17 @@ Foam::labelList Foam::scotchDecomp::decompose
     const polyMesh& mesh,
     const pointField& points,
     const scalarField& pointWeights
-)
+) const
 {
-    if (points.size() != mesh.nCells())
-    {
-        FatalErrorInFunction
-            << "Can use this decomposition method only for the whole mesh"
-            << endl
-            << "and supply one coordinate (cellCentre) for every cell." << endl
-            << "The number of coordinates " << points.size() << endl
-            << "The number of cells in the mesh " << mesh.nCells()
-            << exit(FatalError);
-    }
+    // Where to write graph
+    graphPath_ = getGraphPathBase(mesh);
 
-    // Calculate local or global (if Pstream::parRun()) connectivity
-    CompactListList<label> cellCells;
-    calcCellCells
+    return metisLikeDecomp::decompose
     (
         mesh,
-        identity(mesh.nCells()),
-        mesh.nCells(),
-        true,
-        cellCells
+        points,
+        pointWeights
     );
-
-    // Decompose using default weights
-    List<label> finalDecomp;
-    decompose
-    (
-        mesh.time().path()/mesh.name(),
-        cellCells.m(),
-        cellCells.offsets(),
-        pointWeights,
-        finalDecomp
-    );
-
-    // Copy back to labelList
-    labelList decomp(finalDecomp.size());
-    forAll(decomp, i)
-    {
-        decomp[i] = finalDecomp[i];
-    }
-    return decomp;
 }
 
 
@@ -564,47 +473,18 @@ Foam::labelList Foam::scotchDecomp::decompose
     const labelList& agglom,
     const pointField& agglomPoints,
     const scalarField& pointWeights
-)
+) const
 {
-    if (agglom.size() != mesh.nCells())
-    {
-        FatalErrorInFunction
-            << "Size of cell-to-coarse map " << agglom.size()
-            << " differs from number of cells in mesh " << mesh.nCells()
-            << exit(FatalError);
-    }
+    // Where to write graph
+    graphPath_ = getGraphPathBase(mesh);
 
-    // Calculate local or global (if Pstream::parRun()) connectivity
-    CompactListList<label> cellCells;
-    calcCellCells
+    return metisLikeDecomp::decompose
     (
         mesh,
         agglom,
-        agglomPoints.size(),
-        true,
-        cellCells
+        agglomPoints,
+        pointWeights
     );
-
-    // Decompose using weights
-    List<label> finalDecomp;
-    decompose
-    (
-        mesh.time().path()/mesh.name(),
-        cellCells.m(),
-        cellCells.offsets(),
-        pointWeights,
-        finalDecomp
-    );
-
-    // Rework back into decomposition for original mesh_
-    labelList fineDistribution(agglom.size());
-
-    forAll(fineDistribution, i)
-    {
-        fineDistribution[i] = finalDecomp[agglom[i]];
-    }
-
-    return fineDistribution;
 }
 
 
@@ -613,41 +493,17 @@ Foam::labelList Foam::scotchDecomp::decompose
     const labelListList& globalCellCells,
     const pointField& cellCentres,
     const scalarField& cWeights
-)
+) const
 {
-    if (cellCentres.size() != globalCellCells.size())
-    {
-        FatalErrorInFunction
-            << "Inconsistent number of cells (" << globalCellCells.size()
-            << ") and number of cell centres (" << cellCentres.size()
-            << ")." << exit(FatalError);
-    }
+    // Where to write graph
+    graphPath_ = "scotch.grf";
 
-
-    // Make Metis CSR (Compressed Storage Format) storage
-    //   adjncy      : contains neighbours (= edges in graph)
-    //   xadj(celli) : start of information in adjncy for celli
-
-    CompactListList<label> cellCells(globalCellCells);
-
-    // Decompose using weights
-    List<label> finalDecomp;
-    decompose
+    return metisLikeDecomp::decompose
     (
-        "scotch",
-        cellCells.m(),
-        cellCells.offsets(),
-        cWeights,
-        finalDecomp
+        globalCellCells,
+        cellCentres,
+        cWeights
     );
-
-    // Copy back to labelList
-    labelList decomp(finalDecomp.size());
-    forAll(decomp, i)
-    {
-        decomp[i] = finalDecomp[i];
-    }
-    return decomp;
 }
 
 

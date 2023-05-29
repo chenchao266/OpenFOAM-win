@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2012-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2012-2016 OpenFOAM Foundation
+    Copyright (C) 2019-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -29,7 +32,9 @@ License
 #include "syncTools.H"
 
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
-using namespace Foam;
+
+
+ namespace Foam{
 bool polyMesh::checkFaceOrthogonality
 (
     const vectorField& fAreas,
@@ -39,10 +44,7 @@ bool polyMesh::checkFaceOrthogonality
     labelHashSet* setPtr
 ) const
 {
-    if (debug)
-    {
-        InfoInFunction << "Checking mesh non-orthogonality" << endl;
-    }
+    DebugInFunction << "Checking mesh non-orthogonality" << endl;
 
     const labelList& own = faceOwner();
     const labelList& nei = faceNeighbour();
@@ -70,7 +72,7 @@ bool polyMesh::checkFaceOrthogonality
 
 
     // Statistics only for internal and masters of coupled faces
-    PackedBoolList isMasterFace(syncTools::getInternalOrMasterFaces(*this));
+    bitSet isMasterFace(syncTools::getInternalOrMasterFaces(*this));
 
     forAll(ortho, facei)
     {
@@ -109,7 +111,7 @@ bool polyMesh::checkFaceOrthogonality
             }
         }
 
-        if (isMasterFace[facei])
+        if (isMasterFace.test(facei))
         {
             minDDotS = min(minDDotS, ortho[facei]);
             sumDDotS += ortho[facei];
@@ -155,15 +157,13 @@ bool polyMesh::checkFaceOrthogonality
 
         return true;
     }
-    else
-    {
-        if (debug || report)
-        {
-            Info<< "    Non-orthogonality check OK." << endl;
-        }
 
-        return false;
+    if (debug || report)
+    {
+        Info<< "    Non-orthogonality check OK." << endl;
     }
+
+    return false;
 }
 
 
@@ -178,10 +178,7 @@ bool polyMesh::checkFaceSkewness
     labelHashSet* setPtr
 ) const
 {
-    if (debug)
-    {
-        InfoInFunction << "Checking face skewness" << endl;
-    }
+    DebugInFunction << "Checking face skewness" << endl;
 
     const labelList& own = faceOwner();
     const labelList& nei = faceNeighbour();
@@ -203,7 +200,7 @@ bool polyMesh::checkFaceSkewness
     label nWarnSkew = 0;
 
     // Statistics only for all faces except slave coupled faces
-    PackedBoolList isMasterFace(syncTools::getMasterFaces(*this));
+    bitSet isMasterFace(syncTools::getMasterFaces(*this));
 
     forAll(skew, facei)
     {
@@ -235,9 +232,9 @@ bool polyMesh::checkFaceSkewness
                 }
             }
 
-            if (isMasterFace[facei])
+            if (isMasterFace.test(facei))
             {
-                nWarnSkew++;
+                ++nWarnSkew;
             }
         }
     }
@@ -257,15 +254,13 @@ bool polyMesh::checkFaceSkewness
 
         return true;
     }
-    else
-    {
-        if (debug || report)
-        {
-            Info<< "    Max skewness = " << maxSkew << " OK." << endl;
-        }
 
-        return false;
+    if (debug || report)
+    {
+        Info<< "    Max skewness = " << maxSkew << " OK." << endl;
     }
+
+    return false;
 }
 
 
@@ -280,14 +275,11 @@ bool polyMesh::checkEdgeAlignment
     // Check 1D/2Dness of edges. Gets passed the non-empty directions and
     // checks all edges in the mesh whether they:
     // - have no component in a non-empty direction or
-    // - are only in a singe non-empty direction.
+    // - are only in a single non-empty direction.
     // Empty direction info is passed in as a vector of labels (synchronised)
     // which are 1 if the direction is non-empty, 0 if it is.
 
-    if (debug)
-    {
-        InfoInFunction << "Checking edge alignment" << endl;
-    }
+    DebugInFunction << "Checking edge alignment" << endl;
 
     label nDirs = 0;
     for (direction cmpt=0; cmpt<vector::nComponents; cmpt++)
@@ -384,7 +376,7 @@ bool polyMesh::checkEdgeAlignment
         if (setPtr)
         {
             setPtr->resize(2*edgesInError.size());
-            forAllConstIter(EdgeMap<label>, edgesInError, iter)
+            forAllConstIters(edgesInError, iter)
             {
                 setPtr->insert(iter.key()[0]);
                 setPtr->insert(iter.key()[1]);
@@ -393,15 +385,14 @@ bool polyMesh::checkEdgeAlignment
 
         return true;
     }
-    else
+
+    if (debug || report)
     {
-        if (debug || report)
-        {
-            Info<< "    All edges aligned with or perpendicular to "
-                << "non-empty directions." << endl;
-        }
-        return false;
+        Info<< "    All edges aligned with or perpendicular to "
+            << "non-empty directions." << endl;
     }
+
+    return false;
 }
 
 
@@ -415,10 +406,7 @@ bool polyMesh::checkCellDeterminant
 {
     const scalar warnDet = 1e-3;
 
-    if (debug)
-    {
-        InfoInFunction << "Checking for under-determined cells" << endl;
-    }
+    DebugInFunction << "Checking for under-determined cells" << endl;
 
     tmp<scalarField> tcellDeterminant = primitiveMeshTools::cellDeterminant
     (
@@ -473,14 +461,10 @@ bool polyMesh::checkCellDeterminant
 
         return true;
     }
-    else
-    {
-        if (debug || report)
-        {
-            Info<< "    Cell determinant check OK." << endl;
-        }
 
-        return false;
+    if (debug || report)
+    {
+        Info<< "    Cell determinant check OK." << endl;
     }
 
     return false;
@@ -497,10 +481,7 @@ bool polyMesh::checkFaceWeight
     labelHashSet* setPtr
 ) const
 {
-    if (debug)
-    {
-        InfoInFunction << "Checking for low face interpolation weights" << endl;
-    }
+    DebugInFunction << "Checking for low face interpolation weights" << endl;
 
     tmp<scalarField> tfaceWght = polyMeshTools::faceWeights
     (
@@ -518,7 +499,7 @@ bool polyMesh::checkFaceWeight
     label nSummed = 0;
 
     // Statistics only for internal and masters of coupled faces
-    PackedBoolList isMasterFace(syncTools::getInternalOrMasterFaces(*this));
+    bitSet isMasterFace(syncTools::getInternalOrMasterFaces(*this));
 
     forAll(faceWght, facei)
     {
@@ -534,7 +515,7 @@ bool polyMesh::checkFaceWeight
         }
 
         // Note: statistics only on master of coupled faces
-        if (isMasterFace[facei])
+        if (isMasterFace.test(facei))
         {
             minDet = min(minDet, faceWght[facei]);
             sumDet += faceWght[facei];
@@ -568,14 +549,10 @@ bool polyMesh::checkFaceWeight
 
         return true;
     }
-    else
-    {
-        if (debug || report)
-        {
-            Info<< "    Face interpolation weight check OK." << endl;
-        }
 
-        return false;
+    if (debug || report)
+    {
+        Info<< "    Face interpolation weight check OK." << endl;
     }
 
     return false;
@@ -590,10 +567,7 @@ bool polyMesh::checkVolRatio
     labelHashSet* setPtr
 ) const
 {
-    if (debug)
-    {
-        InfoInFunction << "Checking for volume ratio < " << minRatio << endl;
-    }
+    DebugInFunction << "Checking for volume ratio < " << minRatio << endl;
 
     tmp<scalarField> tvolRatio = polyMeshTools::volRatio(*this, cellVols);
     scalarField& volRatio = tvolRatio.ref();
@@ -605,7 +579,7 @@ bool polyMesh::checkVolRatio
     label nSummed = 0;
 
     // Statistics only for internal and masters of coupled faces
-    PackedBoolList isMasterFace(syncTools::getInternalOrMasterFaces(*this));
+    bitSet isMasterFace(syncTools::getInternalOrMasterFaces(*this));
 
     forAll(volRatio, facei)
     {
@@ -621,7 +595,7 @@ bool polyMesh::checkVolRatio
         }
 
         // Note: statistics only on master of coupled faces
-        if (isMasterFace[facei])
+        if (isMasterFace.test(facei))
         {
             minDet = min(minDet, volRatio[facei]);
             sumDet += volRatio[facei];
@@ -655,14 +629,10 @@ bool polyMesh::checkVolRatio
 
         return true;
     }
-    else
-    {
-        if (debug || report)
-        {
-            Info<< "    Face volume ratio check OK." << endl;
-        }
 
-        return false;
+    if (debug || report)
+    {
+        Info<< "    Face volume ratio check OK." << endl;
     }
 
     return false;
@@ -785,13 +755,26 @@ bool polyMesh::checkMeshMotion
     vectorField fCtrs(nFaces());
     vectorField fAreas(nFaces());
 
-    makeFaceCentresAndAreas(newPoints, fCtrs, fAreas);
+    primitiveMeshTools::makeFaceCentresAndAreas
+    (
+        *this,
+        newPoints,
+        fCtrs,
+        fAreas
+    );
 
     // Check cell volumes and calculate new cell centres
     vectorField cellCtrs(nCells());
     scalarField cellVols(nCells());
 
-    makeCellCentresAndVols(fCtrs, fAreas, cellCtrs, cellVols);
+    primitiveMeshTools::makeCellCentresAndVols
+    (
+        *this,
+        fCtrs,
+        fAreas,
+        cellCtrs,
+        cellVols
+    );
 
     // Check cell volumes
     bool error = checkCellVolumes
@@ -849,3 +832,5 @@ bool polyMesh::checkMeshMotion
 
 
 // ************************************************************************* //
+
+ } // End namespace Foam

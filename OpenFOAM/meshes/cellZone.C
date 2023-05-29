@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011 OpenFOAM Foundation
+    Copyright (C) 2017-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -28,29 +31,30 @@ License
 #include "cellZoneMesh.H"
 #include "polyMesh.H"
 #include "primitiveMesh.H"
-#include "IOstream.H"
-#include "demandDrivenData.H"
+#include "_IOstream.H"
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
- 
+
 namespace Foam
 {
     defineTypeNameAndDebug(cellZone, 0);
     defineRunTimeSelectionTable(cellZone, dictionary);
     addToRunTimeSelectionTable(cellZone, cellZone, dictionary);
-}
-namespace Foam {
+
+
     const char * const cellZone::labelsName = "cellLabels";
+
 
     // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
     cellZone::cellZone
     (
         const word& name,
-        const labelUList& addr,
         const label index,
         const cellZoneMesh& zm
-    ) : zone(name, addr, index),
+    )
+        :
+        zone(name, index),
         zoneMesh_(zm)
     {}
 
@@ -58,10 +62,25 @@ namespace Foam {
     cellZone::cellZone
     (
         const word& name,
-        const Xfer<labelList>& addr,
+        const labelUList& addr,
         const label index,
         const cellZoneMesh& zm
-    ) : zone(name, addr, index),
+    )
+        :
+        zone(name, addr, index),
+        zoneMesh_(zm)
+    {}
+
+
+    cellZone::cellZone
+    (
+        const word& name,
+        labelList&& addr,
+        const label index,
+        const cellZoneMesh& zm
+    )
+        :
+        zone(name, std::move(addr), index),
         zoneMesh_(zm)
     {}
 
@@ -72,35 +91,36 @@ namespace Foam {
         const dictionary& dict,
         const label index,
         const cellZoneMesh& zm
-    ) : zone(name, dict, this->labelsName, index),
+    )
+        :
+        zone(name, dict, this->labelsName, index),
         zoneMesh_(zm)
     {}
 
 
     cellZone::cellZone
     (
-        const cellZone& cz,
+        const cellZone& origZone,
         const labelUList& addr,
         const label index,
         const cellZoneMesh& zm
-    ) : zone(cz, addr, index),
+    )
+        :
+        zone(origZone, addr, index),
         zoneMesh_(zm)
     {}
+
 
     cellZone::cellZone
     (
-        const cellZone& cz,
-        const Xfer<labelList>& addr,
+        const cellZone& origZone,
+        labelList&& addr,
         const label index,
         const cellZoneMesh& zm
-    ) : zone(cz, addr, index),
+    )
+        :
+        zone(origZone, std::move(addr), index),
         zoneMesh_(zm)
-    {}
-
-
-    // * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
-
-    cellZone::~cellZone()
     {}
 
 
@@ -112,12 +132,6 @@ namespace Foam {
     }
 
 
-    const cellZoneMesh& cellZone::zoneMesh() const
-    {
-        return zoneMesh_;
-    }
-
-
     bool cellZone::checkDefinition(const bool report) const
     {
         return zone::checkDefinition(zoneMesh_.mesh().nCells(), report);
@@ -126,12 +140,13 @@ namespace Foam {
 
     void cellZone::writeDict(Ostream& os) const
     {
-        os << nl << name() << nl << token::BEGIN_BLOCK << nl
-            << "    type " << type() << token::END_STATEMENT << nl;
+        os.beginBlock(name());
 
+        os.writeEntry("type", type());
+        zoneIdentifier::write(os);
         writeEntry(this->labelsName, os);
 
-        os << token::END_BLOCK << endl;
+        os.endBlock();
     }
 
 
@@ -151,10 +166,10 @@ namespace Foam {
     }
 
 
-    void cellZone::operator=(const Xfer<labelList>& addr)
+    void cellZone::operator=(labelList&& addr)
     {
         clearAddressing();
-        labelList::operator=(addr);
+        labelList::transfer(addr);
     }
 
 
@@ -163,7 +178,7 @@ namespace Foam {
     Ostream& operator<<(Ostream& os, const cellZone& zn)
     {
         zn.write(os);
-        os.check("Ostream& operator<<(Ostream&, const cellZone&");
+        os.check(FUNCTION_NAME);
         return os;
     }
 

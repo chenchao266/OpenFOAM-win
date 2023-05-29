@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2015 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2015 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -24,6 +26,9 @@ License
 Class
     Foam::filteredLinear2Limiter
 
+Group
+    grpFvLimitedSurfaceInterpolationSchemes
+
 Description
     Class to generate weighting factors for the filteredLinear2
     differencing scheme.
@@ -43,7 +48,7 @@ SourceFiles
 #ifndef filteredLinear2_H
 #define filteredLinear2_H
 
-#include "vector.H"
+#include "vector2.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -51,7 +56,7 @@ namespace Foam
 {
 
 /*---------------------------------------------------------------------------*\
-                     Class filteredLinear2Limiter Declaration
+                   Class filteredLinear2Limiter Declaration
 \*---------------------------------------------------------------------------*/
 
 template<class LimiterFunc>
@@ -61,7 +66,7 @@ class filteredLinear2Limiter
 {
     // Private data
 
-        // Scaling corefficient for the gradient ratio,
+        // Scaling coefficient for the gradient ratio,
         // 0 = linear
         // 1 = fully limited
         scalar k_;

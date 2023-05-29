@@ -1,9 +1,9 @@
 ﻿#include "scalar.H"
-#include "vector.H"
+#include "vector2.H"
 #include "curveTools.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
- 
+
 namespace Foam
 {
 
@@ -11,7 +11,7 @@ namespace Foam
 
 scalar distance(const vector& p1, const vector& p2)
 {
-    return mag(p2 - p1);
+    return ::Foam::mag(p2 - p1);
 }
 
 
@@ -26,14 +26,14 @@ bool stepForwardsToNextPoint
 )
 {
     label ip1n = ip1-1;
-    while (++ip1n < Curve.size() && distance(o, Curve[ip1n]) < l);
+    while (++ip1n < Curve.size() && ::Foam::distance(o, Curve[ip1n]) < l);
     label in = ip1n - 1;
 
     bool eoc = true;
 
     if (ip1n < Curve.size() && in >= 0)
     {
-        eoc = interpolate(Curve[in], Curve[ip1n], o, n, l);
+        eoc = ::Foam::interpolate(Curve[in], Curve[ip1n], o, n, l);
 
         i = in;
         ip1 = ip1n;
@@ -54,14 +54,14 @@ bool stepBackwardsToNextPoint
 )
 {
     label ip1n = ip1+1;
-    while (--ip1n >= 0 && distance(o, Curve[ip1n]) < l);
+    while (--ip1n >= 0 && ::Foam::distance(o, Curve[ip1n]) < l);
     label in = ip1n + 1;
 
     bool eoc = true;
 
     if (ip1n >= 0 && in < Curve.size())
     {
-        eoc = interpolate(Curve[in], Curve[ip1n], o, n, l);
+        eoc = ::Foam::interpolate(Curve[in], Curve[ip1n], o, n, l);
 
         i = in;
         ip1 = ip1n;
@@ -109,10 +109,8 @@ bool interpolate
             return true;
         }
     }
-    else
-    {
-        return true;
-    }
+
+    return true;
 }
 
 
@@ -135,7 +133,7 @@ bool XstepForwardsToNextPoint
 
     if (ip1n < Curve.size() && in >= 0)
     {
-        eoc = Xinterpolate(Curve[in], Curve[ip1n], o, n, l);
+        eoc = ::Foam::Xinterpolate(Curve[in], Curve[ip1n], o, n, l);
 
         i = in;
         ip1 = ip1n;
@@ -170,8 +168,8 @@ bool Xinterpolate
     vector D = p2 - p1;
     scalar lamda = (n.x() - p1.x())/D.x();
     n.y() = p1.y() + lamda*D.y();
-    return false;
 
+    return false;
 }
 
 

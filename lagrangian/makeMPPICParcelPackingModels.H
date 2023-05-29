@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2013-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2013-2016 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -28,9 +31,9 @@ License
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
-#include "NoPacking.T.H"
-#include "Explicit.T.H"
-#include "Implicit.T.H"
+#include "NoPacking.H"
+#include "Explicit.H"
+#include "Implicit.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -41,6 +44,15 @@ License
     makePackingModelType(NoPacking, CloudType);                                \
     makePackingModelType(Explicit, CloudType);                                 \
     makePackingModelType(Implicit, CloudType);
+
+
+#define makeMPPICCloudParcelPackingModels(CloudType)                           \
+                                                                               \
+    makePackingModelMPPIC(CloudType);                                          \
+                                                                               \
+    makePackingModelTypeMPPIC(NoPacking, CloudType);                           \
+    makePackingModelTypeMPPIC(Explicit, CloudType);                            \
+    makePackingModelTypeMPPIC(Implicit, CloudType);
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 

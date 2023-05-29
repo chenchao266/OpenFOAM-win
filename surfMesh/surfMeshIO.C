@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2016-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -24,56 +27,53 @@ License
 \*---------------------------------------------------------------------------*/
 
 #include "surfMesh.H"
-#include "Time.T.H"
+#include "Time1.H"
 
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
 
-void Foam::surfMesh::setInstance(const fileName& inst)
+void Foam::surfMesh::setInstance
+(
+    const fileName& inst,
+    IOobject::writeOption wOpt
+)
 {
-    if (debug)
-    {
-        InfoInFunction << "Resetting file instance to " << inst << endl;
-    }
+    DebugInFunction << "Resetting file instance to " << inst << endl;
 
     instance() = inst;
+    Allocator::setInstance(inst);
+    surfZones_.instance()  = inst;
 
-    storedIOPoints().writeOpt() = IOobject::AUTO_WRITE;
-    storedIOPoints().instance() = inst;
+    setWriteOption(wOpt);
+}
 
-    storedIOFaces().writeOpt() = IOobject::AUTO_WRITE;
-    storedIOFaces().instance() = inst;
 
-    storedIOZones().writeOpt() = IOobject::AUTO_WRITE;
-    storedIOZones().instance() = inst;
+void Foam::surfMesh::setWriteOption(IOobject::writeOption wOpt)
+{
+    writeOpt(wOpt);
+    Allocator::setWriteOption(wOpt);
+    surfZones_.writeOpt(wOpt);
 }
 
 
 Foam::surfMesh::readUpdateState Foam::surfMesh::readUpdate()
 {
-    if (debug)
-    {
-        InfoInFunction << "Updating mesh based on saved data." << endl;
-    }
+    DebugInFunction << "Updating mesh based on saved data." << endl;
 
     // Find point and face instances
     fileName pointsInst(time().findInstance(meshDir(), "points"));
     fileName facesInst(time().findInstance(meshDir(), "faces"));
 
-    if (debug)
-    {
-        Info<< "Points instance: old = " << pointsInstance()
-            << " new = " << pointsInst << nl
-            << "Faces instance: old = " << facesInstance()
-            << " new = " << facesInst << endl;
-    }
+    DebugInFunction
+        << "Points instance: old = " << pointsInstance()
+        << " new = " << pointsInst << nl
+        << "Faces instance: old = " << facesInstance()
+        << " new = " << facesInst << endl;
 
     if (facesInst != facesInstance())
     {
         // Topological change
-        if (debug)
-        {
-            Info<< "Topological change" << endl;
-        }
+        DebugInfo
+            << "Topological change" << endl;
 
         clearOut();
 
@@ -119,7 +119,7 @@ Foam::surfMesh::readUpdateState Foam::surfMesh::readUpdate()
                 facesInst,
                 meshSubDir,
                 *this,
-                IOobject::MUST_READ,
+                IOobject::READ_IF_PRESENT,
                 IOobject::NO_WRITE,
                 false
             )
@@ -128,16 +128,15 @@ Foam::surfMesh::readUpdateState Foam::surfMesh::readUpdate()
         // Check that zone types and names are unchanged
         bool zonesChanged = false;
 
-        surfZoneList& zones = this->storedIOZones();
-        if (zones.size() != newZones.size())
+        if (surfZones_.size() != newZones.size())
         {
             zonesChanged = true;
         }
         else
         {
-            forAll(zones, zoneI)
+            forAll(surfZones_, zoneI)
             {
-                if (zones[zoneI].name() != newZones[zoneI].name())
+                if (surfZones_[zoneI].name() != newZones[zoneI].name())
                 {
                     zonesChanged = true;
                     break;
@@ -145,12 +144,12 @@ Foam::surfMesh::readUpdateState Foam::surfMesh::readUpdate()
             }
         }
 
-        zones.transfer(newZones);
+        surfZones_.transfer(newZones);
 
         if (zonesChanged)
         {
             WarningInFunction
-                << "unexpected consequences.  Proceed with care." << endl;
+                << "Unexpected consequences.  Proceed with care." << endl;
 
             return surfMesh::TOPO_PATCH_CHANGE;
         }
@@ -158,17 +157,13 @@ Foam::surfMesh::readUpdateState Foam::surfMesh::readUpdate()
         {
             return surfMesh::TOPO_CHANGE;
         }
-
     }
     else if (pointsInst != pointsInstance())
     {
         // Points moved
-        if (debug)
-        {
-            Info<< "Point motion" << endl;
-        }
+        DebugInfo << "Point motion" << endl;
 
-        clearGeom();
+        clearOut();
         storedIOPoints().instance() = pointsInst;
 
         storedIOPoints() = pointIOField
@@ -189,13 +184,27 @@ Foam::surfMesh::readUpdateState Foam::surfMesh::readUpdate()
     }
     else
     {
-        if (debug)
-        {
-            Info<< "No change" << endl;
-        }
+        DebugInfo << "No change" << endl;
     }
 
     return surfMesh::UNCHANGED;
+}
+
+
+bool Foam::surfMesh::writeObject
+(
+    IOstreamOption streamOpt,
+    const bool valid
+) const
+{
+    bool ok = Allocator::writeObject(streamOpt, valid);
+
+    if (ok)
+    {
+        surfZones_.writeObject(streamOpt, valid);
+    }
+
+    return ok;
 }
 
 

@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2019-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -26,7 +29,6 @@ License
 #include "ShihQuadraticKE.H"
 #include "bound.H"
 #include "wallFvPatch.H"
-#include "nutkWallFunctionFvPatchScalarField.H"
 #include "addToRunTimeSelectionTable.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
@@ -102,7 +104,7 @@ ShihQuadraticKE::ShihQuadraticKE
 
     Ceps1_
     (
-        dimensioned<scalar>::lookupOrAddToDict
+        dimensioned<scalar>::getOrAddToDict
         (
             "Ceps1",
             coeffDict_,
@@ -111,7 +113,7 @@ ShihQuadraticKE::ShihQuadraticKE
     ),
     Ceps2_
     (
-        dimensioned<scalar>::lookupOrAddToDict
+        dimensioned<scalar>::getOrAddToDict
         (
             "Ceps2",
             coeffDict_,
@@ -120,7 +122,7 @@ ShihQuadraticKE::ShihQuadraticKE
     ),
     sigmak_
     (
-        dimensioned<scalar>::lookupOrAddToDict
+        dimensioned<scalar>::getOrAddToDict
         (
             "sigmak",
             coeffDict_,
@@ -129,7 +131,7 @@ ShihQuadraticKE::ShihQuadraticKE
     ),
     sigmaEps_
     (
-        dimensioned<scalar>::lookupOrAddToDict
+        dimensioned<scalar>::getOrAddToDict
         (
             "sigmaEps",
             coeffDict_,
@@ -138,7 +140,7 @@ ShihQuadraticKE::ShihQuadraticKE
     ),
     Cmu1_
     (
-        dimensioned<scalar>::lookupOrAddToDict
+        dimensioned<scalar>::getOrAddToDict
         (
             "Cmu1",
             coeffDict_,
@@ -147,7 +149,7 @@ ShihQuadraticKE::ShihQuadraticKE
     ),
     Cmu2_
     (
-        dimensioned<scalar>::lookupOrAddToDict
+        dimensioned<scalar>::getOrAddToDict
         (
             "Cmu2",
             coeffDict_,
@@ -156,7 +158,7 @@ ShihQuadraticKE::ShihQuadraticKE
     ),
     Cbeta_
     (
-        dimensioned<scalar>::lookupOrAddToDict
+        dimensioned<scalar>::getOrAddToDict
         (
             "Cbeta",
             coeffDict_,
@@ -165,7 +167,7 @@ ShihQuadraticKE::ShihQuadraticKE
     ),
     Cbeta1_
     (
-        dimensioned<scalar>::lookupOrAddToDict
+        dimensioned<scalar>::getOrAddToDict
         (
             "Cbeta1",
             coeffDict_,
@@ -174,7 +176,7 @@ ShihQuadraticKE::ShihQuadraticKE
     ),
     Cbeta2_
     (
-        dimensioned<scalar>::lookupOrAddToDict
+        dimensioned<scalar>::getOrAddToDict
         (
             "Cbeta2",
             coeffDict_,
@@ -183,7 +185,7 @@ ShihQuadraticKE::ShihQuadraticKE
     ),
     Cbeta3_
     (
-        dimensioned<scalar>::lookupOrAddToDict
+        dimensioned<scalar>::getOrAddToDict
         (
             "Cbeta3",
             coeffDict_,
@@ -195,7 +197,7 @@ ShihQuadraticKE::ShihQuadraticKE
     (
         IOobject
         (
-            IOobject::groupName("k", U.group()),
+            IOobject::groupName("k", alphaRhoPhi.group()),
             runTime_.timeName(),
             mesh_,
             IOobject::MUST_READ,
@@ -208,7 +210,7 @@ ShihQuadraticKE::ShihQuadraticKE
     (
         IOobject
         (
-            IOobject::groupName("epsilon", U.group()),
+            IOobject::groupName("epsilon", alphaRhoPhi.group()),
             runTime_.timeName(),
             mesh_,
             IOobject::MUST_READ,
@@ -246,10 +248,8 @@ bool ShihQuadraticKE::read()
 
         return true;
     }
-    else
-    {
-        return false;
-    }
+
+    return false;
 }
 
 

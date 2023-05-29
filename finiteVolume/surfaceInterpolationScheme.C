@@ -1,9 +1,12 @@
-﻿/*---------------------------------------------------------------------------*\
+/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2019-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -23,7 +26,7 @@ License
 
 \*---------------------------------------------------------------------------*/
 
-//#include "surfaceInterpolationScheme.H"
+#include "surfaceInterpolationScheme.H"
 #include "volFields.H"
 #include "surfaceFields.H"
 #include "geometricOneField.H"
@@ -41,12 +44,9 @@ Foam::surfaceInterpolationScheme<Type>::New
 {
     if (schemeData.eof())
     {
-        FatalIOErrorInFunction
-        (
-            schemeData
-        )   << "Discretisation scheme not specified"
-            << endl << endl
-            << "Valid schemes are :" << endl
+        FatalIOErrorInFunction(schemeData)
+            << "Discretisation scheme not specified\n\n"
+            << "Valid schemes:\n"
             << MeshConstructorTablePtr_->sortedToc()
             << exit(FatalIOError);
     }
@@ -58,22 +58,20 @@ Foam::surfaceInterpolationScheme<Type>::New
         InfoInFunction << "Discretisation scheme = " << schemeName << endl;
     }
 
-    typename MeshConstructorTable::iterator constructorIter =
-        MeshConstructorTablePtr_->find(schemeName);
+    auto* ctorPtr = MeshConstructorTable(schemeName);
 
-    if (constructorIter == MeshConstructorTablePtr_->end())
+    if (!ctorPtr)
     {
-        FatalIOErrorInFunction
+        FatalIOErrorInLookup
         (
-            schemeData
-        )   << "Unknown discretisation scheme "
-            << schemeName << nl << nl
-            << "Valid schemes are :" << endl
-            << MeshConstructorTablePtr_->sortedToc()
-            << exit(FatalIOError);
+            schemeData,
+            "discretisation",
+            schemeName,
+            *MeshConstructorTablePtr_
+        ) << exit(FatalIOError);
     }
 
-    return constructorIter()(mesh, schemeData);
+    return ctorPtr(mesh, schemeData);
 }
 
 
@@ -88,10 +86,8 @@ Foam::surfaceInterpolationScheme<Type>::New
 {
     if (schemeData.eof())
     {
-        FatalIOErrorInFunction
-        (
-            schemeData
-        )   << "Discretisation scheme not specified"
+        FatalIOErrorInFunction(schemeData)
+            << "Discretisation scheme not specified"
             << endl << endl
             << "Valid schemes are :" << endl
             << MeshConstructorTablePtr_->sortedToc()
@@ -102,34 +98,24 @@ Foam::surfaceInterpolationScheme<Type>::New
 
     if (surfaceInterpolation::debug || surfaceInterpolationScheme<Type>::debug)
     {
-        InfoInFunction
-            << "Discretisation scheme = " << schemeName << endl;
+        InfoInFunction << "Discretisation scheme = " << schemeName << endl;
     }
 
-    typename MeshFluxConstructorTable::iterator constructorIter =
-        MeshFluxConstructorTablePtr_->find(schemeName);
+    auto* ctorPtr = MeshFluxConstructorTable(schemeName);
 
-    if (constructorIter == MeshFluxConstructorTablePtr_->end())
+    if (!ctorPtr)
     {
-        FatalIOErrorInFunction
+        FatalIOErrorInLookup
         (
-            schemeData
-        )   << "Unknown discretisation scheme "
-            << schemeName << nl << nl
-            << "Valid schemes are :" << endl
-            << MeshFluxConstructorTablePtr_->sortedToc()
-            << exit(FatalIOError);
+            schemeData,
+            "discretisation",
+            schemeName,
+            *MeshFluxConstructorTablePtr_
+        ) << exit(FatalIOError);
     }
 
-    return constructorIter()(mesh, faceFlux, schemeData);
+    return ctorPtr(mesh, faceFlux, schemeData);
 }
-
-
-// * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
-
-template<class Type>
-Foam::surfaceInterpolationScheme<Type>::~surfaceInterpolationScheme()
-{}
 
 
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
@@ -138,7 +124,7 @@ template<class Type>
 Foam::tmp<Foam::GeometricField<Type, Foam::fvsPatchField, Foam::surfaceMesh>>
 Foam::surfaceInterpolationScheme<Type>::interpolate
 (
-    const volFieldType<Type>& vf,
+    const GeometricField<Type, fvPatchField, volMesh>& vf,
     const tmp<surfaceScalarField>& tlambdas,
     const tmp<surfaceScalarField>& tys
 )
@@ -149,8 +135,7 @@ Foam::surfaceInterpolationScheme<Type>::interpolate
             << "Interpolating "
             << vf.type() << " "
             << vf.name()
-            << " from cells to faces "
-               "without explicit correction"
+            << " from cells to faces without explicit correction"
             << endl;
     }
 
@@ -165,9 +150,9 @@ Foam::surfaceInterpolationScheme<Type>::interpolate
     const labelUList& P = mesh.owner();
     const labelUList& N = mesh.neighbour();
 
-    tmp<surfaceFieldType<Type>> tsf
+    tmp<GeometricField<Type, fvsPatchField, surfaceMesh>> tsf
     (
-        new surfaceFieldType<Type>
+        new GeometricField<Type, fvsPatchField, surfaceMesh>
         (
             IOobject
             (
@@ -179,7 +164,7 @@ Foam::surfaceInterpolationScheme<Type>::interpolate
             vf.dimensions()
         )
     );
-    surfaceFieldType<Type>& sf = tsf.ref();
+    GeometricField<Type, fvsPatchField, surfaceMesh>& sf = tsf.ref();
 
     Field<Type>& sfi = sf.primitiveFieldRef();
 
@@ -190,7 +175,7 @@ Foam::surfaceInterpolationScheme<Type>::interpolate
 
 
     // Interpolate across coupled patches using given lambdas and ys
-    typename surfaceFieldType<Type>::
+    typename GeometricField<Type, fvsPatchField, surfaceMesh>::
         Boundary& sfbf = sf.boundaryFieldRef();
 
     forAll(lambdas.boundaryField(), pi)
@@ -231,7 +216,7 @@ Foam::tmp
 Foam::surfaceInterpolationScheme<Type>::dotInterpolate
 (
     const SFType& Sf,
-    const volFieldType<Type>& vf,
+    const GeometricField<Type, fvPatchField, volMesh>& vf,
     const tmp<surfaceScalarField>& tlambdas
 )
 {
@@ -241,8 +226,7 @@ Foam::surfaceInterpolationScheme<Type>::dotInterpolate
             << "Interpolating "
             << vf.type() << " "
             << vf.name()
-            << " from cells to faces "
-               "without explicit correction"
+            << " from cells to faces without explicit correction"
             << endl;
     }
 
@@ -311,6 +295,8 @@ Foam::surfaceInterpolationScheme<Type>::dotInterpolate
 
     tlambdas.clear();
 
+//    tsf.ref().oriented() = Sf.oriented();
+
     return tsf;
 }
 
@@ -319,7 +305,7 @@ template<class Type>
 Foam::tmp<Foam::GeometricField<Type, Foam::fvsPatchField, Foam::surfaceMesh>>
 Foam::surfaceInterpolationScheme<Type>::interpolate
 (
-    const volFieldType<Type>& vf,
+    const GeometricField<Type, fvPatchField, volMesh>& vf,
     const tmp<surfaceScalarField>& tlambdas
 )
 {
@@ -340,7 +326,7 @@ Foam::tmp
 Foam::surfaceInterpolationScheme<Type>::dotInterpolate
 (
     const surfaceVectorField& Sf,
-    const volFieldType<Type>& vf
+    const GeometricField<Type, fvPatchField, volMesh>& vf
 ) const
 {
     if (surfaceInterpolation::debug)
@@ -362,6 +348,8 @@ Foam::surfaceInterpolationScheme<Type>::dotInterpolate
             surfaceMesh
         >
     > tsf = dotInterpolate(Sf, vf, weights(vf));
+
+    tsf.ref().oriented() = Sf.oriented();
 
     if (corrected())
     {
@@ -385,7 +373,7 @@ Foam::tmp
 Foam::surfaceInterpolationScheme<Type>::dotInterpolate
 (
     const surfaceVectorField& Sf,
-    const tmp<volFieldType<Type>>& tvf
+    const tmp<GeometricField<Type, fvPatchField, volMesh>>& tvf
 ) const
 {
     tmp
@@ -397,6 +385,7 @@ Foam::surfaceInterpolationScheme<Type>::dotInterpolate
             surfaceMesh
         >
     > tSfDotinterpVf = dotInterpolate(Sf, tvf());
+
     tvf.clear();
     return tSfDotinterpVf;
 }
@@ -406,7 +395,7 @@ template<class Type>
 Foam::tmp<Foam::GeometricField<Type, Foam::fvsPatchField, Foam::surfaceMesh>>
 Foam::surfaceInterpolationScheme<Type>::interpolate
 (
-    const volFieldType<Type>& vf
+    const GeometricField<Type, fvPatchField, volMesh>& vf
 ) const
 {
     if (surfaceInterpolation::debug)
@@ -419,7 +408,7 @@ Foam::surfaceInterpolationScheme<Type>::interpolate
             << endl;
     }
 
-    tmp<surfaceFieldType<Type>> tsf
+    tmp<GeometricField<Type, fvsPatchField, surfaceMesh>> tsf
         = interpolate(vf, weights(vf));
 
     if (corrected())
@@ -435,10 +424,10 @@ template<class Type>
 Foam::tmp<Foam::GeometricField<Type, Foam::fvsPatchField, Foam::surfaceMesh>>
 Foam::surfaceInterpolationScheme<Type>::interpolate
 (
-    const tmp<volFieldType<Type>>& tvf
+    const tmp<GeometricField<Type, fvPatchField, volMesh>>& tvf
 ) const
 {
-    tmp<surfaceFieldType<Type>> tinterpVf
+    tmp<GeometricField<Type, fvsPatchField, surfaceMesh>> tinterpVf
         = interpolate(tvf());
     tvf.clear();
     return tinterpVf;

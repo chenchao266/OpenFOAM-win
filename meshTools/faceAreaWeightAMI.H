@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2013-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2013-2016 OpenFOAM Foundation
+    Copyright (C) 2016 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -27,6 +30,8 @@ Class
 Description
     Face area weighted Arbitrary Mesh Interface (AMI) method
 
+    Searching is performed using an advancing front.
+
 SourceFiles
     faceAreaWeightAMI.C
 
@@ -35,7 +40,7 @@ SourceFiles
 #ifndef faceAreaWeightAMI_H
 #define faceAreaWeightAMI_H
 
-#include "AMIMethod.T.H"
+#include "advancingFrontAMI.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -46,10 +51,9 @@ namespace Foam
                       Class faceAreaWeightAMI Declaration
 \*---------------------------------------------------------------------------*/
 
-template<class SourcePatch, class TargetPatch>
 class faceAreaWeightAMI
 :
-    public AMIMethod<SourcePatch, TargetPatch>
+    public advancingFrontAMI
 {
 private:
 
@@ -63,19 +67,19 @@ protected:
 
     // Protected Member Functions
 
-        //- Disallow default bitwise copy construct
-        faceAreaWeightAMI(const faceAreaWeightAMI&);
+        //- No copy assignment
+        void operator=(const faceAreaWeightAMI&) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const faceAreaWeightAMI&);
 
         // Marching front
 
-            //- Calculate addressing and weights using temporary storage
+            //- Calculate addressing, weights and centroids using temporary
+            //- storage
             virtual void calcAddressing
             (
                 List<DynamicList<label>>& srcAddress,
                 List<DynamicList<scalar>>& srcWeights,
+                List<DynamicList<point>>& srcCentroids,
                 List<DynamicList<label>>& tgtAddress,
                 List<DynamicList<scalar>>& tgtWeights,
                 label srcFacei,
@@ -91,6 +95,7 @@ protected:
                 DynamicList<label>& visitedFaces,
                 List<DynamicList<label>>& srcAddr,
                 List<DynamicList<scalar>>& srcWght,
+                List<DynamicList<point>>& srcCtr,
                 List<DynamicList<label>>& tgtAddr,
                 List<DynamicList<scalar>>& tgtWght
             );
@@ -100,30 +105,41 @@ protected:
             (
                 List<DynamicList<label>>& srcAddr,
                 List<DynamicList<scalar>>& srcWght,
+                List<DynamicList<point>>& srcCtr,
                 List<DynamicList<label>>& tgtAddr,
                 List<DynamicList<scalar>>& tgtWght
             );
 
             //- Set the source and target seed faces
-            virtual void setNextFaces
+            virtual bool setNextFaces
             (
-                label& startSeedI,
+                label& startSeedi,
                 label& srcFacei,
                 label& tgtFacei,
-                const boolList& mapFlag,
+                const bitSet& mapFlag,
                 labelList& seedFaces,
                 const DynamicList<label>& visitedFaces,
-                bool errorOnNotFound = true
+                const bool errorOnNotFound = true
             ) const;
 
 
         // Evaluation
 
             //- Area of intersection between source and target faces
-            virtual scalar interArea
+            virtual void calcInterArea
             (
                 const label srcFacei,
-                const label tgtFacei
+                const label tgtFacei,
+                scalar& area,
+                vector& centroid
+            ) const;
+
+            //- Return true if faces overlap
+            virtual bool overlaps
+            (
+                const label srcFacei,
+                const label tgtFacei,
+                const scalar threshold
             ) const;
 
 
@@ -135,50 +151,56 @@ public:
 
     // Constructors
 
+        //- Construct from dictionary
+        faceAreaWeightAMI
+        (
+            const dictionary& dict,
+            const bool reverseTarget = false
+        );
+
         //- Construct from components
         faceAreaWeightAMI
         (
-            const SourcePatch& srcPatch,
-            const TargetPatch& tgtPatch,
-            const scalarField& srcMagSf,
-            const scalarField& tgtMagSf,
-            const faceAreaIntersect::triangulationMode& triMode,
+            const bool requireMatch,
             const bool reverseTarget = false,
-            const bool requireMatch = true,
+            const scalar lowWeightCorrection = -1,
+            const faceAreaIntersect::triangulationMode triMode =
+                faceAreaIntersect::tmMesh,
             const bool restartUncoveredSourceFace = true
         );
 
+        //- Construct as copy
+        faceAreaWeightAMI(const faceAreaWeightAMI& ami);
+
+        //- Construct and return a clone
+        virtual autoPtr<AMIInterpolation> clone() const
+        {
+            return autoPtr<AMIInterpolation>(new faceAreaWeightAMI(*this));
+        }
+
 
     //- Destructor
-    virtual ~faceAreaWeightAMI();
+    virtual ~faceAreaWeightAMI() = default;
 
 
     // Member Functions
 
-        // Manipulation
+        //- Update addressing, weights and (optional) centroids
+        virtual bool calculate
+        (
+            const primitivePatch& srcPatch,
+            const primitivePatch& tgtPatch,
+            const autoPtr<searchableSurface>& surfPtr = nullptr
+        );
 
-            //- Update addressing and weights
-            virtual void calculate
-            (
-                labelListList& srcAddress,
-                scalarListList& srcWeights,
-                labelListList& tgtAddress,
-                scalarListList& tgtWeights,
-                label srcFacei = -1,
-                label tgtFacei = -1
-            );
+        //- Write
+        virtual void write(Ostream& os) const;
 };
 
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 } // End namespace Foam
-
-// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
-
-#ifdef NoRepository
-    #include "faceAreaWeightAMI.C"
-#endif
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 

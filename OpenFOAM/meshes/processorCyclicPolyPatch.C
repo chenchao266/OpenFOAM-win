@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2019-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -25,314 +28,347 @@ License
 
 #include "processorCyclicPolyPatch.H"
 #include "addToRunTimeSelectionTable.H"
-#include "SubField.T.H"
+#include "SubField.H"
 #include "cyclicPolyPatch.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
-using namespace Foam;
+
 namespace Foam
 {
     defineTypeNameAndDebug(processorCyclicPolyPatch, 0);
     addToRunTimeSelectionTable(polyPatch, processorCyclicPolyPatch, dictionary);
-}
 
 
-// * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
-processorCyclicPolyPatch::processorCyclicPolyPatch
-(
-    const label size,
-    const label start,
-    const label index,
-    const polyBoundaryMesh& bm,
-    const int myProcNo,
-    const int neighbProcNo,
-    const word& referPatchName,
-    const transformType transform,
-    const word& patchType
-) :    processorPolyPatch
+    // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
+
+    processorCyclicPolyPatch::processorCyclicPolyPatch
     (
-        newName(referPatchName, myProcNo, neighbProcNo),
-        size,
-        start,
-        index,
-        bm,
-        myProcNo,
-        neighbProcNo,
-        transform,
-        patchType
-    ),
-    referPatchName_(referPatchName),
-    tag_(-1),
-    referPatchID_(-1)
-{}
-
-
-processorCyclicPolyPatch::processorCyclicPolyPatch
-(
-    const word& name,
-    const dictionary& dict,
-    const label index,
-    const polyBoundaryMesh& bm,
-    const word& patchType
-) :    processorPolyPatch(name, dict, index, bm, patchType),
-    referPatchName_(dict.lookup("referPatch")),
-    tag_(dict.lookupOrDefault<int>("tag", -1)),
-    referPatchID_(-1)
-{}
-
-
-processorCyclicPolyPatch::processorCyclicPolyPatch
-(
-    const processorCyclicPolyPatch& pp,
-    const polyBoundaryMesh& bm
-) :    processorPolyPatch(pp, bm),
-    referPatchName_(pp.referPatchName()),
-    tag_(pp.tag()),
-    referPatchID_(-1)
-{}
-
-
-processorCyclicPolyPatch::processorCyclicPolyPatch
-(
-    const processorCyclicPolyPatch& pp,
-    const polyBoundaryMesh& bm,
-    const label index,
-    const label newSize,
-    const label newStart
-) :    processorPolyPatch(pp, bm, index, newSize, newStart),
-    referPatchName_(pp.referPatchName_),
-    tag_(pp.tag()),
-    referPatchID_(-1)
-{}
-
-
-processorCyclicPolyPatch::processorCyclicPolyPatch
-(
-    const processorCyclicPolyPatch& pp,
-    const polyBoundaryMesh& bm,
-    const label index,
-    const label newSize,
-    const label newStart,
-    const word& referPatchName
-) :    processorPolyPatch(pp, bm, index, newSize, newStart),
-    referPatchName_(referPatchName),
-    tag_(-1),
-    referPatchID_(-1)
-{}
-
-
-processorCyclicPolyPatch::processorCyclicPolyPatch
-(
-    const processorCyclicPolyPatch& pp,
-    const polyBoundaryMesh& bm,
-    const label index,
-    const labelUList& mapAddressing,
-    const label newStart
-) :    processorPolyPatch(pp, bm, index, mapAddressing, newStart),
-    referPatchName_(pp.referPatchName()),
-    tag_(-1),
-    referPatchID_(-1)
-{}
-
-
-// * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
-
-processorCyclicPolyPatch::~processorCyclicPolyPatch()
-{}
-
-
-// * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
-
-word processorCyclicPolyPatch::newName
-(
-    const word& cyclicPolyPatchName,
-    const label myProcNo,
-    const label neighbProcNo
-)
-{
-    return
-        processorPolyPatch::newName(myProcNo, neighbProcNo)
-      + "through"
-      + cyclicPolyPatchName;
-}
-
-
-labelList processorCyclicPolyPatch::patchIDs
-(
-    const word& cyclicPolyPatchName,
-    const polyBoundaryMesh& bm
-)
-{
-    return bm.findIndices
-    (
-        string("procBoundary.*to.*through" + cyclicPolyPatchName)
-    );
-}
-
-
-int processorCyclicPolyPatch::tag() const
-{
-    if (tag_ == -1)
-    {
-        // Get unique tag to use for all comms. Make sure that both sides
-        // use the same tag
-        const cyclicPolyPatch& cycPatch = refCast<const cyclicPolyPatch>
+        const label size,
+        const label start,
+        const label index,
+        const polyBoundaryMesh& bm,
+        const int myProcNo,
+        const int neighbProcNo,
+        const word& referPatchName,
+        const transformType transform,
+        const word& patchType
+    )
+        :
+        processorPolyPatch
         (
-            referPatch()
-        );
+            newName(referPatchName, myProcNo, neighbProcNo),
+            size,
+            start,
+            index,
+            bm,
+            myProcNo,
+            neighbProcNo,
+            transform,
+            patchType
+        ),
+        referPatchName_(referPatchName),
+        tag_(-1),
+        referPatchID_(-1)
+    {}
 
-        if (owner())
-        {
-            tag_ = Hash<word>()(cycPatch.name()) % 32768u;
-        }
-        else
-        {
-            tag_ = Hash<word>()(cycPatch.neighbPatch().name()) % 32768u;
-        }
 
-        if (tag_ == Pstream::msgType() || tag_ == -1)
-        {
-            FatalErrorInFunction
-                << "Tag calculated from cyclic patch name " << tag_
-                << " is the same as the current message type "
-                << Pstream::msgType() << " or -1" << nl
-                << "Please set a non-conflicting, unique, tag by hand"
-                << " using the 'tag' entry"
-                << exit(FatalError);
-        }
-        if (debug)
-        {
-            Pout<< "processorCyclicPolyPatch " << name() << " uses tag " << tag_
-                << endl;
-        }
+    processorCyclicPolyPatch::processorCyclicPolyPatch
+    (
+        const word& name,
+        const dictionary& dict,
+        const label index,
+        const polyBoundaryMesh& bm,
+        const word& patchType
+    )
+        :
+        processorPolyPatch(name, dict, index, bm, patchType),
+        referPatchName_(dict.lookup("referPatch")),
+        tag_(dict.getOrDefault<int>("tag", -1)),
+        referPatchID_(-1)
+    {}
+
+
+    processorCyclicPolyPatch::processorCyclicPolyPatch
+    (
+        const processorCyclicPolyPatch& pp,
+        const polyBoundaryMesh& bm
+    )
+        :
+        processorPolyPatch(pp, bm),
+        referPatchName_(pp.referPatchName()),
+        tag_(pp.tag()),
+        referPatchID_(-1)
+    {}
+
+
+    processorCyclicPolyPatch::processorCyclicPolyPatch
+    (
+        const processorCyclicPolyPatch& pp,
+        const polyBoundaryMesh& bm,
+        const label index,
+        const label newSize,
+        const label newStart
+    )
+        :
+        processorPolyPatch(pp, bm, index, newSize, newStart),
+        referPatchName_(pp.referPatchName_),
+        tag_(pp.tag()),
+        referPatchID_(-1)
+    {}
+
+
+    processorCyclicPolyPatch::processorCyclicPolyPatch
+    (
+        const processorCyclicPolyPatch& pp,
+        const polyBoundaryMesh& bm,
+        const label index,
+        const label newSize,
+        const label newStart,
+        const word& referPatchName
+    )
+        :
+        processorPolyPatch(pp, bm, index, newSize, newStart),
+        referPatchName_(referPatchName),
+        tag_(-1),
+        referPatchID_(-1)
+    {}
+
+
+    processorCyclicPolyPatch::processorCyclicPolyPatch
+    (
+        const processorCyclicPolyPatch& pp,
+        const polyBoundaryMesh& bm,
+        const label index,
+        const labelUList& mapAddressing,
+        const label newStart
+    )
+        :
+        processorPolyPatch(pp, bm, index, mapAddressing, newStart),
+        referPatchName_(pp.referPatchName()),
+        tag_(-1),
+        referPatchID_(-1)
+    {}
+
+
+    // * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
+
+    processorCyclicPolyPatch::~processorCyclicPolyPatch()
+    {}
+
+
+    // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
+
+    word processorCyclicPolyPatch::newName
+    (
+        const word& cyclicPolyPatchName,
+        const label myProcNo,
+        const label neighbProcNo
+    )
+    {
+        return
+            processorPolyPatch::newName(myProcNo, neighbProcNo)
+            + "through"
+            + cyclicPolyPatchName;
     }
-    return tag_;
-}
 
 
-void processorCyclicPolyPatch::initGeometry(PstreamBuffers& pBufs)
-{
-    // Send over processorPolyPatch data
-    processorPolyPatch::initGeometry(pBufs);
-}
-
-
-void processorCyclicPolyPatch::calcGeometry(PstreamBuffers& pBufs)
-{
-    // Receive and initialise processorPolyPatch data
-    processorPolyPatch::calcGeometry(pBufs);
-
-    if (Pstream::parRun())
+    labelList processorCyclicPolyPatch::patchIDs
+    (
+        const word& cyclicPolyPatchName,
+        const polyBoundaryMesh& bm
+    )
     {
-
-        // Where do we store the calculated transformation?
-        // - on the processor patch?
-        // - on the underlying cyclic patch?
-        // - or do we not auto-calculate the transformation but
-        //   have option of reading it.
-
-        // Update underlying cyclic halves. Need to do both since only one
-        // half might be present as a processorCyclic.
-        coupledPolyPatch& pp = const_cast<coupledPolyPatch&>(referPatch());
-        pp.calcGeometry
+        return bm.indices
         (
-            *this,
-            faceCentres(),
-            faceAreas(),
-            faceCellCentres(),
-            neighbFaceCentres(),
-            neighbFaceAreas(),
-            neighbFaceCellCentres()
+            wordRe
+            (
+                "procBoundary.*to.*through" + cyclicPolyPatchName,
+                wordRe::REGEX
+            )
         );
+    }
 
-        if (isA<cyclicPolyPatch>(pp))
+
+    int processorCyclicPolyPatch::tag() const
+    {
+        if (tag_ == -1)
         {
-            const cyclicPolyPatch& cpp = refCast<const cyclicPolyPatch>(pp);
-            const_cast<cyclicPolyPatch&>(cpp.neighbPatch()).calcGeometry
+            // Get unique tag to use for all comms. Make sure that both sides
+            // use the same tag
+            const cyclicPolyPatch& cycPatch = refCast<const cyclicPolyPatch>
+                (
+                    referPatch()
+                    );
+
+            if (owner())
+            {
+                tag_ = string::hasher()(cycPatch.name()) % 32768u;
+            }
+            else
+            {
+                tag_ = string::hasher()(cycPatch.neighbPatch().name()) % 32768u;
+            }
+
+            if (tag_ == Pstream::msgType() || tag_ == -1)
+            {
+                FatalErrorInFunction
+                    << "Tag calculated from cyclic patch name " << tag_
+                    << " is the same as the current message type "
+                    << Pstream::msgType() << " or -1" << nl
+                    << "Please set a non-conflicting, unique, tag by hand"
+                    << " using the 'tag' entry"
+                    << exit(FatalError);
+            }
+            if (debug)
+            {
+                Pout << "processorCyclicPolyPatch " << name() << " uses tag " << tag_
+                    << endl;
+            }
+        }
+        return tag_;
+    }
+
+
+    void processorCyclicPolyPatch::initGeometry(PstreamBuffers& pBufs)
+    {
+        // Send over processorPolyPatch data
+        processorPolyPatch::initGeometry(pBufs);
+    }
+
+
+    void processorCyclicPolyPatch::calcGeometry(PstreamBuffers& pBufs)
+    {
+        // Receive and initialise processorPolyPatch data
+        processorPolyPatch::calcGeometry(pBufs);
+
+        if (Pstream::parRun())
+        {
+
+            // Where do we store the calculated transformation?
+            // - on the processor patch?
+            // - on the underlying cyclic patch?
+            // - or do we not auto-calculate the transformation but
+            //   have option of reading it.
+
+            // Update underlying cyclic halves. Need to do both since only one
+            // half might be present as a processorCyclic.
+            coupledPolyPatch& pp = const_cast<coupledPolyPatch&>(referPatch());
+            pp.calcGeometry
             (
                 *this,
-                neighbFaceCentres(),
-                neighbFaceAreas(),
-                neighbFaceCellCentres(),
                 faceCentres(),
                 faceAreas(),
-                faceCellCentres()
+                faceCellCentres(),
+                neighbFaceCentres(),
+                neighbFaceAreas(),
+                neighbFaceCellCentres()
             );
+
+            if (isA<cyclicPolyPatch>(pp))
+            {
+                const cyclicPolyPatch& cpp = refCast<const cyclicPolyPatch>(pp);
+                const_cast<cyclicPolyPatch&>(cpp.neighbPatch()).calcGeometry
+                (
+                    *this,
+                    neighbFaceCentres(),
+                    neighbFaceAreas(),
+                    neighbFaceCellCentres(),
+                    faceCentres(),
+                    faceAreas(),
+                    faceCellCentres()
+                );
+            }
         }
     }
-}
 
 
-void processorCyclicPolyPatch::initMovePoints
-(
-    PstreamBuffers& pBufs,
-    const pointField& p
-)
-{
-    // Recalculate geometry
-    initGeometry(pBufs);
-}
-
-
-void processorCyclicPolyPatch::movePoints
-(
-    PstreamBuffers& pBufs,
-    const pointField&
-)
-{
-    calcGeometry(pBufs);
-}
-
-
-void processorCyclicPolyPatch::initUpdateMesh(PstreamBuffers& pBufs)
-{
-    processorPolyPatch::initUpdateMesh(pBufs);
-}
-
-
-void processorCyclicPolyPatch::updateMesh(PstreamBuffers& pBufs)
-{
-     referPatchID_ = -1;
-     processorPolyPatch::updateMesh(pBufs);
-}
-
-
-void processorCyclicPolyPatch::initOrder
-(
-    PstreamBuffers& pBufs,
-    const primitivePatch& pp
-) const
-{
-    // For now use the same algorithm as processorPolyPatch
-    processorPolyPatch::initOrder(pBufs, pp);
-}
-
-
-bool processorCyclicPolyPatch::order
-(
-    PstreamBuffers& pBufs,
-    const primitivePatch& pp,
-    labelList& faceMap,
-    labelList& rotation
-) const
-{
-    // For now use the same algorithm as processorPolyPatch
-    return processorPolyPatch::order(pBufs, pp, faceMap, rotation);
-}
-
-
-void processorCyclicPolyPatch::write(Ostream& os) const
-{
-    processorPolyPatch::write(os);
-    os.writeKeyword("referPatch") << referPatchName_
-        << token::END_STATEMENT << nl;
-    if (tag_ != -1)
+    void processorCyclicPolyPatch::initMovePoints
+    (
+        PstreamBuffers& pBufs,
+        const pointField& p
+    )
     {
-        os.writeKeyword("tag") << tag_
-            << token::END_STATEMENT << nl;
+        // Recalculate geometry
+        initGeometry(pBufs);
     }
+
+
+    void processorCyclicPolyPatch::movePoints
+    (
+        PstreamBuffers& pBufs,
+        const pointField&
+    )
+    {
+        calcGeometry(pBufs);
+    }
+
+
+    void processorCyclicPolyPatch::initUpdateMesh(PstreamBuffers& pBufs)
+    {
+        processorPolyPatch::initUpdateMesh(pBufs);
+    }
+
+
+    void processorCyclicPolyPatch::updateMesh(PstreamBuffers& pBufs)
+    {
+        referPatchID_ = -1;
+        processorPolyPatch::updateMesh(pBufs);
+    }
+
+
+    void processorCyclicPolyPatch::initOrder
+    (
+        PstreamBuffers& pBufs,
+        const primitivePatch& pp
+    ) const
+    {
+        // Send the patch points and faces across. Note that this is exactly the
+        // same as the processorPolyPatch::initOrder in COINCIDENTFULLMATCH
+        // mode.
+        UOPstream toNeighbour(neighbProcNo(), pBufs);
+        toNeighbour << pp.localPoints()
+            << pp.localFaces();
+    }
+
+
+    bool processorCyclicPolyPatch::order
+    (
+        PstreamBuffers& pBufs,
+        const primitivePatch& pp,
+        labelList& faceMap,
+        labelList& rotation
+    ) const
+    {
+        // Receive the remote patch
+        vectorField masterPts;
+        faceList masterFaces;
+        autoPtr<primitivePatch> masterPtr;
+        {
+            UIPstream fromNeighbour(neighbProcNo(), pBufs);
+            fromNeighbour >> masterPts >> masterFaces;
+            SubList<face> fcs(masterFaces, masterFaces.size());
+            masterPtr.reset(new primitivePatch(fcs, masterPts));
+        }
+
+        const cyclicPolyPatch& cycPatch =
+            refCast<const cyclicPolyPatch>(referPatch());
+
+        // (ab)use the cyclicPolyPatch ordering:
+        //  - owner side stores geometry
+        //  - slave side does ordering according to owner side
+        cycPatch.neighbPatch().initOrder(pBufs, masterPtr());
+
+        return cycPatch.order(pBufs, pp, faceMap, rotation);
+    }
+
+
+    void processorCyclicPolyPatch::write(Ostream& os) const
+    {
+        processorPolyPatch::write(os);
+        os.writeEntry("referPatch", referPatchName_);
+        os.writeEntryIfDifferent<label>("tag", -1, tag_);
+    }
+
 }
-
-
 // ************************************************************************* //

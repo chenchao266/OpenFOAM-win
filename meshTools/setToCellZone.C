@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2018-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -26,20 +29,18 @@ License
 #include "setToCellZone.H"
 #include "polyMesh.H"
 #include "cellZoneSet.H"
-
 #include "addToRunTimeSelectionTable.H"
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
 
 namespace Foam
 {
+    defineTypeNameAndDebug(setToCellZone, 0);
+    addToRunTimeSelectionTable(topoSetSource, setToCellZone, word);
+    addToRunTimeSelectionTable(topoSetSource, setToCellZone, istream);
 
-defineTypeNameAndDebug(setToCellZone, 0);
-
-addToRunTimeSelectionTable(topoSetSource, setToCellZone, word);
-
-addToRunTimeSelectionTable(topoSetSource, setToCellZone, istream);
-
+    addToRunTimeSelectionTable(topoSetCellZoneSource, setToCellZone, word);
+    addToRunTimeSelectionTable(topoSetCellZoneSource, setToCellZone, istream);
 }
 
 
@@ -53,45 +54,36 @@ Foam::topoSetSource::addToUsageTable Foam::setToCellZone::usage_
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
-// Construct from components
 Foam::setToCellZone::setToCellZone
 (
     const polyMesh& mesh,
     const word& setName
 )
 :
-    topoSetSource(mesh),
+    topoSetCellZoneSource(mesh),
     setName_(setName)
 {}
 
 
-// Construct from dictionary
 Foam::setToCellZone::setToCellZone
 (
     const polyMesh& mesh,
     const dictionary& dict
 )
 :
-    topoSetSource(mesh),
-    setName_(dict.lookup("set"))
+    topoSetCellZoneSource(mesh),
+    setName_(dict.get<word>("set"))
 {}
 
 
-// Construct from Istream
 Foam::setToCellZone::setToCellZone
 (
     const polyMesh& mesh,
     Istream& is
 )
 :
-    topoSetSource(mesh),
+    topoSetCellZoneSource(mesh),
     setName_(checkIs(is))
-{}
-
-
-// * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
-
-Foam::setToCellZone::~setToCellZone()
 {}
 
 
@@ -107,55 +99,60 @@ void Foam::setToCellZone::applyToSet
     {
         WarningInFunction
             << "Operation only allowed on a cellZoneSet." << endl;
+        return;
     }
     else
     {
-        cellZoneSet& fzSet = refCast<cellZoneSet>(set);
+        cellZoneSet& zoneSet = refCast<cellZoneSet>(set);
 
-        if ((action == topoSetSource::NEW) || (action == topoSetSource::ADD))
+        if (action == topoSetSource::ADD || action == topoSetSource::NEW)
         {
-            Info<< "    Adding all cells from cellSet " << setName_
-                << " ..." << endl;
+            if (verbose_)
+            {
+                Info<< "    Adding all cells from cellSet " << setName_
+                    << " ..." << endl;
+            }
 
             // Load the sets
             cellSet fSet(mesh_, setName_);
 
             // Start off from copy
-            DynamicList<label> newAddressing(fzSet.addressing());
+            DynamicList<label> newAddressing(zoneSet.addressing());
 
-            forAllConstIter(cellSet, fSet, iter)
+            for (const label celli : fSet)
             {
-                label celli = iter.key();
-
-                if (!fzSet.found(celli))
+                if (!zoneSet.found(celli))
                 {
                     newAddressing.append(celli);
                 }
             }
 
-            fzSet.addressing().transfer(newAddressing);
-            fzSet.updateSet();
+            zoneSet.addressing().transfer(newAddressing);
+            zoneSet.updateSet();
         }
-        else if (action == topoSetSource::DELETE)
+        else if (action == topoSetSource::SUBTRACT)
         {
-            Info<< "    Removing all cells from cellSet " << setName_
-                << " ..." << endl;
+            if (verbose_)
+            {
+                Info<< "    Removing all cells from cellSet " << setName_
+                    << " ..." << endl;
+            }
 
             // Load the set
             cellSet loadedSet(mesh_, setName_);
 
             // Start off empty
-            DynamicList<label> newAddressing(fzSet.addressing().size());
+            DynamicList<label> newAddressing(zoneSet.addressing().size());
 
-            forAll(fzSet.addressing(), i)
+            forAll(zoneSet.addressing(), i)
             {
-                if (!loadedSet.found(fzSet.addressing()[i]))
+                if (!loadedSet.found(zoneSet.addressing()[i]))
                 {
-                    newAddressing.append(fzSet.addressing()[i]);
+                    newAddressing.append(zoneSet.addressing()[i]);
                 }
             }
-            fzSet.addressing().transfer(newAddressing);
-            fzSet.updateSet();
+            zoneSet.addressing().transfer(newAddressing);
+            zoneSet.updateSet();
         }
     }
 }

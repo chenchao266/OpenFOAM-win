@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2019 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -61,9 +64,11 @@ class LESfilter
 
     // Private Member Functions
 
-        // Disallow default bitwise copy construct and assignment
-        LESfilter(const LESfilter&);
-        void operator=(const LESfilter&);
+        //- No copy construct
+        LESfilter(const LESfilter&) = delete;
+
+        //- No copy assignment
+        void operator=(const LESfilter&) = delete;
 
 
 protected:
@@ -79,7 +84,7 @@ protected:
     template<class GeoFieldType>
     void correctBoundaryConditions(const tmp<GeoFieldType>& tgf) const
     {
-        const_cast<GeoFieldType&>(tgf()).correctBoundaryConditions();
+        tgf.constCast().correctBoundaryConditions();
     }
 
 
@@ -125,8 +130,7 @@ public:
 
 
     //- Destructor
-    virtual ~LESfilter()
-    {}
+    virtual ~LESfilter() = default;
 
 
     // Member Functions

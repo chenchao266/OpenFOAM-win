@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2019-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -37,22 +40,21 @@ SourceFiles
 #ifndef wallPoint_H
 #define wallPoint_H
 
-#include "point.T.H"
+#include "point.H"
 #include "label.H"
 #include "scalar.H"
-#include "tensor.H"
+#include "tensor2.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 namespace Foam
 {
 
-// Forward declaration of classes
+// Forward Declarations
 class polyPatch;
 class polyMesh;
 class wallPoint;
 
-// Forward declaration of friend functions and operators
 Ostream& operator<<(Ostream&, const wallPoint&);
 Istream& operator>>(Istream&, wallPoint&);
 
@@ -63,7 +65,7 @@ Istream& operator>>(Istream&, wallPoint&);
 
 class wallPoint
 {
-    // Private data
+    // Private Data
 
         //- Position of nearest wall center
         point origin_;
@@ -74,9 +76,9 @@ class wallPoint
 
     // Private Member Functions
 
-        //- Evaluate distance to point. Update distSqr, origin from whomever
-        //  is nearer pt. Return true if w2 is closer to point,
-        //  false otherwise.
+        //- Evaluate distance to point.
+        //  Update distSqr, origin from whomever is nearer pt.
+        //  \return true if w2 is closer to point, false otherwise.
         template<class TrackingData>
         inline bool update
         (
@@ -91,37 +93,43 @@ public:
 
     // Constructors
 
-        //- Construct null
+        //- Default construct
         inline wallPoint();
 
-        //- Construct from origin, distance
+        //- Construct from origin, distance-squared
         inline wallPoint(const point& origin, const scalar distSqr);
-
-        //- Construct as copy
-        inline wallPoint(const wallPoint&);
 
 
     // Member Functions
 
         // Access
 
-            inline const point& origin() const;
+            const point& origin() const
+            {
+                return origin_;
+            }
+            point& origin()
+            {
+                return origin_;
+            }
 
-            inline point& origin();
-
-            inline scalar distSqr() const;
-
-            inline scalar& distSqr();
+            scalar distSqr() const
+            {
+                return distSqr_;
+            }
+            scalar& distSqr()
+            {
+                return distSqr_;
+            }
 
 
         // Needed by FaceCellWave
 
-            //- Check whether origin has been changed at all or
-            //  still contains original (invalid) value.
+            //- Changed or contains original (invalid) value
             template<class TrackingData>
             inline bool valid(TrackingData& td) const;
 
-            //- Check for identical geometrical data. Used for cyclics checking.
+            //- Check for identical geometrical data (eg, cyclics checking)
             template<class TrackingData>
             inline bool sameGeometry
             (
@@ -132,7 +140,7 @@ public:
             ) const;
 
             //- Convert any absolute coordinates into relative to (patch)face
-            //  centre
+            //- centre
             template<class TrackingData>
             inline void leaveDomain
             (
@@ -198,15 +206,17 @@ public:
                 TrackingData& td
             );
 
-            //- Same (like operator==)
+            //- Test for equality, with TrackingData
             template<class TrackingData>
             inline bool equal(const wallPoint&, TrackingData& td) const;
 
 
     // Member Operators
 
-        // Needed for List IO
+        //- Test for equality
         inline bool operator==(const wallPoint&) const;
+
+        //- Test for inequality
         inline bool operator!=(const wallPoint&) const;
 
 
@@ -217,12 +227,13 @@ public:
 };
 
 
-//- Data associated with wallPoint type are contiguous
-template<>
-inline bool contiguous<wallPoint>()
-{
-    return true;
-}
+// * * * * * * * * * * * * * * * * * Traits  * * * * * * * * * * * * * * * * //
+
+//- Contiguous data for wallPoint
+template<> struct is_contiguous<wallPoint> : std::true_type {};
+
+//- Contiguous scalar data for wallPoint
+template<> struct is_contiguous_scalar<wallPoint> : std::true_type {};
 
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //

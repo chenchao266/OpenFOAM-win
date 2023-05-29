@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2018 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -29,16 +32,16 @@ Description
 
 SourceFiles
     fvFieldReconstructor.C
-    fvFieldReconstructorReconstructFields.C
+    fvFieldReconstructorFields.C
 
 \*---------------------------------------------------------------------------*/
 
 #ifndef fvFieldReconstructor_H
 #define fvFieldReconstructor_H
 
-#include "PtrList.T.H"
+#include "PtrList.H"
 #include "fvMesh.H"
-#include "IOobjectList.T.H"
+#include "IOobjectList.H"
 #include "fvPatchFieldMapper.H"
 #include "labelIOList.H"
 
@@ -46,7 +49,6 @@ SourceFiles
 
 namespace Foam
 {
-
 
 /*---------------------------------------------------------------------------*\
                     Class fvFieldReconstructor Declaration
@@ -77,11 +79,11 @@ class fvFieldReconstructor
 
     // Private Member Functions
 
-        //- Disallow default bitwise copy construct
-        fvFieldReconstructor(const fvFieldReconstructor&);
+        //- No copy construct
+        fvFieldReconstructor(const fvFieldReconstructor&) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const fvFieldReconstructor&);
+        //- No copy assignment
+        void operator=(const fvFieldReconstructor&) = delete;
 
 
 public:
@@ -193,28 +195,86 @@ public:
         tmp<GeometricField<Type, fvsPatchField, surfaceMesh>>
         reconstructFvSurfaceField(const IOobject& fieldIoObject) const;
 
-        //- Read, reconstruct and write all/selected volume internal fields
+        //- Read, reconstruct and write specified volume internal fields
         template<class Type>
-        void reconstructFvVolumeInternalFields
+        label reconstructFvVolumeInternalFields
         (
             const IOobjectList& objects,
-            const HashSet<word>& selectedFields
+            const UList<word>& fieldNames
+        );
+
+        //- Read, reconstruct and write specified volume fields
+        template<class Type>
+        label reconstructFvVolumeFields
+        (
+            const IOobjectList& objects,
+            const UList<word>& fieldNames
+        );
+
+        //- Read, reconstruct and write specified surface fields
+        template<class Type>
+        label reconstructFvSurfaceFields
+        (
+            const IOobjectList& objects,
+            const UList<word>& fieldNames
+        );
+
+
+        //- Read, reconstruct and write all/selected volume internal fields
+        //  An empty wordRes corresponds to select ALL.
+        template<class Type>
+        label reconstructFvVolumeInternalFields
+        (
+            const IOobjectList& objects,
+            const wordRes& selectedFields = wordRes()
         );
 
         //- Read, reconstruct and write all/selected volume fields
+        //  An empty wordRes corresponds to select ALL.
         template<class Type>
-        void reconstructFvVolumeFields
+        label reconstructFvVolumeFields
         (
             const IOobjectList& objects,
-            const HashSet<word>& selectedFields
+            const wordRes& selectedFields = wordRes()
         );
 
         //- Read, reconstruct and write all/selected surface fields
+        //  An empty wordRes corresponds to select ALL.
         template<class Type>
-        void reconstructFvSurfaceFields
+        label reconstructFvSurfaceFields
         (
             const IOobjectList& objects,
-            const HashSet<word>& selectedFields
+            const wordRes& selectedFields = wordRes()
+        );
+
+        //- Read, reconstruct and write all/selected volume internal fields
+        //  An empty wordHashSet corresponds to select ALL.
+        //  \note this may be removed in the future (2018-11)
+        template<class Type>
+        label reconstructFvVolumeInternalFields
+        (
+            const IOobjectList& objects,
+            const wordHashSet& selectedFields
+        );
+
+        //- Read, reconstruct and write all/selected volume fields
+        //  An empty wordHashSet corresponds to select ALL.
+        //  \note this may be removed in the future (2018-11)
+        template<class Type>
+        label reconstructFvVolumeFields
+        (
+            const IOobjectList& objects,
+            const wordHashSet& selectedFields
+        );
+
+        //- Read, reconstruct and write all/selected surface fields
+        //  An empty wordHashSet corresponds to select ALL.
+        //  \note this may be removed in the future (2018-11)
+        template<class Type>
+        label reconstructFvSurfaceFields
+        (
+            const IOobjectList& objects,
+            const wordHashSet& selectedFields
         );
 };
 
@@ -226,7 +286,7 @@ public:
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 #ifdef NoRepository
-    #include "fvFieldReconstructorReconstructFields.C"
+    #include "fvFieldReconstructorFields.C"
 #endif
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //

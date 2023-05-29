@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2014 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2014 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -41,18 +43,12 @@ void Foam::sixDoFRigidBodyMotionState::write(dictionary& dict) const
 
 void Foam::sixDoFRigidBodyMotionState::write(Ostream& os) const
 {
-    os.writeKeyword("centreOfRotation")
-        << centreOfRotation_ << token::END_STATEMENT << nl;
-    os.writeKeyword("orientation")
-        << Q_ << token::END_STATEMENT << nl;
-    os.writeKeyword("velocity")
-        << v_ << token::END_STATEMENT << nl;
-    os.writeKeyword("acceleration")
-        << a_ << token::END_STATEMENT << nl;
-    os.writeKeyword("angularMomentum")
-        << pi_ << token::END_STATEMENT << nl;
-    os.writeKeyword("torque")
-        << tau_ << token::END_STATEMENT << nl;
+    os.writeEntry("centreOfRotation", centreOfRotation_);
+    os.writeEntry("orientation", Q_);
+    os.writeEntry("velocity", v_);
+    os.writeEntry("acceleration", a_);
+    os.writeEntry("angularMomentum", pi_);
+    os.writeEntry("torque", tau_);
 }
 
 
@@ -70,13 +66,7 @@ Foam::Istream& Foam::operator>>
         >> sDoFRBMS.pi_
         >> sDoFRBMS.tau_;
 
-    // Check state of Istream
-    is.check
-    (
-        "Foam::Istream& Foam::operator>>"
-        "(Foam::Istream&, Foam::sixDoFRigidBodyMotionState&)"
-    );
-
+    is.check(FUNCTION_NAME);
     return is;
 }
 
@@ -94,13 +84,7 @@ Foam::Ostream& Foam::operator<<
         << token::SPACE << sDoFRBMS.pi()
         << token::SPACE << sDoFRBMS.tau();
 
-    // Check state of Ostream
-    os.check
-    (
-        "Foam::Ostream& Foam::operator<<(Foam::Ostream&, "
-        "const Foam::sixDoFRigidBodyMotionState&)"
-    );
-
+    os.check(FUNCTION_NAME);
     return os;
 }
 

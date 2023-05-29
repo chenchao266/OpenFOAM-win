@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2015-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2015-2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -23,6 +25,9 @@ License
 
 Class
     Foam::cellCoBlended
+
+Group
+    grpFvSurfaceInterpolationSchemes
 
 Description
     Two-scheme cell-based Courant number based blending differencing scheme.
@@ -111,11 +116,11 @@ class cellCoBlended
 
     // Private Member Functions
 
-        //- Disallow default bitwise copy construct
-        cellCoBlended(const cellCoBlended&);
+        //- No copy construct
+        cellCoBlended(const cellCoBlended&) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const cellCoBlended&);
+        //- No copy assignment
+        void operator=(const cellCoBlended&) = delete;
 
 
 public:
@@ -197,7 +202,7 @@ public:
         //- Return the face-based blending factor
         virtual tmp<surfaceScalarField> blendingFactor
         (
-             const volFieldType<Type>& vf
+             const GeometricField<Type, fvPatchField, volMesh>& vf
         ) const
         {
             const fvMesh& mesh = this->mesh();
@@ -229,7 +234,7 @@ public:
                     mesh
                 ),
                 mesh,
-                dimensionedScalar("Co", dimless, 0),
+                dimensionedScalar(dimless, Zero),
                 extrapolatedCalculatedFvPatchScalarField::typeName
             );
 
@@ -266,7 +271,7 @@ public:
         tmp<surfaceScalarField>
         weights
         (
-            const volFieldType<Type>& vf
+            const GeometricField<Type, fvPatchField, volMesh>& vf
         ) const
         {
             surfaceScalarField bf(blendingFactor(vf));
@@ -279,10 +284,10 @@ public:
 
         //- Return the face-interpolate of the given cell field
         //  with explicit correction
-        tmp<surfaceFieldType<Type>>
+        tmp<GeometricField<Type, fvsPatchField, surfaceMesh>>
         interpolate
         (
-            const volFieldType<Type>& vf
+            const GeometricField<Type, fvPatchField, volMesh>& vf
         ) const
         {
             surfaceScalarField bf(blendingFactor(vf));
@@ -302,10 +307,10 @@ public:
 
         //- Return the explicit correction to the face-interpolate
         //  for the given field
-        virtual tmp<surfaceFieldType<Type>>
+        virtual tmp<GeometricField<Type, fvsPatchField, surfaceMesh>>
         correction
         (
-            const volFieldType<Type>& vf
+            const GeometricField<Type, fvPatchField, volMesh>& vf
         ) const
         {
             surfaceScalarField bf(blendingFactor(vf));
@@ -341,7 +346,7 @@ public:
             }
             else
             {
-                return tmp<surfaceFieldType<Type>>
+                return tmp<GeometricField<Type, fvsPatchField, surfaceMesh>>
                 (
                     nullptr
                 );

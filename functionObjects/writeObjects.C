@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2016-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -24,8 +27,9 @@ License
 \*---------------------------------------------------------------------------*/
 
 #include "writeObjects.H"
-#include "Time.T.H"
+#include "Time1.H"
 #include "polyMesh.H"
+#include "ListOps.H"
 #include "addToRunTimeSelectionTable.H"
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
@@ -45,79 +49,16 @@ namespace functionObjects
 }
 }
 
-template<>
-const char* Foam::NamedEnum
+const Foam::Enum
 <
-    Foam::functionObjects::writeObjects::writeOption,
-    3
->::names[] =
-{
-    "autoWrite",
-    "noWrite",
-    "anyWrite"
-};
-
-const Foam::NamedEnum
-<
-    Foam::functionObjects::writeObjects::writeOption,
-    3
-> Foam::functionObjects::writeObjects::writeOptionNames_;
-
-
-// * * * * * * * * * * * * * Private Member Functions  * * * * * * * * * * * //
-
-void Foam::functionObjects::writeObjects::writeObject
-(
-    const regIOobject& obj
-)
-{
-    switch (writeOption_)
-    {
-        case AUTO_WRITE:
-        {
-            if(obj.writeOpt() != IOobject::AUTO_WRITE)
-            {
-                return;
-            }
-
-            break;
-        }
-        case NO_WRITE:
-        {
-            if(obj.writeOpt() != IOobject::NO_WRITE)
-            {
-                return;
-            }
-
-            break;
-        }
-        case ANY_WRITE:
-        {
-            break;
-        }
-        default:
-        {
-            FatalErrorInFunction
-                << "Unknown writeOption "
-                << writeOptionNames_[writeOption_]
-                << ". Valid writeOption types are" << writeOptionNames_
-                << exit(FatalError);
-        }
-    }
-
-    if
-    (
-        obj.writeOpt() == IOobject::AUTO_WRITE
-     && writeObr_.time().writeTime()
-    )
-    {
-        Log << "    automatically written object " << obj.name() << endl;
-    }
-    else
-    {
-        writeObjectsBase::writeObject(obj);
-    }
-}
+    Foam::functionObjects::writeObjects::writeOption
+>
+Foam::functionObjects::writeObjects::writeOptionNames_
+({
+    { writeOption::AUTO_WRITE, "autoWrite" },
+    { writeOption::NO_WRITE, "noWrite" },
+    { writeOption::ANY_WRITE, "anyWrite" },
+});
 
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
@@ -130,54 +71,48 @@ Foam::functionObjects::writeObjects::writeObjects
 )
 :
     functionObject(name),
-    writeObjectsBase
+    obr_
     (
         runTime.lookupObject<objectRegistry>
         (
-            dict.lookupOrDefault("region", polyMesh::defaultRegion)
-        ),
-        log
+            dict.getOrDefault("region", polyMesh::defaultRegion)
+        )
     ),
-    writeOption_(ANY_WRITE)
+    writeOption_(ANY_WRITE),
+    objectNames_()
 {
     read(dict);
 }
-
-
-// * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
-
-Foam::functionObjects::writeObjects::~writeObjects()
-{}
 
 
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
 
 bool Foam::functionObjects::writeObjects::read(const dictionary& dict)
 {
+    functionObject::read(dict);
+
     if (dict.found("field"))
     {
-        writeObjectNames_.setSize(1);
-        dict.lookup("field") >> writeObjectNames_[0];
+        objectNames_.resize(1);
+        dict.readEntry("field", objectNames_.first());
     }
     else if (dict.found("fields"))
     {
-        dict.lookup("fields") >> writeObjectNames_;
+        dict.readEntry("fields", objectNames_);
     }
     else
     {
-        writeObjectsBase::read(dict);
+        dict.readEntry("objects", objectNames_);
     }
 
-    if (dict.found("writeOption"))
-    {
-        writeOption_ = writeOptionNames_.read(dict.lookup("writeOption"));
-    }
-    else
-    {
-        writeOption_ = ANY_WRITE;
-    }
+    writeOption_ = writeOptionNames_.getOrDefault
+    (
+        "writeOption",
+        dict,
+        writeOption::ANY_WRITE
+    );
 
-    return functionObject::read(dict);
+    return true;
 }
 
 
@@ -189,11 +124,96 @@ bool Foam::functionObjects::writeObjects::execute()
 
 bool Foam::functionObjects::writeObjects::write()
 {
-    Info<< type() << " " << name() << " write:" << nl;
+    Log << type() << " " << name() << " write:" << nl;
 
-    writeObjectsBase::write();
+    if (!obr_.time().writeTime())
+    {
+        obr_.time().writeTimeDict();
+    }
 
-    Log << endl;
+    // Get selection
+    const wordList selectedNames(obr_.sortedNames<regIOobject>(objectNames_));
+
+    // Warning if anything was missed
+    bitSet missed(objectNames_.size());
+
+    label index = 0;
+    for (const wordRe& select : objectNames_)
+    {
+        if (!ListOps::found(selectedNames, select))
+        {
+            missed.set(index);
+        }
+        ++index;
+    }
+
+    if (missed.any())
+    {
+        WarningInFunction
+            << "No corresponding selection for "
+            << flatOutput(subset(missed, objectNames_)) << nl
+            << "Available objects in database:"
+            << nl << obr_.sortedToc()
+            << endl;
+    }
+
+    for (const word& objName : selectedNames)
+    {
+        regIOobject& obj = obr_.lookupObjectRef<regIOobject>(objName);
+
+        switch (writeOption_)
+        {
+            case AUTO_WRITE:
+            {
+                if (obj.writeOpt() != IOobject::AUTO_WRITE)
+                {
+                    continue;
+                }
+
+                break;
+            }
+            case NO_WRITE:
+            {
+                if (obj.writeOpt() != IOobject::NO_WRITE)
+                {
+                    continue;
+                }
+
+                break;
+            }
+            case ANY_WRITE:
+            {
+                break;
+            }
+            default:
+            {
+                FatalErrorInFunction
+                    << "Unknown writeOption "
+                    << writeOptionNames_[writeOption_]
+                    << ". Valid writeOption types are "
+                    << writeOptionNames_
+                    << exit(FatalError);
+
+                continue;
+                break;
+            }
+        }
+
+        if
+        (
+            obj.writeOpt() == IOobject::AUTO_WRITE
+         && obr_.time().writeTime()
+        )
+        {
+            Log << "    automatically written object " << obj.name() << endl;
+        }
+        else
+        {
+            Log << "    writing object " << obj.name() << endl;
+
+            obj.write();
+        }
+    }
 
     return true;
 }

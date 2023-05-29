@@ -2,17 +2,14 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
 -------------------------------------------------------------------------------
- 2011 Symscape: Added hack for 'isAbsolute()' to properly detect absolute
-                paths on Windows.
- 2011 blueCAPE: Changed hack in 'isAbsolute()' to "size>1", instead of
-                "size>3".
- 2014-02-21 blueCAPE Lda: Modifications for blueCFD-Core 2.3
-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2016-2021 OpenCFD Ltd.
+-------------------------------------------------------------------------------
 License
-    This file is a derivative work of OpenFOAM.
+    This file is part of OpenFOAM.
 
     OpenFOAM is free software: you can redistribute it and/or modify it
     under the terms of the GNU General Public License as published by
@@ -27,458 +24,587 @@ License
     You should have received a copy of the GNU General Public License
     along with OpenFOAM.  If not, see <http://www.gnu.org/licenses/>.
 
-Modifications
-    This file has been modified by blueCAPE's unofficial mingw patches for
-    OpenFOAM.
-    For more information about these patches, visit:
-        http://bluecfd.com/Core
-
 \*---------------------------------------------------------------------------*/
 
 #include "fileName.H"
+#include "wordRe.H"
 #include "wordList.H"
-#include "DynamicList.T.H"
+#include "DynamicList.H"
 #include "OSspecific.H"
 #include "fileOperation.H"
+#include "stringOps.H"
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
-namespace Foam {
-    const char* const fileName::typeName = "fileName";
-    int fileName::debug(debug::debugSwitch(fileName::typeName, 0));
-    const fileName fileName::null;
 
 
-    // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
+ namespace Foam{
+const char* const fileName::typeName = "fileName";
 
-    fileName::fileName(const wordList& lst)
+int fileName::debug(debug::debugSwitch(fileName::typeName, 0));
+
+int fileName::allowSpaceInFileName
+(
+    #ifdef _WIN32
+    1  // Windows: expect spaces to occur
+    #else
+    debug::infoSwitch("allowSpaceInFileName", 0)
+    #endif
+);
+
+const fileName fileName::null;
+
+
+// * * * * * * * * * * * * * * * Local Functions * * * * * * * * * * * * * * //
+
+namespace
+{
+
+// doClean:
+//   - remove duplicate slashes, "/./" and "/../" components.
+//
+// checkValid:
+//   - similar to stripInvalid (but silent)
+//
+// return True if the content changed
+static bool cleanFileName
+(
+    std::string& str,
+    const bool doClean,
+    const bool checkValid
+)
+{
+    const auto maxLen = str.length();
+    std::string::size_type nChar = 0;
+
+    // Preserve UNC \\server\path (windows)
+    // - MS-windows only, but handle for other systems
+    //   since there is no collision with this pattern
+    if (maxLen > 2 && str[0] == '\\' && str[1] == '\\')
     {
-        forAll(lst, elemI)
+        nChar += 2;
+    }
+
+    char prev = 0;
+    auto top = std::string::npos;  // Not yet found
+    bool changed = false;
+
+    for (auto src = nChar; src < maxLen; /*nil*/)
+    {
+        char c = str[src++];
+
+        // Treat raw backslash like a path separator.
+        // There is no "normal" way for these to be there
+        // (except for an OS that uses them), but can cause issues
+        // when writing strings, shell commands etc.
+        if (c == '\\')
         {
-            operator=((*this) / lst[elemI]);
+            c = '/';
+            str[nChar] = c;
+            changed = true;
         }
-    }
-
-
-    // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
-
-    void fileName::toUnixPath()
-    {
-        operator=(::Foam::toUnixPath(*this));
-    }
-
-
-    fileName::Type fileName::type(const bool followLink) const
-    {
-        return ::Foam::type(*this, followLink);
-    }
-
-
-    bool fileName::isAbsolute() const
-    {
-#if defined(WIN32) || defined(WIN64)
-        return size() > 1 && (operator[](0) == '/' || operator[](1) == ':' ||
-            (operator[](0) == '\\' && operator[](1) == '\\'));
-#else
-        return !empty() && operator[](0) == '/';
-#endif
-    }
-
-
-    fileName& fileName::toAbsolute()
-    {
-        fileName& f = *this;
-
-        if (!f.isAbsolute())
+        else if (checkValid && !fileName::valid(c))
         {
-            f = cwd() / f;
-            f.clean();
+            // Ignore invalid chars
+            // Could explicitly allow space character or rely on
+            // allowSpaceInFileName via fileName::valid()
+            continue;
         }
 
-        return f;
+        if (c == '/' && top == std::string::npos)
+        {
+            // Top-level slash not previously determined
+            top = (src-1);
+        }
+
+        if (doClean && prev == '/')
+        {
+            // Repeated '/' - skip it
+            if (c == '/')
+            {
+                continue;
+            }
+
+            // Could be "/./", "/../" or a trailing "/."
+            if (c == '.')
+            {
+                // Trailing "/." - skip it
+                if (src >= maxLen)
+                {
+                    break;
+                }
+
+                // Peek at the next character
+                const char c1 = str[src];
+
+                // Found "/./" - skip over it
+                if (c1 == '/' || c1 == '\\')
+                {
+                    ++src;
+                    continue;
+                }
+
+                // Trailing "/.." or intermediate "/../"
+                if
+                (
+                    c1 == '.'
+                 &&
+                    (
+                        src+1 >= maxLen
+                     || str[src+1] == '/' || str[src+1] == '\\'
+                    )
+                )
+                {
+                    // Backtrack to find the parent directory
+                    // Minimum of 3 characters:  '/x/../'
+                    // Strip it, provided it is above the top point
+
+                    std::string::size_type parent;
+                    if
+                    (
+                        nChar > 2
+                     && top != std::string::npos
+                     && (parent = str.rfind('/', nChar-2)) != std::string::npos
+                     && parent >= top
+                    )
+                    {
+                        nChar = parent + 1;   // Retain '/' from the parent
+                        src += 2;
+                        continue;
+                    }
+
+                    // Bad resolution, eg 'abc/../../'
+                    // Retain the sequence, but move the top to avoid it being
+                    // considered a valid parent later
+                    top = nChar + 2;
+                }
+            }
+        }
+
+        str[nChar++] = prev = c;
     }
 
-
-    bool fileName::clean()
+    // Remove trailing '/'
+    if (doClean && nChar > 1 && str[nChar-1] == '/')
     {
-        // The top slash - we are never allowed to go above it
-        string::size_type top = this->find('/');
+        --nChar;
+    }
 
-        // No slashes - nothing to do
-        if (top == string::npos)
+    str.erase(nChar);
+    return changed || (nChar != maxLen);
+}
+
+} // End namespace Foam
+
+
+// * * * * * * * * * * * * * Static Member Functions * * * * * * * * * * * * //
+
+
+
+bool fileName::clean(std::string& str)
+{
+    return cleanFileName(str, true, false);  // clean, checkValid = false
+}
+
+
+fileName fileName::validate
+(
+    const std::string& str,
+    const bool doClean
+)
+{
+    fileName out(str, false);           // copy, no stripping
+    cleanFileName(out, doClean, true);  // checkValid = true
+    return out;
+}
+
+
+fileName fileName::concat
+(
+    const std::string& s1,
+    const std::string& s2,
+    const char delim
+)
+{
+    const auto n1 = s1.length();
+    const auto n2 = s2.length();
+
+    fileName out;
+    out.reserve(n1 + n2 + 1);
+
+    out += s1;
+
+    if (n1 && n2 && s1.back() != delim && s2.front() != delim)
+    {
+        // Add delimiter
+        out += delim;
+    }
+
+    out += s2;
+
+    // Could also remove trailing '/', if desired.
+    return out;
+}
+
+
+bool fileName::equals(const std::string& s1, const std::string& s2)
+{
+    // Do not use (s1 == s2) or s1.compare(s2) first since this would
+    // potentially be doing the comparison twice.
+
+    std::string::size_type i1 = 0;
+    std::string::size_type i2 = 0;
+
+    const auto n1 = s1.length();
+    const auto n2 = s2.length();
+
+    //Info<< "compare " << s1 << " == " << s2 << endl;
+    while (i1 < n1 && i2 < n2)
+    {
+        //Info<< "check '" << s1[i1] << "' vs '" << s2[i2] << "'" << endl;
+
+        if (s1[i1] != s2[i2])
         {
             return false;
         }
 
-        // Start with the '/' found:
-        char prev = '/';
-        string::size_type nChar = top + 1;
-        string::size_type maxLen = this->size();
-
-        for
-            (
-                string::size_type src = nChar;
-                src < maxLen;
-                )
+        // Increment to next positions and also skip repeated slashes
+        do
         {
-            char c = operator[](src++);
-
-            if (prev == '/')
-            {
-                // Repeated '/' - skip it
-                if (c == '/')
-                {
-                    continue;
-                }
-
-                // Could be '/./' or '/../'
-                if (c == '.')
-                {
-                    // Found trailing '/.' - skip it
-                    if (src >= maxLen)
-                    {
-                        continue;
-                    }
-
-
-                    // Peek at the next character
-                    char c1 = operator[](src);
-
-                    // Found '/./' - skip it
-                    if (c1 == '/')
-                    {
-                        src++;
-                        continue;
-                    }
-
-                    // It is '/..' or '/../'
-                    if (c1 == '.' && (src + 1 >= maxLen || operator[](src + 1) == '/'))
-                    {
-                        string::size_type parent;
-
-                        // Backtrack to find the parent directory
-                        // Minimum of 3 characters:  '/x/../'
-                        // Strip it, provided it is above the top point
-                        if
-                            (
-                                nChar > 2
-                                && (parent = this->rfind('/', nChar - 2)) != string::npos
-                                && parent >= top
-                                )
-                        {
-                            nChar = parent + 1;   // Retain '/' from the parent
-                            src += 2;
-                            continue;
-                        }
-
-                        // Bad resolution, eg 'abc/../../'
-                        // Retain the sequence, but move the top to avoid it being
-                        // considered a valid parent later
-                        top = nChar + 2;
-                    }
-                }
-            }
-            operator[](nChar++) = prev = c;
+            ++i1;
         }
+        while (s1[i1] == '/');
 
-        // Remove trailing slash
-        if (nChar > 1 && operator[](nChar - 1) == '/')
+        do
         {
-            nChar--;
+            ++i2;
         }
-
-        this->resize(nChar);
-
-        return (nChar != maxLen);
+        while (s2[i2] == '/');
     }
+    //Info<< "return: " << Switch(i1 == n1 && i2 == n2) << endl;
+
+    // Equal if it made it all the way through both strings
+    return (i1 == n1 && i2 == n2);
+}
 
 
-    fileName fileName::clean() const
+bool fileName::isBackup(const std::string& s)
+{
+    if (s.empty())
     {
-        fileName fName(*this);
-        fName.clean();
-        return fName;
+        return false;
     }
-
-
-    word fileName::name() const
+    else if (s.back() == '~')
     {
-        size_type i = rfind('/');
-
-#if defined(WIN32) || defined(WIN64)
-
-        //And strip ".exe" from the end of the path name
-        size_type j = rfind(".exe");
-        if (j != size() - 4)
-        {
-            if (i == npos)
-            {
-                return *this;
-            }
-            else
-            {
-                return substr(i + 1, npos);
-            }
-        }
-        else
-        {
-            if (i == npos)
-            {
-                return substr(0, j - 1);
-            }
-            else
-            {
-                return substr(i + 1, j - i - 1);
-            }
-        }
-
-#else
-
-        if (i == npos)
-        {
-            return *this;
-        }
-        else
-        {
-            return substr(i + 1, npos);
-        }
-
-#endif
-
+        return true;
     }
 
+    // Now check the extension
+    auto dot = find_ext(s);
 
-    string fileName::caseName() const
+    if (dot == npos)
     {
-        string cName = *this;
-
-        const string caseStr(getEnv("FOAM_CASE"));
-
-        const size_type i = find(caseStr);
-
-        if (i == npos)
-        {
-            return cName;
-        }
-        else
-        {
-            return cName.replace(i, caseStr.size(), string("$FOAM_CASE"));
-        }
+        return false;
     }
 
+    ++dot;
 
-    word fileName::name(const bool noExt) const
-    {
-        if (noExt)
-        {
-            size_type beg = rfind('/');
-            if (beg == npos)
-            {
-                beg = 0;
-            }
-            else
-            {
-                ++beg;
-            }
-
-            size_type dot = rfind('.');
-            if (dot != npos && dot <= beg)
-            {
-                dot = npos;
-            }
-
-            if (dot == npos)
-            {
-                return substr(beg, npos);
-            }
-            else
-            {
-                return substr(beg, dot - beg);
-            }
-        }
-        else
-        {
-            return this->name();
-        }
-    }
-
-
-    fileName fileName::path() const
-    {
-        size_type i = rfind('/');
-
-        if (i == npos)
-        {
-            return ".";
-        }
-        else if (i)
-        {
-            return substr(0, i);
-        }
-        else
-        {
-            return "/";
-        }
-    }
-
-
-    fileName fileName::lessExt() const
-    {
-        size_type i = find_last_of("./");
-
-        if (i == npos || i == 0 || operator[](i) == '/')
-        {
-            return *this;
-        }
-        else
-        {
-            return substr(0, i);
-        }
-    }
-
-
-    word fileName::ext() const
-    {
-        size_type i = find_last_of("./");
-
-        if (i == npos || i == 0 || operator[](i) == '/')
-        {
-            return word::null;
-        }
-        else
-        {
-            return substr(i + 1, npos);
-        }
-    }
-
-
-    wordList fileName::components(const char delimiter) const
-    {
-        DynamicList<word> wrdList(20);
-
-        size_type beg = 0, end = 0;
-
-        while ((end = find(delimiter, beg)) != npos)
-        {
-            // Avoid empty element (caused by doubled slashes)
-            if (beg < end)
-            {
-                wrdList.append(substr(beg, end - beg));
-            }
-            beg = end + 1;
-        }
-
-        // Avoid empty trailing element
-        if (beg < size())
-        {
-            wrdList.append(substr(beg, npos));
-        }
-
-        // Transfer to wordList
-        return wordList(wrdList.xfer());
-    }
-
-
-    word fileName::component
+    return
     (
-        const size_type cmpt,
-        const char delimiter
-    ) const
+        !s.compare(dot, npos, "bak") || !s.compare(dot, npos, "BAK")
+     || !s.compare(dot, npos, "old") || !s.compare(dot, npos, "save")
+    );
+}
+
+
+// * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
+
+fileName::fileName(const UList<word>& list)
+{
+    size_type len = 0;
+    for (const word& item : list)
     {
-        return components(delimiter)[cmpt];
+        len += 1 + item.length();   // Include space for '/' needed
     }
+    reserve(len);
 
-
-    // * * * * * * * * * * * * * * * Member Operators  * * * * * * * * * * * * * //
-
-    void fileName::operator=(const fileName& str)
+    for (const word& item : list)
     {
-        string::operator=(str);
-    }
-
-
-    void fileName::operator=(const word& str)
-    {
-        string::operator=(str);
-    }
-
-
-    void fileName::operator=(const string& str)
-    {
-        string::operator=(str);
-        stripInvalid();
-    }
-
-
-    void fileName::operator=(const std::string& str)
-    {
-        string::operator=(str);
-        stripInvalid();
-    }
-
-
-    void fileName::operator=(const char* str)
-    {
-        string::operator=(str);
-        stripInvalid();
-    }
-
-
-    // * * * * * * * * * * * * * * * Friend Operators  * * * * * * * * * * * * * //
-
-    fileName operator/(const string& a, const string& b)
-    {
-        if (a.size())           // First string non-null
+        if (item.length())
         {
-            if (b.size())       // Second string non-null
-            {
-                return fileName(a + '/' + b);
-            }
-            else                // Second string null
-            {
-                return a;
-            }
+            if (length()) operator+=('/');
+            operator+=(item);
         }
-        else                    // First string null
-        {
-            if (b.size())       // Second string non-null
-            {
-                return b;
-            }
-            else                // Second string null
-            {
-                return fileName();
-            }
-        }
-    }
-
-
-    // * * * * * * * * * * * * * * * Global Functions  * * * * * * * * * * * * * //
-
-    fileName search(const word& file, const fileName& directory)
-    {
-        // Search the current directory for the file
-        fileNameList files(fileHandler().readDir(directory));
-        forAll(files, i)
-        {
-            if (files[i] == file)
-            {
-                return directory / file;
-            }
-        }
-
-        // If not found search each of the sub-directories
-        fileNameList dirs(fileHandler().readDir(directory, fileName::DIRECTORY));
-        forAll(dirs, i)
-        {
-            fileName path = search(file, directory / dirs[i]);
-            if (path != fileName::null)
-            {
-                return path;
-            }
-        }
-
-        return fileName::null;
     }
 }
 
+
+fileName::fileName(std::initializer_list<word> list)
+{
+    size_type len = 0;
+    for (const word& item : list)
+    {
+        len += 1 + item.length();   // Include space for '/' needed
+    }
+    reserve(len);
+
+    for (const word& item : list)
+    {
+        if (item.length())
+        {
+            if (length()) operator+=('/');
+            operator+=(item);
+        }
+    }
+}
+
+
+// * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
+
+fileName::Type fileName::type
+(
+    bool followLink,
+    bool checkGzip
+) const
+{
+    Type t = ::Foam::type(*this, followLink);
+
+    if (checkGzip && (Type::UNDEFINED == t) && size())
+    {
+        // Also check for gzip file?
+        t = ::Foam::type(*this + ".gz", followLink);
+    }
+
+    return t;
+}
+
+
+fileName& fileName::toAbsolute()
+{
+    if (!isAbsolute(*this))
+    {
+        fileName& f = *this;
+        f = cwd()/f;
+        f.clean();  // Remove unneeded ".."
+    }
+
+    return *this;
+}
+
+
+bool fileName::clean()
+{
+    return fileName::clean(*this);
+}
+
+
+std::string fileName::nameLessExt(const std::string& str)
+{
+    auto beg = str.rfind('/');
+    auto dot = str.rfind('.');
+
+    if (beg == npos)
+    {
+        beg = 0;
+    }
+    else
+    {
+        ++beg;
+    }
+
+    if (dot != npos && dot <= beg)
+    {
+        dot = npos;
+    }
+
+    if (dot == npos)
+    {
+        return str.substr(beg);
+    }
+
+    return str.substr(beg, dot - beg);
+}
+
+
+fileName fileName::relative
+(
+    const fileName& parent,
+    const bool caseTag
+) const
+{
+    const auto top = parent.size();
+    const fileName& f = *this;
+
+    // Everything after "parent/xxx/yyy" -> "xxx/yyy"
+    //
+    // case-relative:
+    //     "parent/xxx/yyy" -> "<case>/xxx/yyy"
+    if
+    (
+        top && (f.size() > (top+1)) && f[top] == '/'
+     && f.starts_with(parent)
+    )
+    {
+        if (caseTag)
+        {
+            return "<case>"/f.substr(top+1);
+        }
+        else
+        {
+            return f.substr(top+1);
+        }
+    }
+    else if (caseTag && f.size() && !f.isAbsolute())
+    {
+        return "<case>"/f;
+    }
+
+    return f;
+}
+
+
+wordList fileName::components(const char delim) const
+{
+    const auto parsed = stringOps::split<string>(*this, delim);
+
+    wordList words(parsed.size());
+
+    label i = 0;
+    for (const auto& sub : parsed)
+    {
+        // Could easily filter out '.' here too
+        words[i] = sub.str();
+        ++i;
+    }
+
+    // As a plain wordList
+    return words;
+}
+
+
+word fileName::component
+(
+    const size_type cmpt,
+    const char delim
+) const
+{
+    const auto parsed = stringOps::split<string>(*this, delim);
+
+    if (parsed.size())
+    {
+        if (cmpt == std::string::npos)
+        {
+            return parsed.last().str();
+        }
+        else if (cmpt < parsed.size())
+        {
+            return parsed[cmpt].str();
+        }
+    }
+
+    return word();
+}
+
+
+// * * * * * * * * * * * * * * * Member Operators  * * * * * * * * * * * * * //
+
+fileName& fileName::operator/=(const string& other)
+{
+    fileName& s = *this;
+
+    if (s.size())
+    {
+        if (other.size())
+        {
+            // Two non-empty strings: can concatenate
+
+            if (s.back() != '/' && other.front() != '/')
+            {
+                s += '/';
+            }
+
+            s += other;
+        }
+    }
+    else if (other.size())
+    {
+        // The first string is empty
+        s = other;
+    }
+
+    return *this;
+}
+
+
+// * * * * * * * * * * * * * * * Global Operators  * * * * * * * * * * * * * //
+
+fileName operator/(const string& s1, const string& s2)
+{
+    if (s1.length())
+    {
+        if (s2.length())
+        {
+            // Two non-empty strings: can concatenate
+
+            if (s1.back() == '/' || s2.front() == '/')
+            {
+                return fileName(s1 + s2);
+            }
+            else
+            {
+                return fileName(s1 + '/' + s2);
+            }
+        }
+
+        // The second string was empty
+        return s1;
+    }
+
+    if (s2.length())
+    {
+        // The first string is empty
+        return s2;
+    }
+
+    // Both strings are empty
+    return fileName();
+}
+
+
+// * * * * * * * * * * * * * * * Global Functions  * * * * * * * * * * * * * //
+
+fileName search(const word& file, const fileName& directory)
+{
+    // Search current directory for the file
+    for
+    (
+        const fileName& item
+      : fileHandler().readDir(directory, fileName::FILE)
+    )
+    {
+        if (item == file)
+        {
+            return directory/item;
+        }
+    }
+
+    // If not found search each of the sub-directories
+    for
+    (
+        const fileName& item
+      : fileHandler().readDir(directory, fileName::DIRECTORY)
+    )
+    {
+        fileName path = search(file, directory/item);
+        if (!path.empty())
+        {
+            return path;
+        }
+    }
+
+    return fileName();
+}
+
+
 // ************************************************************************* //
+
+ } // End namespace Foam

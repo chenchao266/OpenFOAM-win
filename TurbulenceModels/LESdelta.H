@@ -1,9 +1,12 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2015 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2015 OpenFOAM Foundation
+    Copyright (C) 2019-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -35,7 +38,7 @@ SourceFiles
 #ifndef LESdelta_H
 #define LESdelta_H
 
-#include "turbulenceModel.H"
+#include "turbulenceModel2.H"
 #include "volFields.H"
 #include "runTimeSelectionTables.H"
 
@@ -50,23 +53,22 @@ namespace Foam
 
 class LESdelta
 {
-
 protected:
 
-    // Protected data
+    // Protected Data
 
         const turbulenceModel& turbulenceModel_;
 
         volScalarField delta_;
 
 
-private:
+    // Protected Member Functions
 
-    // Private Member Functions
+        //- No copy construct
+        LESdelta(const LESdelta&) = delete;
 
-        // Disallow default bitwise copy construct and assignment
-        LESdelta(const LESdelta&);
-        void operator=(const LESdelta&);
+        //- No copy assignment
+        void operator=(const LESdelta&) = delete;
 
 
 public:
@@ -108,7 +110,8 @@ public:
         (
             const word& name,
             const turbulenceModel& turbulence,
-            const dictionary& dict
+            const dictionary& dict,
+            const word& lookupName = "delta"
         );
 
         //- Return a reference to the selected LES delta
@@ -117,13 +120,13 @@ public:
             const word& name,
             const turbulenceModel& turbulence,
             const dictionary& dict,
-            const dictionaryConstructorTable&
+            const dictionaryConstructorTableType& additionalConstructors,
+            const word& lookupName = "delta"
         );
 
 
     //- Destructor
-    virtual ~LESdelta()
-    {}
+    virtual ~LESdelta() = default;
 
 
     // Member Functions

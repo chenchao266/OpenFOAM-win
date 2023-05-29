@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -30,7 +32,9 @@ License
 #include "demandDrivenData.H"
 
 // * * * * * * * * * * * * * Private Member Functions  * * * * * * * * * * * //
-using namespace Foam;
+
+
+ namespace Foam{
 void pointPatchMapper::calcAddressing() const
 {
     if
@@ -58,6 +62,7 @@ void pointPatchMapper::calcAddressing() const
             if (addr[i] < 0)
             {
                 hasUnmapped_ = true;
+                break;
             }
         }
     }
@@ -83,14 +88,14 @@ void pointPatchMapper::calcAddressing() const
             if (ppm[i] >= 0)
             {
                 addr[i] = labelList(1, ppm[i]);
-                w[i] = scalarList(1, 1.0);
+                w[i] = scalarList(1, scalar(1));
             }
             else
             {
                 // Inserted point.
                 ///// Map from point0 (arbitrary choice)
-                //addr[i] = labelList(1, label(0));
-                //w[i] = scalarList(1, 1.0);
+                //addr[i] = labelList(1, Zero);
+                //w[i] = scalarList(1, scalar(1));
                 hasUnmapped_ = true;
             }
         }
@@ -114,7 +119,9 @@ pointPatchMapper::pointPatchMapper
     const pointPatch& patch,
     const pointMapper& pointMap,
     const mapPolyMesh& mpm
-) :    pointPatchFieldMapper(),
+)
+:
+    pointPatchFieldMapper(),
     patch_(patch),
     pointMapper_(pointMap),
     mpm_(mpm),
@@ -205,3 +212,5 @@ const scalarListList& pointPatchMapper::weights() const
 
 
 // ************************************************************************* //
+
+ } // End namespace Foam

@@ -1,9 +1,12 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011 OpenFOAM Foundation
+    Copyright (C) 2019 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -36,10 +39,10 @@ SourceFiles
 #define sphericalTensorField_H
 
 #include "scalarField.H"
-#include "sphericalTensor.H"
+#include "sphericalTensor2.H"
 
 #define TEMPLATE
-#include "FieldFunctionsM.T.H"
+#include "FieldFunctionsM.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -47,6 +50,32 @@ namespace Foam
 {
 
 typedef Field<sphericalTensor> sphericalTensorField;
+
+// * * * * * * * * * * * * * * * Global Functions  * * * * * * * * * * * * * //
+
+//- Zip together sphericalTensor field from components
+template<class Cmpt>
+void zip
+(
+    Field<SphericalTensor<Cmpt>>& result,
+    const UList<Cmpt>& ii
+);
+
+//- Unzip sphericalTensor field into components
+template<class Cmpt>
+void unzip
+(
+    const UList<SphericalTensor<Cmpt>>& input,
+    Field<Cmpt>& ii
+);
+
+//- Zip together sphericalTensor field from components
+template<class Cmpt>
+tmp<Field<SphericalTensor<Cmpt>>> zip
+(
+    const Field<Cmpt>& ii
+);
+
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -66,6 +95,12 @@ BINARY_TYPE_OPERATOR(sphericalTensor, scalar, sphericalTensor, /, divide)
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 #include "undefFieldFunctionsM.H"
+
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+#ifdef NoRepository
+    #include "sphericalTensorFieldTemplates.C"
+#endif
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 

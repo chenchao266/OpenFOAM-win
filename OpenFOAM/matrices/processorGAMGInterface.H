@@ -1,9 +1,12 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2014 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2014 OpenFOAM Foundation
+    Copyright (C) 2019 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -35,7 +38,7 @@ SourceFiles
 #ifndef processorGAMGInterface_H
 #define processorGAMGInterface_H
 
-#include "GAMGInterface.T.H"
+#include "GAMGInterface.H"
 #include "processorLduInterface.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
@@ -47,7 +50,9 @@ namespace Foam
                   Class processorGAMGInterface Declaration
 \*---------------------------------------------------------------------------*/
 
-class processorGAMGInterface :    public GAMGInterface,
+class processorGAMGInterface
+:
+    public GAMGInterface,
     public processorLduInterface
 {
     // Private data
@@ -70,11 +75,11 @@ class processorGAMGInterface :    public GAMGInterface,
 
     // Private Member Functions
 
-        //- Disallow default bitwise copy construct
-        processorGAMGInterface(const processorGAMGInterface&);
+        //- No copy construct
+        processorGAMGInterface(const processorGAMGInterface&) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const processorGAMGInterface&);
+        //- No copy assignment
+        void operator=(const processorGAMGInterface&) = delete;
 
 
 public:
@@ -85,7 +90,7 @@ public:
     // Constructors
 
         //- Construct from fine-level interface,
-        //  local and neighbour restrict addressing
+        //- local and neighbour restrict addressing
         processorGAMGInterface
         (
             const label index,
@@ -121,7 +126,7 @@ public:
 
 
     //- Destructor
-    virtual ~processorGAMGInterface();
+    virtual ~processorGAMGInterface() = default;
 
 
     // Member Functions
@@ -133,6 +138,15 @@ public:
             (
                 const Pstream::commsTypes commsType,
                 const labelUList& iF
+            ) const;
+
+
+            //- Initialise neighbour field transfer using faceCells mapping
+            virtual void initInternalFieldTransfer
+            (
+                const Pstream::commsTypes commsType,
+                const labelUList& iF,
+                const labelUList& faceCells
             ) const;
 
             //- Transfer and return internal field adjacent to the interface
@@ -157,7 +171,7 @@ public:
                 return myProcNo_;
             }
 
-            //- Return neigbour processor number (rank in communicator)
+            //- Return neighbour processor number (rank in communicator)
             virtual int neighbProcNo() const
             {
                 return neighbProcNo_;
@@ -179,7 +193,7 @@ public:
         // I/O
 
             //- Write to stream
-            virtual void write(Ostream&) const;
+            virtual void write(Ostream& os) const;
 };
 
 

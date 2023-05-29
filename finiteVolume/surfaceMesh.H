@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -32,7 +34,7 @@ Description
 #ifndef surfaceMesh_H
 #define surfaceMesh_H
 
-#include "GeoMesh.T.H"
+#include "GeoMesh.H"
 #include "fvMesh.H"
 #include "primitiveMesh.H"
 
@@ -49,28 +51,36 @@ class surfaceMesh
 :
     public GeoMesh<fvMesh>
 {
-
 public:
 
-    explicit surfaceMesh(const fvMesh& mesh)
-    :
-        GeoMesh<fvMesh>(mesh)
-    {}
+    // Constructors
 
-    label size() const
-    {
-        return size(mesh_);
-    }
+        //- Construct surface mesh from fvMesh reference
+        explicit surfaceMesh(const fvMesh& mesh)
+        :
+            GeoMesh<fvMesh>(mesh)
+        {}
 
-    static label size(const Mesh& mesh)
-    {
-        return mesh.nInternalFaces();
-    }
 
-    const surfaceVectorField& C()
-    {
-        return mesh_.Cf();
-    }
+    // Member Functions
+
+        //- Return size. Number of internal faces
+        static label size(const Mesh& mesh)
+        {
+            return mesh.nInternalFaces();
+        }
+
+        //- Return size. Number of internal faces
+        label size() const
+        {
+            return size(mesh_);
+        }
+
+        //- Field of face centres
+        const surfaceVectorField& C() const
+        {
+            return mesh_.Cf();
+        }
 };
 
 

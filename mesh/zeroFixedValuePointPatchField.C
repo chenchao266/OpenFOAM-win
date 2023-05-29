@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2014-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2014 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -25,10 +27,15 @@ License
 
 #include "zeroFixedValuePointPatchField.H"
 
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+namespace Foam
+{
+
 // * * * * * * * * * * * * * * * * Constructors * * * * * * * * * * * * * * * //
 
 template<class Type>
-Foam::zeroFixedValuePointPatchField<Type>::
+zeroFixedValuePointPatchField<Type>::
 zeroFixedValuePointPatchField
 (
     const pointPatch& p,
@@ -40,7 +47,7 @@ zeroFixedValuePointPatchField
 
 
 template<class Type>
-Foam::zeroFixedValuePointPatchField<Type>::
+zeroFixedValuePointPatchField<Type>::
 zeroFixedValuePointPatchField
 (
     const pointPatch& p,
@@ -50,12 +57,12 @@ zeroFixedValuePointPatchField
 :
     fixedValuePointPatchField<Type>(p, iF, dict, false)
 {
-    fixedValuePointPatchField<Type>::operator=(Zero);
+    fixedValuePointPatchField<Type>::operator=(Type(Zero));
 }
 
 
 template<class Type>
-Foam::zeroFixedValuePointPatchField<Type>::
+zeroFixedValuePointPatchField<Type>::
 zeroFixedValuePointPatchField
 (
     const zeroFixedValuePointPatchField<Type>& ptf,
@@ -67,12 +74,12 @@ zeroFixedValuePointPatchField
     fixedValuePointPatchField<Type>(ptf, p, iF, mapper)
 {
     // For safety re-evaluate
-    fixedValuePointPatchField<Type>::operator=(Zero);
+    fixedValuePointPatchField<Type>::operator=(Type(Zero));
 }
 
 
 template<class Type>
-Foam::zeroFixedValuePointPatchField<Type>::
+zeroFixedValuePointPatchField<Type>::
 zeroFixedValuePointPatchField
 (
     const zeroFixedValuePointPatchField<Type>& ptf
@@ -83,7 +90,7 @@ zeroFixedValuePointPatchField
 
 
 template<class Type>
-Foam::zeroFixedValuePointPatchField<Type>::
+zeroFixedValuePointPatchField<Type>::
 zeroFixedValuePointPatchField
 (
     const zeroFixedValuePointPatchField<Type>& ptf,
@@ -93,8 +100,12 @@ zeroFixedValuePointPatchField
     fixedValuePointPatchField<Type>(ptf, iF)
 {
     // For safety re-evaluate
-    fixedValuePointPatchField<Type>::operator=(Zero);
+    fixedValuePointPatchField<Type>::operator=(Type(Zero));
 }
 
+
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+} // End namespace Foam
 
 // ************************************************************************* //

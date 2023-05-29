@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2012-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2012-2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -23,9 +25,9 @@ License
 
 \*---------------------------------------------------------------------------*/
 
-//#include "boundedDdtScheme.H"
+#include "boundedDdtScheme.H"
 #include "fvcDiv.H"
-#include "fvcDdt.H"
+#include "fvcDdt2.H"
 #include "fvMatrices.H"
 #include "fvmSup.H"
 
@@ -42,7 +44,7 @@ namespace fv
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 template<class Type>
-tmp<volFieldType<Type>>
+tmp<GeometricField<Type, fvPatchField, volMesh>>
 boundedDdtScheme<Type>::fvcDdt
 (
     const dimensioned<Type>& dt
@@ -53,10 +55,10 @@ boundedDdtScheme<Type>::fvcDdt
 
 
 template<class Type>
-tmp<volFieldType<Type>>
+tmp<GeometricField<Type, fvPatchField, volMesh>>
 boundedDdtScheme<Type>::fvcDdt
 (
-    const volFieldType<Type>& vf
+    const GeometricField<Type, fvPatchField, volMesh>& vf
 )
 {
     return scheme_.ref().fvcDdt(vf);
@@ -64,11 +66,11 @@ boundedDdtScheme<Type>::fvcDdt
 
 
 template<class Type>
-tmp<volFieldType<Type>>
+tmp<GeometricField<Type, fvPatchField, volMesh>>
 boundedDdtScheme<Type>::fvcDdt
 (
     const dimensionedScalar& rho,
-    const volFieldType<Type>& vf
+    const GeometricField<Type, fvPatchField, volMesh>& vf
 )
 {
     return scheme_.ref().fvcDdt(rho, vf);
@@ -76,11 +78,11 @@ boundedDdtScheme<Type>::fvcDdt
 
 
 template<class Type>
-tmp<volFieldType<Type>>
+tmp<GeometricField<Type, fvPatchField, volMesh>>
 boundedDdtScheme<Type>::fvcDdt
 (
     const volScalarField& rho,
-    const volFieldType<Type>& vf
+    const GeometricField<Type, fvPatchField, volMesh>& vf
 )
 {
     return scheme_.ref().fvcDdt(rho, vf) - fvc::ddt(rho)*vf;
@@ -88,12 +90,12 @@ boundedDdtScheme<Type>::fvcDdt
 
 
 template<class Type>
-tmp<volFieldType<Type>>
+tmp<GeometricField<Type, fvPatchField, volMesh>>
 boundedDdtScheme<Type>::fvcDdt
 (
     const volScalarField& alpha,
     const volScalarField& rho,
-    const volFieldType<Type>& vf
+    const GeometricField<Type, fvPatchField, volMesh>& vf
 )
 {
     return scheme_.ref().fvcDdt(alpha, rho, vf) - fvc::ddt(alpha, rho)*vf;
@@ -104,7 +106,7 @@ template<class Type>
 tmp<fvMatrix<Type>>
 boundedDdtScheme<Type>::fvmDdt
 (
-    const volFieldType<Type>& vf
+    const GeometricField<Type, fvPatchField, volMesh>& vf
 )
 {
     return scheme_.ref().fvmDdt(vf);
@@ -116,7 +118,7 @@ tmp<fvMatrix<Type>>
 boundedDdtScheme<Type>::fvmDdt
 (
     const dimensionedScalar& rho,
-    const volFieldType<Type>& vf
+    const GeometricField<Type, fvPatchField, volMesh>& vf
 )
 {
     return scheme_.ref().fvmDdt(rho, vf);
@@ -128,7 +130,7 @@ tmp<fvMatrix<Type>>
 boundedDdtScheme<Type>::fvmDdt
 (
     const volScalarField& rho,
-    const volFieldType<Type>& vf
+    const GeometricField<Type, fvPatchField, volMesh>& vf
 )
 {
     return scheme_.ref().fvmDdt(rho, vf) - fvm::Sp(fvc::ddt(rho), vf);
@@ -141,7 +143,7 @@ boundedDdtScheme<Type>::fvmDdt
 (
     const volScalarField& alpha,
     const volScalarField& rho,
-    const volFieldType<Type>& vf
+    const GeometricField<Type, fvPatchField, volMesh>& vf
 )
 {
     return
@@ -154,8 +156,8 @@ template<class Type>
 tmp<typename boundedDdtScheme<Type>::fluxFieldType>
 boundedDdtScheme<Type>::fvcDdtUfCorr
 (
-    const volFieldType<Type>& U,
-    const surfaceFieldType<Type>& Uf
+    const GeometricField<Type, fvPatchField, volMesh>& U,
+    const GeometricField<Type, fvsPatchField, surfaceMesh>& Uf
 )
 {
     return scheme_.ref().fvcDdtUfCorr(U, Uf);
@@ -166,7 +168,7 @@ template<class Type>
 tmp<typename boundedDdtScheme<Type>::fluxFieldType>
 boundedDdtScheme<Type>::fvcDdtPhiCorr
 (
-    const volFieldType<Type>& U,
+    const GeometricField<Type, fvPatchField, volMesh>& U,
     const fluxFieldType& phi
 )
 {
@@ -179,8 +181,8 @@ tmp<typename boundedDdtScheme<Type>::fluxFieldType>
 boundedDdtScheme<Type>::fvcDdtUfCorr
 (
     const volScalarField& rho,
-    const volFieldType<Type>& U,
-    const surfaceFieldType<Type>& Uf
+    const GeometricField<Type, fvPatchField, volMesh>& U,
+    const GeometricField<Type, fvsPatchField, surfaceMesh>& Uf
 )
 {
     return scheme_.ref().fvcDdtUfCorr(rho, U, Uf);
@@ -192,7 +194,7 @@ tmp<typename boundedDdtScheme<Type>::fluxFieldType>
 boundedDdtScheme<Type>::fvcDdtPhiCorr
 (
     const volScalarField& rho,
-    const volFieldType<Type>& U,
+    const GeometricField<Type, fvPatchField, volMesh>& U,
     const fluxFieldType& phi
 )
 {
@@ -203,7 +205,7 @@ boundedDdtScheme<Type>::fvcDdtPhiCorr
 template<class Type>
 tmp<surfaceScalarField> boundedDdtScheme<Type>::meshPhi
 (
-    const volFieldType<Type>& vf
+    const GeometricField<Type, fvPatchField, volMesh>& vf
 )
 {
     return scheme_.ref().meshPhi(vf);

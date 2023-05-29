@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2017-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -24,10 +27,10 @@ License
 \*---------------------------------------------------------------------------*/
 
 #include "sampledPlane.H"
-#include "dictionary.H"
+#include "dictionary2.H"
 #include "polyMesh.H"
 #include "volFields.H"
-
+#include "cartesianCS.H"
 #include "addToRunTimeSelectionTable.H"
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
@@ -35,8 +38,30 @@ License
 namespace Foam
 {
     defineTypeNameAndDebug(sampledPlane, 0);
-    addNamedToRunTimeSelectionTable(sampledSurface, sampledPlane, word, plane);
+    addNamedToRunTimeSelectionTable
+    (
+        sampledSurface,
+        sampledPlane,
+        word,
+        plane
+    );
 }
+
+
+// * * * * * * * * * * * * * Private Member Functions  * * * * * * * * * * * //
+
+Foam::bitSet Foam::sampledPlane::cellSelection(const bool warn) const
+{
+    return cuttingPlane::cellSelection
+    (
+        mesh(),
+        bounds_,
+        zoneNames_,
+        name(),
+        warn
+    );
+}
+
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
@@ -45,20 +70,29 @@ Foam::sampledPlane::sampledPlane
     const word& name,
     const polyMesh& mesh,
     const plane& planeDesc,
-    const keyType& zoneKey,
+    const wordRes& zones,
     const bool triangulate
 )
 :
     sampledSurface(name, mesh),
     cuttingPlane(planeDesc),
-    zoneKey_(zoneKey),
+    zoneNames_(zones),
+    bounds_(),
     triangulate_(triangulate),
     needsUpdate_(true)
 {
-    if (debug && zoneKey_.size() && mesh.cellZones().findIndex(zoneKey_) < 0)
+    if (debug)
     {
-        Info<< "cellZone " << zoneKey_
-            << " not found - using entire mesh" << endl;
+        if (!zoneNames_.empty())
+        {
+            Info<< " cellZones " << flatOutput(zoneNames_);
+
+            if (-1 == mesh.cellZones().findIndex(zoneNames_))
+            {
+                Info<< " not found!";
+            }
+            Info<< endl;
+        }
     }
 }
 
@@ -72,37 +106,65 @@ Foam::sampledPlane::sampledPlane
 :
     sampledSurface(name, mesh, dict),
     cuttingPlane(plane(dict)),
-    zoneKey_(keyType::null),
-    triangulate_(dict.lookupOrDefault("triangulate", true)),
+    zoneNames_(),
+    bounds_(dict.getOrDefault("bounds", boundBox::invertedBox)),
+    triangulate_(dict.getOrDefault("triangulate", true)),
     needsUpdate_(true)
 {
+    if (!dict.readIfPresent("zones", zoneNames_) && dict.found("zone"))
+    {
+        zoneNames_.resize(1);
+        dict.readEntry("zone", zoneNames_.first());
+    }
+
+
     // Make plane relative to the coordinateSystem (Cartesian)
     // allow lookup from global coordinate systems
-    if (dict.found("coordinateSystem"))
+    if (dict.found(coordinateSystem::typeName_()))
     {
-        coordinateSystem cs(mesh, dict.subDict("coordinateSystem"));
+        coordSystem::cartesian cs
+        (
+            coordinateSystem::New(mesh, dict, coordinateSystem::typeName_())
+        );
+        plane& pln = planeDesc();
 
-        point  base = cs.globalPosition(planeDesc().refPoint());
-        vector norm = cs.globalVector(planeDesc().normal());
+        const point  orig = cs.globalPosition(pln.origin());
+        const vector norm = cs.globalVector(pln.normal());
 
-        // Assign the plane description
-        static_cast<plane&>(*this) = plane(base, norm);
+        DebugInfo
+            << "plane " << name << " :"
+            << " origin:" << origin()
+            << " normal:" << normal()
+            << " defined within a local coordinateSystem" << endl;
+
+        // Reassign the plane
+        pln = plane(orig, norm);
     }
 
-    dict.readIfPresent("zone", zoneKey_);
 
-    if (debug && zoneKey_.size() && mesh.cellZones().findIndex(zoneKey_) < 0)
+    if (debug)
     {
-        Info<< "cellZone " << zoneKey_
-            << " not found - using entire mesh" << endl;
+        Info<< "plane " << name << " :"
+            << " origin:" << origin()
+            << " normal:" << normal();
+
+        if (bounds_.valid())
+        {
+            Info<< " bounds:" << bounds_;
+        }
+
+        if (!zoneNames_.empty())
+        {
+            Info<< " cellZones " << flatOutput(zoneNames_);
+
+            if (-1 == mesh.cellZones().findIndex(zoneNames_))
+            {
+                Info<< " not found!";
+            }
+        }
+        Info<< endl;
     }
 }
-
-
-// * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
-
-Foam::sampledPlane::~sampledPlane()
-{}
 
 
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
@@ -137,20 +199,11 @@ bool Foam::sampledPlane::update()
 
     sampledSurface::clearGeom();
 
-    labelList selectedCells = mesh().cellZones().findMatching(zoneKey_).used();
-
-    if (selectedCells.empty())
-    {
-        reCut(mesh(), triangulate_);
-    }
-    else
-    {
-        reCut(mesh(), triangulate_, selectedCells);
-    }
+    performCut(mesh(), triangulate_, cellSelection(true));
 
     if (debug)
     {
-        print(Pout);
+        print(Pout, debug);
         Pout<< endl;
     }
 
@@ -161,46 +214,46 @@ bool Foam::sampledPlane::update()
 
 Foam::tmp<Foam::scalarField> Foam::sampledPlane::sample
 (
-    const volScalarField& vField
+    const interpolation<scalar>& sampler
 ) const
 {
-    return sampleField(vField);
+    return sampleOnFaces(sampler);
 }
 
 
 Foam::tmp<Foam::vectorField> Foam::sampledPlane::sample
 (
-    const volVectorField& vField
+    const interpolation<vector>& sampler
 ) const
 {
-    return sampleField(vField);
+    return sampleOnFaces(sampler);
 }
 
 
 Foam::tmp<Foam::sphericalTensorField> Foam::sampledPlane::sample
 (
-    const volSphericalTensorField& vField
+    const interpolation<sphericalTensor>& sampler
 ) const
 {
-    return sampleField(vField);
+    return sampleOnFaces(sampler);
 }
 
 
 Foam::tmp<Foam::symmTensorField> Foam::sampledPlane::sample
 (
-    const volSymmTensorField& vField
+    const interpolation<symmTensor>& sampler
 ) const
 {
-    return sampleField(vField);
+    return sampleOnFaces(sampler);
 }
 
 
 Foam::tmp<Foam::tensorField> Foam::sampledPlane::sample
 (
-    const volTensorField& vField
+    const interpolation<tensor>& sampler
 ) const
 {
-    return sampleField(vField);
+    return sampleOnFaces(sampler);
 }
 
 
@@ -209,7 +262,7 @@ Foam::tmp<Foam::scalarField> Foam::sampledPlane::interpolate
     const interpolation<scalar>& interpolator
 ) const
 {
-    return interpolateField(interpolator);
+    return sampleOnPoints(interpolator);
 }
 
 
@@ -218,7 +271,7 @@ Foam::tmp<Foam::vectorField> Foam::sampledPlane::interpolate
     const interpolation<vector>& interpolator
 ) const
 {
-    return interpolateField(interpolator);
+    return sampleOnPoints(interpolator);
 }
 
 Foam::tmp<Foam::sphericalTensorField> Foam::sampledPlane::interpolate
@@ -226,7 +279,7 @@ Foam::tmp<Foam::sphericalTensorField> Foam::sampledPlane::interpolate
     const interpolation<sphericalTensor>& interpolator
 ) const
 {
-    return interpolateField(interpolator);
+    return sampleOnPoints(interpolator);
 }
 
 
@@ -235,7 +288,7 @@ Foam::tmp<Foam::symmTensorField> Foam::sampledPlane::interpolate
     const interpolation<symmTensor>& interpolator
 ) const
 {
-    return interpolateField(interpolator);
+    return sampleOnPoints(interpolator);
 }
 
 
@@ -244,18 +297,22 @@ Foam::tmp<Foam::tensorField> Foam::sampledPlane::interpolate
     const interpolation<tensor>& interpolator
 ) const
 {
-    return interpolateField(interpolator);
+    return sampleOnPoints(interpolator);
 }
 
 
-void Foam::sampledPlane::print(Ostream& os) const
+void Foam::sampledPlane::print(Ostream& os, int level) const
 {
     os  << "sampledPlane: " << name() << " :"
-        << "  base:" << refPoint()
-        << "  normal:" << normal()
-        << "  triangulate:" << triangulate_
-        << "  faces:" << faces().size()
-        << "  points:" << points().size();
+        << " origin:" << plane::origin()
+        << " normal:" << plane::normal()
+        << " triangulate:" << triangulate_;
+
+    if (level)
+    {
+        os << " faces:" << faces().size()
+           << " points:" << points().size();
+    }
 }
 
 

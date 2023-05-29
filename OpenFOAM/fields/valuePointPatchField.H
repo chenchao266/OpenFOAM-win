@@ -1,9 +1,12 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -47,18 +50,21 @@ namespace Foam
 \*---------------------------------------------------------------------------*/
 
 template<class Type>
-class valuePointPatchField :    public pointPatchField<Type>,
+class valuePointPatchField
+:
+    public pointPatchField<Type>,
     public Field<Type>
 {
-    // Private Member Functions
-
-        void checkFieldSize() const;
-
-
 public:
 
-    //- Runtime type information
+    //- Declare type-name, virtual type (with debug switch)
     TypeName("value");
+
+
+    // Generated Methods
+
+        //- Copy construct
+        valuePointPatchField(const valuePointPatchField&) = default;
 
 
     // Constructors
@@ -124,7 +130,7 @@ public:
         }
 
 
-    // Member functions
+    // Member Functions
 
         // Access
 
@@ -169,7 +175,7 @@ public:
         virtual void write(Ostream&) const;
 
 
-    // Member operators
+    // Member Operators
 
         // Assignment operators
 
@@ -204,9 +210,9 @@ public:
 };
 
 
-// This function is added to overide the hack in pointPatchField.H
-// which enables simple backward compatability with verions using
-// referenceLevel in GeometicField
+// This function is added to override the hack in pointPatchField.H
+// which enables simple backward compatibility with versions using
+// referenceLevel in GeometricField
 template<class Type>
 tmp<Field<Type>> operator+
 (

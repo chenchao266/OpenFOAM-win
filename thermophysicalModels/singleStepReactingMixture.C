@@ -1,9 +1,11 @@
-﻿/*---------------------------------------------------------------------------*\
+/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -23,7 +25,7 @@ License
 
 \*---------------------------------------------------------------------------*/
 
-//#include "singleStepReactingMixture.H"
+#include "singleStepReactingMixture.H"
 #include "fvMesh.H"
 
 // * * * * * * * * * * * * Protected Member Functions  * * * * * * * * * * * //
@@ -32,7 +34,7 @@ template<class ThermoType>
 void Foam::singleStepReactingMixture<ThermoType>::calculateqFuel()
 {
     const Reaction<ThermoType>& reaction = this->operator[](0);
-    const  scalar Wu = this->speciesData()[fuelIndex_].W();
+    const scalar Wu = this->speciesData()[fuelIndex_].W();
 
     forAll(reaction.lhs(), i)
     {
@@ -51,7 +53,7 @@ void Foam::singleStepReactingMixture<ThermoType>::calculateqFuel()
         specieProd_[speciei] = -1;
     }
 
-    Info << "Fuel heat of combustion :" << qFuel_.value() << endl;
+    Info<< "Fuel heat of combustion :" << qFuel_.value() << endl;
 }
 
 
@@ -73,9 +75,9 @@ void Foam::singleStepReactingMixture<ThermoType>::massAndAirStoichRatios()
       * mag(specieStoichCoeffs_[O2Index]))
       / (Wu*mag(specieStoichCoeffs_[fuelIndex_]));
 
-    Info << "stoichiometric air-fuel ratio :" << stoicRatio_.value() << endl;
+    Info<< "stoichiometric air-fuel ratio :" << stoicRatio_.value() << endl;
 
-    Info << "stoichiometric oxygen-fuel ratio :" << s_.value() << endl;
+    Info<< "stoichiometric oxygen-fuel ratio :" << s_.value() << endl;
 }
 
 
@@ -108,7 +110,7 @@ void Foam::singleStepReactingMixture<ThermoType>::calculateMaxProducts()
         Yprod0_[speciei] =  this->speciesData()[speciei].W()/Wm*Xi[i];
     }
 
-    Info << "Maximum products mass concentrations:" << nl;
+    Info<< "Maximum products mass concentrations:" << nl;
     forAll(Yprod0_, i)
     {
         if (Yprod0_[i] > 0)
@@ -134,7 +136,7 @@ void Foam::singleStepReactingMixture<ThermoType>::fresCorrect()
 {
     const Reaction<ThermoType>& reaction = this->operator[](0);
 
-    label O2Index = this->species()["O2"];
+    const label O2Index = this->species()["O2"];
     const volScalarField& YFuel = this->Y()[fuelIndex_];
     const volScalarField& YO2 = this->Y()[O2Index];
 
@@ -196,14 +198,14 @@ Foam::singleStepReactingMixture<ThermoType>::singleStepReactingMixture
 )
 :
     reactingMixture<ThermoType>(thermoDict, mesh, phaseName),
-    stoicRatio_(dimensionedScalar("stoicRatio", dimless, 0.0)),
-    s_(dimensionedScalar("s", dimless, 0.0)),
-    qFuel_(dimensionedScalar("qFuel", sqr(dimVelocity), 0.0)),
-    specieStoichCoeffs_(this->species_.size(), 0.0),
-    Yprod0_(this->species_.size(), 0.0),
+    stoicRatio_(dimensionedScalar("stoicRatio", dimless, Zero)),
+    s_(dimensionedScalar("s", dimless, Zero)),
+    qFuel_(dimensionedScalar("qFuel", sqr(dimVelocity), Zero)),
+    specieStoichCoeffs_(this->species_.size(), Zero),
+    Yprod0_(this->species_.size(), Zero),
     fres_(Yprod0_.size()),
-    inertIndex_(this->species()[thermoDict.lookup("inertSpecie")]),
-    fuelIndex_(this->species()[thermoDict.lookup("fuel")]),
+    inertIndex_(this->species()[thermoDict.get<word>("inertSpecie")]),
+    fuelIndex_(this->species()[thermoDict.get<word>("fuel")]),
     specieProd_(Yprod0_.size(), 1)
 {
     if (this->size() == 1)
@@ -226,7 +228,7 @@ Foam::singleStepReactingMixture<ThermoType>::singleStepReactingMixture
                 (
                     header,
                     mesh,
-                    dimensionedScalar("fres" + name(fresI), dimless, 0.0)
+                    dimensionedScalar(dimless, Zero)
                 )
             );
         }
@@ -236,8 +238,6 @@ Foam::singleStepReactingMixture<ThermoType>::singleStepReactingMixture
         massAndAirStoichRatios();
 
         calculateMaxProducts();
-
-        autoPtr<chemistryReader<ThermoType>>::clear();
     }
     else
     {

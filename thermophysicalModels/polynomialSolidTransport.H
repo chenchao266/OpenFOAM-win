@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2013-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2013-2017 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -64,14 +67,14 @@ See also
 #ifndef polynomialSolidTransport_H
 #define polynomialSolidTransport_H
 
-#include "Polynomial.T.H"
+#include "Polynomial.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 namespace Foam
 {
 
-// Forward declaration of friend functions and operators
+// Forward Declarations
 
 template<class Thermo, int PolySize> class polynomialSolidTransport;
 
@@ -106,7 +109,7 @@ class polynomialSolidTransport
 :
     public Thermo
 {
-    // Private data
+    // Private Data
 
         //- Thermal conductivity polynomial coefficients
         //  Note: input in [W/m/K]
@@ -114,6 +117,12 @@ class polynomialSolidTransport
 
 
     // Private Member Functions
+
+        //- Coeffs name. Eg, "kappaCoeffs<10>"
+        inline static word coeffsName(const char* name)
+        {
+            return word(name + ("Coeffs<" + std::to_string(PolySize) + '>'));
+        }
 
         //- Construct from components
         inline polynomialSolidTransport
@@ -125,6 +134,9 @@ class polynomialSolidTransport
 
 public:
 
+    // Generated Methods: copy construct, copy assignment
+
+
     // Constructors
 
         //- Construct as named copy
@@ -135,7 +147,7 @@ public:
         );
 
         //- Construct from dictionary
-        polynomialSolidTransport(const dictionary& dict);
+        explicit polynomialSolidTransport(const dictionary& dict);
 
         //- Construct and return a clone
         inline autoPtr<polynomialSolidTransport> clone() const;
@@ -147,7 +159,7 @@ public:
         );
 
 
-    // Member functions
+    // Member Functions
 
         //- Return the instantiated type name
         static word typeName()
@@ -175,14 +187,13 @@ public:
         void write(Ostream& os) const;
 
 
-    // Member operators
+    // Member Operators
 
-        inline void operator=(const polynomialSolidTransport&);
         inline void operator+=(const polynomialSolidTransport&);
         inline void operator*=(const scalar);
 
 
-    // Friend operators
+    // Friend Operators
 
         friend polynomialSolidTransport operator+ <Thermo, PolySize>
         (
@@ -197,7 +208,7 @@ public:
         );
 
 
-    // Ostream Operator
+    // IOstream Operators
 
         friend Ostream& operator<< <Thermo, PolySize>
         (

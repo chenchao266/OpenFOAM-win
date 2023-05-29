@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -58,7 +61,7 @@ class SDA
 :
     public solidBodyMotionFunction
 {
-    // Private data
+    // Private Data
 
         //- Center of gravity
         vector CofG_;
@@ -96,11 +99,11 @@ class SDA
 
     // Private Member Functions
 
-        //- Disallow copy construct
-        SDA(const SDA&);
+        //- No copy construct
+        SDA(const SDA&) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const SDA&);
+        //- No copy assignment
+        void operator=(const SDA&) = delete;
 
 
 public:
@@ -133,7 +136,7 @@ public:
 
 
     //- Destructor
-    virtual ~SDA();
+    virtual ~SDA() = default;
 
 
     // Member Functions

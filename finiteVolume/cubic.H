@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -23,6 +25,9 @@ License
 
 Class
     Foam::cubic
+
+Group
+    grpFvSurfaceInterpolationSchemes
 
 Description
     Cubic interpolation scheme class derived from linear and returns
@@ -55,11 +60,11 @@ class cubic
 {
     // Private Member Functions
 
-        //- Disallow default bitwise copy construct
-        cubic(const cubic&);
+        //- No copy construct
+        cubic(const cubic&) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const cubic&);
+        //- No copy assignment
+        void operator=(const cubic&) = delete;
 
 
 public:
@@ -107,10 +112,10 @@ public:
         }
 
         //- Return the explicit correction to the face-interpolate
-        virtual tmp<surfaceFieldType<Type>>
+        virtual tmp<GeometricField<Type, fvsPatchField, surfaceMesh>>
         correction
         (
-            const volFieldType<Type>& vf
+            const GeometricField<Type, fvPatchField, volMesh>& vf
         ) const
         {
             const fvMesh& mesh = this->mesh();
@@ -126,9 +131,9 @@ public:
             const surfaceScalarField kVecP(sqr(scalar(1) - lambda)*lambda);
             const surfaceScalarField kVecN(sqr(lambda)*(lambda - scalar(1)));
 
-            tmp<surfaceFieldType<Type>> tsfCorr
+            tmp<GeometricField<Type, fvsPatchField, surfaceMesh>> tsfCorr
             (
-                new surfaceFieldType<Type>
+                new GeometricField<Type, fvsPatchField, surfaceMesh>
                 (
                     IOobject
                     (
@@ -142,7 +147,7 @@ public:
                     surfaceInterpolationScheme<Type>::interpolate(vf, kSc, -kSc)
                 )
             );
-            surfaceFieldType<Type>& sfCorr =
+            GeometricField<Type, fvsPatchField, surfaceMesh>& sfCorr =
                 tsfCorr.ref();
 
             for (direction cmpt=0; cmpt<pTraits<Type>::nComponents; cmpt++)
@@ -171,7 +176,7 @@ public:
                 );
             }
 
-            typename surfaceFieldType<Type>::
+            typename GeometricField<Type, fvsPatchField, surfaceMesh>::
                 Boundary& sfCorrbf = sfCorr.boundaryFieldRef();
 
             forAll(sfCorrbf, pi)

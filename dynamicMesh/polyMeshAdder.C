@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2019-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -25,16 +28,17 @@ License
 
 #include "polyMeshAdder.H"
 #include "mapAddedPolyMesh.H"
-#include "IOobject.T.H"
+#include "IOobject.H"
 #include "faceCoupleInfo.H"
 #include "processorPolyPatch.H"
-#include "SortableList.T.H"
-#include "Time.T.H"
+#include "SortableList.H"
+#include "Time1.H"
 #include "globalMeshData.H"
 #include "mergePoints.H"
 #include "polyModifyFace.H"
 #include "polyRemovePoint.H"
 #include "polyTopoChange.H"
+#include "globalIndex.H"
 
 // * * * * * * * * * * * * * Private Member Functions  * * * * * * * * * * * //
 
@@ -51,7 +55,7 @@ Foam::label Foam::polyMeshAdder::patchIndex
     const word& pType = p.type();
     const word& pName = p.name();
 
-    label patchi = findIndex(allPatchNames, pName);
+    const label patchi = allPatchNames.find(pName);
 
     if (patchi == -1)
     {
@@ -96,7 +100,7 @@ Foam::label Foam::polyMeshAdder::zoneIndex
     DynamicList<word>& names
 )
 {
-    label zoneI = findIndex(names, curName);
+    const label zoneI = names.find(curName);
 
     if (zoneI != -1)
     {
@@ -334,7 +338,7 @@ Foam::labelList Foam::polyMeshAdder::getFaceOrder
 
         forAll(cFaces, i)
         {
-            label facei = cFaces[i];
+            const label facei = cFaces[i];
 
             label nbrCelli = neighbour[facei];
 
@@ -420,11 +424,11 @@ void Foam::polyMeshAdder::insertVertices
 
         // See if any edge between v0,v1
 
-        Map<label>::const_iterator v0Fnd = meshToMaster.find(v0);
-        if (v0Fnd != meshToMaster.end())
+        const auto v0Fnd = meshToMaster.cfind(v0);
+        if (v0Fnd.found())
         {
-            Map<label>::const_iterator v1Fnd = meshToMaster.find(v1);
-            if (v1Fnd != meshToMaster.end())
+            const auto v1Fnd = meshToMaster.cfind(v1);
+            if (v1Fnd.found())
             {
                 // Get edge in cutPoint numbering
                 edge cutEdge
@@ -433,12 +437,12 @@ void Foam::polyMeshAdder::insertVertices
                     masterToCutPoints[v1Fnd()]
                 );
 
-                edgeLookup::const_iterator iter = cutEdgeToPoints.find(cutEdge);
+                const auto iter = cutEdgeToPoints.cfind(cutEdge);
 
-                if (iter != cutEdgeToPoints.end())
+                if (iter.found())
                 {
                     const edge& e = iter.key();
-                    const labelList& addedPoints = iter();
+                    const labelList& addedPoints = iter.val();
 
                     // cutPoints first in allPoints so no need for renumbering
                     if (e[0] == cutEdge[0])
@@ -891,7 +895,7 @@ void Foam::polyMeshAdder::mergePointZones
     // Zone(s) per point. Two levels: if only one zone
     // stored in pointToZone. Any extra stored in additionalPointToZones.
     // This is so we only allocate labelLists per point if absolutely
-    // necesary.
+    // necessary.
     labelList pointToZone(nAllPoints, -1);
     labelListList addPointToZones(nAllPoints);
 
@@ -912,10 +916,7 @@ void Foam::polyMeshAdder::mergePointZones
             else if (pointToZone[allPointi] != zoneI)
             {
                 labelList& pZones = addPointToZones[allPointi];
-                if (findIndex(pZones, zoneI) == -1)
-                {
-                    pZones.append(zoneI);
-                }
+                pZones.appendUniq(zoneI);
             }
         }
     }
@@ -938,10 +939,7 @@ void Foam::polyMeshAdder::mergePointZones
             else if (pointToZone[allPointi] != allZoneI)
             {
                 labelList& pZones = addPointToZones[allPointi];
-                if (findIndex(pZones, allZoneI) == -1)
-                {
-                    pZones.append(allZoneI);
-                }
+                pZones.appendUniq(allZoneI);
             }
         }
     }
@@ -949,7 +947,7 @@ void Foam::polyMeshAdder::mergePointZones
     // Extract back into zones
 
     // 1. Count
-    labelList nPoints(zoneNames.size(), 0);
+    labelList nPoints(zoneNames.size(), Zero);
     forAll(pointToZone, allPointi)
     {
         label zoneI = pointToZone[allPointi];
@@ -1070,9 +1068,8 @@ void Foam::polyMeshAdder::mergeFaceZones
                     labelList& fZones = addFaceToZones[allFacei];
                     boolList& flipZones = addFaceToFlips[allFacei];
 
-                    if (findIndex(fZones, zoneI) == -1)
+                    if (fZones.appendUniq(zoneI))
                     {
-                        fZones.append(zoneI);
                         flipZones.append(flip0);
                     }
                 }
@@ -1113,9 +1110,8 @@ void Foam::polyMeshAdder::mergeFaceZones
                     labelList& fZones = addFaceToZones[allFacei];
                     boolList& flipZones = addFaceToFlips[allFacei];
 
-                    if (findIndex(fZones, allZoneI) == -1)
+                    if (fZones.appendUniq(allZoneI))
                     {
-                        fZones.append(allZoneI);
                         flipZones.append(flip1);
                     }
                 }
@@ -1127,7 +1123,7 @@ void Foam::polyMeshAdder::mergeFaceZones
     // Extract back into zones
 
     // 1. Count
-    labelList nFaces(zoneNames.size(), 0);
+    labelList nFaces(zoneNames.size(), Zero);
     forAll(faceToZone, allFacei)
     {
         label zoneI = faceToZone[allFacei];
@@ -1181,10 +1177,10 @@ void Foam::polyMeshAdder::mergeFaceZones
         fzFaces[i].shrink();
         fzFlips[i].shrink();
 
-        labelList order;
-        sortedOrder(fzFaces[i], order);
-        fzFaces[i] = UIndirectList<label>(fzFaces[i], order)();
-        fzFlips[i] = UIndirectList<bool>(fzFlips[i], order)();
+        labelList order(sortedOrder(fzFaces[i]));
+
+        fzFaces[i] = labelUIndList(fzFaces[i], order)();
+        fzFlips[i] = boolUIndList(fzFlips[i], order)();
     }
 }
 
@@ -1216,7 +1212,7 @@ void Foam::polyMeshAdder::mergeCellZones
     // Zone(s) per cell. Two levels: if only one zone
     // stored in cellToZone. Any extra stored in additionalCellToZones.
     // This is so we only allocate labelLists per cell if absolutely
-    // necesary.
+    // necessary.
     labelList cellToZone(nAllCells, -1);
     labelListList addCellToZones(nAllCells);
 
@@ -1235,10 +1231,7 @@ void Foam::polyMeshAdder::mergeCellZones
             else if (cellToZone[cell0] != zoneI)
             {
                 labelList& cZones = addCellToZones[cell0];
-                if (findIndex(cZones, zoneI) == -1)
-                {
-                    cZones.append(zoneI);
-                }
+                cZones.appendUniq(zoneI);
             }
         }
     }
@@ -1260,10 +1253,7 @@ void Foam::polyMeshAdder::mergeCellZones
             else if (cellToZone[allCelli] != allZoneI)
             {
                 labelList& cZones = addCellToZones[allCelli];
-                if (findIndex(cZones, allZoneI) == -1)
-                {
-                    cZones.append(allZoneI);
-                }
+                cZones.appendUniq(allZoneI);
             }
         }
     }
@@ -1271,7 +1261,7 @@ void Foam::polyMeshAdder::mergeCellZones
     // Extract back into zones
 
     // 1. Count
-    labelList nCells(zoneNames.size(), 0);
+    labelList nCells(zoneNames.size(), Zero);
     forAll(cellToZone, allCelli)
     {
         label zoneI = cellToZone[allCelli];
@@ -1506,7 +1496,7 @@ Foam::autoPtr<Foam::polyMesh> Foam::polyMeshAdder::add
     label nCells;
 
     // Sizes per patch
-    labelList nFaces(allPatchNames.size(), 0);
+    labelList nFaces(allPatchNames.size(), Zero);
 
     // Maps
     labelList from0ToAllFaces(mesh0.nFaces(), -1);
@@ -1645,18 +1635,15 @@ Foam::autoPtr<Foam::polyMesh> Foam::polyMeshAdder::add
     // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
     // Construct mesh
-    autoPtr<polyMesh> tmesh
+    auto meshPtr = autoPtr<polyMesh>::New
     (
-        new polyMesh
-        (
-            io,
-            xferMove(allPoints),
-            xferMove(allFaces),
-            xferMove(allOwner),
-            xferMove(allNeighbour)
-        )
+        io,
+        std::move(allPoints),
+        std::move(allFaces),
+        std::move(allOwner),
+        std::move(allNeighbour)
     );
-    polyMesh& mesh = tmesh();
+    polyMesh& mesh = *meshPtr;
 
     // Add zones to new mesh.
     addZones
@@ -1676,7 +1663,7 @@ Foam::autoPtr<Foam::polyMesh> Foam::polyMeshAdder::add
     // Add patches to new mesh
     mesh.addPatches(allPatches);
 
-    return tmesh;
+    return meshPtr;
 }
 
 
@@ -1723,7 +1710,7 @@ Foam::autoPtr<Foam::mapAddedPolyMesh> Foam::polyMeshAdder::add
     labelList allNeighbour;
     label nInternalFaces;
     // Sizes per patch
-    labelList nFaces(allPatchNames.size(), 0);
+    labelList nFaces(allPatchNames.size(), Zero);
     label nCells;
 
     // Maps
@@ -1965,10 +1952,10 @@ Foam::autoPtr<Foam::mapAddedPolyMesh> Foam::polyMeshAdder::add
     mesh0.resetMotion();    // delete any oldPoints.
     mesh0.resetPrimitives
     (
-        xferMove(allPoints),
-        xferMove(allFaces),
-        xferMove(allOwner),
-        xferMove(allNeighbour),
+        autoPtr<pointField>::New(std::move(allPoints)),
+        autoPtr<faceList>::New(std::move(allFaces)),
+        autoPtr<labelList>::New(std::move(allOwner)),
+        autoPtr<labelList>::New(std::move(allNeighbour)),
         patchSizes,     // size
         patchStarts,    // patchstarts
         validBoundary   // boundary valid?
@@ -2022,20 +2009,20 @@ Foam::Map<Foam::label> Foam::polyMeshAdder::findSharedPoints
 
         label sharedI = sharedPointAddr[i];
 
-        Map<labelList>::iterator iter = sharedToMesh.find(sharedI);
+        auto iter = sharedToMesh.find(sharedI);
 
-        if (iter != sharedToMesh.end())
+        if (iter.found())
         {
             // sharedI already used by other point. Add this one.
 
             nMultiple++;
 
-            labelList& connectedPointLabels = iter();
+            labelList& connectedPointLabels = iter.val();
 
             label sz = connectedPointLabels.size();
 
             // Check just to make sure.
-            if (findIndex(connectedPointLabels, pointi) != -1)
+            if (connectedPointLabels.found(pointi))
             {
                 FatalErrorInFunction
                     << "Duplicate point in sharedPoint addressing." << endl
@@ -2060,9 +2047,9 @@ Foam::Map<Foam::label> Foam::polyMeshAdder::findSharedPoints
 
     Map<label> pointToMaster(nMultiple);
 
-    forAllConstIter(Map<labelList>, sharedToMesh, iter)
+    forAllConstIters(sharedToMesh, iter)
     {
-        const labelList& connectedPointLabels = iter();
+        const labelList& connectedPointLabels = iter.val();
 
         //Pout<< "For shared:" << iter.key()
         //    << " found points:" << connectedPointLabels
@@ -2121,8 +2108,7 @@ Foam::Map<Foam::label> Foam::polyMeshAdder::findSharedPoints
 
                             //Pout<< "Merging point " << pointi
                             //    << " at " << mesh.points()[pointi]
-                            //    << " into master point "
-                            //    << masterPointi
+                            //    << " into master point " << masterPointi
                             //    << " at " << mesh.points()[masterPointi]
                             //    << endl;
 
@@ -2218,13 +2204,13 @@ void Foam::polyMeshAdder::mergePoints
     // Remove all non-master points.
     forAll(mesh.points(), pointi)
     {
-        Map<label>::const_iterator iter = pointToMaster.find(pointi);
+        const auto iter = pointToMaster.cfind(pointi);
 
-        if (iter != pointToMaster.end())
+        if (iter.found())
         {
-            if (iter() != pointi)
+            if (iter.val() != pointi)
             {
-                meshMod.removePoint(pointi, iter());
+                meshMod.removePoint(pointi, iter.val());
             }
         }
     }
@@ -2243,11 +2229,11 @@ void Foam::polyMeshAdder::mergePoints
         {
             label pointi = f[fp];
 
-            Map<label>::const_iterator iter = pointToMaster.find(pointi);
+            const auto iter = pointToMaster.cfind(pointi);
 
-            if (iter != pointToMaster.end())
+            if (iter.found())
             {
-                if (iter() != pointi)
+                if (iter.val() != pointi)
                 {
                     hasMerged = true;
                     break;
@@ -2263,11 +2249,11 @@ void Foam::polyMeshAdder::mergePoints
             {
                 label pointi = f[fp];
 
-                Map<label>::const_iterator iter = pointToMaster.find(pointi);
+                const auto iter = pointToMaster.cfind(pointi);
 
-                if (iter != pointToMaster.end())
+                if (iter.found())
                 {
-                    newF[fp] = iter();
+                    newF[fp] = iter.val();
                 }
             }
 
@@ -2297,6 +2283,749 @@ void Foam::polyMeshAdder::mergePoints
                     zoneFlip                    // face flip in zone
                 )
             );
+        }
+    }
+}
+
+
+Foam::label Foam::polyMeshAdder::procPatchIndex
+(
+    const polyBoundaryMesh& pbm,
+    const label nbrProci,
+    const label n
+)
+{
+    // Find n'th processor patch going to nbrProci. Usually n=0 but in some
+    // cases (e.g. processorCyclic, implicit cht) there can be more than one
+    // processor patch between two processors.
+
+    label index = n;
+
+    for (label patchi = pbm.nNonProcessor(); patchi < pbm.size(); patchi++)
+    {
+        const processorPolyPatch& pp =
+            refCast<const processorPolyPatch>(pbm[patchi]);
+        if (pp.neighbProcNo() == nbrProci)
+        {
+            if (index == 0)
+            {
+                return patchi;
+            }
+            else
+            {
+                --index;
+            }
+        }
+    }
+
+    FatalErrorInFunction << "no patch found to processor " << nbrProci
+        << ". Current patches:" << pbm.names() << exit(FatalError);
+    return -1;
+}
+
+
+Foam::label Foam::polyMeshAdder::procPatchPairs
+(
+    const UPtrList<polyMesh>& meshes,
+    List<DynamicList<label>>& localPatch,
+    List<DynamicList<label>>& remoteProc,
+    List<DynamicList<label>>& remotePatch
+    //List<labelListList>& remotePatchFace,
+    //List<labelListList>& remotePatchFaceStart
+)
+{
+    // Determine pairs of processor patches:
+    // - remote processor
+    // - patch on remote processor
+    // - face on remote patch
+    // - starting index on remote face
+    localPatch.setSize(meshes.size());
+    remoteProc.setSize(meshes.size());
+    remotePatch.setSize(meshes.size());
+    //remotePatchFace.setSize(meshes.size());
+    //remotePatchFaceStart.setSize(meshes.size());
+
+
+    // Check that all processors have the same globalPatches
+    {
+        const polyBoundaryMesh& pbm = meshes[0].boundaryMesh();
+        const wordList names0(SubList<word>(pbm.names(), pbm.nNonProcessor()));
+        for (label proci = 1; proci < meshes.size(); proci++)
+        {
+            const polyBoundaryMesh& pbm = meshes[proci].boundaryMesh();
+            const wordList names(pbm.names());
+
+            if (SubList<word>(names, pbm.nNonProcessor()) != names0)
+            {
+                FatalErrorInFunction
+                    << "Patch names should be identical on all processors."
+                    << " Processor 0 has " << names0
+                    << ". Processor " << proci
+                    << " has " << names
+                    << exit(FatalError);
+            }
+        }
+    }
+
+
+    // Work array
+    labelList nNeighbourProcs(meshes.size());
+
+    forAll(meshes, proci)
+    {
+        const polyBoundaryMesh& pbm = meshes[proci].boundaryMesh();
+
+        // Running count of number of patches communicating with same nbr
+        // (usually 0)
+        nNeighbourProcs = 0;
+
+        for (label patchi = pbm.nNonProcessor(); patchi < pbm.size(); patchi++)
+        {
+            const processorPolyPatch& pp =
+                refCast<const processorPolyPatch>(pbm[patchi]);
+            if (pp.owner())
+            {
+                const label nbrProci = pp.neighbProcNo();
+                const label nbrPatchi = procPatchIndex
+                (
+                    meshes[nbrProci].boundaryMesh(),
+                    proci,
+                    nNeighbourProcs[nbrProci]
+                );
+
+                const auto& nbrPbm = meshes[nbrProci].boundaryMesh();
+                const auto& nbrPp = nbrPbm[nbrPatchi];
+                if (pp.size() != nbrPp.size())
+                {
+                    FatalErrorInFunction
+                        << "at proc:" << proci
+                        << " processor patch "
+                        << pp.name() << " is not same size " << pp.size()
+                        << " as coupled patch " << nbrPp.name()
+                        << " on proc:" << nbrProci
+                        << " size:" << nbrPp.size()
+                        << exit(FatalError);
+                }
+
+                localPatch[proci].append(patchi);
+                remoteProc[proci].append(nbrProci);
+                remotePatch[proci].append(nbrPatchi);
+
+                localPatch[nbrProci].append(nbrPatchi);
+                remoteProc[nbrProci].append(proci);
+                remotePatch[nbrProci].append(patchi);
+
+                nNeighbourProcs[nbrProci]++;
+            }
+        }
+    }
+
+    //// Fill in the patch face ordering. Assume correct ordering.
+    //forAll(meshes, proci)
+    //{
+    //    const polyBoundaryMesh& pbm = meshes[proci].boundaryMesh();
+    //
+    //    const DynamicList<label>& localPatches = localPatch[proci];
+    //
+    //    labelListList& rpf = remotePatchFace[proci];
+    //    rpf.setSize(localPatches.size());
+    //
+    //    labelListList& rps = remotePatchFaceStart[proci];
+    //    rps.setSize(localPatches.size());
+    //
+    //    forAll(localPatches, i)
+    //    {
+    //        const auto& pp = pbm[localPatches[i]];
+    //        rpf[i] = identity(pp.size());
+    //        rps[i].setSize(pp.size(), 0);
+    //    }
+    //}
+
+    return meshes[0].boundaryMesh().nNonProcessor();
+}
+
+
+void Foam::polyMeshAdder::patchFacePairs
+(
+    const UPtrList<polyMesh>& meshes,
+    const List<DynamicList<label>>& localPatch,
+    const List<DynamicList<label>>& remoteMesh,
+    const List<DynamicList<label>>& remotePatch,
+    labelListList& localBoundaryFace,
+    labelListList& remoteFaceMesh,
+    labelListList& remoteBoundaryFace
+)
+{
+    // Calculates pairs of matching (boundary) faces. Returns
+    //  localBoundaryFace[meshi]  : index of local face (in boundary face
+    //                              indexing!)
+    //  remoteMesh[meshi]         : index of remote mesh
+    //  remoteBoundaryFace[meshi] : index of remote face (in boundary face
+    //                              indexing!)
+    localBoundaryFace.setSize(meshes.size());
+    remoteFaceMesh.setSize(meshes.size());
+    remoteBoundaryFace.setSize(meshes.size());
+
+    forAll(meshes, meshi)
+    {
+        const auto& mesh = meshes[meshi];
+        const polyBoundaryMesh& pbm = mesh.boundaryMesh();
+        const DynamicList<label>& procPatches = localPatch[meshi];
+        const DynamicList<label>& procNbrs = remoteMesh[meshi];
+        const DynamicList<label>& procNbrPatches = remotePatch[meshi];
+
+
+        // Count number of processor faces
+        label nFaces = 0;
+        for (const label patchi : procPatches)
+        {
+            nFaces += pbm[patchi].size();
+        }
+
+        labelList& procFaces = localBoundaryFace[meshi];
+        labelList& remoteMeshes = remoteFaceMesh[meshi];
+        labelList& remoteFaces = remoteBoundaryFace[meshi];
+
+        procFaces.setSize(nFaces);
+        remoteMeshes.setSize(nFaces);
+        remoteFaces.setSize(nFaces);
+
+        nFaces = 0;
+
+        forAll(procPatches, i)
+        {
+            const label patchi = procPatches[i];
+            const label nbrMeshi = procNbrs[i];
+            const label nbrPatchi = procNbrPatches[i];
+
+            const auto& pp = pbm[patchi];
+            const label offset = pp.start()-mesh.nInternalFaces();
+
+            const auto& nbrMesh = meshes[nbrMeshi];
+            const auto& nbrPp = nbrMesh.boundaryMesh()[nbrPatchi];
+            const label nbrOffset = nbrPp.start()-nbrMesh.nInternalFaces();
+
+            forAll(pp, patchFacei)
+            {
+                procFaces[nFaces] = offset+patchFacei;
+                remoteMeshes[nFaces] = nbrMeshi;
+                remoteFaces[nFaces] = nbrOffset+patchFacei;
+                nFaces++;
+            }
+        }
+    }
+}
+
+
+void Foam::polyMeshAdder::compactPoints
+(
+    const UPtrList<polyMesh>& meshes,
+    const labelListList& localBoundaryFace,
+    const labelListList& remoteFaceMesh,
+    const labelListList& remoteBoundaryFace,
+    const labelListList& remoteFaceStart,
+    const globalIndex& globalPoints,
+
+    labelListList& pointProcAddressing,
+    labelListList& localPoints
+)
+{
+    // Determines 'master' points for shared points. Returns
+    //  pointProcAddressing[meshi] : global point for every mesh point
+    //  localPoints[meshi]         : indices of local points that are unique
+
+    // Choose minimum point for shared ones. Iterate minimising global points
+    // until nothing changes
+    while (true)
+    {
+        label nChanged = 0;
+        forAll(meshes, meshi)
+        {
+            if (meshes.set(meshi))
+            {
+                const polyMesh& mesh = meshes[meshi];
+                const faceList& faces = mesh.faces();
+
+                labelList& pAddressing = pointProcAddressing[meshi];
+
+                const labelList& localBFaces = localBoundaryFace[meshi];
+                const labelList& procNbrs = remoteFaceMesh[meshi];
+                const labelList& procNbrBFaces = remoteBoundaryFace[meshi];
+                const labelList& procNbrIndex = remoteFaceStart[meshi];
+
+                forAll(localBFaces, i)
+                {
+                    const label bFacei = localBFaces[i];
+                    const label nbrMeshi = procNbrs[i];
+                    const label nbrBFacei = procNbrBFaces[i];
+
+                    // Local mesh face
+                    const label facei = mesh.nInternalFaces()+bFacei;
+                    const face& f = faces[facei];
+
+                    // Matched (remote) face
+                    const auto& nbrMesh = meshes[nbrMeshi];
+                    const label nbrFacei = nbrMesh.nInternalFaces()+nbrBFacei;
+                    const face& nbrF = nbrMesh.faces()[nbrFacei];
+
+
+                    labelList& nbrAddressing = pointProcAddressing[nbrMeshi];
+
+                    // Starting index is indexed wrt matched, not original
+                    // face. Check!
+                    label nbrFp = procNbrIndex[i];
+
+                    forAll(f, fp)
+                    {
+                        label& ppPointi = pAddressing[f[fp]];
+                        label& nbrPointi = nbrAddressing[nbrF[nbrFp]];
+
+                        //const point& pt = mesh.points()[f[fp]];
+                        //const point& nbrPt = nbrMesh.points()[nbrF[nbrFp]];
+                        //if (mag(pt-nbrPt) > SMALL)
+                        //{
+                        //    FatalErrorInFunction
+                        //        << "Merging differing points :"
+                        //        << " pt:" << pt
+                        //        << " nbrPt:" << nbrPt
+                        //        << exit(FatalError);
+                        //}
+
+                        if (ppPointi < nbrPointi)
+                        {
+                            //Pout<< "on proc:" << nbrMeshi
+                            //    << " point:" << nbrF[nbrFp]
+                            //    << " changing from:" << nbrPointi
+                            //    << " to:" << ppPointi << endl;
+                            nbrPointi = ppPointi;
+                            nChanged++;
+                        }
+                        else if (nbrPointi < ppPointi)
+                        {
+                            //Pout<< "on proc:" << meshi
+                            //    << " point:" << f[fp]
+                            //    << " changing from:" << ppPointi
+                            //    << " to:" << nbrPointi << endl;
+                            ppPointi = nbrPointi;
+                            nChanged++;
+                        }
+
+                        nbrFp = nbrF.rcIndex(nbrFp);
+                    }
+                }
+            }
+        }
+
+        if (nChanged == 0)
+        {
+            break;
+        }
+    }
+
+
+
+    // Compact out unused points
+    localPoints.setSize(meshes.size());
+    labelList globalToCompact(globalPoints.size(), -1);
+    label nGlobal = 0;
+    forAll(meshes, meshi)
+    {
+        if (meshes.set(meshi))
+        {
+            const polyMesh& mesh = meshes[meshi];
+
+            labelList& compactPoints = localPoints[meshi];
+            compactPoints.setSize(mesh.nPoints());
+            label nCompact = 0;
+
+            const labelList& pAddressing = pointProcAddressing[meshi];
+            forAll(pAddressing, pointi)
+            {
+                //Pout<< "proc:" << meshi
+                //    << " localpoint:" << pointi
+                //    << " globalpoint:"
+                //    << globalPoints.toGlobal(meshi, pointi)
+                //    << " merged:" << pAddressing[pointi]
+                //    << endl;
+
+                const label globali = globalPoints.toGlobal(meshi, pointi);
+
+                if (pAddressing[pointi] == globali)
+                {
+                    // Unchanged address
+                    globalToCompact[globali] = nGlobal++;
+                    compactPoints[nCompact++] = pointi;
+                }
+            }
+            compactPoints.setSize(nCompact);
+        }
+    }
+
+    forAll(meshes, meshi)
+    {
+        labelList& pAddressing = pointProcAddressing[meshi];
+        pAddressing = UIndirectList<label>(globalToCompact, pAddressing);
+    }
+}
+
+
+void Foam::polyMeshAdder::add
+(
+    const UPtrList<polyMesh>& meshes,
+    const UList<labelList>& patchMap,
+
+    const labelListList& localBoundaryFace,
+    const labelListList& remoteFaceMesh,
+    const labelListList& remoteBoundaryFace,
+    const labelListList& remoteFaceStart,
+
+    const UList<labelList>& pointZoneMap,
+    const UList<labelList>& faceZoneMap,
+    const UList<labelList>& cellZoneMap,
+
+    polyTopoChange& meshMod,
+    labelListList& cellProcAddressing,
+    labelListList& faceProcAddressing,
+    labelListList& pointProcAddressing
+    //labelListList& boundaryProcAddressing
+)
+{
+    cellProcAddressing.setSize(meshes.size());
+    faceProcAddressing.setSize(meshes.size());
+    pointProcAddressing.setSize(meshes.size());
+    //boundaryProcAddressing.setSize(meshes.size());
+    forAll(cellProcAddressing, meshi)
+    {
+        cellProcAddressing[meshi].clear();
+        faceProcAddressing[meshi].clear();
+        pointProcAddressing[meshi].clear();
+    }
+
+    // Start off with points allocated in processor order.
+    labelList offsets(meshes.size()+1);
+    offsets[0] = 0;
+    forAll(meshes, meshi)
+    {
+        label nPoints = 0;
+        if (meshes.set(meshi))
+        {
+            const polyMesh& mesh = meshes[meshi];
+            nPoints = mesh.nPoints();
+        }
+        pointProcAddressing[meshi] = identity(nPoints, offsets[meshi]);
+        offsets[meshi+1] = offsets[meshi]+nPoints;
+    }
+    const globalIndex globalPoints(std::move(offsets));
+
+    labelListList uniquePoints(meshes.size());
+    compactPoints
+    (
+        meshes,
+
+        localBoundaryFace,
+        remoteFaceMesh,
+        remoteBoundaryFace,
+        remoteFaceStart,
+
+        globalPoints,
+
+        pointProcAddressing,    // per proc, per point the compact,global point
+        uniquePoints            // per proc indices of local preserved points
+    );
+
+
+    // Add cells
+    // ~~~~~~~~~
+    // These are used by face adding later on
+
+    forAll(meshes, meshi)
+    {
+        if (meshes.set(meshi))
+        {
+            const polyMesh& mesh = meshes[meshi];
+            const cellZoneMesh& cellZones = mesh.cellZones();
+
+            // Precalc offset zones
+            labelList newZoneID(mesh.nCells(), -1);
+
+            forAll(cellZones, zonei)
+            {
+                const labelList& cellLabels = cellZones[zonei];
+
+                for (const label celli : cellLabels)
+                {
+                    if (newZoneID[celli] != -1)
+                    {
+                        WarningInFunction
+                            << "Cell:" << celli
+                            << " centre:" << mesh.cellCentres()[celli]
+                            << " is in two zones:"
+                            << cellZones[newZoneID[celli]].name()
+                            << " and " << cellZones[zonei].name() << endl
+                            << "    This is not supported."
+                            << " Continuing with first zone only." << endl;
+                    }
+                    else
+                    {
+                        newZoneID[celli] = cellZoneMap[meshi][zonei];
+                    }
+                }
+            }
+
+            // Add cells in mesh order
+            cellProcAddressing[meshi].setSize(mesh.nCells());
+            for (label celli = 0; celli < mesh.nCells(); celli++)
+            {
+                // Add cell from cell
+                cellProcAddressing[meshi][celli] = meshMod.addCell
+                (
+                    -1,
+                    -1,
+                    -1,
+                    celli,
+                    newZoneID[celli]
+                );
+            }
+        }
+    }
+
+
+    // Add points
+    // ~~~~~~~~~~
+    // These are used by face adding later on
+
+    forAll(meshes, meshi)
+    {
+        if (meshes.set(meshi))
+        {
+            const polyMesh& mesh = meshes[meshi];
+            const pointField& points = mesh.points();
+            const pointZoneMesh& pointZones = mesh.pointZones();
+
+            // Precalc offset zones
+            labelList newZoneID(points.size(), -1);
+
+            forAll(pointZones, zonei)
+            {
+                const labelList& pointLabels = pointZones[zonei];
+
+                for (const label pointi : pointLabels)
+                {
+                    newZoneID[pointi] = pointZoneMap[meshi][zonei];
+                }
+            }
+
+            // Add points in mesh order
+            const labelList& myUniquePoints = uniquePoints[meshi];
+            for (const label pointi : myUniquePoints)
+            {
+                // Rewrite the addressing (should already be compact) just in
+                // case the polyTopoChange does some special ordering
+                pointProcAddressing[meshi][pointi] = meshMod.addPoint
+                (
+                    points[pointi],
+                    pointi,
+                    newZoneID[pointi],
+                    true
+                );
+            }
+        }
+    }
+
+
+
+    // Add faces
+    // ~~~~~~~~~
+
+    forAll(meshes, meshi)
+    {
+        if (meshes.set(meshi))
+        {
+            const polyMesh& mesh = meshes[meshi];
+            faceProcAddressing[meshi].setSize(mesh.nFaces());
+            faceProcAddressing[meshi] = -1;
+            //boundaryProcAddressing[meshi].setSize(mesh.boundaryMesh().size());
+            //boundaryProcAddressing[meshi] = -1;
+        }
+    }
+
+    forAll(meshes, meshi)
+    {
+        if (meshes.set(meshi))
+        {
+            const polyMesh& mesh = meshes[meshi];
+            const polyBoundaryMesh& pbm = mesh.boundaryMesh();
+            const faceList& faces = mesh.faces();
+            const labelList& faceOwner = mesh.faceOwner();
+            const labelList& faceNeighbour = mesh.faceNeighbour();
+            const faceZoneMesh& faceZones = mesh.faceZones();
+
+            // Precalc offset zones
+            labelList newZoneID(faces.size(), -1);
+            boolList zoneFlip(faces.size(), false);
+
+            forAll(faceZones, zonei)
+            {
+                const labelList& faceLabels = faceZones[zonei];
+                const boolList& flipMap = faceZones[zonei].flipMap();
+
+                forAll(faceLabels, facei)
+                {
+                    newZoneID[faceLabels[facei]] = faceZoneMap[meshi][zonei];
+                    zoneFlip[faceLabels[facei]] = flipMap[facei];
+                }
+            }
+
+            // Add faces in mesh order
+
+            // 1. Internal faces
+
+            face newFace;
+            for (label facei = 0; facei < mesh.nInternalFaces(); facei++)
+            {
+                const face& f = faces[facei];
+
+                label newOwn = cellProcAddressing[meshi][faceOwner[facei]];
+                label newNei = cellProcAddressing[meshi][faceNeighbour[facei]];
+
+                newFace.setSize(f.size());
+                forAll(f, fp)
+                {
+                    newFace[fp] = pointProcAddressing[meshi][f[fp]];
+                }
+                bool flipFaceFlux = false;
+                bool flip = zoneFlip[facei];
+                if (newNei < newOwn)
+                {
+                    Swap(newOwn, newNei);
+                    newFace = newFace.reverseFace();
+                    flipFaceFlux = !flipFaceFlux;
+                    flip = !flip;
+                }
+
+                const label newFacei = meshMod.addFace
+                (
+                    newFace,
+                    newOwn,
+                    newNei,
+                    -1,                         // masterPointID
+                    -1,                         // masterEdgeID
+                    facei,                      // masterFaceID
+                    flipFaceFlux,               // flipFaceFlux
+                    -1,                         // patchID
+                    newZoneID[facei],           // zoneID
+                    flip                        // zoneFlip
+                );
+
+                faceProcAddressing[meshi][facei] = newFacei;
+            }
+
+            // 1b. Owner side of coupled faces (since owner side cells are
+            //     smallest)
+
+            const labelList& localBFaces = localBoundaryFace[meshi];
+            const labelList& procNbrs = remoteFaceMesh[meshi];
+            const labelList& procNbrBFaces = remoteBoundaryFace[meshi];
+
+            forAll(localBFaces, i)
+            {
+                const label bFacei = localBFaces[i];
+                const label nbrMeshi = procNbrs[i];
+                const label nbrBFacei = procNbrBFaces[i];
+
+                // Local mesh face
+                const label facei = mesh.nInternalFaces()+bFacei;
+                const face& f = mesh.faces()[facei];
+                const label newOwn =
+                    cellProcAddressing[meshi][faceOwner[facei]];
+
+                // Neighbour mesh face
+                const auto& nbrMesh = meshes[nbrMeshi];
+                const label nbrFacei = nbrMesh.nInternalFaces()+nbrBFacei;
+                const label nbrOwn = nbrMesh.faceOwner()[nbrFacei];
+                const label newNei = cellProcAddressing[nbrMeshi][nbrOwn];
+
+                //Pout<< "** connection between face:" << facei
+                //    << " at:" << mesh.faceCentres()[facei]
+                //    << " and nbrMesh:" << nbrMeshi
+                //    << " nbrFacei:" << nbrMesh.faceCentres()[nbrFacei]
+                //    << endl;
+
+                if (newOwn < newNei)
+                {
+                    newFace.setSize(f.size());
+                    forAll(f, fp)
+                    {
+                        newFace[fp] = pointProcAddressing[meshi][f[fp]];
+                    }
+                    const bool flipFaceFlux = false;
+                    const bool flip = zoneFlip[facei];
+                    const label newFacei = meshMod.addFace
+                    (
+                        newFace,
+                        newOwn,
+                        newNei,                     // neighbour
+                        -1,                         // masterPointID
+                        -1,                         // masterEdgeID
+                        facei,                      // masterFaceID
+                        flipFaceFlux,               // flipFaceFlux
+                        -1,                         // patchID
+                        newZoneID[facei],           // zoneID
+                        flip                        // zoneFlip
+                    );
+
+                    faceProcAddressing[meshi][facei] = newFacei;
+                    faceProcAddressing[nbrMeshi][nbrFacei] = newFacei;
+                }
+            }
+
+
+            // 2. Remaining patch faces
+
+            forAll(pbm, patchi)
+            {
+                const auto& pp = pbm[patchi];
+
+                if (patchi < patchMap[meshi].size())
+                {
+                    const label newPatchi = patchMap[meshi][patchi];
+
+                    //boundaryProcAddressing[meshi][patchi] = newPatchi;
+
+                    forAll(pp, patchFacei)
+                    {
+                        const label facei = pp.start() + patchFacei;
+                        if (faceProcAddressing[meshi][facei] == -1)
+                        {
+                            const face& f = faces[facei];
+
+                            const label newOwn =
+                                cellProcAddressing[meshi][faceOwner[facei]];
+                            newFace.setSize(f.size());
+                            forAll(f, fp)
+                            {
+                                newFace[fp] = pointProcAddressing[meshi][f[fp]];
+                            }
+
+                            const label newFacei = meshMod.addFace
+                            (
+                                newFace,
+                                newOwn,
+                                -1,                         // neighbour
+                                -1,                         // masterPointID
+                                -1,                         // masterEdgeID
+                                facei,                      // masterFaceID
+                                false,                      // flipFaceFlux
+                                newPatchi,                  // patchID
+                                newZoneID[facei],           // zoneID
+                                zoneFlip[facei]             // zoneFlip
+                            );
+
+                            faceProcAddressing[meshi][facei] = newFacei;
+                        }
+                    }
+                }
+            }
         }
     }
 }

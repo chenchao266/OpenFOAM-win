@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2019 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -25,7 +28,7 @@ License
 
 #include "refinementIterator.H"
 #include "polyMesh.H"
-#include "Time.T.H"
+#include "Time1.H"
 #include "refineCell.H"
 #include "undoableMeshCutter.H"
 #include "polyTopoChange.H"
@@ -38,13 +41,12 @@ License
 
 namespace Foam
 {
-defineTypeNameAndDebug(refinementIterator, 0);
+    defineTypeNameAndDebug(refinementIterator, 0);
 }
 
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
-// Construct from components
 Foam::refinementIterator::refinementIterator
 (
     polyMesh& mesh,
@@ -64,7 +66,7 @@ Foam::refinementIterator::refinementIterator
 // * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
 
 Foam::refinementIterator::~refinementIterator()
-{}
+{}  // Define here since polyMesh was forward declared
 
 
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
@@ -92,7 +94,7 @@ Foam::Map<Foam::label> Foam::refinementIterator::setRefinement
         if (writeMesh_)
         {
             // Need different times to write meshes.
-            runTime++;
+            ++runTime;
         }
 
         polyTopoChange meshMod(mesh_);
@@ -210,14 +212,14 @@ Foam::Map<Foam::label> Foam::refinementIterator::setRefinement
         // from meshRefiner.updateMesh call) and add to global list of added
         const Map<label>& addedNow = meshRefiner_.addedCells();
 
-        forAllConstIter(Map<label>, addedNow, iter)
+        forAllConstIters(addedNow, iter)
         {
-            if (!addedCells.insert(iter.key(), iter()))
+            if (!addedCells.insert(iter.key(), iter.val()))
             {
                 FatalErrorInFunction
                     << "Master cell " << iter.key()
                     << " already has been refined" << endl
-                    << "Added cell:" << iter() << abort(FatalError);
+                    << "Added cell:" << iter.val() << abort(FatalError);
             }
         }
 

@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2019-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -48,12 +51,10 @@ namespace blockEdges
                           Class lineEdge Declaration
 \*---------------------------------------------------------------------------*/
 
-
 class lineEdge
 :
     public blockEdge
 {
-
 public:
 
     //- Runtime type information
@@ -63,37 +64,49 @@ public:
     // Constructors
 
         //- Construct from components
-        lineEdge(const pointField&, const label start, const label end);
+        lineEdge
+        (
+            const pointField& points,   //!< Referenced point field
+            const edge& fromTo          //!< Start/end in point field
+        );
 
-        //- Construct from Istream with a pointField
+        //- Construct from components
+        lineEdge
+        (
+            const pointField& points,   //!< Referenced point field
+            const label from,           //!< Start point in point field
+            const label to              //!< End point in point field
+        );
+
+        //- Construct from Istream and point field.
         lineEdge
         (
             const dictionary& dict,
             const label index,
-            const searchableSurfaces& geometry,
-            const pointField&,
-            Istream&
+            const searchableSurfaces&  /*unused*/,
+            const pointField& points,  //!< Referenced point field
+            Istream& is
         );
 
 
     //- Destructor
-    virtual ~lineEdge();
+    virtual ~lineEdge() = default;
 
 
     // Member Functions
 
-        //- Return the point position corresponding to the curve parameter
+        //- The point position corresponding to the curve parameter
         //  0 <= lambda <= 1
         point position(const scalar) const;
 
-        //- Return the length of the curve
+        //- The length of the curve
         scalar length() const;
 };
 
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
-} // End of namespace blockEdges
+} // End namespace blockEdges
 } // End namespace Foam
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //

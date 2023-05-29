@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2018-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -25,8 +28,6 @@ License
 
 #include "sampledSurface.H"
 #include "polyMesh.H"
-#include "demandDrivenData.H"
-
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
 
@@ -37,78 +38,20 @@ namespace Foam
 }
 
 
-// * * * * * * * * * * * * * Private Member Functions  * * * * * * * * * * * //
-
-void Foam::sampledSurface::makeSf() const
-{
-    // It is an error to recalculate if the pointer is already set
-    if (SfPtr_)
-    {
-        FatalErrorInFunction
-            << "face area vectors already exist"
-            << abort(FatalError);
-    }
-
-    const faceList& theFaces = faces();
-    SfPtr_ = new vectorField(theFaces.size());
-
-    vectorField& values = *SfPtr_;
-    forAll(theFaces, facei)
-    {
-        values[facei] = theFaces[facei].normal(points());
-    }
-}
-
-
-void Foam::sampledSurface::makeMagSf() const
-{
-    // It is an error to recalculate if the pointer is already set
-    if (magSfPtr_)
-    {
-        FatalErrorInFunction
-            << "mag face areas already exist"
-            << abort(FatalError);
-    }
-
-    const faceList& theFaces = faces();
-    magSfPtr_ = new scalarField(theFaces.size());
-
-    scalarField& values = *magSfPtr_;
-    forAll(theFaces, facei)
-    {
-        values[facei] = theFaces[facei].mag(points());
-    }
-}
-
-
-void Foam::sampledSurface::makeCf() const
-{
-    // It is an error to recalculate if the pointer is already set
-    if (CfPtr_)
-    {
-        FatalErrorInFunction
-            << "face centres already exist"
-            << abort(FatalError);
-    }
-
-    const faceList& theFaces = faces();
-    CfPtr_ = new vectorField(theFaces.size());
-
-    vectorField& values = *CfPtr_;
-    forAll(theFaces, facei)
-    {
-        values[facei] = theFaces[facei].centre(points());
-    }
-}
+const Foam::wordList Foam::sampledSurface::surfaceFieldTypes
+({
+    "surfaceScalarField",
+    "surfaceVectorField",
+    "surfaceSphericalTensorField",
+    "surfaceSymmTensorField",
+    "surfaceTensorField"
+});
 
 
 // * * * * * * * * * * * * Protected Member Functions  * * * * * * * * * * * //
 
 void Foam::sampledSurface::clearGeom() const
 {
-    deleteDemandDrivenData(SfPtr_);
-    deleteDemandDrivenData(magSfPtr_);
-    deleteDemandDrivenData(CfPtr_);
     area_ = -1;
 }
 
@@ -122,45 +65,53 @@ Foam::autoPtr<Foam::sampledSurface> Foam::sampledSurface::New
     const dictionary& dict
 )
 {
-    const word sampleType(dict.lookup("type"));
+    const word sampleType(dict.get<word>("type"));
 
-    if (debug)
+    DebugInfo
+        << "Selecting sampledType " << sampleType << endl;
+
+    auto* ctorPtr = wordConstructorTable(sampleType);
+
+    if (!ctorPtr)
     {
-        Info<< "Selecting sampledType " << sampleType << endl;
+        FatalIOErrorInLookup
+        (
+            dict,
+            "sample",
+            sampleType,
+            *wordConstructorTablePtr_
+        ) << exit(FatalIOError);
     }
 
-    wordConstructorTable::iterator cstrIter =
-        wordConstructorTablePtr_->find(sampleType);
-
-    if (cstrIter == wordConstructorTablePtr_->end())
-    {
-        FatalErrorInFunction
-            << "Unknown sample type "
-            << sampleType << nl << nl
-            << "Valid sample types : " << endl
-            << wordConstructorTablePtr_->sortedToc()
-            << exit(FatalError);
-    }
-
-    return autoPtr<sampledSurface>(cstrIter()(name, mesh, dict));
+    return autoPtr<sampledSurface>(ctorPtr(name, mesh, dict));
 }
 
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
+Foam::sampledSurface::sampledSurface(const word& name, std::nullptr_t)
+:
+    name_(name),
+    mesh_(NullObjectRef<polyMesh>()),
+    enabled_(true),
+    invariant_(false),
+    isPointData_(false),
+    area_(-1)
+{}
+
+
 Foam::sampledSurface::sampledSurface
 (
     const word& name,
     const polyMesh& mesh,
-    const bool interpolate
+    const bool interpolateToPoints
 )
 :
     name_(name),
     mesh_(mesh),
-    interpolate_(interpolate),
-    SfPtr_(nullptr),
-    magSfPtr_(nullptr),
-    CfPtr_(nullptr),
+    enabled_(true),
+    invariant_(false),
+    isPointData_(interpolateToPoints),
     area_(-1)
 {}
 
@@ -172,16 +123,13 @@ Foam::sampledSurface::sampledSurface
     const dictionary& dict
 )
 :
-    name_(name),
+    name_(dict.getOrDefault<word>("name", name)),
     mesh_(mesh),
-    interpolate_(dict.lookupOrDefault("interpolate", false)),
-    SfPtr_(nullptr),
-    magSfPtr_(nullptr),
-    CfPtr_(nullptr),
+    enabled_(dict.getOrDefault("enabled", true)),
+    invariant_(dict.getOrDefault("invariant", false)),
+    isPointData_(dict.getOrDefault("interpolate", false)),
     area_(-1)
-{
-    dict.readIfPresent("name", name_);
-}
+{}
 
 
 // * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
@@ -194,48 +142,28 @@ Foam::sampledSurface::~sampledSurface()
 
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
 
-const Foam::vectorField& Foam::sampledSurface::Sf() const
-{
-    if (!SfPtr_)
-    {
-        makeSf();
-    }
-
-    return *SfPtr_;
-}
-
-
-const Foam::scalarField& Foam::sampledSurface::magSf() const
-{
-    if (!magSfPtr_)
-    {
-        makeMagSf();
-    }
-
-    return *magSfPtr_;
-}
-
-
-const Foam::vectorField& Foam::sampledSurface::Cf() const
-{
-    if (!CfPtr_)
-    {
-        makeCf();
-    }
-
-    return *CfPtr_;
-}
-
-
 Foam::scalar Foam::sampledSurface::area() const
 {
     if (area_ < 0)
     {
-        area_ = sum(magSf());
-        reduce(area_, sumOp<scalar>());
+        area_ = gSum(magSf());
     }
 
     return area_;
+}
+
+
+bool Foam::sampledSurface::isPointData(const bool on)
+{
+    bool old(isPointData_);
+    isPointData_ = on;
+    return old;
+}
+
+
+bool Foam::sampledSurface::withSurfaceFields() const
+{
+    return false;
 }
 
 
@@ -245,7 +173,7 @@ Foam::tmp<Foam::scalarField> Foam::sampledSurface::sample
 ) const
 {
     NotImplemented;
-    return tmp<scalarField>(nullptr);
+    return nullptr;
 }
 
 
@@ -255,7 +183,7 @@ Foam::tmp<Foam::vectorField> Foam::sampledSurface::sample
 ) const
 {
     NotImplemented;
-    return tmp<vectorField>(nullptr);
+    return nullptr;
 }
 
 
@@ -265,7 +193,7 @@ Foam::tmp<Foam::sphericalTensorField> Foam::sampledSurface::sample
 ) const
 {
     NotImplemented;
-    return tmp<sphericalTensorField>(nullptr);
+    return nullptr;
 }
 
 
@@ -275,7 +203,7 @@ Foam::tmp<Foam::symmTensorField> Foam::sampledSurface::sample
 ) const
 {
     NotImplemented;
-    return tmp<symmTensorField>(nullptr);
+    return nullptr;
 }
 
 
@@ -285,73 +213,23 @@ Foam::tmp<Foam::tensorField> Foam::sampledSurface::sample
 ) const
 {
     NotImplemented;
-    return tmp<tensorField>(nullptr);
+    return nullptr;
 }
 
 
-Foam::tmp<Foam::Field<Foam::scalar>>
-Foam::sampledSurface::project(const Field<scalar>& field) const
-{
-    tmp<Field<scalar>> tRes(new Field<scalar>(faces().size()));
-    Field<scalar>& res = tRes.ref();
-
-    forAll(faces(), facei)
-    {
-        res[facei] = field[facei];
-    }
-
-    return tRes;
-}
-
-
-Foam::tmp<Foam::Field<Foam::scalar>>
-Foam::sampledSurface::project(const Field<vector>& field) const
-{
-    tmp<Field<scalar>> tRes(new Field<scalar>(faces().size()));
-    project(tRes.ref(), field);
-    return tRes;
-}
-
-
-Foam::tmp<Foam::Field<Foam::vector>>
-Foam::sampledSurface::project(const Field<sphericalTensor>& field) const
-{
-    tmp<Field<vector>> tRes(new Field<vector>(faces().size()));
-    project(tRes.ref(), field);
-    return tRes;
-}
-
-
-Foam::tmp<Foam::Field<Foam::vector>>
-Foam::sampledSurface::project(const Field<symmTensor>& field) const
-{
-    tmp<Field<vector>> tRes(new Field<vector>(faces().size()));
-    project(tRes.ref(), field);
-    return tRes;
-}
-
-
-Foam::tmp<Foam::Field<Foam::vector>>
-Foam::sampledSurface::project(const Field<tensor>& field) const
-{
-    tmp<Field<vector>> tRes(new Field<vector>(faces().size()));
-    project(tRes.ref(), field);
-    return tRes;
-}
-
-
-void Foam::sampledSurface::print(Ostream& os) const
+void Foam::sampledSurface::print(Ostream& os, int level) const
 {
     os << type();
 }
 
 
-// * * * * * * * * * * * * * * * Friend Operators  * * * * * * * * * * * * * //
+// * * * * * * * * * * * * * * * Ostream Operator  * * * * * * * * * * * * * //
 
-Foam::Ostream& Foam::operator<<(Ostream &os, const sampledSurface& s)
+Foam::Ostream& Foam::operator<<(Ostream& os, const sampledSurface& s)
 {
-    s.print(os);
-    os.check("Ostream& operator<<(Ostream&, const sampledSurface&");
+    // Print with more information
+    s.print(os, 1);
+    os.check(FUNCTION_NAME);
     return os;
 }
 

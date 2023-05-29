@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2019-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -25,7 +28,7 @@ License
 
 #include "cellLooper.H"
 #include "polyMesh.H"
-#include "ListOps.T.H"
+#include "ListOps.H"
 #include "meshTools.H"
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
@@ -45,20 +48,19 @@ Foam::autoPtr<Foam::cellLooper> Foam::cellLooper::New
     const polyMesh& mesh
 )
 {
-    wordConstructorTable::iterator cstrIter =
-        wordConstructorTablePtr_->find(type);
+    auto* ctorPtr = wordConstructorTable(type);
 
-    if (cstrIter == wordConstructorTablePtr_->end())
+    if (!ctorPtr)
     {
-        FatalErrorInFunction
-            << "Unknown set type "
-            << type << nl << nl
-            << "Valid cellLooper types : " << endl
-            << wordConstructorTablePtr_->sortedToc()
-            << exit(FatalError);
+        FatalErrorInLookup
+        (
+            "cellLooper",
+            type,
+            *wordConstructorTablePtr_
+        ) << exit(FatalError);
     }
 
-    return autoPtr<cellLooper>(cstrIter()(mesh));
+    return autoPtr<cellLooper>(ctorPtr(mesh));
 }
 
 
@@ -149,7 +151,7 @@ Foam::labelList Foam::cellLooper::getVertEdgesNonFace
 
         if
         (
-            (findIndex(exclEdges, edgeI) == -1)
+            !exclEdges.found(edgeI)
          && meshTools::edgeOnCell(mesh(), celli, edgeI)
         )
         {
@@ -197,12 +199,6 @@ Foam::label Foam::cellLooper::getMisAlignedEdge
 Foam::cellLooper::cellLooper(const polyMesh& mesh)
 :
     edgeVertex(mesh)
-{}
-
-
-// * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
-
-Foam::cellLooper::~cellLooper()
 {}
 
 

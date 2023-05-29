@@ -1,9 +1,12 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2012-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2012-2016 OpenFOAM Foundation
+    Copyright (C) 2019-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -28,30 +31,44 @@ Description
     Object registry for simpleRegIOobject. Maintains ordering.
 
 SourceFiles
+    simpleObjectRegistry.C
 
 \*---------------------------------------------------------------------------*/
 
 #ifndef simpleObjectRegistry_H
 #define simpleObjectRegistry_H
 
-#include "Dictionary.T.H"
+#include "Dictionary.H"
 #include "simpleRegIOobject.H"
+#include <string>
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 namespace Foam
 {
 
+// Forward Declarations
+class dictionary;
+
 /*---------------------------------------------------------------------------*\
                    Class simpleObjectRegistryEntry Declaration
 \*---------------------------------------------------------------------------*/
 
-class simpleObjectRegistryEntry :    public Dictionary<simpleObjectRegistryEntry>::link,
+class simpleObjectRegistryEntry
+:
+    public Dictionary<simpleObjectRegistryEntry>::link,
     public List<simpleRegIOobject*>
 {
 public:
 
-    simpleObjectRegistryEntry(const List<simpleRegIOobject*>& data)
+    //- Construct with a single object (list size == 1)
+    explicit simpleObjectRegistryEntry(simpleRegIOobject* obj)
+    :
+        List<simpleRegIOobject*>(one{}, obj)
+    {}
+
+    //- Construct with a List of objects
+    explicit simpleObjectRegistryEntry(const List<simpleRegIOobject*>& data)
     :
         List<simpleRegIOobject*>(data)
     {}
@@ -62,17 +79,41 @@ public:
                       Class simpleObjectRegistry Declaration
 \*---------------------------------------------------------------------------*/
 
-class simpleObjectRegistry :    public Dictionary<simpleObjectRegistryEntry>
+class simpleObjectRegistry
+:
+    public Dictionary<simpleObjectRegistryEntry>
 {
 public:
 
     // Constructors
 
-        //- Construct given initial table size
-        simpleObjectRegistry(const label nIoObjects = 128)
+        //- Construct with given or default (128) table capacity
+        explicit simpleObjectRegistry(const label size = 128)
         :
-            Dictionary<simpleObjectRegistryEntry>(nIoObjects)
+            Dictionary<simpleObjectRegistryEntry>(size)
         {}
+
+
+    // Member Functions
+
+        //- Set values (invoke callbacks) from dictionary entries
+        //  Reporting honours the infoDetailLevel
+        void setValues(const dictionary& dict, bool report=false);
+
+        //- Set named value, but also handle embedded 'name=value' syntax
+        //  Treats 'name=' and 'name' identically.
+        //
+        //  Will also accept a floating point value, but the called objects
+        //  need to handle that.
+        //  Reporting honours the infoDetailLevel
+        void setNamedValue(std::string name, int val, bool report=false);
+
+        //- Deprecated(2021-09) renamed to setNamedValue
+        //  \deprecated(2021-09) renamed to setNamedValue
+        void setNamedInt(std::string name, int val, bool report=false)
+        {
+            this->setNamedValue(name, val, report);
+        }
 };
 
 

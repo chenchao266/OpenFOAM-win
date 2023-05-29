@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2015 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2015 OpenFOAM Foundation
+    Copyright (C) 2019-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -44,22 +47,22 @@ Foam::autoPtr<Foam::LESfilter> Foam::LESfilter::New
     const word& filterDictName
 )
 {
-    const word filterType(dict.lookup(filterDictName));
+    const word filterType(dict.get<word>(filterDictName));
 
-    dictionaryConstructorTable::iterator cstrIter =
-        dictionaryConstructorTablePtr_->find(filterType);
+    auto* ctorPtr = dictionaryConstructorTable(filterType);
 
-    if (cstrIter == dictionaryConstructorTablePtr_->end())
+    if (!ctorPtr)
     {
-        FatalErrorInFunction
-            << "Unknown LESfilter type "
-            << filterType << nl << nl
-            << "Valid LESfilter types are :" << endl
-            << dictionaryConstructorTablePtr_->sortedToc()
-            << exit(FatalError);
+        FatalIOErrorInLookup
+        (
+            dict,
+            "LESfilter",
+            filterType,
+            *dictionaryConstructorTablePtr_
+        ) << exit(FatalIOError);
     }
 
-    return autoPtr<LESfilter>(cstrIter()(mesh, dict));
+    return autoPtr<LESfilter>(ctorPtr(mesh, dict));
 }
 
 

@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2016 OpenCFD Ltd
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -27,7 +30,8 @@ License
 #include "addToRunTimeSelectionTable.H"
 #include "fvPatchFieldMapper.H"
 #include "volFields.H"
-
+#include "radiationModel.H"
+#include "viewFactor.H"
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
@@ -39,8 +43,7 @@ greyDiffusiveViewFactorFixedValueFvPatchScalarField
 )
 :
     fixedValueFvPatchScalarField(p, iF),
-    radiationCoupledBase(patch(), "undefined", scalarField::null()),
-    qro_(p.size(), 0.0)
+    qro_()
 {}
 
 
@@ -54,13 +57,7 @@ greyDiffusiveViewFactorFixedValueFvPatchScalarField
 )
 :
     fixedValueFvPatchScalarField(ptf, p, iF, mapper),
-    radiationCoupledBase
-    (
-        patch(),
-        ptf.emissivityMethod(),
-        ptf.emissivity_
-    ),
-    qro_(ptf.qro_)
+    qro_(ptf.qro_, mapper)
 {}
 
 
@@ -73,7 +70,6 @@ greyDiffusiveViewFactorFixedValueFvPatchScalarField
 )
 :
     fixedValueFvPatchScalarField(p, iF, dict, false),
-    radiationCoupledBase(p, dict),
     qro_("qro", dict, p.size())
 {
     if (dict.found("value"))
@@ -98,12 +94,6 @@ greyDiffusiveViewFactorFixedValueFvPatchScalarField
 )
 :
     fixedValueFvPatchScalarField(ptf),
-    radiationCoupledBase
-    (
-        ptf.patch(),
-        ptf.emissivityMethod(),
-        ptf.emissivity_
-    ),
     qro_(ptf.qro_)
 {}
 
@@ -116,17 +106,37 @@ greyDiffusiveViewFactorFixedValueFvPatchScalarField
 )
 :
     fixedValueFvPatchScalarField(ptf, iF),
-    radiationCoupledBase
-    (
-        ptf.patch(),
-        ptf.emissivityMethod(),
-        ptf.emissivity_
-    ),
     qro_(ptf.qro_)
 {}
 
 
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
+
+void Foam::radiation::greyDiffusiveViewFactorFixedValueFvPatchScalarField::
+autoMap
+(
+    const fvPatchFieldMapper& m
+)
+{
+    fixedValueFvPatchScalarField::autoMap(m);
+    qro_.autoMap(m);
+}
+
+
+void Foam::radiation::greyDiffusiveViewFactorFixedValueFvPatchScalarField::rmap
+(
+    const fvPatchScalarField& ptf,
+    const labelList& addr
+)
+{
+    fixedValueFvPatchScalarField::rmap(ptf, addr);
+
+    const greyDiffusiveViewFactorFixedValueFvPatchScalarField& mrptf =
+        refCast<const greyDiffusiveViewFactorFixedValueFvPatchScalarField>(ptf);
+
+    qro_.rmap(mrptf.qro_, addr);
+}
+
 
 void Foam::radiation::greyDiffusiveViewFactorFixedValueFvPatchScalarField::
 updateCoeffs()
@@ -150,8 +160,36 @@ updateCoeffs()
             << " avg:" << gAverage(*this)
             << endl;
     }
+}
 
-    fixedValueFvPatchScalarField::updateCoeffs();
+
+Foam::tmp<Foam::scalarField> Foam::radiation::
+greyDiffusiveViewFactorFixedValueFvPatchScalarField::qro(label bandI) const
+{
+    tmp<scalarField> tqrt(new scalarField(qro_));
+
+    const viewFactor& radiation =
+        db().lookupObject<viewFactor>("radiationProperties");
+
+    if (radiation.useSolarLoad())
+    {
+        tqrt.ref() += patch().lookupPatchField<volScalarField, scalar>
+        (
+            radiation.primaryFluxName_ + "_"  + name(bandI)
+        );
+
+        word qSecName = radiation.relfectedFluxName_ + "_" + name(bandI);
+
+        if (this->db().foundObject<volScalarField>(qSecName))
+        {
+            const volScalarField& qSec =
+                this->db().lookupObject<volScalarField>(qSecName);
+
+            tqrt.ref() += qSec.boundaryField()[patch().index()];
+        }
+    }
+
+    return tqrt;
 }
 
 
@@ -162,7 +200,6 @@ write
 ) const
 {
     fixedValueFvPatchScalarField::write(os);
-    radiationCoupledBase::write(os);
     qro_.writeEntry("qro", os);
 }
 

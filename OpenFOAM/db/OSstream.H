@@ -1,9 +1,12 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2014 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2014 OpenFOAM Foundation
+    Copyright (C) 2017-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -25,7 +28,7 @@ Class
     Foam::OSstream
 
 Description
-    Generic output stream.
+    Generic output stream using a standard (STL) stream.
 
 SourceFiles
     OSstreamI.H
@@ -36,7 +39,7 @@ SourceFiles
 #ifndef OSstream_H
 #define OSstream_H
 
-#include "Ostream.H"
+#include "_Ostream.H"
 #include "fileName.H"
 #include <iostream>
 
@@ -49,99 +52,132 @@ namespace Foam
                           Class OSstream Declaration
 \*---------------------------------------------------------------------------*/
 
-class OSstream :    public Ostream
+class OSstream
+:
+    public Ostream
 {
-    // Private data
+    // Private Data
 
         fileName name_;
-        ostream& os_;
 
-
-    // Private Member Functions
-
-        //- Disallow default bitwise assignment
-        void operator=(const OSstream&);
+        std::ostream& os_;
 
 
 public:
 
+    // Generated Methods
+
+        //- Copy construct
+        OSstream(const OSstream&) = default;
+
+        //- No copy assignment
+        void operator=(const OSstream&) = delete;
+
+
     // Constructors
 
-        //- Set stream status
-        OSstream
+        //- Construct wrapper around std::ostream, set stream status
+        //  Default stream options (ASCII, uncompressed)
+        inline OSstream
         (
-            ostream& os,
-            const string& name,
-            streamFormat format=ASCII,
-            versionNumber version=currentVersion,
-            compressionType compression=UNCOMPRESSED
+            std::ostream& os,
+            const string& streamName,
+            IOstreamOption streamOpt = IOstreamOption()
         );
 
-
-    // Member functions
-
-        // Enquiry
-
-            //- Return the name of the stream
-            //  Useful for Fstream to return the filename
-            virtual const fileName& name() const
-            {
-                return name_;
-            }
-
-            //- Return non-const access to the name of the stream
-            //  Useful to alter the stream name
-            virtual fileName& name()
-            {
-                return name_;
-            }
-
-            //- Return flags of output stream
-            virtual ios_base::fmtflags flags() const;
+        //- Construct wrapper around std::ostream, set stream status
+        OSstream
+        (
+            std::ostream& os,
+            const string& streamName,
+            IOstreamOption::streamFormat fmt,
+            IOstreamOption::versionNumber ver = IOstreamOption::currentVersion,
+            IOstreamOption::compressionType cmp = IOstreamOption::UNCOMPRESSED
+        )
+        :
+            OSstream(os, streamName, IOstreamOption(fmt, ver, cmp))
+        {}
 
 
-        // Write functions
+    // Member Functions
 
-            //- Write next token to stream
-            virtual Ostream& write(const token&);
+    // Characteristics
+
+        //- Get the name of the stream.
+        //  Useful for Fstream to remember the filename
+        virtual const fileName& name() const
+        {
+            return name_;
+        }
+
+        //- Return stream name for modification
+        virtual fileName& name()
+        {
+            return name_;
+        }
+
+        //- Get stream flags
+        virtual ios_base::fmtflags flags() const;
+
+
+    // Write Functions
+
+            //- Write token to stream or otherwise handle it.
+            //  \return false if the token type was not handled by this method
+            virtual bool write(const token& tok);
 
             //- Write character
-            virtual Ostream& write(const char);
+            virtual Ostream& write(const char c);
 
             //- Write character string
-            virtual Ostream& write(const char*);
+            virtual Ostream& write(const char* str);
 
             //- Write word
-            virtual Ostream& write(const word&);
+            virtual Ostream& write(const word& str);
 
-            //- Write string
+            //- Write string (quoted)
             //  In the rare case that the string contains a final trailing
             //  backslash, it will be dropped to the appearance of an escaped
             //  double-quote.
-            virtual Ostream& write(const string&);
+            virtual Ostream& write(const string& str);
 
             //- Write std::string surrounded by quotes.
             //  Optional write without quotes.
             virtual Ostream& writeQuoted
             (
-                const std::string&,
+                const std::string& str,
                 const bool quoted=true
             );
 
             //- Write int32_t
-            virtual Ostream& write(const int32_t);
+            virtual Ostream& write(const int32_t val);
 
             //- Write int64_t
-            virtual Ostream& write(const int64_t);
+            virtual Ostream& write(const int64_t val);
 
             //- Write floatScalar
-            virtual Ostream& write(const floatScalar);
+            virtual Ostream& write(const floatScalar val);
 
             //- Write doubleScalar
-            virtual Ostream& write(const doubleScalar);
+            virtual Ostream& write(const doubleScalar val);
 
             //- Write binary block
-            virtual Ostream& write(const char*, std::streamsize);
+            virtual Ostream& write(const char* data, std::streamsize count);
+
+            //- Low-level raw binary output
+            virtual Ostream& writeRaw
+            (
+                const char* data,
+                std::streamsize count
+            );
+
+            //- Begin marker for low-level raw binary output.
+            //  The count indicates the number of bytes for subsequent
+            //  writeRaw calls.
+            virtual bool beginRawWrite(std::streamsize count);
+
+            //- End marker for low-level raw binary output.
+            virtual bool endRawWrite();
 
             //- Add indentation characters
             virtual void indent();
@@ -149,8 +185,8 @@ public:
 
         // Stream state functions
 
-            //- Set flags of output stream
-            virtual ios_base::fmtflags flags(const ios_base::fmtflags flags);
+            //- Set stream flags
+            virtual ios_base::fmtflags flags(const ios_base::fmtflags f);
 
             //- Flush stream
             virtual void flush();
@@ -158,29 +194,38 @@ public:
             //- Add newline and flush stream
             virtual void endl();
 
+            //- Get the current padding character
+            virtual char fill() const;
+
+            //- Set padding character for formatted field up to field width
+            //  \return previous padding character
+            virtual char fill(const char fillch);
+
             //- Get width of output field
             virtual int width() const;
 
-            //- Set width of output field (and return old width)
-            virtual int width(const int);
+            //- Set width of output field
+            //  \return previous width
+            virtual int width(const int w);
 
             //- Get precision of output field
             virtual int precision() const;
 
-            //- Set precision of output field (and return old precision)
-            virtual int precision(const int);
+            //- Set precision of output field
+            //  \return old precision
+            virtual int precision(const int p);
 
 
         // STL stream
 
             //- Access to underlying std::ostream
-            virtual ostream& stdStream()
+            virtual std::ostream& stdStream()
             {
                 return os_;
             }
 
             //- Const access to underlying std::ostream
-            virtual const ostream& stdStream() const
+            virtual const std::ostream& stdStream() const
             {
                 return os_;
             }
@@ -188,8 +233,8 @@ public:
 
         // Print
 
-            //- Print description of IOstream to Ostream
-            virtual void print(Ostream&) const;
+            //- Print stream description to Ostream
+            virtual void print(Ostream& os) const;
 };
 
 

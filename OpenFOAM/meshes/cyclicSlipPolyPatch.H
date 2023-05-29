@@ -1,9 +1,12 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2012 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2012 OpenFOAM Foundation
+    Copyright (C) 2019 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -47,7 +50,9 @@ namespace Foam
                       Class cyclicSlipPolyPatch Declaration
 \*---------------------------------------------------------------------------*/
 
-class cyclicSlipPolyPatch :    public cyclicPolyPatch
+class cyclicSlipPolyPatch
+:
+    public cyclicPolyPatch
 {
 
 public:
@@ -182,8 +187,7 @@ public:
 
     // Destructor
 
-        virtual ~cyclicSlipPolyPatch()
-        {}
+        virtual ~cyclicSlipPolyPatch() = default;
 
 
 };

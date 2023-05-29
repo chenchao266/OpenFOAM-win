@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2015 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2015 OpenFOAM Foundation
+    Copyright (C) 2017-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -25,49 +28,448 @@ License
 
 #include "error.H"
 #include "ITstream.H"
+#include "StringStream.H"
+#include "UIListStream.H"
 
-// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
-using namespace Foam;
-void ITstream::print(Ostream& os) const
+// * * * * * * * * * * * * * * * Local Functions * * * * * * * * * * * * * * //
+
+namespace Foam
 {
-    os  << "ITstream : " << name_.c_str();
 
-    if (size())
+// Failsafe read-access.
+// Return the token at location, or undefinedToken.
+inline static const token& peekTokenAt
+(
+    const UList<token>& list,
+    const label i
+)
+{
+    return
+    (
+        i >= 0 && i < list.size()
+      ? list[i]
+      : token::undefinedToken
+    );
+}
+
+
+// Convert input sequence into a list of tokens.
+// Return the number of tokens in the resulting list.
+static label parseStream(ISstream& is, tokenList& tokens)
+{
+    label nTok = 0;
+
+    tokens.clear();
+    tokens.resize(64, token());
+
+    token tok;
+    while (!is.read(tok).bad() && tok.good())
     {
-        if (begin()->lineNumber() == rbegin()->lineNumber())
+        tokens.newElmt(nTok++) = std::move(tok);
+    }
+
+    tokens.resize(nTok);
+
+    return nTok;
+}
+
+} // End namespace Foam
+
+
+// * * * * * * * * * * * * * Static Member Functions * * * * * * * * * * * * //
+
+
+ namespace Foam{
+tokenList ITstream::parse
+(
+    const UList<char>& input,
+    IOstreamOption streamOpt
+)
+{
+    UIListStream is(input, streamOpt);
+
+    tokenList tokens;
+    parseStream(is, tokens);
+    return tokens;
+}
+
+
+tokenList ITstream::parse
+(
+    const std::string& input,
+    IOstreamOption streamOpt
+)
+{
+    UIListStream is(input.data(), input.length(), streamOpt);
+
+    tokenList tokens;
+    parseStream(is, tokens);
+    return tokens;
+}
+
+
+tokenList ITstream::parse
+(
+    const char* input,
+    IOstreamOption streamOpt
+)
+{
+    UIListStream is(input, strlen(input), streamOpt);
+
+    tokenList tokens;
+    parseStream(is, tokens);
+    return tokens;
+}
+
+
+// * * * * * * * * * * * * * Private Member Functions  * * * * * * * * * * * //
+
+void ITstream::reserveCapacity
+(
+    const label nElem,
+    const bool lazy
+)
+{
+    if (lazy)
+    {
+        // Reserve - leave excess capacity for further appends
+
+        label n = tokenList::size();
+
+        if (nElem > n)
         {
-            os  << ", line " << begin()->lineNumber() << ", ";
-        }
-        else
-        {
-            os  << ", lines " << begin()->lineNumber()
-                << '-' << rbegin()->lineNumber() << ", ";
+            if (!n) n = 1;  // Avoid dead-lock when starting from zero-sized
+
+            do
+            {
+                n *= 2;
+            }
+            while (nElem >= n);
+
+            tokenList::resize(n);
         }
     }
     else
     {
-        os  << ", line " << lineNumber() << ", ";
+        // Strict capacity
+        tokenList::resize(nElem);
     }
+}
+
+
+// * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
+
+ITstream::ITstream(const ITstream& is)
+:
+    Istream(static_cast<IOstreamOption>(is)),
+    tokenList(is),
+    name_(is.name_),
+    tokenIndex_(0)
+{
+    setOpened();
+    setGood();
+}
+
+
+ITstream::ITstream(ITstream&& is)
+:
+    Istream(static_cast<IOstreamOption>(is)),
+    tokenList(std::move(static_cast<tokenList&>(is))),
+    name_(std::move(is.name_)),
+    tokenIndex_(0)
+{
+    setOpened();
+    setGood();
+}
+
+
+ITstream::ITstream
+(
+    IOstreamOption streamOpt,
+    const string& name
+)
+:
+    Istream(streamOpt.format(), streamOpt.version()),
+    tokenList(),
+    name_(name),
+    tokenIndex_(0)
+{
+    setOpened();
+    setGood();
+}
+
+
+ITstream::ITstream
+(
+    const zero,
+    const string& name,
+    IOstreamOption streamOpt
+)
+:
+    ITstream(streamOpt, name)
+{}
+
+
+ITstream::ITstream
+(
+    const string& name,
+    const UList<token>& tokens,
+    IOstreamOption streamOpt
+)
+:
+    Istream(streamOpt.format(), streamOpt.version()),
+    tokenList(tokens),
+    name_(name),
+    tokenIndex_(0)
+{
+    setOpened();
+    setGood();
+}
+
+
+ITstream::ITstream
+(
+    const string& name,
+    List<token>&& tokens,
+    IOstreamOption streamOpt
+)
+:
+    Istream(streamOpt.format(), streamOpt.version()),
+    tokenList(std::move(tokens)),
+    name_(name),
+    tokenIndex_(0)
+{
+    setOpened();
+    setGood();
+}
+
+
+ITstream::ITstream
+(
+    const UList<char>& input,
+    IOstreamOption streamOpt,
+    const string& name
+)
+:
+    ITstream(streamOpt, name)
+{
+    UIListStream is(input, streamOpt);
+
+    parseStream(is, static_cast<tokenList&>(*this));
+    ITstream::rewind();
+}
+
+
+ITstream::ITstream
+(
+    const std::string& input,
+    IOstreamOption streamOpt,
+    const string& name
+)
+:
+    ITstream(streamOpt, name)
+{
+    UIListStream is(input.data(), input.length(), streamOpt);
+
+    parseStream(is, static_cast<tokenList&>(*this));
+    ITstream::rewind();
+}
+
+
+ITstream::ITstream
+(
+    const char* input,
+    IOstreamOption streamOpt,
+    const string& name
+)
+:
+    ITstream(streamOpt, name)
+{
+    UIListStream is(input, strlen(input), streamOpt);
+
+    parseStream(is, static_cast<tokenList&>(*this));
+    ITstream::rewind();
+}
+
+
+// * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
+
+void ITstream::print(Ostream& os) const
+{
+    os  << "ITstream : " << name_.c_str() << ", line ";
+
+    const tokenList& toks = *this;
+
+    if (toks.empty())
+    {
+        os  << lineNumber();
+    }
+    else
+    {
+        os  << toks.first().lineNumber();
+
+        if (toks.first().lineNumber() < toks.last().lineNumber())
+        {
+            os  << '-' << toks.last().lineNumber();
+        }
+    }
+    os  << ", ";
 
     IOstream::print(os);
 }
 
 
-Istream& ITstream::read(token& t)
+std::string ITstream::toString() const
 {
-    // Return the put back token if it exists
-    if (Istream::getBack(t))
+    // NOTE: may wish to have special handling if there is a single token
+    // and it is already a string or word
+
+    OStringStream buf;
+    unsigned i = 0;
+    for (const token& tok : *this)
     {
-        lineNumber_ = t.lineNumber();
+        if (i++)
+        {
+            buf << ' ';
+        }
+        buf << tok;
+    }
+
+    return buf.str();
+}
+
+
+const token& ITstream::peekFirst() const
+{
+    return peekTokenAt(*this, 0);
+}
+
+
+const token& ITstream::peekLast() const
+{
+    return peekTokenAt(*this, tokenList::size()-1);
+}
+
+
+const token& ITstream::peek() const
+{
+    // Use putback token if it exists
+    if (Istream::hasPutback())
+    {
+        return Istream::peekBack();
+    }
+
+    return peekTokenAt(*this, tokenIndex_);
+}
+
+
+void ITstream::seek(label pos)
+{
+    lineNumber_ = 0;
+    const tokenList& toks = *this;
+    const label nToks = toks.size();
+
+    if (!pos)
+    {
+        // Seek begin (rewind)
+        tokenIndex_ = 0;
+
+        if (nToks)
+        {
+            lineNumber_ = toks.first().lineNumber();
+        }
+
+        setOpened();
+        setGood();
+    }
+    else if (pos < 0 || pos >= nToks)
+    {
+        // Seek end or seek is out of range
+        tokenIndex_ = nToks;
+
+        if (nToks)
+        {
+            lineNumber_ = toks.last().lineNumber();
+        }
+
+        setEof();
+    }
+    else
+    {
+        // Seek middle (from the beginning)
+        tokenIndex_ = pos;
+
+        if (nToks)
+        {
+            lineNumber_ = toks[tokenIndex_].lineNumber();
+        }
+
+        setOpened();
+        setGood();
+    }
+}
+
+
+void ITstream::skip(label n)
+{
+    const tokenList& toks = *this;
+    const label nToks = toks.size();
+
+    if (n < 0)
+    {
+        // Move backwards
+        while (n++ && tokenIndex_)
+        {
+            --tokenIndex_;
+        }
+
+        if (tokenIndex_ < nToks)
+        {
+            lineNumber_ = toks[tokenIndex_].lineNumber();
+            setOpened();
+            setGood();
+        }
+    }
+    else if (n > 0)
+    {
+        // Move forward
+        while (n-- && tokenIndex_ < nToks)
+        {
+            ++tokenIndex_;
+        }
+
+        if (tokenIndex_ < nToks)
+        {
+            lineNumber_ = toks[tokenIndex_].lineNumber();
+            setOpened();
+            setGood();
+        }
+        else
+        {
+            setEof();
+        }
+    }
+}
+
+
+Istream& ITstream::read(token& tok)
+{
+    // Use putback token if it exists
+    if (Istream::getBack(tok))
+    {
+        lineNumber_ = tok.lineNumber();
         return *this;
     }
 
-    if (tokenIndex_ < size())
-    {
-        t = operator[](tokenIndex_++);
-        lineNumber_ = t.lineNumber();
+    tokenList& toks = *this;
+    const label nToks = toks.size();
 
-        if (tokenIndex_ == size())
+    if (tokenIndex_ < nToks)
+    {
+        tok = toks[tokenIndex_++];
+        lineNumber_ = tok.lineNumber();
+
+        if (tokenIndex_ == nToks)
         {
             setEof();
         }
@@ -76,12 +478,9 @@ Istream& ITstream::read(token& t)
     {
         if (eof())
         {
-            FatalIOErrorInFunction
-            (
-                *this
-            )   << "attempt to read beyond EOF"
+            FatalIOErrorInFunction(*this)
+                << "attempt to read beyond EOF"
                 << exit(FatalIOError);
-
             setBad();
         }
         else
@@ -89,15 +488,15 @@ Istream& ITstream::read(token& t)
             setEof();
         }
 
-        t = token::undefinedToken;
+        tok.reset();
 
-        if (size())
+        if (nToks)
         {
-            t.lineNumber() = tokenList::last().lineNumber();
+            tok.lineNumber(toks.last().lineNumber());
         }
         else
         {
-            t.lineNumber() = lineNumber();
+            tok.lineNumber(this->lineNumber());
         }
     }
 
@@ -147,6 +546,13 @@ Istream& ITstream::read(doubleScalar&)
 }
 
 
+Istream& ITstream::readRaw(char*, std::streamsize)
+{
+    NotImplemented;
+    return *this;
+}
+
+
 Istream& ITstream::read(char*, std::streamsize)
 {
     NotImplemented;
@@ -154,19 +560,89 @@ Istream& ITstream::read(char*, std::streamsize)
 }
 
 
-Istream& ITstream::rewind()
+void ITstream::rewind()
 {
-    tokenIndex_ = 0;
+    seek(0);
+}
 
-    if (size())
+
+void ITstream::append(const token& t, const bool lazy)
+{
+    reserveCapacity(tokenIndex_ + 1, lazy);
+    tokenList& toks = *this;
+
+    toks[tokenIndex_] = t;  // copy append
+    ++tokenIndex_;
+}
+
+
+void ITstream::append(token&& t, const bool lazy)
+{
+    reserveCapacity(tokenIndex_ + 1, lazy);
+    tokenList& toks = *this;
+
+    toks[tokenIndex_] = std::move(t);  // move append
+    ++tokenIndex_;
+}
+
+
+void ITstream::append(const UList<token>& newTokens, const bool lazy)
+{
+    reserveCapacity(tokenIndex_ + newTokens.size(), lazy);
+    tokenList& toks = *this;
+
+    for (const token& t : newTokens)
     {
-        lineNumber_ = tokenList::first().lineNumber();
+        toks[tokenIndex_] = t;  // copy append
+        ++tokenIndex_;
+    }
+}
+
+
+void ITstream::append(List<token>&& newTokens, const bool lazy)
+{
+    reserveCapacity(tokenIndex_ + newTokens.size(), lazy);
+    tokenList& toks = *this;
+
+    for (token& t : newTokens)
+    {
+        toks[tokenIndex_] = std::move(t);  // move append
+        ++tokenIndex_;
     }
 
-    setGood();
+    newTokens.clear();
+}
 
-    return *this;
+
+// * * * * * * * * * * * * * * * Member Operators  * * * * * * * * * * * * * //
+
+void ITstream::operator=(const ITstream& is)
+{
+    // Self-assignment is a no-op
+    if (this != &is)
+    {
+        Istream::operator=(is);
+        tokenList::operator=(is);
+        name_ = is.name_;
+        rewind();
+    }
+}
+
+
+void ITstream::operator=(const UList<token>& toks)
+{
+    tokenList::operator=(toks);
+    rewind();
+}
+
+
+void ITstream::operator=(List<token>&& toks)
+{
+    tokenList::operator=(std::move(toks));
+    rewind();
 }
 
 
 // ************************************************************************* //
+
+ } // End namespace Foam

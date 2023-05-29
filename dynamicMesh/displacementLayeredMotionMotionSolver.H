@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2016 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -23,6 +26,9 @@ License
 
 Class
     Foam::displacementLayeredMotionMotionSolver
+
+Group
+    grpMeshMotionSolvers
 
 Description
     Mesh motion solver for an (multi-block) extruded fvMesh. Gets given the
@@ -58,14 +64,17 @@ SourceFiles
 #define displacementLayeredMotionMotionSolver_H
 
 #include "displacementMotionSolver.H"
-#include "PackedBoolList.H"
+#include "cylindricalCS.H"
+#include "PtrMap.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 namespace Foam
 {
 
-// Forward class declarations
+// Forward Declarations
+class bitSet;
+
 
 /*---------------------------------------------------------------------------*\
              Class displacementLayeredMotionMotionSolver Declaration
@@ -75,24 +84,38 @@ class displacementLayeredMotionMotionSolver
 :
     public displacementMotionSolver
 {
+    // Private Data
+
+       //- Cylindrical coordinate systems (per cellZone)
+       PtrMap<coordSystem::cylindrical> cylSystems_;
+
+
     // Private Member Functions
+
+        //- Get existing or create new cylindrical system
+        const coordSystem::cylindrical& getCylindrical
+        (
+            const label cellZoneI,
+            const dictionary& zoneDict
+        );
 
         void calcZoneMask
         (
             const label cellZoneI,
-            PackedBoolList& isZonePoint,
-            PackedBoolList& isZoneEdge
+            bitSet& isZonePoint,
+            bitSet& isZoneEdge
         ) const;
 
         void walkStructured
         (
             const label cellZoneI,
-            const PackedBoolList& isZonePoint,
-            const PackedBoolList& isZoneEdge,
+            const bitSet& isZonePoint,
+            const bitSet& isZoneEdge,
             const labelList& seedPoints,
             const vectorField& seedData,
             scalarField& distance,
-            vectorField& data
+            vectorField& data,
+            labelField& patchPoints
         ) const;
 
         tmp<vectorField> faceZoneEvaluate
@@ -111,14 +134,14 @@ class displacementLayeredMotionMotionSolver
         );
 
 
-        //- Disallow default bitwise copy construct
+        //- No copy construct
         displacementLayeredMotionMotionSolver
         (
             const displacementLayeredMotionMotionSolver&
-        );
+        ) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const displacementLayeredMotionMotionSolver&);
+        //- No copy assignment
+        void operator=(const displacementLayeredMotionMotionSolver&) = delete;
 
 
 public:
@@ -132,13 +155,23 @@ public:
         //- Construct from polyMesh and IOdictionary
         displacementLayeredMotionMotionSolver
         (
-            const polyMesh&,
-            const IOdictionary&
+            const polyMesh& mesh,
+            const IOdictionary& dict
+        );
+
+        //- Construct from polyMesh, IOdictionary, displacement and
+        //- zero-time fields
+        displacementLayeredMotionMotionSolver
+        (
+            const polyMesh& mesh,
+            const IOdictionary& dict,
+            const pointVectorField& pointDisplacement,
+            const pointIOField& points0
         );
 
 
     //- Destructor
-    ~displacementLayeredMotionMotionSolver();
+    ~displacementLayeredMotionMotionSolver() = default;
 
 
     // Member Functions
@@ -150,7 +183,7 @@ public:
         virtual void solve();
 
         //- Update topology
-        virtual void updateMesh(const mapPolyMesh&);
+        virtual void updateMesh(const mapPolyMesh& mpm);
 };
 
 

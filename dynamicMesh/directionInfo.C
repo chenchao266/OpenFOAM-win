@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -115,8 +118,8 @@ Foam::label Foam::directionInfo::edgeToFaceIndex
     // - connected (but not in) to face. Return -1.
     // - in face opposite facei. Convert into index in face.
 
-    label fpA = findIndex(f, e.start());
-    label fpB = findIndex(f, e.end());
+    label fpA = f.find(e.start());
+    label fpB = f.find(e.end());
 
     if (fpA != -1)
     {
@@ -158,8 +161,8 @@ Foam::label Foam::directionInfo::edgeToFaceIndex
 
             const edge& e0 = mesh.edges()[edge0I];
 
-            fpA = findIndex(f, e0.start());
-            fpB = findIndex(f, e0.end());
+            fpA = f.find(e0.start());
+            fpB = f.find(e0.end());
 
             if ((fpA != -1) && (fpB != -1))
             {
@@ -176,8 +179,8 @@ Foam::label Foam::directionInfo::edgeToFaceIndex
             // Check if edge on facei.
             const edge& e1 = mesh.edges()[edge1I];
 
-            fpA = findIndex(f, e1.start());
-            fpB = findIndex(f, e1.end());
+            fpA = f.find(e1.start());
+            fpB = f.find(e1.end());
 
             if ((fpA != -1) && (fpB != -1))
             {
@@ -197,51 +200,62 @@ Foam::label Foam::directionInfo::edgeToFaceIndex
 }
 
 
-// * * * * * * * * * * * * * * * Friend Operators  * * * * * * * * * * * * * //
+// * * * * * * * * * * * * * * * IOstream Operators  * * * * * * * * * * * * //
 
 Foam::Ostream& Foam::operator<<
 (
-    Foam::Ostream& os,
-    const Foam::directionInfo& wDist
+    Ostream& os,
+    const directionInfo& rhs
 )
 {
     if (os.format() == IOstream::ASCII)
     {
-        os << wDist.index_ << wDist.n_;
+        os << rhs.index_ << rhs.n_;
     }
     else
     {
         os.write
         (
-            reinterpret_cast<const char*>(&wDist.index_),
+            reinterpret_cast<const char*>(&rhs.index_),
             sizeof(directionInfo)
         );
     }
 
-    // Check state of Ostream
-    os.check("Ostream& operator<<(Ostream&, const directionInfo&)");
+    os.check(FUNCTION_NAME);
     return os;
-
 }
 
 
-Foam::Istream& Foam::operator>>(Foam::Istream& is, Foam::directionInfo& wDist)
+Foam::Istream& Foam::operator>>
+(
+    Istream& is,
+    directionInfo& rhs
+)
 {
     if (is.format() == IOstream::ASCII)
     {
-        is >> wDist.index_ >> wDist.n_;
+        is >> rhs.index_ >> rhs.n_;
+    }
+    else if (!is.checkLabelSize<>() || !is.checkScalarSize<>())
+    {
+        // Non-native label or scalar size
+        is.beginRawRead();
+
+        readRawLabel(is, &rhs.index_);
+        readRawScalar(is, rhs.n_.data(), vector::nComponents);
+
+        is.endRawRead();
     }
     else
     {
         is.read
         (
-            reinterpret_cast<char*>(&wDist.index_),
+            reinterpret_cast<char*>(&rhs.index_),
             sizeof(directionInfo)
         );
     }
 
-    // Check state of Istream
-    is.check("Istream& operator>>(Istream&, directionInfo&)");
+    is.check(FUNCTION_NAME);
     return is;
 }
 

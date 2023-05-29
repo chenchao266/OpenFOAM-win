@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2013-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2013-2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -24,6 +26,9 @@ License
 Class
     Foam::ParticleStressModel
 
+Group
+    grpLagrangianIntermediateMPPICParticleStressSubModels
+
 Description
     Base class for inter-particle stress models.
 
@@ -35,9 +40,9 @@ SourceFiles
 #ifndef ParticleStressModel_H
 #define ParticleStressModel_H
 
-#include "Field.T.H"
-#include "FieldField.T.H"
-#include "dictionary.H"
+#include "Field.H"
+#include "FieldField.H"
+#include "dictionary2.H"
 #include "runTimeSelectionTables.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
@@ -55,8 +60,8 @@ private:
 
     //- Private member functions
 
-        //- Disallow default bitwise assignment
-        void operator=(const ParticleStressModel&);
+        //- No copy assignment
+        void operator=(const ParticleStressModel&) = delete;
 
 
 protected:
@@ -119,7 +124,7 @@ public:
             const Field<scalar>& uRms
         ) const = 0;
 
-        //- Collision stress derivaive w.r.t. the volume fraction
+        //- Collision stress derivative w.r.t. the volume fraction
         virtual tmp<Field<scalar>> dTaudTheta
         (
             const Field<scalar>& alpha,

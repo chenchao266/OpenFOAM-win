@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2016-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -25,9 +28,10 @@ License
 
 #include "regionModel.H"
 #include "fvMesh.H"
-#include "Time.T.H"
+#include "Time1.H"
 #include "mappedWallPolyPatch.H"
 #include "zeroGradientFvPatchFields.H"
+#include "faceAreaWeightAMI.H"
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
 
@@ -43,11 +47,9 @@ namespace regionModels
 
 void Foam::regionModels::regionModel::constructMeshObjects()
 {
-    // construct region mesh
     if (!time_.foundObject<fvMesh>(regionName_))
     {
-        regionMeshPtr_.reset
-        (
+        fvMesh* regionMeshPtr =
             new fvMesh
             (
                 IOobject
@@ -57,8 +59,9 @@ void Foam::regionModels::regionModel::constructMeshObjects()
                     time_,
                     IOobject::MUST_READ
                 )
-            )
-        );
+            );
+
+        regionMeshPtr->objectRegistry::store();
     }
 }
 
@@ -118,7 +121,7 @@ void Foam::regionModels::regionModel::initialise()
             << "between regions will not be possible" << endl;
     }
 
-    if (!outputPropertiesPtr_.valid())
+    if (!outputPropertiesPtr_)
     {
         const fileName uniformPath(word("uniform")/"regionModels");
 
@@ -149,9 +152,9 @@ bool Foam::regionModels::regionModel::read()
     {
         if (active_)
         {
-            if (const dictionary* dictPtr = subDictPtr(modelName_ + "Coeffs"))
+            if (const dictionary* dictptr = findDict(modelName_ + "Coeffs"))
             {
-                coeffs_ <<= *dictPtr;
+                coeffs_ <<= *dictptr;
             }
 
             infoOutput_.readIfPresent("infoOutput", *this);
@@ -159,10 +162,8 @@ bool Foam::regionModels::regionModel::read()
 
         return true;
     }
-    else
-    {
-        return false;
-    }
+
+    return false;
 }
 
 
@@ -170,19 +171,16 @@ bool Foam::regionModels::regionModel::read(const dictionary& dict)
 {
     if (active_)
     {
-        if (const dictionary* dictPtr = dict.subDictPtr(modelName_ + "Coeffs"))
+        if (const dictionary* dictptr = dict.findDict(modelName_ + "Coeffs"))
         {
-            coeffs_ <<= *dictPtr;
+            coeffs_ <<= *dictptr;
         }
 
         infoOutput_.readIfPresent("infoOutput", dict);
-
         return true;
     }
-    else
-    {
-        return false;
-    }
+
+    return false;
 }
 
 
@@ -195,7 +193,7 @@ Foam::regionModels::regionModel::interRegionAMI
     const bool flip
 ) const
 {
-    label nbrRegionID = findIndex(interRegionAMINames_, nbrRegion.name());
+    label nbrRegionID = interRegionAMINames_.find(nbrRegion.name());
 
     const fvMesh& nbrRegionMesh = nbrRegion.regionMesh();
 
@@ -212,17 +210,15 @@ Foam::regionModels::regionModel::interRegionAMI
             interRegionAMI_[nbrRegionID].set
             (
                 regionPatchi,
-                new AMIPatchToPatchInterpolation
+                AMIInterpolation::New
                 (
-                    p,
-                    nbrP,
-                    faceAreaIntersect::tmMesh,
-                    true,
-                    AMIPatchToPatchInterpolation::imFaceAreaWeight,
-                    -1,
+                    faceAreaWeightAMI::typeName,
+                    true, // requireMatch
                     flip
                 )
             );
+
+            interRegionAMI_[nbrRegionID][regionPatchi].calculate(p, nbrP);
 
             UPstream::msgType() = oldTag;
         }
@@ -255,17 +251,15 @@ Foam::regionModels::regionModel::interRegionAMI
         interRegionAMI_[nbrRegionID].set
         (
             regionPatchi,
-            new AMIPatchToPatchInterpolation
+            AMIInterpolation::New
             (
-                p,
-                nbrP,
-                faceAreaIntersect::tmMesh,
-                true,
-                AMIPatchToPatchInterpolation::imFaceAreaWeight,
-                -1,
-                flip
+                faceAreaWeightAMI::typeName,
+                true, // requireMatch
+                flip // reverse
             )
         );
+
+        interRegionAMI_[nbrRegionID][regionPatchi].calculate(p, nbrP);
 
         UPstream::msgType() = oldTag;
 
@@ -366,8 +360,7 @@ Foam::regionModels::regionModel::regionModel
     active_(false),
     infoOutput_(false),
     modelName_("none"),
-    regionMeshPtr_(nullptr),
-    coeffs_(dictionary::null),
+    coeffs_(),
     outputPropertiesPtr_(nullptr),
     primaryPatchIDs_(),
     intCoupledPatchIDs_(),
@@ -399,15 +392,14 @@ Foam::regionModels::regionModel::regionModel
     ),
     primaryMesh_(mesh),
     time_(mesh.time()),
-    active_(lookup("active")),
+    active_(get<Switch>("active")),
     infoOutput_(true),
     modelName_(modelName),
-    regionMeshPtr_(nullptr),
     coeffs_(subOrEmptyDict(modelName + "Coeffs")),
     outputPropertiesPtr_(nullptr),
     primaryPatchIDs_(),
     intCoupledPatchIDs_(),
-    regionName_(lookup("regionName")),
+    regionName_(lookup("region")),
     functions_(*this, subOrEmptyDict("functions"))
 {
     if (active_)
@@ -447,15 +439,14 @@ Foam::regionModels::regionModel::regionModel
     ),
     primaryMesh_(mesh),
     time_(mesh.time()),
-    active_(dict.lookup("active")),
+    active_(dict.get<Switch>("active")),
     infoOutput_(false),
     modelName_(modelName),
-    regionMeshPtr_(nullptr),
     coeffs_(dict.subOrEmptyDict(modelName + "Coeffs")),
     outputPropertiesPtr_(nullptr),
     primaryPatchIDs_(),
     intCoupledPatchIDs_(),
-    regionName_(dict.lookup("regionName")),
+    regionName_(dict.lookup("region")),
     functions_(*this, subOrEmptyDict("functions"))
 {
     if (active_)
@@ -471,12 +462,6 @@ Foam::regionModels::regionModel::regionModel
 }
 
 
-// * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
-
-Foam::regionModels::regionModel::~regionModel()
-{}
-
-
 // * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * * //
 
 void Foam::regionModels::regionModel::evolve()
@@ -485,8 +470,6 @@ void Foam::regionModels::regionModel::evolve()
     {
         Info<< "\nEvolving " << modelName_ << " for region "
             << regionMesh().name() << endl;
-
-        //read();
 
         preEvolveRegion();
 
@@ -506,9 +489,7 @@ void Foam::regionModels::regionModel::evolve()
         {
             outputProperties().writeObject
             (
-                IOstream::ASCII,
-                IOstream::currentVersion,
-                time_.writeCompression(),
+                IOstreamOption(IOstream::ASCII, time_.writeCompression()),
                 true
             );
         }

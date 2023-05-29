@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2013 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2013 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -23,21 +25,17 @@ License
 
 \*---------------------------------------------------------------------------*/
 
+#include "fundamentalConstants.H"
 #include "universalConstants.H"
 #include "mathematicalConstants.H"
-
 #include "dimensionedConstants.H"
-#include "fundamentalConstants.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
-using namespace Foam;
+
 namespace Foam
 {
 namespace constant
 {
-
-const char* const universal::group = "universal";
-
 
 // Note: cannot use dimless etc. since not guaranteed to be constructed
 defineDimensionedConstantWithDefault
@@ -46,12 +44,12 @@ defineDimensionedConstantWithDefault
     universal::hr,
     dimensionedScalar
     (
-        "hr",
+        word("hr"),
         universal::h
        /(
             dimensionedScalar
             (
-                "C",
+                word("C"),
                 dimensionSet(0, 0, 0, 0, 0),//dimless
                 mathematical::twoPi
             )

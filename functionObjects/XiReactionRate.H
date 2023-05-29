@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2016 OpenFOAM Foundation
+    Copyright (C) 2016-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -31,24 +34,44 @@ Description
     Writes the turbulent flame-speed and reaction-rate volScalarFields for the
     Xi-based combustion models.
 
-    Example of function object specification:
+    Operands:
+    \table
+      Operand        | Type           | Location
+      input          | -              | -
+      output file    | -              | -
+      output field   | volScalarField | $FOAM_CASE/\<time\>/{St,wdot}
+    \endtable
+
+Usage
+    Minimal example by using \c system/controlDict.functions:
     \verbatim
-    XiReactionRate
+    XiReactionRate1
     {
+        // Mandatory entries (unmodifiable)
         type        XiReactionRate;
-        libs        ("libfieldFunctionObjects.so");
+        libs        (fieldFunctionObjects);
+
+        // Optional (inherited) entries
         ...
     }
     \endverbatim
 
-Usage
+    where the entries mean:
     \table
-        Property  | Description                 | Required  | Default value
-        type      | type name: XiReactionRate   | yes       |
+      Property   | Description                        | Type | Req'd | Dflt
+      type       | Type name: XiReactionRate          | word |  yes  | -
+      libs       | Library name: fieldFunctionObjects | word |  yes  | -
     \endtable
 
+    The inherited entries are elaborated in:
+     - \link functionObject.H \endlink
+
+    Usage by the \c postProcess utility is not available.
+
 See also
-    Foam::functionObjects::fvMeshFunctionObject
+    - Foam::functionObject
+    - Foam::functionObjects::fvMeshFunctionObject
+    - ExtendedCodeGuide::functionObjects::field::XiReactionRate
 
 SourceFiles
     XiReactionRate.C
@@ -75,15 +98,6 @@ class XiReactionRate
 :
     public fvMeshFunctionObject
 {
-    // Private member functions
-
-        //- Disallow default bitwise copy construct
-        XiReactionRate(const XiReactionRate&);
-
-        //- Disallow default bitwise assignment
-        void operator=(const XiReactionRate&);
-
-
 public:
 
     //- Runtime type information
@@ -100,17 +114,26 @@ public:
             const dictionary& dict
         );
 
+        //- No copy construct
+        XiReactionRate(const XiReactionRate&) = delete;
+
+        //- No copy assignment
+        void operator=(const XiReactionRate&) = delete;
+
 
     //- Destructor
-    virtual ~XiReactionRate();
+    virtual ~XiReactionRate() = default;
 
 
     // Member Functions
 
+        //- Read the reaction rate data
+        virtual bool read(const dictionary&);
+
         //- Do nothing
         virtual bool execute();
 
-        //- Write the cell-centre fields
+        //- Write the reaction rate fields
         virtual bool write();
 };
 

@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2012 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2012 OpenFOAM Foundation
+    Copyright (C) 2017 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -34,6 +37,7 @@ namespace Foam
     defineTypeNameAndDebug(solidThermo, 0);
     defineRunTimeSelectionTable(solidThermo, fvMesh);
     defineRunTimeSelectionTable(solidThermo, dictionary);
+    defineRunTimeSelectionTable(solidThermo, fvMeshDictPhase);
 }
 
 
@@ -45,20 +49,7 @@ Foam::solidThermo::solidThermo
     const word& phaseName
 )
 :
-    basicThermo(mesh, phaseName),
-    rho_
-    (
-        IOobject
-        (
-            phasePropertyName("thermo:rho"),
-            mesh.time().timeName(),
-            mesh,
-            IOobject::NO_READ,
-            IOobject::NO_WRITE
-        ),
-        mesh,
-        dimDensity
-    )
+    rhoThermo(mesh, phaseName)
 {}
 
 
@@ -69,21 +60,20 @@ Foam::solidThermo::solidThermo
     const word& phaseName
 )
 :
-    basicThermo(mesh, dict, phaseName),
-    rho_
-    (
-        IOobject
-        (
-            phasePropertyName("thermo:rho"),
-            mesh.time().timeName(),
-            mesh,
-            IOobject::NO_READ,
-            IOobject::NO_WRITE
-        ),
-        mesh,
-        dimDensity
-    )
+    rhoThermo(mesh, dict, phaseName)
 {}
+
+
+Foam::solidThermo::solidThermo
+(
+    const fvMesh& mesh,
+    const word& phaseName,
+    const word& dictionaryName
+)
+:
+     rhoThermo(mesh, phaseName, dictionaryName)
+{}
+
 
 
 // * * * * * * * * * * * * * * * * Selectors * * * * * * * * * * * * * * * * //
@@ -106,6 +96,17 @@ Foam::autoPtr<Foam::solidThermo> Foam::solidThermo::New
 )
 {
     return basicThermo::New<solidThermo>(mesh, dict, phaseName);
+}
+
+
+Foam::autoPtr<Foam::solidThermo> Foam::solidThermo::New
+(
+     const fvMesh& mesh,
+     const word& phaseName,
+     const word& dictName
+)
+{
+    return basicThermo::New<solidThermo>(mesh, phaseName, dictName);
 }
 
 

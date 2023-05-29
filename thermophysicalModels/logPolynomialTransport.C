@@ -1,9 +1,11 @@
-﻿/*---------------------------------------------------------------------------*\
+/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2016-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2016-2017 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -23,7 +25,7 @@ License
 
 \*---------------------------------------------------------------------------*/
 
-//#include "logPolynomialTransport.H"
+#include "logPolynomialTransport.H"
 #include "IOstreams.H"
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
@@ -35,20 +37,8 @@ Foam::logPolynomialTransport<Thermo, PolySize>::logPolynomialTransport
 )
 :
     Thermo(dict),
-    muCoeffs_
-    (
-        dict.subDict("transport").lookup
-        (
-            "muLogCoeffs<" + Foam::name(PolySize) + '>'
-        )
-    ),
-    kappaCoeffs_
-    (
-        dict.subDict("transport").lookup
-        (
-            "kappaLogCoeffs<" + Foam::name(PolySize) + '>'
-        )
-    )
+    muCoeffs_(dict.subDict("transport").lookup(coeffsName("mu"))),
+    kappaCoeffs_(dict.subDict("transport").lookup(coeffsName("kappa")))
 {}
 
 
@@ -57,25 +47,19 @@ Foam::logPolynomialTransport<Thermo, PolySize>::logPolynomialTransport
 template<class Thermo, int PolySize>
 void Foam::logPolynomialTransport<Thermo, PolySize>::write(Ostream& os) const
 {
-    os  << this->name() << endl;
-    os  << token::BEGIN_BLOCK << incrIndent << nl;
+    os.beginBlock(this->name());
 
     Thermo::write(os);
 
-    dictionary dict("transport");
-    dict.add
-    (
-        word("muLogCoeffs<" + Foam::name(PolySize) + '>'),
-        muCoeffs_
-    );
-    dict.add
-    (
-        word("kappaLogCoeffs<" + Foam::name(PolySize) + '>'),
-        kappaCoeffs_
-    );
-    os  << indent << dict.dictName() << dict;
+    // Entries in dictionary format
+    {
+        os.beginBlock("transport");
+        os.writeEntry(coeffsName("mu"), muCoeffs_);
+        os.writeEntry(coeffsName("kappa"), kappaCoeffs_);
+        os.endBlock();
+    }
 
-    os  << decrIndent << token::END_BLOCK << nl;
+    os.endBlock();
 }
 
 

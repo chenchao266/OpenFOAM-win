@@ -1,9 +1,12 @@
-﻿/*---------------------------------------------------------------------------*\
+/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2014-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2014-2017 OpenFOAM Foundation
+    Copyright (C) 2019-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -23,7 +26,7 @@ License
 
 \*---------------------------------------------------------------------------*/
 
-//#include "kOmegaSSTSato.H"
+#include "kOmegaSSTSato.H"
 #include "fvOptions.H"
 #include "twoPhaseSystem.H"
 
@@ -65,7 +68,7 @@ kOmegaSSTSato<BasicTurbulenceModel>::kOmegaSSTSato
 
     Cmub_
     (
-        dimensioned<scalar>::lookupOrAddToDict
+        dimensioned<scalar>::getOrAddToDict
         (
             "Cmub",
             this->coeffDict_,
@@ -91,11 +94,10 @@ bool kOmegaSSTSato<BasicTurbulenceModel>::read()
 
         return true;
     }
-    else
-    {
-        return false;
-    }
+
+    return false;
 }
+
 
 template<class BasicTurbulenceModel>
 const PhaseCompressibleTurbulenceModel
@@ -132,8 +134,7 @@ kOmegaSSTSato<BasicTurbulenceModel>::gasTurbulence() const
 template<class BasicTurbulenceModel>
 void kOmegaSSTSato<BasicTurbulenceModel>::correctNut
 (
-    const volScalarField& S2,
-    const volScalarField& F2
+    const volScalarField& S2
 )
 {
     const PhaseCompressibleTurbulenceModel<transportModel>& gasTurbulence =
@@ -145,7 +146,12 @@ void kOmegaSSTSato<BasicTurbulenceModel>::correctNut
     );
 
     this->nut_ =
-        this->a1_*this->k_/max(this->a1_*this->omega_, this->b1_*F2*sqrt(S2))
+        this->a1_*this->k_
+       /max
+        (
+            this->a1_*this->omega_,
+            this->b1_*this->F23()*sqrt(S2)
+        )
       + sqr(1 - exp(-yPlus/16.0))
        *Cmub_*gasTurbulence.transport().d()*gasTurbulence.alpha()
        *(mag(this->U_ - gasTurbulence.U()));

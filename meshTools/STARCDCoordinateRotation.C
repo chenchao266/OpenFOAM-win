@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2017-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -24,258 +27,161 @@ License
 \*---------------------------------------------------------------------------*/
 
 #include "STARCDCoordinateRotation.H"
-
-#include "mathematicalConstants.H"
+#include "unitConversion.H"
 #include "addToRunTimeSelectionTable.H"
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
 
 namespace Foam
 {
-    defineTypeNameAndDebug(STARCDCoordinateRotation, 0);
-    addToRunTimeSelectionTable
-    (
-        coordinateRotation,
-        STARCDCoordinateRotation,
-        dictionary
-    );
-    addToRunTimeSelectionTable
-    (
-        coordinateRotation,
-        STARCDCoordinateRotation,
-        objectRegistry
-    );
-}
-
-
-// * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * * //
-
-Foam::vector Foam::STARCDCoordinateRotation::transform(const vector& st) const
-{
-    return (R_ & st);
-}
-
-
-Foam::vector Foam::STARCDCoordinateRotation::invTransform
-(
-    const vector& st
-) const
-{
-    return (Rtr_ & st);
-}
-
-
-Foam::tmp<Foam::vectorField> Foam::STARCDCoordinateRotation::transform
-(
-    const vectorField& st
-) const
-{
-    NotImplemented;
-    return tmp<vectorField>(nullptr);
-}
-
-
-Foam::tmp<Foam::vectorField> Foam::STARCDCoordinateRotation::invTransform
-(
-    const vectorField& st
-) const
-{
-    NotImplemented;
-    return tmp<vectorField>(nullptr);
-}
-
-
-const Foam::tensorField& Foam::STARCDCoordinateRotation::Tr() const
-{
-    NotImplemented;
-    return NullObjectRef<tensorField>();
-}
-
-
-Foam::tmp<Foam::tensorField> Foam::STARCDCoordinateRotation::transformTensor
-(
-    const tensorField& st
-) const
-{
-     NotImplemented;
-    return tmp<tensorField>(nullptr);
-}
-
-
-Foam::tensor Foam::STARCDCoordinateRotation::transformTensor
-(
-    const tensor& st
-) const
-{
-    return (R_ & st & Rtr_);
-}
-
-
-Foam::tmp<Foam::tensorField> Foam::STARCDCoordinateRotation::transformTensor
-(
-    const tensorField& st,
-    const labelList& cellMap
-) const
-{
-    NotImplemented;
-    return tmp<tensorField>(nullptr);
-}
-
-
-Foam::tmp<Foam::symmTensorField> Foam::STARCDCoordinateRotation::
-transformVector
-(
-    const vectorField& st
-) const
-{
-    tmp<symmTensorField> tfld(new symmTensorField(st.size()));
-    symmTensorField& fld = tfld.ref();
-
-    forAll(fld, i)
+    namespace coordinateRotations
     {
-        fld[i] = transformPrincipal(R_, st[i]);
+        defineTypeName(starcd);
+
+        // Standard short name
+        addNamedToRunTimeSelectionTable
+        (
+            coordinateRotation,
+            starcd,
+            dictionary,
+            starcd
+        );
+
+        // Longer name - Compat 1806
+        addNamedToRunTimeSelectionTable
+        (
+            coordinateRotation,
+            starcd,
+            dictionary,
+            STARCDRotation
+        );
     }
-    return tfld;
 }
 
 
-Foam::symmTensor Foam::STARCDCoordinateRotation::transformVector
-(
-    const vector& st
-) const
-{
-    return transformPrincipal(R_, st);
-}
+// * * * * * * * * * * * * * Static Member Functions * * * * * * * * * * * * //
 
-// * * * * * * * * * * * * * Private Member Functions  * * * * * * * * * * * //
-
-void Foam::STARCDCoordinateRotation::calcTransform
+Foam::tensor Foam::coordinateRotations::starcd::rotation
 (
-    const scalar rotZ,
-    const scalar rotX,
-    const scalar rotY,
-    const bool inDegrees
+    const vector& angles,
+    bool degrees
 )
 {
-    scalar x = rotX;
-    scalar y = rotY;
-    scalar z = rotZ;
+    scalar z = angles.component(vector::X);    // 1. Rotate about Z
+    scalar x = angles.component(vector::Y);    // 2. Rotate about X
+    scalar y = angles.component(vector::Z);    // 3. Rotate about Y
 
-    if (inDegrees)
+    if (degrees)
     {
-        x *= constant::mathematical::pi/180.0;
-        y *= constant::mathematical::pi/180.0;
-        z *= constant::mathematical::pi/180.0;
+        x *= degToRad();
+        y *= degToRad();
+        z *= degToRad();
     }
 
-    R_ =
-    (
+    const scalar cx = cos(x);  const scalar sx = sin(x);
+    const scalar cy = cos(y);  const scalar sy = sin(y);
+    const scalar cz = cos(z);  const scalar sz = sin(z);
+
+    return
         tensor
         (
-            cos(y)*cos(z) - sin(x)*sin(y)*sin(z),
-            -cos(x)*sin(z),
-            sin(x)*cos(y)*sin(z) + sin(y)*cos(z),
-
-            cos(y)*sin(z) + sin(x)*sin(y)*cos(z),
-            cos(x)*cos(z),
-            sin(y)*sin(z) - sin(x)*cos(y)*cos(z),
-
-            -cos(x)*sin(y),
-            sin(x),
-            cos(x)*cos(y)
-        )
-    );
-
-    Rtr_ = R_.T();
+            cy*cz - sx*sy*sz, -cx*sz,  sx*cy*sz + sy*cz,
+            cy*sz + sx*sy*cz,  cx*cz,  sy*sz - sx*cy*cz,
+            -cx*sy,            sx,     cx*cy
+        );
 }
 
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
-Foam::STARCDCoordinateRotation::STARCDCoordinateRotation()
+Foam::coordinateRotations::starcd::starcd()
 :
-    R_(sphericalTensor::I),
-    Rtr_(R_)
+    coordinateRotation(),
+    angles_(Zero),
+    degrees_(true)
 {}
 
 
-Foam::STARCDCoordinateRotation::STARCDCoordinateRotation
+Foam::coordinateRotations::starcd::starcd(const starcd& crot)
+:
+    coordinateRotation(),
+    angles_(crot.angles_),
+    degrees_(crot.degrees_)
+{}
+
+
+Foam::coordinateRotations::starcd::starcd
 (
     const vector& rotZrotXrotY,
-    const bool inDegrees
+    bool degrees
 )
 :
-    R_(sphericalTensor::I),
-    Rtr_(R_)
-{
-    calcTransform
-    (
-        rotZrotXrotY.component(vector::X),
-        rotZrotXrotY.component(vector::Y),
-        rotZrotXrotY.component(vector::Z),
-        inDegrees
-    );
-}
+    coordinateRotation(),
+    angles_(rotZrotXrotY),
+    degrees_(degrees)
+{}
 
 
-Foam::STARCDCoordinateRotation::STARCDCoordinateRotation
+Foam::coordinateRotations::starcd::starcd
 (
-    const scalar rotZ,
-    const scalar rotX,
-    const scalar rotY,
-    const bool inDegrees
+    scalar rotZ,
+    scalar rotX,
+    scalar rotY,
+    bool degrees
 )
 :
-    R_(sphericalTensor::I),
-    Rtr_(R_)
-{
-    calcTransform(rotZ, rotX, rotY, inDegrees);
-}
+    coordinateRotation(),
+    angles_(rotZ, rotX, rotY),
+    degrees_(degrees)
+{}
 
 
-Foam::STARCDCoordinateRotation::STARCDCoordinateRotation
-(
-    const dictionary& dict
-)
+Foam::coordinateRotations::starcd::starcd(const dictionary& dict)
 :
-    R_(sphericalTensor::I),
-    Rtr_(R_)
-{
-    vector rotation(dict.lookup("rotation"));
+    coordinateRotation(),
+    angles_(dict.get<vector>("angles")),
+    degrees_(dict.getOrDefault("degrees", true))
+{}
 
-    calcTransform
-    (
-        rotation.component(vector::X),
-        rotation.component(vector::Y),
-        rotation.component(vector::Z),
-        dict.lookupOrDefault("degrees", true)
-    );
+
+// * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * * //
+
+void Foam::coordinateRotations::starcd::clear()
+{
+    angles_ = Zero;
+    degrees_ = true;
 }
 
 
-Foam::STARCDCoordinateRotation::STARCDCoordinateRotation
+Foam::tensor Foam::coordinateRotations::starcd::R() const
+{
+    return starcd::rotation(angles_, degrees_);
+}
+
+
+void Foam::coordinateRotations::starcd::write(Ostream& os) const
+{
+    os  << "starcd-angles(" << (degrees_ ? "deg" : "rad") << "): " << angles_;
+}
+
+
+void Foam::coordinateRotations::starcd::writeEntry
 (
-    const dictionary& dict,
-    const objectRegistry&
-)
+    const word& keyword,
+    Ostream& os
+) const
 {
-    vector rotation(dict.lookup("rotation"));
+    os.beginBlock(keyword);
 
-    calcTransform
-    (
-        rotation.component(vector::X),
-        rotation.component(vector::Y),
-        rotation.component(vector::Z),
-        dict.lookupOrDefault("degrees", true)
-    );
+    os.writeEntry("type", type());
+    os.writeEntry("angles", angles_);
+    if (!degrees_)
+    {
+        os.writeEntry("degrees", "false");
+    }
+
+    os.endBlock();
 }
 
-
-void Foam::STARCDCoordinateRotation::write(Ostream& os) const
-{
-     os.writeKeyword("e1") << e1() << token::END_STATEMENT << nl;
-     os.writeKeyword("e2") << e2() << token::END_STATEMENT << nl;
-     os.writeKeyword("e3") << e3() << token::END_STATEMENT << nl;
-}
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //

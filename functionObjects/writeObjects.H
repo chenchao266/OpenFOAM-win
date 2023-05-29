@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2018-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -48,19 +51,20 @@ Description
         anyWrite  | any option of the previous two
     \endvartable
 
+Usage
     Example of function object specification:
     \verbatim
     writeObjects1
     {
         type        writeObjects;
-        libs        ("libutilityFunctionObjects.so");
+        libs        (utilityFunctionObjects);
         ...
         objects     (obj1 obj2);
         writeOption anyWrite;
     }
     \endverbatim
 
-Usage
+    Where the entries comprise:
     \table
         Property     | Description             | Required     | Default value
         type         | type name: writeObjects | yes          |
@@ -72,7 +76,6 @@ Usage
 
 See also
     Foam::functionObject
-    Foam::functionObjects::writeObjectsBase
     Foam::functionObjects::timeControl
 
 SourceFiles
@@ -84,25 +87,27 @@ SourceFiles
 #define functionObjects_writeObjects_H
 
 #include "functionObject.H"
-#include "writeObjectsBase.H"
-#include "NamedEnum.T.H"
+#include "wordRes.H"
+#include "Enum.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 namespace Foam
 {
 
+// Forward declaration of classes
+class objectRegistry;
+
 namespace functionObjects
 {
 
 /*---------------------------------------------------------------------------*\
-                   Class writeObjects Declaration
+                Class functionObjects::writeObjects Declaration
 \*---------------------------------------------------------------------------*/
 
 class writeObjects
 :
-    public functionObject,
-    public writeObjectsBase
+    public functionObject
 {
 public:
 
@@ -117,26 +122,29 @@ public:
             ANY_WRITE
         };
 
-        static const NamedEnum<writeOption, 3> writeOptionNames_;
+        static const Enum<writeOption> writeOptionNames_;
 
 private:
 
     // Private data
 
+        //- Reference to registry
+        const objectRegistry& obr_;
+
         //- To only write objects of defined writeOption
         writeOption writeOption_;
+
+        //- Names of objects to control
+        wordRes objectNames_;
 
 
     // Private Member Functions
 
-        //- Write the requested registered IO object
-        virtual void writeObject(const regIOobject& obj);
+        //- No copy construct
+        writeObjects(const writeObjects&) = delete;
 
-        //- Disallow default bitwise copy construct
-        writeObjects(const writeObjects&);
-
-        //- Disallow default bitwise assignment
-        void operator=(const writeObjects&);
+        //- No copy assignment
+        void operator=(const writeObjects&) = delete;
 
 
 public:
@@ -157,7 +165,7 @@ public:
 
 
     //- Destructor
-    virtual ~writeObjects();
+    virtual ~writeObjects() = default;
 
 
     // Member Functions

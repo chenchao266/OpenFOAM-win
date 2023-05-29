@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011 OpenFOAM Foundation
+    Copyright (C) 2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -27,14 +30,12 @@ Class
 Description
     The surfMesh GeoMesh (for holding fields).
 
-    Similar to the volGeoMesh used for the Finite Volume discretization.
-
 \*---------------------------------------------------------------------------*/
 
 #ifndef surfGeoMesh_H
 #define surfGeoMesh_H
 
-#include "GeoMesh.T.H"
+#include "GeoMesh.H"
 #include "surfMesh.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
@@ -50,7 +51,6 @@ class surfGeoMesh
 :
     public GeoMesh<surfMesh>
 {
-
 public:
 
     // Constructors
@@ -64,13 +64,13 @@ public:
 
     // Member Functions
 
-        //- Return size
-        static label size(const surfMesh& mesh)
+        //- Return size. Number of faces
+        static label size(const Mesh& mesh)
         {
             return mesh.nFaces();
         }
 
-        //- Return size
+        //- Return size. Number of faces
         label size() const
         {
             return size(mesh_);

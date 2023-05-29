@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -112,9 +114,9 @@ Foam::autoPtr<Foam::RBD::joint> Foam::RBD::joint::iNew::operator()
 
 inline Foam::Ostream& Foam::RBD::operator<<(Ostream& os, const joint& j)
 {
-    os  << indent << token::BEGIN_BLOCK << incrIndent << endl;
+    os.beginBlock();
     j.write(os);
-    os  << decrIndent << indent << token::END_BLOCK;
+    os.endBlock();
 
     return os;
 }

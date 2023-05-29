@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2019-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -27,7 +30,74 @@ License
 #include "polyMesh.H"
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
-using namespace Foam;
+
+
+ namespace Foam{
+mapPolyMesh::mapPolyMesh(const polyMesh& mesh)
+:
+    mesh_(mesh),
+    nOldPoints_(mesh.nPoints()),
+    nOldFaces_(mesh.nFaces()),
+    nOldCells_(mesh.nCells()),
+    pointMap_(identity(mesh.nPoints())),
+    pointsFromPointsMap_(),
+    faceMap_(identity(mesh.nFaces())),
+    facesFromPointsMap_(),
+    facesFromEdgesMap_(),
+    facesFromFacesMap_(),
+    cellMap_(identity(mesh.nCells())),
+    cellsFromPointsMap_(),
+    cellsFromEdgesMap_(),
+    cellsFromFacesMap_(),
+    cellsFromCellsMap_(),
+    reversePointMap_(identity(mesh.nPoints())),
+    reverseFaceMap_(identity(mesh.nFaces())),
+    reverseCellMap_(identity(mesh.nCells())),
+    flipFaceFlux_(),
+    patchPointMap_(mesh.boundaryMesh().size()),
+    pointZoneMap_(mesh.pointZones().size()),
+    faceZonePointMap_(mesh.faceZones().size()),
+    faceZoneFaceMap_(mesh.faceZones().size()),
+    cellZoneMap_(mesh.cellZones().size()),
+    preMotionPoints_(mesh.points()),
+    oldPatchSizes_(mesh.boundaryMesh().patchSizes()),
+    oldPatchStarts_(mesh.boundaryMesh().patchStarts()),
+    oldPatchNMeshPoints_(mesh.boundaryMesh().size()),
+    oldCellVolumesPtr_()
+{
+    // Identity map for patch points
+    forAll(patchPointMap_, patchi)
+    {
+        const label nPoints = mesh.boundaryMesh()[patchi].meshPoints().size();
+        oldPatchNMeshPoints_[patchi] = nPoints;
+        patchPointMap_[patchi] = identity(nPoints);
+    }
+
+    // Identity maps for zones
+
+    forAll(pointZoneMap_, zonei)
+    {
+        pointZoneMap_[zonei] = identity(mesh.pointZones()[zonei].size());
+    }
+
+    forAll(faceZonePointMap_, zonei)
+    {
+        faceZonePointMap_[zonei] =
+            identity(mesh.faceZones()[zonei]().meshPoints().size());
+    }
+
+    forAll(faceZoneFaceMap_, zonei)
+    {
+        faceZoneFaceMap_[zonei] = identity(mesh.faceZones()[zonei].size());
+    }
+
+    forAll(cellZoneMap_, zonei)
+    {
+        cellZoneMap_[zonei] = identity(mesh.cellZones()[zonei].size());
+    }
+}
+
+
 mapPolyMesh::mapPolyMesh
 (
     const polyMesh& mesh,
@@ -58,7 +128,9 @@ mapPolyMesh::mapPolyMesh
     const labelList& oldPatchStarts,
     const labelList& oldPatchNMeshPoints,
     const autoPtr<scalarField>& oldCellVolumesPtr
-) :    mesh_(mesh),
+)
+:
+    mesh_(mesh),
     nOldPoints_(nOldPoints),
     nOldFaces_(nOldFaces),
     nOldCells_(nOldCells),
@@ -145,7 +217,9 @@ mapPolyMesh::mapPolyMesh
     labelList& oldPatchNMeshPoints,
     autoPtr<scalarField>& oldCellVolumesPtr,
     const bool reuse
-) :    mesh_(mesh),
+)
+:
+    mesh_(mesh),
     nOldPoints_(nOldPoints),
     nOldFaces_(nOldFaces),
     nOldCells_(nOldCells),
@@ -173,8 +247,18 @@ mapPolyMesh::mapPolyMesh
     oldPatchSizes_(oldPatchStarts.size()),
     oldPatchStarts_(oldPatchStarts, reuse),
     oldPatchNMeshPoints_(oldPatchNMeshPoints, reuse),
-    oldCellVolumesPtr_(oldCellVolumesPtr, reuse)
+    oldCellVolumesPtr_()
 {
+    // Reuse old content or clone
+    if (reuse)
+    {
+        oldCellVolumesPtr_ = std::move(oldCellVolumesPtr);
+    }
+    else
+    {
+        oldCellVolumesPtr_ = oldCellVolumesPtr.clone();
+    }
+
     if (oldPatchStarts_.size() > 0)
     {
         // Calculate old patch sizes
@@ -204,3 +288,5 @@ mapPolyMesh::mapPolyMesh
 
 
 // ************************************************************************* //
+
+ } // End namespace Foam

@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2013-2015 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2015 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -24,39 +26,14 @@ License
 \*---------------------------------------------------------------------------*/
 
 #include "basicKinematicMPPICCloud.H"
-
-#include "makeParcelCloudFunctionObjects.H"
-
-// Kinematic sub-models
-#include "makeParcelForces.H"
-#include "makeParcelDispersionModels.H"
-#include "makeParcelInjectionModels.H"
-#include "makeParcelPatchInteractionModels.H"
-#include "makeParcelStochasticCollisionModels.H"
-#include "makeParcelSurfaceFilmModels.H"
-
-// MPPIC sub-models
-#include "makeMPPICParcelDampingModels.H"
-#include "makeMPPICParcelIsotropyModels.H"
-#include "makeMPPICParcelPackingModels.H"
+#include "makeParcelTurbulenceDispersionModels.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
-makeParcelCloudFunctionObjects(basicKinematicMPPICCloud);
-
-// Kinematic sub-models
-makeParcelForces(basicKinematicMPPICCloud);
-
-makeParcelDispersionModels(basicKinematicMPPICCloud);
-makeParcelInjectionModels(basicKinematicMPPICCloud);
-makeParcelPatchInteractionModels(basicKinematicMPPICCloud);
-makeParcelStochasticCollisionModels(basicKinematicMPPICCloud);
-makeParcelSurfaceFilmModels(basicKinematicMPPICCloud);
-
-// MPPIC sub-models
-makeMPPICParcelDampingModels(basicKinematicMPPICCloud);
-makeMPPICParcelIsotropyModels(basicKinematicMPPICCloud);
-makeMPPICParcelPackingModels(basicKinematicMPPICCloud);
+namespace Foam
+{
+    makeParcelTurbulenceDispersionModels(basicKinematicMPPICCloud);
+}
 
 
 // ************************************************************************* //

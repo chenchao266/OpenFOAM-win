@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2015 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2015 OpenFOAM Foundation
+    Copyright (C) 2019-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -30,34 +33,34 @@ License
 Foam::autoPtr<Foam::barotropicCompressibilityModel>
 Foam::barotropicCompressibilityModel::New
 (
-    const dictionary& compressibilityProperties,
+    const dictionary& dict,
     const volScalarField& gamma,
     const word& psiName
 )
 {
     const word modelType
     (
-        compressibilityProperties.lookup("barotropicCompressibilityModel")
+        dict.get<word>("barotropicCompressibilityModel")
     );
 
     Info<< "Selecting compressibility model " << modelType << endl;
 
-    dictionaryConstructorTable::iterator cstrIter =
-        dictionaryConstructorTablePtr_->find(modelType);
+    auto* ctorPtr = dictionaryConstructorTable(modelType);
 
-    if (cstrIter == dictionaryConstructorTablePtr_->end())
+    if (!ctorPtr)
     {
-        FatalErrorInFunction
-            << "Unknown barotropicCompressibilityModel type "
-            << modelType << nl << nl
-            << "Valid barotropicCompressibilityModels are : " << endl
-            << dictionaryConstructorTablePtr_->sortedToc()
-            << exit(FatalError);
+        FatalIOErrorInLookup
+        (
+            dict,
+            "barotropicCompressibilityModel",
+            modelType,
+            *dictionaryConstructorTablePtr_
+        ) << exit(FatalIOError);
     }
 
     return autoPtr<barotropicCompressibilityModel>
     (
-        cstrIter()(compressibilityProperties, gamma, psiName)
+        ctorPtr(dict, gamma, psiName)
     );
 }
 

@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011 OpenFOAM Foundation
+    Copyright (C) 2018-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -25,8 +28,51 @@ Class
     Foam::nbrToCell
 
 Description
-    A topoSetSource to select cells based on number of neighbouring cells
-    (i.e. number of internal or coupled faces)
+    A \c topoSetCellSource to select cells with \c N or less number
+    of neighbouring cells (i.e. number of internal or coupled faces).
+
+    Operands:
+    \table
+      Operand   | Type    | Location
+      output    | cellSet | $FOAM_CASE/constant/polyMesh/sets/\<set\>
+    \endtable
+
+Usage
+    Minimal example by using \c system/topoSetDict.actions:
+    \verbatim
+    {
+        // Mandatory (inherited) entries
+        name        <name>;
+        type        cellSet;
+        action      <action>;
+
+        // Mandatory entries
+        source      nbrToCell;
+        neighbours  <number>;
+    }
+    \endverbatim
+
+    where the entries mean:
+    \table
+      Property   | Description                         | Type | Req'd | Dflt
+      name       | Name of cellSet                     | word |  yes  | -
+      type       | Type name: cellSet                  | word |  yes  | -
+      action     | Action applied on cells - see below | word |  yes  | -
+      source     | Source name: nbrToCell              | word |  yes  | -
+      neighbours | Maximum number of neighbour cells   | label | yes  | -
+    \endtable
+
+    Options for the \c action entry:
+    \verbatim
+      new      | Create a new cellSet from selected cells
+      add      | Add selected cells into this cellSet
+      subtract | Remove selected cells from this cellSet
+    \endverbatim
+
+See also
+    - Foam::topoSetSource
+    - Foam::topoSetCellSource
+    - Foam::haloToCell
 
 SourceFiles
     nbrToCell.C
@@ -36,7 +82,7 @@ SourceFiles
 #ifndef nbrToCell_H
 #define nbrToCell_H
 
-#include "topoSetSource.H"
+#include "topoSetCellSource.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -49,10 +95,9 @@ namespace Foam
 
 class nbrToCell
 :
-    public topoSetSource
+    public topoSetCellSource
 {
-
-    // Private data
+    // Private Data
 
         //- Add usage string
         static addToUsageTable usage_;
@@ -71,47 +116,30 @@ public:
     //- Runtime type information
     TypeName("nbrToCell");
 
+
     // Constructors
 
         //- Construct from components
-        nbrToCell
-        (
-            const polyMesh& mesh,
-            const label minNbrs
-        );
+        nbrToCell(const polyMesh& mesh, const label minNbrs);
 
         //- Construct from dictionary
-        nbrToCell
-        (
-            const polyMesh& mesh,
-            const dictionary& dict
-        );
+        nbrToCell(const polyMesh& mesh, const dictionary& dict);
 
         //- Construct from Istream
-        nbrToCell
-        (
-            const polyMesh& mesh,
-            Istream&
-        );
+        nbrToCell(const polyMesh& mesh, Istream& is);
 
 
     //- Destructor
-    virtual ~nbrToCell();
+    virtual ~nbrToCell() = default;
 
 
     // Member Functions
 
-        virtual sourceType setType() const
-        {
-            return CELLSETSOURCE;
-        }
-
         virtual void applyToSet
         (
             const topoSetSource::setAction action,
-            topoSet&
+            topoSet& set
         ) const;
-
 };
 
 

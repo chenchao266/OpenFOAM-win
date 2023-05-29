@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2018 OpenFOAM Foundation
+    Copyright (C) 2016-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -39,9 +42,6 @@ Description
       expects procPatches on all)
     - initial mesh has to have procPatches last and all normal patches common
       to all processors and in the same order. This is checked.
-    - faces are matched topologically but points on the faces are not. So
-      expect problems -on separated patches (cyclics?) -on zero sized processor
-      edges.
 
 SourceFiles
     fvMeshDistribute.C
@@ -52,7 +52,7 @@ SourceFiles
 #ifndef fvMeshDistribute_H
 #define fvMeshDistribute_H
 
-#include "Field.T.H"
+#include "Field.H"
 #include "fvMeshSubset.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
@@ -60,7 +60,7 @@ SourceFiles
 namespace Foam
 {
 
-// Forward declaration of classes
+// Forward Declarations
 class mapAddedPolyMesh;
 class mapDistributePolyMesh;
 
@@ -70,14 +70,10 @@ class mapDistributePolyMesh;
 
 class fvMeshDistribute
 {
-    // Private data
+    // Private Data
 
         //- Underlying fvMesh
         fvMesh& mesh_;
-
-        //- Absolute merging tolerance (constructing meshes gets done using
-        //  geometric matching)
-        const scalar mergeTol_;
 
 
     // Private Member Functions
@@ -98,11 +94,16 @@ class fvMeshDistribute
             const label value
         );
 
-        //- Check all procs have same names and in exactly same order.
-        static void checkEqualWordList(const string&, const wordList&);
-
         //- Merge wordlists over all processors
         static wordList mergeWordList(const wordList&);
+
+        //- Reorder zones according to names
+        template<class ZoneType, class ZoneMesh>
+        void reorderZones
+        (
+            const wordList& zoneNames,
+            ZoneMesh& zones
+        );
 
 
         // Patch handling
@@ -144,9 +145,9 @@ class fvMeshDistribute
                 const typename GeoField::value_type& initVal
             );
 
-            //- Call correctBoundaryConditions on fields
-            template<class GeoField>
-            void correctBoundaryConditions();
+            ////- Call correctBoundaryConditions on fields
+            //template<class GeoField>
+            //void correctBoundaryConditions();
 
             //- Delete all processor patches. Move any processor faces into
             //  patchi.
@@ -163,11 +164,11 @@ class fvMeshDistribute
                 labelListList& constructFaceMap
             );
 
-            //- Merge any shared points that are geometrically shared. Needs
-            //  parallel valid mesh - uses globalMeshData.
+            //- Merge any local points that were remotely coupled.
             //  constructPointMap is adapted for the new point labels.
             autoPtr<mapPolyMesh> mergeSharedPoints
             (
+                const labelList& pointToGlobalMaster,
                 labelListList& constructPointMap
             );
 
@@ -175,19 +176,21 @@ class fvMeshDistribute
         // Coupling information
 
             //- Construct the local environment of all boundary faces.
-            void getNeighbourData
+            void getCouplingData
             (
                 const labelList& distribution,
                 labelList& sourceFace,
                 labelList& sourceProc,
                 labelList& sourcePatch,
-                labelList& sourceNewProc
+                labelList& sourceNewProc,
+                labelList& sourcePointMaster
             ) const;
 
             // Subset the neighbourCell/neighbourProc fields
-            static void subsetBoundaryData
+            static void subsetCouplingData
             (
                 const fvMesh& mesh,
+                const labelList& pointMap,
                 const labelList& faceMap,
                 const labelList& cellMap,
 
@@ -200,11 +203,13 @@ class fvMeshDistribute
                 const labelList& sourceProc,
                 const labelList& sourcePatch,
                 const labelList& sourceNewProc,
+                const labelList& sourcePointMaster,
 
                 labelList& subFace,
                 labelList& subProc,
                 labelList& subPatch,
-                labelList& subNewProc
+                labelList& subNewProc,
+                labelList& subPointMaster
             );
 
             //- Find cells on mesh whose faceID/procID match the neighbour
@@ -226,6 +231,20 @@ class fvMeshDistribute
                 labelList& slaveCoupledFaces
             );
 
+            //- Find cells on mesh whose faceID/procID match the neighbour
+            //  cell/proc of domainMesh. Store the matching face pairs
+            static void findCouples
+            (
+                const UPtrList<polyMesh>& meshes,
+                const PtrList<labelList>& domainSourceFaces,
+                const PtrList<labelList>& domainSourceProcs,
+                const PtrList<labelList>& domainSourcePatchs,
+
+                labelListList& localBoundaryFace,
+                labelListList& remoteFaceProc,
+                labelListList& remoteBoundaryFace
+            );
+
             //- Map data on boundary faces to new mesh (resulting from adding
             //  two meshes)
             static labelList mapBoundaryData
@@ -237,6 +256,14 @@ class fvMeshDistribute
                 const labelList& boundaryData1  // added mesh
             );
 
+            //- Map point data to new mesh (resulting from adding two meshes)
+            static labelList mapPointData
+            (
+                const primitiveMesh& mesh,      // mesh after adding
+                const mapAddedPolyMesh& map,
+                const labelList& boundaryData0, // on mesh before adding
+                const labelList& boundaryData1  // on added mesh
+            );
 
         // Other
 
@@ -276,16 +303,29 @@ class fvMeshDistribute
                 const labelList& sourceProc,
                 const labelList& sourcePatch,
                 const labelList& sourceNewProc,
+                const labelList& sourcePointMaster,
                 Ostream& toDomain
             );
+
+            //- Get sorted names of GeoField, optionally test
+            //- that all procs have the same names.
+            template<class GeoField>
+            static void getFieldNames
+            (
+                const fvMesh& mesh,
+                HashTable<wordList>& allFieldNames,
+                const word& excludeType = word::null,
+                const bool syncPar = true
+            );
+
             //- Send subset of fields
             template<class GeoField>
             static void sendFields
             (
                 const label domain,
-                const wordList& fieldNames,
-                const fvMeshSubset&,
-                Ostream& toNbr
+                const HashTable<wordList>& allFieldNames,
+                const fvMeshSubset& subsetter,
+                Ostream&
             );
 
             //- Receive mesh. Opposite of sendMesh
@@ -300,6 +340,7 @@ class fvMeshDistribute
                 labelList& domainSourceProc,
                 labelList& domainSourcePatch,
                 labelList& domainSourceNewProc,
+                labelList& domainSourcePointMaster,
                 Istream& fromNbr
             );
 
@@ -308,17 +349,17 @@ class fvMeshDistribute
             static void receiveFields
             (
                 const label domain,
-                const wordList& fieldNames,
-                fvMesh&,
-                PtrList<GeoField>&,
-                const dictionary& fieldDicts
+                const HashTable<wordList>& allFieldNames,
+                fvMesh& mesh,
+                PtrList<GeoField>& fields,
+                const dictionary& allFieldsDict
             );
 
-            //- Disallow default bitwise copy construct
-            fvMeshDistribute(const fvMeshDistribute&);
+            //- No copy construct
+            fvMeshDistribute(const fvMeshDistribute&) = delete;
 
-            //- Disallow default bitwise assignment
-            void operator=(const fvMeshDistribute&);
+            //- No copy assignment
+            void operator=(const fvMeshDistribute&) = delete;
 
 public:
 
@@ -327,8 +368,8 @@ public:
 
     // Constructors
 
-        //- Construct from mesh and absolute merge tolerance
-        fvMeshDistribute(fvMesh& mesh, const scalar mergeTol);
+        //- Construct from mesh
+        explicit fvMeshDistribute(fvMesh& mesh);
 
 
     // Member Functions
@@ -354,10 +395,20 @@ public:
 
             //- Print some field info
             template<class GeoField>
+            static void printIntFieldInfo(const fvMesh&);
+
+            //- Print some field info
+            template<class GeoField>
             static void printFieldInfo(const fvMesh&);
 
             //- Print some info on mesh.
             static void printMeshInfo(const fvMesh&);
+
+            //- Generate a test field on faces
+            static tmp<surfaceScalarField> generateTestField(const fvMesh&);
+
+            //- Check whether field consistent with face orientation
+            static void testField(const surfaceScalarField&);
 };
 
 

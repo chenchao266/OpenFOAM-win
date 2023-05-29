@@ -1,9 +1,11 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -24,16 +26,24 @@ License
 \*---------------------------------------------------------------------------*/
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
-namespace Foam {
-inline pointConstraint::pointConstraint() :    Tuple2<label, vector>(0, Zero)
+
+
+ namespace Foam{
+inline pointConstraint::pointConstraint()
+:
+    Tuple2<label, vector>(0, Zero)
 {}
 
 
-inline pointConstraint::pointConstraint(const Tuple2<label, vector>& pc) :    Tuple2<label, vector>(pc)
+inline pointConstraint::pointConstraint(const Tuple2<label, vector>& pc)
+:
+    Tuple2<label, vector>(pc)
 {}
 
 
-inline pointConstraint::pointConstraint(Istream& is) :    Tuple2<label, vector>(is)
+inline pointConstraint::pointConstraint(Istream& is)
+:
+    Tuple2<label, vector>(is)
 {}
 
 
@@ -227,5 +237,7 @@ inline pointConstraint transform
     );
 }
 
-}
+
 // ************************************************************************* //
+
+ } // End namespace Foam

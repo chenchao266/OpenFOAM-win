@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2015-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2015-2016 OpenFOAM Foundation
+    Copyright (C) 2017-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -38,14 +41,14 @@ SourceFiles
 
 #include "labelIOList.H"
 #include "uniformDimensionedFields.H"
-#include "UPtrList.T.H"
+#include "UPtrList.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 namespace Foam
 {
 
-// Forward declaration of classes
+// Forward Declarations
 class mapPolyMesh;
 class mapDistributePolyMesh;
 class refinementHistory;
@@ -57,10 +60,7 @@ class fvMesh;
 
 class hexRef8Data
 {
-
-private:
-
-    // Private data
+    // Private Data
 
         autoPtr<labelIOList> cellLevelPtr_;
 
@@ -73,11 +73,11 @@ private:
 
     // Private Member Functions
 
-        //- Disallow default bitwise copy construct
-        hexRef8Data(const hexRef8Data&);
+        //- No copy construct
+        hexRef8Data(const hexRef8Data&) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const hexRef8Data&);
+        //- No copy assignment
+        void operator=(const hexRef8Data&) = delete;
 
 
 public:
@@ -85,8 +85,8 @@ public:
     // Constructors
 
         //- Construct read. Has special provision for only some processors
-        //  having the files so can be used in redistribution.
-        hexRef8Data(const IOobject& io);
+        //- having the files so can be used in redistribution.
+        explicit hexRef8Data(const IOobject& io);
 
         //- Construct as subset
         hexRef8Data
@@ -117,7 +117,7 @@ public:
         //  (even if they don't have a mesh). Used by redistributePar.
         void sync(const IOobject& io);
 
-        //- In-place update for topology changes
+        //- Update local numbering for changed mesh.
         void updateMesh(const mapPolyMesh&);
 
         //- In-place distribute

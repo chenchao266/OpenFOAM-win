@@ -2,15 +2,14 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
 -------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2016-2019 OpenCFD Ltd.
+-------------------------------------------------------------------------------
 License
-    This file is part of blueCAPE's unofficial mingw patches for OpenFOAM.
-    For more information about these patches, visit:
-         http://bluecfd.com/Core
-
-    This file is a derivative work of OpenFOAM.
+    This file is part of OpenFOAM.
 
     OpenFOAM is free software: you can redistribute it and/or modify it
     under the terms of the GNU General Public License as published by
@@ -25,60 +24,54 @@ License
     You should have received a copy of the GNU General Public License
     along with OpenFOAM.  If not, see <http://www.gnu.org/licenses/>.
 
-Modifications
-    This file is based on the original version for POSIX:
-        OpenFOAM/src/OSspecific/POSIX/
-
-    This file was developed for Windows by:
-        Copyright            : (C) 2012 Symscape
-        Website              : www.symscape.com
-
-    This copy of this file has been created by blueCAPE's unofficial mingw
-    patches for OpenFOAM.
-    For more information about these patches, visit:
-        http://bluecfd.com/Core
-
-    Modifications made:
-      - Derived from the patches for blueCFD 2.1 and 2.2.
-
 \*---------------------------------------------------------------------------*/
 
 #include "sigWriteNow.H"
 #include "error.H"
 #include "JobInfo.H"
 #include "IOstreams.H"
-#include "Time.T.H"
+#include "Time1.H"
+
+// File-local functions
+#include "signalMacros.C"
+
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
+
+// Signal number to catch
+int Foam::sigWriteNow::signal_
+(
+    Foam::debug::optimisationSwitch("writeNowSignal", -1)
+);
+
+// Pointer to Time (file-local variable)
+static Foam::Time* runTimePtr_ = nullptr;
+
+
+// * * * * * * * * * * * * * * * Local Classes * * * * * * * * * * * * * * * //
 
 namespace Foam
 {
 
-// Signal number to catch
-int sigWriteNow::signal_
-(
-    debug::optimisationSwitch("writeNowSignal", -1)
-);
-
 // Register re-reader
-class addwriteNowSignalToOpt
+struct addwriteNowSignalToOpt
 :
     public ::Foam::simpleRegIOobject
 {
+    addwriteNowSignalToOpt(const addwriteNowSignalToOpt&) = delete;
 
-public:
+    void operator=(const addwriteNowSignalToOpt&) = delete;
 
-    addwriteNowSignalToOpt(const char* name)
+    explicit addwriteNowSignalToOpt(const char* name)
     :
         ::Foam::simpleRegIOobject(Foam::debug::addOptimisationObject, name)
     {}
 
-    virtual ~addwriteNowSignalToOpt()
-    {}
+    virtual ~addwriteNowSignalToOpt() = default;
 
     virtual void readData(Foam::Istream& is)
     {
-        sigWriteNow::signal_ = readLabel(is);
+        is >> sigWriteNow::signal_;
         sigWriteNow::set(true);
     }
 
@@ -90,38 +83,19 @@ public:
 
 addwriteNowSignalToOpt addwriteNowSignalToOpt_("writeNowSignal");
 
-}
-
-
-Foam::Time* Foam::sigWriteNow::runTimePtr_ = nullptr;
-
-
-__p_sig_fn_t Foam::sigWriteNow::oldAction_ = SIG_DFL;
+} // End namespace Foam
 
 
 // * * * * * * * * * * * * * Private Member Functions  * * * * * * * * * * * //
 
 void Foam::sigWriteNow::sigHandler(int)
 {
-    // Reset old handling
-    const __p_sig_fn_t success = ::signal(signal_, oldAction_);
-    oldAction_ = SIG_DFL;
-    
-    if (SIG_ERR == success)
+    if (runTimePtr_)
     {
-        FatalErrorIn
-        (
-            "Foam::sigWriteNow::sigHandler(int)"
-        )   << "Cannot reset " << signal_ << " trapping"
-            << abort(FatalError);
+        Info<< "sigWriteNow :"
+            << " setting up write at end of the next iteration" << nl << endl;
+        runTimePtr_->writeOnce();
     }
-
-    Info<< "sigWriteNow :"
-        << " setting up write at end of the next iteration" << nl << endl;
-    runTimePtr_->writeOnce();
-
-    //// Throw signal (to old handler)
-    //raise(signal_);
 }
 
 
@@ -131,11 +105,9 @@ Foam::sigWriteNow::sigWriteNow()
 {}
 
 
-Foam::sigWriteNow::sigWriteNow(const bool verbose, Time& runTime)
+Foam::sigWriteNow::sigWriteNow(Time& runTime, bool verbose)
 {
-    // Store runTime
-    runTimePtr_ = &runTime;
-
+    runTimePtr_ = &runTime; // Store runTime
     set(verbose);
 }
 
@@ -144,54 +116,43 @@ Foam::sigWriteNow::sigWriteNow(const bool verbose, Time& runTime)
 
 Foam::sigWriteNow::~sigWriteNow()
 {
-    // Reset old handling
-    if (signal_ > 0)
+    if (!active())
     {
-        const __p_sig_fn_t success = ::signal(signal_, oldAction_);
-        oldAction_ = SIG_DFL;
-
-        if (SIG_ERR == success)
-        {
-            FatalErrorIn
-            (
-                "Foam::sigWriteNow::~sigWriteNow()"
-            )   << "Cannot reset " << signal_ << " trapping"
-                << abort(FatalError);
-        }
+        return;
     }
+
+    resetHandler("writeNow", signal_);
 }
 
 
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
 
-void Foam::sigWriteNow::set(const bool verbose)
+bool Foam::sigWriteNow::active()
 {
-    if (signal_ >= 0)
-    {
-        oldAction_ = ::signal(signal_, &Foam::sigWriteNow::sigHandler);        
-
-        if (SIG_ERR == oldAction_)
-        {
-            FatalErrorIn
-            (
-                "Foam::sigWriteNow::sigWriteNow(const bool, const Time&)"
-            )   << "Cannot set " << signal_ << " trapping"
-                << abort(FatalError);
-        }
-
-        if (verbose)
-        {
-            Info<< "sigWriteNow :"
-                << " Enabling writing upon signal " << signal_
-                << endl;
-        }
-    }
+    return signal_ > 0;
 }
 
 
-bool Foam::sigWriteNow::active() const
+int Foam::sigWriteNow::signalNumber()
 {
-    return signal_ > 0;
+    return signal_;
+}
+
+
+void Foam::sigWriteNow::set(bool verbose)
+{
+    if (!active())
+    {
+        return;
+    }
+
+    if (verbose)
+    {
+        Info<< "sigWriteNow :"
+            << " Enabling writing upon signal " << signal_ << nl;
+    }
+
+    setHandler("writeNow", signal_, sigHandler);
 }
 
 

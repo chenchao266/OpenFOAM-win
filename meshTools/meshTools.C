@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2015-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -26,6 +29,7 @@ License
 #include "meshTools.H"
 #include "polyMesh.H"
 #include "hexMatcher.H"
+#include "treeBoundBox.H"
 
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
 
@@ -191,11 +195,7 @@ Foam::vector Foam::meshTools::normEdgeVec
     const label edgeI
 )
 {
-    vector eVec = mesh.edges()[edgeI].vec(mesh.points());
-
-    eVec /= mag(eVec);
-
-    return eVec;
+    return mesh.edges()[edgeI].unitVec(mesh.points());
 }
 
 
@@ -212,13 +212,28 @@ void Foam::meshTools::writeOBJ
 void Foam::meshTools::writeOBJ
 (
     Ostream& os,
+    const UList<point>& pts
+)
+{
+    forAll(pts, i)
+    {
+        const point& pt = pts[i];
+        os << "v " << pt.x() << ' ' << pt.y() << ' ' << pt.z() << nl;
+    }
+
+}
+
+
+void Foam::meshTools::writeOBJ
+(
+    Ostream& os,
     const triad& t,
-    const point& pt
+    const point& origin
 )
 {
     forAll(t, dirI)
     {
-        writeOBJ(os, pt, pt + t[dirI]);
+        writeOBJ(os, origin, origin + t[dirI]);
     }
 }
 
@@ -231,10 +246,9 @@ void Foam::meshTools::writeOBJ
     label& count
 )
 {
-    os << "v" << ' ' << p1.x() << ' ' << p1.y() << ' ' << p1.z() << endl;
-    os << "v" << ' ' << p2.x() << ' ' << p2.y() << ' ' << p2.z() << endl;
-
-    os << "l" << " " << (count + 1) << " " << (count + 2) << endl;
+    os << "v " << p1.x() << ' ' << p1.y() << ' ' << p1.z() << nl;
+    os << "v " << p2.x() << ' ' << p2.y() << ' ' << p2.z() << nl;
+    os << "l " << (count + 1) << " " << (count + 2) << endl;
 
     count += 2;
 }
@@ -247,12 +261,26 @@ void Foam::meshTools::writeOBJ
     const point& p2
 )
 {
-    os << "v" << ' ' << p1.x() << ' ' << p1.y() << ' ' << p1.z() << endl;
+    os  << "v " << p1.x() << ' ' << p1.y() << ' ' << p1.z() << nl;
+    os  << "vn "
+        << (p2.x() - p1.x()) << ' '
+        << (p2.y() - p1.y()) << ' '
+        << (p2.z() - p1.z()) << endl;
+}
 
-    os << "vn"
-        << ' ' << p2.x() - p1.x()
-        << ' ' << p2.y() - p1.y()
-        << ' ' << p2.z() - p1.z() << endl;
+
+void Foam::meshTools::writeOBJ
+(
+    Ostream& os,
+    const treeBoundBox& bb
+)
+{
+    writeOBJ(os, bb.points());
+
+    for (const edge& e : treeBoundBox::edges)
+    {
+        os << "l " << (e[0] + 1) <<  ' ' << (e[1] + 1) << nl;
+    }
 }
 
 
@@ -261,20 +289,15 @@ void Foam::meshTools::writeOBJ
     Ostream& os,
     const cellList& cells,
     const faceList& faces,
-    const pointField& points,
+    const UList<point>& points,
     const labelList& cellLabels
 )
 {
     labelHashSet usedFaces(4*cellLabels.size());
 
-    forAll(cellLabels, i)
+    for (const label celli : cellLabels)
     {
-        const cell& cFaces = cells[cellLabels[i]];
-
-        forAll(cFaces, j)
-        {
-            usedFaces.insert(cFaces[j]);
-        }
+        usedFaces.insert(cells[celli]);
     }
 
     writeOBJ(os, faces, points, usedFaces.toc());
@@ -288,7 +311,7 @@ bool Foam::meshTools::edgeOnCell
     const label edgeI
 )
 {
-    return findIndex(mesh.edgeCells(edgeI), celli) != -1;
+    return mesh.edgeCells(edgeI).found(celli);
 }
 
 
@@ -299,11 +322,10 @@ bool Foam::meshTools::edgeOnFace
     const label edgeI
 )
 {
-    return findIndex(mesh.faceEdges(facei), edgeI) != -1;
+    return mesh.faceEdges(facei).found(edgeI);
 }
 
 
-// Return true if facei part of celli
 bool Foam::meshTools::faceOnCell
 (
     const primitiveMesh& mesh,
@@ -343,7 +365,7 @@ Foam::label Foam::meshTools::findEdge
 {
     forAll(candidates, i)
     {
-        label edgeI = candidates[i];
+        const label edgeI = candidates[i];
 
         const edge& e = edges[edgeI];
 
@@ -453,7 +475,6 @@ Foam::label Foam::meshTools::getSharedFace
 }
 
 
-// Get the two faces on celli using edgeI.
 void Foam::meshTools::getEdgeFaces
 (
     const primitiveMesh& mesh,
@@ -496,7 +517,6 @@ void Foam::meshTools::getEdgeFaces
 }
 
 
-// Return label of other edge connected to vertex
 Foam::label Foam::meshTools::otherEdge
 (
     const primitiveMesh& mesh,
@@ -522,7 +542,7 @@ Foam::label Foam::meshTools::otherEdge
 
     FatalErrorInFunction
         << "Can not find edge in "
-        << UIndirectList<edge>(mesh.edges(), edgeLabels)()
+        << UIndirectList<edge>(mesh.edges(), edgeLabels)
         << " connected to edge "
         << thisEdgeI << " with vertices " << mesh.edges()[thisEdgeI]
         << " on side " << thisVertI << abort(FatalError);
@@ -531,7 +551,6 @@ Foam::label Foam::meshTools::otherEdge
 }
 
 
-// Return face on other side of edgeI
 Foam::label Foam::meshTools::otherFace
 (
     const primitiveMesh& mesh,
@@ -556,7 +575,6 @@ Foam::label Foam::meshTools::otherFace
 }
 
 
-// Return face on other side of edgeI
 Foam::label Foam::meshTools::otherCell
 (
     const primitiveMesh& mesh,
@@ -581,8 +599,6 @@ Foam::label Foam::meshTools::otherCell
 }
 
 
-// Returns label of edge nEdges away from startEdge (in the direction of
-// startVertI)
 Foam::label Foam::meshTools::walkFace
 (
     const primitiveMesh& mesh,
@@ -750,7 +766,7 @@ Foam::vector Foam::meshTools::edgeToCutDir
     const label startEdgeI
 )
 {
-    if (!hexMatcher().isA(mesh, celli))
+    if (!hexMatcher::test(mesh, celli))
     {
         FatalErrorInFunction
             << "Not a hex : cell:" << celli << abort(FatalError);
@@ -784,13 +800,12 @@ Foam::vector Foam::meshTools::edgeToCutDir
         edgeI = meshTools::walkFace(mesh, facei, edgeI, vertI, 2);
     }
 
-    avgVec /= mag(avgVec) + VSMALL;
+    avgVec.normalise();
 
     return avgVec;
 }
 
 
-// Find edges most aligned with cutDir
 Foam::label Foam::meshTools::cutDirToEdge
 (
     const primitiveMesh& mesh,
@@ -798,7 +813,7 @@ Foam::label Foam::meshTools::cutDirToEdge
     const vector& cutDir
 )
 {
-    if (!hexMatcher().isA(mesh, celli))
+    if (!hexMatcher::test(mesh, celli))
     {
         FatalErrorInFunction
             << "Not a hex : cell:" << celli << abort(FatalError);

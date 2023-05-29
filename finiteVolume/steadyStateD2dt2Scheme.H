@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -58,11 +60,11 @@ class steadyStateD2dt2Scheme
 {
     // Private Member Functions
 
-        //- Disallow default bitwise copy construct
-        steadyStateD2dt2Scheme(const steadyStateD2dt2Scheme&);
+        //- No copy construct
+        steadyStateD2dt2Scheme(const steadyStateD2dt2Scheme&) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const steadyStateD2dt2Scheme&);
+        //- No copy assignment
+        void operator=(const steadyStateD2dt2Scheme&) = delete;
 
 
 public:

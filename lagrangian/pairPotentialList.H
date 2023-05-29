@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -35,7 +37,7 @@ SourceFiles
 #ifndef pairPotentialList_H
 #define pairPotentialList_H
 
-#include "PtrList.T.H"
+#include "PtrList.H"
 #include "word.H"
 #include "pairPotential.H"
 #include "polyMesh.H"
@@ -79,11 +81,11 @@ class pairPotentialList
             const polyMesh& mesh
         );
 
-        //- Disallow default bitwise assignment
-        void operator=(const pairPotentialList&);
+        //- No copy construct
+        pairPotentialList(const pairPotentialList&) = delete;
 
-        //- Disallow default bitwise copy construct
-        pairPotentialList(const pairPotentialList&);
+        //- No copy assignment
+        void operator=(const pairPotentialList&) = delete;
 
 
 public:
@@ -92,7 +94,7 @@ public:
 
         pairPotentialList();
 
-        //- Construct from idList and potental dictionaries
+        //- Construct from idList and potential dictionaries
         pairPotentialList
         (
             const List<word>& idList,

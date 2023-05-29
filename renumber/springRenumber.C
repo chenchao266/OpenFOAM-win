@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2019 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -48,9 +51,9 @@ Foam::springRenumber::springRenumber(const dictionary& renumberDict)
 :
     renumberMethod(renumberDict),
     dict_(renumberDict.optionalSubDict(typeName+"Coeffs")),
-    maxCo_(readScalar(dict_.lookup("maxCo"))),
-    maxIter_(readLabel(dict_.lookup("maxIter"))),
-    freezeFraction_(readScalar(dict_.lookup("freezeFraction")))
+    maxCo_(dict_.get<scalar>("maxCo")),
+    maxIter_(dict_.get<label>("maxIter")),
+    freezeFraction_(dict_.get<scalar>("freezeFraction"))
 {}
 
 
@@ -108,7 +111,7 @@ Foam::labelList Foam::springRenumber::renumber
         //    << endl;
 
         // Sum force per cell.
-        scalarField sumForce(cellCells.size(), 0.0);
+        scalarField sumForce(cellCells.size(), Zero);
         forAll(cellCells, oldCelli)
         {
             const labelList& cCells = cellCells[oldCelli];
@@ -159,8 +162,7 @@ Foam::labelList Foam::springRenumber::renumber
     //writeOBJ("endPosition.obj", cellCells, position);
 
     // Move cells to new position
-    labelList shuffle;
-    sortedOrder(position, shuffle);
+    labelList shuffle(sortedOrder(position));
 
     // Reorder oldToNew
     inplaceReorder(shuffle, oldToNew);

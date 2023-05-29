@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2016-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2016 OpenFOAM Foundation
+    Copyright (C) 2016-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -27,93 +30,165 @@ License
 #include "objectRegistry.H"
 
 // * * * * * * * * * * * * * Protected Member Functions  * * * * * * * * * * //
-namespace Foam {
-    template<class ObjectType>
-    bool functionObjects::regionFunctionObject::foundObject
-    (
-        const word& fieldName
-    ) const
+
+
+ namespace Foam{
+template<class ObjectType>
+bool functionObjects::regionFunctionObject::foundObject
+(
+    const word& fieldName
+) const
+{
+    return obr().foundObject<ObjectType>(fieldName);
+}
+
+
+template<class ObjectType>
+const ObjectType* functionObjects::regionFunctionObject::cfindObject
+(
+    const word& fieldName
+) const
+{
+    return obr().cfindObject<ObjectType>(fieldName);
+}
+
+
+template<class ObjectType>
+const ObjectType* functionObjects::regionFunctionObject::findObject
+(
+    const word& fieldName
+) const
+{
+    return obr().findObject<ObjectType>(fieldName);
+}
+
+
+template<class ObjectType>
+ObjectType* functionObjects::regionFunctionObject::findObject
+(
+    const word& fieldName
+)
+{
+    // Need getObjectPtr to bypass const access on the objectRegistry
+    return obr().getObjectPtr<ObjectType>(fieldName);
+}
+
+
+template<class ObjectType>
+ObjectType* functionObjects::regionFunctionObject::getObjectPtr
+(
+    const word& fieldName
+) const
+{
+    return obr().getObjectPtr<ObjectType>(fieldName);
+}
+
+
+template<class ObjectType>
+const ObjectType& functionObjects::regionFunctionObject::lookupObject
+(
+    const word& fieldName
+) const
+{
+    return obr().lookupObject<ObjectType>(fieldName);
+}
+
+
+template<class ObjectType>
+ObjectType& functionObjects::regionFunctionObject::lookupObjectRef
+(
+    const word& fieldName
+) const
+{
+    return obr().lookupObjectRef<ObjectType>(fieldName);
+}
+
+
+template<class ObjectType>
+bool functionObjects::regionFunctionObject::store
+(
+    word& fieldName,
+    const tmp<ObjectType>& tfield,
+    bool cacheable
+)
+{
+    if (cacheable && fieldName == tfield().name())
     {
-        return obr_.foundObject<ObjectType>(fieldName);
+        WarningInFunction
+            << "Cannot store cache-able field with the name used in the cache."
+            << nl
+            << "    Either choose a different name or cache the field"
+            << "    and use the 'writeObjects' functionObject."
+            << endl;
+
+        return false;
     }
 
+    ObjectType* fieldptr;
 
-    template<class ObjectType>
-    const ObjectType& functionObjects::regionFunctionObject::lookupObject
+    if
     (
-        const word& fieldName
-    ) const
-    {
-        return obr_.lookupObject<ObjectType>(fieldName);
-    }
-
-
-    template<class ObjectType>
-    ObjectType& functionObjects::regionFunctionObject::lookupObjectRef
-    (
-        const word& fieldName
+        !fieldName.empty()
+     && (fieldptr = getObjectPtr<ObjectType>(fieldName)) != nullptr
     )
     {
-        return obr_.lookupObjectRef<ObjectType>(fieldName);
-    }
-
-
-    template<class ObjectType>
-    bool functionObjects::regionFunctionObject::store
-    (
-        word& fieldName,
-        const tmp<ObjectType>& tfield,
-        bool cacheable
-    )
-    {
-        if (cacheable && fieldName == tfield().name())
+        // If there is a result field already registered, assign to the new
+        // result field. Otherwise transfer ownership of the new result field to
+        // the object registry
+        if (fieldptr != &tfield())
         {
-            WarningInFunction
-                << "Cannot store cache-able field with the name used in the cache."
-                << nl
-                << "    Either choose a different name or cache the field"
-                << "    and use the 'writeObjects' functionObject."
-                << endl;
-
-            return false;
-        }
-
-        if
-            (
-                fieldName.size()
-                && obr_.foundObject<ObjectType>(fieldName)
-                )
-        {
-            ObjectType& field = obr_.lookupObjectRef<ObjectType>(fieldName);
-
-            // If there is a result field already registered assign to the new
-            // result field otherwise transfer ownership of the new result field to
-            // the object registry
-            if (&field != &tfield())
-            {
-                field = tfield;
-            }
-            else
-            {
-                obr_.objectRegistry::store(tfield.ptr());
-            }
+            (*fieldptr) = tfield;
         }
         else
         {
-            if (fieldName.size() && fieldName != tfield().name())
-            {
-                tfield.ref().rename(fieldName);
-            }
-            else
-            {
-                fieldName = tfield().name();
-            }
-
-            obr_.objectRegistry::store(tfield.ptr());
+            obr().objectRegistry::store(tfield.ptr());
+        }
+    }
+    else
+    {
+        if (fieldName.size() && fieldName != tfield().name())
+        {
+            tfield.ref().rename(fieldName);
+        }
+        else
+        {
+            fieldName = tfield().name();
         }
 
-        return true;
+        obr().objectRegistry::store(tfield.ptr());
     }
 
+    return true;
 }
+
+
+template<class ObjectType>
+bool functionObjects::regionFunctionObject::storeInDb
+(
+    const word& fieldName,
+    const tmp<ObjectType>& tfield,
+    const objectRegistry& obr
+)
+{
+    ObjectType* fieldptr;
+    if
+    (
+        !fieldName.empty()
+     && (fieldptr = obr.getObjectPtr<ObjectType>(fieldName)) != nullptr
+    )
+    {
+        (*fieldptr) = tfield;
+    }
+    else
+    {
+        tfield.ref().rename(fieldName);
+        obr.objectRegistry::store(tfield.ptr());
+    }
+
+    return true;
+}
+
+
 // ************************************************************************* //
+
+ } // End namespace Foam

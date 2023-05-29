@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2016-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -48,11 +51,12 @@ SourceFiles
 
 \*---------------------------------------------------------------------------*/
 
-#ifndef fixedFluxPressureFvPatchScalarFields_H
-#define fixedFluxPressureFvPatchScalarFields_H
+#ifndef fixedFluxPressureFvPatchScalarField_H
+#define fixedFluxPressureFvPatchScalarField_H
 
 #include "fvPatchFields.H"
 #include "fixedGradientFvPatchFields.H"
+#include "updateableSnGrad.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -65,7 +69,8 @@ namespace Foam
 
 class fixedFluxPressureFvPatchScalarField
 :
-    public fixedGradientFvPatchScalarField
+    public fixedGradientFvPatchScalarField,
+    public updateablePatchTypes::updateableSnGrad
 {
     // Private data
 
@@ -144,7 +149,7 @@ public:
     // Member functions
 
         //- Update the patch pressure gradient field from the given snGradp
-        virtual void updateCoeffs(const scalarField& snGradp);
+        virtual void updateSnGrad(const scalarField& snGradp);
 
         //- Update the patch pressure gradient field
         virtual void updateCoeffs();
@@ -175,7 +180,7 @@ namespace Foam
         {
             if (isA<GradBC>(bf[patchi]))
             {
-                refCast<GradBC>(bf[patchi]).updateCoeffs(snGrad[patchi]);
+                refCast<GradBC>(bf[patchi]).updateSnGrad(snGrad[patchi]);
             }
         }
     }

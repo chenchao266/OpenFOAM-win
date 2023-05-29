@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2013 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2013 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -28,7 +30,7 @@ License
 #include "addToRunTimeSelectionTable.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
-using namespace Foam;
+
 namespace Foam
 {
     defineTypeNameAndDebug(symmetryPlanePointPatch, 0);
@@ -40,30 +42,32 @@ namespace Foam
         symmetryPlanePointPatch,
         polyPatch
     );
+
+
+
+    // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
+
+    symmetryPlanePointPatch::symmetryPlanePointPatch
+    (
+        const polyPatch& patch,
+        const pointBoundaryMesh& bm
+    )
+        :
+        facePointPatch(patch, bm),
+        symmetryPlanePolyPatch_(refCast<const symmetryPlanePolyPatch>(patch))
+    {}
+
+
+    // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
+
+    void symmetryPlanePointPatch::applyConstraint
+    (
+        const label,
+        pointConstraint& pc
+    ) const
+    {
+        pc.applyConstraint(symmetryPlanePolyPatch_.n());
+    }
+
 }
-
-
-// * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
-
-symmetryPlanePointPatch::symmetryPlanePointPatch
-(
-    const polyPatch& patch,
-    const pointBoundaryMesh& bm
-) :    facePointPatch(patch, bm),
-    symmetryPlanePolyPatch_(refCast<const symmetryPlanePolyPatch>(patch))
-{}
-
-
-// * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
-
-void symmetryPlanePointPatch::applyConstraint
-(
-    const label,
-    pointConstraint& pc
-) const
-{
-    pc.applyConstraint(symmetryPlanePolyPatch_.n());
-}
-
-
 // ************************************************************************* //

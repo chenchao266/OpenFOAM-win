@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2019 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -36,7 +39,7 @@ Foam::volumeType Foam::treeDataPrimitivePatch<Foam::triSurface>::getVolumeType
 ) const
 {
     // Find nearest face to sample
-    pointIndexHit info = oc.findNearest(sample, sqr(GREAT));
+    const pointIndexHit info = oc.findNearest(sample, sqr(GREAT));
 
     if (info.index() == -1)
     {
@@ -46,9 +49,9 @@ Foam::volumeType Foam::treeDataPrimitivePatch<Foam::triSurface>::getVolumeType
     }
 
     // Get actual intersection point on face
-    label facei = info.index();
+    const label facei = info.index();
 
-    triSurfaceTools::sideType t = triSurfaceTools::surfaceSide
+    const triSurfaceTools::sideType t = triSurfaceTools::surfaceSide
     (
         patch_,
         sample,

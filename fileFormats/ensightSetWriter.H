@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -59,12 +62,15 @@ public:
 
     // Constructors
 
-        //- Construct null
+        //- Default construct
         ensightSetWriter();
+
+        //- Construct with dictionary
+        explicit ensightSetWriter(const dictionary& dict);
 
 
     //- Destructor
-    virtual ~ensightSetWriter();
+    virtual ~ensightSetWriter() = default;
 
 
     // Member Functions
@@ -86,9 +92,10 @@ public:
         virtual void write
         (
             const bool writeTracks,
-            const PtrList<coordSet>&,
+            const List<scalarField>& times,
+            const PtrList<coordSet>& tracks,
             const wordList& valueSetNames,
-            const List<List<Field<Type>>>&,
+            const List<List<Field<Type>>>& valueSets,
             Ostream&
         ) const;
 };

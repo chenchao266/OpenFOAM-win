@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2018-2019 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -29,10 +32,9 @@ License
 #include "polyModifyPoint.H"
 #include "polyModifyFace.H"
 #include "polyRemoveFace.H"
-#include "SortableList.T.H"
+#include "SortableList.H"
 #include "meshTools.H"
 #include "OFstream.H"
-
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
 
@@ -291,7 +293,7 @@ void Foam::faceCollapser::setRefinement
                 near.setPoint(newPoint);
             }
 
-            // Responsability of caller to make sure polyModifyPoint is only
+            // Responsibility of caller to make sure polyModifyPoint is only
             // called once per point. (so max only one collapse face per
             // edge)
             meshMod.setAction
@@ -344,7 +346,7 @@ void Foam::faceCollapser::setRefinement
                 near.setPoint(newPoint);
             }
 
-            // Responsability of caller to make sure polyModifyPoint is only
+            // Responsibility of caller to make sure polyModifyPoint is only
             // called once per point. (so max only one collapse face per
             // edge)
             meshMod.setAction
@@ -462,12 +464,13 @@ void Foam::faceCollapser::setRefinement
         }
     }
 
-    forAllConstIter(Map<labelList>, splitEdges, iter)
+    forAllConstIters(splitEdges, iter)
     {
         Pout<< "Split edge:" << iter.key()
             << " verts:" << mesh_.edges()[iter.key()]
             << " in:" << nl;
-        const labelList& edgePoints = iter();
+
+        const labelList& edgePoints = iter.val();
 
         forAll(edgePoints, i)
         {
@@ -495,9 +498,9 @@ void Foam::faceCollapser::setRefinement
     // Modify faces affected (but not removed)
     //
 
-    forAllConstIter(labelHashSet, affectedFaces, iter)
+    for (const label facei : affectedFaces)
     {
-        filterFace(splitEdges, iter.key(), meshMod);
+        filterFace(splitEdges, facei, meshMod);
     }
 }
 

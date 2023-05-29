@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -23,6 +25,9 @@ License
 
 Class
     Foam::fv::gaussDivScheme
+
+Group
+    grpFvDivSchemes
 
 Description
     Basic second-order div using face-gradients and Gauss' theorem.
@@ -58,11 +63,11 @@ class gaussDivScheme
 {
     // Private Member Functions
 
-        //- Disallow default bitwise copy construct
-        gaussDivScheme(const gaussDivScheme&);
+        //- No copy construct
+        gaussDivScheme(const gaussDivScheme&) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const gaussDivScheme&);
+        //- No copy assignment
+        void operator=(const gaussDivScheme&) = delete;
 
 
 public:

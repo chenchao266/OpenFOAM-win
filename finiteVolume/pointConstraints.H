@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2013-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2013-2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -25,7 +27,7 @@ Class
     Foam::pointConstraints
 
 Description
-    Application of (multi-)patch point contraints.
+    Application of (multi-)patch point constraints.
 
     Note: includes all points which are on the boundary of a patch
           with a constraint. It includes them (even though the constraint
@@ -43,7 +45,7 @@ SourceFiles
 #ifndef pointConstraints_H
 #define pointConstraints_H
 
-#include "MeshObject.T.H"
+#include "MeshObject.H"
 #include "tensorField.H"
 #include "pointFieldsFwd.H"
 #include "pointConstraint.H"
@@ -81,11 +83,11 @@ class pointConstraints
         //- Make patch-patch constraints
         void makePatchPatchAddressing();
 
-        //- Disallow default bitwise copy construct
-        pointConstraints(const pointConstraints&);
+        //- No copy construct
+        pointConstraints(const pointConstraints&) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const pointConstraints&);
+        //- No copy assignment
+        void operator=(const pointConstraints&) = delete;
 
 
 public:
@@ -153,14 +155,14 @@ public:
             template<class Type>
             static void setPatchFields
             (
-                pointFieldType<Type>&
+                GeometricField<Type, pointPatchField, pointMesh>&
             );
 
             //- Apply patch-patch constraints only
             template<class Type>
             void constrainCorners
             (
-                pointFieldType<Type>& pf
+                GeometricField<Type, pointPatchField, pointMesh>& pf
             ) const;
 
             //- Apply boundary conditions (single-patch constraints) and
@@ -170,7 +172,7 @@ public:
             template<class Type>
             void constrain
             (
-                pointFieldType<Type>& pf,
+                GeometricField<Type, pointPatchField, pointMesh>& pf,
                 const bool overrideValue = false
             ) const;
 

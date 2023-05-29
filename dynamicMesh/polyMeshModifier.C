@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -27,7 +29,7 @@ Description
 \*---------------------------------------------------------------------------*/
 
 #include "polyMeshModifier.H"
-#include "dictionary.H"
+#include "dictionary2.H"
 #include "polyTopoChanger.H"
 #include "polyMesh.H"
 
@@ -36,13 +38,11 @@ Description
 namespace Foam
 {
     defineTypeNameAndDebug(polyMeshModifier, 0);
-
     defineRunTimeSelectionTable(polyMeshModifier, dictionary);
 }
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
-// Construct from components
 Foam::polyMeshModifier::polyMeshModifier
 (
     const word& name,
@@ -55,12 +55,6 @@ Foam::polyMeshModifier::polyMeshModifier
     index_(index),
     topoChanger_(mme),
     active_(act)
-{}
-
-
-// * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
-
-Foam::polyMeshModifier::~polyMeshModifier()
 {}
 
 
@@ -77,7 +71,7 @@ const Foam::polyTopoChanger& Foam::polyMeshModifier::topoChanger() const
 Foam::Ostream& Foam::operator<<(Ostream& os, const polyMeshModifier& pmm)
 {
     pmm.write(os);
-    os.check("Ostream& operator<<(Ostream& f, const polyMeshModifier& pmm)");
+    os.check(FUNCTION_NAME);
     return os;
 }
 

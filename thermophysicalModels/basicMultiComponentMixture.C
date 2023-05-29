@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -42,6 +44,7 @@ Foam::basicMultiComponentMixture::basicMultiComponentMixture
     const word& phaseName
 )
 :
+    basicMixture(thermoDict, mesh, phaseName),
     species_(specieNames),
     active_(species_.size(), true),
     Y_(species_.size())
@@ -58,9 +61,13 @@ Foam::basicMultiComponentMixture::basicMultiComponentMixture
             IOobject::NO_READ
         );
 
-        // check if field exists and can be read
+        // Check if field exists and can be read
         if (header.typeHeaderOk<volScalarField>(true))
         {
+            DebugInfo
+                << "basicMultiComponentMixture: reading " << species_[i]
+                << endl;
+
             Y_.set
             (
                 i,

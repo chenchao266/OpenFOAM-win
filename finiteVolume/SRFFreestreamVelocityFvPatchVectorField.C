@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -70,10 +73,10 @@ SRFFreestreamVelocityFvPatchVectorField
 )
 :
     inletOutletFvPatchVectorField(p, iF),
-    relative_(dict.lookupOrDefault("relative", false)),
-    UInf_(dict.lookup("UInf"))
+    relative_(dict.getOrDefault("relative", false)),
+    UInf_(dict.get<vector>("UInf"))
 {
-    this->phiName_ = dict.lookupOrDefault<word>("phi","phi");
+    this->phiName_ = dict.getOrDefault<word>("phi", "phi");
 
     fvPatchVectorField::operator=(vectorField("value", dict, p.size()));
 }
@@ -158,9 +161,9 @@ void Foam::SRFFreestreamVelocityFvPatchVectorField::updateCoeffs()
 void Foam::SRFFreestreamVelocityFvPatchVectorField::write(Ostream& os) const
 {
     fvPatchVectorField::write(os);
-    os.writeKeyword("relative") << relative_ << token::END_STATEMENT << nl;
-    os.writeKeyword("UInf") << UInf_ << token::END_STATEMENT << nl;
-    os.writeKeyword("phi") << this->phiName_ << token::END_STATEMENT << nl;
+    os.writeEntry("relative", relative_);
+    os.writeEntry("UInf", UInf_);
+    os.writeEntry("phi", this->phiName_);
     writeEntry("value", os);
 }
 

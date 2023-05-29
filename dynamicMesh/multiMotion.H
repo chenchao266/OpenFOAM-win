@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -37,7 +39,7 @@ SourceFiles
 
 #include "solidBodyMotionFunction.H"
 #include "primitiveFields.H"
-#include "point.T.H"
+#include "point.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -54,7 +56,7 @@ class multiMotion
 :
     public solidBodyMotionFunction
 {
-    // Private data
+    // Private Data
 
         //- Motions to combine
         PtrList<solidBodyMotionFunction> SBMFs_;
@@ -62,11 +64,11 @@ class multiMotion
 
     // Private Member Functions
 
-        //- Disallow copy construct
-        multiMotion(const multiMotion&);
+        //- No copy construct
+        multiMotion(const multiMotion&) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const multiMotion&);
+        //- No copy assignment
+        void operator=(const multiMotion&) = delete;
 
 
 public:
@@ -99,7 +101,7 @@ public:
 
 
     //- Destructor
-    virtual ~multiMotion();
+    virtual ~multiMotion() = default;
 
 
     // Member Functions

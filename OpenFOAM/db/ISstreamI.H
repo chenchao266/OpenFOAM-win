@@ -1,9 +1,12 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2014 OpenFOAM Foundation
+    Copyright (C) 2017-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -23,19 +26,19 @@ License
 
 \*---------------------------------------------------------------------------*/
 
-//#include "ISstream.H"
-
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
-namespace Foam{
+
+
+ namespace Foam{
 inline ISstream::ISstream
 (
-    istream& is,
-    const string& name,
-    streamFormat format,
-    versionNumber version,
-    compressionType compression
-) :    Istream(format, version, compression),
-    name_(name),
+    std::istream& is,
+    const string& streamName,
+    IOstreamOption streamOpt
+)
+:
+    Istream(streamOpt),
+    name_(streamName),
     is_(is)
 {
     if (is_.good())
@@ -57,9 +60,9 @@ inline ISstream& ISstream::get(char& c)
     is_.get(c);
     setState(is_.rdstate());
 
-    if (c == '\n')
+    if (good() && c == '\n')
     {
-        lineNumber_++;
+        ++lineNumber_;
     }
 
     return *this;
@@ -72,21 +75,41 @@ inline int ISstream::peek()
 }
 
 
-inline ISstream& ISstream::getLine(string& s)
+inline ISstream& ISstream::getLine(std::string& str, char delim)
 {
-    getline(is_, s);
+    std::getline(is_, str, delim);
     setState(is_.rdstate());
-    lineNumber_++;
+
+    if (delim == '\n')
+    {
+        ++lineNumber_;
+    }
 
     return *this;
 }
 
 
-inline ISstream& ISstream::putback(const char& c)
+inline std::streamsize ISstream::getLine(std::nullptr_t, char delim)
+{
+    is_.ignore(std::numeric_limits<std::streamsize>::max(), delim);
+    setState(is_.rdstate());
+
+    std::streamsize count = is_.gcount();
+
+    if (count && delim == '\n')
+    {
+        ++lineNumber_;
+    }
+
+    return count;
+}
+
+
+inline ISstream& ISstream::putback(const char c)
 {
     if (c == '\n')
     {
-        lineNumber_--;
+        --lineNumber_;
     }
 
     if (!is_.putback(c))
@@ -98,6 +121,8 @@ inline ISstream& ISstream::putback(const char& c)
 
     return *this;
 }
-}
+
 
 // ************************************************************************* //
+
+ } // End namespace Foam

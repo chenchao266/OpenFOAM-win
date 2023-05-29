@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -37,7 +39,7 @@ Foam::thermoParcelInjectionData::thermoParcelInjectionData(Istream& is)
     is.check("reading Cp");
     is >> Cp_;
 
-    is.check("thermoParcelInjectionData(Istream& is)");
+    is.check(FUNCTION_NAME);
 }
 
 
@@ -67,7 +69,7 @@ Foam::Istream& Foam::operator>>(Istream& is, thermoParcelInjectionData& data)
     is.check("reading Cp");
     is >> data.Cp_;
 
-    is.check("operator(Istream&, thermoParcelInjectionData&)");
+    is.check(FUNCTION_NAME);
 
     return is;
 }

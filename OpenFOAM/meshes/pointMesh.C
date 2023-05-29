@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2013 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2013 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -27,106 +29,93 @@ License
 #include "globalMeshData.H"
 #include "pointMeshMapper.H"
 #include "pointFields.H"
-#include "MapGeometricFields.T.H"
-#include "MapPointField.T.H"
+#include "MapGeometricFields.H"
+#include "MapPointField.H"
 
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
-using namespace Foam;
+
 namespace Foam
 {
+    defineTypeNameAndDebug(pointMesh, 0);
 
-defineTypeNameAndDebug(pointMesh, 0);
 
-}
+    // * * * * * * * * * * * * * Private Member Functions  * * * * * * * * * * * //
 
-// * * * * * * * * * * * * * Private Member Functions  * * * * * * * * * * * //
-
-void pointMesh::mapFields(const mapPolyMesh& mpm)
-{
-    if (debug)
+    void pointMesh::mapFields(const mapPolyMesh& mpm)
     {
-        Pout<< "void pointMesh::mapFields(const mapPolyMesh&): "
-            << "Mapping all registered pointFields."
-            << endl;
-    }
-    // Create a mapper
-    const pointMeshMapper m(*this, mpm);
+        if (debug)
+        {
+            Pout << "void pointMesh::mapFields(const mapPolyMesh&): "
+                << "Mapping all registered pointFields."
+                << endl;
+        }
+        // Create a mapper
+        const pointMeshMapper m(*this, mpm);
 
-    MapGeometricFields<scalar, pointPatchField, pointMeshMapper, pointMesh>(m);
-    MapGeometricFields<vector, pointPatchField, pointMeshMapper, pointMesh>(m);
-    MapGeometricFields
-    <
-        sphericalTensor,
-        pointPatchField,
-        pointMeshMapper,
-        pointMesh
-    >(m);
-    MapGeometricFields<symmTensor, pointPatchField, pointMeshMapper, pointMesh>
-    (m);
-    MapGeometricFields<tensor, pointPatchField, pointMeshMapper, pointMesh>(m);
-}
-
-
-// * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
-
-pointMesh::pointMesh(const polyMesh& pMesh) : MeshObject<polyMesh, Foam::UpdateableMeshObject, pointMesh>(pMesh),
-    GeoMesh<polyMesh>(pMesh),
-    boundary_(*this, pMesh.boundaryMesh())
-{
-    if (debug)
-    {
-        Pout<< "pointMesh::pointMesh(const polyMesh&): "
-            << "Constructing from polyMesh " << pMesh.name()
-            << endl;
+        MapGeometricFields<scalar, pointPatchField, pointMeshMapper, pointMesh>(m);
+        MapGeometricFields<vector, pointPatchField, pointMeshMapper, pointMesh>(m);
+        MapGeometricFields
+            <
+            sphericalTensor,
+            pointPatchField,
+            pointMeshMapper,
+            pointMesh
+            >(m);
+        MapGeometricFields<symmTensor, pointPatchField, pointMeshMapper, pointMesh>
+            (m);
+        MapGeometricFields<tensor, pointPatchField, pointMeshMapper, pointMesh>(m);
     }
 
-    // Calculate the geometry for the patches (transformation tensors etc.)
-    boundary_.calcGeometry();
-}
 
+    // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
-// * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
-
-pointMesh::~pointMesh()
-{
-    if (debug)
+    pointMesh::pointMesh(const polyMesh& pMesh)
+        :
+        MeshObject<polyMesh, ::Foam::UpdateableMeshObject, pointMesh>(pMesh),
+        GeoMesh<polyMesh>(pMesh),
+        boundary_(*this, pMesh.boundaryMesh())
     {
-        Pout<< "~pointMesh::pointMesh()"
-            << endl;
-    }
-}
+        if (debug)
+        {
+            Pout << "pointMesh::pointMesh(const polyMesh&): "
+                << "Constructing from polyMesh " << pMesh.name()
+                << endl;
+        }
 
-
-// * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
-
-bool pointMesh::movePoints()
-{
-    if (debug)
-    {
-        Pout<< "pointMesh::movePoints(const pointField&): "
-            << "Moving points." << endl;
+        // Calculate the geometry for the patches (transformation tensors etc.)
+        boundary_.calcGeometry();
     }
 
-    boundary_.movePoints(GeoMesh<polyMesh>::mesh_.points());
 
-    return true;
-}
+    // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
 
-
-void pointMesh::updateMesh(const mapPolyMesh& mpm)
-{
-    if (debug)
+    bool pointMesh::movePoints()
     {
-        Pout<< "pointMesh::updateMesh(const mapPolyMesh&): "
-            << "Updating for topology changes." << endl;
-        Pout<< endl;
+        if (debug)
+        {
+            Pout << "pointMesh::movePoints(): "
+                << "Moving points." << endl;
+        }
+
+        boundary_.movePoints(GeoMesh<polyMesh>::mesh_.points());
+
+        return true;
     }
-    boundary_.updateMesh();
 
-    // Map all registered point fields
-    mapFields(mpm);
+
+    void pointMesh::updateMesh(const mapPolyMesh& mpm)
+    {
+        if (debug)
+        {
+            Pout << "pointMesh::updateMesh(const mapPolyMesh&): "
+                << "Updating for topology changes." << nl << endl;
+        }
+        boundary_.updateMesh();
+
+        // Map all registered point fields
+        mapFields(mpm);
+    }
+
 }
-
-
 // ************************************************************************* //

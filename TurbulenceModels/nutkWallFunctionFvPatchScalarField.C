@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016, 2019 OpenFOAM Foundation
+    Copyright (C) 2019-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -24,20 +27,16 @@ License
 \*---------------------------------------------------------------------------*/
 
 #include "nutkWallFunctionFvPatchScalarField.H"
-#include "turbulenceModel.H"
+#include "turbulenceModel2.H"
 #include "fvPatchFieldMapper.H"
 #include "volFields.H"
 #include "wallFvPatch.H"
 #include "addToRunTimeSelectionTable.H"
 
-// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
-
-namespace Foam
-{
-
 // * * * * * * * * * * * * Protected Member Functions  * * * * * * * * * * * //
 
-tmp<scalarField> nutkWallFunctionFvPatchScalarField::calcNut() const
+Foam::tmp<Foam::scalarField> Foam::nutkWallFunctionFvPatchScalarField::
+calcNut() const
 {
     const label patchi = patch().index();
 
@@ -58,19 +57,23 @@ tmp<scalarField> nutkWallFunctionFvPatchScalarField::calcNut() const
 
     const scalar Cmu25 = pow025(Cmu_);
 
-    tmp<scalarField> tnutw(new scalarField(patch().size(), 0.0));
+    tmp<scalarField> tnutw(new scalarField(patch().size(), Zero));
     scalarField& nutw = tnutw.ref();
 
     forAll(nutw, facei)
     {
-        label celli = patch().faceCells()[facei];
+        const label celli = patch().faceCells()[facei];
 
-        scalar yPlus = Cmu25*y[facei]*sqrt(k[celli])/nuw[facei];
+        const scalar yPlus = Cmu25*y[facei]*sqrt(k[celli])/nuw[facei];
 
-        if (yPlus > yPlusLam_)
-        {
-            nutw[facei] = nuw[facei]*(yPlus*kappa_/log(E_*yPlus) - 1.0);
-        }
+        // Viscous sublayer contribution
+        const scalar nutVis = 0.0;
+
+        // Inertial sublayer contribution
+        const scalar nutLog =
+            nuw[facei]*(yPlus*kappa_/log(max(E_*yPlus, 1 + 1e-4)) - 1.0);
+
+        nutw[facei] = blend(nutVis, nutLog, yPlus);
     }
 
     return tnutw;
@@ -79,7 +82,7 @@ tmp<scalarField> nutkWallFunctionFvPatchScalarField::calcNut() const
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
-nutkWallFunctionFvPatchScalarField::nutkWallFunctionFvPatchScalarField
+Foam::nutkWallFunctionFvPatchScalarField::nutkWallFunctionFvPatchScalarField
 (
     const fvPatch& p,
     const DimensionedField<scalar, volMesh>& iF
@@ -89,7 +92,7 @@ nutkWallFunctionFvPatchScalarField::nutkWallFunctionFvPatchScalarField
 {}
 
 
-nutkWallFunctionFvPatchScalarField::nutkWallFunctionFvPatchScalarField
+Foam::nutkWallFunctionFvPatchScalarField::nutkWallFunctionFvPatchScalarField
 (
     const nutkWallFunctionFvPatchScalarField& ptf,
     const fvPatch& p,
@@ -101,7 +104,7 @@ nutkWallFunctionFvPatchScalarField::nutkWallFunctionFvPatchScalarField
 {}
 
 
-nutkWallFunctionFvPatchScalarField::nutkWallFunctionFvPatchScalarField
+Foam::nutkWallFunctionFvPatchScalarField::nutkWallFunctionFvPatchScalarField
 (
     const fvPatch& p,
     const DimensionedField<scalar, volMesh>& iF,
@@ -112,7 +115,7 @@ nutkWallFunctionFvPatchScalarField::nutkWallFunctionFvPatchScalarField
 {}
 
 
-nutkWallFunctionFvPatchScalarField::nutkWallFunctionFvPatchScalarField
+Foam::nutkWallFunctionFvPatchScalarField::nutkWallFunctionFvPatchScalarField
 (
     const nutkWallFunctionFvPatchScalarField& wfpsf
 )
@@ -121,7 +124,7 @@ nutkWallFunctionFvPatchScalarField::nutkWallFunctionFvPatchScalarField
 {}
 
 
-nutkWallFunctionFvPatchScalarField::nutkWallFunctionFvPatchScalarField
+Foam::nutkWallFunctionFvPatchScalarField::nutkWallFunctionFvPatchScalarField
 (
     const nutkWallFunctionFvPatchScalarField& wfpsf,
     const DimensionedField<scalar, volMesh>& iF
@@ -133,11 +136,12 @@ nutkWallFunctionFvPatchScalarField::nutkWallFunctionFvPatchScalarField
 
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
 
-tmp<scalarField> nutkWallFunctionFvPatchScalarField::yPlus() const
+Foam::tmp<Foam::scalarField> Foam::nutkWallFunctionFvPatchScalarField::
+yPlus() const
 {
     const label patchi = patch().index();
 
-    const turbulenceModel& turbModel = db().lookupObject<turbulenceModel>
+    const auto& turbModel = db().lookupObject<turbulenceModel>
     (
         IOobject::groupName
         (
@@ -148,26 +152,52 @@ tmp<scalarField> nutkWallFunctionFvPatchScalarField::yPlus() const
 
     const scalarField& y = turbModel.y()[patchi];
 
-    const tmp<volScalarField> tk = turbModel.k();
+    tmp<volScalarField> tk = turbModel.k();
     const volScalarField& k = tk();
-    tmp<scalarField> kwc = k.boundaryField()[patchi].patchInternalField();
-    const tmp<scalarField> tnuw = turbModel.nu(patchi);
+    tmp<scalarField> tkwc = k.boundaryField()[patchi].patchInternalField();
+    const scalarField& kwc = tkwc();
+
+    tmp<scalarField> tnuw = turbModel.nu(patchi);
     const scalarField& nuw = tnuw();
 
-    return pow025(Cmu_)*y*sqrt(kwc)/nuw;
+    tmp<scalarField> tnuEff = turbModel.nuEff(patchi);
+    const scalarField& nuEff = tnuEff();
+
+    const fvPatchVectorField& Uw = U(turbModel).boundaryField()[patchi];
+    const scalarField magGradUw(mag(Uw.snGrad()));
+
+    const scalar Cmu25 = pow025(Cmu_);
+
+    auto tyPlus = tmp<scalarField>::New(patch().size(), Zero);
+    auto& yPlus = tyPlus.ref();
+
+    forAll(yPlus, facei)
+    {
+        // inertial sublayer
+        yPlus[facei] = Cmu25*y[facei]*sqrt(kwc[facei])/nuw[facei];
+
+        if (yPlusLam_ > yPlus[facei])
+        {
+            // viscous sublayer
+            yPlus[facei] =
+                y[facei]*sqrt(nuEff[facei]*magGradUw[facei])/nuw[facei];
+        }
+    }
+
+    return tyPlus;
 }
 
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
-makePatchTypeField
-(
-    fvPatchScalarField,
-    nutkWallFunctionFvPatchScalarField
-);
+namespace Foam
+{
+    makePatchTypeField
+    (
+        fvPatchScalarField,
+        nutkWallFunctionFvPatchScalarField
+    );
+}
 
-// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
-
-} // End namespace Foam
 
 // ************************************************************************* //

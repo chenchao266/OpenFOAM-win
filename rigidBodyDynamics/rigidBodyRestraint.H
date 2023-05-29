@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -42,12 +44,13 @@ SourceFiles
 #ifndef RBD_rigidBodyRestraint_H
 #define RBD_rigidBodyRestraint_H
 
-#include "dictionary.H"
+#include "dictionary2.H"
 #include "autoPtr.H"
-#include "spatialVector.H"
-#include "point.T.H"
+#include "spatialVector2.H"
+#include "point.H"
 #include "scalarField.H"
 #include "runTimeSelectionTables.H"
+#include "rigidBodyModelState.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -60,7 +63,7 @@ namespace RBD
 class rigidBodyModel;
 
 /*---------------------------------------------------------------------------*\
-                Class restraint Declaration
+                          Class restraint Declaration
 \*---------------------------------------------------------------------------*/
 
 class restraint
@@ -157,12 +160,13 @@ public:
             return bodyID_;
         }
 
-        //- Accumulate the retraint internal joint forces into the tau field and
+        //- Accumulate the restraint internal joint forces into the tau field and
         //  external forces into the fx field
         virtual void restrain
         (
             scalarField& tau,
-            Field<spatialVector>& fx
+            Field<spatialVector>& fx,
+            const rigidBodyModelState& state
         ) const = 0;
 
         //- Update properties from given dictionary

@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2019-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -24,48 +27,83 @@ License
 Class
     Foam::radiation::fvDOM
 
+Group
+    grpRadiationModels
+
 Description
 
     Finite Volume Discrete Ordinates Method. Solves the RTE equation for n
-    directions in a participating media, not including scatter.
+    directions in a participating media, not including scatter and reflective
+    walls.
 
     Available absorption models:
-        constantAbsorptionEmission
-        greyMeanAbsoprtionEmission
-        wideBandAbsorptionEmission
 
-    i.e. dictionary
+    - constantAbsorptionEmission
+    - greyMeanAbsoprtionEmission
+    - wideBandAbsorptionEmission
+    - multiBandAbsorptionEmission
+
+    This model can handle non-grey participating media using
+    multiBandAbsorptionEmission model. Accordingly the BC for rays should
+    be wideBandDiffussive type
+
+Usage
     \verbatim
         fvDOMCoeffs
         {
             nPhi        4;          // azimuthal angles in PI/2 on X-Y.
                                     //(from Y to X)
             nTheta      0;          // polar angles in PI (from Z to X-Y plane)
-            convergence 1e-3;       // convergence criteria for radiation
-                                    //iteration
+            tolerance   1e-3;       // convergence tolerance for radiation
+                                    // iteration
             maxIter     4;          // maximum number of iterations
+            meshOrientation    (1 1 1); //Mesh orientation used for 2D and 1D
+
+            useSolarLoad      false;
+            useExternalBeam   true;
+            spectralDistribution (2 1);
         }
 
         solverFreq   1; // Number of flow iterations per radiation iteration
     \endverbatim
 
-    The total number of solid angles is  4*nPhi*nTheta.
+    The total number of solid angles is  4*nPhi*nTheta in 3-D.
 
-    In 1D the direction of the rays is X (nPhi and nTheta are ignored)
-    In 2D the direction of the rays is on X-Y plane (only nPhi is considered)
-    In 3D (nPhi and nTheta are considered)
+    Operating modes:
+    - 1-D:
+      - ray directions are on X, Y or Z
+      - \c nPhi and \c nTheta entries are ignored
+      - \c meshOrientation vector can be used for any other 1-D direction.
+    - 2-D:
+      - ray directions are on X-Y, X-Z or Y-Z planes
+      - only the \c nPhi entry is considered
+      - \c meshOrientation vector can be used for non-aligned planes
+        specifying the plane normal vector.
+    - 3-D:
+      - rays geberated in 3-D using the \c nPhi and \c nTheta entries
+      - \c meshOrientation vector is not applicable.
+
+    useSolarLoad calculates the primary and diffusive Sun fluxes on walls in
+    addition to the RTE equations
+
+    useExternalBeam add an external collimated beam to the domain. This option
+    is not available if useSolarLoad is true.
+
+    spectralDistribution is the energy spectral distribution of the collimated
+    external beam.
 
 SourceFiles
     fvDOM.C
 
 \*---------------------------------------------------------------------------*/
 
-#ifndef radiationModelfvDOM_H
-#define radiationModelfvDOM_H
+#ifndef radiation_fvDOM_H
+#define radiation_fvDOM_H
 
 #include "radiativeIntensityRay.H"
 #include "radiationModel.H"
 #include "fvMatrices.H"
+#include "solarLoad.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -82,8 +120,7 @@ class fvDOM
 :
     public radiationModel
 {
-    // Private data
-
+    // Private Data
 
         //- Incident radiation  [W/m2]
         volScalarField G_;
@@ -91,10 +128,10 @@ class fvDOM
         //- Total radiative heat flux [W/m2]
         volScalarField qr_;
 
-         //- Emmited radiative heat flux [W/m2]
+        //- Emitted radiative heat flux [W/m2]
         volScalarField qem_;
 
-        //- Incidet radiative heat flux [W/m2]
+        //- Incident radiative heat flux [W/m2]
         volScalarField qin_;
 
         //- Total absorption coefficient [1/m]
@@ -130,19 +167,43 @@ class fvDOM
         //- Maximum omega weight
         scalar omegaMax_;
 
+        //- Use Solar Load model
+        bool useSolarLoad_;
+
+        //- Solar load radiation model
+        autoPtr<solarLoad> solarLoad_;
+
+        //- Mesh orientation vector
+        vector meshOrientation_;
+
+        //- Use external parallel irradiation beam
+        bool useExternalBeam_;
+
+        //- Spectral energy distribution for the external beam
+        scalarList spectralDistribution_;
+
+        //- Time-dependent spectral distributions
+        autoPtr<Function1<scalarField>> spectralDistributions_;
+
+        //- Solar calculator
+        autoPtr<solarCalculator> solarCalculator_;
+
+        //- Update Sun position index
+        label updateTimeIndex_;
+
 
     // Private Member Functions
 
         //- Initialise
         void initialise();
 
-        //- Disallow default bitwise copy construct
-        fvDOM(const fvDOM&);
+        //- No copy construct
+        fvDOM(const fvDOM&) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const fvDOM&);
+        //- No copy assignment
+        void operator=(const fvDOM&) = delete;
 
-        //- Update nlack body emission
+        //- Update black body emission
         void updateBlackBodyEmission();
 
 
@@ -162,10 +223,10 @@ public:
 
 
     //- Destructor
-    virtual ~fvDOM();
+    virtual ~fvDOM() = default;
 
 
-    // Member functions
+    // Member Functions
 
         // Edit
 
@@ -187,6 +248,16 @@ public:
                 label& lambdaId
             ) const;
 
+
+            //- Rotate rays according to Sun direction
+            void updateRaysDir();
+
+            //- Rotate rays spheric equator to sunDir
+            void rotateInitialRays(const vector& sunDir);
+
+            //- Align closest ray to sunDir
+            void alignClosestRayToSun(const vector& sunDir);
+
             //- Source term component (for power of T^4)
             virtual tmp<volScalarField> Rp() const;
 
@@ -195,6 +266,9 @@ public:
 
 
         // Access
+
+            //- Solar calculator
+            const solarCalculator& solarCalc() const;
 
             //- Ray intensity for rayI
             inline const radiativeIntensityRay& IRay(const label rayI) const;
@@ -217,6 +291,9 @@ public:
 
             //- Number of wavelengths
             inline label nLambda() const;
+
+            //- Number of bands
+            inline label nBands() const;
 
             //- Const access to total absorption coefficient
             inline const volScalarField& a() const;
@@ -241,6 +318,18 @@ public:
 
             //- Return omegaMax
             inline scalar omegaMax() const;
+
+            //- Return meshOrientation
+            inline vector meshOrientation() const;
+
+            //- Use solar load
+            inline bool useSolarLoad() const;
+
+            //- Use external beam
+            inline bool useExternalBeam() const;
+
+            //- Energy spectral distribution for external beam
+            inline const scalarList& spectralDistribution() const;
 };
 
 

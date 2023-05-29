@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2019-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -38,10 +41,10 @@ SourceFiles
 #ifndef pointEdgePoint_H
 #define pointEdgePoint_H
 
-#include "point.T.H"
+#include "point.H"
 #include "label.H"
 #include "scalar.H"
-#include "tensor.H"
+#include "tensor2.H"
 #include "pTraits.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
@@ -49,26 +52,21 @@ SourceFiles
 namespace Foam
 {
 
-// Forward declaration of classes
+// Forward Declarations
 class polyPatch;
 class polyMesh;
-
-
-// Forward declaration of friend functions and operators
-
 class pointEdgePoint;
 
 Istream& operator>>(Istream&, pointEdgePoint&);
 Ostream& operator<<(Ostream&, const pointEdgePoint&);
 
-
 /*---------------------------------------------------------------------------*\
-                           Class pointEdgePoint Declaration
+                       Class pointEdgePoint Declaration
 \*---------------------------------------------------------------------------*/
 
 class pointEdgePoint
 {
-    // Private data
+    // Private Data
 
         //- Position of nearest wall center
         point origin_;
@@ -79,9 +77,9 @@ class pointEdgePoint
 
     // Private Member Functions
 
-        //- Evaluate distance to point. Update distSqr, origin from whomever
-        //  is nearer pt. Return true if w2 is closer to point,
-        //  false otherwise.
+        //- Evaluate distance to point.
+        //  Update distSqr, origin from whomever is nearer pt.
+        //  \return true if w2 is closer to point, false otherwise.
         template<class TrackingData>
         inline bool update
         (
@@ -106,33 +104,43 @@ public:
 
     // Constructors
 
-        //- Construct null
+        //- Default construct
         inline pointEdgePoint();
 
         //- Construct from origin, distance
-        inline pointEdgePoint(const point&, const scalar);
-
-        //- Construct as copy
-        inline pointEdgePoint(const pointEdgePoint&);
+        inline pointEdgePoint(const point& origin, const scalar distSqr);
 
 
     // Member Functions
 
         // Access
 
-            inline const point& origin() const;
+            const point& origin() const
+            {
+                return origin_;
+            }
+            point& origin()
+            {
+                return origin_;
+            }
 
-            inline scalar distSqr() const;
+            scalar distSqr() const
+            {
+                return distSqr_;
+            }
+            scalar& distSqr()
+            {
+                return distSqr_;
+            }
 
 
         // Needed by PointEdgeWave
 
-            //- Check whether origin has been changed at all or
-            //  still contains original (invalid) value.
+            //- Changed or contains original (invalid) value
             template<class TrackingData>
             inline bool valid(TrackingData& td) const;
 
-            //- Check for identical geometrical data. Used for cyclics checking.
+            //- Check for identical geometrical data (eg, cyclics checking)
             template<class TrackingData>
             inline bool sameGeometry
             (
@@ -216,15 +224,17 @@ public:
                 TrackingData& td
             );
 
-            //- Same (like operator==)
+            //- Test for equality, with TrackingData
             template<class TrackingData>
             inline bool equal(const pointEdgePoint&, TrackingData& td) const;
 
 
     // Member Operators
 
-        // Needed for List IO
+        //- Test for equality
         inline bool operator==(const pointEdgePoint&) const;
+
+        //- Test for inequality
         inline bool operator!=(const pointEdgePoint&) const;
 
 
@@ -235,12 +245,13 @@ public:
 };
 
 
-//- Data associated with pointEdgePoint type are contiguous
-template<>
-inline bool contiguous<pointEdgePoint>()
-{
-    return true;
-}
+// * * * * * * * * * * * * * * * * * Traits  * * * * * * * * * * * * * * * * //
+
+//- Contiguous data for pointEdgePoint
+template<> struct is_contiguous<pointEdgePoint> : std::true_type {};
+
+//- Contiguous scalar data for pointEdgePoint
+template<> struct is_contiguous_scalar<pointEdgePoint> : std::true_type {};
 
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //

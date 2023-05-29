@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2012 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2012 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -25,8 +27,17 @@ Class
     Foam::patchCloudSet
 
 Description
-    Like cloudSet but samples nearest patch face
+    Like Foam::cloudSet but samples nearest patch face
 
+    For a dictionary specification:
+    \table
+        Property | Description                             | Required | Default
+        type     | patchCloud                              | yes      |
+        axis     | x, y, z, xyz, distance                  | yes      |
+        patches  | List of patch names or regexs           | yes      |
+        points   | List of selected locations              | yes      |
+        maxDistance | Max search distance                  | yes      |
+    \endtable
 
 SourceFiles
     patchCloudSet.C
@@ -37,8 +48,8 @@ SourceFiles
 #define patchCloudSet_H
 
 #include "sampledSet.H"
-#include "DynamicList.T.H"
-#include "HashSet.T.H"
+#include "DynamicList.H"
+#include "HashSet.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -56,7 +67,7 @@ class patchCloudSet
     // Private data
 
         //- Sampling points
-        const List<point> sampleCoords_;
+        const pointField sampleCoords_;
 
         //- Patches to sample
         const labelHashSet patchSet_;
@@ -112,7 +123,7 @@ public:
 
 
     //- Destructor
-    virtual ~patchCloudSet();
+    virtual ~patchCloudSet() = default;
 };
 
 

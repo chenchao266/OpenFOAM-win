@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -30,7 +32,7 @@ Group
 Description
     This BC solves a steady 1D thermal baffle.
 
-    The solid properties are specify as dictionary. Optionaly radiative heat
+    The solid properties are specify as dictionary. Optionally radiative heat
     flux (qr) can be incorporated into the balance. Some under-relaxation might
     be needed on qr.  Baffle and solid properties need to be specified on the
     master side of the baffle.
@@ -46,10 +48,10 @@ Usage
         samplePatch     <slavePatchName>;
 
         thickness       uniform 0.005;  // thickness [m]
-        Qs              uniform 100;    // heat flux [W/m2]
+        qs              uniform 100;    // heat flux [W/m2]
 
         qr              none;
-        qrRelaxation    1;
+        relaxation      1;
 
         // Solid thermo
         specie
@@ -124,7 +126,7 @@ class thermalBaffle1DFvPatchScalarField
         mutable scalarField thickness_;
 
         //- Superficial heat source [W/m2]
-        mutable scalarField Qs_;
+        mutable scalarField qs_;
 
         //- Solid dictionary
         dictionary solidDict_;
@@ -147,8 +149,8 @@ class thermalBaffle1DFvPatchScalarField
         //- Return const solid thermo
         const solidType& solid() const;
 
-        //- Return Qs from master
-        tmp<scalarField> Qs() const;
+        //- Return qs from master
+        tmp<scalarField> qs() const;
 
         //- Return thickness from master
         tmp<scalarField> baffleThickness() const;

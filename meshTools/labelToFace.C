@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2018 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -25,20 +28,31 @@ License
 
 #include "labelToFace.H"
 #include "polyMesh.H"
-
 #include "addToRunTimeSelectionTable.H"
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
 
 namespace Foam
 {
-
-defineTypeNameAndDebug(labelToFace, 0);
-
-addToRunTimeSelectionTable(topoSetSource, labelToFace, word);
-
-addToRunTimeSelectionTable(topoSetSource, labelToFace, istream);
-
+    defineTypeNameAndDebug(labelToFace, 0);
+    addToRunTimeSelectionTable(topoSetSource, labelToFace, word);
+    addToRunTimeSelectionTable(topoSetSource, labelToFace, istream);
+    addToRunTimeSelectionTable(topoSetFaceSource, labelToFace, word);
+    addToRunTimeSelectionTable(topoSetFaceSource, labelToFace, istream);
+    addNamedToRunTimeSelectionTable
+    (
+        topoSetFaceSource,
+        labelToFace,
+        word,
+        label
+    );
+    addNamedToRunTimeSelectionTable
+    (
+        topoSetFaceSource,
+        labelToFace,
+        istream,
+        label
+    );
 }
 
 
@@ -50,59 +64,55 @@ Foam::topoSetSource::addToUsageTable Foam::labelToFace::usage_
 );
 
 
-// * * * * * * * * * * * * * Private Member Functions  * * * * * * * * * * * //
-
-void Foam::labelToFace::combine(topoSet& set, const bool add) const
-{
-    forAll(labels_, labelI)
-    {
-        addOrDelete(set, labels_[labelI], add);
-    }
-}
-
-
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
-// Construct from components
 Foam::labelToFace::labelToFace
 (
     const polyMesh& mesh,
     const labelList& labels
 )
 :
-    topoSetSource(mesh),
+    topoSetFaceSource(mesh),
     labels_(labels)
 {}
 
 
-// Construct from dictionary
+Foam::labelToFace::labelToFace
+(
+    const polyMesh& mesh,
+    labelList&& labels
+)
+:
+    topoSetFaceSource(mesh),
+    labels_(std::move(labels))
+{}
+
+
 Foam::labelToFace::labelToFace
 (
     const polyMesh& mesh,
     const dictionary& dict
 )
 :
-    topoSetSource(mesh),
-    labels_(dict.lookup("value"))
+    labelToFace
+    (
+        mesh,
+        dict.get<labelList>("value")
+    )
 {}
 
 
-// Construct from Istream
 Foam::labelToFace::labelToFace
 (
     const polyMesh& mesh,
     Istream& is
 )
 :
-    topoSetSource(mesh),
+    topoSetFaceSource(mesh),
     labels_(checkIs(is))
-{}
-
-
-// * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
-
-Foam::labelToFace::~labelToFace()
-{}
+{
+    check(labels_, mesh.nFaces());
+}
 
 
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
@@ -113,17 +123,25 @@ void Foam::labelToFace::applyToSet
     topoSet& set
 ) const
 {
-    if ((action == topoSetSource::NEW) || (action == topoSetSource::ADD))
+    if (action == topoSetSource::ADD || action == topoSetSource::NEW)
     {
-        Info<< "    Adding faces mentioned in dictionary" << " ..." << endl;
+        if (verbose_)
+        {
+            Info<< "    Adding faces mentioned in dictionary"
+                << " ..." << endl;
+        }
 
-        combine(set, true);
+        addOrDelete(set, labels_, true);
     }
-    else if (action == topoSetSource::DELETE)
+    else if (action == topoSetSource::SUBTRACT)
     {
-        Info<< "    Removing faces mentioned dictionary" << " ..." << endl;
+        if (verbose_)
+        {
+            Info<< "    Removing faces mentioned dictionary"
+                << " ..." << endl;
+        }
 
-        combine(set, false);
+        addOrDelete(set, labels_, false);
     }
 }
 

@@ -1,9 +1,11 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -24,7 +26,9 @@ License
 \*---------------------------------------------------------------------------*/
 
 // * * * * * * * * * * * Private Member Functions  * * * * * * * * * * * * * //
-namespace Foam {
+
+
+ namespace Foam{
 template<class T>
 inline const T SVD::sign(const T& a, const T& b)
 {
@@ -76,5 +80,7 @@ inline scalar SVD::minNonZeroS() const
     return minS;
 }
 
-}
+
 // ************************************************************************* //
+
+ } // End namespace Foam

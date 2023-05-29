@@ -1,9 +1,12 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011 OpenFOAM Foundation
+    Copyright (C) 2018-2019 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -32,15 +35,15 @@ Description
 #ifndef IOmanip_H
 #define IOmanip_H
 
-#include "Istream.T.H"
-#include "Ostream.H"
+#include "_Istream.H"
+#include "_Ostream.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 namespace Foam
 {
 
-// Forward declaration of friend functions and operators
+// Forward Declarations
 
 template<class T> class Smanip;
 template<class T> class Imanip;
@@ -63,6 +66,7 @@ inline Ostream& operator<<(Ostream& os, const Omanip<T>& m);
                         Class Smanip Declaration
 \*---------------------------------------------------------------------------*/
 
+//- An IOstream manipulator taking arguments
 template<class T>
 class Smanip
 {
@@ -102,6 +106,7 @@ inline Ostream& operator<<(Ostream& os, const Smanip<T>& m)
                         Class Imanip Declaration
 \*---------------------------------------------------------------------------*/
 
+//- An Istream manipulator taking arguments
 template<class T>
 class Imanip
 {
@@ -132,6 +137,7 @@ inline Istream& operator>>(Istream& is, const Imanip<T>& m)
                         Class Omanip Declaration
 \*---------------------------------------------------------------------------*/
 
+//- An Ostream manipulator taking arguments
 template<class T>
 class Omanip
 {
@@ -160,12 +166,15 @@ inline Ostream& operator<<(Ostream& os, const Omanip<T>& m)
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
-inline Smanip<ios_base::fmtflags> setf
-(
-    const ios_base::fmtflags flags
-)
+inline Smanip<ios_base::fmtflags> setf(const ios_base::fmtflags flags)
 {
     return Smanip<ios_base::fmtflags>(&IOstream::setf, flags);
+}
+
+
+inline Omanip<char> setfill(char fillch)
+{
+    return Omanip<char>(&Ostream::fill, fillch);
 }
 
 
@@ -184,15 +193,6 @@ inline Omanip<IOstream::versionNumber> setversion
 )
 {
     return Omanip<IOstream::versionNumber>(&IOstream::version, ver);
-}
-
-
-inline Omanip<IOstream::compressionType> setcompression
-(
-    const IOstream::compressionType cmp
-)
-{
-    return Omanip<IOstream::compressionType>(&IOstream::compression, cmp);
 }
 
 

@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2018-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -27,6 +30,16 @@ Class
 Description
     Abstract base class for geometry and/or topology changing fvMesh.
 
+    Supports optional update controls that may be used by custom solvers:
+    \table
+        Property | Description                              | Required | Default
+        updateControl   | See time controls below           | no  | timeStep
+        updateInterval  | Steps/time between update phases  | no  | 1
+    \endtable
+
+See also
+    Foam::timeControl
+
 SourceFiles
     dynamicFvMesh.C
     dynamicFvMeshNew.C
@@ -37,8 +50,7 @@ SourceFiles
 #define dynamicFvMesh_H
 
 #include "fvMesh.H"
-#include "autoPtr.H"
-#include "runTimeSelectionTables.H"
+#include "timeControl.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -46,20 +58,29 @@ namespace Foam
 {
 
 /*---------------------------------------------------------------------------*\
-                           Class dynamicFvMesh Declaration
+                        Class dynamicFvMesh Declaration
 \*---------------------------------------------------------------------------*/
 
 class dynamicFvMesh
 :
     public fvMesh
 {
+    // Private Data
+
+        //- Optional update control
+        timeControl timeControl_;
+
+
     // Private Member Functions
 
-        //- Disallow default bitwise copy construct
-        dynamicFvMesh(const dynamicFvMesh&);
+        //- Read the updateControl/updateInterval from dynamicMeshDict
+        void readDict();
 
-        //- Disallow default bitwise assignment
-        void operator=(const dynamicFvMesh&);
+        //- No copy construct
+        dynamicFvMesh(const dynamicFvMesh&) = delete;
+
+        //- No copy assignment
+        void operator=(const dynamicFvMesh&) = delete;
 
 
 public:
@@ -79,21 +100,37 @@ public:
             (io)
         );
 
+        declareRunTimeSelectionTable
+        (
+            autoPtr,
+            dynamicFvMesh,
+            doInit,
+            (
+                const IOobject& io,
+                const bool doInit
+            ),
+            (io, doInit)
+        );
+
 
     // Constructors
 
-        //- Construct from objectRegistry, and read/write options
-        explicit dynamicFvMesh(const IOobject& io);
+        //- Construct from an IOobject
+        explicit dynamicFvMesh(const IOobject& io, const bool doInit=true);
+
+        //- Construct from components without boundary.
+        //  Boundary is added using addFvPatches() member function
+        dynamicFvMesh(const IOobject& io, const zero, const bool syncPar=true);
 
         //- Construct from components without boundary.
         //  Boundary is added using addFvPatches() member function
         dynamicFvMesh
         (
             const IOobject& io,
-            const Xfer<pointField>& points,
-            const Xfer<faceList>& faces,
-            const Xfer<labelList>& allOwner,
-            const Xfer<labelList>& allNeighbour,
+            pointField&& points,
+            faceList&& faces,
+            labelList&& allOwner,
+            labelList&& allNeighbour,
             const bool syncPar = true
         );
 
@@ -102,29 +139,52 @@ public:
         dynamicFvMesh
         (
             const IOobject& io,
-            const Xfer<pointField>& points,
-            const Xfer<faceList>& faces,
-            const Xfer<cellList>& cells,
+            pointField&& points,
+            faceList&& faces,
+            cellList&& cells,
             const bool syncPar = true
         );
 
 
     // Selectors
 
-        //- Select null constructed
+        //- Select, construct and return the dynamicFvMesh
+        //  If the constant/dynamicMeshDict does not exist
+        //  a staticFvMesh is returned
         static autoPtr<dynamicFvMesh> New(const IOobject& io);
 
 
+        //- Select, construct and return the dynamicFvMesh
+        //  If the constant/dynamicMeshDict does not exist
+        //  a staticFvMesh is returned
+        static autoPtr<dynamicFvMesh> New
+        (
+            const argList& args,
+            const Time& runTime
+        );
+
+
     //- Destructor
-    virtual ~dynamicFvMesh();
+    virtual ~dynamicFvMesh() = default;
 
 
     // Member Functions
 
+        //- Initialise all non-demand-driven data
+        virtual bool init(const bool doInit);
+
+        //- Is mesh dynamic
+        virtual bool dynamic() const
+        {
+            return true;
+        }
+
+        //- Update the mesh if controller permits
+        virtual bool controlledUpdate();
+
         //- Update the mesh for both mesh motion and topology change
         virtual bool update() = 0;
 };
-
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 

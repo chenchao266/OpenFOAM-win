@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2015 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2014 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -25,33 +27,16 @@ License
 
 #include "basicThermoCloud.H"
 
-#include "makeParcelCloudFunctionObjects.H"
-
-// Kinematic
-#include "makeThermoParcelForces.H" // thermo variant
-#include "makeParcelDispersionModels.H"
-#include "makeParcelInjectionModels.H"
-#include "makeParcelPatchInteractionModels.H"
-#include "makeParcelStochasticCollisionModels.H"
-#include "makeThermoParcelSurfaceFilmModels.H" // thermo variant
-
-// Thermodynamic
-#include "makeParcelHeatTransferModels.H"
+#include "makeParcelTurbulenceDispersionModels.H"
+#include "makeThermoParcelTurbulenceForces.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
-makeParcelCloudFunctionObjects(basicThermoCloud);
-
-// Kinematic sub-models
-makeThermoParcelForces(basicThermoCloud);
-makeParcelDispersionModels(basicThermoCloud);
-makeParcelInjectionModels(basicThermoCloud);
-makeParcelPatchInteractionModels(basicThermoCloud);
-makeParcelStochasticCollisionModels(basicThermoCloud);
-makeParcelSurfaceFilmModels(basicThermoCloud);
-
-// Thermo sub-models
-makeParcelHeatTransferModels(basicThermoCloud);
+namespace Foam
+{
+    makeThermoParcelTurbulenceForces(basicThermoCloud);
+    makeParcelTurbulenceDispersionModels(basicThermoCloud);
+}
 
 
 // ************************************************************************* //

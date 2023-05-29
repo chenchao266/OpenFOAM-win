@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011 OpenFOAM Foundation
+    Copyright (C) 2017-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -24,20 +27,35 @@ License
 \*---------------------------------------------------------------------------*/
 
 #include "labelRange.H"
-#include "token.T.H"
-
+#include "List.H"
+#include "MinMax.H"
+#include <numeric>
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
-namespace Foam {
-    const labelRange labelRange::endLabelRange_;
-    const labelRange::const_iterator labelRange::endIter_;
-    int labelRange::debug(::Foam::debug::debugSwitch("labelRange", 0));
+
+namespace Foam
+{
+    int labelRange::debug(debug::debugSwitch("labelRange", 0));
+
 
 
     // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
-    labelRange::labelRange(Istream& is) : start_(0),
-        size_(0)
+    labelRange::labelRange(const MinMax<label>& range) noexcept
+        :
+        labelRange()
+    {
+        if (range.min() < range.max())
+        {
+            start() = range.min();
+            size() = (range.max() - range.min()); // Hope for no overflow?
+        }
+    }
+
+
+    labelRange::labelRange(Istream& is)
+        :
+        labelRange()
     {
         is >> *this;
     }
@@ -45,28 +63,53 @@ namespace Foam {
 
     // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
 
-    bool labelRange::intersects
-    (
-        const labelRange& range,
-        const bool touches
-    ) const
+    List<label> labelRange::labels() const
     {
-        label final = touches ? 1 : 0;
+        if (size() < 0)
+        {
+            // Skip this check?
+            return List<label>();
+        }
+
+        List<label> result(this->size());
+        std::iota(result.begin(), result.end(), this->start());
+
+        return result;
+    }
+
+
+    void labelRange::adjust() noexcept
+    {
+        if (this->start() < 0)
+        {
+            if (this->size() > 0)
+            {
+                // Decrease size accordingly
+                this->size() += this->start();
+            }
+            this->start() = 0;
+        }
+        clampSize();
+    }
+
+
+    bool labelRange::overlaps(const labelRange& range, bool touches) const
+    {
+        const label extra = touches ? 1 : 0;
 
         return
             (
-                this->size()
-                && range.size()
+                this->size() && range.size()
                 &&
                 (
                 (
                     range.first() >= this->first()
-                    && range.first() <= this->last() + final
+                    && range.first() <= this->last() + extra
                     )
                     ||
                     (
                         this->first() >= range.first()
-                        && this->first() <= range.last() + final
+                        && this->first() <= range.last() + extra
                         )
                     )
                 );
@@ -75,79 +118,81 @@ namespace Foam {
 
     labelRange labelRange::join(const labelRange& range) const
     {
-        // trivial cases first
-        if (!size_)
+        // Trivial cases first
+        if (!this->size())
         {
             return *this;
         }
-        else if (!range.size_)
+        else if (!range.size())
         {
             return range;
         }
 
-        const label lower = min(this->first(), range.first());
-        const label upper = max(this->last(), range.last());
-        const label sz = upper - lower + 1;
+        const label lower = ::Foam::min(this->first(), range.first());
+        const label upper = ::Foam::max(this->last(), range.last());
+        const label total = upper + 1 - lower;
+        // last = start+size-1
+        // size = last+1-start
 
-        return labelRange(lower, sz);
+        labelRange newRange(lower, total);
+        newRange.clampSize();
+
+        return newRange;
     }
 
 
-    // * * * * * * * * * * * * * * * Member Operators  * * * * * * * * * * * * * //
-
-    labelRange& labelRange::operator+=(const labelRange& rhs)
+    labelRange labelRange::subset(const labelRange& range) const
     {
-        if (!size_)
-        {
-            // trivial case
-            operator=(rhs);
-        }
-        else if (rhs.size_)
-        {
-            const label lower = min(this->first(), rhs.first());
-            const label upper = max(this->last(), rhs.last());
+        const label lower = ::Foam::max(this->first(), range.first());
+        const label upper = ::Foam::min(this->last(), range.last());
+        const label total = upper + 1 - lower;
+        // last = start+size-1
+        // size = last+1-start
 
-            start_ = lower;
-            size_ = upper - lower + 1;
+        if (total > 0)
+        {
+            return labelRange(lower, total);
         }
 
-        return *this;
+        return labelRange();
     }
 
 
-    // * * * * * * * * * * * * * * * Friend Operators  * * * * * * * * * * * * * //
-
-    Istream& operator>>(Istream& is, labelRange& range)
+    labelRange labelRange::subset
+    (
+        const label start,
+        const label size
+    ) const
     {
-        is.readBegin("labelRange");
-        is >> range.start_ >> range.size_;
-        is.readEnd("labelRange");
+        const label lower = ::Foam::max(this->start(), start);
+        const label upper = ::Foam::min(this->last(), start + ::Foam::max(0, size - 1));
+        const label total = upper + 1 - lower;
+        // last = start+size-1
+        // size = last+1-start
 
-        is.check("operator>>(Istream&, labelRange&)");
-
-        // disallow invalid sizes
-        if (range.size_ <= 0)
+        if (total > 0)
         {
-            range.clear();
+            return labelRange(lower, total);
         }
 
-        return is;
+        return labelRange();
     }
 
 
-    Ostream& operator<<(Ostream& os, const labelRange& range)
+    labelRange labelRange::subset0(const label size) const
     {
-        // write ASCII only for now
-        os << token::BEGIN_LIST
-            << range.start_ << token::SPACE << range.size_
-            << token::END_LIST;
+        const label lower = ::Foam::max(this->start(), 0);
+        const label upper = ::Foam::min(this->last(), ::Foam::max(0, size - 1));
+        const label total = upper + 1 - lower;
+        // last = start+size-1
+        // size = last+1-start
 
-        //    os  << token::BEGIN_BLOCK
-        //        << range.start_ << "-" << range.last()
-        //        << token::END_BLOCK;
+        if (total > 0)
+        {
+            return labelRange(lower, total);
+        }
 
-        os.check("operator<<(Ostream&, const labelRange&)");
-        return os;
+        return labelRange();
     }
 
 }

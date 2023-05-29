@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -32,11 +34,11 @@ Description
 #ifndef basicSprayCloud_H
 #define basicSprayCloud_H
 
-#include "Cloud.T.H"
-#include "KinematicCloud.T.H"
-#include "ThermoCloud.T.H"
-#include "ReactingCloud.T.H"
-#include "SprayCloud.T.H"
+#include "Cloud.H"
+#include "KinematicCloud.H"
+#include "ThermoCloud.H"
+#include "ReactingCloud.H"
+#include "SprayCloud.H"
 #include "basicSprayParcel.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //

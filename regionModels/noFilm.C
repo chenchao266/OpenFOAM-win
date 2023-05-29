@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -41,23 +43,6 @@ namespace surfaceFilmModels
 defineTypeNameAndDebug(noFilm, 0);
 addToRunTimeSelectionTable(surfaceFilmModel, noFilm, mesh);
 
-
-// * * * * * * * * * * * * Protected Member Functions  * * * * * * * * * * * //
-
-bool noFilm::read()
-{
-    if (surfaceFilmModel::read())
-    {
-        // no additional info to read
-        return true;
-    }
-    else
-    {
-        return false;
-    }
-}
-
-
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
 noFilm::noFilm
@@ -68,7 +53,8 @@ noFilm::noFilm
     const word& regionType
 )
 :
-    surfaceFilmModel(modelType, mesh, g, regionType)
+    surfaceFilmModel(),
+    mesh_(mesh)
 {}
 
 
@@ -80,241 +66,71 @@ noFilm::~noFilm()
 
 // * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * * //
 
-void noFilm::addSources
-(
-    const label,
-    const label,
-    const scalar,
-    const vector&,
-    const scalar,
-    const scalar
-)
-{}
-
-
-const volScalarField& noFilm::delta() const
+Foam::scalar noFilm::CourantNumber() const
 {
-    FatalErrorInFunction
-        << "delta field not available for " << type() << abort(FatalError);
-
-    return volScalarField::null();
-}
-
-
-const volScalarField& noFilm::alpha() const
-{
-    FatalErrorInFunction
-        << "alpha field not available for " << type() << abort(FatalError);
-
-    return volScalarField::null();
-}
-
-
-const volVectorField& noFilm::U() const
-{
-    FatalErrorInFunction
-        << "U field not available for " << type() << abort(FatalError);
-
-    return volVectorField::null();
-}
-
-
-const volVectorField& noFilm::Us() const
-{
-    FatalErrorInFunction
-        << "Us field not available for " << type() << abort(FatalError);
-
-    return volVectorField::null();
-}
-
-
-const volVectorField& noFilm::Uw() const
-{
-    FatalErrorInFunction
-        << "Uw field not available for " << type() << abort(FatalError);
-
-    return volVectorField::null();
-}
-
-
-const volScalarField& noFilm::rho() const
-{
-    FatalErrorInFunction
-        << "rho field not available for " << type() << abort(FatalError);
-
-    return volScalarField::null();
-}
-
-
-const volScalarField& noFilm::T() const
-{
-    FatalErrorInFunction
-        << "T field not available for " << type() << abort(FatalError);
-
-    return volScalarField::null();
-}
-
-
-const volScalarField& noFilm::Ts() const
-{
-    FatalErrorInFunction
-        << "Ts field not available for " << type() << abort(FatalError);
-
-    return volScalarField::null();
-}
-
-
-const volScalarField& noFilm::Tw() const
-{
-    FatalErrorInFunction
-        << "Tw field not available for " << type() << abort(FatalError);
-
-    return volScalarField::null();
-}
-
-
-const volScalarField& noFilm::hs() const
-{
-    FatalErrorInFunction
-        << "hs field not available for " << type() << abort(FatalError);
-
-    return volScalarField::null();
-}
-
-
-const volScalarField& noFilm::Cp() const
-{
-    FatalErrorInFunction
-        << "Cp field not available for " << type() << abort(FatalError);
-
-    return volScalarField::null();
-}
-
-
-const volScalarField& noFilm::kappa() const
-{
-    FatalErrorInFunction
-        << "kappa field not available for " << type() << abort(FatalError);
-
-    return volScalarField::null();
-}
-
-
-const volScalarField& noFilm::sigma() const
-{
-    FatalErrorInFunction
-        << "sigma field not available for " << type() << abort(FatalError);
-
-    return volScalarField::null();
-}
-
-
-tmp<volScalarField> noFilm::primaryMassTrans() const
-{
-    return tmp<volScalarField>
-    (
-        new volScalarField
-        (
-            IOobject
-            (
-                "noFilm::primaryMassTrans",
-                time().timeName(),
-                primaryMesh(),
-                IOobject::NO_READ,
-                IOobject::NO_WRITE,
-                false
-            ),
-            primaryMesh(),
-            dimensionedScalar("zero", dimMass/dimVolume/dimTime, 0.0)
-        )
-    );
-}
-
-
-const volScalarField& noFilm::cloudMassTrans() const
-{
-    FatalErrorInFunction
-        << "cloudMassTrans field not available for " << type()
-        << abort(FatalError);
-
-    return volScalarField::null();
-}
-
-
-const volScalarField& noFilm::cloudDiameterTrans() const
-{
-    FatalErrorInFunction
-        << "cloudDiameterTrans field not available for " << type()
-        << abort(FatalError);
-
-    return volScalarField::null();
+    return 0;
 }
 
 
 tmp<volScalarField::Internal> noFilm::Srho() const
 {
-    return tmp<volScalarField::Internal>
+    return tmp<volScalarField::Internal>::New
     (
-        new volScalarField::Internal
+        IOobject
         (
-            IOobject
-            (
-                "noFilm::Srho",
-                time().timeName(),
-                primaryMesh(),
-                IOobject::NO_READ,
-                IOobject::NO_WRITE,
-                false
-            ),
-            primaryMesh(),
-            dimensionedScalar("zero", dimMass/dimVolume/dimTime, 0.0)
-        )
+            "noFilm::Srho",
+            mesh_.time().timeName(),
+            mesh_,
+            IOobject::NO_READ,
+            IOobject::NO_WRITE,
+            false
+        ),
+        mesh_,
+        dimensionedScalar(dimMass/dimVolume/dimTime, Zero)
     );
 }
 
 
 tmp<volScalarField::Internal> noFilm::Srho(const label i) const
 {
-    return tmp<volScalarField::Internal>
+    return tmp<volScalarField::Internal>::New
     (
-        new volScalarField::Internal
+        IOobject
         (
-            IOobject
-            (
-                "noFilm::Srho(" + Foam::name(i) + ")",
-                time().timeName(),
-                primaryMesh(),
-                IOobject::NO_READ,
-                IOobject::NO_WRITE,
-                false
-            ),
-            primaryMesh(),
-            dimensionedScalar("zero", dimMass/dimVolume/dimTime, 0.0)
-        )
+            "noFilm::Srho(" + Foam::name(i) + ")",
+            mesh_.time().timeName(),
+            mesh_,
+            IOobject::NO_READ,
+            IOobject::NO_WRITE,
+            false
+        ),
+        mesh_,
+        dimensionedScalar(dimMass/dimVolume/dimTime, Zero)
     );
 }
 
 
 tmp<volScalarField::Internal> noFilm::Sh() const
 {
-    return tmp<volScalarField::Internal>
+    return tmp<volScalarField::Internal>::New
     (
-        new volScalarField::Internal
+        IOobject
         (
-            IOobject
-            (
-                "noFilm::Sh",
-                time().timeName(),
-                primaryMesh(),
-                IOobject::NO_READ,
-                IOobject::NO_WRITE,
-                false
-            ),
-            primaryMesh(),
-            dimensionedScalar("zero", dimEnergy/dimVolume/dimTime, 0.0)
-        )
+            "noFilm::Sh",
+            mesh_.time().timeName(),
+            mesh_,
+            IOobject::NO_READ,
+            IOobject::NO_WRITE,
+            false
+        ),
+        mesh_,
+        dimensionedScalar(dimEnergy/dimVolume/dimTime, Zero)
     );
 }
+
+
+void noFilm::evolve()
+{}
 
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //

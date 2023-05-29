@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2019-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -68,9 +71,11 @@ class LamBremhorstKE
 {
     // Private Member Functions
 
-        // Disallow default bitwise copy construct and assignment
-        LamBremhorstKE(const LamBremhorstKE&);
-        void operator=(const LamBremhorstKE&);
+        //- No copy construct
+        LamBremhorstKE(const LamBremhorstKE&) = delete;
+
+        //- No copy assignment
+        void operator=(const LamBremhorstKE&) = delete;
 
         tmp<volScalarField> Rt() const;
         tmp<volScalarField> fMu(const volScalarField& Rt) const;
@@ -125,13 +130,12 @@ public:
 
 
     //- Destructor
-    virtual ~LamBremhorstKE()
-    {}
+    virtual ~LamBremhorstKE() = default;
 
 
     // Member Functions
 
-        //- Read RASProperties dictionary
+        //- Re-read model coefficients if they have changed
         virtual bool read();
 
         //- Return the effective diffusivity for k

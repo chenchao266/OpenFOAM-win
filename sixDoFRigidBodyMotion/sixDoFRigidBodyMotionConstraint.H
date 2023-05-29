@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2014 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2014 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -43,10 +45,10 @@ SourceFiles
 #ifndef sixDoFRigidBodyMotionConstraint_H
 #define sixDoFRigidBodyMotionConstraint_H
 
-#include "Time.T.H"
-#include "dictionary.H"
+#include "Time1.H"
+#include "dictionary2.H"
 #include "autoPtr.H"
-#include "point.T.H"
+#include "point.H"
 #include "pointConstraint.H"
 #include "runTimeSelectionTables.H"
 

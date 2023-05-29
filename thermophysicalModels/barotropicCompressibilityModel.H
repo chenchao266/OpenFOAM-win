@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011 OpenFOAM Foundation
+    Copyright (C) 2019 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -74,11 +77,14 @@ protected:
 
     // Private Member Functions
 
-        //- Disallow copy construct
-        barotropicCompressibilityModel(const barotropicCompressibilityModel&);
+        //- No copy construct
+        barotropicCompressibilityModel
+        (
+            const barotropicCompressibilityModel&
+        ) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const barotropicCompressibilityModel&);
+        //- No copy assignment
+        void operator=(const barotropicCompressibilityModel&) = delete;
 
 
 public:
@@ -126,8 +132,7 @@ public:
 
 
     //- Destructor
-    virtual ~barotropicCompressibilityModel()
-    {}
+    virtual ~barotropicCompressibilityModel() = default;
 
 
     // Member Functions

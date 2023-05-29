@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2017-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -25,26 +28,71 @@ Class
     Foam::fv::cellSetOption
 
 Description
-    Cell-set options abtract base class.  Provides a base set of controls,
-    e.g.:
-    \verbatim
-        type            scalarExplicitSource    // Source type
-        active          on;                     // on/off switch
+    Intermediate abstract class for handling
+    cell-set options for the derived fvOptions.
 
-        timeStart       0.0;        // Start time
-        duration        1000.0;     // Duration
-        selectionMode   cellSet;    // cellSet, points, cellZone
-        .
-        .
-        .
+Usage
+    Minimal example by using \c constant/fvOptions:
+    \verbatim
+    <userDefinedName1>
+    {
+        // Mandatory/Optional (inherited) entries
+        ...
+
+        // Mandatory entries (unmodifiable)
+        selectionMode     all;
+
+        // Optional entries (runtime modifiable)
+        timeStart         1.0;
+
+        // Conditional mandatory entries (runtime modifiable)
+
+            // when timeStart entry is present
+            duration          1.4;
+
+            // when selectionMode=cellSet
+            cellSet           <cellSetName>;
+
+            // when selectionMode=cellZone
+            cellZone          <cellZoneName>;
+
+            // when selectionMode=points
+            points            (<point1> <point2> ... <pointN>);
+
+        // Mandatory/Optional (derived) entries
+        ...
+    }
     \endverbatim
 
+    where the entries mean:
+    \table
+      Property      | Description                        | Type  | Reqd | Dflt
+      selectionMode | Mode of cell selection - see below | word  | yes  | -
+      timeStart     | Start time of fvOption             | scalar | no  | -1
+      duration      | Duration of fvOption execution <!--
+                          --> starting from timeStart    | scalar | cndtnl | 0
+      cellSet       | Name of operand cellSet            | word  | cndtnl | -
+      cellZone      | Name of operand cellZone           | word  | cndtnl | -
+      points        | Set of points in global coordinate <!--
+                            --> system              | vectorList | cndtnl | -
+    \endtable
+
+    Options for the \c selectionMode entry:
+    \verbatim
+      all       | Use all cells in the computational domain
+      cellZone  | Use a given cellZone
+      cellSet   | Use a given cellSet
+      points    | Use cells containing a given set of points
+    \endverbatim
+
+    The inherited entries are elaborated in:
+     - \link fvOption.H \endlink
+
 Note
-    Source/sink options are to be added to the equation R.H.S.
+  - Source/sink options are to be added to the right-hand side of equations.
 
 SourceFiles
     cellSetOption.C
-    cellSetOptionIO.C
 
 \*---------------------------------------------------------------------------*/
 
@@ -54,7 +102,7 @@ SourceFiles
 #include "fvOption.H"
 #include "cellSet.H"
 #include "fvMesh.H"
-#include "Time.T.H"
+#include "Time1.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -69,40 +117,39 @@ namespace fv
 
 class cellSetOption
 :
-    public option
+    public fv::option
 {
 public:
 
-    // Public data
+    // Public Data
 
         //- Enumeration for selection mode types
         enum selectionModeType
         {
-            smPoints,
+            smAll,
             smCellSet,
             smCellZone,
-            smAll
+            smPoints
         };
 
-        //- Word list of selection mode type names
-        static const NamedEnum<selectionModeType, 4>
-            selectionModeTypeNames_;
+        //- List of selection mode type names
+        static const Enum<selectionModeType> selectionModeTypeNames_;
 
 
 protected:
 
-    // Protected data
+    // Protected Data
 
-        //- Time start
+        //- Start time of fvOption
         scalar timeStart_;
 
-        //- Duration
+        //- Duration of fvOption execution starting from timeStart
         scalar duration_;
 
         //- Cell selection mode
         selectionModeType selectionMode_;
 
-        //- Name of cell set for "cellSet" and "cellZone" selectionMode
+        //- Name of set/zone for "cellSet" and "cellZone" selectionMode
         word cellSetName_;
 
         //- List of points for "points" selectionMode
@@ -115,13 +162,16 @@ protected:
         scalar V_;
 
 
-    // Protected functions
+    // Protected Functions
 
-        //- Set the cellSet or points selection
+        //- Set cell selection name or points selection from dictionary input
         void setSelection(const dictionary& dict);
 
-        //- Set the cell set based on the user input selection mode
-        void setCellSet();
+        //- Set the cell selection based on user input selection mode
+        void setCellSelection();
+
+        //- Recalculate the volume
+        void setVol();
 
 
 public:
@@ -143,7 +193,7 @@ public:
 
 
     //- Destructor
-    virtual ~cellSetOption();
+    virtual ~cellSetOption() = default;
 
 
     // Member Functions
@@ -151,35 +201,38 @@ public:
         // Access
 
             //- Return const access to the time start
-            inline scalar timeStart() const;
+            inline scalar timeStart() const noexcept;
 
             //- Return const access to the duration
-            inline scalar duration() const;
+            inline scalar duration() const noexcept;
 
-            //- Return true if within time limits
-            inline bool inTimeLimits(const scalar time) const;
+            //- True if within time limits
+            inline bool inTimeLimits(const scalar timeValue) const;
 
-            //- Return const access to the cell selection mode
-            inline const selectionModeType& selectionMode() const;
+            //- Return the cell selection mode
+            inline selectionModeType selectionMode() const noexcept;
 
-            //- Return const access to the name of cell set for "cellSet"
-            //  selectionMode
-            inline const word& cellSetName() const;
+            //- True if sub-selection should be used
+            inline bool useSubMesh() const noexcept;
+
+            //- Return const access to the name of cell set/zone for
+            //- "cellSet" / "cellZone" selection modes
+            inline const word& cellSetName() const noexcept;
 
             //- Return const access to the total cell volume
-            inline scalar V() const;
+            inline scalar V() const noexcept;
 
-            //- Return const access to the cell set
-            inline const labelList& cells() const;
+            //- Return const access to the cell selection
+            inline const labelList& cells() const noexcept;
 
 
         // Edit
 
-            //- Return access to the time start
-            inline scalar& timeStart();
+            //- Adjust the time start, return the old value
+            inline scalar timeStart(scalar val) noexcept;
 
-            //- Return access to the duration
-            inline scalar& duration();
+            //- Adjust the duration, return the old value
+            inline scalar duration(scalar val) noexcept;
 
 
         // Checks

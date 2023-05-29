@@ -1,9 +1,12 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2015 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2015 OpenFOAM Foundation
+    Copyright (C) 2019 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -26,13 +29,83 @@ Description
 
 \*---------------------------------------------------------------------------*/
 
-#include "symmTensorFieldField.H"
+//#include "symmTensorFieldField.H"
 
-#define TEMPLATE template<template<class > class Field>
-#include "FieldFieldFunctionsM.T.C"
+#define TEMPLATE template<template<class> class Field>
+#include "FieldFieldFunctionsM.C"
+
+// * * * * * * * * * * * * * * * Global Functions  * * * * * * * * * * * * * //
+
+
+ namespace Foam{
+template<template<class> class Field, class Cmpt>
+void zip
+(
+    FieldField<Field, SymmTensor<Cmpt>>& result,
+    const FieldField<Field, Cmpt>& xx,
+    const FieldField<Field, Cmpt>& xy,
+    const FieldField<Field, Cmpt>& xz,
+    const FieldField<Field, Cmpt>& yy,
+    const FieldField<Field, Cmpt>& yz,
+    const FieldField<Field, Cmpt>& zz
+)
+{
+    forAll(result, i)
+    {
+        zip
+        (
+            result[i],
+            xx[i], xy[i], xz[i],
+            /*yx*/ yy[i], yz[i],
+            /*zx   zy */  zz[i]
+        );
+    }
+}
+
+
+template<template<class> class Field, class Cmpt>
+void unzip
+(
+    const FieldField<Field, SymmTensor<Cmpt>>& input,
+    FieldField<Field, Cmpt>& xx,
+    FieldField<Field, Cmpt>& xy,
+    FieldField<Field, Cmpt>& xz,
+    FieldField<Field, Cmpt>& yy,
+    FieldField<Field, Cmpt>& yz,
+    FieldField<Field, Cmpt>& zz
+)
+{
+    forAll(input, i)
+    {
+        unzip
+        (
+            input[i],
+            xx[i], xy[i], xz[i],
+            /*yx*/ yy[i], yz[i],
+            /*zx   zy */  zz[i]
+        );
+    }
+}
+
+
+template<template<class> class Field, class Cmpt>
+void unzipDiag
+(
+    const FieldField<Field, SymmTensor<Cmpt>>& input,
+    FieldField<Field, Vector<Cmpt>>& result
+)
+{
+    forAll(input, i)
+    {
+        unzipDiag(input[i], result[i]);
+    }
+}
+
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
+
+ } // End namespace Foam
 namespace Foam
 {
 

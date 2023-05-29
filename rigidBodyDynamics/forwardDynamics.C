@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -32,7 +34,8 @@ License
 void Foam::RBD::rigidBodyModel::applyRestraints
 (
     scalarField& tau,
-    Field<spatialVector>& fx
+    Field<spatialVector>& fx,
+    const rigidBodyModelState& state
 ) const
 {
     if (restraints_.empty())
@@ -42,10 +45,10 @@ void Foam::RBD::rigidBodyModel::applyRestraints
 
     forAll(restraints_, ri)
     {
-        Foam_DebugInfo << "Restraint " << restraints_[ri].name();
+        DebugInfo << "Restraint " << restraints_[ri].name();
 
         // Accumulate the restraint forces
-        restraints_[ri].restrain(tau, fx);
+        restraints_[ri].restrain(tau, fx, state);
     }
 }
 
@@ -197,7 +200,7 @@ void Foam::RBD::rigidBodyModel::forwardDynamics
         }
     }
 
-    Foam_DebugInfo
+    DebugInfo
         << "qDdot = " << qDdot << nl
         << "a = " << a_ << endl;
 }
@@ -257,7 +260,7 @@ void Foam::RBD::rigidBodyModel::forwardDynamicsCorrection
         }
     }
 
-    Foam_DebugInfo<< "a = " << a_ << endl;
+    DebugInfo<< "a = " << a_ << endl;
 }
 
 

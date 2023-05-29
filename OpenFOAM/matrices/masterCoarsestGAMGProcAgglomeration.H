@@ -1,9 +1,11 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2013 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2013 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -36,7 +38,7 @@ SourceFiles
 #define masterCoarsestGAMGProcAgglomeration_H
 
 #include "GAMGProcAgglomeration.H"
-#include "DynamicList.T.H"
+#include "DynamicList.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -49,7 +51,9 @@ class GAMGAgglomeration;
               Class masterCoarsestGAMGProcAgglomeration Declaration
 \*---------------------------------------------------------------------------*/
 
-class masterCoarsestGAMGProcAgglomeration :    public GAMGProcAgglomeration
+class masterCoarsestGAMGProcAgglomeration
+:
+    public GAMGProcAgglomeration
 {
     // Private data
 
@@ -57,14 +61,14 @@ class masterCoarsestGAMGProcAgglomeration :    public GAMGProcAgglomeration
 
     // Private Member Functions
 
-        //- Disallow default bitwise copy construct
+        //- No copy construct
         masterCoarsestGAMGProcAgglomeration
         (
             const masterCoarsestGAMGProcAgglomeration&
-        );
+        ) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const masterCoarsestGAMGProcAgglomeration&);
+        //- No copy assignment
+        void operator=(const masterCoarsestGAMGProcAgglomeration&) = delete;
 
 
 public:

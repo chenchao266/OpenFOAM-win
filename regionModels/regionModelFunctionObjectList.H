@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2012-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2012-2017 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -22,7 +24,7 @@ License
     along with OpenFOAM.  If not, see <http://www.gnu.org/licenses/>.
 
 Class
-    Foam::regionModelFunctionObjectList
+    Foam::regionModels::regionModelFunctionObjectList
 
 Description
     List of cloud function objects
@@ -36,7 +38,7 @@ SourceFiles
 #ifndef regionModelFunctionObjectList_H
 #define regionModelFunctionObjectList_H
 
-#include "PtrList.T.H"
+#include "PtrList.H"
 #include "regionModelFunctionObject.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
@@ -100,7 +102,7 @@ public:
             //- Return const access to the cloud region
             inline const regionModel& region() const;
 
-            //- Return refernce to the cloud region
+            //- Return reference to the cloud region
             inline regionModel& region();
 
             //- Return the forces dictionary

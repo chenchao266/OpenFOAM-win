@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2018-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -26,20 +29,17 @@ License
 #include "faceToFace.H"
 #include "polyMesh.H"
 #include "faceSet.H"
-
 #include "addToRunTimeSelectionTable.H"
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
 
 namespace Foam
 {
-
-defineTypeNameAndDebug(faceToFace, 0);
-
-addToRunTimeSelectionTable(topoSetSource, faceToFace, word);
-
-addToRunTimeSelectionTable(topoSetSource, faceToFace, istream);
-
+    defineTypeNameAndDebug(faceToFace, 0);
+    addToRunTimeSelectionTable(topoSetSource, faceToFace, word);
+    addToRunTimeSelectionTable(topoSetSource, faceToFace, istream);
+    addToRunTimeSelectionTable(topoSetFaceSource, faceToFace, word);
+    addToRunTimeSelectionTable(topoSetFaceSource, faceToFace, istream);
 }
 
 
@@ -53,45 +53,43 @@ Foam::topoSetSource::addToUsageTable Foam::faceToFace::usage_
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
-// Construct from components
 Foam::faceToFace::faceToFace
 (
     const polyMesh& mesh,
     const word& setName
 )
 :
-    topoSetSource(mesh),
-    setName_(setName)
+    topoSetFaceSource(mesh),
+    names_(one{}, setName)
 {}
 
 
-// Construct from dictionary
 Foam::faceToFace::faceToFace
 (
     const polyMesh& mesh,
     const dictionary& dict
 )
 :
-    topoSetSource(mesh),
-    setName_(dict.lookup("set"))
-{}
+    topoSetFaceSource(mesh),
+    names_()
+{
+    // Look for 'sets' or 'set'
+    if (!dict.readIfPresent("sets", names_))
+    {
+        names_.resize(1);
+        dict.readEntry("set", names_.first());
+    }
+}
 
 
-// Construct from Istream
 Foam::faceToFace::faceToFace
 (
     const polyMesh& mesh,
     Istream& is
 )
 :
-    topoSetSource(mesh),
-    setName_(checkIs(is))
-{}
-
-
-// * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
-
-Foam::faceToFace::~faceToFace()
+    topoSetFaceSource(mesh),
+    names_(one{}, word(checkIs(is)))
 {}
 
 
@@ -103,25 +101,35 @@ void Foam::faceToFace::applyToSet
     topoSet& set
 ) const
 {
-    if ((action == topoSetSource::NEW) || (action == topoSetSource::ADD))
+    if (action == topoSetSource::ADD || action == topoSetSource::NEW)
     {
-        Info<< "    Adding all faces from faceSet " << setName_ << " ..."
-            << endl;
+        if (verbose_)
+        {
+            Info<< "    Adding all elements of faceSet "
+                << flatOutput(names_) << nl;
+        }
 
-        // Load the set
-        faceSet loadedSet(mesh_, setName_);
+        for (const word& setName : names_)
+        {
+            faceSet loadedSet(mesh_, setName);
 
-        set.addSet(loadedSet);
+            set.addSet(loadedSet);
+        }
     }
-    else if (action == topoSetSource::DELETE)
+    else if (action == topoSetSource::SUBTRACT)
     {
-        Info<< "    Removing all faces from faceSet " << setName_ << " ..."
-            << endl;
+        if (verbose_)
+        {
+            Info<< "    Removing all elements of faceSet "
+                << flatOutput(names_) << nl;
+        }
 
-        // Load the set
-        faceSet loadedSet(mesh_, setName_);
+        for (const word& setName : names_)
+        {
+            faceSet loadedSet(mesh_, setName);
 
-        set.deleteSet(loadedSet);
+            set.subtractSet(loadedSet);
+        }
     }
 }
 

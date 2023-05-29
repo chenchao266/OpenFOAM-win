@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011 OpenFOAM Foundation
+    Copyright (C) 2017-2019 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -22,22 +25,16 @@ License
     along with OpenFOAM.  If not, see <http://www.gnu.org/licenses/>.
 
 Typedef
-    labelList
+    Foam::labelListList
 
 Description
-    A List of labels
+    A List of labelList.
 
 Typedef
-    labelListList
+    Foam::labelListListList
 
 Description
-    A List of labelList
-
-Typedef
-    labelListListList
-
-Description
-    A List of labelListList
+    A List of labelListList.
 
 \*---------------------------------------------------------------------------*/
 
@@ -45,17 +42,24 @@ Description
 #define labelList_H
 
 #include "label.H"
-#include "List.T.H"
+#include "List.H"
+#include "SubList.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 namespace Foam
 {
-    // Note: frequently used UList version is located in container itself
+    // labelUList   = defined in UList.H
+    // labelList    = defined in List.H
+    // labelSubList = defined in SubList.H
 
-    typedef List<label> labelList;
     typedef List<labelList> labelListList;
     typedef List<labelListList> labelListListList;
+
+
+    //- A zero-sized list of labels
+    //  \deprecated(2019-02) use labelList::null() instead
+    extern const labelList emptyLabelList;
 }
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //

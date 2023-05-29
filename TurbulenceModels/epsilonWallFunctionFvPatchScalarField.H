@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016, 2019 OpenFOAM Foundation
+    Copyright (C) 2019-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -28,42 +31,138 @@ Group
     grpWallFunctions
 
 Description
-    This boundary condition provides a turbulence dissipation wall constraint
-    for low- and high-Reynolds number turbulence models.
+    This boundary condition provides a wall constraint on the turbulent kinetic
+    energy dissipation rate, i.e. \c epsilon, and the turbulent kinetic
+    energy production contribution, i.e. \c G, for low- and high-Reynolds
+    number turbulence models.
 
-    The condition can be applied to wall boundaries for which it
-    - calculates \c epsilon and \c G
-    - specifies the near-wall epsilon value
+    Reference:
+    \verbatim
+        Binomial blending of the viscous and inertial sublayers (tag:ME):
+            Menter, F., & Esch, T. (2001).
+            Elements of industrial heat transfer prediction.
+            In Proceedings of the 16th Brazilian Congress of Mechanical
+            Engineering (COBEM), November 2001. vol. 20, p. 117-127.
 
-    where
-
-    \vartable
-        epsilon | turblence dissipation field
-        G       | turblence generation field
-    \endvartable
-
-    The model switches between laminar and turbulent functions based on the
-    laminar-to-turbulent y+ value derived from kappa and E.
+        Exponential/Max blending of the viscous and inertial sublayers (tag:PH):
+            Popovac, M., & Hanjalić, K. (2007).
+            Compound wall treatment for RANS computation of complex
+            turbulent flows and heat transfer.
+            Flow, turbulence and combustion, 78(2), 177-202.
+            DOI:10.1007/s10494-006-9067-x
+    \endverbatim
 
 Usage
-    \table
-        Property     | Description             | Required    | Default value
-        Cmu          | model coefficient       | no          | 0.09
-        kappa        | Von Karman constant     | no          | 0.41
-        E            | model coefficient       | no          | 9.8
-    \endtable
-
     Example of the boundary condition specification:
     \verbatim
     <patchName>
     {
-        type            epsilonWallFunction;
+        // Mandatory entries (unmodifiable)
+        type             epsilonWallFunction;
+
+        // Optional entries (unmodifiable)
+        lowReCorrection  false;
+        blending         stepwise;
+        n                2.0;
+
+        // Optional (inherited) entries
+        ...
     }
     \endverbatim
 
+    where the entries mean:
+    \table
+      Property  | Description                       | Type | Req'd  | Dflt
+      type      | Type name: epsilonWallFunction    | word | yes    | -
+      lowReCorrection | Flag: apply low-Re correction | bool |  no  | false
+      blending  | Viscous/inertial sublayer blending method <!--
+                                                --> | word |  no    | stepwise
+      n         | Binomial blending exponent        | scalar | no   | 2.0
+    \endtable
+
+    The inherited entries are elaborated in:
+      - \link fixedValueFvPatchField.H \endlink
+      - \link nutWallFunctionFvPatchScalarField.H \endlink
+
+    Options for the \c blending entry:
+    \verbatim
+      stepwise    | Stepwise switch (discontinuous)
+      max         | Maximum value switch (discontinuous)
+      binomial    | Binomial blending (smooth)
+      exponential | Exponential blending (smooth)
+    \endverbatim
+
+    wherein \c epsilon predictions for the viscous and inertial sublayers are
+    blended according to the following expressions:
+
+    - \c stepwise (default):
+
+    \f[
+        \epsilon = \epsilon_{vis} \qquad if \quad y^+ < y^+_{lam}
+    \f]
+    \f[
+        \epsilon = \epsilon_{log} \qquad if \quad y^+ >= y^+_{lam}
+    \f]
+
+    where
+    \vartable
+      \epsilon       | \f$\epsilon\f$ at \f$y^+\f$
+      \epsilon_{vis} | \f$\epsilon\f$ computed by viscous subl. assumptions
+      \epsilon_{log} | \f$\epsilon\f$ computed by inertial subl. assumptions
+      y^+    | estimated wall-normal height of the cell centre in wall units
+      y^+_{lam} | estimated intersection of the viscous and inertial sublayers
+    \endvartable
+
+
+    - \c max (PH:Eq. 27):
+
+    \f[
+        \epsilon = max(\epsilon_{vis}, \epsilon_{log})
+    \f]
+
+
+    - \c binomial (ME:Eqs. 15-16):
+
+    \f[
+        \epsilon = ((\epsilon_{vis})^n + (\epsilon_{log})^n)^{1/n}
+    \f]
+    where
+    \vartable
+      n               | Binomial blending exponent
+    \endvartable
+
+
+    - \c exponential (PH:Eq. 32):
+
+    \f[
+        \epsilon = \epsilon_{vis} \exp[-\Gamma] +\epsilon_{log} \exp[-1/\Gamma]
+    \f]
+    where (PH:p. 193)
+    \vartable
+      \Gamma_\epsilon | \f$\Gamma = 0.001 (y^+)^4 / (1.0 + y^+)\f$
+      \Gamma_G        | \f$\Gamma = 0.01  (y^+)^4 / (1.0 + 5.0 y^+)\f$
+      \Gamma_\epsilon | Blending expression for \f$\epsilon\f$
+      \Gamma_G        | Blending expression for \f$G\f$
+    \endvartable
+
+
+    \c G predictions for the viscous and inertial sublayers are blended
+    in a stepwise manner, and \c G below \f$y^+_{lam}\f$ (i.e. in the viscous
+    sublayer) is presumed to be zero.
+
+Note
+  - The coefficients \c Cmu, \c kappa, and \c E are obtained from
+    the specified \c nutWallFunction in order to ensure that each patch
+    possesses the same set of values for these coefficients.
+  - \c lowReCorrection operates with only \c stepwise blending treatment to
+    ensure the backward compatibility.
+  - If \c lowReCorrection is \c on, \c stepwise blending treatment is fully
+    active.
+  - If \c lowReCorrection is \c off, only the inertial sublayer prediction
+    is used in the wall function, hence high-Re mode operation.
+
 See also
-    Foam::fixedInternalValueFvPatchField
-    Foam::omegaWallFunctionFvPatchScalarField
+    - Foam::omegaWallFunctionFvPatchScalarField
 
 SourceFiles
     epsilonWallFunctionFvPatchScalarField.C
@@ -90,30 +189,40 @@ class epsilonWallFunctionFvPatchScalarField
 :
     public fixedValueFvPatchField<scalar>
 {
+    // Private Enumerations
+
+        //- Options for the blending treatment of viscous and inertial sublayers
+        enum blendingType
+        {
+            STEPWISE,       //!< "Stepwise switch (discontinuous)"
+            MAX,            //!< "Maximum value switch (discontinuous)"
+            BINOMIAL,       //!< "Binomial blending (smooth)"
+            EXPONENTIAL     //!< "Exponential blending (smooth)"
+        };
+
+        //- Names for blendingType
+        static const Enum<blendingType> blendingTypeNames;
+
+
+    // Private Data
+
+        //- Blending treatment (default = blendingType::STEPWISE)
+        const enum blendingType blending_;
+
+        //- Binomial blending exponent being used when
+        //- blendingType is blendingType::BINOMIAL (default = 2)
+        const scalar n_;
+
+
 protected:
 
-    // Protected data
+    // Protected Data
 
         //- Tolerance used in weighted calculations
         static scalar tolerance_;
 
-        //- Cmu coefficient
-        scalar Cmu_;
-
-        //- Von Karman constant
-        scalar kappa_;
-
-        //- E coefficient
-        scalar E_;
-
-        //- y+ at the edge of the laminar sublayer
-        scalar yPlusLam_;
-
-        //- Local copy of turbulence G field
-        scalarField G_;
-
-        //- Local copy of turbulence epsilon field
-        scalarField epsilon_;
+        //- Apply low-Re correction term (default = no)
+        const bool lowReCorrection_;
 
         //- Initialised flag
         bool initialised_;
@@ -121,24 +230,24 @@ protected:
         //- Master patch ID
         label master_;
 
+        //- Local copy of turbulence G field
+        scalarField G_;
+
+        //- Local copy of turbulence epsilon field
+        scalarField epsilon_;
+
         //- List of averaging corner weights
         List<List<scalar>> cornerWeights_;
 
 
     // Protected Member Functions
 
-        //- Check the type of the patch
-        virtual void checkType();
-
-        //- Write local wall function variables
-        virtual void writeLocalEntries(Ostream&) const;
-
         //- Set the master patch - master is responsible for updating all
-        //  wall function patches
+        //- wall function patches
         virtual void setMaster();
 
         //- Create the averaging weights for cells which are bounded by
-        //  multiple wall function faces
+        //- multiple wall function faces
         virtual void createAveragingWeights();
 
         //- Helper function to return non-const access to an epsilon patch
@@ -196,8 +305,8 @@ public:
         );
 
         //- Construct by mapping given
-        //  epsilonWallFunctionFvPatchScalarField
-        //  onto a new patch
+        //- epsilonWallFunctionFvPatchScalarField
+        //- onto a new patch
         epsilonWallFunctionFvPatchScalarField
         (
             const epsilonWallFunctionFvPatchScalarField&,
@@ -240,12 +349,12 @@ public:
             );
         }
 
+
     //- Destructor
-    virtual ~epsilonWallFunctionFvPatchScalarField()
-    {}
+    virtual ~epsilonWallFunctionFvPatchScalarField() = default;
 
 
-    // Member functions
+    // Member Functions
 
         // Access
 

@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -145,7 +148,7 @@ namespace Foam
 typedef HashTable<labelList, edge, Hash<edge>> edgeLookup;
 
 
-// Forward declaration of classes
+// Forward Declarations
 class face;
 class primitiveMesh;
 class polyPatch;
@@ -157,16 +160,16 @@ class polyMesh;
 
 class faceCoupleInfo
 {
-    // Private data
+    // Private Data
 
         //- Angle matching tolerance.
         static const scalar angleTol_;
 
         //- Master patch
-        autoPtr<indirectPrimitivePatch> masterPatchPtr_;
+        unique_ptr<indirectPrimitivePatch> masterPatchPtr_;
 
         //- Slave patch
-        autoPtr<indirectPrimitivePatch> slavePatchPtr_;
+        unique_ptr<indirectPrimitivePatch> slavePatchPtr_;
 
 
         //- Description of cut.
@@ -183,7 +186,8 @@ class faceCoupleInfo
         //  them)
         //  Orientation of cutFaces should be same as masterFaces!
         pointField cutPoints_;
-        autoPtr<primitiveFacePatch> cutFacesPtr_;
+
+        unique_ptr<primitiveFacePatch> cutFacesPtr_;
 
         //- Additional point coupling information. Is between points on
         //  boundary of both meshes.
@@ -211,6 +215,16 @@ class faceCoupleInfo
             //- Calculate face centres from (subset of) faces.
             template<template<class> class FaceList>
             static pointField calcFaceCentres
+            (
+                const FaceList<face>&,
+                const pointField&,
+                const label start,
+                const label size
+            );
+
+            //- Calculate face point averages from (subset of) faces.
+            template<template<class> class FaceList>
+            static pointField calcFacePointAverages
             (
                 const FaceList<face>&,
                 const pointField&,
@@ -420,7 +434,7 @@ public:
 
 
     //- Destructor
-    ~faceCoupleInfo();
+    ~faceCoupleInfo() = default;
 
 
 
@@ -441,19 +455,19 @@ public:
             //- Addressing engine for coupled faces on mesh0
             const indirectPrimitivePatch& masterPatch() const
             {
-                return masterPatchPtr_();
+                return *masterPatchPtr_;
             }
 
             //- Addressing engine for coupled faces on mesh1
             const indirectPrimitivePatch& slavePatch() const
             {
-                return slavePatchPtr_();
+                return *slavePatchPtr_;
             }
 
             //- Addressing engine for combined set of faces.
             const primitiveFacePatch& cutFaces() const
             {
-                return cutFacesPtr_();
+                return *cutFacesPtr_;
             }
 
             //- Points for combined set of faces.

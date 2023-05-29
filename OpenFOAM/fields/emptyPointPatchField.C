@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2015 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2015 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -23,76 +25,77 @@ License
 
 \*---------------------------------------------------------------------------*/
 
-#include "emptyPointPatchField.H"
+//#include "emptyPointPatchField.H"
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
-namespace Foam
+
+
+ namespace Foam{
+template<class Type>
+emptyPointPatchField<Type>::emptyPointPatchField
+(
+    const pointPatch& p,
+    const DimensionedField<Type, pointMesh>& iF
+)
+:
+    pointPatchField<Type>(p, iF)
+{}
+
+
+template<class Type>
+emptyPointPatchField<Type>::emptyPointPatchField
+(
+    const pointPatch& p,
+    const DimensionedField<Type, pointMesh>& iF,
+    const dictionary& dict
+)
+:
+    pointPatchField<Type>(p, iF, dict)
 {
-    template<class Type>
-    emptyPointPatchField<Type>::emptyPointPatchField
-    (
-        const pointPatch& p,
-        const DimensionedField<Type, pointMesh>& iF
-    )
-        :
-        pointPatchField<Type>(p, iF)
-    {}
-
-
-    template<class Type>
-    emptyPointPatchField<Type>::emptyPointPatchField
-    (
-        const pointPatch& p,
-        const DimensionedField<Type, pointMesh>& iF,
-        const dictionary& dict
-    )
-        :
-        pointPatchField<Type>(p, iF, dict)
+    if (!isType<emptyPointPatch>(p))
     {
-        if (!isType<emptyPointPatch>(p))
-        {
-            FatalIOErrorInFunction
-            (
-                dict
-            ) << "patch " << this->patch().index() << " not empty type. "
-                << "Patch type = " << p.type()
-                << exit(FatalIOError);
-        }
+        FatalIOErrorInFunction(dict)
+            << "patch " << this->patch().index() << " not empty type. "
+            << "Patch type = " << p.type()
+            << exit(FatalIOError);
     }
-
-
-    template<class Type>
-    emptyPointPatchField<Type>::emptyPointPatchField
-    (
-        const emptyPointPatchField<Type>& ptf,
-        const pointPatch& p,
-        const DimensionedField<Type, pointMesh>& iF,
-        const pointPatchFieldMapper& mapper
-    )
-        :
-        pointPatchField<Type>(ptf, p, iF, mapper)
-    {
-        if (!isType<emptyPointPatch>(this->patch()))
-        {
-            FatalErrorInFunction
-                << "Field type does not correspond to patch type for patch "
-                << this->patch().index() << "." << endl
-                << "Field type: " << typeName << endl
-                << "Patch type: " << this->patch().type()
-                << exit(FatalError);
-        }
-    }
-
-
-    template<class Type>
-    emptyPointPatchField<Type>::emptyPointPatchField
-    (
-        const emptyPointPatchField<Type>& ptf,
-        const DimensionedField<Type, pointMesh>& iF
-    )
-        :
-        pointPatchField<Type>(ptf, iF)
-    {}
 }
 
+
+template<class Type>
+emptyPointPatchField<Type>::emptyPointPatchField
+(
+    const emptyPointPatchField<Type>& ptf,
+    const pointPatch& p,
+    const DimensionedField<Type, pointMesh>& iF,
+    const pointPatchFieldMapper& mapper
+)
+:
+    pointPatchField<Type>(ptf, p, iF, mapper)
+{
+    if (!isType<emptyPointPatch>(this->patch()))
+    {
+        FatalErrorInFunction
+            << "Field type does not correspond to patch type for patch "
+            << this->patch().index() << "." << endl
+            << "Field type: " << typeName << endl
+            << "Patch type: " << this->patch().type()
+            << exit(FatalError);
+    }
+}
+
+
+template<class Type>
+emptyPointPatchField<Type>::emptyPointPatchField
+(
+    const emptyPointPatchField<Type>& ptf,
+    const DimensionedField<Type, pointMesh>& iF
+)
+:
+    pointPatchField<Type>(ptf, iF)
+{}
+
+
 // ************************************************************************* //
+
+ } // End namespace Foam

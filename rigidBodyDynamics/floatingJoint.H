@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2016-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -24,6 +26,9 @@ License
 Class
     Foam::RBD::joints::floating
 
+Group
+    grpRigidBodyDynamicsJoints
+
 Description
     Prismatic joint for translation along the specified arbitrary axis.
 
@@ -40,8 +45,8 @@ SourceFiles
 
 \*---------------------------------------------------------------------------*/
 
-#ifndef floatingJoint_H
-#define floatingJoint_H
+#ifndef RBD_joints_floating_H
+#define RBD_joints_floating_H
 
 #include "compositeJoint.H"
 
@@ -65,7 +70,7 @@ class floating
     // Private member functions
 
         //- Return a list of joints needed to emulate a floating body
-        static autoPtr<composite> sixDoF();
+        static composite sixDoF();
 
 
 public:
@@ -87,7 +92,7 @@ public:
 
 
     //- Destructor
-    virtual ~floating();
+    virtual ~floating() = default;
 
 
     // Member Functions

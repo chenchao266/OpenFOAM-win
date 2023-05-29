@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2018-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -25,196 +28,613 @@ License
 
 #include "dlLibraryTable.H"
 #include "OSspecific.H"
-#include "int.H"
+#include "IOstreams.H"
+
+// Could be constexpr in the header if required
+#ifdef __APPLE__
+    #define EXT_SO  "dylib"
+#elif defined _WIN32
+    #define EXT_SO  "dll"
+#else
+    #define EXT_SO  "so"
+#endif
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
-using namespace Foam;
+
 namespace Foam
 {
     defineTypeNameAndDebug(dlLibraryTable, 0);
-}
 
 
-// * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
-
-dlLibraryTable::dlLibraryTable()
-{}
-
-
-dlLibraryTable::dlLibraryTable
-(
-    const dictionary& dict,
-    const word& libsEntry
-)
-{
-    open(dict, libsEntry);
-}
+    int dlLibraryTable::dlcloseOnTerminate
+    (
+        debug::optimisationSwitch("dlcloseOnTerminate", 0)
+    );
 
 
-// * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
+    std::unique_ptr<dlLibraryTable> dlLibraryTable::global_(nullptr);
 
-dlLibraryTable::~dlLibraryTable()
-{
-    forAllReverse(libPtrs_, i)
+
+    // * * * * * * * * * * * * * Static Member Functions * * * * * * * * * * * * //
+
+    word dlLibraryTable::basename(const fileName& libPath)
     {
-        if (libPtrs_[i])
-        {
-            if (debug)
-            {
-                InfoInFunction
-                    << "Closing " << libNames_[i]
-                    << " with handle " << uintptr_t(libPtrs_[i]) << endl;
-            }
-            if (!dlClose(libPtrs_[i]))
-            {
-                WarningInFunction<< "Failed closing " << libNames_[i]
-                    << " with handle " << uintptr_t(libPtrs_[i]) << endl;
-            }
-        }
+        word libName(libPath.nameLessExt());
+        libName.removeStart("lib");  // Remove leading 'lib' from name
+        return libName;
     }
-}
 
 
-// * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
-
-bool dlLibraryTable::open
-(
-    const fileName& functionLibName,
-    const bool verbose
-)
-{
-    if (functionLibName.size())
+    word dlLibraryTable::fullname(word libName)
     {
-        void* functionLibPtr = dlOpen
-        (
-            fileName(functionLibName).expand(),
-            verbose
-        );
-
-        if (debug)
+        if (libName.empty())
         {
-            InfoInFunction
-                << "Opened " << functionLibName
-                << " resulting in handle " << uintptr_t(functionLibPtr) << endl;
+            return libName;
         }
 
-        if (!functionLibPtr)
-        {
-            if (verbose)
-            {
-                WarningInFunction
-                    << "could not load " << functionLibName
-                    << endl;
-            }
+        // Add leading 'lib' and trailing '.so'
+        return "lib" + libName.ext(EXT_SO);
+    }
 
+
+    dlLibraryTable& dlLibraryTable::libs()
+    {
+        if (!global_)
+        {
+            global_.reset(new dlLibraryTable{});
+        }
+
+        return *global_;
+    }
+
+
+    bool dlLibraryTable::functionHook
+    (
+        const bool load,
+        void* handle,
+        const std::string& funcName,
+        const bool verbose,
+        const std::string& context
+    )
+    {
+        if (!handle || funcName.empty())
+        {
             return false;
         }
-        else
+
+        bool ok = false;
+
+        void* symbol = dlSymFind(handle, funcName);
+
+        if (symbol)
         {
-            libPtrs_.append(functionLibPtr);
-            libNames_.append(functionLibName);
-            return true;
-        }
-    }
-    else
-    {
-        return false;
-    }
-}
-
-
-bool dlLibraryTable::close
-(
-    const fileName& functionLibName,
-    const bool verbose
-)
-{
-    label index = -1;
-    forAllReverse(libNames_, i)
-    {
-        if (libNames_[i] == functionLibName)
-        {
-            index = i;
-            break;
-        }
-    }
-
-    if (index != -1)
-    {
-        if (debug)
-        {
-            InfoInFunction
-                << "Closing " << functionLibName
-                << " with handle " << uintptr_t(libPtrs_[index]) << endl;
-        }
-
-        bool ok = dlClose(libPtrs_[index]);
-
-        libPtrs_[index] = nullptr;
-        libNames_[index] = fileName::null;
-
-        if (!ok)
-        {
-            if (verbose)
+            // Execute loader/unloader code
+            try
             {
-                WarningInFunction
-                    << "could not close " << functionLibName
-                    << endl;
-            }
+                loaderType fun = reinterpret_cast<loaderType>(symbol);
 
-            return false;
+                if (fun)
+                {
+                    (*fun)(load);
+                    ok = true;
+                }
+            }
+            catch (...)
+            {
+            }
+        }
+
+        if (verbose && !ok)
+        {
+            auto& err = WarningInFunction
+                << "Failed symbol lookup " << funcName.c_str() << nl;
+
+            if (!context.empty())
+            {
+                err << "from " << context.c_str() << nl;
+            }
+        }
+
+        return ok;
+    }
+
+
+    bool dlLibraryTable::loadHook
+    (
+        void* handle,
+        const std::string& funcName,
+        const bool verbose,
+        const std::string& context
+    )
+    {
+        return functionHook(true, handle, funcName, verbose, context);
+    }
+
+
+    bool dlLibraryTable::unloadHook
+    (
+        void* handle,
+        const std::string& funcName,
+        const bool verbose,
+        const std::string& context
+    )
+    {
+        return functionHook(false, handle, funcName, verbose, context);
+    }
+
+
+    // * * * * * * * * * * * * * Private Member Functions  * * * * * * * * * * * //
+
+    void* dlLibraryTable::openLibrary
+    (
+        const fileName& libName,
+        bool verbose
+    )
+    {
+        if (libName.empty())
+        {
+            return nullptr;
+        }
+
+        std::string msg;
+        void* ptr = dlOpen(fileName(libName).expand(), msg);
+
+        DebugInFunction
+            << "Opened " << libName
+            << " resulting in handle " << name(ptr) << nl;
+
+        if (!ptr)
+        {
+            // Even with details turned off, we want some feedback about failure
+            OSstream& os = (verbose ? WarningInFunction : Serr);
+            os << "Could not load " << libName << nl << msg.c_str() << endl;
+        }
+
+        return ptr;
+    }
+
+
+    // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
+
+    dlLibraryTable::dlLibraryTable
+    (
+        const UList<fileName>& libNames,
+        bool verbose
+    )
+    {
+        dlLibraryTable::open(libNames, verbose);
+    }
+
+
+    dlLibraryTable::dlLibraryTable
+    (
+        std::initializer_list<fileName> libNames,
+        bool verbose
+    )
+    {
+        dlLibraryTable::open(libNames, verbose);
+    }
+
+
+    dlLibraryTable::dlLibraryTable
+    (
+        const word& libsEntry,
+        const dictionary& dict,
+        bool verbose
+    )
+    {
+        fileNameList libNames;
+        dict.readIfPresent(libsEntry, libNames);
+        dlLibraryTable::open(libNames, verbose);
+    }
+
+
+    dlLibraryTable::dlLibraryTable
+    (
+        const dictionary& dict,
+        const word& libsEntry,
+        bool verbose
+
+    )
+        :
+        dlLibraryTable(libsEntry, dict, verbose)
+    {}
+
+
+    // * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
+
+    dlLibraryTable::~dlLibraryTable()
+    {
+        if (dlLibraryTable::dlcloseOnTerminate)
+        {
+            close();
+        }
+    }
+
+
+    // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
+
+    bool dlLibraryTable::empty() const
+    {
+        for (const void* ptr : libPtrs_)
+        {
+            if (ptr != nullptr)
+            {
+                return false;
+            }
         }
 
         return true;
     }
-    return false;
-}
 
 
-void* dlLibraryTable::findLibrary(const fileName& functionLibName)
-{
-    label index = -1;
-    forAllReverse(libNames_, i)
+    label dlLibraryTable::size() const
     {
-        if (libNames_[i] == functionLibName)
+        label nLoaded = 0;
+
+        for (const void* ptr : libPtrs_)
         {
-            index = i;
-            break;
+            if (ptr != nullptr)
+            {
+                ++nLoaded;
+            }
         }
+
+        return nLoaded;
     }
 
-    if (index != -1)
+
+    void dlLibraryTable::clear()
     {
+        libPtrs_.clear();
+        libNames_.clear();
+    }
+
+
+    List<fileName> dlLibraryTable::loaded() const
+    {
+        List<fileName> list(libNames_.size());
+
+        label nLoaded = 0;
+
+        forAll(libNames_, i)
+        {
+            void* ptr = libPtrs_[i];
+            const fileName& libName = libNames_[i];
+
+            if (ptr != nullptr && !libName.empty())
+            {
+                list[nLoaded] = libName;
+                ++nLoaded;
+            }
+        }
+
+        list.resize(nLoaded);
+
+        return list;
+    }
+
+
+    void dlLibraryTable::close(bool verbose)
+    {
+        label nLoaded = 0;
+
+        forAllReverse(libPtrs_, i)
+        {
+            void* ptr = libPtrs_[i];
+
+            if (ptr == nullptr)
+            {
+                libNames_[i].clear();
+                continue;
+            }
+
+            if (dlClose(ptr))
+            {
+                DebugInFunction
+                    << "Closed [" << i << "] " << libNames_[i]
+                    << " with handle " << name(ptr) << nl;
+
+                libPtrs_[i] = nullptr;
+                libNames_[i].clear();
+            }
+            else
+            {
+                ++nLoaded;  // Still loaded
+
+                if (verbose)
+                {
+                    WarningInFunction
+                        << "Failed closing " << libNames_[i]
+                        << " with handle " << name(ptr) << endl;
+                }
+            }
+        }
+
+
+        // Compact the lists
+        if (nLoaded && nLoaded != libPtrs_.size())
+        {
+            nLoaded = 0;
+
+            forAll(libPtrs_, i)
+            {
+                if (libPtrs_[i] != nullptr)
+                {
+                    if (nLoaded != i)
+                    {
+                        libPtrs_[nLoaded] = libPtrs_[i];
+                        libNames_[nLoaded] = std::move(libNames_[i]);
+                    }
+
+                    ++nLoaded;
+                }
+            }
+        }
+
+        libPtrs_.resize(nLoaded);
+        libNames_.resize(nLoaded);
+    }
+
+
+    bool dlLibraryTable::append(const fileName& libName)
+    {
+        if (libName.empty() || libNames_.found(libName))
+        {
+            return false;
+        }
+
+        libPtrs_.append(nullptr);
+        libNames_.append(libName);
+
+        return true;
+    }
+
+
+    label dlLibraryTable::append(const UList<fileName>& libNames)
+    {
+        label nAdded = 0;
+
+        for (const fileName& libName : libNames)
+        {
+            if (append(libName))
+            {
+                ++nAdded;
+            }
+        }
+
+        return nAdded;
+    }
+
+
+    bool dlLibraryTable::open(bool verbose)
+    {
+        label nOpen = 0;
+        label nCand = 0;  // Number of candidates (have libName but no pointer)
+
+        forAll(libPtrs_, i)
+        {
+            void* ptr = libPtrs_[i];
+            const fileName& libName = libNames_[i];
+
+            if (ptr == nullptr && !libName.empty())
+            {
+                ++nCand;
+
+                ptr = openLibrary(libName, verbose);
+
+                if (ptr)
+                {
+                    ++nOpen;
+                    libPtrs_[i] = ptr;
+                }
+                else
+                {
+                    libNames_[i].clear();  // Avoid trying again
+                }
+            }
+        }
+
+        return nOpen && nOpen == nCand;
+    }
+
+
+    void* dlLibraryTable::open
+    (
+        const fileName& libName,
+        bool verbose
+    )
+    {
+        // Handles empty name silently
+        void* ptr = openLibrary(libName, verbose);
+
+        if (ptr)
+        {
+            libPtrs_.append(ptr);
+            libNames_.append(libName);
+        }
+
+        return ptr;
+    }
+
+
+    bool dlLibraryTable::open
+    (
+        const UList<fileName>& libNames,
+        bool verbose
+    )
+    {
+        decltype(libNames.size()) nOpen = 0;
+
+        for (const fileName& libName : libNames)
+        {
+            const label index = libNames_.find(libName);
+
+            if (index >= 0 && libPtrs_[index] != nullptr)
+            {
+                // Already known and opened
+                ++nOpen;
+            }
+            else if (dlLibraryTable::open(libName, verbose))
+            {
+                ++nOpen;
+            }
+        }
+
+        return nOpen && nOpen == libNames.size();
+    }
+
+
+    bool dlLibraryTable::open
+    (
+        std::initializer_list<fileName> libNames,
+        bool verbose
+    )
+    {
+        decltype(libNames.size()) nOpen = 0;
+
+        for (const fileName& libName : libNames)
+        {
+            const label index = libNames_.find(libName);
+
+            if (index >= 0 && libPtrs_[index] != nullptr)
+            {
+                // Already known and opened
+                ++nOpen;
+            }
+            else if (dlLibraryTable::open(libName, verbose))
+            {
+                ++nOpen;
+            }
+        }
+
+        return nOpen && nOpen == libNames.size();
+    }
+
+
+    bool dlLibraryTable::close
+    (
+        const fileName& libName,
+        bool verbose
+    )
+    {
+        const label index = libNames_.rfind(libName);
+
+        if (index < 0 || libName.empty())
+        {
+            return false;
+        }
+
+        void* ptr = libPtrs_[index];
+
+        if (ptr == nullptr)
+        {
+            libNames_[index].clear();
+            return false;
+        }
+
+        DebugInFunction
+            << "Closing " << libName
+            << " with handle " << name(ptr) << nl;
+
+        const bool ok = dlClose(ptr);
+
+        libPtrs_[index] = nullptr;
+        libNames_[index].clear();
+
+        if (ok)
+        {
+            // From man dlopen(3)
+            // ...
+            // a dynamically loaded shared object is not deallocated until
+            // dlclose() has been called on it as many times as dlopen()
+            // has succeeded on it.
+
+            // Handle aliased library names
+            for (label idx = 0; (idx = libPtrs_.find(ptr, idx)) >= 0; ++idx)
+            {
+                (void)dlClose(ptr);
+                libPtrs_[idx] = nullptr;
+                libNames_[idx].clear();
+            }
+        }
+        else if (verbose)
+        {
+            WarningInFunction
+                << "Could not close " << libName << endl;
+        }
+
+        return ok;
+    }
+
+
+    void* dlLibraryTable::findLibrary(const fileName& libName)
+    {
+        const label index = libNames_.rfind(libName);
+
+        if (index < 0 || libName.empty())
+        {
+            return nullptr;
+        }
+
         return libPtrs_[index];
     }
-    return nullptr;
-}
 
 
-bool dlLibraryTable::open
-(
-    const dictionary& dict,
-    const word& libsEntry
-)
-{
-    if (dict.found(libsEntry))
+    bool dlLibraryTable::open
+    (
+        const word& libsEntry,
+        const dictionary& dict,
+        bool verbose
+    )
     {
-        fileNameList libNames(dict.lookup(libsEntry));
+        fileNameList libNames;
+        return
+            (
+                dict.readIfPresent(libsEntry, libNames)
+                && dlLibraryTable::open(libNames, verbose)
+                );
+    }
 
-        bool allOpened = !libNames.empty();
 
-        forAll(libNames, i)
+    bool dlLibraryTable::open
+    (
+        const dictionary& dict,
+        const word& libsEntry
+    )
+    {
+        return dlLibraryTable::open(libsEntry, dict, true); // verbose = true
+    }
+
+
+    // * * * * * * * * * * * * * * * IOstream Operators  * * * * * * * * * * * * //
+
+    Ostream& operator<<
+        (
+            Ostream& os,
+            const InfoProxy<dlLibraryTable>& ip
+            )
+    {
+        const dlLibraryTable& tbl = ip.t_;
+
+        os << token::BEGIN_LIST << nl;
+
+        // Lengths of pointers/names are guaranteed internally to be identical
+        forAll(tbl.pointers(), i)
         {
-            allOpened = dlLibraryTable::open(libNames[i]) && allOpened;
+            const void* ptr = tbl.pointers()[i];
+            const fileName& libName = tbl.names()[i];
+
+            // Also write out empty filenames
+            // (specified with '-lib' but did not load)
+
+            os << name(ptr) << token::SPACE << libName << nl;
         }
 
-        return allOpened;
+        os << token::END_LIST << nl;
+
+        return os;
     }
-    else
-    {
-        return false;
-    }
+
 }
-
-
 // ************************************************************************* //

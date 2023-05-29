@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2015 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2015 OpenFOAM Foundation
+    Copyright (C) 2018-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -23,11 +26,14 @@ License
 
 \*---------------------------------------------------------------------------*/
 
-#include "string.T.H"
+#include "_string.H"
+#include "token.H"
 #include "IOstreams.H"
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
-using namespace Foam;
+
+
+ namespace Foam{
 string::string(Istream& is)
 {
     is >> *this;
@@ -36,51 +42,54 @@ string::string(Istream& is)
 
 // * * * * * * * * * * * * * * * IOstream Operators  * * * * * * * * * * * * //
 
-Istream& operator>>(Istream& is, string& s)
+Istream& operator>>(Istream& is, string& val)
 {
-    token t(is);
+    token tok(is);
 
-    if (!t.good())
+    if (tok.isString())
     {
-        is.setBad();
-        return is;
-    }
-
-    if (t.isString())
-    {
-        s = t.stringToken();
+        val = tok.stringToken();
     }
     else
     {
+        FatalIOErrorInFunction(is);
+        if (tok.good())
+        {
+            FatalIOError
+                << "Wrong token type - expected string, found "
+                << tok.info();
+        }
+        else
+        {
+            FatalIOError
+                << "Bad token - could not get string";
+        }
+        FatalIOError << exit(FatalIOError);
         is.setBad();
-        FatalIOErrorInFunction(is)
-            << "wrong token type - expected string, found " << t.info()
-            << exit(FatalIOError);
-
         return is;
     }
 
-    // Check state of Istream
-    is.check("Istream& operator>>(Istream&, string&)");
-
+    is.check(FUNCTION_NAME);
     return is;
 }
 
 
-Ostream& operator<<(Ostream& os, const string& s)
+Ostream& operator<<(Ostream& os, const string& val)
 {
-    os.write(s);
-    os.check("Ostream& operator<<(Ostream&, const string&)");
+    os.write(val);
+    os.check(FUNCTION_NAME);
     return os;
 }
 
 
-Ostream& operator<<(Ostream& os, const std::string& s)
+Ostream& operator<<(Ostream& os, const std::string& val)
 {
-    os.write(string(s));
-    os.check("Ostream& operator<<(Ostream&, const std::string&)");
+    os.write(string(val));
+    os.check(FUNCTION_NAME);
     return os;
 }
 
 
 // ************************************************************************* //
+
+ } // End namespace Foam

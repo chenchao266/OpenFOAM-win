@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2017-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -26,7 +29,8 @@ License
 #include "polyTopoChanger.H"
 #include "polyMesh.H"
 #include "polyTopoChange.H"
-#include "Time.T.H"
+#include "Time1.H"
+#include "PtrListOps.H"
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
 
@@ -36,7 +40,7 @@ namespace Foam
 }
 
 
-// * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
+// * * * * * * * * * * * * * Private Member Functions  * * * * * * * * * * * //
 
 void Foam::polyTopoChanger::readModifiers()
 {
@@ -47,14 +51,8 @@ void Foam::polyTopoChanger::readModifiers()
      || (readOpt() == IOobject::READ_IF_PRESENT && headerOk())
     )
     {
-        if (readOpt() == IOobject::MUST_READ_IF_MODIFIED)
-        {
-            WarningInFunction
-                << "Specified IOobject::MUST_READ_IF_MODIFIED but class"
-                << " does not support automatic re-reading."
-                << endl;
-        }
-
+        // Warn for MUST_READ_IF_MODIFIED
+        warnNoRereading<polyTopoChanger>();
 
         PtrList<polyMeshModifier>& modifiers = *this;
 
@@ -79,13 +77,14 @@ void Foam::polyTopoChanger::readModifiers()
             );
         }
 
-        // Check state of IOstream
-        is.check("polyTopoChanger::readModifiers()");
+        is.check(FUNCTION_NAME);
 
         close();
     }
 }
 
+
+// * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
 Foam::polyTopoChanger::polyTopoChanger
 (
@@ -101,10 +100,14 @@ Foam::polyTopoChanger::polyTopoChanger
 }
 
 
-Foam::polyTopoChanger::polyTopoChanger(polyMesh& mesh)
+Foam::polyTopoChanger::polyTopoChanger
+(
+    polyMesh& mesh,
+    const IOobject::readOption rOpt
+
+)
 :
-    PtrList<polyMeshModifier>(),
-    regIOobject
+    polyTopoChanger
     (
         IOobject
         (
@@ -113,47 +116,33 @@ Foam::polyTopoChanger::polyTopoChanger(polyMesh& mesh)
             (
                 mesh.meshDir(),
                 "meshModifiers",
-                IOobject::READ_IF_PRESENT
+                rOpt
             ),
             mesh.meshSubDir,
             mesh,
-            IOobject::READ_IF_PRESENT,
+            rOpt,
             IOobject::NO_WRITE
-        )
-    ),
-    mesh_(mesh)
-{
-    readModifiers();
-}
+        ),
+        mesh
+    )
+{}
+
+
+Foam::polyTopoChanger::polyTopoChanger(polyMesh& mesh)
+:
+    polyTopoChanger(mesh, IOobject::readOption::READ_IF_PRESENT)
+{}
 
 
 Foam::wordList Foam::polyTopoChanger::types() const
 {
-    const PtrList<polyMeshModifier>& modifiers = *this;
-
-    wordList t(modifiers.size());
-
-    forAll(modifiers, modifierI)
-    {
-        t[modifierI] = modifiers[modifierI].type();
-    }
-
-    return t;
+    return PtrListOps::get<word>(*this, typeOp<polyMeshModifier>());
 }
 
 
 Foam::wordList Foam::polyTopoChanger::names() const
 {
-    const PtrList<polyMeshModifier>& modifiers = *this;
-
-    wordList t(modifiers.size());
-
-    forAll(modifiers, modifierI)
-    {
-        t[modifierI] = modifiers[modifierI].name();
-    }
-
-    return t;
+    return PtrListOps::get<word>(*this, typeOp<polyMeshModifier>());
 }
 
 
@@ -208,8 +197,8 @@ Foam::polyTopoChanger::topoChangeRequest() const
     // Collect changes from all modifiers
     const PtrList<polyMeshModifier>& topoChanges = *this;
 
-    polyTopoChange* refPtr(new polyTopoChange(mesh()));
-    polyTopoChange& ref = *refPtr;
+    auto ptr = autoPtr<polyTopoChange>::New(mesh());
+    polyTopoChange& ref = ptr.ref();
 
     forAll(topoChanges, morphI)
     {
@@ -219,7 +208,7 @@ Foam::polyTopoChanger::topoChangeRequest() const
         }
     }
 
-    return autoPtr<polyTopoChange>(refPtr);
+    return ptr;
 }
 
 
@@ -250,7 +239,7 @@ void Foam::polyTopoChanger::update(const mapPolyMesh& m)
     // Force the mesh modifiers to auto-write.  This allows us to
     // preserve the current state of modifiers corresponding with
     // the mesh.
-    writeOpt() = IOobject::AUTO_WRITE;
+    writeOpt(IOobject::AUTO_WRITE);
     instance() = mesh_.time().timeName();
 }
 
@@ -280,10 +269,9 @@ Foam::autoPtr<Foam::mapPolyMesh> Foam::polyTopoChanger::changeMesh
         mesh_.updateMesh(topoChangeMap());
         return topoChangeMap;
     }
-    else
-    {
-        return autoPtr<mapPolyMesh>(nullptr);
-    }
+
+    mesh_.topoChanging(false);
+    return nullptr;
 }
 
 
@@ -306,7 +294,7 @@ void Foam::polyTopoChanger::addTopologyModifiers
         set(tmI, tm[tmI]);
     }
 
-    writeOpt() = IOobject::AUTO_WRITE;
+    writeOpt(IOobject::AUTO_WRITE);
 }
 
 

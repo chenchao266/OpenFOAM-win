@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2019 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -144,8 +147,7 @@ public:
 
 
     //- Destructor
-    virtual ~liquidProperties()
-    {}
+    virtual ~liquidProperties() = default;
 
 
     // Static data
@@ -175,7 +177,7 @@ public:
             //- Critical volume [m^3/kmol]
             inline scalar Vc() const;
 
-            //- Critical compressibilty factor
+            //- Critical compressibility factor
             inline scalar Zc() const;
 
             //- Triple point temperature [K]
@@ -190,13 +192,13 @@ public:
             //- Dipole moment []
             inline scalar dipm() const;
 
-            //- Pitzer's ascentric factor []
+            //- Pitzer's acentric factor []
             inline scalar omega() const;
 
             //- Solubility parameter [(J/m^3)^(1/2)]
             inline scalar delta() const;
 
-            //- Limit the temperature to be in the range Tlow_ to Thigh_
+            //- Limit temperature to be within the range
             inline scalar limit(const scalar T) const;
 
 
@@ -259,14 +261,14 @@ public:
             //- Surface tension [N/m]
             virtual scalar sigma(scalar p, scalar T) const = 0;
 
-            //- Vapour diffussivity [m2/s]
+            //- Vapour diffusivity [m2/s]
             virtual scalar D(scalar p, scalar T) const = 0;
 
-            //- Vapour diffussivity [m2/s] with specified binary pair
+            //- Vapour diffusivity [m2/s] with specified binary pair
             virtual scalar D(scalar p, scalar T, scalar Wb) const = 0;
 
             //- Invert the vapour pressure relationship to retrieve the
-            //  boiling temperuture as a function of pressure
+            //  boiling temperature as a function of pressure
             virtual scalar pvInvert(scalar p) const;
 
 
@@ -291,7 +293,7 @@ public:
         inline void readIfPresent(Liquid& l, const dictionary& dict);
 
         //- Write the function coefficients
-        virtual void writeData(Ostream& os) const = 0;;
+        virtual void writeData(Ostream& os) const = 0;
 
         //- Write the data for each of the property functions
         template<class Liquid>

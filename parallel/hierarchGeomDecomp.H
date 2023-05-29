@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2015 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2015 OpenFOAM Foundation
+    Copyright (C) 2017-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -25,9 +28,10 @@ Class
     Foam::hierarchGeomDecomp
 
 Description
-    Does hierarchical decomposition of points. Works by first sorting the
-    points in x direction into equal sized bins, then in y direction and
-    finally in z direction.
+    Does hierarchical decomposition of points, selectable as \c hierarchical.
+
+    Works by first sorting the points in x direction into equal sized bins,
+    then in y direction and finally in z direction.
 
     Uses single array to hold decomposition which is indexed as if it is a
     3 dimensional array:
@@ -44,6 +48,14 @@ Description
     Since the domains are of equal size the maximum difference in size is
     n[0]*n[1] (or n[1]*n[2]?) (small anyway)
 
+    Method coefficients:
+    \table
+        Property  | Description                             | Required | Default
+        n         | (nx ny nz)                              | yes |
+        order     | order of operation                      | no  | xyz
+        delta     | delta (jitter) for rotation matrix      | no  | 0.001
+        transform | cartesian coordinate transformation     | no  |
+    \endtable
 
 SourceFiles
     hierarchGeomDecomp.C
@@ -54,30 +66,29 @@ SourceFiles
 #define hierarchGeomDecomp_H
 
 #include "geomDecomp.H"
-#include "FixedList.T.H"
-#include "direction.H"
 
 namespace Foam
 {
 
 /*---------------------------------------------------------------------------*\
-                           Class hierarchGeomDecomp Declaration
+                     Class hierarchGeomDecomp Declaration
 \*---------------------------------------------------------------------------*/
 
 class hierarchGeomDecomp
 :
     public geomDecomp
 {
-    // Private data
-
-        //- Decomposition order in terms of components.
-        FixedList<direction, 3> decompOrder_;
-
-
     // Private Member Functions
 
-        //- Convert ordering string ("xyz") into list of components.
-        void setDecompOrder();
+        //- Find index of value in list between
+        //- first (inclusive) and last (exclusive)
+        static label findLower
+        (
+            const UList<scalar>& list,
+            const scalar val,
+            const label first,
+            const label last
+        );
 
         //- Evaluates the weighted sizes for each sorted point.
         static void calculateSortedWeightedSizes
@@ -90,21 +101,14 @@ class hierarchGeomDecomp
             scalarField& sortedWeightedSizes
         );
 
-        //- Find index of t in list inbetween indices left and right
-        static label findLower
-        (
-            const List<scalar>&,
-            const scalar t,
-            const label left,
-            const label right
-        );
-
         //- Find midValue (at local index mid) such that the number of
         //  elements between mid and leftIndex are (globally summed) the
         //  wantedSize. Binary search.
-        static void findBinary
+        //
+        //  \Return False if the binary search completed
+        static bool findBinary
         (
-            const label sizeTol,        // size difference considered acceptible
+            const label sizeTol,        // size difference considered acceptable
             const List<scalar>&,
             const label leftIndex,      // index of previous value
             const scalar leftValue,     // value at leftIndex
@@ -117,9 +121,9 @@ class hierarchGeomDecomp
         //- Find midValue (at local index mid) such that the number of
         //  elements between mid and leftIndex are (globally summed) the
         //  wantedSize. Binary search.
-        static void findBinary
+        static bool findBinary
         (
-            const label sizeTol,        // size difference considered acceptible
+            const label sizeTol,        // size difference considered acceptable
             const List<scalar>& sortedWeightedSizes,
             const List<scalar>&,
             const label leftIndex,      // index of previous value
@@ -131,7 +135,8 @@ class hierarchGeomDecomp
         );
 
         //- Recursively sort in x,y,z (or rather acc. to decompOrder_)
-        void sortComponent
+        //  \return the number of warnings from findBinary
+        label sortComponent
         (
             const label sizeTol,
             const pointField&,
@@ -139,11 +144,12 @@ class hierarchGeomDecomp
             const direction componentIndex, // index in decompOrder_
             const label prevMult,           // multiplication factor
             labelList& finalDecomp          // overall decomposition
-        );
+        ) const;
 
         //- Recursively sort in x,y,z (or rather acc. to decompOrder_)
         //- Using weighted points.
-        void sortComponent
+        //  \return the number of warnings from findBinary
+        label sortComponent
         (
             const label sizeTol,
             const scalarField& weights,
@@ -152,14 +158,16 @@ class hierarchGeomDecomp
             const direction componentIndex, // index in decompOrder_
             const label prevMult,           // multiplication factor
             labelList& finalDecomp          // overall decomposition
-        );
-
-        //- Disallow default bitwise copy construct and assignment
-        void operator=(const hierarchGeomDecomp&);
-        hierarchGeomDecomp(const hierarchGeomDecomp&);
+        ) const;
 
 
 public:
+
+    //- No copy construct
+    hierarchGeomDecomp(const hierarchGeomDecomp&) = delete;
+
+    //- No copy assignment
+    void operator=(const hierarchGeomDecomp&) = delete;
 
     //- Runtime type information
     TypeName("hierarchical");
@@ -167,18 +175,21 @@ public:
 
     // Constructors
 
-        //- Construct given the decomposition dictionary
-        hierarchGeomDecomp(const dictionary& decompositionDict);
+        //- Construct given decomposition dictionary and optional region name
+        explicit hierarchGeomDecomp
+        (
+            const dictionary& decompDict,
+            const word& regionName = ""
+        );
 
 
     //- Destructor
-    virtual ~hierarchGeomDecomp()
-    {}
+    virtual ~hierarchGeomDecomp() = default;
 
 
     // Member Functions
 
-        //- Hierarchgeom is aware of processor boundaries
+        //- Hierarchical is aware of processor boundaries
         virtual bool parallelAware() const
         {
             return true;
@@ -189,34 +200,42 @@ public:
         (
             const pointField&,
             const scalarField& weights
-        );
+        ) const;
 
-        //- Without weights. Code for weighted decomposition is a bit complex
+        //- Decompose with uniform weights.
+        //  Code for weighted decomposition is a bit complex,
         //  so kept separate for now.
-        virtual labelList decompose(const pointField&);
+        virtual labelList decompose(const pointField&) const;
 
 
-        //- Return for every coordinate the wanted processor number. Use the
-        //  mesh connectivity (if needed)
+        //- Return for every coordinate the wanted processor number.
+        //  Use the mesh connectivity (if needed).
         virtual labelList decompose
         (
             const polyMesh& mesh,
             const pointField& cc,
             const scalarField& cWeights
-        )
+        ) const
         {
+            checkDecompositionDirections(mesh.geometricD());
             return decompose(cc, cWeights);
         }
 
-        //- Without weights. Code for weighted decomposition is a bit complex
+        //- Decompose with uniform weights.
+        //  Code for weighted decomposition is a bit complex,
         //  so kept separate for now.
-        virtual labelList decompose(const polyMesh& mesh, const pointField& cc)
+        virtual labelList decompose
+        (
+            const polyMesh& mesh,
+            const pointField& cc
+        ) const
         {
+            checkDecompositionDirections(mesh.geometricD());
             return decompose(cc);
         }
 
-        //- Return for every coordinate the wanted processor number. Explicitly
-        //  provided connectivity - does not use mesh_.
+        //- Return for every coordinate the wanted processor number.
+        //  Explicitly provided connectivity - does not use mesh_.
         //  The connectivity is equal to mesh.cellCells() except for
         //  - in parallel the cell numbers are global cell numbers (starting
         //    from 0 at processor0 and then incrementing all through the
@@ -224,19 +243,19 @@ public:
         //  - the connections are across coupled patches
         virtual labelList decompose
         (
-            const labelListList& globalCellCells,
+            const labelListList& globalCellCells,  // unused
             const pointField& cc,
             const scalarField& cWeights
-        )
+        ) const
         {
             return decompose(cc, cWeights);
         }
 
         virtual labelList decompose
         (
-            const labelListList& globalCellCells,
+            const labelListList& globalCellCells,  // unused
             const pointField& cc
-        )
+        ) const
         {
             return decompose(cc);
         }

@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2017 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -45,7 +48,7 @@ namespace viscosityModels
 }
 
 
-// * * * * * * * * * * * * Private Member Functions  * * * * * * * * * * * * //
+// * * * * * * * * * * * * Protected Member Functions  * * * * * * * * * * * * //
 
 Foam::tmp<Foam::volScalarField>
 Foam::viscosityModels::HerschelBulkley::calcNu() const
@@ -113,10 +116,10 @@ bool Foam::viscosityModels::HerschelBulkley::read
     HerschelBulkleyCoeffs_ =
         viscosityProperties.optionalSubDict(typeName + "Coeffs");
 
-    HerschelBulkleyCoeffs_.lookup("k") >> k_;
-    HerschelBulkleyCoeffs_.lookup("n") >> n_;
-    HerschelBulkleyCoeffs_.lookup("tau0") >> tau0_;
-    HerschelBulkleyCoeffs_.lookup("nu0") >> nu0_;
+    HerschelBulkleyCoeffs_.readEntry("k", k_);
+    HerschelBulkleyCoeffs_.readEntry("n", n_);
+    HerschelBulkleyCoeffs_.readEntry("tau0", tau0_);
+    HerschelBulkleyCoeffs_.readEntry("nu0", nu0_);
 
     return true;
 }

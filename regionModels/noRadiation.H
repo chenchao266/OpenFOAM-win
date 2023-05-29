@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -22,7 +24,7 @@ License
     along with OpenFOAM.  If not, see <http://www.gnu.org/licenses/>.
 
 Class
-    Foam::noRadiation
+    Foam::regionModels::surfaceFilmModels::noRadiation
 
 Description
     Dummy radiation model for 'none' option
@@ -59,11 +61,11 @@ private:
 
     // Private member functions
 
-        //- Disallow default bitwise copy construct
-        noRadiation(const noRadiation&);
+        //- No copy construct
+        noRadiation(const noRadiation&) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const noRadiation&);
+        //- No copy assignment
+        void operator=(const noRadiation&) = delete;
 
 
 public:
@@ -77,7 +79,7 @@ public:
         //- Construct from surface film model and dictionary
         noRadiation
         (
-            surfaceFilmModel& film,
+            surfaceFilmRegionModel& film,
             const dictionary& dict
         );
 

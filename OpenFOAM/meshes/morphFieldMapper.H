@@ -1,9 +1,12 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011 OpenFOAM Foundation
+    Copyright (C) 2019 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -32,8 +35,8 @@ Description
 #ifndef morphFieldMapper_H
 #define morphFieldMapper_H
 
-#include "Field.T.H"
-#include "Map.T.H"
+#include "Field.H"
+#include "Map.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -44,7 +47,9 @@ namespace Foam
                            Class morphFieldMapper Declaration
 \*---------------------------------------------------------------------------*/
 
-class morphFieldMapper :    public FieldMapper
+class morphFieldMapper
+:
+    public FieldMapper
 {
 
 public:
@@ -57,8 +62,7 @@ public:
 
 
     //- Destructor
-    virtual ~morphFieldMapper()
-    {}
+    virtual ~morphFieldMapper() = default;
 
 
     // Member Functions

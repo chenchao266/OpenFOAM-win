@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -27,6 +29,14 @@ Class
 Description
     Sample along poly line defined by a list of points (knots)
 
+    For a dictionary specification:
+    \table
+        Property | Description                             | Required | Default
+        type     | polyLine                                | yes      |
+        axis     | x, y, z, xyz, distance                  | yes      |
+        points   | The locations                           | yes      |
+    \endtable
+
 SourceFiles
     polyLineSet.C
 
@@ -36,7 +46,7 @@ SourceFiles
 #define polyLineSet_H
 
 #include "sampledSet.H"
-#include "DynamicList.T.H"
+#include "DynamicList.H"
 #include "passiveParticleCloud.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
@@ -55,7 +65,7 @@ class polyLineSet
     // Private data
 
         //- Sampling points
-        List<point> sampleCoords_;
+        pointField sampleCoords_;
 
 
     // Private Member Functions
@@ -98,7 +108,7 @@ public:
     // Static data
 
         //- Tolerance when comparing points relative to difference between
-        //  start_ and end_
+        //- start and end points
         static const scalar tol;
 
 
@@ -125,7 +135,7 @@ public:
 
 
     //- Destructor
-    virtual ~polyLineSet();
+    virtual ~polyLineSet() = default;
 };
 
 

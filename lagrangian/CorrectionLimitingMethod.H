@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2013-2014 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2013-2014 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -24,6 +26,9 @@ License
 Class
     Foam::CorrectionLimitingMethod
 
+Group
+    grpLagrangianIntermediateMPPICCorrectionLimitingMethods
+
 Description
     Base class for correction limiting methods.
 
@@ -36,7 +41,7 @@ SourceFiles
 #define CorrectionLimitingMethod_H
 
 #include "volFieldsFwd.H"
-#include "dictionary.H"
+#include "dictionary2.H"
 #include "runTimeSelectionTables.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
@@ -54,8 +59,8 @@ private:
 
     // Private Member Functions
 
-        //- Disallow default bitwise assignment
-        void operator=(const CorrectionLimitingMethod&);
+        //- No copy assignment
+        void operator=(const CorrectionLimitingMethod&) = delete;
 
 
 public:

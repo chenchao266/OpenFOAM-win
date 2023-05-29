@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2016 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -34,7 +37,7 @@ Description
 \*---------------------------------------------------------------------------*/
 
 #include "meshReader.H"
-#include "Time.T.H"
+#include "Time1.H"
 #include "polyPatch.H"
 #include "emptyPolyPatch.H"
 #include "preservePatchTypes.H"
@@ -90,7 +93,12 @@ void Foam::meshReader::addPolyBoundaryFace
     const label nCreatedFaces
 )
 {
-    addPolyBoundaryFace(identifier.cell, identifier.face, nCreatedFaces);
+    addPolyBoundaryFace
+    (
+        identifier.cellId(),
+        identifier.faceId(),
+        nCreatedFaces
+    );
 }
 
 
@@ -153,7 +161,7 @@ void Foam::meshReader::createPolyBoundary()
 
                 forAll(idList, bndI)
                 {
-                    label baffleI = idList[bndI].cell - baffleOffset;
+                    label baffleI = idList[bndI].cellId() - baffleOffset;
 
                     if
                     (
@@ -189,13 +197,13 @@ void Foam::meshReader::createPolyBoundary()
         else if (patchPhysicalTypes_[patchi] == "monitoring")
         {
             // translate the "monitoring" pseudo-boundaries to face sets
-            List<label> monitoring(idList.size());
+            labelList monitoring(idList.size());
 
             label monitorI = 0;
             forAll(idList, bndI)
             {
-                label cellId = idList[bndI].cell;
-                label faceId = idList[bndI].face;
+                label cellId = idList[bndI].cellId();
+                label faceId = idList[bndI].faceId();
 
                 // standard case: volume cells
                 if (cellId < baffleOffset)
@@ -215,7 +223,7 @@ void Foam::meshReader::createPolyBoundary()
             forAll(idList, bndI)
             {
                 // standard case: volume cells
-                if (idList[bndI].cell < baffleOffset)
+                if (idList[bndI].cellId() < baffleOffset)
                 {
                     addPolyBoundaryFace
                     (
@@ -315,7 +323,7 @@ void Foam::meshReader::createPolyBoundary()
 
     // check the mesh for face mismatch
     // (faces addressed once or more than twice)
-    labelList markupFaces(meshFaces_.size(), 0);
+    labelList markupFaces(meshFaces_.size(), Zero);
 
     forAll(cellPolys_, celli)
     {
@@ -434,14 +442,26 @@ Foam::meshReader::polyBoundaryPatches(const polyMesh& mesh)
         }
         dictionary& patchDict = patchDicts[patchi];
 
-        // add but not overwrite type
-        patchDict.add("type", patchTypes_[patchi], false);
-        if (patchPhysicalTypes_.size() && patchPhysicalTypes_[patchi].size())
+        // Add but not override 'type'
+        if (!patchDict.found("type"))
         {
-            patchDict.add("startFace", patchPhysicalTypes_[patchi], false);
+            patchDict.add("type", patchTypes_[patchi], false);
         }
 
-        // overwrite sizes and start
+        // Add but not override 'physicalType' but only if it differs
+        // from 'type'
+        if
+        (
+            patchi < patchPhysicalTypes_.size()
+         && patchPhysicalTypes_[patchi].size()
+         && patchPhysicalTypes_[patchi] != patchTypes_[patchi]
+         && !patchDict.found("physicalType")
+        )
+        {
+            patchDict.add("physicalType", patchPhysicalTypes_[patchi], false);
+        }
+
+        // Overwrite sizes and start
         patchDict.add("nFaces", patchSizes_[patchi], true);
         patchDict.add("startFace", patchStarts_[patchi], true);
     }

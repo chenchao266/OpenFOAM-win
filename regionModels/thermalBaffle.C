@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -24,7 +27,6 @@ License
 \*---------------------------------------------------------------------------*/
 
 #include "thermalBaffle.H"
-
 #include "fvm.H"
 #include "fvcDiv.H"
 #include "addToRunTimeSelectionTable.H"
@@ -52,24 +54,21 @@ addToRunTimeSelectionTable(thermalBaffleModel, thermalBaffle, dictionary);
 
 bool thermalBaffle::read()
 {
-    this->solution().lookup("nNonOrthCorr") >> nNonOrthCorr_;
+    this->solution().readEntry("nNonOrthCorr", nNonOrthCorr_);
     return regionModel1D::read();
 }
 
 
 bool thermalBaffle::read(const dictionary& dict)
 {
-    this->solution().lookup("nNonOrthCorr") >> nNonOrthCorr_;
+    this->solution().readEntry("nNonOrthCorr", nNonOrthCorr_);
     return regionModel1D::read(dict);
 }
 
 
 void thermalBaffle::solveEnergy()
 {
-    if (debug)
-    {
-        InfoInFunction << endl;
-    }
+    DebugInFunction << endl;
 
     const polyBoundaryMesh& rbm = regionMesh().boundaryMesh();
 
@@ -87,7 +86,7 @@ void thermalBaffle::solveEnergy()
                 false
             ),
             regionMesh(),
-            dimensionedScalar("zero", dimEnergy/dimVolume/dimTime, 0.0)
+            dimensionedScalar(dimEnergy/dimVolume/dimTime, Zero)
         )
     );
 
@@ -97,7 +96,7 @@ void thermalBaffle::solveEnergy()
     volScalarField alpha("alpha", thermo_->alpha());
 
 
-    //If region is one-dimension variable thickness
+    // If region is one-dimension variable thickness
     if (oneD_ && !constantThickness_)
     {
         // Scale K and rhoCp and fill Q in the internal baffle region.
@@ -112,7 +111,7 @@ void thermalBaffle::solveEnergy()
                 const label cellId = cells[i];
 
                 Q[cellId] =
-                    Qs_.boundaryField()[patchi][localFacei]
+                    qs_.boundaryField()[patchi][localFacei]
                    /thickness_[localFacei];
 
                 rho[cellId] *= delta_.value()/thickness_[localFacei];
@@ -164,26 +163,21 @@ thermalBaffle::thermalBaffle
 )
 :
     thermalBaffleModel(modelType, mesh, dict),
-    nNonOrthCorr_(readLabel(solution().lookup("nNonOrthCorr"))),
+    nNonOrthCorr_(solution().get<label>("nNonOrthCorr")),
     thermo_(solidThermo::New(regionMesh(), dict)),
     h_(thermo_->he()),
-    Qs_
+    qs_
     (
         IOobject
         (
-            "Qs",
+            "qs",
             regionMesh().time().timeName(),
             regionMesh(),
             IOobject::READ_IF_PRESENT,
             IOobject::NO_WRITE
         ),
         regionMesh(),
-        dimensionedScalar
-        (
-            "zero",
-            dimEnergy/dimArea/dimTime,
-            Zero
-        )
+        dimensionedScalar(dimEnergy/dimArea/dimTime, Zero)
     ),
     Q_
     (
@@ -193,15 +187,10 @@ thermalBaffle::thermalBaffle
             regionMesh().time().timeName(),
             regionMesh(),
             IOobject::READ_IF_PRESENT,
-            IOobject::NO_WRITE
+            IOobject::AUTO_WRITE
         ),
         regionMesh(),
-        dimensionedScalar
-        (
-            "zero",
-            dimEnergy/dimVolume/dimTime,
-            Zero
-        )
+        dimensionedScalar(dimEnergy/dimVolume/dimTime, Zero)
     ),
     radiation_
     (
@@ -224,26 +213,21 @@ thermalBaffle::thermalBaffle
 )
 :
     thermalBaffleModel(modelType, mesh),
-    nNonOrthCorr_(readLabel(solution().lookup("nNonOrthCorr"))),
+    nNonOrthCorr_(solution().get<label>("nNonOrthCorr")),
     thermo_(solidThermo::New(regionMesh())),
     h_(thermo_->he()),
-    Qs_
+    qs_
     (
         IOobject
         (
-            "Qs",
+            "qs",
             regionMesh().time().timeName(),
             regionMesh(),
             IOobject::READ_IF_PRESENT,
             IOobject::NO_WRITE
         ),
         regionMesh(),
-        dimensionedScalar
-        (
-            "zero",
-            dimEnergy/dimArea/dimTime,
-            Zero
-        )
+        dimensionedScalar(dimEnergy/dimArea/dimTime, Zero)
     ),
     Q_
     (
@@ -256,12 +240,7 @@ thermalBaffle::thermalBaffle
             IOobject::NO_WRITE
         ),
         regionMesh(),
-        dimensionedScalar
-        (
-            "zero",
-            dimEnergy/dimVolume/dimTime,
-            Zero
-        )
+        dimensionedScalar(dimEnergy/dimVolume/dimTime, Zero)
     ),
     radiation_
     (
@@ -289,13 +268,13 @@ void thermalBaffle::init()
     if (oneD_ && !constantThickness_)
     {
         label patchi = intCoupledPatchIDs_[0];
-        const label Qsb = Qs_.boundaryField()[patchi].size();
+        const label qsb = qs_.boundaryField()[patchi].size();
 
-        if (Qsb!= thickness_.size())
+        if (qsb!= thickness_.size())
         {
             FatalErrorInFunction
-                << "the boundary field of Qs is "
-                << Qsb << " and " << nl
+                << "the boundary field of qs is "
+                << qsb << " and " << nl
                 << "the field 'thickness' is " << thickness_.size() << nl
                 << exit(FatalError);
         }
@@ -348,7 +327,7 @@ const volScalarField& thermalBaffle::T() const
 
 const solidThermo& thermalBaffle::thermo() const
 {
-    return thermo_;
+    return *thermo_;
 }
 
 
@@ -374,8 +353,8 @@ void thermalBaffle::info()
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
-} // end namespace thermalBaffleModels
-} // end namespace regionModels
-} // end namespace Foam
+} // End namespace thermalBaffleModels
+} // End namespace regionModels
+} // End namespace Foam
 
 // ************************************************************************* //

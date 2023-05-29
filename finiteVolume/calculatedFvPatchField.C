@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -27,199 +30,198 @@ License
 #include "fvPatchFieldMapper.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
-namespace Foam {
-    template<class Type>
-    const word& fvPatchField<Type>::calculatedType()
-    {
-        return calculatedFvPatchField<Type>::typeName;
-    }
 
-
-    // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
-
-    template<class Type>
-    calculatedFvPatchField<Type>::calculatedFvPatchField
-    (
-        const fvPatch& p,
-        const DimensionedField<Type, volMesh>& iF
-    )
-        :
-        fvPatchField<Type>(p, iF)
-    {}
-
-
-    template<class Type>
-    calculatedFvPatchField<Type>::calculatedFvPatchField
-    (
-        const fvPatch& p,
-        const DimensionedField<Type, volMesh>& iF,
-        const dictionary& dict,
-        const bool valueRequired
-    )
-        :
-        fvPatchField<Type>(p, iF, dict, valueRequired)
-    {}
-
-
-    template<class Type>
-    calculatedFvPatchField<Type>::calculatedFvPatchField
-    (
-        const calculatedFvPatchField<Type>& ptf,
-        const fvPatch& p,
-        const DimensionedField<Type, volMesh>& iF,
-        const fvPatchFieldMapper& mapper
-    )
-        :
-        fvPatchField<Type>(ptf, p, iF, mapper)
-    {}
-
-
-    template<class Type>
-    calculatedFvPatchField<Type>::calculatedFvPatchField
-    (
-        const calculatedFvPatchField<Type>& ptf
-    )
-        :
-        fvPatchField<Type>(ptf)
-    {}
-
-
-    template<class Type>
-    calculatedFvPatchField<Type>::calculatedFvPatchField
-    (
-        const calculatedFvPatchField<Type>& ptf,
-        const DimensionedField<Type, volMesh>& iF
-    )
-        :
-        fvPatchField<Type>(ptf, iF)
-    {}
-
-
-    template<class Type>
-    tmp<fvPatchField<Type>>
-        fvPatchField<Type>::NewCalculatedType
-        (
-            const fvPatch& p
-        )
-    {
-        typename patchConstructorTable::iterator patchTypeCstrIter =
-            patchConstructorTablePtr_->find(p.type());
-
-        if (patchTypeCstrIter != patchConstructorTablePtr_->end())
-        {
-            return patchTypeCstrIter()
-                (
-                    p,
-                    DimensionedField<Type, volMesh>::null()
-                    );
-        }
-        else
-        {
-            return tmp<fvPatchField<Type>>
-                (
-                    new calculatedFvPatchField<Type>
-                    (
-                        p,
-                        DimensionedField<Type, volMesh>::null()
-                        )
-                    );
-        }
-    }
-
-
-    template<class Type>
-    template<class Type2>
-    tmp<fvPatchField<Type>> fvPatchField<Type>::NewCalculatedType
-    (
-        const fvPatchField<Type2>& pf
-    )
-    {
-        return NewCalculatedType(pf.patch());
-    }
-
-
-    // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
-
-    template<class Type>
-    tmp<Field<Type>>
-        calculatedFvPatchField<Type>::valueInternalCoeffs
-        (
-            const tmp<scalarField>&
-        ) const
-    {
-        FatalErrorInFunction
-            << "cannot be called for a calculatedFvPatchField"
-            << "\n    on patch " << this->patch().name()
-            << " of field " << this->internalField().name()
-            << " in file " << this->internalField().objectPath()
-            << "\n    You are probably trying to solve for a field with a "
-            "default boundary condition."
-            << abort(FatalError);
-
-        return *this;
-    }
-
-
-    template<class Type>
-    tmp<Field<Type>>
-        calculatedFvPatchField<Type>::valueBoundaryCoeffs
-        (
-            const tmp<scalarField>&
-        ) const
-    {
-        FatalErrorInFunction
-            << "cannot be called for a calculatedFvPatchField"
-            << "\n    on patch " << this->patch().name()
-            << " of field " << this->internalField().name()
-            << " in file " << this->internalField().objectPath()
-            << "\n    You are probably trying to solve for a field with a "
-            "default boundary condition."
-            << abort(FatalError);
-
-        return *this;
-    }
-
-
-    template<class Type>
-    tmp<Field<Type>>
-        calculatedFvPatchField<Type>::gradientInternalCoeffs() const
-    {
-        FatalErrorInFunction
-            << "cannot be called for a calculatedFvPatchField"
-            << "\n    on patch " << this->patch().name()
-            << " of field " << this->internalField().name()
-            << " in file " << this->internalField().objectPath()
-            << "\n    You are probably trying to solve for a field with a "
-            "default boundary condition."
-            << abort(FatalError);
-
-        return *this;
-    }
-
-
-    template<class Type>
-    tmp<Field<Type>>
-        calculatedFvPatchField<Type>::gradientBoundaryCoeffs() const
-    {
-        FatalErrorInFunction
-            << "cannot be called for a calculatedFvPatchField"
-            << "\n    on patch " << this->patch().name()
-            << " of field " << this->internalField().name()
-            << " in file " << this->internalField().objectPath()
-            << "\n    You are probably trying to solve for a field with a "
-            "default boundary condition."
-            << abort(FatalError);
-
-        return *this;
-    }
-
-
-    template<class Type>
-    void calculatedFvPatchField<Type>::write(Ostream& os) const
-    {
-        fvPatchField<Type>::write(os);
-        this->writeEntry("value", os);
-    }
-
+template<class Type>
+const Foam::word& Foam::fvPatchField<Type>::calculatedType()
+{
+    return calculatedFvPatchField<Type>::typeName;
 }
+
+
+// * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
+
+template<class Type>
+Foam::calculatedFvPatchField<Type>::calculatedFvPatchField
+(
+    const fvPatch& p,
+    const DimensionedField<Type, volMesh>& iF
+)
+:
+    fvPatchField<Type>(p, iF)
+{}
+
+
+template<class Type>
+Foam::calculatedFvPatchField<Type>::calculatedFvPatchField
+(
+    const fvPatch& p,
+    const DimensionedField<Type, volMesh>& iF,
+    const dictionary& dict,
+    const bool valueRequired
+)
+:
+    fvPatchField<Type>(p, iF, dict, valueRequired)
+{}
+
+
+template<class Type>
+Foam::calculatedFvPatchField<Type>::calculatedFvPatchField
+(
+    const calculatedFvPatchField<Type>& ptf,
+    const fvPatch& p,
+    const DimensionedField<Type, volMesh>& iF,
+    const fvPatchFieldMapper& mapper
+)
+:
+    fvPatchField<Type>(ptf, p, iF, mapper)
+{}
+
+
+template<class Type>
+Foam::calculatedFvPatchField<Type>::calculatedFvPatchField
+(
+    const calculatedFvPatchField<Type>& ptf
+)
+:
+    fvPatchField<Type>(ptf)
+{}
+
+
+template<class Type>
+Foam::calculatedFvPatchField<Type>::calculatedFvPatchField
+(
+    const calculatedFvPatchField<Type>& ptf,
+    const DimensionedField<Type, volMesh>& iF
+)
+:
+    fvPatchField<Type>(ptf, iF)
+{}
+
+
+template<class Type>
+Foam::tmp<Foam::fvPatchField<Type>>
+Foam::fvPatchField<Type>::NewCalculatedType
+(
+    const fvPatch& p
+)
+{
+    auto* patchTypeCtor = patchConstructorTable(p.type());
+
+    if (patchTypeCtor)
+    {
+        return patchTypeCtor
+        (
+            p,
+            DimensionedField<Type, volMesh>::null()
+        );
+    }
+    else
+    {
+        return tmp<fvPatchField<Type>>
+        (
+            new calculatedFvPatchField<Type>
+            (
+                p,
+                DimensionedField<Type, volMesh>::null()
+            )
+        );
+    }
+}
+
+
+template<class Type>
+template<class Type2>
+Foam::tmp<Foam::fvPatchField<Type>> Foam::fvPatchField<Type>::NewCalculatedType
+(
+    const fvPatchField<Type2>& pf
+)
+{
+    return NewCalculatedType(pf.patch());
+}
+
+
+// * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
+
+template<class Type>
+Foam::tmp<Foam::Field<Type>>
+Foam::calculatedFvPatchField<Type>::valueInternalCoeffs
+(
+    const tmp<scalarField>&
+) const
+{
+    FatalErrorInFunction
+        << "cannot be called for a calculatedFvPatchField"
+        << "\n    on patch " << this->patch().name()
+        << " of field " << this->internalField().name()
+        << " in file " << this->internalField().objectPath()
+        << "\n    You are probably trying to solve for a field with a "
+           "default boundary condition."
+        << abort(FatalError);
+
+    return *this;
+}
+
+
+template<class Type>
+Foam::tmp<Foam::Field<Type>>
+Foam::calculatedFvPatchField<Type>::valueBoundaryCoeffs
+(
+    const tmp<scalarField>&
+) const
+{
+    FatalErrorInFunction
+        << "cannot be called for a calculatedFvPatchField"
+        << "\n    on patch " << this->patch().name()
+        << " of field " << this->internalField().name()
+        << " in file " << this->internalField().objectPath()
+        << "\n    You are probably trying to solve for a field with a "
+           "default boundary condition."
+        << abort(FatalError);
+
+    return *this;
+}
+
+
+template<class Type>
+Foam::tmp<Foam::Field<Type>>
+Foam::calculatedFvPatchField<Type>::gradientInternalCoeffs() const
+{
+    FatalErrorInFunction
+        << "cannot be called for a calculatedFvPatchField"
+        << "\n    on patch " << this->patch().name()
+        << " of field " << this->internalField().name()
+        << " in file " << this->internalField().objectPath()
+        << "\n    You are probably trying to solve for a field with a "
+           "default boundary condition."
+        << abort(FatalError);
+
+    return *this;
+}
+
+
+template<class Type>
+Foam::tmp<Foam::Field<Type>>
+Foam::calculatedFvPatchField<Type>::gradientBoundaryCoeffs() const
+{
+    FatalErrorInFunction
+        << "cannot be called for a calculatedFvPatchField"
+        << "\n    on patch " << this->patch().name()
+        << " of field " << this->internalField().name()
+        << " in file " << this->internalField().objectPath()
+        << "\n    You are probably trying to solve for a field with a "
+           "default boundary condition."
+        << abort(FatalError);
+
+    return *this;
+}
+
+
+template<class Type>
+void Foam::calculatedFvPatchField<Type>::write(Ostream& os) const
+{
+    fvPatchField<Type>::write(os);
+    this->writeEntry("value", os);
+}
+
+
 // ************************************************************************* //

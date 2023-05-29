@@ -1,9 +1,11 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -32,7 +34,7 @@ Description
 #ifndef pointBoundaryMeshMapper_H
 #define pointBoundaryMeshMapper_H
 
-#include "PtrList.T.H"
+#include "PtrList.H"
 #include "pointPatchMapper.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
@@ -44,15 +46,17 @@ namespace Foam
                     Class pointBoundaryMeshMapper Declaration
 \*---------------------------------------------------------------------------*/
 
-class pointBoundaryMeshMapper :    public PtrList<pointPatchMapper>
+class pointBoundaryMeshMapper
+:
+    public PtrList<pointPatchMapper>
 {
     // Private Member Functions
 
-        //- Disallow default bitwise copy construct
-        pointBoundaryMeshMapper(const pointBoundaryMeshMapper&);
+        //- No copy construct
+        pointBoundaryMeshMapper(const pointBoundaryMeshMapper&) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const pointBoundaryMeshMapper&);
+        //- No copy assignment
+        void operator=(const pointBoundaryMeshMapper&) = delete;
 
 
 public:

@@ -1,9 +1,12 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2019 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -24,10 +27,13 @@ License
 Class
     Foam::GAMGSolver
 
+Group
+    grpLduMatrixSolvers
+
 Description
     Geometric agglomerated algebraic multigrid solver.
 
-  Characteristics:
+    Characteristics:
       - Requires positive definite, diagonally dominant matrix.
       - Agglomeration algorithm: selectable and optionally cached.
       - Restriction operator: summation.
@@ -53,11 +59,11 @@ SourceFiles
 #ifndef GAMGSolver_H
 #define GAMGSolver_H
 
-#include "GAMGAgglomeration.T.H"
-#include "lduMatrix.H"
+#include "GAMGAgglomeration.H"
+#include "lduMatrix2.H"
 #include "labelField.H"
 #include "primitiveFields.H"
-#include "LUscalarMatrix.T.H"
+#include "LUscalarMatrix.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -65,10 +71,12 @@ namespace Foam
 {
 
 /*---------------------------------------------------------------------------*\
-                           Class GAMGSolver Declaration
+                         Class GAMGSolver Declaration
 \*---------------------------------------------------------------------------*/
 
-class GAMGSolver :    public lduMatrix::solver
+class GAMGSolver
+:
+    public lduMatrix::solver
 {
     // Private data
 
@@ -125,8 +133,11 @@ class GAMGSolver :    public lduMatrix::solver
         //- Hierarchy of interface internal coefficients
         PtrList<FieldField<Field, scalar>> interfaceLevelsIntCoeffs_;
 
-        //- LU decompsed coarsest matrix
+        //- LU decomposed coarsest matrix
         autoPtr<LUscalarMatrix> coarsestLUMatrixPtr_;
+
+        //- Sparse coarsest matrix solver
+        autoPtr<lduMatrix::solver> coarsestSolverPtr_;
 
 
     // Private Member Functions
@@ -223,8 +234,8 @@ class GAMGSolver :    public lduMatrix::solver
         //- Interpolate the correction after injected prolongation
         void interpolate
         (
-            scalarField& psi,
-            scalarField& Apsi,
+            solveScalarField& psi,
+            solveScalarField& Apsi,
             const lduMatrix& m,
             const FieldField<Field, scalar>& interfaceBouCoeffs,
             const lduInterfaceFieldPtrsList& interfaces,
@@ -235,13 +246,13 @@ class GAMGSolver :    public lduMatrix::solver
         //  re-normalise
         void interpolate
         (
-            scalarField& psi,
-            scalarField& Apsi,
+            solveScalarField& psi,
+            solveScalarField& Apsi,
             const lduMatrix& m,
             const FieldField<Field, scalar>& interfaceBouCoeffs,
             const lduInterfaceFieldPtrsList& interfaces,
             const labelList& restrictAddressing,
-            const scalarField& psiC,
+            const solveScalarField& psiC,
             const direction cmpt
         ) const;
 
@@ -252,23 +263,23 @@ class GAMGSolver :    public lduMatrix::solver
         //  scaling factor.
         void scale
         (
-            scalarField& field,
-            scalarField& Acf,
+            solveScalarField& field,
+            solveScalarField& Acf,
             const lduMatrix& A,
             const FieldField<Field, scalar>& interfaceLevelBouCoeffs,
             const lduInterfaceFieldPtrsList& interfaceLevel,
-            const scalarField& source,
+            const solveScalarField& source,
             const direction cmpt
         ) const;
 
         //- Initialise the data structures for the V-cycle
         void initVcycle
         (
-            PtrList<scalarField>& coarseCorrFields,
-            PtrList<scalarField>& coarseSources,
+            PtrList<solveScalarField>& coarseCorrFields,
+            PtrList<solveScalarField>& coarseSources,
             PtrList<lduMatrix::smoother>& smoothers,
-            scalarField& scratch1,
-            scalarField& scratch2
+            solveScalarField& scratch1,
+            solveScalarField& scratch2
         ) const;
 
 
@@ -276,17 +287,17 @@ class GAMGSolver :    public lduMatrix::solver
         void Vcycle
         (
             const PtrList<lduMatrix::smoother>& smoothers,
-            scalarField& psi,
+            solveScalarField& psi,
             const scalarField& source,
-            scalarField& Apsi,
-            scalarField& finestCorrection,
-            scalarField& finestResidual,
+            solveScalarField& Apsi,
+            solveScalarField& finestCorrection,
+            solveScalarField& finestResidual,
 
-            scalarField& scratch1,
-            scalarField& scratch2,
+            solveScalarField& scratch1,
+            solveScalarField& scratch2,
 
-            PtrList<scalarField>& coarseCorrFields,
-            PtrList<scalarField>& coarseSources,
+            PtrList<solveScalarField>& coarseCorrFields,
+            PtrList<solveScalarField>& coarseSources,
             const direction cmpt=0
         ) const;
 
@@ -309,8 +320,8 @@ class GAMGSolver :    public lduMatrix::solver
         //- Solve the coarsest level with either an iterative or direct solver
         void solveCoarsestLevel
         (
-            scalarField& coarsestCorrField,
-            const scalarField& coarsestSource
+            solveScalarField& coarsestCorrField,
+            const solveScalarField& coarsestSource
         ) const;
 
 

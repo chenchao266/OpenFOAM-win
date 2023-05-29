@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -38,9 +40,9 @@ SourceFiles
 #ifndef removeFaces_H
 #define removeFaces_H
 
-#include "Pstream.T.H"
-#include "HashSet.T.H"
-#include "Map.T.H"
+#include "Pstream.H"
+#include "HashSet.H"
+#include "Map.H"
 #include "boolList.H"
 #include "indirectPrimitivePatch.H"
 
@@ -49,7 +51,7 @@ SourceFiles
 namespace Foam
 {
 
-// Forward declaration of classes
+// Forward Declarations
 class polyMesh;
 class polyTopoChange;
 class face;
@@ -156,11 +158,11 @@ class removeFaces
 
 
 
-        //- Disallow default bitwise copy construct
-        removeFaces(const removeFaces&);
+        //- No copy construct
+        removeFaces(const removeFaces&) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const removeFaces&);
+        //- No copy assignment
+        void operator=(const removeFaces&) = delete;
 
 
 public:
@@ -175,6 +177,7 @@ public:
         //  to be considered aligned. Set to >= 1 to disable checking
         //  and always merge (if on same patch)
         removeFaces(const polyMesh&, const scalar minCos);
+
 
     // Member Functions
 

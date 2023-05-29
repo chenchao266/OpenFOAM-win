@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2015-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2015-2017 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -24,15 +27,64 @@ License
 Class
     Foam::fv::buoyancyForce
 
+Group
+    grpFvOptionsSources
+
 Description
-    Calculates and applies the buoyancy force rho*g to the momentum equation
-    corresponding to the specified velocity field.
+    Applies buoyancy force sources (i.e. \c Sf) to the momentum
+    equation for incompressible and compressible flows.
+
+    \f[
+        S_f = \rho \vec{g}
+    \f]
+
+    where
+    \vartable
+      S_f     | Buoyancy force source term
+      \rho    | Fluid density
+      \vec{g} | Gravitational acceleration field
+    \endvartable
+
+    Sources applied to:
+    \verbatim
+      U         | Velocity                                   [m/s]
+    \endverbatim
+
+    Required fields:
+    \verbatim
+      U         | Velocity                                   [m/s]
+    \endverbatim
 
 Usage
-    Example usage:
+    Minimal example by using \c constant/fvOptions:
     \verbatim
-    fields          (U);                    // Name of velocity field
+    buoyancyForce1
+    {
+        // Mandatory entries (unmodifiable)
+        type             buoyancyForce;
+        fields           (U);
+
+        // Mandatory/Optional (inherited) entries
+        ...
+    }
     \endverbatim
+
+    where the entries mean:
+    \table
+      Property  | Description                       | Type   | Reqd  | Dflt
+      type      | Type name: buoyancyEnergy         | word   | yes   | -
+      fields    | Name of operand vector field      | word   | yes   | -
+    \endtable
+
+    The inherited entries are elaborated in:
+     - \link fvOption.H \endlink
+
+Note
+  - The entry \c fields accepts only a single vector field name.
+
+See also
+  - Foam::fv::buoyancyEnergy
+  - Foam::fv::buoyancyTurbSource
 
 SourceFiles
     buoyancyForce.C
@@ -53,25 +105,16 @@ namespace fv
 {
 
 /*---------------------------------------------------------------------------*\
-               Class buoyancyForce Declaration
+                        Class buoyancyForce Declaration
 \*---------------------------------------------------------------------------*/
 
 class buoyancyForce
 :
-    public option
+    public fv::option
 {
-    // Private data
+    // Private Data
 
-        uniformDimensionedVectorField g_;
-
-
-    // Private Member Functions
-
-        //- Disallow default bitwise copy construct
-        buoyancyForce(const buoyancyForce&);
-
-        //- Disallow default bitwise assignment
-        void operator=(const buoyancyForce&);
+        const uniformDimensionedVectorField g_;
 
 
 public:
@@ -91,24 +134,37 @@ public:
             const fvMesh& mesh
         );
 
+        //- No copy construct
+        buoyancyForce(const buoyancyForce&) = delete;
+
+        //- No copy assignment
+        void operator=(const buoyancyForce&) = delete;
+
+
+    //- Destructor
+    virtual ~buoyancyForce() = default;
+
 
     // Member Functions
 
-        // Evaluate
+        //- Add explicit contribution to momentum equation
+        virtual void addSup
+        (
+            fvMatrix<vector>& eqn,
+            const label fieldi
+        );
 
-            //- Add explicit contribution to compressible momentum equation
-            virtual void addSup
-            (
-                const volScalarField& rho,
-                fvMatrix<vector>& eqn,
-                const label fieldi
-            );
+        //- Add explicit contribution to compressible momentum equation
+        virtual void addSup
+        (
+            const volScalarField& rho,
+            fvMatrix<vector>& eqn,
+            const label fieldi
+        );
 
 
-        // IO
-
-            //- Read source dictionary
-            virtual bool read(const dictionary& dict);
+        //- Read source dictionary
+        virtual bool read(const dictionary& dict);
 };
 
 

@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -26,7 +28,7 @@ License
 #include "angularOscillatingDisplacementPointPatchVectorField.H"
 #include "pointPatchFields.H"
 #include "addToRunTimeSelectionTable.H"
-#include "Time.T.H"
+#include "Time1.H"
 #include "polyMesh.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
@@ -64,9 +66,9 @@ angularOscillatingDisplacementPointPatchVectorField
     fixedValuePointPatchField<vector>(p, iF, dict),
     axis_(dict.lookup("axis")),
     origin_(dict.lookup("origin")),
-    angle0_(readScalar(dict.lookup("angle0"))),
-    amplitude_(readScalar(dict.lookup("amplitude"))),
-    omega_(readScalar(dict.lookup("omega")))
+    angle0_(dict.get<scalar>("angle0")),
+    amplitude_(dict.get<scalar>("amplitude")),
+    omega_(dict.get<scalar>("omega"))
 {
     if (!dict.found("value"))
     {
@@ -179,16 +181,11 @@ void angularOscillatingDisplacementPointPatchVectorField::write
 ) const
 {
     pointPatchField<vector>::write(os);
-    os.writeKeyword("axis")
-        << axis_ << token::END_STATEMENT << nl;
-    os.writeKeyword("origin")
-        << origin_ << token::END_STATEMENT << nl;
-    os.writeKeyword("angle0")
-        << angle0_ << token::END_STATEMENT << nl;
-    os.writeKeyword("amplitude")
-        << amplitude_ << token::END_STATEMENT << nl;
-    os.writeKeyword("omega")
-        << omega_ << token::END_STATEMENT << nl;
+    os.writeEntry("axis", axis_);
+    os.writeEntry("origin", origin_);
+    os.writeEntry("angle0", angle0_);
+    os.writeEntry("amplitude", amplitude_);
+    os.writeEntry("omega", omega_);
     p0_.writeEntry("p0", os);
     writeEntry("value", os);
 }

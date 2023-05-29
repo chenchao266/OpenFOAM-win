@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011 OpenFOAM Foundation
+    Copyright (C) 2016-2017 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -25,7 +28,7 @@ Class
     Foam::fileFormats::STARCDCore
 
 Description
-    Core routines used when reading/writing pro-STAR vrt/cel/bnd files.
+    Core routines used when reading/writing PROSTAR vrt/cel/bnd files.
 
 SourceFiles
     STARCDCore.C
@@ -36,7 +39,11 @@ SourceFiles
 #define STARCDCore_H
 
 #include "IFstream.H"
-#include "pointField.H"
+#include "Enum.H"
+#include "Map.H"
+#include "point.H"
+#include "FixedList.H"
+#include "List.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -52,20 +59,29 @@ namespace fileFormats
 
 class STARCDCore
 {
-protected:
+public:
 
-    // Protected Member Functions
+    // Public Data, Declarations
 
-        //- Read header
-        static bool readHeader(IFstream&, const word& fileSignature);
+        //- Enumeration defining the file headers
+        enum fileHeader
+        {
+            HEADER_CEL,
+            HEADER_VRT,
+            HEADER_BND
+        };
 
-        //- Write header for fileType (CELL|VERTEX|BOUNDARY)
-        static void writeHeader(Ostream&, const word& fileType);
+        //- Enumeration defining the file extensions
+        enum fileExt
+        {
+            CEL_FILE,
+            VRT_FILE,
+            BND_FILE,
+            INP_FILE
+        };
 
-
-protected:
-
-        enum cellType
+        //- Basic material type for STARCD/PROSTAR files
+        enum matlType
         {
             starcdFluidType   = 1,
             starcdSolidType   = 2,
@@ -75,6 +91,7 @@ protected:
             starcdPointType   = 6
         };
 
+        //- Shape-Type for STARCD/PROSTAR files
         enum shapeType
         {
             starcdPoint = 1,
@@ -88,11 +105,65 @@ protected:
         };
 
 
+        //- The name for default (unassigned) boundaries
+        static const char* const defaultBoundaryName;
+
+        //- The name we have chosen for default (unassigned) solid boundaries.
+        //  Slightly distinguished from the regular default name.
+        static const char* const defaultSolidBoundaryName;
+
+
+private:
+
+    // Private Data
+
+        static const Enum<fileHeader> fileHeaders_;
+        static const Enum<fileExt>    fileExtensions_;
+
+
+protected:
+
+    // Protected Member Functions
+
+        //- Face addressing from PROSTAR faces to OpenFOAM faces.
+        //  For hex, prism, tet, pyr primitive shapes.
+        static const Map<FixedList<int, 6>> starToFoamFaceAddr;
+
+        //- Face addressing from OpenFOAM faces to PROSTAR faces.
+        //  For hex, prism, tet, pyr primitive shapes.
+        static const Map<FixedList<int, 6>> foamToStarFaceAddr;
+
+
+    // Constructors
+
+        //- Construct null
+        STARCDCore() = default;
+
+        //- Read header and check signature PROSTAR_(CELL|VERTEX|BOUNDARY)
+        static bool readHeader(IFstream& is, const enum fileHeader header);
+
+        //- Write header for fileType (CELL|VERTEX|BOUNDARY)
+        static void writeHeader(Ostream& os, const enum fileHeader header);
+
+
 public:
 
     // Public Member Functions
 
-        //- Read points from a (.vrt) file
+        //- Resolve base file-name for the given file-type
+        static fileName starFileName
+        (
+            const fileName& baseName,
+            const enum fileExt ext
+        );
+
+
+        //- Remove existing PROSTAR files for the given base file-name
+        static void removeFiles(const fileName& baseName);
+
+
+        //- Read points from a (.vrt) file, return the max prostar id used.
+        //
         // The file format is as follows:
         // \verbatim
         // Line 1:
@@ -104,16 +175,20 @@ public:
         // Body:
         //   {vertexId}  {x}  {y}  {z}  newline
         // \endverbatim
-        static bool readPoints(IFstream&, pointField&, labelList& ids);
+        static label readPoints
+        (
+            IFstream& is,
+            List<point>& points,
+            List<label>& ids
+        );
 
-        //- Write header and points to (.vrt) file
-        static void writePoints(Ostream&, const pointField&);
-
-
-    // Constructors
-
-        //- Construct null
-        STARCDCore();
+        //- Write header and points to (.vrt) file, optionally with scaling
+        static void writePoints
+        (
+            Ostream& os,
+            const UList<point>& points,
+            const scalar scaleFactor = 1.0
+        );
 
 };
 

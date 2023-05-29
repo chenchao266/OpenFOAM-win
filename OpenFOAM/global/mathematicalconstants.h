@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2017 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -25,7 +28,7 @@ Namespace
     Foam::constant::mathematical
 
 Description
-    mathematical constants.
+    Mathematical constants.
 
 \*---------------------------------------------------------------------------*/
 
@@ -33,8 +36,7 @@ Description
 #define mathematicalConstants_H
 
 #include "scalar.H"
-#define _USE_MATH_DEFINES
-#include "math.h"
+
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 namespace Foam
@@ -46,15 +48,16 @@ namespace mathematical
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
-    static const char* const group = "mathematical";
+    //- Group name for mathematical constants
+    constexpr const char* const group = "mathematical";
 
-    const scalar e(M_E);
-    const scalar pi(M_PI);
-    const scalar twoPi(2*pi);
-    const scalar piByTwo(0.5*pi);
+    constexpr scalar e(M_E);
+    constexpr scalar pi(M_PI);
+    constexpr scalar twoPi(2*M_PI);
+    constexpr scalar piByTwo(0.5*M_PI);
 
     //- Euler's constant
-    const scalar Eu(0.57721566490153286060651209);
+    constexpr scalar Eu(0.57721566490153286060651209);
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 

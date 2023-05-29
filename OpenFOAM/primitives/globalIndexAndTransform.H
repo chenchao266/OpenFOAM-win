@@ -1,9 +1,11 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -46,7 +48,7 @@ SourceFiles
 
 #include "labelPair.H"
 #include "vectorTensorTransform.H"
-#include "HashSet.T.H"
+#include "HashSet.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -150,11 +152,11 @@ private:
             const labelPair& patchTrafo
         ) const;
 
-        //- Disallow default bitwise copy construct
-        globalIndexAndTransform(const globalIndexAndTransform&);
+        //- No copy construct
+        globalIndexAndTransform(const globalIndexAndTransform&) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const globalIndexAndTransform&);
+        //- No copy assignment
+        void operator=(const globalIndexAndTransform&) = delete;
 
 
 public:

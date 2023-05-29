@@ -1,9 +1,12 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2017-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -45,27 +48,49 @@ SourceFiles
 #include "IDLList.H"
 #include "fileName.H"
 #include "autoPtr.H"
-
+#undef MERGE
+#undef OVERWRITE
+#undef PROTECT
+#undef WARN
+#undef ERROR
+#undef GLOBAL
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 namespace Foam
 {
 
+// Forward Declarations
 class ITstream;
 class dictionary;
-
-// Forward declaration of friend functions and operators
-
 class entry;
-Ostream& operator<<(Ostream&, const entry&);
+Ostream& operator<<(Ostream& os, const entry& e);
+
 
 /*---------------------------------------------------------------------------*\
                            Class entry Declaration
 \*---------------------------------------------------------------------------*/
 
-class entry :    public IDLList<entry>::link
+class entry : public IDLList<entry>::link
 {
-    // Private data
+public:
+
+    // Enums/Typedefs
+
+        //- The input mode options
+        enum   inputMode
+        {
+            MERGE,      //!< Merge sub-dictionaries when possible
+            OVERWRITE,  //!< Keep last entry. Silently remove previous ones
+            PROTECT,    //!< Keep initial entry. Silently ignore subsequent ones
+            WARN,       //!< Keep initial entry. Warn about subsequent ones.
+            ERROR,      //!< FatalError for duplicate entries
+            GLOBAL      //!< Use global value from #globalInputMode variable
+        };
+
+
+private:
+
+    // Private Data
 
         //- Keyword of entry
         keyType keyword_;
@@ -73,25 +98,49 @@ class entry :    public IDLList<entry>::link
 
     // Private Member Functions
 
-        //- Get the next valid keyword. Return true if is valid keyType.
-        static bool getKeyword(keyType&, token&, Istream&);
+        //- Get the next valid keyword.
+        //  \return True if it is a valid keyType.
+        static bool getKeyword
+        (
+            keyType& keyword,
+            token& keyToken,
+            Istream& is
+        );
 
-        //- Get the next valid keyword otherwise return false
-        static bool getKeyword(keyType&, Istream&);
+        //- Get the next valid keyword.
+        //  Warn when an invalid token is encountered that is not EOF or
+        //  end-of-block
+        //  \return True if it is a valid keyType.
+        static bool getKeyword(keyType& keyword, Istream& is);
+
+        //- Emit IOError about bad input for the entry
+        void raiseBadInput(const ITstream& is) const;
+
+
+protected:
+
+    // Protected Member Functions
+
+        //- Report a read warning (on std::cerr)
+        static void reportReadWarning(const IOstream&, const std::string&);
 
 
 public:
 
+    //- Enable or disable use of function entries and variable expansions.
     static int disableFunctionEntries;
+
+    //- The current global input-mode.
+    static inputMode globalInputMode;
 
 
     // Constructors
 
         //- Construct from keyword
-        entry(const keyType&);
+        entry(const keyType& keyword);
 
         //- Construct as copy
-        entry(const entry&);
+        entry(const entry& e);
 
         //- Construct on freestore as copy with reference to the
         //  dictionary the copy belongs to
@@ -104,37 +153,68 @@ public:
         //  Note: the parent directory is set to dictionary::null
         virtual autoPtr<entry> clone() const;
 
-        //- Construct from Istream and insert into dictionary
-        static bool New(dictionary& parentDict, Istream&);
+        //- Construct from an Istream and insert into the dictionary
+        //  \param parentDict dictionary to insert into
+        //  \param is the input stream
+        //  \param inpMode the input mode.
+        //     The default is to use the currently active #globalInputMode
+        //  \param endChar the expected end character (eg, a closing brace).
+        //     The endChar is 0 if no expectations are asserted.
+        static bool New
+        (
+            dictionary& parentDict,
+            Istream& is,
+            const inputMode inpMode = GLOBAL,
+            const int endChar = 0
+        );
 
-        //- Construct on freestore from Istream and return
+        //- Construct an entry from Istream.
+        //  The expected input comprises a keyword followed by a
+        //  dictionaryEntry or a primitiveEntry.
+        //
+        //  - The dictionaryEntry starts with a '{' left brace and ends
+        //    with a '}' right brace.
+        //  - The primitiveEntry ends with a ';' semi-colon.
+        //
+        // Example input
+        // \verbatim
+        //     key1 { ... }   // dictionary input
+        //     key2 ... ;     // primitive input
+        // \endverbatim
+        //
+        //  \return The #entry read, or nullptr on error.
         static autoPtr<entry> New(Istream& is);
+
+        //- Reset the #globalInputMode to %merge
+        static void resetInputMode();
 
 
     //- Destructor
-    virtual ~entry()
-    {}
+    virtual ~entry() = default;
 
 
-    // Member functions
+    // Member Functions
 
         //- Return keyword
-        const keyType& keyword() const
+        const keyType& keyword() const noexcept
         {
             return keyword_;
         }
 
         //- Return non-const access to keyword
-        keyType& keyword()
+        keyType& keyword() noexcept
         {
             return keyword_;
         }
 
-        //- Return the dictionary name
+        //- Return the entry name
         virtual const fileName& name() const = 0;
 
-        //- Return the dictionary name
+        //- Return the entry name for modification
         virtual fileName& name() = 0;
+
+        //- Return the entry name relative to the current case
+        virtual fileName relativeName() const = 0;
 
         //- Return line number of first token in dictionary
         virtual label startLineNumber() const = 0;
@@ -142,42 +222,122 @@ public:
         //- Return line number of last token in dictionary
         virtual label endLineNumber() const = 0;
 
+
         //- Return true if this entry is a stream
-        virtual bool isStream() const
+        virtual bool isStream() const noexcept
         {
             return false;
         }
 
-        //- Return token stream if this entry is a primitive entry
+        //- Return token stream, if entry is a primitive entry
         virtual ITstream& stream() const = 0;
 
+
         //- Return true if this entry is a dictionary
-        virtual bool isDict() const
+        virtual bool isDict() const noexcept
         {
-            return false;
+            return this->dictPtr();
         }
 
-        //- Return dictionary if this entry is a dictionary
+        //- Return pointer to dictionary, if entry is a dictionary.
+        //  Return nullptr if the entry is not a dictionary.
+        virtual const dictionary* dictPtr() const noexcept
+        {
+            return nullptr;
+        }
+
+        //- Return non-const pointer to dictionary, if entry is a dictionary
+        //  Return nullptr if the entry is not a dictionary.
+        virtual dictionary* dictPtr() noexcept
+        {
+            return nullptr;
+        }
+
+        //- Return dictionary, if entry is a dictionary
         virtual const dictionary& dict() const = 0;
 
-        //- Return non-const access to dictionary if this entry is a dictionary
+        //- Return non-const access to dictionary, if entry is a dictionary
         virtual dictionary& dict() = 0;
 
+
+    // Read
+
+        //- Check after reading if the input token stream has unconsumed
+        //- tokens remaining or if there were no tokens in the first place.
+        //  Emits FatalIOError
+        void checkITstream(const ITstream& is) const;
+
+        //- Get a T from the stream,
+        //- FatalIOError if the number of tokens is incorrect.
+        template<class T>
+        T get() const
+        {
+            T val;
+            readEntry<T>(val);
+            return val;
+        }
+
+        //- Assign to T val,
+        //- FatalIOError if the number of tokens is incorrect.
+        //
+        //  \param val the value to read into
+        template<class T>
+        void readEntry(T& val) const
+        {
+            ITstream& is = this->stream();
+            is >> val;
+
+            checkITstream(is);
+        }
+
+        //- Get a T from the stream,
+        //- FatalIOError if the number of tokens is incorrect.
+        //
+        //  \param pred the value check predicate
+        template<class T, class Predicate>
+        T getCheck(const Predicate& pred) const
+        {
+            T val;
+            readCheck<T>(val, pred);
+            return val;
+        }
+
+        //- Assign to T val,
+        //- FatalIOError if the number of tokens is incorrect.
+        //
+        //  \param val the value to read into
+        //  \param pred the value check predicate
+        template<class T, class Predicate>
+        void readCheck(T& val, const Predicate& pred) const
+        {
+            ITstream& is = this->stream();
+            is >> val;
+
+            checkITstream(is);
+            if (!pred(val))
+            {
+                raiseBadInput(is);
+            }
+        }
+
+
+    // Write
+
         //- Write
-        virtual void write(Ostream&) const = 0;
+        virtual void write(Ostream& os) const = 0;
 
 
-    // Member operators
+    // Member Operators
 
-        void operator=(const entry&);
+        void operator=(const entry& e);
 
-        bool operator==(const entry&) const;
-        bool operator!=(const entry&) const;
+        bool operator==(const entry& e) const;
+        bool operator!=(const entry& e) const;
 
 
-    // Ostream operator
+    // Ostream Operator
 
-        friend Ostream& operator<<(Ostream&, const entry&);
+        friend Ostream& operator<<(Ostream& os, const entry& e);
 };
 
 

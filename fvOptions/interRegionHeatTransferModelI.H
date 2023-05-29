@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2012-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2012-2016 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -35,21 +38,21 @@ Foam::fv::interRegionHeatTransferModel::nbrRegionName() const
 inline const Foam::meshToMesh&
 Foam::fv::interRegionHeatTransferModel::meshInterp() const
 {
-    if (!meshInterpPtr_.valid())
+    if (!meshInterpPtr_)
     {
         FatalErrorInFunction
             << "Interpolation object not set"
             << abort(FatalError);
     }
 
-    return meshInterpPtr_();
+    return *meshInterpPtr_;
 }
 
 
 inline const Foam::volScalarField&
 Foam::fv::interRegionHeatTransferModel::htc() const
 {
-    return  htc_;
+    return htc_;
 }
 
 

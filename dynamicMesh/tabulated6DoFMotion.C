@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2019-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -25,12 +28,11 @@ License
 
 #include "tabulated6DoFMotion.H"
 #include "addToRunTimeSelectionTable.H"
-#include "Tuple2.T.H"
+#include "Tuple2.H"
 #include "IFstream.H"
 #include "interpolateSplineXY.H"
-#include "mathematicalConstants.H"
+#include "unitConversion.H"
 
-using namespace Foam::constant::mathematical;
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
 
@@ -61,12 +63,6 @@ Foam::solidBodyMotionFunctions::tabulated6DoFMotion::tabulated6DoFMotion
 {
     read(SBMFCoeffs);
 }
-
-
-// * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
-
-Foam::solidBodyMotionFunctions::tabulated6DoFMotion::~tabulated6DoFMotion()
-{}
 
 
 // * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * * //
@@ -102,7 +98,7 @@ Foam::solidBodyMotionFunctions::tabulated6DoFMotion::transformation() const
     );
 
     // Convert the rotational motion from deg to rad
-    TRV[1] *= pi/180.0;
+    TRV[1] *= degToRad();
 
     quaternion R(quaternion::XYZ, TRV[1]);
     septernion TR(septernion(-CofG_ + -TRV[0])*R*septernion(CofG_));
@@ -124,7 +120,7 @@ bool Foam::solidBodyMotionFunctions::tabulated6DoFMotion::read
 
     fileName newTimeDataFileName
     (
-        fileName(SBMFCoeffs_.lookup("timeDataFileName")).expand()
+        SBMFCoeffs_.get<fileName>("timeDataFileName").expand()
     );
 
     if (newTimeDataFileName != timeDataFileName_)
@@ -157,7 +153,7 @@ bool Foam::solidBodyMotionFunctions::tabulated6DoFMotion::read
         }
     }
 
-    SBMFCoeffs_.lookup("CofG") >> CofG_;
+    SBMFCoeffs_.readEntry("CofG", CofG_);
 
     return true;
 }

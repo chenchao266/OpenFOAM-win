@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -37,7 +39,7 @@ SourceFiles
 #ifndef edgeIntersections_H
 #define edgeIntersections_H
 
-#include "pointIndexHit.H"
+#include "pointIndexHit2.H"
 #include "scalarField.H"
 #include "pointField.H"
 #include "typeInfo.H"
@@ -103,7 +105,7 @@ class edgeIntersections
             boolList& affectedEdges
         ) const;
 
-        //- Perturb single endpoint of edge if edge is algigned with face.
+        //- Perturb single endpoint of edge if edge is aligned with face.
         //  See inlinePerturb. Return true if anything changed.
         bool rotatePerturb
         (

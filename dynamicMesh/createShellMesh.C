@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2019-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -35,7 +38,7 @@ License
 #include "indirectPrimitivePatch.H"
 #include "mapDistribute.H"
 #include "globalMeshData.H"
-#include "PatchTools.T.H"
+#include "PatchTools.H"
 #include "globalIndex.H"
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
@@ -66,16 +69,16 @@ void Foam::createShellMesh::syncEdges
 
     const labelList& patchEdges,
     const labelList& coupledEdges,
-    const PackedBoolList& sameEdgeOrientation,
+    const bitSet& sameEdgeOrientation,
     const bool syncNonCollocated,
 
-    PackedBoolList& isChangedEdge,
+    bitSet& isChangedEdge,
     DynamicList<label>& changedEdges,
     labelPairList& allEdgeData
 )
 {
     const mapDistribute& map = globalData.globalEdgeSlavesMap();
-    const PackedBoolList& cppOrientation = globalData.globalEdgeOrientation();
+    const bitSet& cppOrientation = globalData.globalEdgeOrientation();
 
     // Convert patch-edge data into cpp-edge data
     labelPairList cppEdgeData
@@ -143,7 +146,7 @@ void Foam::createShellMesh::syncEdges
             if (!isChangedEdge[patchEdgeI])
             {
                 changedEdges.append(patchEdgeI);
-                isChangedEdge[patchEdgeI] = true;
+                isChangedEdge.set(patchEdgeI);
             }
         }
     }
@@ -154,7 +157,7 @@ void Foam::createShellMesh::calcPointRegions
 (
     const globalMeshData& globalData,
     const primitiveFacePatch& patch,
-    const PackedBoolList& nonManifoldEdge,
+    const bitSet& nonManifoldEdge,
     const bool syncNonCollocated,
 
     faceList& pointGlobalRegions,
@@ -167,7 +170,7 @@ void Foam::createShellMesh::calcPointRegions
     // Calculate correspondence between patch and globalData.coupledPatch.
     labelList patchEdges;
     labelList coupledEdges;
-    PackedBoolList sameEdgeOrientation;
+    bitSet sameEdgeOrientation;
     PatchTools::matchEdges
     (
         cpp,
@@ -211,7 +214,7 @@ void Foam::createShellMesh::calcPointRegions
 
     DynamicList<label> changedEdges(patch.nEdges());
     labelPairList allEdgeData(patch.nEdges(), labelPair(labelMax, labelMax));
-    PackedBoolList isChangedEdge(patch.nEdges());
+    bitSet isChangedEdge(patch.nEdges());
 
 
     // Fill initial seed
@@ -226,8 +229,8 @@ void Foam::createShellMesh::calcPointRegions
             label facei = patch.edgeFaces()[edgeI][0];
             const face& f = patch.localFaces()[facei];
 
-            label fp0 = findIndex(f, e[0]);
-            label fp1 = findIndex(f, e[1]);
+            label fp0 = f.find(e[0]);
+            label fp1 = f.find(e[1]);
             allEdgeData[edgeI] = labelPair
             (
                 pointGlobalRegions[facei][fp0],
@@ -236,7 +239,7 @@ void Foam::createShellMesh::calcPointRegions
             if (!isChangedEdge[edgeI])
             {
                 changedEdges.append(edgeI);
-                isChangedEdge[edgeI] = true;
+                isChangedEdge.set(edgeI);
             }
         }
     }
@@ -267,7 +270,7 @@ void Foam::createShellMesh::calcPointRegions
         // ~~~~~~~~~~~~~~~~~
 
         DynamicList<label> changedFaces(patch.size());
-        PackedBoolList isChangedFace(patch.size());
+        bitSet isChangedFace(patch.size());
 
         forAll(changedEdges, changedI)
         {
@@ -283,24 +286,24 @@ void Foam::createShellMesh::calcPointRegions
                 const face& f = patch.localFaces()[facei];
 
                 // Combine edgeData with face data
-                label fp0 = findIndex(f, e[0]);
+                label fp0 = f.find(e[0]);
                 if (pointGlobalRegions[facei][fp0] > edgeData[0])
                 {
                     pointGlobalRegions[facei][fp0] = edgeData[0];
                     if (!isChangedFace[facei])
                     {
-                        isChangedFace[facei] = true;
+                        isChangedFace.set(facei);
                         changedFaces.append(facei);
                     }
                 }
 
-                label fp1 = findIndex(f, e[1]);
+                label fp1 = f.find(e[1]);
                 if (pointGlobalRegions[facei][fp1] > edgeData[1])
                 {
                     pointGlobalRegions[facei][fp1] = edgeData[1];
                     if (!isChangedFace[facei])
                     {
-                        isChangedFace[facei] = true;
+                        isChangedFace.set(facei);
                         changedFaces.append(facei);
                     }
                 }
@@ -334,9 +337,9 @@ void Foam::createShellMesh::calcPointRegions
                 if (!nonManifoldEdge[edgeI])
                 {
                     const edge& e = patch.edges()[edgeI];
-                    label fp0 = findIndex(f, e[0]);
+                    label fp0 = f.find(e[0]);
                     label region0 = pointGlobalRegions[facei][fp0];
-                    label fp1 = findIndex(f, e[1]);
+                    label fp1 = f.find(e[1]);
                     label region1 = pointGlobalRegions[facei][fp1];
 
                     if
@@ -349,7 +352,7 @@ void Foam::createShellMesh::calcPointRegions
                         if (!isChangedEdge[edgeI])
                         {
                             changedEdges.append(edgeI);
-                            isChangedEdge[edgeI] = true;
+                            isChangedEdge.set(edgeI);
                         }
                     }
                 }
@@ -396,9 +399,9 @@ void Foam::createShellMesh::calcPointRegions
         {
             label globalRegionI = pointGlobalRegions[facei][fp];
 
-            Map<label>::iterator fnd = globalToLocalRegion.find(globalRegionI);
+            const auto fnd = globalToLocalRegion.cfind(globalRegionI);
 
-            if (fnd != globalToLocalRegion.end())
+            if (fnd.found())
             {
                 // Already encountered this global region. Assign same local one
                 pRegions[fp] = fnd();
@@ -696,7 +699,7 @@ void Foam::createShellMesh::setRefinement
         const face& f = patch_.localFaces()[eFaces[0]];
         const edge& e = patch_.edges()[edgeI];
 
-        label fp0 = findIndex(f, e[0]);
+        label fp0 = f.find(e[0]);
         label fp1 = f.fcIndex(fp0);
 
         if (f[fp1] != e[1])
@@ -753,8 +756,8 @@ void Foam::createShellMesh::setRefinement
                 if (minCelli > maxCelli)
                 {
                     // Swap
-                    Swap(minCelli, maxCelli);
-                    newF = newF.reverseFace();
+                    std::swap(minCelli, maxCelli);
+                    newF.flip();
                 }
                 patchi = -1;
             }
@@ -815,7 +818,7 @@ void Foam::createShellMesh::setRefinement
                 const face& f = patch_.localFaces()[minFacei];
 
                 const edge& e = patch_.edges()[edgeI];
-                label fp0 = findIndex(f, e[0]);
+                label fp0 = f.find(e[0]);
                 label fp1 = f.fcIndex(fp0);
 
                 if (f[fp1] != e[1])

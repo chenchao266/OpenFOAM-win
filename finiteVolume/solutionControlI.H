@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2015 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2015 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -24,12 +26,6 @@ License
 \*---------------------------------------------------------------------------*/
 
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
-
-inline const Foam::dictionary& Foam::solutionControl::dict() const
-{
-    return mesh_.solutionDict().subDict(algorithmName_);
-}
-
 
 inline Foam::label Foam::solutionControl::corr() const
 {
@@ -73,9 +69,17 @@ inline bool Foam::solutionControl::consistent() const
 }
 
 
+inline bool Foam::solutionControl::frozenFlow() const
+{
+    return frozenFlow_;
+}
+
+
 inline bool Foam::solutionControl::correctNonOrthogonal()
 {
-    corrNonOrtho_++;
+    setFirstIterFlag();
+
+    ++corrNonOrtho_;
 
     if (debug)
     {
@@ -87,11 +91,12 @@ inline bool Foam::solutionControl::correctNonOrthogonal()
     {
         return true;
     }
-    else
-    {
-        corrNonOrtho_ = 0;
-        return false;
-    }
+
+    corrNonOrtho_ = 0;
+
+    setFirstIterFlag();
+
+    return false;
 }
 
 

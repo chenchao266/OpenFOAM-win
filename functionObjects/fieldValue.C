@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2015-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -24,7 +27,7 @@ License
 \*---------------------------------------------------------------------------*/
 
 #include "fieldValue.H"
-#include "Time.T.H"
+#include "Time1.H"
 #include "addToRunTimeSelectionTable.H"
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
@@ -34,7 +37,7 @@ namespace Foam
 namespace functionObjects
 {
     defineTypeNameAndDebug(fieldValue, 0);
-    defineRunTimeSelectionTable(fieldValue, dictionary);
+    defineRunTimeSelectionTable(fieldValue, runTime);
 }
 }
 
@@ -50,13 +53,14 @@ Foam::functionObjects::fieldValue::fieldValue
 )
 :
     fvMeshFunctionObject(name, runTime, dict),
-    logFiles(obr_, name),
+    writeFile(obr_, name, valueType, dict),
+    writeFields_(false),
+    regionName_(),
+    scaleFactor_(1.0),
     dict_(dict),
-    regionName_(word::null),
-    resultDict_(fileName("name"), dictionary::null)
+    fields_()
 {
     read(dict);
-    resetName(valueType);
 }
 
 
@@ -69,37 +73,36 @@ Foam::functionObjects::fieldValue::fieldValue
 )
 :
     fvMeshFunctionObject(name, obr, dict),
-    logFiles(obr_, name),
+    writeFile(obr_, name, valueType, dict),
+    writeFields_(false),
+    regionName_(),
+    scaleFactor_(1.0),
     dict_(dict),
-    regionName_(word::null),
-    resultDict_(fileName("name"), dictionary::null)
+    fields_()
 {
     read(dict);
-    resetName(valueType);
 }
-
-
-// * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
-
-Foam::functionObjects::fieldValue::~fieldValue()
-{}
 
 
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
 
 bool Foam::functionObjects::fieldValue::read(const dictionary& dict)
 {
-    if (dict != dict_)
+    if (fvMeshFunctionObject::read(dict) && writeFile::read(dict))
     {
-        dict_ = dict;
+        if (dict != dict_)
+        {
+            dict_ = dict;
+        }
+
+        dict.readEntry("writeFields", writeFields_);
+        scaleFactor_ = dict.getOrDefault<scalar>("scaleFactor", 1.0);
+        dict.readEntry("fields", fields_);
+
+        return true;
     }
 
-    fvMeshFunctionObject::read(dict);
-
-    dict.lookup("fields") >> fields_;
-    dict.lookup("writeFields") >> writeFields_;
-
-    return true;
+    return false;
 }
 
 
@@ -111,9 +114,7 @@ bool Foam::functionObjects::fieldValue::execute()
 
 bool Foam::functionObjects::fieldValue::write()
 {
-    logFiles::write();
-
-    Log << type() << " " << name() << " write:" << nl;
+    Log << type() << ' ' << name() << " write:" << nl;
 
     return true;
 }

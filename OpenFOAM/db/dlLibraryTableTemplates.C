@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2015 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2015 OpenFOAM Foundation
+    Copyright (C) 2018-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -24,61 +27,48 @@ License
 \*---------------------------------------------------------------------------*/
 
 //#include "dlLibraryTable.H"
-#include "dictionary.H"
-#include "fileNameList.H"
+#include "dictionary2.H"
 
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
-namespace Foam {
-    template<class TablePtr>
-    bool dlLibraryTable::open
-    (
-        const dictionary& dict,
-        const word& libsEntry,
-        const TablePtr& tablePtr
-    )
+
+
+ namespace Foam{
+template<class TablePtr>
+bool dlLibraryTable::open
+(
+    const dictionary& dict,
+    const word& libsEntry,
+    const TablePtr& tablePtr,
+    bool verbose
+)
+{
+    List<fileName> libNames;
+    dict.readIfPresent(libsEntry, libNames);
+
+    label nOpen = 0;
+
+    for (const fileName& libName : libNames)
     {
-        if (dict.found(libsEntry))
+        const label nEntries = (tablePtr ? tablePtr->size() : -1);
+
+        if (dlLibraryTable::open(libName, verbose))
         {
-            fileNameList libNames(dict.lookup(libsEntry));
+            ++nOpen;
 
-            bool allOpened = (libNames.size() > 0);
-
-            forAll(libNames, i)
+            if (debug && tablePtr != nullptr && tablePtr->size() <= nEntries)
             {
-                const fileName& libName = libNames[i];
-
-                label nEntries = 0;
-
-                if (tablePtr)
-                {
-                    nEntries = tablePtr->size();
-                }
-
-                bool opened = dlLibraryTable::open(libName);
-                allOpened = opened && allOpened;
-
-                if (!opened)
-                {
-                    WarningInFunction
-                        << "Could not open library " << libName
-                        << endl << endl;
-                }
-                else if (debug && (!tablePtr || tablePtr->size() <= nEntries))
-                {
-                    WarningInFunction
-                        << "library " << libName
-                        << " did not introduce any new entries"
-                        << endl << endl;
-                }
+                WarningInFunction
+                    << "library " << libName
+                    << " did not introduce any new entries"
+                    << nl << endl;
             }
-
-            return allOpened;
-        }
-        else
-        {
-            return false;
         }
     }
 
+    return nOpen && nOpen == libNames.size();
 }
+
+
 // ************************************************************************* //
+
+ } // End namespace Foam

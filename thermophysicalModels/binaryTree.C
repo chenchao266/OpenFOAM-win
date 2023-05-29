@@ -1,9 +1,12 @@
-﻿/*---------------------------------------------------------------------------*\
+/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2016-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2016-2017 OpenFOAM Foundation
+    Copyright (C) 2019-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -23,33 +26,36 @@ License
 
 \*---------------------------------------------------------------------------*/
 
-//#include "binaryTree.H"
-#include "SortableList.T.H"
+#include "binaryTree.H"
+#include "SortableList.H"
+#include "demandDrivenData.H"
 
 // * * * * * * * * * * * * Private Member Functions  * * * * * * * * * * * * //
 
 template<class CompType, class ThermoType>
 void Foam::binaryTree<CompType, ThermoType>::insertNode
 (
-    chP*& phi0,
-    bn*& newNode
+    chemPoint*& phi0,
+    node*& newNode
 )
 {
-    if (phi0 == phi0->node()->leafRight())// phi0 is on the right
+    if (phi0 == phi0->node()->leafRight())
     {
+        // phi0 is on the right
         phi0->node()->leafRight() = nullptr;
         phi0->node()->nodeRight() = newNode;
         return;
     }
-    else if (phi0 == phi0->node()->leafLeft())// phi0 is on the left
+    else if (phi0 == phi0->node()->leafLeft())
     {
+        // phi0 is on the left
         phi0->node()->leafLeft() = nullptr;
         phi0->node()->nodeLeft() = newNode;
         return;
 
     }
 
-    // if we reach this point, there is an issue with the adressing
+    // if we reach this point, there is an issue with the addressing
     FatalErrorInFunction
         << "trying to insert a node with a wrong pointer to a chemPoint"
         << exit(FatalError);
@@ -60,34 +66,38 @@ template<class CompType, class ThermoType>
 bool Foam::binaryTree<CompType, ThermoType>::inSubTree
 (
     const scalarField& phiq,
-    bn* y,
-    chP* x
+    node* y,
+    chemPoint* x
 )
 {
-    if ((n2ndSearch_ < max2ndSearch_) && (y!=nullptr))
+    if ((n2ndSearch_ < max2ndSearch_) && (y != nullptr))
     {
         scalar vPhi = 0;
         const scalarField& v = y->v();
         const scalar a = y->a();
+
         // compute v*phi
-        for (label i=0; i<phiq.size(); i++)
+        for (label i=0; i<phiq.size(); ++i)
         {
             vPhi += phiq[i]*v[i];
         }
-        if (vPhi <= a)// on the left side of the node
+        if (vPhi <= a)
         {
-            if (y->nodeLeft() == nullptr)// left is a chemPoint
+            // on the left side of the node
+            if (y->nodeLeft() == nullptr)
             {
-                n2ndSearch_++;
+                // left is a chemPoint
+                ++n2ndSearch_;
                 if (y->leafLeft()->inEOA(phiq))
                 {
                     x = y->leafLeft();
                     return true;
                 }
             }
-            else // the left side is a node
+            else
             {
-                if (inSubTree(phiq, y->nodeLeft(),x))
+                // the left side is a node
+                if (inSubTree(phiq, y->nodeLeft(), x))
                 {
                     return true;
                 }
@@ -96,7 +106,7 @@ bool Foam::binaryTree<CompType, ThermoType>::inSubTree
             // not on the left side, try the right side
             if ((n2ndSearch_ < max2ndSearch_) && y->nodeRight() == nullptr)
             {
-                n2ndSearch_++;
+                ++n2ndSearch_;
                 // we reach the end of the subTree we can return the result
                 if (y->leafRight()->inEOA(phiq))
                 {
@@ -109,16 +119,17 @@ bool Foam::binaryTree<CompType, ThermoType>::inSubTree
                     return false;
                 }
             }
-            else // test for n2ndSearch is done in the call of inSubTree
-            {
-                return inSubTree(phiq, y->nodeRight(),x);
-            }
+
+            // Test for n2ndSearch is done in the call of inSubTree
+            return inSubTree(phiq, y->nodeRight(), x);
         }
-        else // on right side (symetric of above)
+        else
         {
+            // on right side (symmetric of above)
+
             if (y->nodeRight() == nullptr)
             {
-                n2ndSearch_++;
+                ++n2ndSearch_;
                 if (y->leafRight()->inEOA(phiq))
                 {
                     return true;
@@ -126,17 +137,18 @@ bool Foam::binaryTree<CompType, ThermoType>::inSubTree
             }
             else // the right side is a node
             {
-                if (inSubTree(phiq, y->nodeRight(),x))
+                if (inSubTree(phiq, y->nodeRight(), x))
                 {
                     x = y->leafRight();
                     return true;
                 }
             }
+
             // if we reach this point, the retrieve has
             // failed on the right side, explore the left side
             if ((n2ndSearch_ < max2ndSearch_) && y->nodeLeft() == nullptr)
             {
-                n2ndSearch_++;
+                ++n2ndSearch_;
                 if (y->leafLeft()->inEOA(phiq))
                 {
                     x = y->leafLeft();
@@ -148,21 +160,17 @@ bool Foam::binaryTree<CompType, ThermoType>::inSubTree
                     return false;
                 }
             }
-            else
-            {
-                return inSubTree(phiq, y->nodeLeft(),x);
-            }
+
+            return inSubTree(phiq, y->nodeLeft(), x);
         }
     }
-    else
-    {
-        return false;
-    }
+
+    return false;
 }
 
 
 template<class CompType, class ThermoType>
-void Foam::binaryTree<CompType, ThermoType>::deleteSubTree(bn* subTreeRoot)
+void Foam::binaryTree<CompType, ThermoType>::deleteSubTree(node* subTreeRoot)
 {
     if (subTreeRoot != nullptr)
     {
@@ -176,7 +184,7 @@ void Foam::binaryTree<CompType, ThermoType>::deleteSubTree(bn* subTreeRoot)
 
 
 template<class CompType, class ThermoType>
-void Foam::binaryTree<CompType, ThermoType>::transplant(bn* u, bn* v)
+void Foam::binaryTree<CompType, ThermoType>::transplant(node* u, node* v)
 {
     if (v != nullptr)
     {
@@ -214,7 +222,7 @@ void Foam::binaryTree<CompType, ThermoType>::transplant(bn* u, bn* v)
 
 template<class CompType, class ThermoType>
 Foam::chemPointISAT<CompType, ThermoType>*
-Foam::binaryTree<CompType, ThermoType>::chemPSibling(bn* y)
+Foam::binaryTree<CompType, ThermoType>::chemPSibling(node* y)
 {
     if (y->parent() != nullptr)
     {
@@ -227,13 +235,10 @@ Foam::binaryTree<CompType, ThermoType>::chemPSibling(bn* y)
         {
             return y->parent()->leafLeft();
         }
-        else
-        {
-            FatalErrorInFunction
-                << "wrong addressing of the initial node"
-                << exit(FatalError);
-            return nullptr;
-        }
+
+        FatalErrorInFunction
+            << "wrong addressing of the initial node"
+            << exit(FatalError);
     }
 
     // the binaryNode is root_ and has no sibling
@@ -243,9 +248,9 @@ Foam::binaryTree<CompType, ThermoType>::chemPSibling(bn* y)
 
 template<class CompType, class ThermoType>
 Foam::chemPointISAT<CompType, ThermoType>*
-Foam::binaryTree<CompType, ThermoType>::chemPSibling(chP* x)
+Foam::binaryTree<CompType, ThermoType>::chemPSibling(chemPoint* x)
 {
-    if (size_>1)
+    if (size_ > 1)
     {
         if (x == x->node()->leafLeft())
         {
@@ -258,14 +263,12 @@ Foam::binaryTree<CompType, ThermoType>::chemPSibling(chP* x)
             // x is on the right, return left side
             return x->node()->leafLeft();
         }
-        else
-        {
-            FatalErrorInFunction
-                << "wrong addressing of the initial leaf"
-                << exit(FatalError);
-            return nullptr;
-        }
+
+        FatalErrorInFunction
+            << "wrong addressing of the initial leaf"
+            << exit(FatalError);
     }
+
     // there is only one leaf attached to the root_, no sibling
     return nullptr;
 }
@@ -273,9 +276,9 @@ Foam::binaryTree<CompType, ThermoType>::chemPSibling(chP* x)
 
 template<class CompType, class ThermoType>
 Foam::binaryNode<CompType, ThermoType>*
-Foam::binaryTree<CompType, ThermoType>::nodeSibling(bn* y)
+Foam::binaryTree<CompType, ThermoType>::nodeSibling(node* y)
 {
-    if (y->parent()!=nullptr)
+    if (y->parent() != nullptr)
     {
         if (y == y->parent()->nodeLeft())
         {
@@ -286,23 +289,21 @@ Foam::binaryTree<CompType, ThermoType>::nodeSibling(bn* y)
         {
             return y->parent()->nodeLeft();
         }
-        else
-        {
-            FatalErrorInFunction
-                << "wrong addressing of the initial node"
-                << exit(FatalError);
-        return nullptr;
-        }
+
+        FatalErrorInFunction
+            << "wrong addressing of the initial node"
+            << exit(FatalError);
     }
+
     return nullptr;
 }
 
 
 template<class CompType, class ThermoType>
 Foam::binaryNode<CompType, ThermoType>*
-Foam::binaryTree<CompType, ThermoType>::nodeSibling(chP* x)
+Foam::binaryTree<CompType, ThermoType>::nodeSibling(chemPoint* x)
 {
-    if (size_>1)
+    if (size_ > 1)
     {
         if (x == x->node()->leafLeft())
         {
@@ -314,20 +315,18 @@ Foam::binaryTree<CompType, ThermoType>::nodeSibling(chP* x)
             // x is on the right, return left side
             return x->node()->nodeLeft();
         }
-        else
-        {
-            FatalErrorInFunction
-                << "wrong addressing of the initial leaf"
-                << exit(FatalError);
-            return nullptr;
-        }
+
+        FatalErrorInFunction
+            << "wrong addressing of the initial leaf"
+            << exit(FatalError);
     }
+
     return nullptr;
 }
 
 
 template<class CompType, class ThermoType>
-void Foam::binaryTree<CompType, ThermoType>::deleteAllNode(bn* subTreeRoot)
+void Foam::binaryTree<CompType, ThermoType>::deleteAllNode(node* subTreeRoot)
 {
     if (subTreeRoot != nullptr)
     {
@@ -349,17 +348,17 @@ Foam::binaryTree<CompType, ThermoType>::binaryTree
 :
     chemistry_(chemistry),
     root_(nullptr),
-    maxNLeafs_(readLabel(coeffsDict.lookup("maxNLeafs"))),
+    maxNLeafs_(coeffsDict.get<label>("maxNLeafs")),
     size_(0),
     n2ndSearch_(0),
-    max2ndSearch_(coeffsDict.lookupOrDefault("max2ndSearch",0)),
+    max2ndSearch_(coeffsDict.getOrDefault("max2ndSearch", 0)),
     coeffsDict_(coeffsDict)
 {}
 
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
 
 template<class CompType, class ThermoType>
-Foam::label Foam::binaryTree<CompType, ThermoType>::depth(bn* subTreeRoot)
+Foam::label Foam::binaryTree<CompType, ThermoType>::depth(node* subTreeRoot)
 {
     // when we reach the leaf, we return 0
     if (subTreeRoot == nullptr)
@@ -388,17 +387,17 @@ void Foam::binaryTree<CompType, ThermoType>::insertNewLeaf
     const scalarField& scaleFactor,
     const scalar& epsTol,
     const label nCols,
-    chP*& phi0
+    chemPoint*& phi0
 )
 {
     if (size_ == 0) // no points are stored
     {
         // create an empty binary node and point root_ to it
-        root_ = new bn();
+        root_ = new node();
         // create the new chemPoint which holds the composition point
         // phiq and the data to initialize the EOA
-        chP* newChemPoint =
-            new chP
+        chemPoint* newChemPoint =
+            new chemPoint
             (
                 chemistry_,
                 phiq,
@@ -410,22 +409,22 @@ void Foam::binaryTree<CompType, ThermoType>::insertNewLeaf
                 coeffsDict_,
                 root_
             );
-        root_->leafLeft()=newChemPoint;
+        root_->leafLeft() = newChemPoint;
     }
     else // at least one point stored
     {
         // no reference chemPoint, a BT search is required
         if (phi0 == nullptr)
         {
-            binaryTreeSearch(phiq, root_,phi0);
+            binaryTreeSearch(phiq, root_, phi0);
         }
         // access to the parent node of the chemPoint
-        bn* parentNode = phi0->node();
+        node* parentNode = phi0->node();
 
         // create the new chemPoint which holds the composition point
         // phiq and the data to initialize the EOA
-        chP* newChemPoint =
-            new chP
+        chemPoint* newChemPoint =
+            new chemPoint
             (
                 chemistry_,
                 phiq,
@@ -440,10 +439,10 @@ void Foam::binaryTree<CompType, ThermoType>::insertNewLeaf
         // previously stored leaf (phi0)
         // the new node contains phi0 on the left and phiq on the right
         // the hyper plane is computed in the binaryNode constructor
-        bn* newNode;
-        if (size_>1)
+        node* newNode;
+        if (size_ > 1)
         {
-            newNode = new bn(phi0, newChemPoint, parentNode);
+            newNode = new node(phi0, newChemPoint, parentNode);
             // make the parent of phi0 point to the newly created node
             insertNode(phi0, newNode);
         }
@@ -451,14 +450,15 @@ void Foam::binaryTree<CompType, ThermoType>::insertNewLeaf
         {
             // when size is 1, the binaryNode is without hyperplane
             deleteDemandDrivenData(root_);
-            newNode = new bn(phi0, newChemPoint, nullptr);
+            newNode = new node(phi0, newChemPoint, nullptr);
             root_ = newNode;
         }
 
         phi0->node() = newNode;
         newChemPoint->node()=newNode;
     }
-    size_++;
+
+    ++size_;
 }
 
 
@@ -466,8 +466,8 @@ template<class CompType, class ThermoType>
 void Foam::binaryTree<CompType, ThermoType>::binaryTreeSearch
 (
     const scalarField& phiq,
-    bn* node,
-    chP*& nearest
+    node* node,
+    chemPoint*& nearest
 )
 {
     if (size_ > 1)
@@ -476,12 +476,15 @@ void Foam::binaryTree<CompType, ThermoType>::binaryTreeSearch
         const scalarField& v = node->v();
         const scalar& a = node->a();
         // compute v*phi
-        for (label i=0; i<phiq.size(); i++) vPhi += phiq[i]*v[i];
+        for (label i=0; i<phiq.size(); ++i)
+        {
+            vPhi += phiq[i]*v[i];
+        }
 
 
         if (vPhi > a) // on right side (side of the newly added point)
         {
-            if (node->nodeRight()!=nullptr)
+            if (node->nodeRight() != nullptr)
             {
                 binaryTreeSearch(phiq, node->nodeRight(), nearest);
             }
@@ -493,7 +496,7 @@ void Foam::binaryTree<CompType, ThermoType>::binaryTreeSearch
         }
         else // on left side (side of the previously stored point)
         {
-            if (node->nodeLeft()!=nullptr)
+            if (node->nodeLeft() != nullptr)
             {
                 binaryTreeSearch(phiq, node->nodeLeft(), nearest);
             }
@@ -520,14 +523,14 @@ template<class CompType, class ThermoType>
 bool Foam::binaryTree<CompType, ThermoType>::secondaryBTSearch
 (
     const scalarField& phiq,
-    chP*& x
+    chemPoint*& x
 )
 {
     // initialize n2ndSearch_
     n2ndSearch_ = 0;
     if ((n2ndSearch_ < max2ndSearch_) && (size_ > 1))
     {
-        chP* xS = chemPSibling(x);
+        chemPoint* xS = chemPSibling(x);
         if (xS != nullptr)
         {
             n2ndSearch_++;
@@ -537,14 +540,15 @@ bool Foam::binaryTree<CompType, ThermoType>::secondaryBTSearch
                 return true;
             }
         }
-        else if (inSubTree(phiq, nodeSibling(x),x))
+        else if (inSubTree(phiq, nodeSibling(x), x))
         {
             return true;
         }
+
         // if we reach this point, no leafs were found at this depth or lower
         // we move upward in the tree
-        bn* y = x->node();
-        while((y->parent()!= nullptr) && (n2ndSearch_ < max2ndSearch_))
+        node* y = x->node();
+        while ((y->parent()!= nullptr) && (n2ndSearch_ < max2ndSearch_))
         {
             xS = chemPSibling(y);
             if (xS != nullptr)
@@ -562,20 +566,19 @@ bool Foam::binaryTree<CompType, ThermoType>::secondaryBTSearch
             }
             y = y->parent();
         }
+
         // if we reach this point it is either because
         // we did not find another covering EOA in the entire tree or
         // we reach the maximum number of secondary search
         return false;
     }
-    else
-    {
-        return false;
-    }
+
+    return false;
 }
 
 
 template<class CompType, class ThermoType>
-void Foam::binaryTree<CompType, ThermoType>::deleteLeaf(chP*& phi0)
+void Foam::binaryTree<CompType, ThermoType>::deleteLeaf(chemPoint*& phi0)
 {
     if (size_ == 1) // only one point is stored
     {
@@ -584,16 +587,16 @@ void Foam::binaryTree<CompType, ThermoType>::deleteLeaf(chP*& phi0)
     }
     else if (size_ > 1)
     {
-        bn* z = phi0->node();
-        bn* x;
-        chP* siblingPhi0 = chemPSibling(phi0);
+        node* z = phi0->node();
+        node* x;
+        chemPoint* siblingPhi0 = chemPSibling(phi0);
 
         if (siblingPhi0 != nullptr)// the sibling of phi0 is a chemPoint
         {
             // z was root (only two chemPoints in the tree)
             if (z->parent() == nullptr)
             {
-                root_ = new bn();
+                root_ = new node();
                 root_->leafLeft()=siblingPhi0;
                 siblingPhi0->node()=root_;
             }
@@ -633,38 +636,40 @@ void Foam::binaryTree<CompType, ThermoType>::deleteLeaf(chP*& phi0)
         deleteDemandDrivenData(phi0);
         deleteDemandDrivenData(z);
     }
-    size_--;
+
+    --size_;
 }
 
 
 template<class CompType, class ThermoType>
 void Foam::binaryTree<CompType, ThermoType>::balance()
 {
-    scalarField mean(chemistry_.nEqns(),0.0);
-
     //1) walk through the entire tree by starting with the tree's most left
     // chemPoint
-    chP* x = treeMin();
-    List<chP*> chemPoints(size_);
-    label chPi=0;
+    chemPoint* x = treeMin();
+    List<chemPoint*> chemPoints(size_);
+    label chemPointi = 0;
+
     //2) compute the mean composition
+    label n = x->phi().size();
+    scalarField mean(n, Zero);
     while (x != nullptr)
     {
         const scalarField& phij = x->phi();
         mean += phij;
-        chemPoints[chPi++] = x;
+        chemPoints[chemPointi++] = x;
         x = treeSuccessor(x);
     }
-    mean /= size_;
+    mean /= scalar(size_);
 
     //3) compute the variance for each space direction
-    List<scalar> variance(chemistry_.nEqns(),0.0);
+    List<scalar> variance(n, Zero);
     forAll(chemPoints, j)
     {
         const scalarField& phij = chemPoints[j]->phi();
         forAll(variance, vi)
         {
-            variance[vi] += sqr(phij[vi]-mean[vi]);
+            variance[vi] += sqr(phij[vi] - mean[vi]);
         }
     }
 
@@ -684,7 +689,7 @@ void Foam::binaryTree<CompType, ThermoType>::balance()
     // in this direction if these extreme points were not deleted in the
     // cleaning that come before the balance function they are still important
     // and the tree should therefore take them into account
-    SortableList<scalar> phiMaxDir(chemPoints.size(),0.0);
+    SortableList<scalar> phiMaxDir(chemPoints.size(), Zero);
     forAll(chemPoints, j)
     {
         phiMaxDir[j] = chemPoints[j]->phi()[maxDir];
@@ -696,7 +701,7 @@ void Foam::binaryTree<CompType, ThermoType>::balance()
     root_ = nullptr;
 
     // add the node for the two extremum
-    bn* newNode = new bn
+    node* newNode = new node
     (
         chemPoints[phiMaxDir.indices()[0]],
         chemPoints[phiMaxDir.indices()[phiMaxDir.size()-1]],
@@ -707,9 +712,9 @@ void Foam::binaryTree<CompType, ThermoType>::balance()
     chemPoints[phiMaxDir.indices()[0]]->node() = newNode;
     chemPoints[phiMaxDir.indices()[phiMaxDir.size()-1]]->node() = newNode;
 
-    for (label cpi=1; cpi<chemPoints.size()-1; cpi++)
+    for (label cpi=1; cpi<chemPoints.size()-1; ++cpi)
     {
-        chP* phi0;
+        chemPoint* phi0;
         binaryTreeSearch
         (
             chemPoints[phiMaxDir.indices()[cpi]]->phi(),
@@ -717,8 +722,8 @@ void Foam::binaryTree<CompType, ThermoType>::balance()
             phi0
         );
         // add the chemPoint
-        bn* nodeToAdd =
-            new bn(phi0,chemPoints[phiMaxDir.indices()[cpi]], phi0->node());
+        node* nodeToAdd =
+            new node(phi0, chemPoints[phiMaxDir.indices()[cpi]], phi0->node());
         // make the parent of phi0 point to the newly created node
         insertNode(phi0, nodeToAdd);
         phi0->node() = nodeToAdd;
@@ -729,28 +734,26 @@ void Foam::binaryTree<CompType, ThermoType>::balance()
 
 template<class CompType, class ThermoType>
 Foam::chemPointISAT<CompType, ThermoType>*
-Foam::binaryTree<CompType, ThermoType>::treeMin(bn* subTreeRoot)
+Foam::binaryTree<CompType, ThermoType>::treeMin(node* subTreeRoot)
 {
-    if (subTreeRoot!=nullptr)
+    if (subTreeRoot != nullptr)
     {
-        while(subTreeRoot->nodeLeft() != nullptr)
+        while (subTreeRoot->nodeLeft() != nullptr)
         {
             subTreeRoot = subTreeRoot->nodeLeft();
         }
         return subTreeRoot->leafLeft();
     }
-    else
-    {
-        return nullptr;
-    }
+
+    return nullptr;
 }
 
 
 template<class CompType, class ThermoType>
 Foam::chemPointISAT<CompType, ThermoType>*
-Foam::binaryTree<CompType, ThermoType>::treeSuccessor(chP* x)
+Foam::binaryTree<CompType, ThermoType>::treeSuccessor(chemPoint* x)
 {
-    if (size_>1)
+    if (size_ > 1)
     {
         if (x == x->node()->leafLeft())
         {
@@ -765,8 +768,8 @@ Foam::binaryTree<CompType, ThermoType>::treeSuccessor(chP* x)
         }
         else if (x == x->node()->leafRight())
         {
-            bn* y = x->node();
-            while((y->parent() !=nullptr))
+            node* y = x->node();
+            while ((y->parent() != nullptr))
             {
                 if (y == y->parent()->nodeLeft())
                 {
@@ -779,20 +782,18 @@ Foam::binaryTree<CompType, ThermoType>::treeSuccessor(chP* x)
                         return treeMin(y->parent()->nodeRight());
                     }
                 }
-                y=y->parent();
+                y = y->parent();
             }
+
             // when we reach this point, y points to the root and
             // never entered in the if loop (coming from the right)
             // so we are at the tree maximum and there is no successor
             return nullptr;
         }
-        else
-        {
-            FatalErrorInFunction
-                << "inconsistent structure of the tree, no leaf and no node"
-                << exit(FatalError);
-            return nullptr;
-        }
+
+        FatalErrorInFunction
+            << "inconsistent structure of the tree, no leaf and no node"
+            << exit(FatalError);
     }
 
     return nullptr;
@@ -823,19 +824,19 @@ bool Foam::binaryTree<CompType, ThermoType>::isFull()
 template<class CompType, class ThermoType>
 void Foam::binaryTree<CompType, ThermoType>::resetNumRetrieve()
 {
-    // Has to go along each chP of the tree
+    // Has to go along each chemPoint of the tree
     if (size_ > 0)
     {
         // First finds the first leaf
-        chP* chP0 = treeMin();
-        chP0->resetNumRetrieve();
+        chemPoint* chemPoint0 = treeMin();
+        chemPoint0->resetNumRetrieve();
 
         // Then go to each successor
-        chP* nextChP = treeSuccessor(chP0);
-        while (nextChP != nullptr)
+        chemPoint* nextchemPoint = treeSuccessor(chemPoint0);
+        while (nextchemPoint != nullptr)
         {
-            nextChP->resetNumRetrieve();
-            nextChP = treeSuccessor(nextChP);
+            nextchemPoint->resetNumRetrieve();
+            nextchemPoint = treeSuccessor(nextchemPoint);
         }
     }
 }

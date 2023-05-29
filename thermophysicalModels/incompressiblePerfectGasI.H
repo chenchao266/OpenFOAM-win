@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2012-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2012-2017 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -25,13 +27,13 @@ License
 
 #include "incompressiblePerfectGas.H"
 
-
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
 template<class Specie>
 inline Foam::incompressiblePerfectGas<Specie>::incompressiblePerfectGas
 (
-    const Specie& sp,  const scalar pRef
+    const Specie& sp,
+    const scalar pRef
 )
 :
     Specie(sp),
@@ -55,10 +57,7 @@ template<class Specie>
 inline Foam::autoPtr<Foam::incompressiblePerfectGas<Specie>>
 Foam::incompressiblePerfectGas<Specie>::clone() const
 {
-    return autoPtr<incompressiblePerfectGas<Specie>>
-    (
-        new incompressiblePerfectGas<Specie>(*this)
-    );
+    return autoPtr<incompressiblePerfectGas<Specie>>::New(*this);
 }
 
 
@@ -69,10 +68,7 @@ Foam::incompressiblePerfectGas<Specie>::New
     const dictionary& dict
 )
 {
-    return autoPtr<incompressiblePerfectGas<Specie>>
-    (
-        new incompressiblePerfectGas<Specie>(dict)
-    );
+    return autoPtr<incompressiblePerfectGas<Specie>>::New(dict);
 }
 
 
@@ -102,6 +98,28 @@ inline Foam::scalar Foam::incompressiblePerfectGas<Specie>::H
 
 template<class Specie>
 inline Foam::scalar Foam::incompressiblePerfectGas<Specie>::Cp
+(
+    scalar p,
+    scalar T
+) const
+{
+    return 0;
+}
+
+
+template<class Specie>
+inline Foam::scalar Foam::incompressiblePerfectGas<Specie>::E
+(
+    scalar p,
+    scalar T
+) const
+{
+    return 0;
+}
+
+
+template<class Specie>
+inline Foam::scalar Foam::incompressiblePerfectGas<Specie>::Cv
 (
     scalar p,
     scalar T
@@ -151,22 +169,11 @@ inline Foam::scalar Foam::incompressiblePerfectGas<Specie>::CpMCv
     scalar T
 ) const
 {
-    return this->R();
+    return 0;
 }
 
 
 // * * * * * * * * * * * * * * * Member Operators  * * * * * * * * * * * * * //
-
-template<class Specie>
-inline void Foam::incompressiblePerfectGas<Specie>::operator=
-(
-    const incompressiblePerfectGas<Specie>& ipg
-)
-{
-    Specie::operator=(ipg);
-    pRef_ = ipg.pRef_;
-}
-
 
 template<class Specie>
 inline void Foam::incompressiblePerfectGas<Specie>::operator+=

@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2015-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2015-2017 OpenFOAM Foundation
+    Copyright (C) 2019 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -48,7 +51,7 @@ Usage
     \endverbatim
 
 See also
-    Foam::alphaContactAngleFvPatchScalarField
+    Foam::alphaContactAngleTwoPhaseFvPatchScalarField
     Foam::constantAlphaContactAngleFvPatchScalarField
     Foam::Function1
 
@@ -60,8 +63,8 @@ SourceFiles
 #ifndef temperatureDependentAlphaContactAngleFvPatchScalarField_H
 #define temperatureDependentAlphaContactAngleFvPatchScalarField_H
 
-#include "alphaContactAngleFvPatchScalarField.H"
-#include "Function1.T.H"
+#include "alphaContactAngleTwoPhaseFvPatchScalarField.H"
+#include "Function1.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -74,7 +77,7 @@ namespace Foam
 
 class temperatureDependentAlphaContactAngleFvPatchScalarField
 :
-    public alphaContactAngleFvPatchScalarField
+    public alphaContactAngleTwoPhaseFvPatchScalarField
 {
     // Private data
 

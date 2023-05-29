@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2019 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -31,24 +34,21 @@ Description
     Low Reynolds-number k-kl-omega turbulence model for
     incompressible flows.
 
-    This turbulence model is described in:
+    Reference:
     \verbatim
-        Walters, D. K., & Cokljat, D. (2008).
-        A three-equation eddy-viscosity model for Reynolds-averaged
-        Navier–Stokes simulations of transitional flow.
-        Journal of Fluids Engineering, 130(12), 121401.
+        Standard model:
+            Walters, D. K., & Cokljat, D. (2008).
+            A three-equation eddy-viscosity model for Reynolds-averaged
+            Navier–Stokes simulations of transitional flow.
+            Journal of Fluids Engineering, 130(12), 121401.
+            DOI:10.1115/1.2979230
+
+        Typo corrections:
+            Furst, J. (2013).
+            Numerical simulation of transitional flows
+            with laminar kinetic energy.
+            Engineering MECHANICS, 20(5), 379-388.
     \endverbatim
-
-    however the paper contains several errors which must be corrected for the
-    model to operation correctly as explained in
-
-    \verbatim
-        Furst, J. (2013).
-        Numerical simulation of transitional flows with laminar kinetic energy.
-        Engineering MECHANICS, 20(5), 379-388.
-    \endverbatim
-
-    All these corrections and updates are included in this implementation.
 
     The default model coefficients are
     \verbatim
@@ -231,13 +231,12 @@ public:
 
 
     //- Destructor
-    virtual ~kkLOmega()
-    {}
+    virtual ~kkLOmega() = default;
 
 
     // Member Functions
 
-        //- Read RASProperties dictionary
+        //- Re-read model coefficients if they have changed
         virtual bool read();
 
         //- Return the effective diffusivity for k

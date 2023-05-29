@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2015 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2015 OpenFOAM Foundation
+    Copyright (C) 2017-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -25,7 +28,13 @@ Class
     Foam::manualDecomp
 
 Description
-    Decomposition given a cell-to-processor association in a file
+    Decompose based on cell-to-processor association in a file
+
+    Method coefficients:
+    \table
+        Property  | Description                           | Required | Default
+        dataFile  | filename of cell decomposition data   | yes      |
+    \endtable
 
 SourceFiles
     manualDecomp.C
@@ -48,16 +57,18 @@ class manualDecomp
 :
     public decompositionMethod
 {
-    // Private data
+    // Private Data
 
-        fileName decompDataFile_;
+        fileName dataFile_;
 
 
     // Private Member Functions
 
-        //- Disallow default bitwise copy construct and assignment
-        void operator=(const manualDecomp&);
-        manualDecomp(const manualDecomp&);
+        //- No copy construct
+        manualDecomp(const manualDecomp&) = delete;
+
+        //- No copy assignment
+        void operator=(const manualDecomp&) = delete;
 
 
 public:
@@ -68,50 +79,48 @@ public:
 
     // Constructors
 
-        //- Construct given the decomposition dictionary
-        manualDecomp(const dictionary& decompositionDict);
+        //- Construct given decomposition dictionary and optional region name
+        explicit manualDecomp
+        (
+            const dictionary& decompDict,
+            const word& regionName = ""
+        );
+
 
     //- Destructor
-    virtual ~manualDecomp()
-    {}
+    virtual ~manualDecomp() = default;
 
 
     // Member Functions
 
-        //- Manual decompose does not care about proc boundaries - is all
-        //  up to the user.
+        //- Manual decompose does not care about proc boundaries.
+        //- Is all up to the user.
         virtual bool parallelAware() const
         {
             return true;
         }
 
-        //- Return for every coordinate the wanted processor number. Use the
-        //  mesh connectivity (if needed)
+        //- Return for every coordinate the wanted processor number.
+        //  Use the mesh connectivity (if needed)
         virtual labelList decompose
         (
             const polyMesh& mesh,
             const pointField& cc,
             const scalarField& cWeights
-        );
+        ) const;
 
-        //- Return for every coordinate the wanted processor number. Explicitly
-        //  provided connectivity - does not use mesh_.
-        //  The connectivity is equal to mesh.cellCells() except for
-        //  - in parallel the cell numbers are global cell numbers (starting
-        //    from 0 at processor0 and then incrementing all through the
-        //    processors)
-        //  - the connections are across coupled patches
+        //- Return for every coordinate the wanted processor number.
+        //  Explicitly provided connectivity - does not use mesh_.
         virtual labelList decompose
         (
             const labelListList& globalCellCells,
             const pointField& cc,
             const scalarField& cWeights
-        )
+        ) const
         {
             NotImplemented;
-            return labelList(0);
+            return labelList();
         }
-
 };
 
 

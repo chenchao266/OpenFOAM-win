@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -26,12 +28,20 @@ License
 #include "subCycleTime.H"
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
-using namespace Foam;
-subCycleTime::subCycleTime(Time& t, const label nSubCycles) :    time_(t),
-    nSubCycles_(nSubCycles),
-    subCycleIndex_(0)
+
+
+ namespace Foam{
+subCycleTime::subCycleTime(Time& runTime, const label nCycles)
+:
+    time_(runTime),
+    index_(0),
+    total_(nCycles)
 {
-    time_.subCycle(nSubCycles_);
+    // Could avoid 0 or 1 nCycles here on construction
+    if (nCycles > 1)
+    {
+        time_.subCycle(nCycles);
+    }
 }
 
 
@@ -45,15 +55,41 @@ subCycleTime::~subCycleTime()
 
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
 
+bool subCycleTime::status() const
+{
+    return (index_ <= total_);
+}
+
+
 bool subCycleTime::end() const
 {
-    return subCycleIndex_ > nSubCycles_;
+    return (index_ > total_);  // or !(status())
 }
 
 
 void subCycleTime::endSubCycle()
 {
-    time_.endSubCycle();
+    if (total_ > 1)
+    {
+        time_.endSubCycle();
+    }
+
+    // If called manually, ensure status() will return false
+
+    index_ = total_ + 1;
+}
+
+
+bool subCycleTime::loop()
+{
+    const bool active = status();
+
+    if (active)
+    {
+        operator++();
+    }
+
+    return active;
 }
 
 
@@ -61,8 +97,16 @@ void subCycleTime::endSubCycle()
 
 subCycleTime& subCycleTime::operator++()
 {
-    time_++;
-    subCycleIndex_++;
+    if (total_ > 1)
+    {
+        time_++;
+    }
+
+    index_++;
+
+    // Register index change with Time, in case someone wants this information
+    time_.subCycleIndex(index_);
+
     return *this;
 }
 
@@ -74,3 +118,5 @@ subCycleTime& subCycleTime::operator++(int)
 
 
 // ************************************************************************* //
+
+ } // End namespace Foam

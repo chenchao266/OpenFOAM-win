@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2017 OpenFOAM Foundation
+    Copyright (C) 2020-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -46,9 +49,13 @@ namespace fileOperations
                      Class uncollatedFileOperation Declaration
 \*---------------------------------------------------------------------------*/
 
-class uncollatedFileOperation :    public fileOperation
+class uncollatedFileOperation
+:
+    public fileOperation
 {
-    // Private Member Functions
+protected:
+
+    // Protected Member Functions
 
         //- Search for an object.
         //    checkGlobal : also check undecomposed case
@@ -57,7 +64,16 @@ class uncollatedFileOperation :    public fileOperation
         (
             const bool checkGlobal,
             const bool isFile,
-            const IOobject&
+            const IOobject& io,
+            const bool search
+        ) const;
+
+        //- Lookup name of processorsDDD using cache.
+        //  \note Do not use any parallel synchronisation
+        //  \return empty fileName if not found.
+        virtual refPtr<dirIndexList> lookupProcessorsPath
+        (
+            const fileName&
         ) const;
 
 
@@ -69,12 +85,12 @@ public:
 
     // Constructors
 
-        //- Construct null
-        uncollatedFileOperation(const bool verbose);
+        //- Default construct
+        explicit uncollatedFileOperation(bool verbose);
 
 
     //- Destructor
-    virtual ~uncollatedFileOperation();
+    virtual ~uncollatedFileOperation() = default;
 
 
     // Member Functions
@@ -127,7 +143,7 @@ public:
             ) const;
 
             //- Return size of file
-            virtual offset_t fileSize
+            virtual off_t fileSize
             (
                 const fileName&,
                 const bool followLink = true
@@ -188,8 +204,12 @@ public:
             //- Remove a file, returning true if successful otherwise false
             virtual bool rm(const fileName&) const;
 
-            //- Remove a dirctory and its contents
-            virtual bool rmDir(const fileName&) const;
+            //- Remove a directory and its contents
+            virtual bool rmDir
+            (
+                const fileName& dir,
+                const bool silent = false
+            ) const;
 
 //            //- Open a shared library. Return handle to library. Print error
 //            //  message if library cannot be loaded (check = true)
@@ -200,14 +220,15 @@ public:
 //            ) const;
 
 
-        // (reg)IOobject functinality
+        // (reg)IOobject functionality
 
             //- Search for an object. checkGlobal : also check undecomposed case
             virtual fileName filePath
             (
                 const bool checkGlobal,
-                const IOobject&,
-                const word& typeName
+                const IOobject& io,
+                const word& typeName,
+                const bool search
             ) const;
 
             //- Search for a directory. checkGlobal : also check undecomposed
@@ -215,7 +236,8 @@ public:
             virtual fileName dirPath
             (
                 const bool checkGlobal,
-                const IOobject&
+                const IOobject& io,
+                const bool search
             ) const;
 
             //- Search directory for objects. Used in IOobjectList.
@@ -250,20 +272,18 @@ public:
             (
                 regIOobject&,
                 const bool masterOnly,
-                const IOstream::streamFormat format,
+                const IOstreamOption::streamFormat format,
                 const word& typeName
             ) const;
 
             //- Generate an ISstream that reads a file
             virtual autoPtr<ISstream> NewIFstream(const fileName&) const;
 
-            //- Generate an Ostream that writes a file
-            virtual autoPtr<Ostream> NewOFstream
+            //- Generate an OSstream that writes a file
+            virtual autoPtr<OSstream> NewOFstream
             (
                 const fileName& pathname,
-                IOstream::streamFormat format=IOstream::ASCII,
-                IOstream::versionNumber version=IOstream::currentVersion,
-                IOstream::compressionType compression=IOstream::UNCOMPRESSED,
+                IOstreamOption streamOpt = IOstreamOption(),
                 const bool valid = true
             ) const;
 };

@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016, 2019 OpenFOAM Foundation
+    Copyright (C) 2019-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -28,21 +31,31 @@ Group
     grpWallFunctions
 
 Description
-    This boundary condition provides a turbulent kinematic viscosity condition
-    for use with low Reynolds number models.  It sets \c nut to zero, and
-    provides an access function to calculate y+.
+    This boundary condition provides a wall constraint on the
+    turbulent viscosity, i.e. \c nut, for low Reynolds number models.
+    It sets \c nut to zero, and provides an access function to calculate \c y+.
 
 Usage
     Example of the boundary condition specification:
     \verbatim
     <patchName>
     {
+        // Mandatory entries (unmodifiable)
         type            nutLowReWallFunction;
+
+        // Optional (inherited) entries
+        ...
     }
     \endverbatim
 
-See also
-    Foam::nutWallFunctionFvPatchScalarField
+    where the entries mean:
+    \table
+      Property  | Description                      | Type | Req'd  | Dflt
+      type      | Type name: nutLowReWallFunction  | word | yes    | -
+    \endtable
+
+    The inherited entries are elaborated in:
+      - \link nutWallFunctionFvPatchScalarField.H \endlink
 
 SourceFiles
     nutLowReWallFunctionFvPatchScalarField.C
@@ -71,7 +84,7 @@ protected:
 
     // Protected Member Functions
 
-        //- Calculate the turbulence viscosity
+        //- Calculate the turbulent viscosity
         virtual tmp<scalarField> calcNut() const;
 
 
@@ -99,8 +112,8 @@ public:
         );
 
         //- Construct by mapping given
-        //  nutLowReWallFunctionFvPatchScalarField
-        //  onto a new patch
+        //- nutLowReWallFunctionFvPatchScalarField
+        //- onto a new patch
         nutLowReWallFunctionFvPatchScalarField
         (
             const nutLowReWallFunctionFvPatchScalarField&,
@@ -144,7 +157,7 @@ public:
         }
 
 
-    // Member functions
+    // Member Functions
 
         //- Calculate and return the yPlus at the boundary
         virtual tmp<scalarField> yPlus() const;

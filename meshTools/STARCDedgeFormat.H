@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2016-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -25,7 +28,7 @@ Class
     Foam::fileFormats::STARCDedgeFormat
 
 Description
-    Read/write the lines from pro-STAR vrt/cel files.
+    Read/write the lines from PROSTAR vrt/cel files.
 
 Note
     Uses the extension \a .inp (input) to denote the format.
@@ -44,9 +47,8 @@ SourceFiles
 #include "edgeMesh.H"
 #include "STARCDCore.H"
 
-#include "IFstream.H"
-#include "Ostream.H"
-#include "OFstream.H"
+#include "Fstream.H"
+#include "_Ostream.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -62,30 +64,23 @@ namespace fileFormats
 class STARCDedgeFormat
 :
     public edgeMesh,
-    public STARCDCore
+    protected STARCDCore
 {
-    // Private Data
-
-        //- STAR-CD identifier for line shapes (1d elements)
-        static const int starcdLineShape_ = 2;
-
-        //- STAR-CD identifier for line type
-        static const int starcdLineType_  = 5;
-
-
     // Private Member Functions
 
         static inline void writeLines
         (
-            Ostream&,
-            const edgeList&
+            Ostream& os,
+            const edgeList& edges,
+            label starCellId = 1  // 1-based cellId
         );
 
-        //- Disallow default bitwise copy construct
-        STARCDedgeFormat(const STARCDedgeFormat&);
 
-        //- Disallow default bitwise assignment
-        void operator=(const STARCDedgeFormat&);
+        //- No copy construct
+        STARCDedgeFormat(const STARCDedgeFormat&) = delete;
+
+        //- No copy assignment
+        void operator=(const STARCDedgeFormat&) = delete;
 
 
 protected:
@@ -94,8 +89,8 @@ protected:
 
     static void writeCase
     (
-        Ostream&,
-        const pointField&,
+        Ostream& os,
+        const pointField& pointLst,
         const label nEdges
     );
 
@@ -105,7 +100,7 @@ public:
     // Constructors
 
         //- Construct from file name
-        STARCDedgeFormat(const fileName&);
+        explicit STARCDedgeFormat(const fileName& filename);
 
 
     // Selectors
@@ -113,30 +108,40 @@ public:
         //- Read file and return edgeMesh
         static autoPtr<edgeMesh> New(const fileName& name)
         {
-            return autoPtr<edgeMesh>
-            (
-                new STARCDedgeFormat(name)
-            );
+            return autoPtr<edgeMesh>::NewFrom<STARCDedgeFormat>(name);
         }
 
 
     //- Destructor
-    virtual ~STARCDedgeFormat()
-    {}
+    virtual ~STARCDedgeFormat() = default;
+
+
+    // Static Functions
+
+        //- Write edge mesh to file
+        static void write
+        (
+            const fileName& filename,
+            const edgeMesh& mesh,
+            IOstreamOption streamOpt = IOstreamOption(),
+            const dictionary& options = dictionary::null
+        );
 
 
     // Member Functions
 
-        //- Write edge mesh
-        static void write(const fileName&, const edgeMesh&);
-
         //- Read from file
-        virtual bool read(const fileName&);
+        virtual bool read(const fileName& name);
 
-        //- Write object
-        virtual void write(const fileName& name) const
+        //- Write to file
+        virtual void write
+        (
+            const fileName& name,
+            IOstreamOption streamOpt = IOstreamOption(),
+            const dictionary& options = dictionary::null
+        ) const
         {
-            write(name, *this);
+            write(name, *this, streamOpt, options);
         }
 };
 

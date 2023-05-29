@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2019-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -23,65 +26,57 @@ License
 
 \*---------------------------------------------------------------------------*/
 
-#include "tableReader.H"
+//#include "tableReader.H"
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
-namespace Foam {
-    template<class Type>
-    autoPtr<tableReader<Type>> tableReader<Type>::New
+
+
+ namespace Foam{
+template<class Type>
+autoPtr<tableReader<Type>> tableReader<Type>::New
+(
+    const dictionary& spec
+)
+{
+    const word readerType = spec.getOrDefault<word>
     (
-        const dictionary& spec
-    )
+        "readerType",
+        "openFoam"
+    );
+
+    auto* ctorPtr = dictionaryConstructorTable(readerType);
+
+    if (!ctorPtr)
     {
-        const word readerType = spec.lookupOrDefault<word>
-            (
-                "readerType",
-                "openFoam"
-                );
-
-        typename dictionaryConstructorTable::iterator cstrIter =
-            dictionaryConstructorTablePtr_
-            ->find(readerType);
-
-        if (cstrIter == dictionaryConstructorTablePtr_->end())
-        {
-            FatalErrorInFunction
-                << "Unknown reader type " << readerType
-                << nl << nl
-                << "Valid reader types : " << nl
-                << dictionaryConstructorTablePtr_->sortedToc()
-                << exit(FatalError);
-        }
-
-        return autoPtr<tableReader<Type>>(cstrIter()(spec));
+        FatalIOErrorInLookup
+        (
+            spec,
+            "reader",
+            readerType,
+            *dictionaryConstructorTablePtr_
+        ) << exit(FatalIOError);
     }
 
-
-    // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
-
-    template<class Type>
-    tableReader<Type>::tableReader(const dictionary&)
-    {}
-
-
-    // * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
-
-    template<class Type>
-    tableReader<Type>::~tableReader()
-    {}
-
-
-    // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
-
-    template<class Type>
-    void tableReader<Type>::write(Ostream& os) const
-    {
-        if (this->type() != "openFoam")
-        {
-            os.writeKeyword("readerType")
-                << this->type() << token::END_STATEMENT << nl;
-        }
-    }
+    return autoPtr<tableReader<Type>>(ctorPtr(spec));
 }
 
+
+// * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
+
+template<class Type>
+tableReader<Type>::tableReader(const dictionary&)
+{}
+
+
+// * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
+
+template<class Type>
+void tableReader<Type>::write(Ostream& os) const
+{
+    os.writeEntryIfDifferent<word>("readerType", "openFoam", this->type());
+}
+
+
 // ************************************************************************* //
+
+ } // End namespace Foam

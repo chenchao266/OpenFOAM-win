@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2014-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2014-2016 OpenFOAM Foundation
+    Copyright (C) 2017-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -25,18 +28,25 @@ License
 
 #include "int32.H"
 
-// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
-using namespace Foam;
-const int32_t pTraits<int32_t>::_zero = 0;
-const int32_t pTraits<int32_t>::one = 1;
-const int32_t pTraits<int32_t>::min = INT32_MIN;
-const int32_t pTraits<int32_t>::max = INT32_MAX;
-const int32_t pTraits<int32_t>::rootMin = pTraits<int32_t>::min;
-const int32_t pTraits<int32_t>::rootMax = pTraits<int32_t>::max;
+// * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
 
+
+ namespace Foam{
 const char* const pTraits<int32_t>::componentNames[] = { "" };
 
-pTraits<int32_t>::pTraits(const int32_t& p) :    p_(p)
+const int32_t pTraits<int32_t>::zero_ = 0;
+const int32_t pTraits<int32_t>::one_ = 1;
+const int32_t pTraits<int32_t>::min_ = INT32_MIN;
+const int32_t pTraits<int32_t>::max_ = INT32_MAX;
+const int32_t pTraits<int32_t>::rootMin_ = pTraits<int32_t>::min_;
+const int32_t pTraits<int32_t>::rootMax_ = pTraits<int32_t>::max_;
+
+
+// * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
+
+pTraits<int32_t>::pTraits(const int32_t& val) noexcept
+:
+    p_(val)
 {}
 
 pTraits<int32_t>::pTraits(Istream& is)
@@ -46,3 +56,5 @@ pTraits<int32_t>::pTraits(Istream& is)
 
 
 // ************************************************************************* //
+
+ } // End namespace Foam

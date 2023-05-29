@@ -1,9 +1,12 @@
-﻿/*---------------------------------------------------------------------------*\
+/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2015-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -23,14 +26,43 @@ License
 
 \*---------------------------------------------------------------------------*/
 
-//#include "surfaceFieldValue.H"
+#include "surfaceFieldValue.H"
 #include "surfaceFields.H"
+#include "polySurfaceFields.H"
 #include "volFields.H"
 #include "sampledSurface.H"
 #include "surfaceWriter.H"
+#include "interpolationCell.H"
 #include "interpolationCellPoint.H"
 
+// * * * * * * * * * * * * * Static Member Functions * * * * * * * * * * * * //
+
+template<class WeightType>
+Foam::tmp<Foam::scalarField>
+Foam::functionObjects::fieldValues::surfaceFieldValue::weightingFactor
+(
+    const Field<WeightType>& weightField,
+    const bool useMag /* ignore */
+)
+{
+    // The scalar form is specialized.
+    // Other types: use mag() to generate a scalar field.
+    return mag(weightField);
+}
+
+
 // * * * * * * * * * * * * Protected Member Functions  * * * * * * * * * * * //
+
+template<class WeightType>
+inline bool Foam::functionObjects::fieldValues::surfaceFieldValue::canWeight
+(
+    const Field<WeightType>& fld
+) const
+{
+    // Non-empty on some processor
+    return returnReduce(!fld.empty(), orOp<bool>());
+}
+
 
 template<class Type>
 bool Foam::functionObjects::fieldValues::surfaceFieldValue::validField
@@ -38,19 +70,16 @@ bool Foam::functionObjects::fieldValues::surfaceFieldValue::validField
     const word& fieldName
 ) const
 {
-    typedef surfaceFieldType<Type> sf;
-    typedef volFieldType<Type> vf;
+    typedef GeometricField<Type, fvsPatchField, surfaceMesh> sf;
+    typedef GeometricField<Type, fvPatchField, volMesh> vf;
+    typedef DimensionedField<Type, polySurfaceGeoMesh> smt;
 
-    if (regionType_ != stSampledSurface && obr_.foundObject<sf>(fieldName))
-    {
-        return true;
-    }
-    else if (obr_.foundObject<vf>(fieldName))
-    {
-        return true;
-    }
-
-    return false;
+    return
+    (
+        foundObject<smt>(fieldName)
+     || foundObject<vf>(fieldName)
+     || (withSurfaceFields() && foundObject<sf>(fieldName))
+    );
 }
 
 
@@ -59,116 +88,104 @@ Foam::tmp<Foam::Field<Type>>
 Foam::functionObjects::fieldValues::surfaceFieldValue::getFieldValues
 (
     const word& fieldName,
-    const bool mustGet,
-    const bool applyOrientation
+    const bool mandatory
 ) const
 {
-    typedef surfaceFieldType<Type> sf;
-    typedef volFieldType<Type> vf;
+    typedef GeometricField<Type, fvsPatchField, surfaceMesh> sf;
+    typedef GeometricField<Type, fvPatchField, volMesh> vf;
+    typedef DimensionedField<Type, polySurfaceGeoMesh> smt;
 
-    if (regionType_ != stSampledSurface && obr_.foundObject<sf>(fieldName))
+    if (foundObject<smt>(fieldName))
     {
-        return filterField(obr_.lookupObject<sf>(fieldName), applyOrientation);
+        return lookupObject<smt>(fieldName);
     }
-    else if (obr_.foundObject<vf>(fieldName))
+    else if (withSurfaceFields() && foundObject<sf>(fieldName))
     {
-        const vf& fld = obr_.lookupObject<vf>(fieldName);
+        return filterField(lookupObject<sf>(fieldName));
+    }
+    else if (foundObject<vf>(fieldName))
+    {
+        const vf& fld = lookupObject<vf>(fieldName);
 
-        if (surfacePtr_.valid())
+        if (sampledPtr_)
         {
-            if (surfacePtr_().interpolate())
-            {
-                const interpolationCellPoint<Type> interp(fld);
-                tmp<Field<Type>> tintFld(surfacePtr_().interpolate(interp));
-                const Field<Type>& intFld = tintFld();
+            // Could be runtime selectable
+            // auto sampler = interpolation<Type>::New(sampleFaceScheme_, fld);
 
-                // Average
-                const faceList& faces = surfacePtr_().faces();
-                tmp<Field<Type>> tavg
-                (
-                    new Field<Type>(faces.size(), Zero)
-                );
-                Field<Type>& avg = tavg.ref();
+            // const interpolationCellPoint<Type> interp(fld);
+            const interpolationCell<Type> interp(fld);
 
-                forAll(faces, facei)
-                {
-                    const face& f = faces[facei];
-                    forAll(f, fp)
-                    {
-                        avg[facei] += intFld[f[fp]];
-                    }
-                    avg[facei] /= f.size();
-                }
-
-                return tavg;
-            }
-            else
-            {
-                return surfacePtr_().sample(fld);
-            }
+            return sampledPtr_->sample(interp);
         }
         else
         {
-            return filterField(fld, applyOrientation);
+            return filterField(fld);
         }
     }
 
-    if (mustGet)
+    if (mandatory)
     {
         FatalErrorInFunction
-            << "Field " << fieldName << " not found in database"
+            << "Field " << fieldName << " not found in database" << nl
             << abort(FatalError);
     }
 
-    return tmp<Field<Type>>(new Field<Type>(0));
+    return tmp<Field<Type>>::New();
 }
 
 
-template<class Type>
+template<class Type, class WeightType>
 Type Foam::functionObjects::fieldValues::surfaceFieldValue::
 processSameTypeValues
 (
     const Field<Type>& values,
     const vectorField& Sf,
-    const scalarField& weightField
+    const Field<WeightType>& weightField
 ) const
 {
     Type result = Zero;
     switch (operation_)
     {
-        case opSum:
+        case opNone:
         {
-            result = sum(values);
             break;
         }
-        case opWeightedSum:
+        case opMin:
         {
-            if (weightField.size())
-            {
-                result = sum(weightField*values);
-            }
-            else
-            {
-                result = sum(values);
-            }
+            result = gMin(values);
+            break;
+        }
+        case opMax:
+        {
+            result = gMax(values);
             break;
         }
         case opSumMag:
         {
-            result = sum(cmptMag(values));
+            result = gSum(cmptMag(values));
+            break;
+        }
+        case opSum:
+        case opWeightedSum:
+        case opAbsWeightedSum:
+        {
+            if (is_weightedOp() && canWeight(weightField))
+            {
+                tmp<scalarField> weight
+                (
+                    weightingFactor(weightField, Sf, is_magOp())
+                );
+
+                result = gSum(weight*values);
+            }
+            else
+            {
+                // Unweighted form
+                result = gSum(values);
+            }
             break;
         }
         case opSumDirection:
-        {
-            FatalErrorInFunction
-                << "Operation " << operationTypeNames_[operation_]
-                << " not available for values of type "
-                << pTraits<Type>::typeName
-                << exit(FatalError);
-
-            result = Zero;
-            break;
-        }
         case opSumDirectionBalance:
         {
             FatalErrorInFunction
@@ -177,181 +194,249 @@ processSameTypeValues
                 << pTraits<Type>::typeName
                 << exit(FatalError);
 
-            result = Zero;
             break;
         }
         case opAverage:
-        {
-            result = sum(values)/values.size();
-            break;
-        }
         case opWeightedAverage:
+        case opAbsWeightedAverage:
         {
-            if (weightField.size())
+            if (is_weightedOp() && canWeight(weightField))
             {
-                result = sum(weightField*values)/sum(weightField);
+                const scalarField factor
+                (
+                    weightingFactor(weightField, Sf, is_magOp())
+                );
+
+                result = gSum(factor*values)/(gSum(factor) + ROOTVSMALL);
             }
             else
             {
-                result = sum(values)/values.size();
+                // Unweighted form
+                const label n = returnReduce(values.size(), sumOp<label>());
+
+                result = gSum(values)/(scalar(n) + ROOTVSMALL);
             }
             break;
         }
         case opAreaAverage:
-        {
-            const scalarField magSf(mag(Sf));
-
-            result = sum(magSf*values)/sum(magSf);
-            break;
-        }
         case opWeightedAreaAverage:
+        case opAbsWeightedAreaAverage:
         {
-            const scalarField magSf(mag(Sf));
-
-            if (weightField.size())
+            if (is_weightedOp() && canWeight(weightField))
             {
-                result = sum(weightField*magSf*values)/sum(magSf*weightField);
+                const scalarField factor
+                (
+                    areaWeightingFactor(weightField, Sf, is_magOp())
+                );
+
+                result = gSum(factor*values)/gSum(factor + ROOTVSMALL);
             }
             else
             {
-                result = sum(magSf*values)/sum(magSf);
+                // Unweighted form
+                const scalarField factor(mag(Sf));
+
+                result = gSum(factor*values)/gSum(factor + ROOTVSMALL);
             }
             break;
         }
         case opAreaIntegrate:
-        {
-            const scalarField magSf(mag(Sf));
-
-            result = sum(magSf*values);
-            break;
-        }
         case opWeightedAreaIntegrate:
+        case opAbsWeightedAreaIntegrate:
         {
-            const scalarField magSf(mag(Sf));
-
-            if (weightField.size())
+            if (is_weightedOp() && canWeight(weightField))
             {
-                result = sum(weightField*magSf*values);
+                tmp<scalarField> factor
+                (
+                    areaWeightingFactor(weightField, Sf, is_magOp())
+                );
+
+                result = gSum(factor*values);
             }
             else
             {
-                result = sum(magSf*values);
+                // Unweighted form
+                tmp<scalarField> factor(mag(Sf));
+
+                result = gSum(factor*values);
             }
-            break;
-        }
-        case opMin:
-        {
-            result = min(values);
-            break;
-        }
-        case opMax:
-        {
-            result = max(values);
             break;
         }
         case opCoV:
         {
             const scalarField magSf(mag(Sf));
+            const scalar gSumMagSf = gSum(magSf);
 
-            Type meanValue = sum(values*magSf)/sum(magSf);
+            Type meanValue = gSum(values*magSf)/gSumMagSf;
 
-            const label nComp = pTraits<Type>::nComponents;
-
-            for (direction d=0; d<nComp; ++d)
+            for (direction d=0; d < pTraits<Type>::nComponents; ++d)
             {
-                scalarField vals(values.component(d));
-                scalar mean = component(meanValue, d);
+                tmp<scalarField> vals(values.component(d));
+                const scalar mean = component(meanValue, d);
                 scalar& res = setComponent(result, d);
 
-                res = sqrt(sum(magSf*sqr(vals - mean))/sum(magSf))/mean;
+                res =
+                    sqrt(gSum(magSf*sqr(vals - mean))/gSumMagSf)
+                   /(mean + ROOTVSMALL);
             }
 
             break;
         }
+
         case opAreaNormalAverage:
-        {}
         case opAreaNormalIntegrate:
-        {}
-        case opNone:
-        {}
+        case opUniformity:
+        {
+            // Handled in specializations only
+            break;
+        }
+
+        case opWeightedUniformity:
+        case opAbsWeightedUniformity:
+        {
+            if (is_weightedOp() && canWeight(weightField))
+            {
+                // Change weighting from vector -> scalar and dispatch again
+                return processValues<Type, scalar>
+                (
+                    values,
+                    Sf,
+                    weightingFactor(weightField, is_magOp())
+                );
+            }
+
+            break;
+        }
     }
 
     return result;
 }
 
 
-template<class Type>
+template<class Type, class WeightType>
 Type Foam::functionObjects::fieldValues::surfaceFieldValue::processValues
 (
     const Field<Type>& values,
     const vectorField& Sf,
-    const scalarField& weightField
+    const Field<WeightType>& weightField
 ) const
 {
     return processSameTypeValues(values, Sf, weightField);
 }
 
 
+template<class WeightType>
+Foam::label Foam::functionObjects::fieldValues::surfaceFieldValue::writeAll
+(
+    const vectorField& Sf,
+    const Field<WeightType>& weightField,
+    const pointField& points,
+    const faceList& faces
+)
+{
+    label nProcessed = 0;
 
-// * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
+    // If using the surface writer, the points/faces parameters have already
+    // been merged on the master and the writeValues routine will also gather
+    // all data onto the master before calling the writer.
+    // Thus only call the writer on master!
 
-template<class Type>
+    // Begin writer time step
+    if (Pstream::master() && surfaceWriterPtr_ && surfaceWriterPtr_->enabled())
+    {
+        auto& writer = *surfaceWriterPtr_;
+
+        writer.open
+        (
+            points,
+            faces,
+            (
+                outputDir()
+              / regionTypeNames_[regionType_] + ("_" + regionName_)
+            ),
+            false  // serial - already merged
+        );
+
+        writer.beginTime(time_);
+    }
+
+    for (const word& fieldName : fields_)
+    {
+        if
+        (
+            writeValues<scalar>(fieldName, Sf, weightField, points, faces)
+         || writeValues<vector>(fieldName, Sf, weightField, points, faces)
+         || writeValues<sphericalTensor>
+            (
+                fieldName, Sf, weightField, points, faces
+            )
+         || writeValues<symmTensor>(fieldName, Sf, weightField, points, faces)
+         || writeValues<tensor>(fieldName, Sf, weightField, points, faces)
+        )
+        {
+            ++nProcessed;
+        }
+        else
+        {
+            WarningInFunction
+                << "Requested field " << fieldName
+                << " not found in database and not processed"
+                << endl;
+        }
+    }
+
+    // Finish writer time step
+    if (Pstream::master() && surfaceWriterPtr_ && surfaceWriterPtr_->enabled())
+    {
+        auto& writer = *surfaceWriterPtr_;
+
+        // Write geometry if no fields were written so that we still
+        // can have something to look at.
+
+        if (!writer.wroteData())
+        {
+            writer.write();
+        }
+
+        writer.endTime();
+        writer.clear();
+    }
+
+    return nProcessed;
+}
+
+
+template<class Type, class WeightType>
 bool Foam::functionObjects::fieldValues::surfaceFieldValue::writeValues
 (
     const word& fieldName,
-    const scalarField& weightField,
-    const bool orient
+    const vectorField& Sf,
+    const Field<WeightType>& weightField,
+    const pointField& points,
+    const faceList& faces
 )
 {
     const bool ok = validField<Type>(fieldName);
 
     if (ok)
     {
-        Field<Type> values(getFieldValues<Type>(fieldName, true, orient));
-
-        vectorField Sf;
-        if (surfacePtr_.valid())
-        {
-            // Get oriented Sf
-            Sf = surfacePtr_().Sf();
-        }
-        else
-        {
-            // Get oriented Sf
-            Sf = filterField(mesh_.Sf(), true);
-        }
-
-        // Combine onto master
-        combineFields(values);
-        combineFields(Sf);
+        Field<Type> values(getFieldValues<Type>(fieldName, true));
 
         // Write raw values on surface if specified
-        if (surfaceWriterPtr_.valid())
+        if (surfaceWriterPtr_ && surfaceWriterPtr_->enabled())
         {
-            faceList faces;
-            pointField points;
-
-            if (surfacePtr_.valid())
-            {
-                combineSurfaceGeometry(faces, points);
-            }
-            else
-            {
-                combineMeshGeometry(faces, points);
-            }
+            Field<Type> allValues(values);
+            combineFields(allValues);
 
             if (Pstream::master())
             {
-                surfaceWriterPtr_->write
-                (
-                    outputDir(),
-                    regionTypeNames_[regionType_] + ("_" + regionName_),
-                    points,
-                    faces,
-                    fieldName,
-                    values,
-                    false
-                );
+                fileName outputName =
+                    surfaceWriterPtr_->write(fieldName, allValues);
+
+                // Case-local file name with "<case>" to make relocatable
+                dictionary propsDict;
+                propsDict.add("file", time_.relativePath(outputName, true));
+                this->setProperty(fieldName, propsDict);
             }
         }
 
@@ -360,18 +445,87 @@ bool Foam::functionObjects::fieldValues::surfaceFieldValue::writeValues
             // Apply scale factor
             values *= scaleFactor_;
 
-            if (Pstream::master())
+            Type result = processValues(values, Sf, weightField);
+
+            switch (postOperation_)
             {
-                Type result = processValues(values, Sf, weightField);
+                case postOpSqrt:
+                {
+                    // sqrt: component-wise - does not change the type
+                    for (direction d=0; d < pTraits<Type>::nComponents; ++d)
+                    {
+                        setComponent(result, d)
+                            = sqrt(mag(component(result, d)));
+                    }
+                    break;
+                }
+                default:
+                {
+                    break;
+                }
+            }
 
-                // Add to result dictionary, over-writing any previous entry
-                resultDict_.add(fieldName, result, true);
+            // Write state/results information
+            word prefix, suffix;
+            {
+                if (postOperation_ != postOpNone)
+                {
+                    // Adjust result name to include post-operation
+                    prefix += postOperationTypeNames_[postOperation_];
+                    prefix += '(';
+                    suffix += ')';
+                }
 
-                file() << tab << result;
+                prefix += operationTypeNames_[operation_];
+                prefix += '(';
+                suffix += ')';
+            }
 
-                Log << "    " << operationTypeNames_[operation_]
-                    << "(" << regionName_ << ") of " << fieldName
-                    <<  " = " << result << endl;
+            word resultName = prefix + regionName_ + ',' + fieldName + suffix;
+
+            // Write state/results information
+
+            Log << "    " << prefix << regionName_ << suffix
+                << " of " << fieldName << " = ";
+
+
+            // Operation or post-operation returns scalar?
+
+            scalar sresult{0};
+
+            bool alwaysScalar(operation_ & typeScalar);
+
+            if (alwaysScalar)
+            {
+                sresult = component(result, 0);
+
+                if (postOperation_ == postOpMag)
+                {
+                    sresult = mag(sresult);
+                }
+            }
+            else if (postOperation_ == postOpMag)
+            {
+                sresult = mag(result);
+                alwaysScalar = true;
+            }
+
+
+            if (alwaysScalar)
+            {
+                file()<< tab << sresult;
+
+                Log << sresult << endl;
+
+                this->setResult(resultName, sresult);
+            }
+            else
+            {
+                file()<< tab << result;
+
+                Log << result << endl;
+
+                this->setResult(resultName, result);
             }
         }
     }
@@ -384,39 +538,33 @@ template<class Type>
 Foam::tmp<Foam::Field<Type>>
 Foam::functionObjects::fieldValues::surfaceFieldValue::filterField
 (
-    const volFieldType<Type>& field,
-    const bool applyOrientation
+    const GeometricField<Type, fvPatchField, volMesh>& field
 ) const
 {
-    tmp<Field<Type>> tvalues(new Field<Type>(faceId_.size()));
-    Field<Type>& values = tvalues.ref();
+    const labelList& own = field.mesh().faceOwner();
+    const labelList& nei = field.mesh().faceNeighbour();
+
+    auto tvalues = tmp<Field<Type>>::New(faceId_.size());
+    auto& values = tvalues.ref();
 
     forAll(values, i)
     {
-        label facei = faceId_[i];
-        label patchi = facePatchId_[i];
+        const label facei = faceId_[i];
+        const label patchi = facePatchId_[i];
+
         if (patchi >= 0)
         {
+            // Boundary face - face id is the patch-local face id
             values[i] = field.boundaryField()[patchi][facei];
         }
         else
         {
-            FatalErrorInFunction
-                << type() << " " << name() << ": "
-                << regionTypeNames_[regionType_] << "(" << regionName_ << "):"
-                << nl
-                << "    Unable to process internal faces for volume field "
-                << field.name() << nl << abort(FatalError);
+            // Internal face
+            values[i] = 0.5*(field[own[facei]] + field[nei[facei]]);
         }
     }
 
-    if (applyOrientation)
-    {
-        forAll(values, i)
-        {
-            values[i] *= faceSign_[i];
-        }
-    }
+    // No need to flip values - all boundary faces point outwards
 
     return tvalues;
 }
@@ -426,17 +574,17 @@ template<class Type>
 Foam::tmp<Foam::Field<Type>>
 Foam::functionObjects::fieldValues::surfaceFieldValue::filterField
 (
-    const surfaceFieldType<Type>& field,
-    const bool applyOrientation
+    const GeometricField<Type, fvsPatchField, surfaceMesh>& field
 ) const
 {
-    tmp<Field<Type>> tvalues(new Field<Type>(faceId_.size()));
-    Field<Type>& values = tvalues.ref();
+    auto tvalues = tmp<Field<Type>>::New(faceId_.size());
+    auto& values = tvalues.ref();
 
     forAll(values, i)
     {
-        label facei = faceId_[i];
-        label patchi = facePatchId_[i];
+        const label facei = faceId_[i];
+        const label patchi = facePatchId_[i];
+
         if (patchi >= 0)
         {
             values[i] = field.boundaryField()[patchi][facei];
@@ -447,11 +595,20 @@ Foam::functionObjects::fieldValues::surfaceFieldValue::filterField
         }
     }
 
-    if (applyOrientation)
+    if (debug)
+    {
+        Pout<< "field " << field.name() << " oriented: "
+            << field.oriented()() << endl;
+    }
+
+    if (field.oriented()())
     {
         forAll(values, i)
         {
-            values[i] *= faceSign_[i];
+            if (faceFlip_[i])
+            {
+                values[i] *= -1;
+            }
         }
     }
 

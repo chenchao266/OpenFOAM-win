@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2016-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -24,40 +27,54 @@ License
 \*---------------------------------------------------------------------------*/
 
 #include "GAMGSolver.H"
-#include "PCG.H"
-#include "PBiCGStab.H"
-#include "SubField.T.H"
+#include "SubField.H"
+#include "PrecisionAdaptor.H"
 
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
-using namespace Foam;
+
+
+ namespace Foam{
 solverPerformance GAMGSolver::solve
 (
-    scalarField& psi,
+    scalarField& psi_s,
     const scalarField& source,
     const direction cmpt
 ) const
 {
+    PrecisionAdaptor<solveScalar, scalar> tpsi(psi_s);
+    solveScalarField& psi = tpsi.ref();
+
+    ConstPrecisionAdaptor<solveScalar, scalar> tsource(source);
+
     // Setup class containing solver performance data
     solverPerformance solverPerf(typeName, fieldName_);
 
     // Calculate A.psi used to calculate the initial residual
-    scalarField Apsi(psi.size());
+    solveScalarField Apsi(psi.size());
     matrix_.Amul(Apsi, psi, interfaceBouCoeffs_, interfaces_, cmpt);
 
     // Create the storage for the finestCorrection which may be used as a
     // temporary in normFactor
-    scalarField finestCorrection(psi.size());
+    solveScalarField finestCorrection(psi.size());
 
     // Calculate normalisation factor
-    scalar normFactor = this->normFactor(psi, source, Apsi, finestCorrection);
+    solveScalar normFactor =
+        this->normFactor(psi, tsource(), Apsi, finestCorrection);
 
-    if (debug >= 2)
+    if ((log_ >= 2) || (debug >= 2))
     {
         Pout<< "   Normalisation factor = " << normFactor << endl;
     }
 
     // Calculate initial finest-grid residual field
-    scalarField finestResidual(source - Apsi);
+    solveScalarField finestResidual(tsource() - Apsi);
+
+    matrix().setResidualField
+    (
+        ConstPrecisionAdaptor<scalar, solveScalar>(finestResidual)(),
+        fieldName_,
+        true
+    );
 
     // Calculate normalised residual for convergence test
     solverPerf.initialResidual() = gSumMag
@@ -72,22 +89,22 @@ solverPerformance GAMGSolver::solve
     if
     (
         minIter_ > 0
-     || !solverPerf.checkConvergence(tolerance_, relTol_)
+     || !solverPerf.checkConvergence(tolerance_, relTol_, log_)
     )
     {
         // Create coarse grid correction fields
-        PtrList<scalarField> coarseCorrFields;
+        PtrList<solveScalarField> coarseCorrFields;
 
         // Create coarse grid sources
-        PtrList<scalarField> coarseSources;
+        PtrList<solveScalarField> coarseSources;
 
         // Create the smoothers for all levels
         PtrList<lduMatrix::smoother> smoothers;
 
         // Scratch fields if processor-agglomerated coarse level meshes
         // are bigger than original. Usually not needed
-        scalarField scratch1;
-        scalarField scratch2;
+        solveScalarField scratch1;
+        solveScalarField scratch2;
 
         // Initialise the above data structures
         initVcycle
@@ -120,7 +137,7 @@ solverPerformance GAMGSolver::solve
 
             // Calculate finest level residual field
             matrix_.Amul(Apsi, psi, interfaceBouCoeffs_, interfaces_, cmpt);
-            finestResidual = source;
+            finestResidual = tsource();
             finestResidual -= Apsi;
 
             solverPerf.finalResidual() = gSumMag
@@ -129,7 +146,7 @@ solverPerformance GAMGSolver::solve
                 matrix().mesh().comm()
             )/normFactor;
 
-            if (debug >= 2)
+            if ((log_ >= 2) || (debug >= 2))
             {
                 solverPerf.print(Info.masterStream(matrix().mesh().comm()));
             }
@@ -137,11 +154,18 @@ solverPerformance GAMGSolver::solve
         (
             (
               ++solverPerf.nIterations() < maxIter_
-            && !solverPerf.checkConvergence(tolerance_, relTol_)
+            && !solverPerf.checkConvergence(tolerance_, relTol_, log_)
             )
          || solverPerf.nIterations() < minIter_
         );
     }
+
+    matrix().setResidualField
+    (
+        ConstPrecisionAdaptor<scalar, solveScalar>(finestResidual)(),
+        fieldName_,
+        false
+    );
 
     return solverPerf;
 }
@@ -150,17 +174,17 @@ solverPerformance GAMGSolver::solve
 void GAMGSolver::Vcycle
 (
     const PtrList<lduMatrix::smoother>& smoothers,
-    scalarField& psi,
+    solveScalarField& psi,
     const scalarField& source,
-    scalarField& Apsi,
-    scalarField& finestCorrection,
-    scalarField& finestResidual,
+    solveScalarField& Apsi,
+    solveScalarField& finestCorrection,
+    solveScalarField& finestResidual,
 
-    scalarField& scratch1,
-    scalarField& scratch2,
+    solveScalarField& scratch1,
+    solveScalarField& scratch2,
 
-    PtrList<scalarField>& coarseCorrFields,
-    PtrList<scalarField>& coarseSources,
+    PtrList<solveScalarField>& coarseCorrFields,
+    PtrList<solveScalarField>& coarseSources,
     const direction cmpt
 ) const
 {
@@ -171,7 +195,7 @@ void GAMGSolver::Vcycle
     // Restrict finest grid residual for the next level up.
     agglomeration_.restrictField(coarseSources[0], finestResidual, 0, true);
 
-    if (debug >= 2 && nPreSweeps_)
+    if (nPreSweeps_ && ((log_ >= 2) || (debug >= 2)))
     {
         Pout<< "Pre-smoothing scaling factors: ";
     }
@@ -183,15 +207,15 @@ void GAMGSolver::Vcycle
         if (coarseSources.set(leveli + 1))
         {
             // If the optional pre-smoothing sweeps are selected
-            // smooth the coarse-grid field for the restriced source
+            // smooth the coarse-grid field for the restricted source
             if (nPreSweeps_)
             {
                 coarseCorrFields[leveli] = 0.0;
 
-                smoothers[leveli + 1].smooth
+                smoothers[leveli + 1].scalarSmooth
                 (
                     coarseCorrFields[leveli],
-                    coarseSources[leveli],
+                    coarseSources[leveli],  //coarseSource,
                     cmpt,
                     min
                     (
@@ -200,7 +224,7 @@ void GAMGSolver::Vcycle
                     )
                 );
 
-                scalarField::subField ACf
+                solveScalarField::subField ACf
                 (
                     scratch1,
                     coarseCorrFields[leveli].size()
@@ -213,9 +237,9 @@ void GAMGSolver::Vcycle
                     scale
                     (
                         coarseCorrFields[leveli],
-                        const_cast<scalarField&>
+                        const_cast<solveScalarField&>
                         (
-                            ACf.operator const scalarField&()
+                            ACf.operator const solveScalarField&()
                         ),
                         matrixLevels_[leveli],
                         interfaceLevelsBouCoeffs_[leveli],
@@ -228,9 +252,9 @@ void GAMGSolver::Vcycle
                 // Correct the residual with the new solution
                 matrixLevels_[leveli].Amul
                 (
-                    const_cast<scalarField&>
+                    const_cast<solveScalarField&>
                     (
-                        ACf.operator const scalarField&()
+                        ACf.operator const solveScalarField&()
                     ),
                     coarseCorrFields[leveli],
                     interfaceLevelsBouCoeffs_[leveli],
@@ -252,7 +276,7 @@ void GAMGSolver::Vcycle
         }
     }
 
-    if (debug >= 2 && nPreSweeps_)
+    if (nPreSweeps_ && ((log_ >= 2) || (debug >= 2)))
     {
         Pout<< endl;
     }
@@ -268,7 +292,7 @@ void GAMGSolver::Vcycle
         );
     }
 
-    if (debug >= 2)
+    if ((log_ >= 2) || (debug >= 2))
     {
         Pout<< "Post-smoothing scaling factors: ";
     }
@@ -276,7 +300,7 @@ void GAMGSolver::Vcycle
     // Smoothing and prolongation of the coarse correction fields
     // (going to finer levels)
 
-    scalarField dummyField(0);
+    solveScalarField dummyField(0);
 
     for (label leveli = coarsestLevel - 1; leveli >= 0; leveli--)
     {
@@ -285,7 +309,7 @@ void GAMGSolver::Vcycle
             // Create a field for the pre-smoothed correction field
             // as a sub-field of the finestCorrection which is not
             // currently being used
-            scalarField::subField preSmoothedCoarseCorrField
+            solveScalarField::subField preSmoothedCoarseCorrField
             (
                 scratch2,
                 coarseCorrFields[leveli].size()
@@ -312,13 +336,16 @@ void GAMGSolver::Vcycle
 
 
             // Create A.psi for this coarse level as a sub-field of Apsi
-            scalarField::subField ACf
+            solveScalarField::subField ACf
             (
                scratch1,
                 coarseCorrFields[leveli].size()
             );
-            scalarField& ACfRef =
-                const_cast<scalarField&>(ACf.operator const scalarField&());
+            solveScalarField& ACfRef =
+                const_cast
+                <
+                    solveScalarField&
+                >(ACf.operator const solveScalarField&());
 
             if (interpolateCorrection_) //&& leveli < coarsestLevel - 2)
             {
@@ -377,10 +404,10 @@ void GAMGSolver::Vcycle
                 coarseCorrFields[leveli] += preSmoothedCoarseCorrField;
             }
 
-            smoothers[leveli + 1].smooth
+            smoothers[leveli + 1].scalarSmooth
             (
                 coarseCorrFields[leveli],
-                coarseSources[leveli],
+                coarseSources[leveli],  //coarseSource,
                 cmpt,
                 min
                 (
@@ -447,11 +474,11 @@ void GAMGSolver::Vcycle
 
 void GAMGSolver::initVcycle
 (
-    PtrList<scalarField>& coarseCorrFields,
-    PtrList<scalarField>& coarseSources,
+    PtrList<solveScalarField>& coarseCorrFields,
+    PtrList<solveScalarField>& coarseSources,
     PtrList<lduMatrix::smoother>& smoothers,
-    scalarField& scratch1,
-    scalarField& scratch2
+    solveScalarField& scratch1,
+    solveScalarField& scratch2
 ) const
 {
     label maxSize = matrix_.diag().size();
@@ -481,7 +508,7 @@ void GAMGSolver::initVcycle
         {
             label nCoarseCells = agglomeration_.nCells(leveli);
 
-            coarseSources.set(leveli, new scalarField(nCoarseCells));
+            coarseSources.set(leveli, new solveScalarField(nCoarseCells));
         }
 
         if (matrixLevels_.set(leveli))
@@ -492,7 +519,7 @@ void GAMGSolver::initVcycle
 
             maxSize = max(maxSize, nCoarseCells);
 
-            coarseCorrFields.set(leveli, new scalarField(nCoarseCells));
+            coarseCorrFields.set(leveli, new solveScalarField(nCoarseCells));
 
             smoothers.set
             (
@@ -549,17 +576,23 @@ dictionary GAMGSolver::PBiCGStabSolverDict
 
 void GAMGSolver::solveCoarsestLevel
 (
-    scalarField& coarsestCorrField,
-    const scalarField& coarsestSource
+    solveScalarField& coarsestCorrField,
+    const solveScalarField& coarsestSource
 ) const
 {
     const label coarsestLevel = matrixLevels_.size() - 1;
 
-    label coarseComm = matrixLevels_[coarsestLevel].mesh().comm();
+    const label coarseComm = matrixLevels_[coarsestLevel].mesh().comm();
 
     if (directSolveCoarsest_)
     {
-        coarsestLUMatrixPtr_->solve(coarsestCorrField, coarsestSource);
+        PrecisionAdaptor<scalar, solveScalar> tcorrField(coarsestCorrField);
+
+        coarsestLUMatrixPtr_->solve
+        (
+            tcorrField.ref(),
+            ConstPrecisionAdaptor<scalar, solveScalar>(coarsestSource)()
+        );
     }
     //else if
     //(
@@ -663,42 +696,16 @@ void GAMGSolver::solveCoarsestLevel
     else
     {
         coarsestCorrField = 0;
-        solverPerformance coarseSolverPerf;
-
-        if (matrixLevels_[coarsestLevel].asymmetric())
-        {
-            coarseSolverPerf = PBiCGStab
-            (
-                "coarsestLevelCorr",
-                matrixLevels_[coarsestLevel],
-                interfaceLevelsBouCoeffs_[coarsestLevel],
-                interfaceLevelsIntCoeffs_[coarsestLevel],
-                interfaceLevels_[coarsestLevel],
-                PBiCGStabSolverDict(tolerance_, relTol_)
-            ).solve
+        const solverPerformance coarseSolverPerf
+        (
+            coarsestSolverPtr_->scalarSolve
             (
                 coarsestCorrField,
                 coarsestSource
-            );
-        }
-        else
-        {
-            coarseSolverPerf = PCG
-            (
-                "coarsestLevelCorr",
-                matrixLevels_[coarsestLevel],
-                interfaceLevelsBouCoeffs_[coarsestLevel],
-                interfaceLevelsIntCoeffs_[coarsestLevel],
-                interfaceLevels_[coarsestLevel],
-                PCGsolverDict(tolerance_, relTol_)
-            ).solve
-            (
-                coarsestCorrField,
-                coarsestSource
-            );
-        }
+            )
+        );
 
-        if (debug >= 2)
+        if ((log_ >= 2) || debug)
         {
             coarseSolverPerf.print(Info.masterStream(coarseComm));
         }
@@ -707,3 +714,5 @@ void GAMGSolver::solveCoarsestLevel
 
 
 // ************************************************************************* //
+
+ } // End namespace Foam

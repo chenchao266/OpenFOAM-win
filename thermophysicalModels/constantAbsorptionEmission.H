@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2015 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2015 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -24,6 +26,9 @@ License
 Class
     Foam::radiation::constantAbsorptionEmission
 
+Group
+    grpRadiationAbsorptionEmissionSubModels
+
 Description
     Constant radiation absorption and emission coefficients for continuous
     phase
@@ -33,8 +38,8 @@ SourceFiles
 
 \*---------------------------------------------------------------------------*/
 
-#ifndef radiationConstantAbsorptionEmission_H
-#define radiationConstantAbsorptionEmission_H
+#ifndef radiation_constantAbsorptionEmission_H
+#define radiation_constantAbsorptionEmission_H
 
 #include "absorptionEmissionModel.H"
 
@@ -81,7 +86,7 @@ public:
 
 
     //- Destructor
-    virtual ~constantAbsorptionEmission();
+    virtual ~constantAbsorptionEmission() = default;
 
 
     // Member Functions

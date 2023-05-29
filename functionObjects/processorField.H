@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -29,26 +32,49 @@ Group
 
 Description
     Writes a scalar field whose value is the local processor ID.  The output
-    field name is 'processorID'.
+    field name is \c processorID.
 
-    Example of function object specification:
+    Operands:
+    \table
+      Operand        | Type           | Location
+      input          | volScalarField | $FOAM_CASE/\<time\>/\<inpField\>
+      output file    | -              | -
+      output field   | volScalarField | $FOAM_CASE/\<time\>/\<outField\>
+    \endtable
+
+Usage
+    Minimal example by using \c system/controlDict.functions:
     \verbatim
     processorField1
     {
+        // Mandatory entries (unmodifiable)
         type        processorField;
-        libs        ("libfieldFunctionObjects.so");
+        libs        (fieldFunctionObjects);
+
+        // Optional (inherited) entries
         ...
     }
     \endverbatim
 
-Usage
+    where the entries mean:
     \table
-        Property     | Description             | Required    | Default value
-        type         | type name: processorField | yes       |
+      Property     | Description                        | Type | Req'd | Dflt
+      type         | Type name: processorField          | word |  yes  | -
+      libs         | Library name: fieldFunctionObjects | word |  yes  | -
     \endtable
 
+    The inherited entries are elaborated in:
+     - \link functionObject.H \endlink
+
+    Minimal example by using the \c postProcess utility:
+    \verbatim
+        postProcess -func processorField
+    \endverbatim
+
 See also
-    Foam::functionObjects::fvMeshFunctionObject
+    - Foam::functionObject
+    - Foam::functionObjects::fvMeshFunctionObject
+    - ExtendedCodeGuide::functionObjects::field::processorField
 
 SourceFiles
     processorField.C
@@ -75,15 +101,6 @@ class processorField
 :
     public fvMeshFunctionObject
 {
-    // Private member functions
-
-        //- Disallow default bitwise copy construct
-        processorField(const processorField&);
-
-        //- Disallow default bitwise assignment
-        void operator=(const processorField&);
-
-
 public:
 
     //- Runtime type information
@@ -100,9 +117,15 @@ public:
             const dictionary& dict
         );
 
+        //- No copy construct
+        processorField(const processorField&) = delete;
+
+        //- No copy assignment
+        void operator=(const processorField&) = delete;
+
 
     //- Destructor
-    virtual ~processorField();
+    virtual ~processorField() = default;
 
 
     // Member Functions

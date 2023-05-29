@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2017 OpenFOAM Foundation
+    Copyright (C) 2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -26,38 +29,27 @@ License
 #include "quadraticRamp.H"
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
-using namespace Foam;
+
 namespace Foam
 {
-namespace Function1Types
-{
-    makeScalarFunction1(quadraticRamp);
+    namespace Function1Types
+    {
+        makeScalarFunction1(quadraticRamp);
+    }
+
+
+
+    // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
+
+    Function1Types::quadraticRamp::quadraticRamp
+    (
+        const word& entryName,
+        const dictionary& dict,
+        const objectRegistry* obrPtr
+    )
+        :
+        ramp(entryName, dict, obrPtr)
+    {}
+
 }
-}
-
-
-// * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
-
-Function1Types::quadraticRamp::quadraticRamp
-(
-    const word& entryName,
-    const dictionary& dict
-) :    ramp(entryName, dict)
-{}
-
-
-// * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
-
-Function1Types::quadraticRamp::~quadraticRamp()
-{}
-
-
-// * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
-
-scalar Function1Types::quadraticRamp::value(const scalar t) const
-{
-    return sqr(linearRamp(t));
-}
-
-
 // ************************************************************************* //

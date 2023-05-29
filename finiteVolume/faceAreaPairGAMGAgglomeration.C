@@ -1,9 +1,11 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -73,7 +75,7 @@ Foam::faceAreaPairGAMGAgglomeration::faceAreaPairGAMGAgglomeration
                 fvmesh.Sf().primitiveField()
                /sqrt(fvmesh.magSf().primitiveField()),
                 vector(1, 1.01, 1.02)
-                //vector::one
+                //vector::one_
             )
         )
     );
@@ -101,7 +103,7 @@ Foam::faceAreaPairGAMGAgglomeration::faceAreaPairGAMGAgglomeration
                 faceAreas
                /sqrt(mag(faceAreas)),
                 vector(1, 1.01, 1.02)
-                //vector::one
+                //vector::one_
             )
         )
     );

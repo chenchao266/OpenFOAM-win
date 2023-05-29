@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -28,15 +30,14 @@ License
 #include "processorLduInterface.H"
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
- 
+
 namespace Foam
 {
-defineTypeNameAndDebug(lduMesh, 0);
-}
+    defineTypeNameAndDebug(lduMesh, 0);
 
- 
-// * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
-namespace Foam {
+
+    // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
+
     const objectRegistry& lduMesh::thisDb() const
     {
         NotImplemented;
@@ -139,7 +140,7 @@ namespace Foam {
             }
         }
 
-        os.check("Ostream& operator<<(Ostream&, const lduMesh&");
+        os.check(FUNCTION_NAME);
 
         return os;
     }

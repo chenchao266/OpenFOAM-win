@@ -1,9 +1,12 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2012-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2012-2016 OpenFOAM Foundation
+    Copyright (C) 2016 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -26,7 +29,7 @@ Class
 
 Description
     functionObject base class for creating, maintaining and writing log
-    files e.g. integrated of averaged field data vs time.
+    files e.g. integrated or averaged field data vs time.
 
 See also
     Foam::functionObject
@@ -41,8 +44,7 @@ SourceFiles
 #define functionObjects_logFiles_H
 
 #include "writeFile.H"
-#include "OFstream.H"
-#include "PtrList.T.H"
+#include "PtrList.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -52,10 +54,12 @@ namespace functionObjects
 {
 
 /*---------------------------------------------------------------------------*\
-                     Class logFiles Declaration
+                  Class functionObjects::logFiles Declaration
 \*---------------------------------------------------------------------------*/
 
-class logFiles :    public writeFile
+class logFiles
+:
+    public writeFile
 {
 
 protected:
@@ -80,19 +84,16 @@ protected:
         //- Reset the list of names to a single name entry
         virtual void resetName(const word& name);
 
-        //- File header information
-        virtual void writeFileHeader(const label i = 0) = 0;
-
 
 private:
 
     // Private Member Functions
 
-        //- Disallow default bitwise copy construct
-        logFiles(const logFiles&);
+        //- No copy construct
+        logFiles(const logFiles&) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const logFiles&);
+        //- No copy assignment
+        void operator=(const logFiles&) = delete;
 
 
 public:
@@ -107,8 +108,18 @@ public:
         );
 
 
+        //- Construct from objectRegistry and prefix, and read options
+        //  from dictionary
+        logFiles
+        (
+            const objectRegistry& obr,
+            const word& prefix,
+            const dictionary& dict
+        );
+
+
     //- Destructor
-    virtual ~logFiles();
+    virtual ~logFiles() = default;
 
 
     // Member Functions
@@ -119,11 +130,8 @@ public:
         //- Return access to the files
         PtrList<OFstream>& files();
 
-        //- Return access to the file (if only 1)
-        OFstream& file();
-
         //- Return file 'i'
-        OFstream& file(const label i);
+        OFstream& files(const label i);
 
         //- Write function
         virtual bool write();

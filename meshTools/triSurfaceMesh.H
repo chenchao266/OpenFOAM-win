@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2015-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -27,11 +30,21 @@ Class
 Description
     IOoject and searching on triSurface
 
-    Note: when constructing from dictionary has optional parameters:
+    Note: when constructing from dictionary has the following parameters:
         - scale     : scaling factor.
         - tolerance : relative tolerance for doing intersections
                       (see triangle::intersection)
         - minQuality: discard triangles with low quality when getting normal
+
+    \heading Dictionary parameters
+    \table
+        Property    | Description                       | Required | Default
+        type        | triSurfaceMesh                    | selector |
+        file        | File name to locate the surface   | no    |
+        fileType    | The surface format (Eg, nastran)  | no    |
+        scale       | Scaling factor                    | no    | 0
+        minQuality  | Quality criterion                 | no    | -1
+    \endtable
 
 SourceFiles
     triSurfaceMesh.C
@@ -41,14 +54,14 @@ SourceFiles
 #ifndef triSurfaceMesh_H
 #define triSurfaceMesh_H
 
-#include "treeBoundBox.H"
 #include "searchableSurface.H"
+#include "treeBoundBox.H"
 #include "objectRegistry.H"
 #include "indexedOctree.H"
 #include "treeDataTriSurface.H"
 #include "treeDataPrimitivePatch.H"
 #include "treeDataEdge.H"
-#include "EdgeMap.T.H"
+#include "edgeHashes.H"
 #include "triSurface.H"
 #include "triSurfaceRegionSearch.H"
 
@@ -68,6 +81,8 @@ class triSurfaceMesh
     public triSurface,
     public triSurfaceRegionSearch
 {
+protected:
+
     // Private member data
 
         //- Supplied fileName override
@@ -86,28 +101,11 @@ class triSurfaceMesh
         //- Is surface closed
         mutable label surfaceClosed_;
 
+        //- If surface is closed, what is type of outside points
+        mutable volumeType outsideVolType_;
+
 
     // Private Member Functions
-
-        //- Return fileName to load IOobject from
-        static fileName checkFile(const regIOobject& io, const bool isGlobal);
-
-        //- Return fileName. If fileName is relative gets treated local to
-        //  IOobject
-        static fileName relativeFilePath
-        (
-            const regIOobject&,
-            const fileName&,
-            const bool isGlobal
-        );
-
-        //- Return fileName to load IOobject from. Optional override of fileName
-        static fileName checkFile
-        (
-            const regIOobject&,
-            const dictionary&,
-            const bool isGlobal
-        );
 
         //- Helper function for isSurfaceClosed
         static bool addFaceToEdge
@@ -128,20 +126,23 @@ class triSurfaceMesh
             const point& start,
             const point& end,
             const vector& smallVec,
-            DynamicList<pointIndexHit, 1, 1>& hits
+            DynamicList<pointIndexHit>& hits
         );
 
-        //- Disallow default bitwise copy construct
-        triSurfaceMesh(const triSurfaceMesh&);
+        //- No copy construct
+        triSurfaceMesh(const triSurfaceMesh&) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const triSurfaceMesh&);
+        //- No copy assignment
+        void operator=(const triSurfaceMesh&) = delete;
 
 
 public:
 
     //- Runtime type information
     TypeName("triSurfaceMesh");
+
+    //- Return the mesh sub-directory name (usually "triSurface")
+    static word meshSubDir;
 
 
     // Constructors
@@ -162,20 +163,28 @@ public:
 
 
         // Special constructors for use by distributedTriSurface. File search
-        // status (local/global) supplied.
+        // method supplied:
 
-            triSurfaceMesh(const IOobject& io, const bool isGlobal);
+            enum readAction
+            {
+                localOnly,      // load from (processor-)local file only
+                localOrGlobal,  // load from (processor-)local or global file
+                masterOnly      // as localOrGlobal but only load on master
+            };
+
+            triSurfaceMesh(const IOobject& io, const readAction r);
 
             triSurfaceMesh
             (
                 const IOobject& io,
                 const dictionary& dict,
-                const bool isGlobal
+                const readAction r
             );
 
 
     //- Destructor
     virtual ~triSurfaceMesh();
+
 
         //- Clear storage
         void clearOut();
@@ -192,10 +201,14 @@ public:
 
         // searchableSurface implementation
 
+            //- Names of regions
             virtual const wordList& regions() const;
 
-            //- Whether supports volume type below. I.e. whether is closed.
+            //- Whether supports volume type (below) - i.e. whether is closed.
             virtual bool hasVolumeType() const;
+
+            //- If surface is closed, what is type of points outside bounds
+            virtual volumeType outsideVolumeType() const;
 
             //- Range of local indices that can be returned.
             virtual label size() const
@@ -272,12 +285,12 @@ public:
                 vectorField& normal
             ) const;
 
-            //- Determine type (inside/outside/mixed) for point. unknown if
-            //  cannot be determined (e.g. non-manifold surface)
+            //- Determine type (inside/outside/mixed) for point.
+            //  Unknown if cannot be determined (e.g. non-manifold surface)
             virtual void getVolumeType
             (
-                const pointField&,
-                List<volumeType>&
+                const pointField& points,
+                List<volumeType>& volType
             ) const;
 
 
@@ -299,12 +312,10 @@ public:
                 return false;
             }
 
-            //- Write using given format, version and compression
+            //- Write using stream options
             virtual bool writeObject
             (
-                IOstream::streamFormat fmt,
-                IOstream::versionNumber ver,
-                IOstream::compressionType cmp,
+                IOstreamOption streamOpt,
                 const bool valid
             ) const;
 

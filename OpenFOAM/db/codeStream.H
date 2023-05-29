@@ -1,9 +1,12 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2019 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -89,8 +92,8 @@ SourceFiles
 
 \*---------------------------------------------------------------------------*/
 
-#ifndef codeStream_H
-#define codeStream_H
+#ifndef functionEntries_codeStream_H
+#define functionEntries_codeStream_H
 
 #include "functionEntry.H"
 
@@ -98,31 +101,32 @@ SourceFiles
 
 namespace Foam
 {
+// Forward Declarations
 class dlLibraryTable;
 
 namespace functionEntries
 {
 
-// Forward declaration of friend classes
+// Forward Declarations
 class calcEntry;
 
 /*---------------------------------------------------------------------------*\
                          Class codeStream Declaration
 \*---------------------------------------------------------------------------*/
 
-class codeStream :    public functionEntry
+class codeStream
+:
+    public functionEntry
 {
+protected:
 
         //- Interpreter function type
         typedef void (*streamingFunctionType)(Ostream&, const dictionary&);
 
-    // Private Member Functions
 
-        //- Helper function: parent (of parent etc.) of dictionary up to the top
-        static const dictionary& topDict(const dictionary&);
+    // Protected Member Functions
 
-        //- Helper function: access IOobject for master-only-reading
-        //  functionality
+        //- Helper: access IOobject for master-only-reading functionality
         static bool doingMasterOnlyReading(const dictionary& dict);
 
         //- Helper function: access to dlLibraryTable of Time
@@ -136,25 +140,14 @@ class codeStream :    public functionEntry
         );
 
 
-        //- Disallow default bitwise copy construct
-        codeStream(const codeStream&);
-
-        //- Disallow default bitwise assignment
-        void operator=(const codeStream&);
+        //- Evaluate dynamically compiled code, returning result as string
+        static string evaluate(const dictionary& parentDict, Istream& is);
 
 
 public:
 
-    // Static data members
-
-        //- Name of the C code template to be used
-        static const word codeTemplateC;
-
-    // Related types
-
-        //- Declare friendship with the calcEntry class
-        friend class calcEntry;
-
+    //- Name of the C code template to be used
+    static constexpr const char* const codeTemplateC = "codeStreamTemplate.C";
 
     //- Runtime type information
     ClassName("codeStream");
@@ -162,17 +155,16 @@ public:
 
     // Member Functions
 
-        //- Execute the functionEntry in a sub-dict context
-        static bool execute(dictionary& parentDict, Istream&);
-
-        //- Execute the functionEntry in a primitiveEntry context
+        //- Execute in a primitiveEntry context
         static bool execute
         (
             const dictionary& parentDict,
-            primitiveEntry&,
-            Istream&
+            primitiveEntry& entry,
+            Istream& is
         );
 
+        //- Execute in a sub-dict context
+        static bool execute(dictionary& parentDict, Istream& is);
 };
 
 

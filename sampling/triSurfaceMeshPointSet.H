@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2012 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2012 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -25,7 +27,15 @@ Class
     Foam::triSurfaceMeshPointSet
 
 Description
-    sampleSet from all points of a triSurfaceMesh.
+    A sampleSet from all points of a triSurfaceMesh.
+
+    For a dictionary specification:
+    \table
+        Property | Description                             | Required | Default
+        type     | triSurfaceMeshPointSet                  | yes      |
+        axis     | x, y, z, xyz, distance                  | yes      |
+        surface  | The surface name                        | yes      |
+    \endtable
 
 SourceFiles
     triSurfaceMeshPointSet.C
@@ -42,20 +52,18 @@ SourceFiles
 namespace Foam
 {
 
-// Forward declaration of classes
-
 /*---------------------------------------------------------------------------*\
-                           Class triSurfaceMeshPointSet Declaration
+                   Class triSurfaceMeshPointSet Declaration
 \*---------------------------------------------------------------------------*/
 
 class triSurfaceMeshPointSet
 :
     public sampledSet
 {
-    // Private data
+    // Private Data
 
-        //- Name of triSurfaceMesh
-        const word surface_;
+        //- The surface name
+        const word surfaceName_;
 
         //- Sampling points
         List<point> sampleCoords_;
@@ -96,13 +104,13 @@ public:
 
 
     //- Destructor
-    virtual ~triSurfaceMeshPointSet();
+    virtual ~triSurfaceMeshPointSet() = default;
 
 
     // Member Functions
 
         //- Get reference point
-        virtual point getRefPoint(const List<point>&) const;
+        virtual point getRefPoint(const List<point>& pts) const;
 };
 
 

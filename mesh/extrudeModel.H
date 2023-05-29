@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2015 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2015 OpenFOAM Foundation
+    Copyright (C) 2019 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -27,6 +30,13 @@ Class
 Description
     Top level extrusion model class
 
+    Dictionary entries
+    \table
+        Property       | Description                        | Required | Default
+        nLayer         | Number of extrusion layers         | no  | 1
+        expansionRatio | Expansion ratio                    | no  | 1
+    \endtable
+
 SourceFiles
     extrudeModel.C
 
@@ -35,8 +45,8 @@ SourceFiles
 #ifndef extrudeModel_H
 #define extrudeModel_H
 
-#include "dictionary.H"
-#include "point.T.H"
+#include "dictionary2.H"
+#include "point.H"
 #include "autoPtr.H"
 #include "runTimeSelectionTables.H"
 
@@ -59,18 +69,16 @@ protected:
 
         const scalar expansionRatio_;
 
-        const dictionary& dict_;
-
         const dictionary& coeffDict_;
 
 
     // Private Member Functions
 
-        //- Disallow default bitwise copy construct
-        extrudeModel(const extrudeModel&);
+        //- No copy construct
+        extrudeModel(const extrudeModel&) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const extrudeModel&);
+        //- No copy assignment
+        void operator=(const extrudeModel&) = delete;
 
 
 public:
@@ -94,27 +102,30 @@ public:
 
     // Constructors
 
-        //- Construct from dictionary
-        extrudeModel(const word& modelType, const dictionary&);
+        //- Construct from dictionary for given model type
+        //  The corresponding model Coeffs dictionary must exist.
+        extrudeModel(const word& modelType, const dictionary& dict);
 
 
     // Selectors
 
         //- Select null constructed
-        static autoPtr<extrudeModel> New(const dictionary&);
+        static autoPtr<extrudeModel> New(const dictionary& dict);
 
 
     //- Destructor
-    virtual ~extrudeModel();
+    virtual ~extrudeModel() = default;
 
 
     // Member Functions
 
         // Access
 
-            label nLayers() const;
+        //- Return the number of layers
+        label nLayers() const;
 
-            scalar expansionRatio() const;
+        //- Return the expansion ratio
+        scalar expansionRatio() const;
 
 
     // Member Operators

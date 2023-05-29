@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2018-2019 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -38,7 +41,7 @@ SourceFiles
 #include "typeInfo.H"
 #include "autoPtr.H"
 #include "runTimeSelectionTables.H"
-#include "dictionary.H"
+#include "dictionary2.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -51,7 +54,7 @@ namespace Foam
 
 class solidProperties
 {
-    // Private data
+    // Private Data
 
         //- Density [kg/m3]
         scalar rho_;
@@ -67,6 +70,15 @@ class solidProperties
 
         //- Emissivity
         scalar emissivity_;
+
+        //- Molar weight [Kg/Kmol]
+        scalar W_;
+
+        //- Poisson ration
+        scalar nu_;
+
+        //- Young Modulus [N/m2]
+        scalar E_;
 
 
 public:
@@ -105,7 +117,10 @@ public:
             scalar Cp,
             scalar kappa,
             scalar Hf,
-            scalar emissivity
+            scalar emissivity,
+            scalar W,
+            scalar nu,
+            scalar E
         );
 
         //- Construct from dictionary
@@ -114,7 +129,7 @@ public:
         //- Construct and return clone
         virtual autoPtr<solidProperties> clone() const
         {
-            return autoPtr<solidProperties>(new solidProperties(*this));
+            return autoPtr<solidProperties>::New(*this);
         }
 
 
@@ -128,8 +143,7 @@ public:
 
 
     //- Destructor
-    virtual ~solidProperties()
-    {}
+    virtual ~solidProperties() = default;
 
 
     // Member Functions
@@ -154,10 +168,19 @@ public:
             //- Emissivity []
             inline scalar emissivity() const;
 
+            //- Molar weight [Kg/Kmol]
+            inline scalar W() const;
+
+            //- Poissons
+            inline scalar nu() const;
+
+            //- Young modulus [N/m2]
+            inline scalar E() const;
+
 
     // I-O
 
-        //- Read and set the properties present it the given dictionary
+        //- Read and set the properties if present in the given dictionary
         void readIfPresent(const dictionary& dict);
 
         //- Write the solidProperties properties

@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2015 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2015 OpenFOAM Foundation
+    Copyright (C) 2019-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -23,98 +26,127 @@ License
 
 \*---------------------------------------------------------------------------*/
 
+#include "dictionary2.H"
 #include "dimensionSet.H"
-#include "IOstreams.H"
 #include "dimensionedScalar.H"
+#include "IOstreams.H"
 #include <limits>
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
-namespace Foam {
-    dimensionSet::dimensionSet(Istream& is)
+
+
+ namespace Foam{
+dimensionSet::dimensionSet
+(
+    const word& entryName,
+    const dictionary& dict,
+    const bool mandatory
+)
+:
+    exponents_(Zero)
+{
+    this->readEntry(entryName, dict, mandatory);
+}
+
+
+dimensionSet::dimensionSet
+(
+    const dictionary& dict,
+    const word& entryName,
+    const bool mandatory
+)
+:
+    exponents_(Zero)
+{
+    this->readEntry(entryName, dict, mandatory);
+}
+
+
+dimensionSet::dimensionSet(Istream& is)
+{
+    is >> *this;
+}
+
+
+dimensionSet::tokeniser::tokeniser(Istream& is)
+:
+    is_(is),
+    tokens_(100),
+    start_(0),
+    size_(0)
+{}
+
+
+// * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
+
+void dimensionSet::tokeniser::push(const token& t)
+{
+    const label end = (start_+size_)%tokens_.size();
+    tokens_[end] = t;
+    if (size_ == tokens_.size())
     {
-        is >> *this;
-    }
-
-
-    dimensionSet::tokeniser::tokeniser(Istream& is) : is_(is),
-        tokens_(100),
-        start_(0),
-        size_(0)
-    {}
-
-
-    // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
-
-    void dimensionSet::tokeniser::push(const token& t)
-    {
-        label end = (start_ + size_) % tokens_.size();
-        tokens_[end] = t;
-        if (size_ == tokens_.size())
-        {
-            start_ = tokens_.fcIndex(start_);
-        }
-        else
-        {
-            size_++;
-        }
-    }
-
-
-    token dimensionSet::tokeniser::pop()
-    {
-        token t = tokens_[start_];
         start_ = tokens_.fcIndex(start_);
-        --size_;
-        return t;
     }
-
-
-    void dimensionSet::tokeniser::unpop(const token& t)
+    else
     {
         ++size_;
-        start_ = tokens_.rcIndex(start_);
-        tokens_[start_] = t;
     }
+}
 
 
-    bool dimensionSet::tokeniser::hasToken() const
+token dimensionSet::tokeniser::pop()
+{
+    token t = tokens_[start_];
+    start_ = tokens_.fcIndex(start_);
+    --size_;
+    return t;
+}
+
+
+void dimensionSet::tokeniser::unpop(const token& t)
+{
+    ++size_;
+    start_ = tokens_.rcIndex(start_);
+    tokens_[start_] = t;
+}
+
+
+bool dimensionSet::tokeniser::hasToken() const
+{
+    return size_ || is_.good();
+}
+
+
+bool dimensionSet::tokeniser::valid(char c)
+{
+    return
+    (
+        !isspace(c)
+     && c != '"'   // string quote
+     && c != '\''  // string quote
+     && c != '/'   // div
+     && c != ';'   // end statement
+     && c != '{'   // beg subdict
+     && c != '}'   // end subdict
+     && c != '('   // beg expr
+     && c != ')'   // end expr
+     && c != '['   // beg dim
+     && c != ']'   // end dim
+     && c != '^'   // power
+     && c != '*'   // mult
+    );
+}
+
+
+label dimensionSet::tokeniser::priority(const token& t)
+{
+    if (t.isPunctuation())
     {
-        return size_ || is_.good();
-    }
-
-
-    bool dimensionSet::tokeniser::valid(char c)
-    {
-        return
-            (
-                !isspace(c)
-                && c != '"'   // string quote
-                && c != '\''  // string quote
-                && c != '/'   // div
-                && c != ';'   // end statement
-                && c != '{'   // beg subdict
-                && c != '}'   // end subdict
-                && c != '('   // beg expr
-                && c != ')'   // end expr
-                && c != '['   // beg dim
-                && c != ']'   // end dim
-                && c != '^'   // power
-                && c != '*'   // mult
-                );
-    }
-
-
-    label dimensionSet::tokeniser::priority(const token& t)
-    {
-        if (!t.isPunctuation())
-        {
-            return 0;
-        }
-        else if
-            (
-                t.pToken() == token::MULTIPLY
-                || t.pToken() == token::DIVIDE
-                )
+        if
+        (
+            t.pToken() == token::MULTIPLY
+         || t.pToken() == token::DIVIDE
+        )
         {
             return 2;
         }
@@ -122,620 +154,633 @@ namespace Foam {
         {
             return 3;
         }
-        else
-        {
-            return 0;
-        }
     }
 
+    // Default priority
+    return 0;
+}
 
-    void dimensionSet::tokeniser::splitWord(const word& w)
+
+void dimensionSet::tokeniser::splitWord(const word& w)
+{
+    size_t start = 0;
+    for (size_t i=0; i<w.size(); ++i)
     {
-        size_t start = 0;
-        for (size_t i = 0; i < w.size(); ++i)
+        if (!valid(w[i]))
         {
-            if (!valid(w[i]))
+            if (i > start)
             {
-                if (i > start)
+                const word subWord = w.substr(start, i-start);
+                if (isdigit(subWord[0]) || subWord[0] == token::SUBTRACT)
                 {
-                    word subWord = w(start, i - start);
-                    if (isdigit(subWord[0]) || subWord[0] == token::SUBTRACT)
-                    {
-                        push(token(readScalar(IStringStream(subWord)())));
-                    }
-                    else
-                    {
-                        push(token(subWord));
-                    }
+                    push(token(readScalar(subWord)));
                 }
-                if (w[i] != token::SPACE)
+                else
                 {
-                    if (isdigit(w[i]))
-                    {
-                        push(token(readScalar(IStringStream(w[i])())));
-                    }
-                    else
-                    {
-                        push(token::punctuationToken(w[i]));
-                    }
+                    push(token(subWord));
                 }
-                start = i + 1;
             }
-        }
-        if (start < w.size())
-        {
-            word subWord = w(start, w.size() - start);
-            if (isdigit(subWord[0]) || subWord[0] == token::SUBTRACT)
+            if (w[i] != token::SPACE)
             {
-                push(token(readScalar(IStringStream(subWord)())));
+                if (isdigit(w[i]))
+                {
+                    // Single digit: as scalar value
+                    const scalar val = (w[i] - '0');
+                    push(token(val));
+                }
+                else
+                {
+                    push(token(token::punctuationToken(w[i])));
+                }
             }
-            else
-            {
-                push(token(subWord));
-            }
+            start = i+1;
         }
     }
-
-
-    token dimensionSet::tokeniser::nextToken()
+    if (start < w.size())
     {
-        if (size_ == 0)
+        const word subWord = w.substr(start);
+        if (isdigit(subWord[0]) || subWord[0] == token::SUBTRACT)
         {
-            token t(is_);
-            if (t.isWord())
-            {
-                splitWord(t.wordToken());
-                return pop();
-            }
-            else
-            {
-                return t;
-            }
+            push(token(readScalar(subWord)));
         }
         else
         {
+            push(token(subWord));
+        }
+    }
+}
+
+
+token dimensionSet::tokeniser::nextToken()
+{
+    if (size_ == 0)
+    {
+        token t(is_);
+        if (t.isWord())
+        {
+            splitWord(t.wordToken());
             return pop();
         }
-    }
-
-
-    void dimensionSet::tokeniser::putBack(const token& t)
-    {
-        if (size_ == 0)
-        {
-            push(t);
-        }
         else
         {
-            unpop(t);
+            return t;
         }
     }
-
-
-    void dimensionSet::round(const scalar tol)
+    else
     {
-        for (int i = 0; i < dimensionSet::nDimensions; ++i)
-        {
-            scalar integralPart;
-            scalar fractionalPart = std::modf(exponents_[i], &integralPart);
+        return pop();
+    }
+}
 
-            if (mag(fractionalPart - 1.0) <= tol)
-            {
-                exponents_[i] = 1.0 + integralPart;
-            }
-            else if (mag(fractionalPart + 1.0) <= tol)
-            {
-                exponents_[i] = -1.0 + integralPart;
-            }
-            else if (mag(fractionalPart) <= tol)
-            {
-                exponents_[i] = integralPart;
-            }
+
+void dimensionSet::tokeniser::putBack(const token& t)
+{
+    if (size_ == 0)
+    {
+        push(t);
+    }
+    else
+    {
+        unpop(t);
+    }
+}
+
+
+// * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
+
+void dimensionSet::round(const scalar tol)
+{
+    scalar integralPart;
+    for (scalar& val : exponents_)
+    {
+        const scalar fractionalPart = std::modf(val, &integralPart);
+
+        if (mag(fractionalPart-1.0) <= tol)
+        {
+            val = 1.0+integralPart;
+        }
+        else if (mag(fractionalPart+1.0) <= tol)
+        {
+            val = -1.0+integralPart;
+        }
+        else if (mag(fractionalPart) <= tol)
+        {
+            val = integralPart;
         }
     }
+}
 
 
-    dimensionedScalar dimensionSet::parse
-    (
-        const label lastPrior,
-        tokeniser& tis,
-        const HashTable<dimensionedScalar>& readSet
-    ) const
+dimensionedScalar dimensionSet::parse
+(
+    const label lastPrior,
+    tokeniser& tis,
+    const HashTable<dimensionedScalar>& readSet
+) const
+{
+    dimensionedScalar ds("", dimless, 1);
+
+    // Get initial token
+    token nextToken(tis.nextToken());
+
+    // Store type of last token read. Used to detect two consecutive
+    // symbols and assume multiplication
+    bool haveReadSymbol = false;
+
+
+    while (true)
     {
-        dimensionedScalar ds("", dimless, 1.0);
-
-        // Get initial token
-        token nextToken(tis.nextToken());
-
-        // Store type of last token read. Used to detect two consecutive
-        // symbols and assume multiplication
-        bool haveReadSymbol = false;
-
-
-        while (true)
+        if (nextToken.isWord())
         {
-            if (nextToken.isWord())
-            {
-                const word& unitName = nextToken.wordToken();
-                const dimensionedScalar& unitDim = readSet[unitName];
-                ds.dimensions() *= unitDim.dimensions();
-                ds.value() *= unitDim.value();
-                haveReadSymbol = true;
-            }
-            else if (nextToken.isNumber())
-            {
-                // no dimensions, just value
-                ds.value() *= nextToken.number();
-                haveReadSymbol = true;
-            }
-            else if (nextToken.isPunctuation())
-            {
-                label nextPrior = tokeniser::priority(nextToken);
+            const word& unitName = nextToken.wordToken();
+            const dimensionedScalar& unitDim = readSet[unitName];
+            ds.dimensions() *= unitDim.dimensions();
+            ds.value() *= unitDim.value();
+            haveReadSymbol = true;
+        }
+        else if (nextToken.isNumber())
+        {
+            // no dimensions, just value
+            ds.value() *= nextToken.number();
+            haveReadSymbol = true;
+        }
+        else if (nextToken.isPunctuation())
+        {
+            label nextPrior = tokeniser::priority(nextToken);
 
-                if (nextToken.pToken() == token::BEGIN_SQR)
+            if (nextToken.pToken() == token::BEGIN_SQR)
+            {
+                // No idea when this will happen
+                tis.putBack(nextToken);
+                return ds;
+            }
+            else if (nextToken.pToken() == token::END_SQR)
+            {
+                tis.putBack(nextToken);
+                return ds;
+            }
+            else if (nextToken.pToken() == token::BEGIN_LIST)
+            {
+                dimensionedScalar sub(parse(nextPrior, tis, readSet));
+
+                token t = tis.nextToken();
+                if (!t.isPunctuation()  || t.pToken() !=  token::END_LIST)
                 {
-                    // No idea when this will happen
-                    tis.putBack(nextToken);
-                    return ds;
+                    FatalIOErrorInFunction(tis.stream())
+                        << "Illegal token " << t << exit(FatalIOError);
                 }
-                else if (nextToken.pToken() == token::END_SQR)
-                {
-                    tis.putBack(nextToken);
-                    return ds;
-                }
-                else if (nextToken.pToken() == token::BEGIN_LIST)
+
+                ds.dimensions() *= sub.dimensions();
+                ds.value() *= sub.value();
+
+                haveReadSymbol = true;
+            }
+            else if (nextToken.pToken() == token::END_LIST)
+            {
+                tis.putBack(nextToken);
+                return ds;
+            }
+            else if (nextToken.pToken() == token::MULTIPLY)
+            {
+                if (nextPrior > lastPrior)
                 {
                     dimensionedScalar sub(parse(nextPrior, tis, readSet));
 
-                    token t = tis.nextToken();
-                    if (!t.isPunctuation() || t.pToken() != token::END_LIST)
-                    {
-                        FatalIOErrorInFunction
-                        (
-                            tis.stream()
-                        ) << "Illegal token " << t << exit(FatalIOError);
-                    }
-
                     ds.dimensions() *= sub.dimensions();
                     ds.value() *= sub.value();
-
-                    haveReadSymbol = true;
                 }
-                else if (nextToken.pToken() == token::END_LIST)
+                else
+                {
+                    // Restore token
+                    tis.putBack(nextToken);
+                    return ds;
+                }
+                haveReadSymbol = false;
+            }
+            else if (nextToken.pToken() == token::DIVIDE)
+            {
+                if (nextPrior > lastPrior)
+                {
+                    dimensionedScalar sub(parse(nextPrior, tis, readSet));
+
+                    ds.dimensions() /= sub.dimensions();
+                    ds.value() /= sub.value();
+                }
+                else
                 {
                     tis.putBack(nextToken);
                     return ds;
                 }
-                else if (nextToken.pToken() == token::MULTIPLY)
+                haveReadSymbol = false;
+            }
+            else if (nextToken.pToken() == '^')
+            {
+                if (nextPrior > lastPrior)
                 {
-                    if (nextPrior > lastPrior)
-                    {
-                        dimensionedScalar sub(parse(nextPrior, tis, readSet));
+                    dimensionedScalar expon(parse(nextPrior, tis, readSet));
 
-                        ds.dimensions() *= sub.dimensions();
-                        ds.value() *= sub.value();
-                    }
-                    else
-                    {
-                        // Restore token
-                        tis.putBack(nextToken);
-                        return ds;
-                    }
-                    haveReadSymbol = false;
-                }
-                else if (nextToken.pToken() == token::DIVIDE)
-                {
-                    if (nextPrior > lastPrior)
-                    {
-                        dimensionedScalar sub(parse(nextPrior, tis, readSet));
-
-                        ds.dimensions() /= sub.dimensions();
-                        ds.value() /= sub.value();
-                    }
-                    else
-                    {
-                        tis.putBack(nextToken);
-                        return ds;
-                    }
-                    haveReadSymbol = false;
-                }
-                else if (nextToken.pToken() == '^')
-                {
-                    if (nextPrior > lastPrior)
-                    {
-                        dimensionedScalar exp(parse(nextPrior, tis, readSet));
-
-                        ds.dimensions().reset(pow(ds.dimensions(), exp.value()));
-                        // Round to nearest integer if close to it
-                        ds.dimensions().round(10 * smallExponent);
-                        ds.value() = pow(ds.value(), exp.value());
-                    }
-                    else
-                    {
-                        tis.putBack(nextToken);
-                        return ds;
-                    }
-                    haveReadSymbol = false;
-                }
-                else
-                {
-                    FatalIOErrorInFunction
-                    (
-                        tis.stream()
-                    ) << "Illegal token " << nextToken << exit(FatalIOError);
-                }
-            }
-            else
-            {
-                FatalIOErrorInFunction
-                (
-                    tis.stream()
-                ) << "Illegal token " << nextToken << exit(FatalIOError);
-            }
-
-
-            if (!tis.hasToken())
-            {
-                break;
-            }
-
-            nextToken = tis.nextToken();
-            if (nextToken.error())
-            {
-                break;
-            }
-
-            if (haveReadSymbol && (nextToken.isWord() || nextToken.isNumber()))
-            {
-                // Two consecutive symbols. Assume multiplication
-                tis.putBack(nextToken);
-                nextToken = token(token::MULTIPLY);
-            }
-        }
-
-        return ds;
-    }
-
-
-    Istream& dimensionSet::read
-    (
-        Istream& is,
-        scalar& multiplier,
-        const HashTable<dimensionedScalar>& readSet
-    )
-    {
-        multiplier = 1.0;
-
-        // Read begining of dimensionSet
-        token startToken(is);
-
-        if (startToken != token::BEGIN_SQR)
-        {
-            FatalIOErrorInFunction
-            (
-                is
-            ) << "expected a " << token::BEGIN_SQR << " in dimensionSet"
-                << endl << "in stream " << is.info()
-                << exit(FatalIOError);
-        }
-
-        // Read next token
-        token nextToken(is);
-
-        if (!nextToken.isNumber())
-        {
-            is.putBack(nextToken);
-
-            tokeniser tis(is);
-
-            dimensionedScalar ds(parse(0, tis, readSet));
-
-            multiplier = ds.value();
-            for (int i = 0; i < dimensionSet::nDimensions; ++i)
-            {
-                exponents_[i] = ds.dimensions()[i];
-            }
-        }
-        else
-        {
-            // Read first five dimensions
-            exponents_[dimensionSet::MASS] = nextToken.number();
-            for (int Dimension = 1; Dimension < dimensionSet::CURRENT; Dimension++)
-            {
-                is >> exponents_[Dimension];
-            }
-
-            // Read next token
-            token nextToken(is);
-
-            // If next token is another number
-            // read last two dimensions
-            // and then read another token for the end of the dimensionSet
-            if (nextToken.isNumber())
-            {
-                exponents_[dimensionSet::CURRENT] = nextToken.number();
-                is >> nextToken;
-                exponents_[dimensionSet::LUMINOUS_INTENSITY] = nextToken.number();
-                is >> nextToken;
-            }
-            else
-            {
-                exponents_[dimensionSet::CURRENT] = 0;
-                exponents_[dimensionSet::LUMINOUS_INTENSITY] = 0;
-            }
-
-            // Check end of dimensionSet
-            if (nextToken != token::END_SQR)
-            {
-                FatalIOErrorInFunction
-                (
-                    is
-                ) << "expected a " << token::END_SQR << " in dimensionSet "
-                    << endl << "in stream " << is.info()
-                    << exit(FatalIOError);
-            }
-        }
-        // Check state of Istream
-        is.check("Istream& operator>>(Istream&, dimensionSet&)");
-
-        return is;
-    }
-
-
-    Istream& dimensionSet::read
-    (
-        Istream& is,
-        scalar& multiplier
-    )
-    {
-        return read(is, multiplier, unitSet());
-    }
-
-
-    Istream& dimensionSet::read
-    (
-        Istream& is,
-        scalar& multiplier,
-        const dictionary& readSet
-    )
-    {
-        multiplier = 1.0;
-
-        // Read begining of dimensionSet
-        token startToken(is);
-
-        if (startToken != token::BEGIN_SQR)
-        {
-            FatalIOErrorInFunction
-            (
-                is
-            ) << "expected a " << token::BEGIN_SQR << " in dimensionSet"
-                << endl << "in stream " << is.info()
-                << exit(FatalIOError);
-        }
-
-        // Read next token
-        token nextToken(is);
-
-        if (nextToken.isWord())
-        {
-            bool continueParsing = true;
-            do
-            {
-                word symbolPow = nextToken.wordToken();
-                if (symbolPow[symbolPow.size() - 1] == token::END_SQR)
-                {
-                    symbolPow = symbolPow(0, symbolPow.size() - 1);
-                    continueParsing = false;
-                }
-
-
-                // Parse unit
-                dimensionSet symbolSet(dimless);
-
-                size_t index = symbolPow.find('^');
-                if (index != string::npos)
-                {
-                    word symbol = symbolPow(0, index);
-                    word exp = symbolPow(index + 1, symbolPow.size() - index + 1);
-                    scalar exponent = readScalar(IStringStream(exp)());
-
-                    dimensionedScalar s;
-                    s.read(readSet[symbol], readSet);
-
-                    symbolSet.reset(pow(s.dimensions(), exponent));
+                    ds.dimensions().reset(pow(ds.dimensions(), expon.value()));
                     // Round to nearest integer if close to it
-                    symbolSet.round(10 * smallExponent);
-                    multiplier *= pow(s.value(), exponent);
+                    ds.dimensions().round(10*smallExponent);
+                    ds.value() = pow(ds.value(), expon.value());
                 }
                 else
                 {
-                    dimensionedScalar s;
-                    s.read(readSet[symbolPow], readSet);
-
-                    symbolSet.reset(s.dimensions());
-                    multiplier *= s.value();
+                    tis.putBack(nextToken);
+                    return ds;
                 }
-
-                // Add dimensions without checking
-                for (int i = 0; i < dimensionSet::nDimensions; ++i)
-                {
-                    exponents_[i] += symbolSet[i];
-                }
-
-                if (continueParsing)
-                {
-                    nextToken = token(is);
-
-                    if (!nextToken.isWord() || nextToken == token::END_SQR)
-                    {
-                        continueParsing = false;
-                    }
-                }
-            } while (continueParsing);
-        }
-        else
-        {
-            // Read first five dimensions
-            exponents_[dimensionSet::MASS] = nextToken.number();
-            for (int Dimension = 1; Dimension < dimensionSet::CURRENT; Dimension++)
-            {
-                is >> exponents_[Dimension];
-            }
-
-            // Read next token
-            token nextToken(is);
-
-            // If next token is another number
-            // read last two dimensions
-            // and then read another token for the end of the dimensionSet
-            if (nextToken.isNumber())
-            {
-                exponents_[dimensionSet::CURRENT] = nextToken.number();
-                is >> nextToken;
-                exponents_[dimensionSet::LUMINOUS_INTENSITY] = nextToken.number();
-                is >> nextToken;
+                haveReadSymbol = false;
             }
             else
             {
-                exponents_[dimensionSet::CURRENT] = 0;
-                exponents_[dimensionSet::LUMINOUS_INTENSITY] = 0;
+                FatalIOErrorInFunction(tis.stream())
+                    << "Illegal token " << nextToken << exit(FatalIOError);
             }
-
-            // Check end of dimensionSet
-            if (nextToken != token::END_SQR)
-            {
-                FatalIOErrorInFunction
-                (
-                    is
-                ) << "expected a " << token::END_SQR << " in dimensionSet "
-                    << endl << "in stream " << is.info()
-                    << exit(FatalIOError);
-            }
-        }
-
-        // Check state of Istream
-        is.check("Istream& operator>>(Istream&, dimensionSet&)");
-
-        return is;
-    }
-
-
-    Ostream& dimensionSet::write
-    (
-        Ostream& os,
-        scalar& multiplier,
-        const dimensionSets& writeUnits
-    ) const
-    {
-        multiplier = 1.0;
-
-        os << token::BEGIN_SQR;
-
-        if (writeUnits.valid() && os.format() == IOstream::ASCII)
-        {
-            scalarField exponents(dimensionSet::nDimensions);
-            for (int d = 0; d < dimensionSet::nDimensions; d++)
-            {
-                exponents[d] = exponents_[d];
-            }
-            writeUnits.coefficients(exponents);
-
-            bool hasPrinted = false;
-
-            // Set precision to lots
-            std::streamsize oldPrecision = os.precision
-            (
-                std::numeric_limits<scalar>::digits10
-            );
-
-            forAll(exponents, i)
-            {
-                if (mag(exponents[i]) > smallExponent)
-                {
-                    const dimensionedScalar& ds = writeUnits.units()[i];
-
-                    if (hasPrinted)
-                    {
-                        os << token::SPACE;
-                    }
-                    hasPrinted = true;
-                    os << ds.name();
-                    if (mag(exponents[i] - 1) > smallExponent)
-                    {
-                        os << '^' << exponents[i];
-
-                        multiplier *= pow(ds.value(), exponents[i]);
-                    }
-                    else
-                    {
-                        multiplier *= ds.value();
-                    }
-                }
-            }
-
-            // Reset precision
-            os.precision(oldPrecision);
         }
         else
         {
-            for (int d = 0; d < dimensionSet::nDimensions - 1; d++)
-            {
-                os << exponents_[d] << token::SPACE;
-            }
-            os << exponents_[dimensionSet::nDimensions - 1];
+            FatalIOErrorInFunction(tis.stream())
+                << "Illegal token " << nextToken << exit(FatalIOError);
         }
 
-        os << token::END_SQR;
 
-        // Check state of Ostream
-        os.check("Ostream& operator<<(Ostream&, const dimensionSet&)");
+        if (!tis.hasToken())
+        {
+            break;
+        }
 
-        return os;
+        nextToken = tis.nextToken();
+        if (nextToken.error())
+        {
+            break;
+        }
+
+        if (haveReadSymbol && (nextToken.isWord() || nextToken.isNumber()))
+        {
+            // Two consecutive symbols. Assume multiplication
+            tis.putBack(nextToken);
+            nextToken = token(token::MULTIPLY);
+        }
     }
 
+    return ds;
+}
 
-    Ostream& dimensionSet::write
-    (
-        Ostream& os,
-        scalar& multiplier
-    ) const
+
+bool dimensionSet::readEntry
+(
+    const word& entryName,
+    const dictionary& dict,
+    const bool mandatory
+)
+{
+    const entry* eptr = dict.findEntry(entryName, keyType::LITERAL);
+
+    if (eptr)
     {
-        return write(os, multiplier, writeUnitSet());
+        const entry& e = *eptr;
+        ITstream& is = e.stream();
+
+        is >> *this;
+
+        e.checkITstream(is);
+
+        return true;
+    }
+    else if (mandatory)
+    {
+        FatalIOErrorInFunction(dict)
+            << "Entry '" << entryName << "' not found in dictionary "
+            << dict.relativeName() << nl
+            << exit(FatalIOError);
     }
 
+    return false;
+}
 
-    // * * * * * * * * * * * * * * * IOstream Operators  * * * * * * * * * * * * //
 
-    Istream& operator>>(Istream& is, dimensionSet& dset)
+Istream& dimensionSet::read
+(
+    Istream& is,
+    scalar& multiplier,
+    const HashTable<dimensionedScalar>& readSet
+)
+{
+    multiplier = 1.0;
+
+    // Read beginning of dimensionSet
+    token startToken(is);
+
+    if (startToken != token::BEGIN_SQR)
     {
-        scalar multiplier;
-        dset.read(is, multiplier);
+        FatalIOErrorInFunction(is)
+            << "Expected a '" << token::BEGIN_SQR << "' in dimensionSet\n"
+            << "in stream " << is.info() << nl
+            << exit(FatalIOError);
+    }
 
-        if (mag(multiplier - 1.0) > dimensionSet::smallExponent)
+    // Read next token
+    token nextToken(is);
+
+    if (!nextToken.isNumber())
+    {
+        is.putBack(nextToken);
+
+        tokeniser tis(is);
+
+        dimensionedScalar ds(parse(0, tis, readSet));
+
+        multiplier = ds.value();
+        exponents_ = ds.dimensions().values();
+    }
+    else
+    {
+        // Read first five dimensions
+        exponents_[dimensionSet::MASS] = nextToken.number();
+        for (int d=1; d < dimensionSet::CURRENT; ++d)
+        {
+            is >> exponents_[d];
+        }
+
+        // Read next token
+        token nextToken(is);
+
+        // If next token is another number
+        // read last two dimensions
+        // and then read another token for the end of the dimensionSet
+        if (nextToken.isNumber())
+        {
+            exponents_[dimensionSet::CURRENT] = nextToken.number();
+            is >> nextToken;
+            exponents_[dimensionSet::LUMINOUS_INTENSITY] = nextToken.number();
+            is >> nextToken;
+        }
+        else
+        {
+            exponents_[dimensionSet::CURRENT] = 0;
+            exponents_[dimensionSet::LUMINOUS_INTENSITY] = 0;
+        }
+
+        // Check end of dimensionSet
+        if (nextToken != token::END_SQR)
         {
             FatalIOErrorInFunction(is)
-                << "Cannot use scaled units in dimensionSet"
+                << "Expected a '" << token::END_SQR << "' in dimensionSet\n"
+                << "in stream " << is.info() << nl
                 << exit(FatalIOError);
         }
-
-        // Check state of Istream
-        is.check("Istream& operator>>(Istream&, dimensionSet&)");
-
-        return is;
     }
 
-
-    Ostream& operator<<(Ostream& os, const dimensionSet& dset)
-    {
-        scalar multiplier;
-        dset.write(os, multiplier);
-
-        // Check state of Ostream
-        os.check("Ostream& operator<<(Ostream&, const dimensionSet&)");
-
-        return os;
-    }
-
+    is.check(FUNCTION_NAME);
+    return is;
 }
+
+
+Istream& dimensionSet::read
+(
+    Istream& is,
+    scalar& multiplier
+)
+{
+    return read(is, multiplier, unitSet());
+}
+
+
+Istream& dimensionSet::read
+(
+    Istream& is,
+    scalar& multiplier,
+    const dictionary& readSet
+)
+{
+    multiplier = 1.0;
+
+    // Read beginning of dimensionSet
+    token startToken(is);
+
+    if (startToken != token::BEGIN_SQR)
+    {
+        FatalIOErrorInFunction(is)
+            << "Expected a '" << token::BEGIN_SQR << "' in dimensionSet\n"
+            << "in stream " << is.info() << nl
+            << exit(FatalIOError);
+    }
+
+    // Read next token
+    token nextToken(is);
+
+    if (nextToken.isWord())
+    {
+        bool continueParsing = true;
+        do
+        {
+            word symbolPow = nextToken.wordToken();
+            if (symbolPow.back() == token::END_SQR)
+            {
+                symbolPow.resize(symbolPow.size()-1);
+                continueParsing = false;
+            }
+
+
+            // Parse unit
+            dimensionSet symbolSet;  // dimless
+
+            const auto index = symbolPow.find('^');
+            if (index != std::string::npos)
+            {
+                const word symbol = symbolPow.substr(0, index);
+                const scalar exponent = readScalar(symbolPow.substr(index+1));
+
+                dimensionedScalar s;
+                s.read(readSet.lookup(symbol, keyType::LITERAL), readSet);
+
+                symbolSet.reset(pow(s.dimensions(), exponent));
+
+                // Round to nearest integer if close to it
+                symbolSet.round(10*smallExponent);
+                multiplier *= pow(s.value(), exponent);
+            }
+            else
+            {
+                dimensionedScalar s;
+                s.read(readSet.lookup(symbolPow, keyType::LITERAL), readSet);
+
+                symbolSet.reset(s.dimensions());
+                multiplier *= s.value();
+            }
+
+            // Add dimensions without checking
+            for (int i=0; i < dimensionSet::nDimensions; ++i)
+            {
+                exponents_[i] += symbolSet[i];
+            }
+
+            if (continueParsing)
+            {
+                nextToken = token(is);
+
+                if (!nextToken.isWord() || nextToken == token::END_SQR)
+                {
+                    continueParsing = false;
+                }
+            }
+        }
+        while (continueParsing);
+    }
+    else
+    {
+        // Read first five dimensions
+        exponents_[dimensionSet::MASS] = nextToken.number();
+        for (int d=1; d < dimensionSet::CURRENT; ++d)
+        {
+            is >> exponents_[d];
+        }
+
+        // Read next token
+        token nextToken(is);
+
+        // If next token is another number
+        // read last two dimensions
+        // and then read another token for the end of the dimensionSet
+        if (nextToken.isNumber())
+        {
+            exponents_[dimensionSet::CURRENT] = nextToken.number();
+            is >> nextToken;
+            exponents_[dimensionSet::LUMINOUS_INTENSITY] = nextToken.number();
+            is >> nextToken;
+        }
+        else
+        {
+            exponents_[dimensionSet::CURRENT] = 0;
+            exponents_[dimensionSet::LUMINOUS_INTENSITY] = 0;
+        }
+
+        // Check end of dimensionSet
+        if (nextToken != token::END_SQR)
+        {
+            FatalIOErrorInFunction(is)
+                << "Expected a '" << token::END_SQR << "' in dimensionSet\n"
+                << "in stream " << is.info() << nl
+                << exit(FatalIOError);
+        }
+    }
+
+    is.check(FUNCTION_NAME);
+    return is;
+}
+
+
+Ostream& dimensionSet::write
+(
+    Ostream& os,
+    scalar& multiplier,
+    const dimensionSets& writeUnits
+) const
+{
+    multiplier = 1.0;
+
+    os << token::BEGIN_SQR;
+
+    if (writeUnits.valid() && os.format() == IOstream::ASCII)
+    {
+        scalarField exponents(dimensionSet::nDimensions);
+        for (int d=0; d < dimensionSet::nDimensions; ++d)
+        {
+            exponents[d] = exponents_[d];
+        }
+        writeUnits.coefficients(exponents);
+
+        bool hasPrinted = false;
+
+        // Set precision to lots
+        std::streamsize oldPrecision = os.precision
+        (
+            std::numeric_limits<scalar>::digits10
+        );
+
+        forAll(exponents, i)
+        {
+            if (mag(exponents[i]) > smallExponent)
+            {
+                const dimensionedScalar& ds = writeUnits.units()[i];
+
+                if (hasPrinted)
+                {
+                    os  << token::SPACE;
+                }
+                hasPrinted = true;
+                os  << ds.name();
+                if (mag(exponents[i]-1) > smallExponent)
+                {
+                    os  << '^' << exponents[i];
+
+                    multiplier *= pow(ds.value(), exponents[i]);
+                }
+                else
+                {
+                    multiplier *= ds.value();
+                }
+            }
+        }
+
+        // Reset precision
+        os.precision(oldPrecision);
+    }
+    else
+    {
+        for (int d=0; d < dimensionSet::nDimensions; ++d)
+        {
+            if (d) os << token::SPACE;
+            os << exponents_[d];
+        }
+    }
+
+    os  << token::END_SQR;
+
+    os.check(FUNCTION_NAME);
+    return os;
+}
+
+
+Ostream& dimensionSet::write
+(
+    Ostream& os,
+    scalar& multiplier
+) const
+{
+    return write(os, multiplier, writeUnitSet());
+}
+
+
+// * * * * * * * * * * * * * * * IOstream Operators  * * * * * * * * * * * * //
+
+Istream& operator>>(Istream& is, dimensionSet& ds)
+{
+    scalar mult(1.0);
+    ds.read(is, mult);
+
+    if (mag(mult-1.0) > dimensionSet::smallExponent)
+    {
+        FatalIOErrorInFunction(is)
+            << "Cannot use scaled units in dimensionSet"
+            << exit(FatalIOError);
+    }
+
+    is.check(FUNCTION_NAME);
+    return is;
+}
+
+
+Ostream& operator<<(Ostream& os, const dimensionSet& ds)
+{
+    scalar mult(1.0);
+    ds.write(os, mult);
+
+    os.check(FUNCTION_NAME);
+    return os;
+}
+
+
 // ************************************************************************* //
+
+ } // End namespace Foam

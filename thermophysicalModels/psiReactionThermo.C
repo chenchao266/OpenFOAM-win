@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2012 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2012 OpenFOAM Foundation
+    Copyright (C) 2017 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -32,6 +35,7 @@ namespace Foam
 {
     defineTypeNameAndDebug(psiReactionThermo, 0);
     defineRunTimeSelectionTable(psiReactionThermo, fvMesh);
+    defineRunTimeSelectionTable(psiReactionThermo, fvMeshDictPhase);
 }
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
@@ -46,6 +50,17 @@ Foam::psiReactionThermo::psiReactionThermo
 {}
 
 
+Foam::psiReactionThermo::psiReactionThermo
+(
+    const fvMesh& mesh,
+    const word& phaseName,
+    const word& dictName
+)
+:
+    psiThermo(mesh, phaseName, dictName)
+{}
+
+
 // * * * * * * * * * * * * * * * * Selectors * * * * * * * * * * * * * * * * //
 
 Foam::autoPtr<Foam::psiReactionThermo> Foam::psiReactionThermo::New
@@ -55,6 +70,17 @@ Foam::autoPtr<Foam::psiReactionThermo> Foam::psiReactionThermo::New
 )
 {
     return basicThermo::New<psiReactionThermo>(mesh, phaseName);
+}
+
+
+Foam::autoPtr<Foam::psiReactionThermo> Foam::psiReactionThermo::New
+(
+    const fvMesh& mesh,
+    const word& phaseName,
+    const word& dictName
+)
+{
+    return basicThermo::New<psiReactionThermo>(mesh, phaseName, dictName);
 }
 
 

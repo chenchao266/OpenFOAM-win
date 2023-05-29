@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2019-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -27,7 +30,7 @@ Description
 \*---------------------------------------------------------------------------*/
 
 #include "fv.H"
-#include "HashTable.T.H"
+#include "HashTable.H"
 #include "linear.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
@@ -46,7 +49,7 @@ namespace fv
 template<class Type>
 convectionScheme<Type>::convectionScheme(const convectionScheme& cs)
 :
-    tmp<convectionScheme<Type>>::refCount(),
+    refCount(),
     mesh_(cs.mesh_)
 {}
 
@@ -68,10 +71,8 @@ tmp<convectionScheme<Type>> convectionScheme<Type>::New
 
     if (schemeData.eof())
     {
-        FatalIOErrorInFunction
-        (
-            schemeData
-        )   << "Convection scheme not specified" << endl << endl
+        FatalIOErrorInFunction(schemeData)
+            << "Convection scheme not specified" << endl << endl
             << "Valid convection schemes are :" << endl
             << IstreamConstructorTablePtr_->sortedToc()
             << exit(FatalIOError);
@@ -79,21 +80,25 @@ tmp<convectionScheme<Type>> convectionScheme<Type>::New
 
     const word schemeName(schemeData);
 
-    typename IstreamConstructorTable::iterator cstrIter =
-        IstreamConstructorTablePtr_->find(schemeName);
-
-    if (cstrIter == IstreamConstructorTablePtr_->end())
+    if (fv::debug)
     {
-        FatalIOErrorInFunction
-        (
-            schemeData
-        )   << "Unknown convection scheme " << schemeName << nl << nl
-            << "Valid convection schemes are :" << endl
-            << IstreamConstructorTablePtr_->sortedToc()
-            << exit(FatalIOError);
+        InfoInFunction << "schemeName:" << schemeName << endl;
     }
 
-    return cstrIter()(mesh, faceFlux, schemeData);
+    auto* ctorPtr = IstreamConstructorTable(schemeName);
+
+    if (!ctorPtr)
+    {
+        FatalIOErrorInLookup
+        (
+            schemeData,
+            "convection",
+            schemeName,
+            *IstreamConstructorTablePtr_
+        ) << exit(FatalIOError);
+    }
+
+    return ctorPtr(mesh, faceFlux, schemeData);
 }
 
 
@@ -114,10 +119,8 @@ tmp<convectionScheme<Type>> convectionScheme<Type>::New
 
     if (schemeData.eof())
     {
-        FatalIOErrorInFunction
-        (
-            schemeData
-        )   << "Convection scheme not specified" << endl << endl
+        FatalIOErrorInFunction(schemeData)
+            << "Convection scheme not specified" << endl << endl
             << "Valid convection schemes are :" << endl
             << MultivariateConstructorTablePtr_->sortedToc()
             << exit(FatalIOError);
@@ -125,21 +128,20 @@ tmp<convectionScheme<Type>> convectionScheme<Type>::New
 
     const word schemeName(schemeData);
 
-    typename MultivariateConstructorTable::iterator cstrIter =
-        MultivariateConstructorTablePtr_->find(schemeName);
+    auto* ctorPtr = MultivariateConstructorTable(schemeName);
 
-    if (cstrIter == MultivariateConstructorTablePtr_->end())
+    if (!ctorPtr)
     {
-        FatalIOErrorInFunction
+        FatalIOErrorInLookup
         (
-            schemeData
-        )   << "Unknown convection scheme " << schemeName << nl << nl
-            << "Valid convection schemes are :" << endl
-            << MultivariateConstructorTablePtr_->sortedToc()
-            << exit(FatalIOError);
+            schemeData,
+            "convection",
+            schemeName,
+            *MultivariateConstructorTablePtr_
+        ) << exit(FatalIOError);
     }
 
-    return cstrIter()(mesh, fields, faceFlux, schemeData);
+    return ctorPtr(mesh, fields, faceFlux, schemeData);
 }
 
 
@@ -157,9 +159,7 @@ void convectionScheme<Type>::operator=(const convectionScheme<Type>& cs)
 {
     if (this == &cs)
     {
-        FatalErrorInFunction
-            << "attempted assignment to self"
-            << abort(FatalError);
+        return;  // Self-assignment is a no-op
     }
 }
 

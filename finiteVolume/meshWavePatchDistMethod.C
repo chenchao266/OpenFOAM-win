@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -53,7 +56,7 @@ Foam::patchDistMethods::meshWave::meshWave
 )
 :
     patchDistMethod(mesh, patchIDs),
-    correctWalls_(dict.lookupOrDefault<Switch>("correctWalls", true)),
+    correctWalls_(dict.getOrDefault("correctWalls", true)),
     nUnset_(0)
 {}
 

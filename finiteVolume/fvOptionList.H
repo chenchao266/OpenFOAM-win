@@ -2,8 +2,13 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2019 OpenCFD Ltd.
+    Copyright (C) 2020 PCOpt/NTUA
+    Copyright (C) 2020 FOSS GP
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -36,8 +41,8 @@ SourceFile
 #define fvOptionList_H
 
 #include "fvOption.H"
-#include "PtrList.T.H"
-#include "GeometricField.T.H"
+#include "PtrList.H"
+#include "GeometricField.H"
 #include "geometricOneField.H"
 #include "fvPatchField.H"
 
@@ -64,7 +69,7 @@ namespace fv
 
 class optionList
 :
-    public PtrList<option>
+    public PtrList<fv::option>
 {
 protected:
 
@@ -79,8 +84,8 @@ protected:
 
     // Protected Member Functions
 
-        //- Return the "options" sub-dictionary if present otherwise return dict
-        const dictionary& optionsDict(const dictionary& dict) const;
+        //- Return "options" sub-dictionary (if present) or return dict
+        static const dictionary& optionsDict(const dictionary& dict);
 
         //- Read options dictionary
         bool readOptions(const dictionary& dict);
@@ -88,11 +93,20 @@ protected:
         //- Check that all sources have been applied
         void checkApplied() const;
 
-        //- Disallow default bitwise copy construct
-        optionList(const optionList&);
+        //- Return source for equation with specified name and dimensions
+        template<class Type>
+        tmp<fvMatrix<Type>> source
+        (
+            GeometricField<Type, fvPatchField, volMesh>& field,
+            const word& fieldName,
+            const dimensionSet& ds
+        );
 
-        //- Disallow default bitwise assignment
-        void operator=(const optionList&);
+        //- No copy construct
+        optionList(const optionList&) = delete;
+
+        //- No copy assignment
+        void operator=(const optionList&) = delete;
 
 
 public:
@@ -103,22 +117,24 @@ public:
 
     // Constructors
 
-        //- Construct null
-        optionList(const fvMesh& mesh);
+        //- Default construct from mesh
+        explicit optionList(const fvMesh& mesh);
 
         //- Construct from mesh and dictionary
         optionList(const fvMesh& mesh, const dictionary& dict);
 
 
     //- Destructor
-    virtual ~optionList()
-    {}
+    virtual ~optionList() = default;
 
 
     // Member Functions
 
         //- Reset the source list
         void reset(const dictionary& dict);
+
+        //- Return whether there is something to apply to the field
+        bool appliesToField(const word& fieldName) const;
 
 
         // Sources
@@ -201,6 +217,21 @@ public:
                 GeometricField<Type, fvPatchField, volMesh>& field
             );
 
+            //- Return source for equation with second time derivative
+            template<class Type>
+            tmp<fvMatrix<Type>> d2dt2
+            (
+                GeometricField<Type, fvPatchField, volMesh>& field
+            );
+
+            //- Return source for equation with second time derivative
+            template<class Type>
+            tmp<fvMatrix<Type>> d2dt2
+            (
+                GeometricField<Type, fvPatchField, volMesh>& field,
+                const word& fieldName
+            );
+
 
         // Constraints
 
@@ -214,6 +245,16 @@ public:
             //- Apply correction to field
             template<class Type>
             void correct(GeometricField<Type, fvPatchField, volMesh>& field);
+
+
+        //- Post process sensitivity field related to the fvOption
+        template<class Type>
+        void postProcessSens
+        (
+            Field<Type>& sensField,
+            const word& fieldName = word::null,
+            const word& designVariablesName = word::null
+        );
 
 
         // IO

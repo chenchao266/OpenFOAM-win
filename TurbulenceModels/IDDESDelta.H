@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2015 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2015 OpenFOAM Foundation
+    Copyright (C) 2016-2017 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -26,18 +29,18 @@ Class
 
 Description
     IDDESDelta used by the IDDES (improved low Re Spalart-Allmaras DES model)
-    The min and max delta are calculated using the double distance of the min or
-    max from the face centre to the cell centre.
+    The min and max delta are calculated using the face to face distance of
+    the cell.
 
 SourceFiles
     IDDESDelta.C
 
 \*---------------------------------------------------------------------------*/
 
-#ifndef IDDESDeltaDelta_H
-#define IDDESDeltaDelta_H
+#ifndef LESModels_IDDESDelta_H
+#define LESModels_IDDESDelta_H
 
-#include "maxDeltaxyz.H"
+#include "LESdelta.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -56,16 +59,20 @@ class IDDESDelta
 {
     // Private data
 
-        maxDeltaxyz hmax_;
+        //- Run-time selectable delta for hmax
+        //  Defaults to the maxDeltaXYZ model if not supplied
+        autoPtr<LESdelta> hmaxPtr_;
 
         scalar Cw_;
 
 
     // Private Member Functions
 
-        //- Disallow default bitwise copy construct and assignment
-        IDDESDelta(const IDDESDelta&);
-        void operator=(const IDDESDelta&);
+        //- No copy construct
+        IDDESDelta(const IDDESDelta&) = delete;
+
+        //- No copy assignment
+        void operator=(const IDDESDelta&) = delete;
 
         //- Calculate the delta values
         void calcDelta();
@@ -102,7 +109,7 @@ public:
         //- Return the hmax delta field
         const volScalarField& hmax() const
         {
-            return hmax_;
+            return *hmaxPtr_;
         }
 
         // Correct values

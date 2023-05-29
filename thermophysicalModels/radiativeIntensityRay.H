@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -64,7 +66,7 @@ private:
 
     // Private data
 
-        //- Refence to the owner fvDOM object
+        //- Reference to the owner fvDOM object
         const fvDOM& dom_;
 
         //- Reference to the mesh
@@ -118,11 +120,11 @@ private:
 
     // Private Member Functions
 
-        //- Disallow default bitwise copy construct
-        radiativeIntensityRay(const radiativeIntensityRay&);
+        //- No copy construct
+        radiativeIntensityRay(const radiativeIntensityRay&) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const radiativeIntensityRay&);
+        //- No copy assignment
+        void operator=(const radiativeIntensityRay&) = delete;
 
 
 public:
@@ -184,13 +186,13 @@ public:
             //- Return non-const access to the boundary incident heat flux
             inline volScalarField& qin();
 
-            //- Return non-const access to the boundary emmited heat flux
+            //- Return non-const access to the boundary emitted heat flux
             inline volScalarField& qem();
 
             //- Return const access to the boundary incident heat flux
             inline const volScalarField& qin() const;
 
-            //- Return const access to the boundary emmited heat flux
+            //- Return const access to the boundary emitted heat flux
             inline const volScalarField& qem() const;
 
             //- Return direction
@@ -198,6 +200,12 @@ public:
 
             //- Return the average vector inside the solid angle
             inline const vector& dAve() const;
+
+             //- Return direction
+            inline vector& d();
+
+            //- Return the average vector inside the solid angle
+            inline vector& dAve();
 
             //- Return the number of bands
             inline scalar nLambda() const;

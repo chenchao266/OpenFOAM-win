@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2014-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2014-2016 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -34,13 +37,7 @@ namespace Foam
 namespace functionObjects
 {
     defineTypeNameAndDebug(vorticity, 0);
-
-    addToRunTimeSelectionTable
-    (
-        functionObject,
-        vorticity,
-        dictionary
-    );
+    addToRunTimeSelectionTable(functionObject, vorticity, dictionary);
 }
 }
 
@@ -57,12 +54,8 @@ bool Foam::functionObjects::vorticity::calc()
             fvc::curl(lookupObject<volVectorField>(fieldName_))
         );
     }
-    else
-    {
-        return false;
-    }
 
-    return true;
+    return false;
 }
 
 
@@ -77,14 +70,8 @@ Foam::functionObjects::vorticity::vorticity
 :
     fieldExpression(name, runTime, dict, "U")
 {
-    setResultName(typeName, "U");
+    setResultName(typeName, fieldName_);
 }
-
-
-// * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
-
-Foam::functionObjects::vorticity::~vorticity()
-{}
 
 
 // ************************************************************************* //

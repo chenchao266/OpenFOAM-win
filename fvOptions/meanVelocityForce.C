@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2018-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -25,7 +28,7 @@ License
 
 #include "meanVelocityForce.H"
 #include "fvMatrices.H"
-#include "DimensionedField.T.H"
+#include "DimensionedField.H"
 #include "IFstream.H"
 #include "addToRunTimeSelectionTable.H"
 
@@ -36,13 +39,7 @@ namespace Foam
 namespace fv
 {
     defineTypeNameAndDebug(meanVelocityForce, 0);
-
-    addToRunTimeSelectionTable
-    (
-        option,
-        meanVelocityForce,
-        dictionary
-    );
+    addToRunTimeSelectionTable(option, meanVelocityForce, dictionary);
 }
 }
 
@@ -85,15 +82,15 @@ Foam::fv::meanVelocityForce::meanVelocityForce
     const fvMesh& mesh
 )
 :
-    cellSetOption(sourceName, modelType, dict, mesh),
-    Ubar_(coeffs_.lookup("Ubar")),
+    fv::cellSetOption(sourceName, modelType, dict, mesh),
+    Ubar_(coeffs_.get<vector>("Ubar")),
     gradP0_(0.0),
     dGradP_(0.0),
     flowDir_(Ubar_/mag(Ubar_)),
-    relaxation_(coeffs_.lookupOrDefault<scalar>("relaxation", 1.0)),
+    relaxation_(coeffs_.getOrDefault<scalar>("relaxation", 1)),
     rAPtr_(nullptr)
 {
-    coeffs_.lookup("fields") >> fieldNames_;
+    coeffs_.readEntry("fields", fieldNames_);
 
     if (fieldNames_.size() != 1)
     {
@@ -101,7 +98,7 @@ Foam::fv::meanVelocityForce::meanVelocityForce
             << "settings are:" << fieldNames_ << exit(FatalError);
     }
 
-    applied_.setSize(fieldNames_.size(), false);
+    fv::option::resetApplied();
 
     // Read the initial pressure gradient from file if it exists
     IFstream propsFile
@@ -112,8 +109,8 @@ Foam::fv::meanVelocityForce::meanVelocityForce
     if (propsFile.good())
     {
         Info<< "    Reading pressure gradient from file" << endl;
-        dictionary propsDict(dictionary::null, propsFile);
-        propsDict.lookup("gradient") >> gradP0_;
+        dictionary propsDict(propsFile);
+        propsDict.readEntry("gradient", gradP0_);
     }
 
     Info<< "    Initial pressure gradient = " << gradP0_ << nl << endl;
@@ -178,6 +175,8 @@ void Foam::fv::meanVelocityForce::correct(volVectorField& U)
         U[celli] += flowDir_*rAU[celli]*dGradP_;
     }
 
+    U.correctBoundaryConditions();
+
     scalar gradP = gradP0_ + dGradP_;
 
     Info<< "Pressure gradient source: uncorrected Ubar = " << magUbarAve
@@ -204,7 +203,7 @@ void Foam::fv::meanVelocityForce::addSup
             IOobject::NO_WRITE
         ),
         mesh_,
-        dimensionedVector("zero", eqn.dimensions()/dimVolume, Zero)
+        dimensionedVector(eqn.dimensions()/dimVolume, Zero)
     );
 
     scalar gradP = gradP0_ + dGradP_;
@@ -232,7 +231,7 @@ void Foam::fv::meanVelocityForce::constrain
     const label
 )
 {
-    if (rAPtr_.empty())
+    if (!rAPtr_)
     {
         rAPtr_.reset
         (
@@ -257,6 +256,14 @@ void Foam::fv::meanVelocityForce::constrain
 
     gradP0_ += dGradP_;
     dGradP_ = 0.0;
+}
+
+
+bool Foam::fv::meanVelocityForce::read(const dictionary& dict)
+{
+    NotImplemented;
+
+    return false;
 }
 
 

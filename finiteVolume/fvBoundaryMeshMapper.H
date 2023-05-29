@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -32,7 +34,7 @@ Description
 #ifndef fvBoundaryMeshMapper_H
 #define fvBoundaryMeshMapper_H
 
-#include "PtrList.T.H"
+#include "PtrList.H"
 #include "fvPatchMapper.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
@@ -50,11 +52,11 @@ class fvBoundaryMeshMapper
 {
     // Private Member Functions
 
-        //- Disallow default bitwise copy construct
-        fvBoundaryMeshMapper(const fvBoundaryMeshMapper&);
+        //- No copy construct
+        fvBoundaryMeshMapper(const fvBoundaryMeshMapper&) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const fvBoundaryMeshMapper&);
+        //- No copy assignment
+        void operator=(const fvBoundaryMeshMapper&) = delete;
 
 
 public:

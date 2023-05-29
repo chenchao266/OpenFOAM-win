@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2017-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -44,7 +47,7 @@ namespace viscosityModels
 }
 
 
-// * * * * * * * * * * * * Private Member Functions  * * * * * * * * * * * * //
+// * * * * * * * * * * * * Protected Member Functions  * * * * * * * * * * * * //
 
 Foam::tmp<Foam::volScalarField>
 Foam::viscosityModels::BirdCarreau::calcNu() const
@@ -52,7 +55,7 @@ Foam::viscosityModels::BirdCarreau::calcNu() const
     return
         nuInf_
       + (nu0_ - nuInf_)
-       *pow(scalar(1) + pow(k_*strainRate(), a_), (n_ - 1.0)/a_);
+      * pow(scalar(1) + pow(k_*strainRate(), a_), (n_ - 1.0)/a_);
 }
 
 
@@ -77,7 +80,7 @@ Foam::viscosityModels::BirdCarreau::BirdCarreau
     n_("n", dimless, BirdCarreauCoeffs_),
     a_
     (
-        BirdCarreauCoeffs_.lookupOrDefault
+        BirdCarreauCoeffs_.getOrDefault
         (
             "a",
             dimensionedScalar("a", dimless, 2)
@@ -87,7 +90,7 @@ Foam::viscosityModels::BirdCarreau::BirdCarreau
     (
         IOobject
         (
-            "nu",
+            name,
             U_.time().timeName(),
             U_.db(),
             IOobject::NO_READ,
@@ -110,11 +113,11 @@ bool Foam::viscosityModels::BirdCarreau::read
     BirdCarreauCoeffs_ =
         viscosityProperties.optionalSubDict(typeName + "Coeffs");
 
-    BirdCarreauCoeffs_.lookup("nu0") >> nu0_;
-    BirdCarreauCoeffs_.lookup("nuInf") >> nuInf_;
-    BirdCarreauCoeffs_.lookup("k") >> k_;
-    BirdCarreauCoeffs_.lookup("n") >> n_;
-    a_ = BirdCarreauCoeffs_.lookupOrDefault
+    BirdCarreauCoeffs_.readEntry("nu0", nu0_);
+    BirdCarreauCoeffs_.readEntry("nuInf", nuInf_);
+    BirdCarreauCoeffs_.readEntry("k", k_);
+    BirdCarreauCoeffs_.readEntry("n", n_);
+    a_ = BirdCarreauCoeffs_.getOrDefault
     (
         "a",
         dimensionedScalar("a", dimless, 2)

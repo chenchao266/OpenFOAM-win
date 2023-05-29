@@ -2,13 +2,13 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2013 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
 -------------------------------------------------------------------------------
- 2014-02-21 blueCAPE Lda: Modifications for blueCFD-Core 2.3
-------------------------------------------------------------------------------
+    Copyright (C) 2011-2013 OpenFOAM Foundation
+-------------------------------------------------------------------------------
 License
-    This file is a derivative work of OpenFOAM.
+    This file is part of OpenFOAM.
 
     OpenFOAM is free software: you can redistribute it and/or modify it
     under the terms of the GNU General Public License as published by
@@ -23,39 +23,22 @@ License
     You should have received a copy of the GNU General Public License
     along with OpenFOAM.  If not, see <http://www.gnu.org/licenses/>.
 
-Modifications
-    This file has been modified by blueCAPE's unofficial mingw patches for
-    OpenFOAM.
-    For more information about these patches, visit:
-        http://bluecfd.com/Core
-
-    Modifications made:
-      - These changes are technically from Symscape's own patches for Windows,
-        circa 2011.
-      - The adaptation derived from the patches for blueCFD 2.1, adjusted to
-        OpenFOAM 2.2.
-
-
 \*---------------------------------------------------------------------------*/
 
+#include "fundamentalConstants.H"
 #include "mathematicalConstants.H"
 #include "universalConstants.H"
 #include "electromagneticConstants.H"
 #include "physicoChemicalConstants.H"
 
 #include "dimensionedConstants.H"
-#include "fundamentalConstants.H"
- 
- 
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
- 
+
 namespace Foam
 {
 namespace constant
 {
-
-const char* const physicoChemical::group = "physicoChemical";
 
 defineDimensionedConstantWithDefault
 (
@@ -93,7 +76,6 @@ defineDimensionedConstantWithDefault
     dimensionedScalar
     (
         word("sigma"),
-        (
         dimensionedScalar
         (
             word("C"),
@@ -102,20 +84,11 @@ defineDimensionedConstantWithDefault
         )
        *pow4(physicoChemical::k)
        /(pow3(universal::hr)*sqr(universal::c))
-       )
     ),
     constantphysicoChemicalsigma,
     "sigma"
 );
 
-#ifdef WM_SP
-.dimensions(),
-// Assuming this is the Stefan-Boltzmann constant
-// http://en.wikipedia.org/wiki/Stefan%E2%80%93Boltzmann_law
-// Single precision can't handle the pow4(k), 
-// where k is Boltzmann constant = 1.3806488e-23
-5.6704e-8f
-#endif   
 
 defineDimensionedConstantWithDefault
 (
@@ -163,7 +136,7 @@ defineDimensionedConstantWithDefault
     physicoChemical::c2,
     dimensionedScalar
     (
-        word("c2"),
+        "c2",
         universal::h*universal::c/physicoChemical::k
     ),
     constantphysicoChemicalc2,

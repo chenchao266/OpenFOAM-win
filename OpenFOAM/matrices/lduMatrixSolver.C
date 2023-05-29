@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2019-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -23,129 +26,116 @@ License
 
 \*---------------------------------------------------------------------------*/
 
-#include "lduMatrix.H"
-#include "diagonalSolver.H"
-
-// * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
-using namespace Foam;
-namespace Foam
-{
-    defineRunTimeSelectionTable(lduMatrix::solver, symMatrix);
-    defineRunTimeSelectionTable(lduMatrix::solver, asymMatrix);
-}
-
+//#include "LduMatrix.H"
+#include "DiagonalSolver.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
-autoPtr<lduMatrix::solver> lduMatrix::solver::New
+
+ namespace Foam{
+template<class Type, class DType, class LUType>
+autoPtr<typename LduMatrix<Type, DType, LUType>::solver>
+LduMatrix<Type, DType, LUType>::solver::New
 (
     const word& fieldName,
-    const lduMatrix& matrix,
-    const FieldField<Field, scalar>& interfaceBouCoeffs,
-    const FieldField<Field, scalar>& interfaceIntCoeffs,
-    const lduInterfaceFieldPtrsList& interfaces,
-    const dictionary& solverControls
+    const LduMatrix<Type, DType, LUType>& matrix,
+    const dictionary& solverDict
 )
 {
-    const word name(solverControls.lookup("solver"));
+    const word solverName(solverDict.get<word>("solver"));
 
     if (matrix.diagonal())
     {
-        return autoPtr<lduMatrix::solver>
+        return autoPtr<typename LduMatrix<Type, DType, LUType>::solver>
         (
-            new diagonalSolver
+            new DiagonalSolver<Type, DType, LUType>
             (
                 fieldName,
                 matrix,
-                interfaceBouCoeffs,
-                interfaceIntCoeffs,
-                interfaces,
-                solverControls
+                solverDict
             )
         );
     }
     else if (matrix.symmetric())
     {
-        symMatrixConstructorTable::iterator constructorIter =
-            symMatrixConstructorTablePtr_->find(name);
+        auto* ctorPtr = symMatrixConstructorTable(solverName);
 
-        if (constructorIter == symMatrixConstructorTablePtr_->end())
+        if (!ctorPtr)
         {
-            FatalIOErrorInFunction(solverControls)
-                << "Unknown symmetric matrix solver " << name << nl << nl
-                << "Valid symmetric matrix solvers are :" << endl
-                << symMatrixConstructorTablePtr_->sortedToc()
-                << exit(FatalIOError);
+            FatalIOErrorInLookup
+            (
+                solverDict,
+                "symmetric matrix solver",
+                solverName,
+                *symMatrixConstructorTablePtr_
+            ) << exit(FatalIOError);
         }
 
-        return autoPtr<lduMatrix::solver>
+        return autoPtr<typename LduMatrix<Type, DType, LUType>::solver>
         (
-            constructorIter()
+            ctorPtr
             (
                 fieldName,
                 matrix,
-                interfaceBouCoeffs,
-                interfaceIntCoeffs,
-                interfaces,
-                solverControls
+                solverDict
             )
         );
     }
     else if (matrix.asymmetric())
     {
-        asymMatrixConstructorTable::iterator constructorIter =
-            asymMatrixConstructorTablePtr_->find(name);
+        auto* ctorPtr = asymMatrixConstructorTable(solverName);
 
-        if (constructorIter == asymMatrixConstructorTablePtr_->end())
+        if (!ctorPtr)
         {
-            FatalIOErrorInFunction(solverControls)
-                << "Unknown asymmetric matrix solver " << name << nl << nl
-                << "Valid asymmetric matrix solvers are :" << endl
-                << asymMatrixConstructorTablePtr_->sortedToc()
-                << exit(FatalIOError);
+            FatalIOErrorInLookup
+            (
+                solverDict,
+                "asymmetric matrix solver",
+                solverName,
+                *asymMatrixConstructorTablePtr_
+            ) << exit(FatalIOError);
         }
 
-        return autoPtr<lduMatrix::solver>
+        return autoPtr<typename LduMatrix<Type, DType, LUType>::solver>
         (
-            constructorIter()
+            ctorPtr
             (
                 fieldName,
                 matrix,
-                interfaceBouCoeffs,
-                interfaceIntCoeffs,
-                interfaces,
-                solverControls
+                solverDict
             )
         );
     }
-    else
-    {
-        FatalIOErrorInFunction(solverControls)
-            << "cannot solve incomplete matrix, "
-               "no diagonal or off-diagonal coefficient"
-            << exit(FatalIOError);
 
-        return autoPtr<lduMatrix::solver>(nullptr);
-    }
+    FatalIOErrorInFunction(solverDict)
+        << "cannot solve incomplete matrix, "
+           "no diagonal or off-diagonal coefficient"
+        << exit(FatalIOError);
+
+    return nullptr;
 }
 
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
-lduMatrix::solver::solver
+template<class Type, class DType, class LUType>
+LduMatrix<Type, DType, LUType>::solver::solver
 (
     const word& fieldName,
-    const lduMatrix& matrix,
-    const FieldField<Field, scalar>& interfaceBouCoeffs,
-    const FieldField<Field, scalar>& interfaceIntCoeffs,
-    const lduInterfaceFieldPtrsList& interfaces,
-    const dictionary& solverControls
-) :    fieldName_(fieldName),
+    const LduMatrix<Type, DType, LUType>& matrix,
+    const dictionary& solverDict
+)
+:
+    fieldName_(fieldName),
     matrix_(matrix),
-    interfaceBouCoeffs_(interfaceBouCoeffs),
-    interfaceIntCoeffs_(interfaceIntCoeffs),
-    interfaces_(interfaces),
-    controlDict_(solverControls)
+
+    controlDict_(solverDict),
+
+    log_(1),
+    minIter_(0),
+    maxIter_(defaultMaxIter_),
+    tolerance_(1e-6*pTraits<Type>::one_),
+    relTol_(Zero)
 {
     readControls();
 }
@@ -153,46 +143,51 @@ lduMatrix::solver::solver
 
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
 
-void lduMatrix::solver::readControls()
+template<class Type, class DType, class LUType>
+void LduMatrix<Type, DType, LUType>::solver::readControls()
 {
-    maxIter_ = controlDict_.lookupOrDefault<label>("maxIter", defaultMaxIter_);
-    minIter_ = controlDict_.lookupOrDefault<label>("minIter", 0);
-    tolerance_ = controlDict_.lookupOrDefault<scalar>("tolerance", 1e-6);
-    relTol_ = controlDict_.lookupOrDefault<scalar>("relTol", 0);
+    controlDict_.readIfPresent("log", log_);
+    controlDict_.readIfPresent("minIter", minIter_);
+    controlDict_.readIfPresent("maxIter", maxIter_);
+    controlDict_.readIfPresent("tolerance", tolerance_);
+    controlDict_.readIfPresent("relTol", relTol_);
 }
 
 
-void lduMatrix::solver::read(const dictionary& solverControls)
+template<class Type, class DType, class LUType>
+void LduMatrix<Type, DType, LUType>::solver::read
+(
+    const dictionary& solverDict
+)
 {
-    controlDict_ = solverControls;
+    controlDict_ = solverDict;
     readControls();
 }
 
 
-scalar lduMatrix::solver::normFactor
+template<class Type, class DType, class LUType>
+Type LduMatrix<Type, DType, LUType>::solver::normFactor
 (
-    const scalarField& psi,
-    const scalarField& source,
-    const scalarField& Apsi,
-    scalarField& tmpField
+    const Field<Type>& psi,
+    const Field<Type>& Apsi,
+    Field<Type>& tmpField
 ) const
 {
     // --- Calculate A dot reference value of psi
-    matrix_.sumA(tmpField, interfaceBouCoeffs_, interfaces_);
+    matrix_.sumA(tmpField);
+    cmptMultiply(tmpField, tmpField, gAverage(psi));
 
-    tmpField *= gAverage(psi, matrix_.lduMesh_.comm());
-
-    return
-        gSum
-        (
-            (mag(Apsi - tmpField) + mag(source - tmpField))(),
-            matrix_.lduMesh_.comm()
-        )
-      + solverPerformance::small_;
+    return stabilise
+    (
+        gSum(cmptMag(Apsi - tmpField) + cmptMag(matrix_.source() - tmpField)),
+        SolverPerformance<Type>::small_
+    );
 
     // At convergence this simpler method is equivalent to the above
-    // return 2*gSumMag(source) + solverPerformance::small_;
+    // return stabilise(2*gSumCmptMag(matrix_.source()), matrix_.small_);
 }
 
 
 // ************************************************************************* //
+
+ } // End namespace Foam

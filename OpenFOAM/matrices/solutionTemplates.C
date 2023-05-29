@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2013 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2013 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -23,30 +25,30 @@ License
 
 \*---------------------------------------------------------------------------*/
 
-//#include "solution.H"
+#include "solution.H"
+
+// * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
 
 
-// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
-namespace Foam {
-    template<class FieldType>
-    void solution::cachePrintMessage
-    (
-        const char* message,
-        const word& name,
-        const FieldType& vf
-    )
+ namespace Foam{
+template<class FieldType>
+void solution::cachePrintMessage
+(
+    const char* message,
+    const word& name,
+    const FieldType& vf
+)
+{
+    if (solution::debug)
     {
-        if (solution::debug)
-        {
-            Info << "Cache: " << message << token::SPACE << name
-                << ", originating from " << vf.name()
-                << " event No. " << vf.eventNo()
-                << endl;
-        }
+        Info<< "Cache: " << message << token::SPACE << name
+            << ", originating from " << vf.name()
+            << " event No. " << vf.eventNo()
+            << endl;
     }
 }
 
-// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
-
 
 // ************************************************************************* //
+
+ } // End namespace Foam

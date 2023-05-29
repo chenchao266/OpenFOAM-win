@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2017 OpenCFD Ltd
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -35,7 +38,6 @@ Usage
     \table
         Property     | Description             | Required    | Default value
         Prt          | turbulent Prandtl number | no         | 0.85
-        Cmu          | model coefficient       | no          | 0.09
         kappa        | Von Karman constant     | no          | 0.41
         E            | model coefficient       | no          | 9.8
     \endtable
@@ -60,10 +62,11 @@ SourceFiles
 
 \*---------------------------------------------------------------------------*/
 
-#ifndef alphatJayatillekeWallFunctionFvPatchScalarField_H
-#define alphatJayatillekeWallFunctionFvPatchScalarField_H
+#ifndef compressible_alphatJayatillekeWallFunctionFvPatchScalarField_H
+#define compressible_alphatJayatillekeWallFunctionFvPatchScalarField_H
 
 #include "fixedValueFvPatchFields.H"
+#include "turbulentFluidThermoModel.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -85,9 +88,6 @@ class alphatJayatillekeWallFunctionFvPatchScalarField
         //- Turbulent Prandtl number
         scalar Prt_;
 
-        //- Cmu coefficient
-        scalar Cmu_;
-
         //- Von Karman constant
         scalar kappa_;
 
@@ -106,6 +106,12 @@ class alphatJayatillekeWallFunctionFvPatchScalarField
 
         //- Check the type of the patch
         void checkType();
+
+        //- Return the patch y+
+        tmp<scalarField> yPlus
+        (
+            const compressible::turbulenceModel& turbModel
+        ) const;
 
         //- `P' function
         scalar Psmooth(const scalar Prat) const;

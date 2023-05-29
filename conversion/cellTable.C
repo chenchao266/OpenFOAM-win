@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2019-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -24,14 +27,13 @@ License
 \*---------------------------------------------------------------------------*/
 
 #include "cellTable.H"
-#include "IOMap.T.H"
+#include "IOMap.H"
 #include "OFstream.H"
-#include "wordList.H"
-#include "stringListOps.H"
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
 
 const char* const Foam::cellTable::defaultMaterial_ = "fluid";
+
 
 // * * * * * * * * * * * * * Private Member Functions  * * * * * * * * * * * //
 
@@ -39,10 +41,10 @@ Foam::Map<Foam::label> Foam::cellTable::zoneMap() const
 {
     Map<label> lookup;
 
-    label zoneI = 0;
-    forAllConstIter(Map<dictionary>, *this, iter)
+    label zonei = 0;
+    forAllConstIters(*this, iter)
     {
-        lookup.insert(iter.key(), zoneI++);
+        lookup.insert(iter.key(), zonei++);
     }
 
     return lookup;
@@ -52,21 +54,21 @@ Foam::Map<Foam::label> Foam::cellTable::zoneMap() const
 Foam::wordList Foam::cellTable::namesList() const
 {
     Map<word> lookup = names();
-    wordList lst(lookup.size());
+    wordList list(lookup.size());
 
-    label zoneI = 0;
-    forAllConstIter(Map<word>, lookup, iter)
+    label zonei = 0;
+    forAllConstIters(lookup, iter)
     {
-        lst[zoneI++] = iter();
+        list[zonei++] = *iter;
     }
 
-    return lst;
+    return list;
 }
 
 
 void Foam::cellTable::addDefaults()
 {
-    forAllIter(Map<dictionary>, *this, iter)
+    forAllIters(*this, iter)
     {
         if (!iter().found("MaterialType"))
         {
@@ -87,7 +89,7 @@ void Foam::cellTable::setEntry
     dict.add(keyWord, value);
 
     iterator iter = find(id);
-    if (iter != end())
+    if (iter.found())
     {
         iter().merge(dict);
     }
@@ -119,18 +121,12 @@ Foam::cellTable::cellTable
 }
 
 
-// * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
-
-Foam::cellTable::~cellTable()
-{}
-
-
 // * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * * //
 
 Foam::label Foam::cellTable::append(const dictionary& dict)
 {
     label maxId = -1;
-    forAllConstIter(Map<dictionary>, *this, iter)
+    forAllConstIters(*this, iter)
     {
         if (maxId < iter.key())
         {
@@ -147,12 +143,12 @@ Foam::Map<Foam::word> Foam::cellTable::names() const
 {
     Map<word> lookup;
 
-    forAllConstIter(Map<dictionary>, *this, iter)
+    forAllConstIters(*this, iter)
     {
         lookup.insert
         (
             iter.key(),
-            iter().lookupOrDefault<word>
+            iter().getOrDefault<word>
             (
                 "Label",
                 "cellTable_" + Foam::name(iter.key())
@@ -166,20 +162,20 @@ Foam::Map<Foam::word> Foam::cellTable::names() const
 
 Foam::Map<Foam::word> Foam::cellTable::names
 (
-    const UList<wordRe>& patterns
+    const wordRes& patterns
 ) const
 {
     Map<word> lookup;
 
-    forAllConstIter(Map<dictionary>, *this, iter)
+    forAllConstIters(*this, iter)
     {
-        word lookupName = iter().lookupOrDefault<word>
+        const word lookupName = iter().getOrDefault<word>
         (
             "Label",
             "cellTable_" + Foam::name(iter.key())
         );
 
-        if (findStrings(patterns, lookupName))
+        if (patterns.match(lookupName))
         {
             lookup.insert(iter.key(), lookupName);
         }
@@ -193,8 +189,8 @@ Foam::word Foam::cellTable::name(const label id) const
 {
     word theName("cellTable_" + Foam::name(id));
 
-    const_iterator iter = find(id);
-    if (iter != end())
+    const_iterator iter = cfind(id);
+    if (iter.found())
     {
         iter().readIfPresent("Label", theName);
     }
@@ -210,9 +206,9 @@ Foam::label Foam::cellTable::findIndex(const word& name) const
         return -1;
     }
 
-    forAllConstIter(Map<dictionary>, *this, iter)
+    forAllConstIters(*this, iter)
     {
-        if (iter().lookupOrDefault<word>("Label", word::null) == name)
+        if (iter().getOrDefault<word>("Label", word::null) == name)
         {
             return iter.key();
         }
@@ -226,12 +222,12 @@ Foam::Map<Foam::word> Foam::cellTable::materialTypes() const
 {
     Map<word> lookup;
 
-    forAllConstIter(Map<dictionary>, *this, iter)
+    forAllConstIters(*this, iter)
     {
         lookup.insert
         (
             iter.key(),
-            iter().lookupOrDefault<word>("MaterialType", defaultMaterial_)
+            iter().getOrDefault<word>("MaterialType", defaultMaterial_)
         );
     }
 
@@ -243,18 +239,21 @@ Foam::Map<Foam::word> Foam::cellTable::selectType(const word& matl) const
 {
     Map<word> lookup;
 
-    forAllConstIter(Map<dictionary>, *this, iter)
+    forAllConstIters(*this, iter)
     {
+        const label index = iter.key();
+        const dictionary& dict = iter.val();
+
         if
         (
             matl
-         == iter().lookupOrDefault<word>("MaterialType", defaultMaterial_)
+         == dict.getOrDefault<word>("MaterialType", defaultMaterial_)
         )
         {
             lookup.insert
             (
-                iter.key(),
-                iter().lookupOrDefault<word>
+                index,
+                dict.getOrDefault<word>
                 (
                     "Label",
                     "cellTable_" + Foam::name(iter.key())
@@ -302,7 +301,7 @@ void Foam::cellTable::setName(const label id)
 {
     iterator iter = find(id);
 
-    if (iter == end() || !iter().found("Label"))
+    if (!iter.found() || !iter().found("Label"))
     {
         setName(id, "cellTable_" + Foam::name(id));
     }
@@ -448,10 +447,10 @@ void Foam::cellTable::addCellZones
 
     forAll(tableIds, celli)
     {
-        Map<label>::const_iterator iter = typeToZone.find(tableIds[celli]);
-        if (iter != typeToZone.end())
+        const auto iter = typeToZone.cfind(tableIds[celli]);
+        if (iter.found())
         {
-            zoneCells[iter()].append(celli);
+            zoneCells[*iter].append(celli);
         }
     }
 
@@ -500,7 +499,7 @@ void Foam::cellTable::addCellZones
             )
         );
     }
-    czMesh.writeOpt() = IOobject::AUTO_WRITE;
+    czMesh.writeOpt(IOobject::AUTO_WRITE);
 }
 
 
@@ -515,15 +514,15 @@ void Foam::cellTable::combine(const dictionary& mapDict, labelList& tableIds)
     labelList mapping(identity(max(origNames.toc()) + 1));
 
     bool remap = false;
-    forAllConstIter(dictionary, mapDict, iter)
+    forAllConstIters(mapDict, iter)
     {
-        wordReList patterns(iter().stream());
+        wordRes patterns(iter().stream());
 
         // find all matches
         Map<word> matches;
-        forAllConstIter(Map<word>, origNames, namesIter)
+        forAllConstIters(origNames, namesIter)
         {
-            if (findStrings(patterns, namesIter()))
+            if (patterns.match(namesIter()))
             {
                 matches.insert(namesIter.key(), namesIter());
             }
@@ -556,7 +555,7 @@ void Foam::cellTable::combine(const dictionary& mapDict, labelList& tableIds)
             this->erase(matches);
             origNames.erase(matches);
 
-            forAllConstIter(Map<word>, matches, matchIter)
+            forAllConstIters(matches, matchIter)
             {
                 mapping[matchIter.key()] = targetId;
                 Info<< " " << matchIter();

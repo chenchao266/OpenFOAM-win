@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -32,7 +34,7 @@ License
 #include "emptyPolyPatch.H"
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
-using namespace Foam;
+
 namespace Foam
 {
     defineTypeNameAndDebug(processorPointPatch, 0);
@@ -42,89 +44,91 @@ namespace Foam
         processorPointPatch,
         polyPatch
     );
-}
 
 
-// * * * * * * * * * * * * * Protected Member Functions  * * * * * * * * * * //
 
-void processorPointPatch::initGeometry(PstreamBuffers& pBufs)
-{
-    // Algorithm:
-    // Depending on whether the patch is a master or a slave, get the primitive
-    // patch points and filter away the points from the global patch.
+    // * * * * * * * * * * * * * Protected Member Functions  * * * * * * * * * * //
 
-    // Create the reversed patch and pick up its points
-    // so that the order is correct
-    const polyPatch& pp = patch();
-
-    faceList masterFaces(pp.size());
-
-    forAll(pp, facei)
+    void processorPointPatch::initGeometry(PstreamBuffers& pBufs)
     {
-        masterFaces[facei] = pp[facei].reverseFace();
+        // Algorithm:
+        // Depending on whether the patch is a master or a slave, get the primitive
+        // patch points and filter away the points from the global patch.
+
+        // Create the reversed patch and pick up its points
+        // so that the order is correct
+        const polyPatch& pp = patch();
+
+        faceList masterFaces(pp.size());
+
+        forAll(pp, facei)
+        {
+            masterFaces[facei] = pp[facei].reverseFace();
+        }
+
+        reverseMeshPoints_ = primitiveFacePatch
+        (
+            masterFaces,
+            pp.points()
+        ).meshPoints();
     }
 
-    reverseMeshPoints_ = primitiveFacePatch
+
+    void processorPointPatch::calcGeometry(PstreamBuffers& pBufs)
+    {}
+
+
+    void processorPointPatch::initMovePoints
     (
-        masterFaces,
-        pp.points()
-    ).meshPoints();
+        PstreamBuffers&,
+        const pointField&
+    )
+    {}
+
+
+    void processorPointPatch::movePoints(PstreamBuffers&, const pointField&)
+    {}
+
+
+    void processorPointPatch::initUpdateMesh(PstreamBuffers& pBufs)
+    {
+        facePointPatch::initUpdateMesh(pBufs);
+        processorPointPatch::initGeometry(pBufs);
+    }
+
+
+    void processorPointPatch::updateMesh(PstreamBuffers& pBufs)
+    {
+        facePointPatch::updateMesh(pBufs);
+        processorPointPatch::calcGeometry(pBufs);
+    }
+
+
+    // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
+
+    processorPointPatch::processorPointPatch
+    (
+        const polyPatch& patch,
+        const pointBoundaryMesh& bm
+    )
+        :
+        coupledFacePointPatch(patch, bm),
+        procPolyPatch_(refCast<const processorPolyPatch>(patch))
+    {}
+
+
+    // * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
+
+    processorPointPatch::~processorPointPatch()
+    {}
+
+
+    // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
+
+    const labelList& processorPointPatch::reverseMeshPoints() const
+    {
+        return reverseMeshPoints_;
+    }
+
 }
-
-
-void processorPointPatch::calcGeometry(PstreamBuffers& pBufs)
-{}
-
-
-void processorPointPatch::initMovePoints
-(
-    PstreamBuffers&,
-    const pointField&
-)
-{}
-
-
-void processorPointPatch::movePoints(PstreamBuffers&, const pointField&)
-{}
-
-
-void processorPointPatch::initUpdateMesh(PstreamBuffers& pBufs)
-{
-    facePointPatch::initUpdateMesh(pBufs);
-    processorPointPatch::initGeometry(pBufs);
-}
-
-
-void processorPointPatch::updateMesh(PstreamBuffers& pBufs)
-{
-    facePointPatch::updateMesh(pBufs);
-    processorPointPatch::calcGeometry(pBufs);
-}
-
-
-// * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
-
-processorPointPatch::processorPointPatch
-(
-    const polyPatch& patch,
-    const pointBoundaryMesh& bm
-) :    coupledFacePointPatch(patch, bm),
-    procPolyPatch_(refCast<const processorPolyPatch>(patch))
-{}
-
-
-// * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
-
-processorPointPatch::~processorPointPatch()
-{}
-
-
-// * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
-
-const labelList& processorPointPatch::reverseMeshPoints() const
-{
-    return reverseMeshPoints_;
-}
-
-
 // ************************************************************************* //

@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2013-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2013-2017 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -37,7 +40,7 @@ SourceFiles
 
 #include "coupledPointPatchField.H"
 #include "cyclicACMIPointPatch.H"
-#include "PrimitivePatchInterpolation.T.H"
+#include "PrimitivePatchInterpolation.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -53,7 +56,7 @@ class cyclicACMIPointPatchField
 :
     public coupledPointPatchField<Type>
 {
-    // Private data
+    // Private Data
 
         //- Local reference cast into the cyclicACMI patch
         const cyclicACMIPointPatch& cyclicACMIPatch_;
@@ -71,7 +74,7 @@ class cyclicACMIPointPatchField
         //- Owner side patch interpolation
         const PrimitivePatchInterpolation<primitivePatch>& ppi() const
         {
-            if (!ppiPtr_.valid())
+            if (!ppiPtr_)
             {
                 ppiPtr_.reset
                 (
@@ -82,13 +85,13 @@ class cyclicACMIPointPatchField
                 );
             }
 
-            return ppiPtr_();
+            return *ppiPtr_;
         }
 
         //- Neighbour side patch interpolation
         const PrimitivePatchInterpolation<primitivePatch>& nbrPpi() const
         {
-            if (!nbrPpiPtr_.valid())
+            if (!nbrPpiPtr_)
             {
                 nbrPpiPtr_.reset
                 (
@@ -99,7 +102,7 @@ class cyclicACMIPointPatchField
                 );
             }
 
-            return nbrPpiPtr_();
+            return *nbrPpiPtr_;
         }
 
 
@@ -183,7 +186,7 @@ public:
 
         // Cyclic AMI coupled interface functions
 
-            //- Does the patch field perform the transfromation
+            //- Does the patch field perform the transformation
             virtual bool doTransform() const
             {
                 return

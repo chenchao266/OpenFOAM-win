@@ -1,9 +1,12 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -25,10 +28,10 @@ Class
     Foam::pyrMatcher
 
 Description
-    A cellMatcher for pyr cells
+    A cellMatcher for pyr cells (cellModel::PYR)
 
 See also
-    cellMatcher
+    cellMatcher, cellModel
 
 SourceFiles
     pyrMatcher.C
@@ -46,37 +49,51 @@ namespace Foam
 {
 
 /*---------------------------------------------------------------------------*\
-                           Class pyrMatcher Declaration
+                         Class pyrMatcher Declaration
 \*---------------------------------------------------------------------------*/
 
-class pyrMatcher :    public cellMatcher
+class pyrMatcher
+:
+    public cellMatcher
 {
-    // Static data members
+    // Static Data Members
 
-        //- Constants for this shape
-        static const label vertPerCell;
-        static const label facePerCell;
-        static const label maxVertPerFace;
+        // Constants for this shape
+        static constexpr label vertPerCell = 5;
+        static constexpr label facePerCell = 5;
+        static constexpr label maxVertPerFace = 4;
 
 
     // Private Member Functions
 
-        //- Disallow default bitwise copy construct
-        pyrMatcher(const pyrMatcher&);
+        //- No copy construct
+        pyrMatcher(const pyrMatcher&) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const pyrMatcher&);
+        //- No copy assignment
+        pyrMatcher& operator=(const pyrMatcher&) = delete;
 
 
 public:
 
     // Constructors
 
-        //- Construct null
+        //- Default construct
         pyrMatcher();
 
+
     //- Destructor
-    ~pyrMatcher();
+    ~pyrMatcher() = default;
+
+
+    // Static Functions
+
+        //- Test if given list of faces satisfies criteria for PYR.
+        //- (4 tri, 1 quad)
+        static bool test(const UList<face>& faces);
+
+        //- Test if given cell satisfies criteria for PYR.
+        //- (4 tri, 1 quad)
+        static bool test(const primitiveMesh& mesh, const label celli);
 
 
     // Member Functions
@@ -109,9 +126,15 @@ public:
             const labelList& myFaces
         );
 
-        virtual bool isA(const primitiveMesh& mesh, const label celli);
+        virtual bool isA(const faceList& faces)
+        {
+            return pyrMatcher::test(faces);
+        }
 
-        virtual bool isA(const faceList&);
+        virtual bool isA(const primitiveMesh& mesh, const label celli)
+        {
+            return pyrMatcher::test(mesh, celli);
+        }
 
         virtual bool matches
         (

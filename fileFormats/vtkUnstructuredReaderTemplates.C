@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2012 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2012 OpenFOAM Foundation
+    Copyright (C) 2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -24,49 +27,26 @@ License
 \*---------------------------------------------------------------------------*/
 
 #include "vtkUnstructuredReader.H"
-#include "labelIOField.H"
-#include "scalarIOField.H"
-#include "stringIOList.H"
-#include "cellModeller.H"
-#include "vectorIOField.H"
 
-// * * * * * * * * * * * * * Private Member Functions  * * * * * * * * * * * //
-
-template<class T>
-void Foam::vtkUnstructuredReader::readBlock
-(
-    Istream& inFile,
-    const label n,
-    List<T>& lst
-) const
-{
-    lst.setSize(n);
-    forAll(lst, i)
-    {
-        inFile >> lst[i];
-    }
-}
-
+// * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
 
 template<class Type>
-void Foam::vtkUnstructuredReader::printFieldStats
-(
-    const objectRegistry& obj
-) const
+void Foam::vtkUnstructuredReader::printFieldStats(const objectRegistry& obj)
 {
-    wordList fieldNames(obj.names(Type::typeName));
+    const wordList fieldNames(obj.names(Type::typeName));
 
-    if (fieldNames.size() > 0)
+    if (fieldNames.size())
     {
-        Info<< "Read " << fieldNames.size() << " " << Type::typeName
-            << " fields:" << endl;
-        Info<< "Size\tName" << nl
-            << "----\t----" << endl;
-        forAll(fieldNames, i)
+        Info<< "Read " << fieldNames.size() << ' ' << Type::typeName
+            << " fields:" << nl
+            << "Size\tName" << nl
+            << "----\t----" << nl;
+
+        for (const word& fieldName : fieldNames)
         {
-            Info<< obj.lookupObject<Type>(fieldNames[i]).size()
-                << "\t" << fieldNames[i]
-                << endl;
+            Info<< obj.lookupObject<Type>(fieldName).size()
+                << '\t' << fieldName
+                << nl;
         }
         Info<< endl;
     }

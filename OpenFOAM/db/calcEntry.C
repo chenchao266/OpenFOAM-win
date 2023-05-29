@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2013 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2013 OpenFOAM Foundation
+    Copyright (C) 2018-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -24,36 +27,75 @@ License
 \*---------------------------------------------------------------------------*/
 
 #include "calcEntry.H"
-#include "addToMemberFunctionSelectionTable.H"
-#include "dictionary.H"
-#include "dynamicCode.H"
 #include "codeStream.H"
+#include "dictionary2.H"
+#include "dynamicCode.H"
+#include "addToMemberFunctionSelectionTable.H"
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
-using namespace Foam;
+
 namespace Foam
 {
 namespace functionEntries
 {
-    defineTypeNameAndDebug(calcEntry, 0);
-
-    addToMemberFunctionSelectionTable
+    addNamedToMemberFunctionSelectionTable
     (
         functionEntry,
         calcEntry,
         execute,
-        dictionaryIstream
+        dictionaryIstream,
+        calc
     );
 
-    addToMemberFunctionSelectionTable
+    addNamedToMemberFunctionSelectionTable
     (
         functionEntry,
         calcEntry,
         execute,
-        primitiveEntryIstream
+        primitiveEntryIstream,
+        calc
+    );
+} // End namespace functionEntries
+} // End namespace Foam
+
+
+// * * * * * * * * * * * * * Private Member Functions  * * * * * * * * * * * //
+
+
+ namespace Foam{
+string functionEntries::calcEntry::evaluate
+(
+    const dictionary& parentDict,
+    Istream& is
+)
+{
+    DetailInfo
+        << "Using #calc - line "
+        << is.lineNumber() << " in file "
+        << parentDict.relativeName() << nl;
+
+    dynamicCode::checkSecurity
+    (
+        "functionEntries::calcEntry::evaluate(..)",
+        parentDict
     );
 
-}
+    // Read string
+    string s(is);
+
+    // Construct codeDict for codeStream
+    dictionary codeSubDict;
+    codeSubDict.add("code", "os << (" + s + ");");
+    dictionary codeDict(parentDict, codeSubDict);
+
+    // Use function to write stream
+    OStringStream os(is.format());
+
+    streamingFunctionType function = getFunction(parentDict, codeDict);
+    (*function)(os, parentDict);
+
+    // Return evaluated content as string
+    return os.str();
 }
 
 
@@ -62,43 +104,12 @@ namespace functionEntries
 bool functionEntries::calcEntry::execute
 (
     const dictionary& parentDict,
-    primitiveEntry& thisEntry,
+    primitiveEntry& entry,
     Istream& is
 )
 {
-    Info<< "Using #calcEntry at line " << is.lineNumber()
-        << " in file " <<  parentDict.name() << endl;
-
-    dynamicCode::checkSecurity
-    (
-        "functionEntries::calcEntry::execute(..)",
-        parentDict
-    );
-
-    // Read string
-    string s(is);
-    // Make sure we stop this entry
-    //is.putBack(token(token::END_STATEMENT, is.lineNumber()));
-
-    // Construct codeDict for codeStream
-    // must reference parent for stringOps::expand to work nicely.
-    dictionary codeSubDict;
-    codeSubDict.add("code", "os << (" + s + ");");
-    dictionary codeDict(parentDict, codeSubDict);
-
-    codeStream::streamingFunctionType function = codeStream::getFunction
-    (
-        parentDict,
-        codeDict
-    );
-
-    // use function to write stream
-    OStringStream os(is.format());
-    (*function)(os, parentDict);
-
-    // get the entry from this stream
-    IStringStream resultStream(os.str());
-    thisEntry.read(parentDict, resultStream);
+    IStringStream result(evaluate(parentDict, is));
+    entry.read(parentDict, result);
 
     return true;
 }
@@ -110,42 +121,13 @@ bool functionEntries::calcEntry::execute
     Istream& is
 )
 {
-    Info<< "Using #calcEntry at line " << is.lineNumber()
-        << " in file " <<  parentDict.name() << endl;
-
-    dynamicCode::checkSecurity
-    (
-        "functionEntries::calcEntry::execute(..)",
-        parentDict
-    );
-
-    // Read string
-    string s(is);
-    // Make sure we stop this entry
-    //is.putBack(token(token::END_STATEMENT, is.lineNumber()));
-
-    // Construct codeDict for codeStream
-    // must reference parent for stringOps::expand to work nicely.
-    dictionary codeSubDict;
-    codeSubDict.add("code", "os << (" + s + ");");
-    dictionary codeDict(parentDict, codeSubDict);
-
-    codeStream::streamingFunctionType function = codeStream::getFunction
-    (
-        parentDict,
-        codeDict
-    );
-
-    // use function to write stream
-    OStringStream os(is.format());
-    (*function)(os, parentDict);
-
-    // get the entry from this stream
-    IStringStream resultStream(os.str());
-    parentDict.read(resultStream);
+    IStringStream result(evaluate(parentDict, is));
+    parentDict.read(result);
 
     return true;
 }
 
 
 // ************************************************************************* //
+
+ } // End namespace Foam

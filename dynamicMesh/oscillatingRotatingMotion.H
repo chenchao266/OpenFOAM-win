@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -37,7 +40,7 @@ SourceFiles
 
 #include "solidBodyMotionFunction.H"
 #include "primitiveFields.H"
-#include "point.T.H"
+#include "point.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -54,7 +57,7 @@ class oscillatingRotatingMotion
 :
     public solidBodyMotionFunction
 {
-    // Private data
+    // Private Data
 
         //- Centre of gravity
         point origin_;
@@ -68,11 +71,11 @@ class oscillatingRotatingMotion
 
     // Private Member Functions
 
-        //- Disallow copy construct
-        oscillatingRotatingMotion(const oscillatingRotatingMotion&);
+        //- No copy construct
+        oscillatingRotatingMotion(const oscillatingRotatingMotion&) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const oscillatingRotatingMotion&);
+        //- No copy assignment
+        void operator=(const oscillatingRotatingMotion&) = delete;
 
 
 public:
@@ -105,7 +108,7 @@ public:
 
 
     //- Destructor
-    virtual ~oscillatingRotatingMotion();
+    virtual ~oscillatingRotatingMotion() = default;
 
 
     // Member Functions

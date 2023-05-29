@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -63,7 +65,7 @@ SourceFiles
 #define intersectedSurface_H
 
 #include "triSurface.H"
-#include "Map.T.H"
+#include "Map.H"
 #include "typeInfo.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
@@ -106,7 +108,7 @@ private:
 
     // Static Member Functions
 
-        //- Debug:Dump edges to stream. Mantains vertex numbering
+        //- Debug:Dump edges to stream. Maintains vertex numbering
         static void writeOBJ
         (
             const pointField& points,
@@ -114,7 +116,7 @@ private:
             Ostream& os
         );
 
-        //- Debug:Dump selected edges to stream. Mantains vertex numbering
+        //- Debug:Dump selected edges to stream. Maintains vertex numbering
         static void writeOBJ
         (
             const pointField& points,

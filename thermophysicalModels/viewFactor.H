@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2018 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -24,6 +27,9 @@ License
 Class
     Foam::radiation::viewFactor
 
+Group
+    grpRadiationModels
+
 Description
     View factor radiation model. The system solved is: C q = b
     where:
@@ -42,16 +48,17 @@ SourceFiles
 
 \*---------------------------------------------------------------------------*/
 
-#ifndef radiationModelviewFactor_H
-#define radiationModelviewFactor_H
+#ifndef radiation_viewFactor_H
+#define radiation_viewFactor_H
 
 #include "radiationModel.H"
 #include "singleCellFvMesh.H"
 #include "scalarMatrices.H"
 #include "globalIndex.H"
 #include "scalarListIOList.H"
-#include "mapDistribute.H"
 #include "volFields.H"
+#include "IOmapDistribute.H"
+#include "solarLoad.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -61,20 +68,39 @@ namespace radiation
 {
 
 /*---------------------------------------------------------------------------*\
-                           Class viewFactor Declaration
+                         Class viewFactor Declaration
 \*---------------------------------------------------------------------------*/
 
 class viewFactor
 :
     public radiationModel
 {
+private:
+
+    // Private Member Functions
+
+        //- No copy construct
+        viewFactor(const viewFactor&) = delete;
+
+        //- No copy assignment
+        void operator=(const viewFactor&) = delete;
+
+
+protected:
+
+    // Static data
+
+        //- Static name for view factor walls
+        static const word viewFactorWalls;
+
+
     // Private data
 
         //- Agglomeration List
         labelListIOList finalAgglom_;
 
         //- Map distributed
-        autoPtr<mapDistribute> map_;
+        autoPtr<IOmapDistribute> map_;
 
         //- Coarse mesh
         singleCellFvMesh coarseMesh_;
@@ -106,6 +132,15 @@ class viewFactor
         //- Pivot Indices for LU decomposition
         labelList pivotIndices_;
 
+        //- Use Solar Load model
+        bool useSolarLoad_;
+
+        //- Solar load radiation model
+        autoPtr<solarLoad> solarLoad_;
+
+        //-Number of bands
+        label nBands_;
+
 
     // Private Member Functions
 
@@ -121,12 +156,6 @@ class viewFactor
             const scalarListList& viewFactors,
             scalarSquareMatrix& matrix
         );
-
-        //- Disallow default bitwise copy construct
-        viewFactor(const viewFactor&);
-
-        //- Disallow default bitwise assignment
-        void operator=(const viewFactor&);
 
 
 public:
@@ -145,7 +174,7 @@ public:
 
 
     //- Destructor
-    virtual ~viewFactor();
+    virtual ~viewFactor() = default;
 
 
     // Member functions
@@ -169,6 +198,12 @@ public:
 
         //- Const access to total radiative heat flux field
         inline const volScalarField& qr() const;
+
+        //- Use useSolarLoad
+        inline bool useSolarLoad() const;
+
+        //- Number of bands
+        virtual label nBands() const;
 };
 
 

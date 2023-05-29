@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2016-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -25,11 +28,48 @@ Class
     Foam::sampledPlane
 
 Description
-    A sampledSurface defined by a plane which 'cuts' the mesh using the
-    cuttingPlane alorithm.  The plane is triangulated by default.
+    A sampledSurface defined by a plane which \a cuts the mesh using the
+    cuttingPlane alorithm.  The surface is triangulated by default.
+
+    This is often embedded as part of a sampled surfaces function object.
+
+Usage
+    Example of function object partial specification:
+    \verbatim
+    surfaces
+    {
+        surface1
+        {
+            type        plane;
+            planeType   pointAndNormal;
+            pointAndNormalDict
+            {
+                ...
+            }
+        }
+    }
+    \endverbatim
+
+    Where the sub-entries comprise:
+    \table
+        Property | Description                             | Required | Default
+        type     | plane                                   | yes      |
+        planeType | plane description (pointAndNormal etc) | yes      |
+        triangulate | triangulate faces                    | no       | true
+        bounds   | limit with bounding box                 | no       |
+        zone     | limit to cell zone (name or regex)      | no       |
+        zones    | limit to cell zones (names, regexs)     | no       |
+        coordinateSystem | define plane within given coordinate system | no |
+    \endtable
+
+SeeAlso
+    Foam::coordinateSystem
+    Foam::cuttingPlane
+    Foam::plane
 
 Note
     Does not actually cut until update() called.
+    The keyword \c zones has priority over \c zone.
 
 SourceFiles
     sampledPlane.C
@@ -58,28 +98,41 @@ class sampledPlane
 {
     // Private data
 
-        //- If restricted to zones, name of this zone or a regular expression
-        keyType zoneKey_;
+        //- The zone or zones in which cutting is to occur
+        wordRes zoneNames_;
 
-        //- Triangulated faces or keep faces as is
+        //- Optional bounding box to trim against
+        const boundBox bounds_;
+
+        //- Triangulate faces or not
         const bool triangulate_;
 
         //- Track if the surface needs an update
         mutable bool needsUpdate_;
 
+
     // Private Member Functions
 
-        //- Sample field on faces
+        //- Define cell selection from zones and bounding box.
+        //  Optionally check and warn if the plane does not intersect
+        //  with the bounds of the mesh (or submesh) or if the bounding box
+        //  does not overlap with the mesh (or submesh)
+        bitSet cellSelection(const bool warn=false) const;
+
+
+        //- Sample volume field onto surface faces
         template<class Type>
-        tmp<Field<Type>> sampleField
+        tmp<Field<Type>> sampleOnFaces
         (
-            const GeometricField<Type, fvPatchField, volMesh>& vField
+            const interpolation<Type>& sampler
         ) const;
 
-
+        //- Interpolate volume field onto surface points
         template<class Type>
-        tmp<Field<Type>>
-        interpolateField(const interpolation<Type>&) const;
+        tmp<Field<Type>> sampleOnPoints
+        (
+            const interpolation<Type>& interpolator
+        ) const;
 
 
 public:
@@ -96,7 +149,7 @@ public:
             const word& name,
             const polyMesh& mesh,
             const plane& planeDesc,
-            const keyType& zoneKey = word::null,
+            const wordRes& zones = wordRes(),
             const bool triangulate = true
         );
 
@@ -110,7 +163,7 @@ public:
 
 
     //- Destructor
-    virtual ~sampledPlane();
+    virtual ~sampledPlane() = default;
 
 
     // Member Functions
@@ -137,80 +190,108 @@ public:
         //- Faces of surface
         virtual const faceList& faces() const
         {
-            return cuttingPlane::faces();
+            return cuttingPlane::surfFaces();
         }
 
-        //- For every face original cell in mesh
-        const labelList& meshCells() const
+        //- Per-face zone/region information
+        //  Could instead return meshCells or cellZoneId of the meshCells.
+        virtual const labelList& zoneIds() const
         {
-            return cuttingPlane::cutCells();
+            return labelList::null();
         }
 
-        //- Sample field on surface
+        //- Face area magnitudes
+        virtual const vectorField& Sf() const
+        {
+            return cuttingPlane::Sf();
+        }
+
+        //- Face area magnitudes
+        virtual const scalarField& magSf() const
+        {
+            return cuttingPlane::magSf();
+        }
+
+        //- Face centres
+        virtual const vectorField& Cf() const
+        {
+            return cuttingPlane::Cf();
+        }
+
+        //- For each face, the original cell in mesh
+        using cuttingPlane::meshCells;
+
+
+    // Sample
+
+        //- Sample volume field onto surface faces
         virtual tmp<scalarField> sample
         (
-            const volScalarField&
+            const interpolation<scalar>& sampler
         ) const;
 
-
-        //- Sample field on surface
+        //- Sample volume field onto surface faces
         virtual tmp<vectorField> sample
         (
-            const volVectorField&
+            const interpolation<vector>& sampler
         ) const;
 
-        //- Sample field on surface
+        //- Sample volume field onto surface faces
         virtual tmp<sphericalTensorField> sample
         (
-            const volSphericalTensorField&
+            const interpolation<sphericalTensor>& sampler
         ) const;
 
-        //- Sample field on surface
+        //- Sample volume field onto surface faces
         virtual tmp<symmTensorField> sample
         (
-            const volSymmTensorField&
+            const interpolation<symmTensor>& sampler
         ) const;
 
-        //- Sample field on surface
+        //- Sample volume field onto surface faces
         virtual tmp<tensorField> sample
         (
-            const volTensorField&
+            const interpolation<tensor>& sampler
         ) const;
 
 
-        //- Interpolate field on surface
+    // Interpolate
+
+        //- Interpolate volume field onto surface points
         virtual tmp<scalarField> interpolate
         (
-            const interpolation<scalar>&
+            const interpolation<scalar>& interpolator
         ) const;
 
-
-        //- Interpolate field on surface
+        //- Interpolate volume field onto surface points
         virtual tmp<vectorField> interpolate
         (
-            const interpolation<vector>&
+            const interpolation<vector>& interpolator
         ) const;
 
-        //- Interpolate field on surface
+        //- Interpolate volume field onto surface points
         virtual tmp<sphericalTensorField> interpolate
         (
-            const interpolation<sphericalTensor>&
+            const interpolation<sphericalTensor>& interpolator
         ) const;
 
-        //- Interpolate field on surface
+        //- Interpolate volume field onto surface points
         virtual tmp<symmTensorField> interpolate
         (
-            const interpolation<symmTensor>&
+            const interpolation<symmTensor>& interpolator
         ) const;
 
-        //- Interpolate field on surface
+        //- Interpolate volume field onto surface points
         virtual tmp<tensorField> interpolate
         (
-            const interpolation<tensor>&
+            const interpolation<tensor>& interpolator
         ) const;
 
-        //- Write
-        virtual void print(Ostream&) const;
+
+    // Output
+
+        //- Print information
+        virtual void print(Ostream& os, int level=0) const;
 };
 
 

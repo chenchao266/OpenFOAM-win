@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2015 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2015 OpenFOAM Foundation
+    Copyright (C) 2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -37,33 +40,27 @@ namespace fv
 }
 
 
-// * * * * * * * * * * * * Protected Member Functions  * * * * * * * * * * * //
+// * * * * * * * * * * * * * Static Member Functions * * * * * * * * * * * * //
 
 const Foam::dictionary& Foam::fv::optionList::optionsDict
 (
     const dictionary& dict
-) const
+)
 {
-    if (dict.found("options"))
-    {
-        return dict.subDict("options");
-    }
-    else
-    {
-        return dict;
-    }
+    return dict.optionalSubDict("options", keyType::LITERAL);
 }
 
+
+// * * * * * * * * * * * * Protected Member Functions  * * * * * * * * * * * //
 
 bool Foam::fv::optionList::readOptions(const dictionary& dict)
 {
     checkTimeIndex_ = mesh_.time().timeIndex() + 2;
 
     bool allOk = true;
-    forAll(*this, i)
+    for (fv::option& opt : *this)
     {
-        option& bs = this->operator[](i);
-        bool ok = bs.read(dict.subDict(bs.name()));
+        bool ok = opt.read(dict.subDict(opt.name()));
         allOk = (allOk && ok);
     }
     return allOk;
@@ -74,10 +71,9 @@ void Foam::fv::optionList::checkApplied() const
 {
     if (mesh_.time().timeIndex() == checkTimeIndex_)
     {
-        forAll(*this, i)
+        for (const fv::option& opt : *this)
         {
-            const option& bs = this->operator[](i);
-            bs.checkApplied();
+            opt.checkApplied();
         }
     }
 }
@@ -87,7 +83,7 @@ void Foam::fv::optionList::checkApplied() const
 
 Foam::fv::optionList::optionList(const fvMesh& mesh, const dictionary& dict)
 :
-    PtrList<option>(),
+    PtrList<fv::option>(),
     mesh_(mesh),
     checkTimeIndex_(mesh_.time().startTimeIndex() + 2)
 {
@@ -97,7 +93,7 @@ Foam::fv::optionList::optionList(const fvMesh& mesh, const dictionary& dict)
 
 Foam::fv::optionList::optionList(const fvMesh& mesh)
 :
-    PtrList<option>(),
+    PtrList<fv::option>(),
     mesh_(mesh),
     checkTimeIndex_(mesh_.time().startTimeIndex() + 2)
 {}
@@ -109,30 +105,47 @@ void Foam::fv::optionList::reset(const dictionary& dict)
 {
     // Count number of active fvOptions
     label count = 0;
-    forAllConstIter(dictionary, dict, iter)
+    for (const entry& dEntry : dict)
     {
-        if (iter().isDict())
+        if (dEntry.isDict())
         {
-            count++;
+            ++count;
         }
     }
 
-    this->setSize(count);
-    label i = 0;
-    forAllConstIter(dictionary, dict, iter)
+    this->resize(count);
+
+    count = 0;
+    for (const entry& dEntry : dict)
     {
-        if (iter().isDict())
+        if (dEntry.isDict())
         {
-            const word& name = iter().keyword();
-            const dictionary& sourceDict = iter().dict();
+            const word& name = dEntry.keyword();
+            const dictionary& sourceDict = dEntry.dict();
 
             this->set
             (
-                i++,
+                count++,
                 option::New(name, sourceDict, mesh_)
             );
         }
     }
+}
+
+
+bool Foam::fv::optionList::appliesToField(const word& fieldName) const
+{
+    for (const fv::option& source : *this)
+    {
+        const label fieldi = source.applyToField(fieldName);
+
+        if (fieldi != -1)
+        {
+            return true;
+        }
+    }
+
+    return false;
 }
 
 
@@ -145,12 +158,12 @@ bool Foam::fv::optionList::read(const dictionary& dict)
 bool Foam::fv::optionList::writeData(Ostream& os) const
 {
     // Write list contents
-    forAll(*this, i)
+    for (const fv::option& opt : *this)
     {
         os  << nl;
-        this->operator[](i).writeHeader(os);
-        this->operator[](i).writeData(os);
-        this->operator[](i).writeFooter(os);
+        opt.writeHeader(os);
+        opt.writeData(os);
+        opt.writeFooter(os);
     }
 
     // Check state of IOstream

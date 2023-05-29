@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -46,13 +48,8 @@ namespace Foam
 }
 
 
-// * * * * * * * * * * * * * Private Member Functions  * * * * * * * * * * * //
-
-
-
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
-// Construct from dictionary
 Foam::setUpdater::setUpdater
 (
     const word& name,
@@ -61,13 +58,7 @@ Foam::setUpdater::setUpdater
     const polyTopoChanger& mme
 )
 :
-    polyMeshModifier(name, index, mme, Switch(dict.lookup("active")))
-{}
-
-
-// * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
-
-Foam::setUpdater::~setUpdater()
+    polyMeshModifier(name, index, mme, dict.get<bool>("active"))
 {}
 
 
@@ -111,22 +102,13 @@ void Foam::setUpdater::write(Ostream& os) const
 
 void Foam::setUpdater::writeDict(Ostream& os) const
 {
-    os  << nl << name() << nl << token::BEGIN_BLOCK << nl
-        << "    type " << type()
-        << token::END_STATEMENT << nl
-        << "    active " << active()
-        << token::END_STATEMENT << nl
-        << token::END_BLOCK << endl;
+    os  << nl;
+
+    os.beginBlock(name());
+    os.writeEntry("type", type());
+    os.writeEntry("active", active());
+    os.endBlock();
 }
-
-
-// * * * * * * * * * * * * * * * Member Operators  * * * * * * * * * * * * * //
-
-
-// * * * * * * * * * * * * * * * Friend Functions  * * * * * * * * * * * * * //
-
-
-// * * * * * * * * * * * * * * * Friend Operators  * * * * * * * * * * * * * //
 
 
 // ************************************************************************* //

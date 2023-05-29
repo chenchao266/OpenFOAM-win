@@ -1,9 +1,11 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -33,21 +35,28 @@ Typedef
 Description
     A List of fileNames.
 
+Typedef
+    Foam::fileNameSubList
+
+Description
+    A SubList of fileNames.
+
 \*---------------------------------------------------------------------------*/
 
 #ifndef fileNameList_H
 #define fileNameList_H
 
 #include "fileName.H"
-#include "List.T.H"
+#include "List.H"
+#include "SubList.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 namespace Foam
 {
     typedef UList<fileName> fileNameUList;
-
     typedef List<fileName> fileNameList;
+    typedef SubList<fileName> fileNameSubList;
 }
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //

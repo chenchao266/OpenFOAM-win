@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2013 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2013 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -22,7 +24,7 @@ License
     along with OpenFOAM.  If not, see <http://www.gnu.org/licenses/>.
 
 Class
-    Foam::thermalBaffleModel
+    Foam::regionModels::thermalBaffleModels::thermalBaffleModel
 
 Description
 
@@ -64,11 +66,11 @@ private:
 
     // Private Member Functions
 
-        //- Disallow default bitwise copy construct
-        thermalBaffleModel(const thermalBaffleModel&);
+        //- No copy construct
+        thermalBaffleModel(const thermalBaffleModel&) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const thermalBaffleModel&);
+        //- No copy assignment
+        void operator=(const thermalBaffleModel&) = delete;
 
         //- Initialize thermal Baffle
         void init();

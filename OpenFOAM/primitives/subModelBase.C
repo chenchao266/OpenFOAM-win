@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2019-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -26,7 +29,9 @@ License
 #include "subModelBase.H"
 
 // * * * * * * * * * * * Protected Member Functions  * * * * * * * * * * * * //
-using namespace Foam;
+
+
+ namespace Foam{
 bool subModelBase::subModelBase::inLine() const
 {
     return (modelName_ != word::null);
@@ -35,12 +40,14 @@ bool subModelBase::subModelBase::inLine() const
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
-subModelBase::subModelBase(dictionary& properties) :    modelName_(word::null),
+subModelBase::subModelBase(dictionary& properties)
+:
+    modelName_(),
     properties_(properties),
-    dict_(dictionary::null),
-    baseName_(word::null),
-    modelType_(word::null),
-    coeffDict_(dictionary::null)
+    dict_(),
+    baseName_(),
+    modelType_(),
+    coeffDict_()
 {}
 
 
@@ -51,7 +58,9 @@ subModelBase::subModelBase
     const word& baseName,
     const word& modelType,
     const word& dictExt
-) :    modelName_(word::null),
+)
+:
+    modelName_(),
     properties_(properties),
     dict_(dict),
     baseName_(baseName),
@@ -67,7 +76,9 @@ subModelBase::subModelBase
     const dictionary& dict,
     const word& baseName,
     const word& modelType
-) :    modelName_(modelName),
+)
+:
+    modelName_(modelName),
     properties_(properties),
     dict_(dict),
     baseName_(baseName),
@@ -76,7 +87,9 @@ subModelBase::subModelBase
 {}
 
 
-subModelBase::subModelBase(const subModelBase& smb) :    modelName_(smb.modelName_),
+subModelBase::subModelBase(const subModelBase& smb)
+:
+    modelName_(smb.modelName_),
     properties_(smb.properties_),
     dict_(smb.dict_),
     baseName_(smb.baseName_),
@@ -131,7 +144,7 @@ const dictionary& subModelBase::properties() const
 
 bool subModelBase::defaultCoeffs(const bool printMsg) const
 {
-    bool def = coeffDict_.lookupOrDefault<bool>("defaultCoeffs", false);
+    bool def = coeffDict_.getOrDefault("defaultCoeffs", false);
     if (printMsg && def)
     {
         Info<< incrIndent;
@@ -159,6 +172,45 @@ bool subModelBase::writeTime() const
 }
 
 
+fileName subModelBase::localPath() const
+{
+    if (modelName_ != word::null)
+    {
+        return modelName_;
+    }
+
+    return baseName_;
+}
+
+
+bool subModelBase::getModelDict
+(
+    const word& entryName,
+    dictionary& dict
+) const
+{
+    if (properties_.found(baseName_))
+    {
+        const dictionary& baseDict = properties_.subDict(baseName_);
+
+        if (inLine() && baseDict.found(modelName_))
+        {
+            const dictionary& modelDict = baseDict.subDict(modelName_);
+            dict = modelDict.subOrEmptyDict(entryName);
+            return true;
+        }
+        else if (baseDict.found(modelType_))
+        {
+            const dictionary& modelDict = baseDict.subDict(modelType_);
+            dict = modelDict.subOrEmptyDict(entryName);
+            return true;
+        }
+    }
+
+    return false;
+}
+
+
 void subModelBase::write(Ostream& os) const
 {
     os  << coeffDict_;
@@ -166,3 +218,5 @@ void subModelBase::write(Ostream& os) const
 
 
 // ************************************************************************* //
+
+ } // End namespace Foam

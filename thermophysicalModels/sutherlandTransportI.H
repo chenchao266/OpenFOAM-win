@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -91,10 +93,7 @@ template<class Thermo>
 inline Foam::autoPtr<Foam::sutherlandTransport<Thermo>>
 Foam::sutherlandTransport<Thermo>::clone() const
 {
-    return autoPtr<sutherlandTransport<Thermo>>
-    (
-        new sutherlandTransport<Thermo>(*this)
-    );
+    return autoPtr<sutherlandTransport<Thermo>>::New(*this);
 }
 
 
@@ -105,10 +104,7 @@ Foam::sutherlandTransport<Thermo>::New
     const dictionary& dict
 )
 {
-    return autoPtr<sutherlandTransport<Thermo>>
-    (
-        new sutherlandTransport<Thermo>(dict)
-    );
+    return autoPtr<sutherlandTransport<Thermo>>::New(dict);
 }
 
 
@@ -149,19 +145,6 @@ inline Foam::scalar Foam::sutherlandTransport<Thermo>::alphah
 
 
 // * * * * * * * * * * * * * * * Member Operators  * * * * * * * * * * * * * //
-
-template<class Thermo>
-inline void Foam::sutherlandTransport<Thermo>::operator=
-(
-    const sutherlandTransport<Thermo>& st
-)
-{
-    Thermo::operator=(st);
-
-    As_ = st.As_;
-    Ts_ = st.Ts_;
-}
-
 
 template<class Thermo>
 inline void Foam::sutherlandTransport<Thermo>::operator+=
@@ -213,7 +196,6 @@ inline Foam::sutherlandTransport<Thermo> Foam::operator+
         return sutherlandTransport<Thermo>
         (
             t,
-            0,
             st1.As_,
             st1.Ts_
         );

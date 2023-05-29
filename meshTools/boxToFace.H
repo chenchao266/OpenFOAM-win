@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2015 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2018-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -25,7 +28,85 @@ Class
     Foam::boxToFace
 
 Description
-    A topoSetSource to select faces based on face centres inside box.
+    A \c topoSetFaceSource to select all faces
+    whose face centre inside given bounding box(es).
+
+    Operands:
+    \table
+      Operand   | Type    | Location
+      output    | faceSet | $FOAM_CASE/constant/polyMesh/sets/\<set\>
+    \endtable
+
+Usage
+    Minimal example by using \c system/topoSetDict.actions:
+    \verbatim
+    {
+        // Mandatory (inherited) entries
+        name        <name>;
+        type        faceSet;
+        action      <action>;
+
+        // Mandatory entries
+        source      boxToFace;
+
+        // Conditional mandatory entries
+        // Select either of the below
+
+        // Option-1
+        boxes
+        (
+            (<minX> <minY> <minZ>) (<maxX> <maxY> <maxZ>) // box-1
+            (<minX> <minY> <minZ>) (<maxX> <maxY> <maxZ>) // box-2
+            ...
+        );
+
+        // Option-2
+        box (<minX> <minY> <minZ>) (<maxX> <maxY> <maxZ>);
+
+        // Option-3
+        min (<minX> <minY> <minZ>);
+        max (<maxX> <maxY> <maxZ>);
+
+        // Option-4
+        min  (<minX> <minY> <minZ>);
+        span (<sizeX> <sizeY> <sizeZ>);
+    }
+    \endverbatim
+
+    where the entries mean:
+    \table
+      Property   | Description                         | Type | Req'd | Dflt
+      name       | Name of faceSet                     | word |  yes  | -
+      type       | Type name: faceSet                  | word |  yes  | -
+      action     | Action applied on faces - see below | word |  yes  | -
+      source     | Source name: boxToFace              | word |  yes  | -
+    \endtable
+
+    Options for the \c action entry:
+    \verbatim
+      new      | Create a new faceSet from selected cells
+      add      | Add selected cells into this faceSet
+      subtract | Remove selected cells from this faceSet
+    \endverbatim
+
+    Options for the conditional mandatory entries:
+    \verbatim
+      Entry    | Description                    | Type       | Req'd  | Dflt
+      boxes    | Multiple bounding boxes        | vectorList | cond'l | -
+      box      | A single bounding box          | vectors    | cond'l | -
+      min      | Minimum point (single box)     | vector     | cond'l | -
+      max      | Maximum point (single box)     | vector     | cond'l | -
+      span     | Box width (single box)         | vector     | cond'l | -
+    \endverbatim
+
+Note
+    The order of precedence among the conditional mandatory entries from the
+    highest to the lowest is \c boxes, \c box, \c min-max or \c min-span pair
+    (compatibility with \c searchableBox).
+
+See also
+    - Foam::topoSetSource
+    - Foam::topoSetFaceSource
 
 SourceFiles
     boxToFace.C
@@ -35,7 +116,7 @@ SourceFiles
 #ifndef boxToFace_H
 #define boxToFace_H
 
-#include "topoSetSource.H"
+#include "topoSetFaceSource.H"
 #include "treeBoundBoxList.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
@@ -49,10 +130,9 @@ namespace Foam
 
 class boxToFace
 :
-    public topoSetSource
+    public topoSetFaceSource
 {
-
-    // Private data
+    // Private Data
 
         //- Add usage string
         static addToUsageTable usage_;
@@ -71,47 +151,33 @@ public:
     //- Runtime type information
     TypeName("boxToFace");
 
+
     // Constructors
 
-        //- Construct from components
-        boxToFace
-        (
-            const polyMesh& mesh,
-            const treeBoundBoxList& bbs
-        );
+        //- Construct from components, copying bounding boxes
+        boxToFace(const polyMesh& mesh, const treeBoundBoxList& bbs);
+
+        //- Construct from components, moving bounding boxes
+        boxToFace(const polyMesh& mesh, treeBoundBoxList&& bbs);
 
         //- Construct from dictionary
-        boxToFace
-        (
-            const polyMesh& mesh,
-            const dictionary& dict
-        );
+        boxToFace(const polyMesh& mesh, const dictionary& dict);
 
-        //- Construct from Istream
-        boxToFace
-        (
-            const polyMesh& mesh,
-            Istream&
-        );
+        //- Construct from stream - a single box.
+        boxToFace(const polyMesh& mesh, Istream& is);
 
 
     //- Destructor
-    virtual ~boxToFace();
+    virtual ~boxToFace() = default;
 
 
     // Member Functions
 
-        virtual sourceType setType() const
-        {
-            return FACESETSOURCE;
-        }
-
         virtual void applyToSet
         (
             const topoSetSource::setAction action,
-            topoSet&
+            topoSet& set
         ) const;
-
 };
 
 

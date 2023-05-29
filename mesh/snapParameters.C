@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2015 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -24,27 +27,57 @@ License
 \*---------------------------------------------------------------------------*/
 
 #include "snapParameters.H"
+#include "meshRefinement.H"
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
 // Construct from dictionary
-Foam::snapParameters::snapParameters(const dictionary& dict)
+Foam::snapParameters::snapParameters(const dictionary& dict, const bool dryRun)
 :
-    nSmoothPatch_(readLabel(dict.lookup("nSmoothPatch"))),
-    snapTol_(readScalar(dict.lookup("tolerance"))),
-    nSmoothDispl_(readLabel(dict.lookup("nSolveIter"))),
-    nSnap_(readLabel(dict.lookup("nRelaxIter"))),
-    nFeatureSnap_(dict.lookupOrDefault("nFeatureSnapIter", -1)),
-    explicitFeatureSnap_(dict.lookupOrDefault("explicitFeatureSnap", true)),
-    implicitFeatureSnap_(dict.lookupOrDefault("implicitFeatureSnap", false)),
+    nSmoothPatch_
+    (
+        meshRefinement::get<label>(dict, "nSmoothPatch", dryRun)
+    ),
+    nSmoothInternal_(dict.getOrDefault<label>("nSmoothInternal", 0)),
+    snapTol_
+    (
+        meshRefinement::get<scalar>(dict, "tolerance", dryRun)
+    ),
+    nSmoothDispl_
+    (
+        meshRefinement::get<label>(dict, "nSolveIter", dryRun)
+    ),
+    nSnap_
+    (
+        meshRefinement::get<label>(dict, "nRelaxIter", dryRun)
+    ),
+    nFeatureSnap_(dict.getOrDefault("nFeatureSnapIter", -1)),
+    explicitFeatureSnap_(dict.getOrDefault("explicitFeatureSnap", true)),
+    implicitFeatureSnap_(dict.getOrDefault("implicitFeatureSnap", false)),
     multiRegionFeatureSnap_
     (
-        dict.lookupOrDefault("multiRegionFeatureSnap", false)
+        dict.getOrDefault("multiRegionFeatureSnap", false)
     ),
     detectNearSurfacesSnap_
     (
-        dict.lookupOrDefault("detectNearSurfacesSnap", true)
-    )
+        dict.getOrDefault("detectNearSurfacesSnap", true)
+    ),
+    strictRegionSnap_
+    (
+        dict.getOrDefault("strictRegionSnap", false)
+    ),
+    detectBaffles_(dict.getOrDefault("detectBaffles", true)),
+    baffleFeaturePoints_(dict.getOrDefault("baffleFeaturePoints", false)),
+    releasePoints_(dict.getOrDefault("releasePoints", false)),
+    stringFeatures_(dict.getOrDefault("stringFeatures", true)),
+    avoidDiagonal_(dict.getOrDefault("avoidDiagonal", false)),
+    nFaceSplitInterval_
+    (
+        dict.getOrDefault("nFaceSplitInterval", labelMin)
+    ),
+    concaveAngle_(dict.getOrDefault<scalar>("concaveAngle", 45)),
+    minAreaRatio_(dict.getOrDefault<scalar>("minAreaRatio", 0.3)),
+    dryRun_(dryRun)
 {}
 
 

@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2016 OpenFOAM Foundation
+    Copyright (C) 2019 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -53,11 +56,15 @@ SourceFiles
 #include "subBody.H"
 #include "joint.H"
 #include "compositeJoint.H"
-#include "PtrList.T.H"
-#include "HashTable.T.H"
+#include "PtrList.H"
+#include "HashTable.H"
 
 namespace Foam
 {
+
+// Forward declaration of friend functions and operators
+class Time;
+
 namespace RBD
 {
 
@@ -93,6 +100,9 @@ class rigidBodyModel
 
 protected:
 
+        //- Reference to time database
+        const Time& time_;
+
     // Protected data representing the model structure
 
         //- List of the bodies.
@@ -108,7 +118,7 @@ protected:
         PtrList<subBody> mergedBodies_;
 
         //- Lookup-table of the IDs of the bodies
-        HashTable<label, word> bodyIDs_;
+        HashTable<label> bodyIDs_;
 
         //- List of indices of the parent of each body
         DynamicList<label> lambda_;
@@ -211,10 +221,10 @@ public:
     // Constructors
 
         //- Null-constructor which adds the single root-body at the origin
-        rigidBodyModel();
+        rigidBodyModel(const Time& time);
 
         //- Construct from dictionary
-        rigidBodyModel(const dictionary& dict);
+        rigidBodyModel(const Time& time, const dictionary& dict);
 
 
     //- Destructor
@@ -222,6 +232,9 @@ public:
 
 
     // Member Functions
+
+        //- Return the time
+        inline const Time& time() const;
 
         //- Return the number of bodies in the model (bodies().size())
         inline label nBodies() const;
@@ -257,6 +270,9 @@ public:
 
         //- Return the spatial velocity of the bodies
         inline const spatialVector& v(const label i) const;
+
+        //- Return the spatial acceleration of the bodies
+        inline const spatialVector& a(const label i) const;
 
         //- Join the given body to the parent with ID parentID via the given
         //  joint with transform from the parent frame to the joint frame XT.
@@ -324,7 +340,12 @@ public:
 
         //- Apply the restraints and accumulate the internal joint forces
         //  into the tau field and external forces into the fx field
-        void applyRestraints(scalarField& tau, Field<spatialVector>& fx) const;
+        void applyRestraints
+        (
+            scalarField& tau,
+            Field<spatialVector>& fx,
+            const rigidBodyModelState& state
+        ) const;
 
         //- Calculate the joint acceleration qDdot from the joint state q,
         //  velocity qDot, internal force tau (in the joint frame) and

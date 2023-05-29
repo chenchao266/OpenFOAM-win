@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2017-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -22,13 +25,10 @@ License
     along with OpenFOAM.  If not, see <http://www.gnu.org/licenses/>.
 
 Class
-    Foam::kOmegaSST
-
-Group
-    grpTurbulence
+    Foam::kOmegaSSTBase
 
 Description
-    Implementation of the k-omega-SST turbulence model for
+    Base class implementation of the k-omega-SST turbulence model for
     incompressible and compressible flows.
 
     Turbulence model described in:
@@ -55,13 +55,21 @@ Description
     and the addition of the optional F3 term for rough walls from
     \verbatim
         Hellsten, A. (1998).
-        "Some Improvements in Menter’s k-omega-SST turbulence model"
+        Some Improvements in Menter's k-omega-SST turbulence model
         29th AIAA Fluid Dynamics Conference, AIAA-98-2554.
+    \endverbatim
+
+    and the optional decay control from:
+    \verbatim
+        Spalart, P. R. and Rumsey, C. L. (2007).
+        Effective Inflow Conditions for Turbulence Models in Aerodynamic
+        Calculations
+        AIAA Journal, 45(10), 2544 - 2553.
     \endverbatim
 
     Note that this implementation is written in terms of alpha diffusion
     coefficients rather than the more traditional sigma (alpha = 1/sigma) so
-    that the blending can be applied to all coefficuients in a consistent
+    that the blending can be applied to all coefficients in a consistent
     manner.  The paper suggests that sigma is blended but this would not be
     consistent with the blending of the k-epsilon and k-omega models.
 
@@ -77,26 +85,31 @@ Description
 
     The default model coefficients are
     \verbatim
-        kOmegaSSTCoeffs
+        kOmegaSSTBaseCoeffs
         {
-            alphaK1     0.85;
-            alphaK2     1.0;
-            alphaOmega1 0.5;
-            alphaOmega2 0.856;
-            beta1       0.075;
-            beta2       0.0828;
-            betaStar    0.09;
-            gamma1      5/9;
-            gamma2      0.44;
-            a1          0.31;
-            b1          1.0;
-            c1          10.0;
-            F3          no;
+            alphaK1         0.85;
+            alphaK2         1.0;
+            alphaOmega1     0.5;
+            alphaOmega2     0.856;
+            beta1           0.075;
+            beta2           0.0828;
+            betaStar        0.09;
+            gamma1          5/9;
+            gamma2          0.44;
+            a1              0.31;
+            b1              1.0;
+            c1              10.0;
+            F3              no;
+
+            // Optional decay control
+            decayControl    yes;
+            kInf            \<far-field k value\>;
+            omegaInf        \<far-field omega value\>;
         }
     \endverbatim
 
 SourceFiles
-    kOmegaSST.C
+    kOmegaSSTBase.C
 
 \*---------------------------------------------------------------------------*/
 
@@ -109,19 +122,21 @@ namespace Foam
 {
 
 /*---------------------------------------------------------------------------*\
-                           Class kOmegaSST Declaration
+                        Class kOmegaSSTBase Declaration
 \*---------------------------------------------------------------------------*/
 
-template<class TurbulenceModel, class BasicTurbulenceModel>
-class kOmegaSST
+template<class BasicEddyViscosityModel>
+class kOmegaSSTBase
 :
-    public TurbulenceModel
+    public BasicEddyViscosityModel
 {
     // Private Member Functions
 
-        // Disallow default bitwise copy construct and assignment
-        kOmegaSST(const kOmegaSST&);
-        void operator=(const kOmegaSST&);
+        //- No copy construct
+        kOmegaSSTBase(const kOmegaSSTBase&) = delete;
+
+        //- No copy assignment
+        void operator=(const kOmegaSSTBase&) = delete;
 
 
 protected:
@@ -148,6 +163,7 @@ protected:
             dimensionedScalar b1_;
             dimensionedScalar c1_;
 
+            //- Flag to include the F3 term
             Switch F3_;
 
 
@@ -162,7 +178,17 @@ protected:
             volScalarField omega_;
 
 
+        // Decay control
+
+            //- Flag to include the decay control
+            Switch decayControl_;
+            dimensionedScalar kInf_;
+            dimensionedScalar omegaInf_;
+
+
     // Protected Member Functions
+
+        void setDecayControl(const dictionary& dict);
 
         virtual tmp<volScalarField> F1(const volScalarField& CDkOmega) const;
         virtual tmp<volScalarField> F2() const;
@@ -204,7 +230,11 @@ protected:
             const volScalarField::Internal& F1
         ) const
         {
-            return blend(F1, beta1_, beta2_);
+            return tmp<volScalarField::Internal>::New
+            (
+                this->type() + ":beta",
+                blend(F1, beta1_, beta2_)
+            );
         }
 
         tmp<volScalarField::Internal> gamma
@@ -212,14 +242,14 @@ protected:
             const volScalarField::Internal& F1
         ) const
         {
-            return blend(F1, gamma1_, gamma2_);
+            return tmp<volScalarField::Internal>::New
+            (
+                this->type() + ":gamma",
+                blend(F1, gamma1_, gamma2_)
+            );
         }
 
-        virtual void correctNut
-        (
-            const volScalarField& S2,
-            const volScalarField& F2
-        );
+        virtual void correctNut(const volScalarField& S2);
 
         virtual void correctNut();
 
@@ -232,8 +262,16 @@ protected:
         //- Return epsilon/k which for standard RAS is betaStar*omega
         virtual tmp<volScalarField::Internal> epsilonByk
         (
-            const volScalarField::Internal& F1,
-            const volScalarField::Internal& F2
+            const volScalarField& F1,
+            const volTensorField& gradU
+        ) const;
+
+        //- Return G/nu
+        virtual tmp<volScalarField::Internal> GbyNu
+        (
+            const volScalarField::Internal& GbyNu0,
+            const volScalarField::Internal& F2,
+            const volScalarField::Internal& S2
         ) const;
 
         virtual tmp<fvScalarMatrix> kSource() const;
@@ -250,15 +288,15 @@ protected:
 
 public:
 
-    typedef typename BasicTurbulenceModel::alphaField alphaField;
-    typedef typename BasicTurbulenceModel::rhoField rhoField;
-    typedef typename BasicTurbulenceModel::transportModel transportModel;
+    typedef typename BasicEddyViscosityModel::alphaField alphaField;
+    typedef typename BasicEddyViscosityModel::rhoField rhoField;
+    typedef typename BasicEddyViscosityModel::transportModel transportModel;
 
 
     // Constructors
 
         //- Construct from components
-        kOmegaSST
+        kOmegaSSTBase
         (
             const word& type,
             const alphaField& alpha,
@@ -272,8 +310,7 @@ public:
 
 
     //- Destructor
-    virtual ~kOmegaSST()
-    {}
+    virtual ~kOmegaSSTBase() = default;
 
 
     // Member Functions
@@ -310,25 +347,6 @@ public:
         }
 
         //- Return the turbulence kinetic energy dissipation rate
-        virtual tmp<volScalarField> epsilon() const
-        {
-              return tmp<volScalarField>
-            (
-                new volScalarField
-                (
-                    IOobject
-                    (
-                        "epsilon",
-                        this->mesh_.time().timeName(),
-                        this->mesh_
-                    ),
-                    betaStar_*k_*omega_,
-                    omega_.boundaryField().types()
-                )
-            );
-        }
-
-        //- Return the turbulence kinetic energy dissipation rate
         virtual tmp<volScalarField> omega() const
         {
             return omega_;
@@ -344,11 +362,13 @@ public:
 } // End namespace Foam
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
 #ifdef NoRepository
     #include "kOmegaSSTBase.C"
 #endif
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
 #endif
 
 // ************************************************************************* //

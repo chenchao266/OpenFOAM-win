@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2015 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2015 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -27,24 +30,17 @@ License
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
 
-namespace Foam
-{
-    template<>
-    const char* Foam::NamedEnum
-    <
-        Foam::phaseProperties::phaseType,
-        4
-    >::names[] =
-    {
-        "gas",
-        "liquid",
-        "solid",
-        "unknown"
-    };
-}
-
-const Foam::NamedEnum<Foam::phaseProperties::phaseType, 4>
-    Foam::phaseProperties::phaseTypeNames;
+const Foam::Enum
+<
+    Foam::phaseProperties::phaseType
+>
+Foam::phaseProperties::phaseTypeNames
+({
+    { phaseType::GAS, "gas" },
+    { phaseType::LIQUID, "liquid" },
+    { phaseType::SOLID, "solid" },
+    { phaseType::UNKNOWN, "unknown" },
+});
 
 
 // * * * * * * * * * * * * * Private Member Functions  * * * * * * * * * * * //
@@ -90,11 +86,11 @@ void Foam::phaseProperties::reorder(const wordList& specieNames)
 
         if (!found)
         {
-            FatalErrorInFunction
+            WarningInFunction
                 << "Could not find specie " << names0[i]
                 << " in list " <<  names_
                 << " for phase " << phaseTypeNames[phase_]
-                << exit(FatalError);
+                << nl;
         }
     }
 }
@@ -119,11 +115,11 @@ void Foam::phaseProperties::setCarrierIds
         }
         if (carrierIds_[i] == -1)
         {
-            FatalErrorInFunction
+            WarningInFunction
                 << "Could not find carrier specie " << names_[i]
                 << " in species list" <<  nl
                 << "Available species are: " << nl << carrierNames << nl
-                << exit(FatalError);
+                << nl;
         }
     }
 }
@@ -131,18 +127,18 @@ void Foam::phaseProperties::setCarrierIds
 
 void Foam::phaseProperties::checkTotalMassFraction() const
 {
-    scalar total = 0.0;
-    forAll(Y_, speciei)
+    scalar total = 0;
+    for (const scalar& val : Y_)
     {
-        total += Y_[speciei];
+        total += val;
     }
 
-    if (Y_.size() != 0 && mag(total - 1.0) > SMALL)
+    if (Y_.size() && mag(total - 1.0) > SMALL)
     {
         FatalErrorInFunction
             << "Specie fractions must total to unity for phase "
             << phaseTypeNames[phase_] << nl
-            << "Species: " << nl << names_ << nl
+            << "Species: " << nl << flatOutput(names_) << nl
             << exit(FatalError);
     }
 }
@@ -150,22 +146,21 @@ void Foam::phaseProperties::checkTotalMassFraction() const
 
 Foam::word Foam::phaseProperties::phaseToStateLabel(const phaseType pt) const
 {
-    word state = "(unknown)";
     switch (pt)
     {
         case GAS:
         {
-            state = "(g)";
+            return "(g)";
             break;
         }
         case LIQUID:
         {
-            state = "(l)";
+            return "(l)";
             break;
         }
         case SOLID:
         {
-            state = "(s)";
+            return "(s)";
             break;
         }
         default:
@@ -174,10 +169,11 @@ Foam::word Foam::phaseProperties::phaseToStateLabel(const phaseType pt) const
                 << "Invalid phase: " << phaseTypeNames[pt] << nl
                 << "    phase must be gas, liquid or solid" << nl
                 << exit(FatalError);
+            break;
         }
     }
 
-    return state;
+    return "(unknown)";
 }
 
 
@@ -187,25 +183,9 @@ Foam::phaseProperties::phaseProperties()
 :
     phase_(UNKNOWN),
     stateLabel_("(unknown)"),
-    names_(0),
-    Y_(0),
-    carrierIds_(0)
-{}
-
-
-Foam::phaseProperties::phaseProperties(const phaseProperties& pp)
-:
-    phase_(pp.phase_),
-    stateLabel_(pp.stateLabel_),
-    names_(pp.names_),
-    Y_(pp.Y_),
-    carrierIds_(pp.carrierIds_)
-{}
-
-
-// * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
-
-Foam::phaseProperties::~phaseProperties()
+    names_(),
+    Y_(),
+    carrierIds_()
 {}
 
 
@@ -253,6 +233,7 @@ void Foam::phaseProperties::reorder
                 << "Invalid phase: " << phaseTypeNames[phase_] << nl
                 << "    phase must be gas, liquid or solid" << nl
                 << exit(FatalError);
+            break;
         }
     }
 }
@@ -324,15 +305,7 @@ const Foam::labelList& Foam::phaseProperties::carrierIds() const
 
 Foam::label Foam::phaseProperties::id(const word& specieName) const
 {
-    forAll(names_, speciei)
-    {
-        if (names_[speciei] == specieName)
-        {
-            return speciei;
-        }
-    }
-
-    return -1;
+    return names_.find(specieName);
 }
 
 

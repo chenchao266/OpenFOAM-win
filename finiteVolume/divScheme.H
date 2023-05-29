@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -23,6 +25,9 @@ License
 
 Class
     Foam::fv::divScheme
+
+Group
+    grpFvDivSchemes
 
 Description
     Abstract base class for div schemes.
@@ -64,7 +69,7 @@ namespace fv
 template<class Type>
 class divScheme
 :
-    public tmp<divScheme<Type>>::refCount
+    public refCount
 {
 
 protected:
@@ -77,11 +82,11 @@ protected:
 
     // Private Member Functions
 
-        //- Disallow copy construct
-        divScheme(const divScheme&);
+        //- No copy construct
+        divScheme(const divScheme&) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const divScheme&);
+        //- No copy assignment
+        void operator=(const divScheme&) = delete;
 
 
 public:
@@ -130,7 +135,7 @@ public:
 
 
     //- Destructor
-    virtual ~divScheme();
+    virtual ~divScheme() = default;
 
 
     // Member Functions

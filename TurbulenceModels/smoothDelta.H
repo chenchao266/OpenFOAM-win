@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2016-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -56,15 +59,18 @@ class smoothDelta
 {
 public:
 
-    //- Public member class used by mesh-wave to propagate the delta-ratio
+    //- Public class used by mesh-wave to propagate the delta-ratio
     class deltaData
     {
-        scalar delta_;
+        // Private Data
+
+            scalar delta_;
+
 
         // Private Member Functions
 
-            //- Update. Gets information from neighbouring face/cell and
-            //  uses this to update itself (if necessary) and return true.
+            //- Update gets information from neighbouring face/cell and
+            //- uses this to update itself (if necessary) and return true.
             template<class TrackingData>
             inline bool update
             (
@@ -79,7 +85,7 @@ public:
 
         // Constructors
 
-            //- Construct null
+            //- Default construct
             inline deltaData();
 
             //- Construct from delta value
@@ -90,21 +96,19 @@ public:
 
             // Access
 
-            scalar delta() const
-            {
-                return delta_;
-            }
+                scalar delta() const
+                {
+                    return delta_;
+                }
 
 
             // Needed by FaceCellWave
 
-                //- Check whether origin has been changed at all or
-                //  still contains original (invalid) value.
+                //- Changed or contains original (invalid) value
                 template<class TrackingData>
                 inline bool valid(TrackingData& td) const;
 
-                //- Check for identical geometrical data.
-                //  Used for cyclics checking.
+                //- Check for identical geometrical data (eg, cyclics checking)
                 template<class TrackingData>
                 inline bool sameGeometry
                 (
@@ -115,7 +119,7 @@ public:
                 ) const;
 
                 //- Convert any absolute coordinates into relative to
-                //  (patch)face centre
+                //- (patch)face centre
                 template<class TrackingData>
                 inline void leaveDomain
                 (
@@ -181,48 +185,50 @@ public:
                     TrackingData& td
                 );
 
-                //- Same (like operator==)
+                //- Test for equality, with TrackingData
                 template<class TrackingData>
                 inline bool equal(const deltaData&, TrackingData& td) const;
 
-            // Member Operators
 
-                // Needed for List IO
-                inline bool operator==(const deltaData&) const;
+        // Member Operators
 
-                inline bool operator!=(const deltaData&) const;
+            //- Test for equality
+            inline bool operator==(const deltaData&) const;
 
-            // IOstream Operators
+            //- Test for inequality
+            inline bool operator!=(const deltaData&) const;
 
-                friend Ostream& operator<<
-                (
-                    Ostream& os,
-                    const deltaData& wDist
-                )
-                {
-                    return os << wDist.delta_;
-                }
 
-                friend Istream& operator>>(Istream& is, deltaData& wDist)
-                {
-                    return is >> wDist.delta_;
-                }
+        // IOstream Operators
+
+            friend Ostream& operator<<(Ostream& os, const deltaData& rhs)
+            {
+                return os << rhs.delta_;
+            }
+
+            friend Istream& operator>>(Istream& is, deltaData& rhs)
+            {
+                return is >> rhs.delta_;
+            }
     };
 
 
 private:
 
-    // Private data
+    // Private Data
 
         autoPtr<LESdelta> geometricDelta_;
+
         scalar maxDeltaRatio_;
 
 
     // Private Member Functions
 
-        //- Disallow default bitwise copy construct and assignment
-        smoothDelta(const smoothDelta&);
-        void operator=(const smoothDelta&);
+        //- No copy construct
+        smoothDelta(const smoothDelta&) = delete;
+
+        //- No copy assignment
+        void operator=(const smoothDelta&) = delete;
 
         // Calculate the delta values
         void calcDelta();
@@ -248,10 +254,9 @@ private:
             DynamicList<deltaData>& changedFacesInfo
         );
 
-
 public:
 
-    //- Runtime type information
+    //- Declare type-name, virtual type (with debug switch)
     TypeName("smooth");
 
 
@@ -267,14 +272,13 @@ public:
 
 
     //- Destructor
-    virtual ~smoothDelta()
-    {}
+    virtual ~smoothDelta() = default;
 
 
     // Member Functions
 
         //- Read the LESdelta dictionary
-        virtual void read(const dictionary&);
+        virtual void read(const dictionary& dict);
 
         // Correct values
         virtual void correct();
@@ -285,14 +289,13 @@ public:
 
 } // End namespace LESModels
 
-// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
-//- Data associated with deltaData type are contiguous
+// * * * * * * * * * * * * * * * * * Traits  * * * * * * * * * * * * * * * * //
+
+//- Contiguous data for deltaData
 template<>
-inline bool contiguous<LESModels::smoothDelta::deltaData>()
-{
-    return true;
-}
+struct is_contiguous<LESModels::smoothDelta::deltaData> : std::true_type {};
+
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 

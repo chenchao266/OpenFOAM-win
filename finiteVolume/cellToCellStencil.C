@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2018 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -25,7 +28,6 @@ License
 
 #include "cellToCellStencil.H"
 #include "syncTools.H"
-#include "SortableList.T.H"
 #include "emptyPolyPatch.H"
 
 // * * * * * * * * * * * * Protected Member Functions  * * * * * * * * * * * //
@@ -138,19 +140,19 @@ void Foam::cellToCellStencil::merge
 )
 {
     labelHashSet set;
-    forAll(cCells, i)
+    for (const label celli : cCells)
     {
-        if (cCells[i] != globalI)
+        if (celli != globalI)
         {
-            set.insert(cCells[i]);
+            set.insert(celli);
         }
     }
 
-    forAll(pGlobals, i)
+    for (const label celli : pGlobals)
     {
-        if (pGlobals[i] != globalI)
+        if (celli != globalI)
         {
-            set.insert(pGlobals[i]);
+            set.insert(celli);
         }
     }
 
@@ -158,9 +160,9 @@ void Foam::cellToCellStencil::merge
     label n = 0;
     cCells[n++] = globalI;
 
-    forAllConstIter(labelHashSet, set, iter)
+    for (const label seti : set)
     {
-        cCells[n++] = iter.key();
+        cCells[n++] = seti;
     }
 }
 
@@ -169,12 +171,10 @@ void Foam::cellToCellStencil::validBoundaryFaces(boolList& isValidBFace) const
 {
     const polyBoundaryMesh& patches = mesh().boundaryMesh();
 
-    isValidBFace.setSize(mesh().nFaces()-mesh().nInternalFaces(), true);
+    isValidBFace.setSize(mesh().nBoundaryFaces(), true);
 
-    forAll(patches, patchi)
+    for (const polyPatch& pp : patches)
     {
-        const polyPatch& pp = patches[patchi];
-
         if (pp.coupled() || isA<emptyPolyPatch>(pp))
         {
             label bFacei = pp.start()-mesh().nInternalFaces();
@@ -194,10 +194,8 @@ Foam::cellToCellStencil::allCoupledFacesPatch() const
 
     label nCoupled = 0;
 
-    forAll(patches, patchi)
+    for (const polyPatch& pp : patches)
     {
-        const polyPatch& pp = patches[patchi];
-
         if (pp.coupled())
         {
             nCoupled += pp.size();
@@ -206,10 +204,8 @@ Foam::cellToCellStencil::allCoupledFacesPatch() const
     labelList coupledFaces(nCoupled);
     nCoupled = 0;
 
-    forAll(patches, patchi)
+    for (const polyPatch& pp : patches)
     {
-        const polyPatch& pp = patches[patchi];
-
         if (pp.coupled())
         {
             label facei = pp.start();
@@ -221,43 +217,15 @@ Foam::cellToCellStencil::allCoupledFacesPatch() const
         }
     }
 
-    return autoPtr<indirectPrimitivePatch>
+    return autoPtr<indirectPrimitivePatch>::New
     (
-        new indirectPrimitivePatch
+        IndirectList<face>
         (
-            IndirectList<face>
-            (
-                mesh().faces(),
-                coupledFaces
-            ),
-            mesh().points()
-        )
+            mesh().faces(),
+            coupledFaces
+        ),
+        mesh().points()
     );
-}
-
-
-void Foam::cellToCellStencil::unionEqOp::operator()
-(
-    labelList& x,
-    const labelList& y
-) const
-{
-    if (y.size())
-    {
-        if (x.empty())
-        {
-            x = y;
-        }
-        else
-        {
-            labelHashSet set(x);
-            forAll(y, i)
-            {
-                set.insert(y[i]);
-            }
-            x = set.toc();
-        }
-    }
 }
 
 
@@ -340,7 +308,7 @@ Foam::labelList Foam::cellToCellStencil::calcFaceCells
 Foam::cellToCellStencil::cellToCellStencil(const polyMesh& mesh)
 :
     mesh_(mesh),
-    globalNumbering_(mesh_.nCells()+mesh_.nFaces()-mesh_.nInternalFaces())
+    globalNumbering_(mesh_.nCells()+mesh_.nBoundaryFaces())
 {}
 
 

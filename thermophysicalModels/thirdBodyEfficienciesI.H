@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -23,7 +25,7 @@ License
 
 \*---------------------------------------------------------------------------*/
 
-#include "Tuple2.T.H"
+#include "Tuple2.H"
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
@@ -55,12 +57,12 @@ inline Foam::thirdBodyEfficiencies::thirdBodyEfficiencies
     scalarList(species.size()),
     species_(species)
 {
-    if (dict.found("coeffs"))
+    List<Tuple2<word, scalar>> coeffs;
+    if (dict.readIfPresent("coeffs", coeffs))
     {
-        List<Tuple2<word, scalar>> coeffs(dict.lookup("coeffs"));
         if (coeffs.size() != species_.size())
         {
-            FatalErrorInFunction
+            FatalIOErrorInFunction(dict)
                 << "number of efficiencies = " << coeffs.size()
                 << " is not equat to the number of species " << species_.size()
                 << exit(FatalIOError);
@@ -73,7 +75,7 @@ inline Foam::thirdBodyEfficiencies::thirdBodyEfficiencies
     }
     else
     {
-        scalar defaultEff = readScalar(dict.lookup("defaultEfficiency"));
+        const scalar defaultEff = dict.get<scalar>("defaultEfficiency");
         scalarList::operator=(defaultEff);
     }
 }
@@ -102,7 +104,7 @@ inline void Foam::thirdBodyEfficiencies::write(Ostream& os) const
         coeffs[i].second() = operator[](i);
     }
 
-    os.writeKeyword("coeffs") << coeffs << token::END_STATEMENT << nl;
+    os.writeEntry("coeffs", coeffs);
 }
 
 

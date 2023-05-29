@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2018-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -39,9 +42,8 @@ SourceFiles
 #ifndef dimensionedConstants_H
 #define dimensionedConstants_H
 
-#include "dictionary.H"
+#include "dictionary2.H"
 #include "dimensionedScalar.H"
-
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -66,16 +68,20 @@ T dimensionedConstant
 {
     dictionary& dict = dimensionedConstants();
 
-    const word unitSet(dict.lookup("unitSet"));
+    const word unitSet(dict.get<word>("unitSet"));
 
     dictionary& unitDict(dict.subDict(unitSet + "Coeffs"));
 
     if (unitDict.found(group))
     {
         dictionary& groupDict = unitDict.subDict(group);
+
+        // Leaner version of dictionary::getOrAdd()
+        // without writeOptionalEntries
+
         if (groupDict.found(varName))
         {
-            return pTraits<T>(groupDict.lookup(varName));
+            return groupDict.get<T>(varName);
         }
         else
         {
@@ -114,15 +120,14 @@ T dimensionedConstant
                     Name                                                       \
                 )                                                              \
             );                                                                 \
-            dimensionedScalar& s = const_cast<dimensionedScalar&> \
+            dimensionedScalar& s = const_cast<dimensionedScalar&>  \
             (                                                                  \
                 Switch                                                         \
             );                                                                 \
             s.dimensions().reset(ds.dimensions());                             \
             s = ds;                                                            \
         }                                                                      \
-        virtual ~add##Tag##ToDimensionedConstant()                             \
-        {}                                                                     \
+        virtual ~add##Tag##ToDimensionedConstant() = default;                  \
         virtual void readData(Istream& is)                               \
         {                                                                      \
             const_cast<dimensionedScalar&>(Switch) =                     \
@@ -141,7 +146,8 @@ T dimensionedConstant
 
 
 //- Defined dimensioned constant with default , lookup as \a Name
-#define defineDimensionedConstantWithDefault(Group,Switch,DefaultExpr,Tag,Name) \
+#define defineDimensionedConstantWithDefault\
+(Group,Switch,DefaultExpr,Tag,Name)                                            \
     const dimensionedScalar Switch;                                      \
     class add##Tag##ToDimensionedConstantWithDefault                           \
     :                                                                          \
@@ -162,15 +168,14 @@ T dimensionedConstant
                     dimensionedScalar(Name,DefaultExpr)                  \
                 )                                                              \
             );                                                                 \
-            dimensionedScalar& s = const_cast<dimensionedScalar&> \
+            dimensionedScalar& s = const_cast<dimensionedScalar&>  \
             (                                                                  \
                 Switch                                                         \
             );                                                                 \
             s.dimensions().reset(ds.dimensions());                             \
             s = ds;                                                            \
         }                                                                      \
-        virtual ~add##Tag##ToDimensionedConstantWithDefault()                  \
-        {}                                                                     \
+        virtual ~add##Tag##ToDimensionedConstantWithDefault() = default;       \
         virtual void readData(Istream& is)                               \
         {                                                                      \
             const_cast<dimensionedScalar&>(Switch) =                     \

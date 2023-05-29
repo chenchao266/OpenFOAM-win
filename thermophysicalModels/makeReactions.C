@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2012-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2012-2017 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -31,11 +33,11 @@ License
 #include "LandauTellerReactionRate.H"
 #include "thirdBodyArrheniusReactionRate.H"
 
-#include "ChemicallyActivatedReactionRate.T.H"
+#include "ChemicallyActivatedReactionRate.H"
 #include "JanevReactionRate.H"
 #include "powerSeriesReactionRate.H"
 
-#include "FallOffReactionRate.T.H"
+#include "FallOffReactionRate.H"
 #include "LindemannFallOffFunction.H"
 #include "SRIFallOffFunction.H"
 #include "TroeFallOffFunction.H"
@@ -92,6 +94,14 @@ namespace Foam
     )
     makeReactions(incompressibleGasHThermoPhysics, incompressibleGasHReaction)
     makeReactions(icoPoly8HThermoPhysics, icoPoly8HReaction)
+    makeReactions(constFluidHThermoPhysics, constFluidHReaction)
+    makeReactions
+    (
+        constAdiabaticFluidHThermoPhysics,
+        constAdiabaticFluidHReaction
+    )
+    makeReactions(constHThermoPhysics, constHReaction)
+
 
     makeReactions(constGasEThermoPhysics, constGasEReaction)
     makeReactions(gasEThermoPhysics, gasEReaction)
@@ -102,6 +112,13 @@ namespace Foam
     )
     makeReactions(incompressibleGasEThermoPhysics, incompressibleGasEReaction)
     makeReactions(icoPoly8EThermoPhysics, icoPoly8EReaction)
+    makeReactions(constFluidEThermoPhysics, constFluidEReaction)
+    makeReactions
+    (
+        constAdiabaticFluidEThermoPhysics,
+        constAdiabaticFluidEReaction
+    )
+    makeReactions(constEThermoPhysics, constEReaction)
 }
 
 // ************************************************************************* //

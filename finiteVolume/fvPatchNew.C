@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2019-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -24,8 +27,7 @@ License
 \*---------------------------------------------------------------------------*/
 
 #include "fvPatch.H"
-#include "HashTable.T.H"
-#include "cyclicAMIPolyPatch.H"
+#include "HashTable.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -35,24 +37,21 @@ Foam::autoPtr<Foam::fvPatch> Foam::fvPatch::New
     const fvBoundaryMesh& bm
 )
 {
-    if (debug)
+    DebugInFunction << "Constructing fvPatch" << endl;
+
+    auto* ctorPtr = polyPatchConstructorTable(patch.type());
+
+    if (!ctorPtr)
     {
-        InfoInFunction << "Constructing fvPatch" << endl;
+        FatalErrorInLookup
+        (
+            "fvPatch",
+            patch.type(),
+            *polyPatchConstructorTablePtr_
+        ) << exit(FatalError);
     }
 
-    polyPatchConstructorTable::iterator cstrIter =
-        polyPatchConstructorTablePtr_->find(patch.type());
-
-    if (cstrIter == polyPatchConstructorTablePtr_->end())
-    {
-        FatalErrorInFunction
-            << "Unknown fvPatch type " << patch.type() << nl
-            << "Valid fvPatch types are :"
-            << polyPatchConstructorTablePtr_->sortedToc()
-            << exit(FatalError);
-    }
-
-    return autoPtr<fvPatch>(cstrIter()(patch, bm));
+    return autoPtr<fvPatch>(ctorPtr(patch, bm));
 }
 
 

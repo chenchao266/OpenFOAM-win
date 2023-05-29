@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2012-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2012-2016 OpenFOAM Foundation
+    Copyright (C) 2016 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -24,11 +27,13 @@ License
 \*---------------------------------------------------------------------------*/
 
 #include "logFiles.H"
-#include "Time.T.H"
+#include "Time1.h"
 #include "IFstream.H"
 
 // * * * * * * * * * * * * Protected Member Functions  * * * * * * * * * * * //
-using namespace Foam;
+
+
+ namespace Foam{
 void functionObjects::logFiles::createFiles()
 {
     if (Pstream::master())
@@ -40,23 +45,9 @@ void functionObjects::logFiles::createFiles()
         {
             if (!filePtrs_.set(i))
             {
-                fileName outputDir(baseFileDir()/prefix_/startTimeName);
-                mkDir(outputDir);
-
-                word fName(names_[i]);
-
-                // Check if file already exists
-                IFstream is(outputDir/(fName + ".dat"));
-                if (is.good())
-                {
-                    fName = fName + "_" + fileObr_.time().timeName();
-                }
-
-                filePtrs_.set(i, new OFstream(outputDir/(fName + ".dat")));
+                filePtrs_.set(i, createFile(names_[i]));
 
                 initStream(filePtrs_[i]);
-
-                writeFileHeader(i);
             }
         }
     }
@@ -73,6 +64,8 @@ void functionObjects::logFiles::resetNames(const wordList& names)
         filePtrs_.clear();
         filePtrs_.setSize(names_.size());
     }
+
+    createFiles();
 }
 
 
@@ -81,11 +74,7 @@ void functionObjects::logFiles::resetName(const word& name)
     names_.clear();
     names_.append(name);
 
-    if (Pstream::master())
-    {
-        filePtrs_.clear();
-        filePtrs_.setSize(1);
-    }
+    writeFile::resetFile(name);
 }
 
 
@@ -95,16 +84,27 @@ functionObjects::logFiles::logFiles
 (
     const objectRegistry& obr,
     const word& prefix
-) :    writeFile(obr, prefix),
+)
+:
+    writeFile(obr, prefix),
     names_(),
     filePtrs_()
 {}
 
 
-// * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
-
-functionObjects::logFiles::~logFiles()
-{}
+functionObjects::logFiles::logFiles
+(
+    const objectRegistry& obr,
+    const word& prefix,
+    const dictionary& dict
+)
+:
+    writeFile(obr, prefix),
+    names_(),
+    filePtrs_()
+{
+    writeFile::read(dict);
+}
 
 
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
@@ -112,33 +112,6 @@ functionObjects::logFiles::~logFiles()
 const wordList& functionObjects::logFiles::names() const
 {
     return names_;
-}
-
-
-OFstream& functionObjects::logFiles::file()
-{
-    if (!Pstream::master())
-    {
-        FatalErrorInFunction
-            << "Request for file() can only be done by the master process"
-            << abort(FatalError);
-    }
-
-    if (filePtrs_.size() != 1)
-    {
-        WarningInFunction
-            << "Requested single file, but multiple files are present"
-            << endl;
-    }
-
-    if (!filePtrs_.set(0))
-    {
-        FatalErrorInFunction
-            << "File pointer at index " << 0 << " not allocated"
-            << abort(FatalError);
-    }
-
-    return filePtrs_[0];
 }
 
 
@@ -155,7 +128,7 @@ PtrList<OFstream>& functionObjects::logFiles::files()
 }
 
 
-OFstream& functionObjects::logFiles::file(const label i)
+OFstream& functionObjects::logFiles::files(const label i)
 {
     if (!Pstream::master())
     {
@@ -184,3 +157,5 @@ bool functionObjects::logFiles::write()
 
 
 // ************************************************************************* //
+
+ } // End namespace Foam

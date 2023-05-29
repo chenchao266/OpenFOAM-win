@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -25,7 +28,7 @@ Class
     Foam::meshCutAndRemove
 
 Description
-    like meshCutter but also removes non-anchor side of cell.
+    Like meshCutter but also removes non-anchor side of cell.
 
 SourceFiles
     meshCutAndRemove.C
@@ -39,14 +42,15 @@ SourceFiles
 #include "boolList.H"
 #include "labelList.H"
 #include "typeInfo.H"
-#include "Map.T.H"
+#include "Map.H"
+#include "edgeHashes.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 namespace Foam
 {
 
-// Forward declaration of classes
+// Forward Declarations
 class Time;
 class polyTopoChange;
 class cellCuts;
@@ -62,15 +66,15 @@ class meshCutAndRemove
 :
     public edgeVertex
 {
-    // Private data
+    // Private Data
 
-        //- Faces added in last setRefinement. Per split cell label of added
-        //  face
+        //- Faces added in last setRefinement.
+        //  Per split cell label of added face
         Map<label> addedFaces_;
 
-        //- Points added in last setRefinement. Per split edge label of added
-        //  point
-        HashTable<label, edge, Hash<edge>> addedPoints_;
+        //- Points added in last setRefinement.
+        //  Per split edge label of added point
+        EdgeMap<label> addedPoints_;
 
 
     // Private Static Functions
@@ -175,11 +179,11 @@ class meshCutAndRemove
 
 
 
-        //- Disallow default bitwise copy construct
-        meshCutAndRemove(const meshCutAndRemove&);
+        //- No copy construct
+        meshCutAndRemove(const meshCutAndRemove&) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const meshCutAndRemove&);
+        //- No copy assignment
+        void operator=(const meshCutAndRemove&) = delete;
 
 public:
 
@@ -190,7 +194,7 @@ public:
     // Constructors
 
         //- Construct from mesh
-        meshCutAndRemove(const polyMesh& mesh);
+        explicit meshCutAndRemove(const polyMesh& mesh);
 
 
     // Member Functions
@@ -225,7 +229,7 @@ public:
             //- Points added. Per split edge label of added point.
             //  (note: fairly useless across topology changes since one of the
             //  points of the edge will probably disappear)
-            const HashTable<label, edge, Hash<edge>>& addedPoints() const
+            const EdgeMap<label>& addedPoints() const
             {
                 return addedPoints_;
             }

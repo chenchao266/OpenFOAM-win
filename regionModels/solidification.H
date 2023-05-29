@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2013-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2013-2017 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -22,7 +24,7 @@ License
     along with OpenFOAM.  If not, see <http://www.gnu.org/licenses/>.
 
 Class
-    Foam::solidification
+    Foam::regionModels::surfaceFilmModels::solidification
 
 Description
     Solidification phase change model where all film mass is converted when the
@@ -58,11 +60,11 @@ class solidification
 {
     // Private member functions
 
-        //- Disallow default bitwise copy construct
-        solidification(const solidification&);
+        //- No copy construct
+        solidification(const solidification&) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const solidification&);
+        //- No copy assignment
+        void operator=(const solidification&) = delete;
 
 
 protected:
@@ -96,7 +98,7 @@ public:
     // Constructors
 
         //- Construct from surface film model
-        solidification(surfaceFilmModel& film, const dictionary& dict);
+        solidification(surfaceFilmRegionModel& film, const dictionary& dict);
 
 
     //- Destructor

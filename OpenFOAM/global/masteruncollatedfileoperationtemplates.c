@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2017-2018 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -23,126 +26,138 @@ License
 
 \*---------------------------------------------------------------------------*/
 
-#include "Pstream.T.H"
+#include "Pstream.H"
 #include "IFstream.H"
 
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
-namespace Foam {
-    template<class Type>
-    Type fileOperations::masterUncollatedFileOperation::scatterList
-    (
-        const UList<Type>& masterLst
-    ) const
+
+
+ namespace Foam{
+template<class Type>
+Type fileOperations::masterUncollatedFileOperation::scatterList
+(
+    const UList<Type>& masterLst,
+    const int tag,
+    const label comm
+) const
+{
+    // TBD: more efficient scatter
+    PstreamBuffers pBufs(UPstream::commsTypes::nonBlocking, tag, comm);
+    if (Pstream::master(comm))
     {
-        // TBD: more efficient scatter
-        PstreamBuffers pBufs(UPstream::commsTypes::nonBlocking);
-        if (Pstream::master())
+        for (const int proci : Pstream::subProcs(comm))
         {
-            for (label proci = 1; proci < Pstream::nProcs(); proci++)
-            {
-                UOPstream os(proci, pBufs);
-                os << masterLst[proci];
-            }
-        }
-        pBufs.finishedSends();
-
-        Type myResult;
-
-        if (Pstream::master())
-        {
-            myResult = masterLst[Pstream::myProcNo()];
-        }
-        else
-        {
-            UIPstream is(Pstream::masterNo(), pBufs);
-            is >> myResult;
-        }
-        return myResult;
-    }
-
-
-    template<class Type, class fileOp>
-    Type fileOperations::masterUncollatedFileOperation::masterOp
-    (
-        const fileName& fName,
-        const fileOp& fop
-    ) const
-    {
-        if (IFstream::debug)
-        {
-            Pout << "masterUncollatedFileOperation : Operation on " << fName << endl;
-        }
-        if (Pstream::parRun())
-        {
-            List<fileName> filePaths(Pstream::nProcs());
-            filePaths[Pstream::myProcNo()] = fName;
-            Pstream::gatherList(filePaths);
-
-            List<Type> result(Pstream::nProcs());
-            if (Pstream::master())
-            {
-                result = fop(filePaths[0]);
-                for (label i = 1; i < filePaths.size(); i++)
-                {
-                    if (filePaths[i] != filePaths[0])
-                    {
-                        result[i] = fop(filePaths[i]);
-                    }
-                }
-            }
-
-            return scatterList(result);
-        }
-        else
-        {
-            return fop(fName);
+            UOPstream os(proci, pBufs);
+            os << masterLst[proci];
         }
     }
+    pBufs.finishedSends();
 
+    Type myResult;
 
-    template<class Type, class fileOp>
-    Type fileOperations::masterUncollatedFileOperation::masterOp
-    (
-        const fileName& src,
-        const fileName& dest,
-        const fileOp& fop
-    ) const
+    if (Pstream::master(comm))
     {
-        if (IFstream::debug)
-        {
-            Pout << "masterUncollatedFileOperation : Operation on src:" << src
-                << " dest:" << dest << endl;
-        }
-        if (Pstream::parRun())
-        {
-            List<fileName> srcs(Pstream::nProcs());
-            srcs[Pstream::myProcNo()] = src;
-            Pstream::gatherList(srcs);
-
-            List<fileName> dests(Pstream::nProcs());
-            dests[Pstream::myProcNo()] = dest;
-            Pstream::gatherList(dests);
-
-            List<Type> result(Pstream::nProcs());
-            if (Pstream::master())
-            {
-                result = fop(srcs[0], dests[0]);
-                for (label i = 1; i < srcs.size(); i++)
-                {
-                    if (srcs[i] != srcs[0])
-                    {
-                        result[i] = fop(srcs[i], dests[i]);
-                    }
-                }
-            }
-
-            return scatterList(result);
-        }
-        else
-        {
-            return fop(src, dest);
-        }
+        myResult = masterLst[Pstream::myProcNo(comm)];
     }
-
+    else
+    {
+        UIPstream is(Pstream::masterNo(), pBufs);
+        is >> myResult;
+    }
+    return myResult;
 }
+
+
+template<class Type, class fileOp>
+Type fileOperations::masterUncollatedFileOperation::masterOp
+(
+    const fileName& fName,
+    const fileOp& fop,
+    const int tag,
+    const label comm
+) const
+{
+    if (IFstream::debug)
+    {
+        Pout<< "masterUncollatedFileOperation::masterOp : Operation "
+            << typeid(fileOp).name()
+            << " on " << fName << endl;
+    }
+    if (Pstream::parRun())
+    {
+        List<fileName> filePaths(Pstream::nProcs(comm));
+        filePaths[Pstream::myProcNo(comm)] = fName;
+        Pstream::gatherList(filePaths, tag, comm);
+
+        List<Type> result(filePaths.size());
+        if (Pstream::master(comm))
+        {
+            result = fop(filePaths[0]);
+            for (label i = 1; i < filePaths.size(); i++)
+            {
+                if (filePaths[i] != filePaths[0])
+                {
+                    result[i] = fop(filePaths[i]);
+                }
+            }
+        }
+
+        return scatterList(result, tag, comm);
+    }
+    else
+    {
+        return fop(fName);
+    }
+}
+
+
+template<class Type, class fileOp>
+Type fileOperations::masterUncollatedFileOperation::masterOp
+(
+    const fileName& src,
+    const fileName& dest,
+    const fileOp& fop,
+    const int tag,
+    const label comm
+) const
+{
+    if (IFstream::debug)
+    {
+        Pout<< "masterUncollatedFileOperation : Operation on src:" << src
+            << " dest:" << dest << endl;
+    }
+    if (Pstream::parRun())
+    {
+        List<fileName> srcs(Pstream::nProcs(comm));
+        srcs[Pstream::myProcNo(comm)] = src;
+        Pstream::gatherList(srcs, tag, comm);
+
+        List<fileName> dests(srcs.size());
+        dests[Pstream::myProcNo(comm)] = dest;
+        Pstream::gatherList(dests, tag, comm);
+
+        List<Type> result(Pstream::nProcs(comm));
+        if (Pstream::master(comm))
+        {
+            result = fop(srcs[0], dests[0]);
+            for (label i = 1; i < srcs.size(); i++)
+            {
+                if (srcs[i] != srcs[0])
+                {
+                    result[i] = fop(srcs[i], dests[i]);
+                }
+            }
+        }
+
+        return scatterList(result, tag, comm);
+    }
+    else
+    {
+        return fop(src, dest);
+    }
+}
+
+
 // ************************************************************************* //
+
+ } // End namespace Foam

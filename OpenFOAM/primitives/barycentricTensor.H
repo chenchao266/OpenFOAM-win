@@ -1,9 +1,12 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2016-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2017 OpenFOAM Foundation
+    Copyright (C) 2019-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -21,41 +24,142 @@ License
     You should have received a copy of the GNU General Public License
     along with OpenFOAM.  If not, see <http://www.gnu.org/licenses/>.
 
-Typedef
-    Foam::barycentricTensor
+Class
+    Foam::BarycentricTensor
 
 Description
-    A scalar version of the templated BarycentricTensor
+    Templated 4x3 tensor derived from VectorSpace. Has 12 components. Can
+    represent a barycentric transformation as a matrix-barycentric inner-
+    product. Can alternatively represent an inverse barycentric transformation
+    as a vector-matrix inner-product.
+
+SourceFiles
+    BarycentricTensorI.H
 
 \*---------------------------------------------------------------------------*/
 
-#ifndef barycentricTensor_H
-#define barycentricTensor_H
+#ifndef BarycentricTensor_H
+#define BarycentricTensor_H
 
-#include "scalar.H"
-#include "BarycentricTensor.T.H"
-#include "contiguous.H"
+#include "Barycentric.H"
+#include "Tensor.H"
+#include "Vector.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 namespace Foam
 {
 
-// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+/*---------------------------------------------------------------------------*\
+                         Class BarycentricTensor Declaration
+\*---------------------------------------------------------------------------*/
 
-typedef BarycentricTensor<scalar> barycentricTensor;
-
-
-template<>
-inline bool contiguous<barycentricTensor>()
+template<class Cmpt>
+class BarycentricTensor
+:
+    public MatrixSpace<BarycentricTensor<Cmpt>, Cmpt, 4, 3>
 {
-    return true;
-}
+public:
+
+    // Typedefs
+
+        //- Equivalent type of labels used for valid component indexing
+        typedef Tensor<label> labelType;
+
+
+    // Member Constants
+
+        //- Rank of BarycentricTensor is 2
+        static constexpr direction rank = 2;
+
+
+    //- Component labeling enumeration
+    enum components { XA, XB, XC, XD, YA, YB, YC, YD, ZA, ZB, ZC, ZD };
+
+
+    // Generated Methods
+
+        //- Default construct
+        BarycentricTensor() = default;
+
+
+    // Constructors
+
+        //- Construct initialised to zero
+        inline BarycentricTensor(const zero);
+
+        //- Construct given three barycentric components (rows)
+        inline BarycentricTensor
+        (
+            const Barycentric<Cmpt>& x,
+            const Barycentric<Cmpt>& y,
+            const Barycentric<Cmpt>& z
+        );
+
+        //- Construct given four vector components (columns)
+        inline BarycentricTensor
+        (
+            const Vector<Cmpt>& a,
+            const Vector<Cmpt>& b,
+            const Vector<Cmpt>& c,
+            const Vector<Cmpt>& d
+        );
+
+
+    // Member Functions
+
+        // Row-barycentric access
+
+            inline Barycentric<Cmpt> x() const;
+            inline Barycentric<Cmpt> y() const;
+            inline Barycentric<Cmpt> z() const;
+
+        // Column-vector access
+
+            inline Vector<Cmpt> a() const;
+            inline Vector<Cmpt> b() const;
+            inline Vector<Cmpt> c() const;
+            inline Vector<Cmpt> d() const;
+};
+
+
+// * * * * * * * * * * * * * * * * * Traits  * * * * * * * * * * * * * * * * //
+
+//- Data are contiguous if component type is contiguous
+template<class Cmpt>
+struct is_contiguous<BarycentricTensor<Cmpt>> : is_contiguous<Cmpt> {};
+
+//- Data are contiguous label if component type is label
+template<class Cmpt>
+struct is_contiguous_label<BarycentricTensor<Cmpt>>
+:
+    is_contiguous_label<Cmpt>
+{};
+
+//- Data are contiguous scalar if component type is scalar
+template<class Cmpt>
+struct is_contiguous_scalar<BarycentricTensor<Cmpt>>
+:
+    is_contiguous_scalar<Cmpt>
+{};
+
+
+template<class Cmpt>
+class typeOfTranspose<Cmpt, BarycentricTensor<Cmpt>>
+{
+public:
+
+    typedef void type;
+};
 
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 } // End namespace Foam
+
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+#include "BarycentricTensorI.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 

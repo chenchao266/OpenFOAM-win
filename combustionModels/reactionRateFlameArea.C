@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -73,7 +75,7 @@ Foam::reactionRateFlameArea::~reactionRateFlameArea()
 
 bool Foam::reactionRateFlameArea::read(const dictionary& dict)
 {
-    dict.lookup("fuel") >> fuel_;
+    dict.readEntry("fuel", fuel_);
 
     return true;
 }

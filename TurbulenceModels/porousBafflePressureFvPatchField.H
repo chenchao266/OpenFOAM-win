@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2016 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -58,6 +61,7 @@ Usage
         D            | Darcy coefficient       | yes         |
         I            | inertial coefficient    | yes         |
         length       | porous media length in the flow direction | yes |
+        uniformJump  | applies a uniform pressure drop on the patch based on the
     \endtable
 
     Example of the boundary condition specification:
@@ -70,6 +74,7 @@ Usage
         D               0.001;
         I               1000000;
         length          0.1;
+        uniformJump     false;
         value           uniform 0;
     }
     \endverbatim
@@ -86,6 +91,7 @@ SourceFiles
 #define porousBafflePressureFvPatchField_H
 
 #include "fixedJumpFvPatchField.H"
+#include "Function1.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -109,13 +115,16 @@ class porousBafflePressureFvPatchField
         const word rhoName_;
 
         //- Darcy pressure loss coefficient
-        scalar D_;
+        autoPtr<Function1<scalar>> D_;
 
         //- Inertia pressure lost coefficient
-        scalar I_;
+        autoPtr<Function1<scalar>> I_;
 
         //- Porous media length
         scalar length_;
+
+        //- Aplies uniform pressure drop
+        bool uniformJump_;
 
 
 public:

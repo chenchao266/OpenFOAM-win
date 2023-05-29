@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -26,11 +29,11 @@ License
 #include "lineDivide.H"
 #include "blockEdge.H"
 
-// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+// * * * * * * * * * * * * * * * Local Functions * * * * * * * * * * * * * * //
 
 namespace Foam
 {
-    //- Calculate the geometric expension factor from the expansion ratio
+    //- Calculate the geometric expansion factor from the expansion ratio
     inline scalar calcGexp(const scalar expRatio, const label nDiv)
     {
         return nDiv > 1 ? pow(expRatio, 1.0/(nDiv - 1)) : 0.0;
@@ -94,7 +97,7 @@ Foam::lineDivide::lineDivide
             label secnEnd = secnStart + secnDiv;
 
             // Calculate the spacing
-            if (expRatio == 1.0)
+            if (equal(expRatio, 1))
             {
                 for (label i = secnStart; i < secnEnd; i++)
                 {
@@ -112,8 +115,8 @@ Foam::lineDivide::lineDivide
                 {
                     divisions_[i] =
                         secStart
-                      + blockFrac*(1.0 - pow(expFact, (int)(i - secnStart + 1)))
-                    /(1.0 - pow(expFact, (int)(secnDiv)));
+                      + blockFrac*(1.0 - pow(expFact, (const int)(i - secnStart + 1)))
+                    /(1.0 - pow(expFact, (const int)secnDiv));
                 }
             }
 
@@ -137,13 +140,13 @@ Foam::lineDivide::lineDivide
 
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
 
-const Foam::pointField& Foam::lineDivide::points() const
+const Foam::pointField& Foam::lineDivide::points() const noexcept
 {
     return points_;
 }
 
 
-const Foam::scalarList& Foam::lineDivide::lambdaDivisions() const
+const Foam::scalarList& Foam::lineDivide::lambdaDivisions() const noexcept
 {
     return divisions_;
 }

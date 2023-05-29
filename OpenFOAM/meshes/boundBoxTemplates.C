@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2016-2017 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -24,104 +27,220 @@ License
 \*---------------------------------------------------------------------------*/
 
 #include "boundBox.H"
-#include "FixedList.T.H"
-#include "PstreamReduceOps.T.H"
-
+#include "FixedList.H"
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
-namespace Foam {
-    template<unsigned Size>
-    boundBox::boundBox
-    (
-        const UList<point>& points,
-        const FixedList<label, Size>& indices,
-        const bool doReduce
-    )
-        :
-        min_(Zero),
-        max_(Zero)
+
+
+ namespace Foam{
+template<unsigned N>
+boundBox::boundBox
+(
+    const UList<point>& points,
+    const FixedList<label, N>& indices,
+    bool doReduce
+)
+:
+    boundBox()
+{
+    add(points, indices);
+
+    if (doReduce)
     {
-        // a FixedList is never empty
-        if (points.empty())
-        {
-            if (doReduce && Pstream::parRun())
-            {
-                // Use values that get overwritten by reduce minOp, maxOp below
-                min_ = point(VGREAT, VGREAT, VGREAT);
-                max_ = point(-VGREAT, -VGREAT, -VGREAT);
-            }
-        }
-        else
-        {
-            min_ = points[indices[0]];
-            max_ = points[indices[0]];
+        reduce();
+    }
+}
 
-            for (unsigned i = 1; i < Size; ++i)
-            {
-                min_ = ::min(min_, points[indices[i]]);
-                max_ = ::max(max_, points[indices[i]]);
-            }
-        }
 
-        // Reduce parallel information
-        if (doReduce)
-        {
-            reduce(min_, minOp<point>());
-            reduce(max_, maxOp<point>());
-        }
+// * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * * //
+
+template<unsigned N>
+void boundBox::add
+(
+    const FixedList<point, N>& points
+)
+{
+    for (const point& p : points)
+    {
+        add(p);
+    }
+}
+
+
+template<unsigned N>
+void boundBox::add
+(
+    const UList<point>& points,
+    const FixedList<label, N>& indices
+)
+{
+    const label len = points.size();
+
+    // Skip if points is empty
+    if (!len)
+    {
+        return;
     }
 
-
-    // * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * * //
-
-    template<unsigned Size>
-    bool boundBox::contains
-    (
-        const UList<point>& points,
-        const FixedList<label, Size>& indices
-    ) const
+    for (const label pointi : indices)
     {
-        // a FixedList is never empty
-        if (points.empty())
+        if (pointi >= 0 && pointi < len)
         {
-            return false;
+            add(points[pointi]);
         }
+    }
+}
 
-        forAll(indices, i)
+
+template<class IntContainer>
+void boundBox::add
+(
+    const UList<point>& points,
+    const IntContainer& indices
+)
+{
+    const label len = points.size();
+
+    // Skip if points is empty
+    if (!len)
+    {
+        return;
+    }
+
+    for (const label pointi : indices)
+    {
+        if (pointi >= 0 && pointi < len)
         {
-            if (!contains(points[indices[i]]))
+            add(points[pointi]);
+        }
+    }
+}
+
+
+template<unsigned N>
+inline bool boundBox::contains
+(
+    const UList<point>& points,
+    const FixedList<label, N>& indices
+) const
+{
+    const label len = points.size();
+
+    if (!len)
+    {
+        return true;
+    }
+
+    for (const label pointi : indices)
+    {
+        if (pointi >= 0 && pointi < len)
+        {
+            if (!contains(points[pointi]))
             {
                 return false;
             }
         }
+    }
 
+    return true;
+}
+
+
+template<class IntContainer>
+inline bool boundBox::contains
+(
+    const UList<point>& points,
+    const IntContainer& indices
+) const
+{
+    const label len = points.size();
+
+    if (!len)
+    {
         return true;
     }
 
-
-    template<unsigned Size>
-    bool boundBox::containsAny
-    (
-        const UList<point>& points,
-        const FixedList<label, Size>& indices
-    ) const
+    for (const label pointi : indices)
     {
-        // a FixedList is never empty
-        if (points.empty())
+        if (pointi >= 0 && pointi < len)
         {
-            return false;
+            if (!contains(points[pointi]))
+            {
+                return false;
+            }
         }
+    }
 
-        forAll(indices, i)
+    return true;
+}
+
+
+template<unsigned N>
+inline bool boundBox::containsAny
+(
+    const UList<point>& points,
+    const FixedList<label, N>& indices
+) const
+{
+    const label len = points.size();
+
+    if (!len)
+    {
+        return true;
+    }
+
+    label failed = 0;
+
+    for (const label pointi : indices)
+    {
+        if (pointi >= 0 && pointi < len)
         {
-            if (contains(points[indices[i]]))
+            if (contains(points[pointi]))
             {
                 return true;
             }
-        }
 
-        return false;
+            ++failed;
+        }
     }
 
+    return !failed;
 }
+
+
+template<class IntContainer>
+inline bool boundBox::containsAny
+(
+    const UList<point>& points,
+    const IntContainer& indices
+) const
+{
+    const label len = points.size();
+
+    if (!len)
+    {
+        return true;
+    }
+
+    label failed = 0;
+
+    for (const label pointi : indices)
+    {
+        if (pointi >= 0 && pointi < len)
+        {
+            if (contains(points[pointi]))
+            {
+                return true;
+            }
+
+            ++failed;
+        }
+    }
+
+    return !failed;
+}
+
+
 // ************************************************************************* //
+
+ } // End namespace Foam

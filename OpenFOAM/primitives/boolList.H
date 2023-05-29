@@ -1,9 +1,11 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -22,16 +24,10 @@ License
     along with OpenFOAM.  If not, see <http://www.gnu.org/licenses/>.
 
 Typedef
-    Foam::boolUList
+    Foam::boolListList
 
 Description
-    A UList of bool
-
-Typedef
-    Foam::boolList
-
-Description
-    Bool container classes
+    A List of boolList.
 
 \*---------------------------------------------------------------------------*/
 
@@ -39,15 +35,16 @@ Description
 #define boolList_H
 
 #include "bool.H"
-#include "List.T.H"
+#include "List.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 namespace Foam
 {
-    typedef UList<bool> boolUList;
+    // boolUlist   = defined in UList.H
+    // boolList    = defined in List.H
+    // boolSubList = defined in SubList.H
 
-    typedef List<bool> boolList;
     typedef List<List<bool>> boolListList;
 }
 

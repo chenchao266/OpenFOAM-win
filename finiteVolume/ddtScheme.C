@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2018 OpenFOAM Foundation
+    Copyright (C) 2017-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -24,10 +27,11 @@ License
 \*---------------------------------------------------------------------------*/
 
 #include "fv.H"
-#include "HashTable.T.H"
+#include "HashTable.H"
 #include "surfaceInterpolate.H"
 #include "fvMatrix.H"
 #include "cyclicAMIFvPatch.H"
+#include "registerSwitch.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -55,10 +59,8 @@ tmp<ddtScheme<Type>> ddtScheme<Type>::New
 
     if (schemeData.eof())
     {
-        FatalIOErrorInFunction
-        (
-            schemeData
-        )   << "Ddt scheme not specified" << endl << endl
+        FatalIOErrorInFunction(schemeData)
+            << "Ddt scheme not specified" << endl << endl
             << "Valid ddt schemes are :" << endl
             << IstreamConstructorTablePtr_->sortedToc()
             << exit(FatalIOError);
@@ -66,46 +68,38 @@ tmp<ddtScheme<Type>> ddtScheme<Type>::New
 
     const word schemeName(schemeData);
 
-    typename IstreamConstructorTable::iterator cstrIter =
-        IstreamConstructorTablePtr_->find(schemeName);
+    auto* ctorPtr = IstreamConstructorTable(schemeName);
 
-    if (cstrIter == IstreamConstructorTablePtr_->end())
+    if (!ctorPtr)
     {
-        FatalIOErrorInFunction
+        FatalIOErrorInLookup
         (
-            schemeData
-        )   << "Unknown ddt scheme " << schemeName << nl << nl
-            << "Valid ddt schemes are :" << endl
-            << IstreamConstructorTablePtr_->sortedToc()
-            << exit(FatalIOError);
+            schemeData,
+            "ddt",
+            schemeName,
+            *IstreamConstructorTablePtr_
+        ) << exit(FatalIOError);
     }
 
-    return cstrIter()(mesh, schemeData);
+    return ctorPtr(mesh, schemeData);
 }
-
-
-// * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
-
-template<class Type>
-ddtScheme<Type>::~ddtScheme()
-{}
 
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 template<class Type>
-tmp<volFieldType<Type>> ddtScheme<Type>::fvcDdt
+tmp<GeometricField<Type, fvPatchField, volMesh>> ddtScheme<Type>::fvcDdt
 (
     const volScalarField& alpha,
     const volScalarField& rho,
-    const volFieldType<Type>& vf
+    const GeometricField<Type, fvPatchField, volMesh>& vf
 )
 {
     NotImplemented;
 
-    return tmp<volFieldType<Type>>
+    return tmp<GeometricField<Type, fvPatchField, volMesh>>
     (
-        volFieldType<Type>::null()
+        GeometricField<Type, fvPatchField, volMesh>::null()
     );
 }
 
@@ -115,34 +109,31 @@ tmp<fvMatrix<Type>> ddtScheme<Type>::fvmDdt
 (
     const volScalarField& alpha,
     const volScalarField& rho,
-    const volFieldType<Type>& vf
+    const GeometricField<Type, fvPatchField, volMesh>& vf
 )
 {
     NotImplemented;
 
-    return tmp<fvMatrix<Type>>
+    return tmp<fvMatrix<Type>>::New
     (
-        new fvMatrix<Type>
-        (
-            vf,
-            alpha.dimensions()*rho.dimensions()
-            *vf.dimensions()*dimVol/dimTime
-        )
+        vf,
+        alpha.dimensions()*rho.dimensions()
+        *vf.dimensions()*dimVol/dimTime
     );
 }
 
 
 template<class Type>
-tmp<surfaceFieldType<Type>> ddtScheme<Type>::fvcDdt
+tmp<GeometricField<Type, fvsPatchField, surfaceMesh>> ddtScheme<Type>::fvcDdt
 (
-    const surfaceFieldType<Type>& sf
+    const GeometricField<Type, fvsPatchField, surfaceMesh>& sf
 )
 {
     NotImplemented;
 
-    return tmp<surfaceFieldType<Type>>
+    return tmp<GeometricField<Type, fvsPatchField, surfaceMesh>>
     (
-        surfaceFieldType<Type>::null()
+        GeometricField<Type, fvsPatchField, surfaceMesh>::null()
     );
 }
 
@@ -151,23 +142,131 @@ tmp<surfaceFieldType<Type>> ddtScheme<Type>::fvcDdt
 template<class Type>
 tmp<surfaceScalarField> ddtScheme<Type>::fvcDdtPhiCoeff
 (
-    const volFieldType<Type>& U,
+    const GeometricField<Type, fvPatchField, volMesh>& U,
     const fluxFieldType& phi,
     const fluxFieldType& phiCorr
 )
 {
-    tmp<surfaceScalarField> tddtCouplingCoeff = scalar(1)
-      - min
+    if (fv::debug)
+    {
+        InfoInFunction << "Using standard version" << endl;
+    }
+
+    tmp<surfaceScalarField> tddtCouplingCoeff
+    (
+        new surfaceScalarField
+        (
+            IOobject
+            (
+                "ddtCouplingCoeff",
+                U.mesh().time().timeName(),
+                U.mesh()
+            ),
+            U.mesh(),
+            dimensionedScalar("one", dimless, 1.0)
+        )
+    );
+
+    surfaceScalarField& ddtCouplingCoeff = tddtCouplingCoeff.ref();
+
+    if (ddtPhiCoeff_ < 0)
+    {
+        // v1712 and earlier
+        ddtCouplingCoeff -= min
         (
             mag(phiCorr)
            /(mag(phi) + dimensionedScalar("small", phi.dimensions(), SMALL)),
             scalar(1)
         );
+    }
+    else
+    {
+        ddtCouplingCoeff =
+            dimensionedScalar("ddtPhiCoeff", dimless, ddtPhiCoeff_);
+    }
+
+    surfaceScalarField::Boundary& ccbf = ddtCouplingCoeff.boundaryFieldRef();
+
+    forAll(U.boundaryField(), patchi)
+    {
+        if
+        (
+            U.boundaryField()[patchi].fixesValue()
+         || isA<cyclicAMIFvPatch>(mesh().boundary()[patchi])
+        )
+        {
+            ccbf[patchi] = 0.0;
+        }
+    }
+
+    if (debug > 1)
+    {
+        InfoInFunction
+            << "ddtCouplingCoeff mean max min = "
+            << gAverage(ddtCouplingCoeff.primitiveField())
+            << " " << gMax(ddtCouplingCoeff.primitiveField())
+            << " " << gMin(ddtCouplingCoeff.primitiveField())
+            << endl;
+    }
+
+    return tddtCouplingCoeff;
+}
+
+
+template<class Type>
+tmp<surfaceScalarField> ddtScheme<Type>::fvcDdtPhiCoeffExperimental
+(
+    const GeometricField<Type, fvPatchField, volMesh>& U,
+    const fluxFieldType& phi,
+    const fluxFieldType& phiCorr
+)
+{
+    if (fv::debug)
+    {
+        InfoInFunction << "Using experimental version" << endl;
+    }
+
+    tmp<surfaceScalarField> tddtCouplingCoeff
+    (
+        new surfaceScalarField
+        (
+            IOobject
+            (
+                "ddtCouplingCoeff",
+                U.mesh().time().timeName(),
+                U.mesh()
+            ),
+            U.mesh(),
+            dimensionedScalar("one", dimless, 1.0)
+        )
+    );
 
     surfaceScalarField& ddtCouplingCoeff = tddtCouplingCoeff.ref();
 
-    surfaceScalarField::Boundary& ccbf =
-        ddtCouplingCoeff.boundaryFieldRef();
+    if (ddtPhiCoeff_ < 0)
+    {
+        // See note below re: commented code
+        ddtCouplingCoeff -= min
+        (
+            //  mag(phiCorr)
+            // *mesh().time().deltaT()*mag(mesh().deltaCoeffs())/mesh().magSf(),
+            //  scalar(1)
+            mag(phiCorr)
+            *mesh().time().deltaT()*mesh().deltaCoeffs()/mesh().magSf(),
+            scalar(1)
+        );
+
+        // Note: setting oriented to false to avoid having to use mag(deltaCoeffs)
+        // - the deltaCoeffs field is always positive (scalars)
+        ddtCouplingCoeff.setOriented(false);
+    }
+    else
+    {
+        ddtCouplingCoeff =
+            dimensionedScalar("ddtPhiCoeff", dimless, ddtPhiCoeff_);
+    }
+
+    surfaceScalarField::Boundary& ccbf = ddtCouplingCoeff.boundaryFieldRef();
 
     forAll(U.boundaryField(), patchi)
     {
@@ -198,11 +297,86 @@ tmp<surfaceScalarField> ddtScheme<Type>::fvcDdtPhiCoeff
 template<class Type>
 tmp<surfaceScalarField> ddtScheme<Type>::fvcDdtPhiCoeff
 (
-    const volFieldType<Type>& U,
+    const GeometricField<Type, fvPatchField, volMesh>& U,
+    const fluxFieldType& phi,
+    const fluxFieldType& phiCorr,
+    const volScalarField& rho
+)
+{
+    if (experimentalDdtCorr)
+    {
+        return
+            fvcDdtPhiCoeffExperimental
+            (
+                U,
+                phi,
+                phiCorr/fvc::interpolate(rho)
+            );
+    }
+    else
+    {
+        return fvcDdtPhiCoeff(U, phi, phiCorr);
+    }
+}
+
+
+template<class Type>
+tmp<surfaceScalarField> ddtScheme<Type>::fvcDdtPhiCoeff
+(
+    const GeometricField<Type, fvPatchField, volMesh>& U,
     const fluxFieldType& phi
 )
 {
-    return fvcDdtPhiCoeff(U, phi, phi - fvc::dotInterpolate(mesh().Sf(), U));
+    if (experimentalDdtCorr)
+    {
+        return
+            fvcDdtPhiCoeffExperimental
+            (
+                U,
+                phi,
+                phi - fvc::dotInterpolate(mesh().Sf(), U)
+            );
+    }
+    else
+    {
+        return
+            fvcDdtPhiCoeff
+            (
+                U,
+                phi,
+                phi - fvc::dotInterpolate(mesh().Sf(), U)
+            );
+    }
+}
+
+
+template<class Type>
+tmp<surfaceScalarField> ddtScheme<Type>::fvcDdtPhiCoeff
+(
+    const GeometricField<Type, fvPatchField, volMesh>& rhoU,
+    const fluxFieldType& phi,
+    const volScalarField& rho
+)
+{
+    if (experimentalDdtCorr)
+    {
+        return fvcDdtPhiCoeffExperimental
+        (
+            rhoU,
+            phi,
+            (phi - fvc::dotInterpolate(mesh().Sf(), rhoU))
+           /fvc::interpolate(rho)
+        );
+    }
+    else
+    {
+        return fvcDdtPhiCoeff
+        (
+            rhoU,
+            phi,
+            (phi - fvc::dotInterpolate(mesh().Sf(), rhoU))
+        );
+    }
 }
 
 

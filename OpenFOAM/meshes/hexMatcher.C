@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -25,30 +28,86 @@ License
 
 #include "hexMatcher.H"
 #include "primitiveMesh.H"
-#include "ListOps.T.H"
+#include "ListOps.H"
 
-// * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
-using namespace Foam;
-const label hexMatcher::vertPerCell = 8;
-const label hexMatcher::facePerCell = 6;
-const label hexMatcher::maxVertPerFace = 4;
+// * * * * * * * * * * * * * * * Local Functions * * * * * * * * * * * * * * //
+
+namespace Foam
+{
+
+// Check (6 quad)
+static inline bool checkFaceSizeMatch(const UList<face>& faces)
+{
+    if (faces.size() != 6)  // facePerCell
+    {
+        return false;
+    }
+
+    for (const face& f : faces)
+    {
+        if (f.size() != 4)  // quad
+        {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+
+// Check (6 quad)
+static inline bool checkFaceSizeMatch
+(
+    const UList<face>& meshFaces,
+    const labelUList& cellFaces
+)
+{
+    if (cellFaces.size() != 6)  // facePerCell
+    {
+        return false;
+    }
+
+    for (const label facei : cellFaces)
+    {
+        if (meshFaces[facei].size() != 4)  // quad
+        {
+            return false;
+        }
+    }
+
+    return true;
+}
+
+
+} // End namespace Foam
+
+
+// * * * * * * * * * * * * * Static Member Functions * * * * * * * * * * * * //
+
+
+ namespace Foam{
+bool hexMatcher::test(const UList<face>& faces)
+{
+    return checkFaceSizeMatch(faces);
+}
+
+bool hexMatcher::test(const primitiveMesh& mesh, const label celli)
+{
+    return checkFaceSizeMatch(mesh.faces(), mesh.cells()[celli]);
+}
 
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
-hexMatcher::hexMatcher() :    cellMatcher
+hexMatcher::hexMatcher()
+:
+    cellMatcher
     (
         vertPerCell,
         facePerCell,
         maxVertPerFace,
-        "hex"
+        "hex" // == cellModel::modelNames[cellModel::HEX]
     )
-{}
-
-
-// * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
-
-hexMatcher::~hexMatcher()
 {}
 
 
@@ -250,53 +309,11 @@ label hexMatcher::faceHashValue() const
 
 bool hexMatcher::faceSizeMatch
 (
-    const faceList& faces,
-    const labelList& myFaces
+    const faceList& meshFaces,
+    const labelList& cellFaces
 ) const
 {
-    if (myFaces.size() != facePerCell)
-    {
-        return false;
-    }
-
-    forAll(myFaces, myFacei)
-    {
-        label size = faces[myFaces[myFacei]].size();
-
-        if (size != 4)
-        {
-            return false;
-        }
-    }
-
-    return true;
-}
-
-
-bool hexMatcher::isA(const primitiveMesh& mesh, const label celli)
-{
-    return matchShape
-    (
-        true,
-        mesh.faces(),
-        mesh.faceOwner(),
-        celli,
-        mesh.cells()[celli]
-    );
-}
-
-
-bool hexMatcher::isA(const faceList& faces)
-{
-    // Do as if mesh with one cell only
-    return matchShape
-    (
-        true,
-        faces,                      // all faces in mesh
-        labelList(faces.size(), 0), // cell 0 is owner of all faces
-        0,                          // cell label
-        identity(faces.size())      // faces of cell 0
-    );
+    return checkFaceSizeMatch(meshFaces, cellFaces);
 }
 
 
@@ -319,15 +336,14 @@ bool hexMatcher::matches
         )
     )
     {
-        shape = cellShape(model(), vertLabels());
-
+        shape.reset(model(), vertLabels());
         return true;
     }
-    else
-    {
-        return false;
-    }
+
+    return false;
 }
 
 
 // ************************************************************************* //
+
+ } // End namespace Foam

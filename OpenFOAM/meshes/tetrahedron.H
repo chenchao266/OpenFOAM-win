@@ -1,9 +1,12 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2018 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -39,26 +42,24 @@ SourceFiles
 #ifndef tetrahedron_H
 #define tetrahedron_H
 
-#include "point.T.H"
+#include "point.H"
 #include "primitiveFieldsFwd.H"
-#include "pointHit.H"
-#include "cachedRandom.H"
+#include "pointHit2.H"
 #include "Random.H"
-#include "FixedList.T.H"
-#include "UList.T.H"
+#include "FixedList.H"
+#include "UList.H"
 #include "triPointRef.H"
 #include "boundBox.H"
-#include "barycentric.H"
+#include "barycentric2.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 namespace Foam
 {
 
-class Istream;
-class Ostream;
-
-// Forward declaration of friend functions and operators
+// Forward Declarations
+class plane;
+class tetPoints;
 
 template<class Point, class PointRef> class tetrahedron;
 
@@ -76,6 +77,8 @@ inline Ostream& operator<<
     const tetrahedron<Point, PointRef>&
 );
 
+typedef tetrahedron<point, const point&> tetPointRef;
+
 /*---------------------------------------------------------------------------*\
                            class tetrahedron Declaration
 \*---------------------------------------------------------------------------*/
@@ -83,11 +86,77 @@ inline Ostream& operator<<
 template<class Point, class PointRef>
 class tetrahedron
 {
+public:
+
+    // Public typedefs
+
+        //- Storage type for tets originating from intersecting tets.
+        //  (can possibly be smaller than 200)
+        typedef FixedList<tetPoints, 200> tetIntersectionList;
+
+
+        // Classes for use in sliceWithPlane. What to do with decomposition
+        // of tet.
+
+            //- Dummy
+            class dummyOp
+            {
+            public:
+                inline void operator()(const tetPoints&);
+            };
+
+            //- Sum resulting volumes
+            class sumVolOp
+            {
+            public:
+                scalar vol_;
+
+                inline sumVolOp();
+
+                inline void operator()(const tetPoints&);
+            };
+
+            //- Store resulting tets
+            class storeOp
+            {
+                tetIntersectionList& tets_;
+                label& nTets_;
+
+            public:
+                inline storeOp(tetIntersectionList&, label&);
+
+                inline void operator()(const tetPoints&);
+            };
+
 private:
 
     // Private data
 
         PointRef a_, b_, c_, d_;
+
+        inline static point planeIntersection
+        (
+            const FixedList<scalar, 4>&,
+            const tetPoints&,
+            const label,
+            const label
+        );
+
+        template<class TetOp>
+        inline static void decomposePrism
+        (
+            const FixedList<point, 6>& points,
+            TetOp& op
+        );
+
+        template<class AboveTetOp, class BelowTetOp>
+        inline static void tetSliceWithPlane
+        (
+            const plane& pl,
+            const tetPoints& tet,
+            AboveTetOp& aboveOp,
+            BelowTetOp& belowOp
+        );
 
 
 public:
@@ -115,7 +184,7 @@ public:
         //- Construct from four points in the list of points
         inline tetrahedron
         (
-            const UList<Point>&,
+            const UList<Point>& points,
             const FixedList<label, 4>& indices
         );
 
@@ -139,15 +208,19 @@ public:
             //- Return i-th face
             inline triPointRef tri(const label facei) const;
 
+
         // Properties
 
-            //- Return face normal
+            //- Face area normal for side a
             inline vector Sa() const;
 
+            //- Face area normal for side b
             inline vector Sb() const;
 
+            //- Face area normal for side c
             inline vector Sc() const;
 
+            //- Face area normal for side d
             inline vector Sd() const;
 
             //- Return centre (centroid)
@@ -171,10 +244,6 @@ public:
             //  uniform distribution
             inline Point randomPoint(Random& rndGen) const;
 
-            //- Return a random point in the tetrahedron from a
-            //  uniform distribution
-            inline Point randomPoint(cachedRandom& rndGen) const;
-
             //- Calculate the point from the given barycentric coordinates.
             inline Point barycentricToPoint(const barycentric& bary) const;
 
@@ -195,6 +264,26 @@ public:
 
             //- Return true if point is inside tetrahedron
             inline bool inside(const point& pt) const;
+
+            //- Decompose tet into tets above and below plane
+            template<class AboveTetOp, class BelowTetOp>
+            inline void sliceWithPlane
+            (
+                const plane& pl,
+                AboveTetOp& aboveOp,
+                BelowTetOp& belowOp
+            ) const;
+
+            //- Decompose tet into tets inside and outside other tet
+            inline void tetOverlap
+            (
+                const tetrahedron<Point, PointRef>& tetB,
+                tetIntersectionList& insideTets,
+                label& nInside,
+                tetIntersectionList& outsideTets,
+                label& nOutside
+            ) const;
+
 
             //- Return (min)containment sphere, i.e. the smallest sphere with
             //  all points inside. Returns pointHit with:
@@ -220,7 +309,7 @@ public:
             boundBox bounds() const;
 
 
-    // IOstream operators
+    // IOstream Operators
 
         friend Istream& operator>> <Point, PointRef>
         (

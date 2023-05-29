@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011 OpenFOAM Foundation
+    Copyright (C) 2018-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -25,7 +28,73 @@ Class
     Foam::cellToCell
 
 Description
-    A topoSetSource to select the cells from another cellSet.
+    A \c topoSetCellSource to select all the cells from given \c cellSet(s).
+
+    Operands:
+    \table
+      Operand   | Type       | Location
+      input     | cellSet(s) | $FOAM_CASE/constant/polyMesh/sets/\<set\>
+      output    | cellSet    | $FOAM_CASE/constant/polyMesh/sets/\<set\>
+    \endtable
+
+Usage
+    Minimal example by using \c system/topoSetDict.actions:
+    \verbatim
+    {
+        // Mandatory (inherited) entries
+        name        <name>;
+        type        cellSet;
+        action      <action>;
+
+        // Mandatory entries
+        source      cellToCell;
+
+        // Conditional mandatory entries
+        // Select either of the below
+
+        // Option-1
+        sets
+        (
+            <cellSetName1>
+            <cellSetName2>
+            ...
+        );
+
+        // Option-2
+        set <cellSetName>;
+    }
+    \endverbatim
+
+    where the entries mean:
+    \table
+      Property   | Description                         | Type | Req'd | Dflt
+      name       | Name of cellSet                     | word |  yes  | -
+      type       | Type name: cellSet                  | word |  yes  | -
+      action     | Action applied on cells - see below | word |  yes  | -
+      source     | Source name: cellToCell             | word |  yes  | -
+    \endtable
+
+    Options for the \c action entry:
+    \verbatim
+      new      | Create a new cellSet from selected cells
+      add      | Add selected cells into this cellSet
+      subtract | Remove selected cells from this cellSet
+    \endverbatim
+
+    Options for the conditional mandatory entries:
+    \verbatim
+      Entry    | Description                    | Type     | Req'd  | Dflt
+      sets     | Names of input cellSets        | wordList | cond'l | -
+      set      | Name of input cellSet          | word     | cond'l | -
+    \endverbatim
+
+Note
+    The order of precedence among the conditional mandatory entries from the
+    highest to the lowest is \c sets, and \c set.
+
+See also
+    - Foam::topoSetSource
+    - Foam::topoSetCellSource
 
 SourceFiles
     cellToCell.C
@@ -35,7 +104,7 @@ SourceFiles
 #ifndef cellToCell_H
 #define cellToCell_H
 
-#include "topoSetSource.H"
+#include "topoSetCellSource.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -48,62 +117,46 @@ namespace Foam
 
 class cellToCell
 :
-    public topoSetSource
+    public topoSetCellSource
 {
-    // Private data
+    // Private Data
 
         //- Add usage string
         static addToUsageTable usage_;
 
-        //- Name of set to use
-        word setName_;
+        //- Names of sets to use
+        wordList names_;
+
 
 public:
 
     //- Runtime type information
     TypeName("cellToCell");
 
+
     // Constructors
 
         //- Construct from components
-        cellToCell
-        (
-            const polyMesh& mesh,
-            const word& setName
-        );
+        cellToCell(const polyMesh& mesh, const word& setName);
 
         //- Construct from dictionary
-        cellToCell
-        (
-            const polyMesh& mesh,
-            const dictionary& dict
-        );
+        cellToCell(const polyMesh& mesh, const dictionary& dict);
 
         //- Construct from Istream
-        cellToCell
-        (
-            const polyMesh& mesh,
-            Istream&
-        );
+        cellToCell(const polyMesh& mesh, Istream& is);
 
 
     //- Destructor
-    virtual ~cellToCell();
+    virtual ~cellToCell() = default;
 
 
     // Member Functions
 
-        virtual sourceType setType() const
-        {
-            return CELLSETSOURCE;
-        }
-
         virtual void applyToSet
         (
             const topoSetSource::setAction action,
-            topoSet&
+            topoSet& set
         ) const;
-
 };
 
 

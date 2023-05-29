@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -23,6 +26,9 @@ License
 
 Class
     Foam::icoPolynomial
+
+Group
+    grpSpecieEquationOfState
 
 Description
     Incompressible, polynomial form of equation of state, using a polynomial
@@ -64,14 +70,14 @@ See also
 #define icoPolynomial_H
 
 #include "autoPtr.H"
-#include "Polynomial.T.H"
+#include "Polynomial.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 namespace Foam
 {
 
-// Forward declaration of friend functions and operators
+// Forward Declarations
 
 template<class Specie, int PolySize>
 class icoPolynomial;
@@ -114,13 +120,24 @@ class icoPolynomial
 :
     public Specie
 {
-    // Private data
+    // Private Data
 
         //- Density polynomial coefficients
         Polynomial<PolySize> rhoCoeffs_;
 
 
+    // Private Member Functions
+
+        //- Coeffs name. Eg, "rhoCoeffs<10>"
+        inline static word coeffsName(const char* name)
+        {
+            return word(name + ("Coeffs<" + std::to_string(PolySize) + '>'));
+        }
+
+
 public:
+
+    // Generated Methods: copy construct, copy assignment
 
     // Constructors
 
@@ -132,7 +149,7 @@ public:
         );
 
         //- Construct from dictionary
-        icoPolynomial(const dictionary& dict);
+        explicit icoPolynomial(const dictionary& dict);
 
         //- Construct as named copy
         inline icoPolynomial(const word& name, const icoPolynomial&);
@@ -144,7 +161,7 @@ public:
         inline static autoPtr<icoPolynomial> New(const dictionary& dict);
 
 
-    // Member functions
+    // Member Functions
 
         //- Return the instantiated type name
         static word typeName()
@@ -170,6 +187,12 @@ public:
             //- Return Cp departure [J/(kg K]
             inline scalar Cp(scalar p, scalar T) const;
 
+            //- Return internal energy departure [J/kg]
+            inline scalar E(const scalar p, const scalar T) const;
+
+            //- Return Cv departure [J/(kg K]
+            inline scalar Cv(scalar p, scalar T) const;
+
             //- Return entropy [J/(kg K)]
             inline scalar S(const scalar p, const scalar T) const;
 
@@ -189,14 +212,13 @@ public:
             void write(Ostream& os) const;
 
 
-    // Member operators
+    // Member Operators
 
-        inline void operator=(const icoPolynomial&);
         inline void operator+=(const icoPolynomial&);
         inline void operator*=(const scalar);
 
 
-    // Friend operators
+    // Friend Operators
 
         friend icoPolynomial operator+ <Specie, PolySize>
         (
@@ -217,7 +239,7 @@ public:
         );
 
 
-    // Ostream Operator
+    // IOstream Operators
 
         friend Ostream& operator<< <Specie, PolySize>
         (

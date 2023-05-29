@@ -1,9 +1,12 @@
-﻿/*---------------------------------------------------------------------------*\
+/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2019 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -24,19 +27,16 @@ License
 \*---------------------------------------------------------------------------*/
 
 #include "nutUTabulatedWallFunctionFvPatchScalarField.H"
-#include "turbulenceModel.H"
+#include "turbulenceModel2.H"
 #include "fvPatchFieldMapper.H"
 #include "volFields.H"
 #include "addToRunTimeSelectionTable.H"
 
-// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
-
-namespace Foam
-{
 
 // * * * * * * * * * * * * Protected Member Functions  * * * * * * * * * * * //
 
-tmp<scalarField> nutUTabulatedWallFunctionFvPatchScalarField::calcNut() const
+Foam::tmp<Foam::scalarField>
+Foam::nutUTabulatedWallFunctionFvPatchScalarField::calcNut() const
 {
     const label patchi = patch().index();
 
@@ -49,7 +49,7 @@ tmp<scalarField> nutUTabulatedWallFunctionFvPatchScalarField::calcNut() const
         )
     );
     const scalarField& y = turbModel.y()[patchi];
-    const fvPatchVectorField& Uw = turbModel.U().boundaryField()[patchi];
+    const fvPatchVectorField& Uw = U(turbModel).boundaryField()[patchi];
     const scalarField magUp(mag(Uw.patchInternalField() - Uw));
     const scalarField magGradU(mag(Uw.snGrad()));
     const tmp<scalarField> tnuw = turbModel.nu(patchi);
@@ -66,12 +66,13 @@ tmp<scalarField> nutUTabulatedWallFunctionFvPatchScalarField::calcNut() const
 }
 
 
-tmp<scalarField> nutUTabulatedWallFunctionFvPatchScalarField::calcUPlus
+Foam::tmp<Foam::scalarField>
+Foam::nutUTabulatedWallFunctionFvPatchScalarField::calcUPlus
 (
     const scalarField& Rey
 ) const
 {
-    tmp<scalarField> tuPlus(new scalarField(patch().size(), 0.0));
+    tmp<scalarField> tuPlus(new scalarField(patch().size(), Zero));
     scalarField& uPlus = tuPlus.ref();
 
     forAll(uPlus, facei)
@@ -85,7 +86,7 @@ tmp<scalarField> nutUTabulatedWallFunctionFvPatchScalarField::calcUPlus
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
-nutUTabulatedWallFunctionFvPatchScalarField::
+Foam::nutUTabulatedWallFunctionFvPatchScalarField::
 nutUTabulatedWallFunctionFvPatchScalarField
 (
     const fvPatch& p,
@@ -110,7 +111,7 @@ nutUTabulatedWallFunctionFvPatchScalarField
 {}
 
 
-nutUTabulatedWallFunctionFvPatchScalarField::
+Foam::nutUTabulatedWallFunctionFvPatchScalarField::
 nutUTabulatedWallFunctionFvPatchScalarField
 (
     const nutUTabulatedWallFunctionFvPatchScalarField& ptf,
@@ -125,7 +126,7 @@ nutUTabulatedWallFunctionFvPatchScalarField
 {}
 
 
-nutUTabulatedWallFunctionFvPatchScalarField::
+Foam::nutUTabulatedWallFunctionFvPatchScalarField::
 nutUTabulatedWallFunctionFvPatchScalarField
 (
     const fvPatch& p,
@@ -134,7 +135,7 @@ nutUTabulatedWallFunctionFvPatchScalarField
 )
 :
     nutWallFunctionFvPatchScalarField(p, iF, dict),
-    uPlusTableName_(dict.lookup("uPlusTable")),
+    uPlusTableName_(dict.get<word>("uPlusTable")),
     uPlusTable_
     (
         IOobject
@@ -151,7 +152,7 @@ nutUTabulatedWallFunctionFvPatchScalarField
 {}
 
 
-nutUTabulatedWallFunctionFvPatchScalarField::
+Foam::nutUTabulatedWallFunctionFvPatchScalarField::
 nutUTabulatedWallFunctionFvPatchScalarField
 (
     const nutUTabulatedWallFunctionFvPatchScalarField& wfpsf
@@ -163,7 +164,7 @@ nutUTabulatedWallFunctionFvPatchScalarField
 {}
 
 
-nutUTabulatedWallFunctionFvPatchScalarField::
+Foam::nutUTabulatedWallFunctionFvPatchScalarField::
 nutUTabulatedWallFunctionFvPatchScalarField
 (
     const nutUTabulatedWallFunctionFvPatchScalarField& wfpsf,
@@ -178,7 +179,8 @@ nutUTabulatedWallFunctionFvPatchScalarField
 
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
 
-tmp<scalarField> nutUTabulatedWallFunctionFvPatchScalarField::yPlus() const
+Foam::tmp<Foam::scalarField>
+Foam::nutUTabulatedWallFunctionFvPatchScalarField::yPlus() const
 {
     const label patchi = patch().index();
 
@@ -191,7 +193,7 @@ tmp<scalarField> nutUTabulatedWallFunctionFvPatchScalarField::yPlus() const
         )
     );
     const scalarField& y = turbModel.y()[patchi];
-    const fvPatchVectorField& Uw = turbModel.U().boundaryField()[patchi];
+    const fvPatchVectorField& Uw = U(turbModel).boundaryField()[patchi];
     const scalarField magUp(mag(Uw.patchInternalField() - Uw));
     const tmp<scalarField> tnuw = turbModel.nu(patchi);
     const scalarField& nuw = tnuw();
@@ -201,25 +203,27 @@ tmp<scalarField> nutUTabulatedWallFunctionFvPatchScalarField::yPlus() const
 }
 
 
-void nutUTabulatedWallFunctionFvPatchScalarField::write(Ostream& os) const
+void Foam::nutUTabulatedWallFunctionFvPatchScalarField::write
+(
+    Ostream& os
+) const
 {
     fvPatchField<scalar>::write(os);
-    os.writeKeyword("uPlusTable") << uPlusTableName_
-        << token::END_STATEMENT << nl;
+    os.writeEntry("uPlusTable", uPlusTableName_);
     writeEntry("value", os);
 }
 
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
-makePatchTypeField
-(
-    fvPatchScalarField,
-    nutUTabulatedWallFunctionFvPatchScalarField
-);
-} // End namespace Foam
-// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
-
+namespace Foam
+{
+    makePatchTypeField
+    (
+        fvPatchScalarField,
+        nutUTabulatedWallFunctionFvPatchScalarField
+    );
+}
 
 
 // ************************************************************************* //

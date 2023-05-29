@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2013-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2013-2016 OpenFOAM Foundation
+    Copyright (C) 2015-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -28,13 +31,55 @@ Group
     grpFieldFunctionObjects
 
 Description
-    Calculates and outputs the Courant number as a volScalarField.  The field is
-    stored on the mesh database so that it can be retrieved and used for other
-    applications.
+    Computes the Courant number field for time-variant simulations.
+
+    Operands:
+    \table
+      Operand           | Type           | Location
+      input             | -              | -
+      output file       | -              | -
+      output field      | volScalarField | $FOAM_CASE/\<time\>/\<outField\>
+    \endtable
+
+Usage
+    Minimal example by using \c system/controlDict.functions:
+    \verbatim
+    CourantNo1
+    {
+        // Mandatory entries (unmodifiable)
+        type        CourantNo;
+        libs        (fieldFunctionObjects);
+
+        // Optional entries (runtime modifiable)
+        rho         rho;
+
+        // Optional (inherited) entries
+        ...
+    }
+    \endverbatim
+
+    where the entries mean:
+    \table
+      Property   | Description                        | Type | Req'd | Dflt
+      type       | Type name: CourantNo               | word |  yes  | -
+      libs       | Library name: fieldFunctionObjects | word |  yes  | -
+      rho        | Name of density field              | word |  no   | rho
+    \endtable
+
+    The inherited entries are elaborated in:
+     - \link functionObject.H \endlink
+     - \link fieldExpression.H \endlink
+
+    Minimal example by using the \c postProcess utility:
+    \verbatim
+        postProcess -func CourantNo
+    \endverbatim
 
 See also
-    Foam::functionObjects::fieldExpression
-    Foam::functionObjects::fvMeshFunctionObject
+    - Foam::functionObject
+    - Foam::functionObjects::fieldExpression
+    - Foam::functionObjects::fvMeshFunctionObject
+    - ExtendedCodeGuide::functionObjects::field::CourantNo
 
 SourceFiles
     CourantNo.C
@@ -62,12 +107,9 @@ class CourantNo
 :
     public fieldExpression
 {
-    // Private data
+    // Private Data
 
-        //- Name of flux field, default is "phi"
-        word phiName_;
-
-        //- Name of density field (optional)
+        //- Name of density field
         word rhoName_;
 
 
@@ -95,13 +137,19 @@ public:
         CourantNo
         (
             const word& name,
-            const Time&,
-            const dictionary&
+            const Time& runTime,
+            const dictionary& dict
         );
+
+        //- No copy construct
+        CourantNo(const CourantNo&) = delete;
+
+        //- No copy assignment
+        void operator=(const CourantNo&) = delete;
 
 
     //- Destructor
-    virtual ~CourantNo();
+    virtual ~CourantNo() = default;
 
 
     // Member Functions

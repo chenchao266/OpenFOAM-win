@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2013-2015 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2013-2017 OpenFOAM Foundation
+    Copyright (C) 2019-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -38,27 +41,28 @@ namespace surfaceFilmModels
 
 autoPtr<filmTurbulenceModel> filmTurbulenceModel::New
 (
-    surfaceFilmModel& model,
+    surfaceFilmRegionModel& model,
     const dictionary& dict
 )
 {
-    const word modelType(dict.lookup("turbulence"));
+    const word modelType(dict.get<word>("turbulence"));
 
     Info<< "    Selecting filmTurbulenceModel " << modelType << endl;
 
-    dictionaryConstructorTable::iterator cstrIter =
-        dictionaryConstructorTablePtr_->find(modelType);
+    auto* ctorPtr = dictionaryConstructorTable(modelType);
 
-    if (cstrIter == dictionaryConstructorTablePtr_->end())
+    if (!ctorPtr)
     {
-        FatalErrorInFunction
-            << "Unknown filmTurbulenceModel type " << modelType
-            << nl << nl << "Valid filmTurbulenceModel types are:" << nl
-            << dictionaryConstructorTablePtr_->toc()
-            << exit(FatalError);
+        FatalIOErrorInLookup
+        (
+            dict,
+            "filmTurbulenceModel",
+            modelType,
+            *dictionaryConstructorTablePtr_
+        ) << exit(FatalIOError);
     }
 
-    return autoPtr<filmTurbulenceModel>(cstrIter()(model, dict));
+    return autoPtr<filmTurbulenceModel>(ctorPtr(model, dict));
 }
 
 

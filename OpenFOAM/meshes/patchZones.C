@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -26,171 +28,173 @@ License
 #include "patchZones.H"
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
-using namespace Foam;
+
 namespace Foam
 {
     defineTypeNameAndDebug(patchZones, 0);
-}
 
 
-// * * * * * * * * * * * * * * * Global Functions  * * * * * * * * * * * * * //
 
-labelList patchZones::faceToEdge
-(
-    const labelList& changedFaces,
-    labelList& edgeRegion
-)
-{
-    labelList changedEdges(pp_.nEdges(), -1);
-    label changedI = 0;
+    // * * * * * * * * * * * * * * * Global Functions  * * * * * * * * * * * * * //
 
-    forAll(changedFaces, i)
+    labelList patchZones::faceToEdge
+    (
+        const labelList& changedFaces,
+        labelList& edgeRegion
+    )
     {
-        label facei = changedFaces[i];
+        labelList changedEdges(pp_.nEdges(), -1);
+        label changedI = 0;
 
-        const labelList& fEdges = pp_.faceEdges()[facei];
-
-        forAll(fEdges, fEdgeI)
+        forAll(changedFaces, i)
         {
-            label edgeI = fEdges[fEdgeI];
+            label facei = changedFaces[i];
 
-            if (!borderEdge_[edgeI] && (edgeRegion[edgeI] == -1))
+            const labelList& fEdges = pp_.faceEdges()[facei];
+
+            forAll(fEdges, fEdgeI)
             {
-                edgeRegion[edgeI] = nZones_;
+                label edgeI = fEdges[fEdgeI];
 
-                changedEdges[changedI++] = edgeI;
+                if (!borderEdge_[edgeI] && (edgeRegion[edgeI] == -1))
+                {
+                    edgeRegion[edgeI] = nZones_;
+
+                    changedEdges[changedI++] = edgeI;
+                }
             }
         }
+
+        changedEdges.setSize(changedI);
+
+        return changedEdges;
     }
 
-    changedEdges.setSize(changedI);
 
-    return changedEdges;
-}
-
-
-labelList patchZones::edgeToFace(const labelList& changedEdges)
-{
-    labelList changedFaces(pp_.size(), -1);
-    label changedI = 0;
-
-    forAll(changedEdges, i)
+    labelList patchZones::edgeToFace(const labelList& changedEdges)
     {
-        label edgeI = changedEdges[i];
+        labelList changedFaces(pp_.size(), -1);
+        label changedI = 0;
 
-        const labelList& eFaces = pp_.edgeFaces()[edgeI];
-
-        forAll(eFaces, eFacei)
+        forAll(changedEdges, i)
         {
-            label facei = eFaces[eFacei];
+            label edgeI = changedEdges[i];
 
-            if (operator[](facei) == -1)
+            const labelList& eFaces = pp_.edgeFaces()[edgeI];
+
+            forAll(eFaces, eFacei)
             {
-                operator[](facei) = nZones_;
+                label facei = eFaces[eFacei];
 
-                changedFaces[changedI++] = facei;
+                if (operator[](facei) == -1)
+                {
+                    operator[](facei) = nZones_;
+
+                    changedFaces[changedI++] = facei;
+                }
             }
         }
+
+        changedFaces.setSize(changedI);
+
+        return changedFaces;
     }
 
-    changedFaces.setSize(changedI);
 
-    return changedFaces;
-}
-
-
-void patchZones::markZone(label facei)
-{
-    // List of faces whose faceZone has been set.
-    labelList changedFaces(1, facei);
-    // List of edges whose faceZone has been set.
-    labelList changedEdges;
-
-    // Zones on all edges.
-    labelList edgeZone(pp_.nEdges(), -1);
-
-    while (true)
+    void patchZones::markZone(label facei)
     {
-        changedEdges = faceToEdge(changedFaces, edgeZone);
+        // List of faces whose faceZone has been set.
+        labelList changedFaces(1, facei);
+        // List of edges whose faceZone has been set.
+        labelList changedEdges;
 
-        if (debug)
+        // Zones on all edges.
+        labelList edgeZone(pp_.nEdges(), -1);
+
+        while (true)
         {
-            Info<< "From changedFaces:" << changedFaces.size()
-                << " to changedEdges:" << changedEdges.size()
-                << endl;
-        }
+            changedEdges = faceToEdge(changedFaces, edgeZone);
 
-        if (changedEdges.empty())
-        {
-            break;
-        }
-
-        changedFaces = edgeToFace(changedEdges);
-
-        if (debug)
-        {
-            Info<< "From changedEdges:" << changedEdges.size()
-                << " to changedFaces:" << changedFaces.size()
-                << endl;
-        }
-
-        if (changedEdges.empty())
-        {
-            break;
-        }
-    }
-}
-
-
-// * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
-
-patchZones::patchZones
-(
-    const primitivePatch& pp,
-    const boolList& borderEdge
-) :    labelList(pp.size(), -1),
-    pp_(pp),
-    borderEdge_(borderEdge),
-    nZones_(0)
-{
-    // Finds areas delimited by borderEdge (or 'real' edges).
-    // Fills *this with zone number accordingly.
-
-    if (borderEdge.size() != pp_.nEdges())
-    {
-        FatalErrorInFunction
-            << "borderEdge boolList not same size as number of edges" << endl
-            << "borderEdge:" << borderEdge.size() << endl
-            << "nEdges    :" << pp_.nEdges()
-            << abort(FatalError);
-    }
-
-    label facei = 0;
-
-    while (true)
-    {
-        // Find first non-visited face
-        for (; facei < pp_.size(); facei++)
-        {
-            if (operator[](facei) == -1)
+            if (debug)
             {
-                operator[](facei) = nZones_;
+                Info << "From changedFaces:" << changedFaces.size()
+                    << " to changedEdges:" << changedEdges.size()
+                    << endl;
+            }
 
-                markZone(facei);
+            if (changedEdges.empty())
+            {
+                break;
+            }
 
+            changedFaces = edgeToFace(changedEdges);
+
+            if (debug)
+            {
+                Info << "From changedEdges:" << changedEdges.size()
+                    << " to changedFaces:" << changedFaces.size()
+                    << endl;
+            }
+
+            if (changedEdges.empty())
+            {
                 break;
             }
         }
+    }
 
-        if (facei == pp_.size())
+
+    // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
+
+    patchZones::patchZones
+    (
+        const primitivePatch& pp,
+        const boolList& borderEdge
+    )
+        :
+        labelList(pp.size(), -1),
+        pp_(pp),
+        borderEdge_(borderEdge),
+        nZones_(0)
+    {
+        // Finds areas delimited by borderEdge (or 'real' edges).
+        // Fills *this with zone number accordingly.
+
+        if (borderEdge.size() != pp_.nEdges())
         {
-            // Finished.
-            break;
+            FatalErrorInFunction
+                << "borderEdge boolList not same size as number of edges" << endl
+                << "borderEdge:" << borderEdge.size() << endl
+                << "nEdges    :" << pp_.nEdges()
+                << abort(FatalError);
         }
 
-        nZones_++;
+        label facei = 0;
+
+        while (true)
+        {
+            // Find first non-visited face
+            for (; facei < pp_.size(); facei++)
+            {
+                if (operator[](facei) == -1)
+                {
+                    operator[](facei) = nZones_;
+
+                    markZone(facei);
+
+                    break;
+                }
+            }
+
+            if (facei == pp_.size())
+            {
+                // Finished.
+                break;
+            }
+
+            nZones_++;
+        }
     }
+
 }
-
-
 // ************************************************************************* //

@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2020-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -65,15 +68,15 @@ Foam::LESModels::PrandtlDelta::PrandtlDelta
     (
         LESdelta::New
         (
-            name,
+            IOobject::groupName("geometricDelta", turbulence.U().group()),
             turbulence,
             dict.optionalSubDict(type() + "Coeffs")
         )
     ),
-    kappa_(dict.lookupOrDefault<scalar>("kappa", 0.41)),
+    kappa_(dict.getOrDefault<scalar>("kappa", 0.41)),
     Cdelta_
     (
-        dict.optionalSubDict(type() + "Coeffs").lookupOrDefault<scalar>
+        dict.optionalSubDict(type() + "Coeffs").getOrDefault<scalar>
         (
             "Cdelta",
             0.158

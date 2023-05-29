@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2016-2019 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -31,6 +34,7 @@ License
 #include "fvDOM.H"
 #include "wideBandAbsorptionEmission.H"
 #include "constants.H"
+#include "boundaryRadiationProperties.H"
 
 using namespace Foam::constant;
 using namespace Foam::constant::mathematical;
@@ -44,9 +48,7 @@ wideBandDiffusiveRadiationMixedFvPatchScalarField
     const DimensionedField<scalar, volMesh>& iF
 )
 :
-    mixedFvPatchScalarField(p, iF),
-    radiationCoupledBase(p, "undefined", scalarField::null()),
-    TName_("T")
+    mixedFvPatchScalarField(p, iF)
 {
     refValue() = 0.0;
     refGrad() = 0.0;
@@ -63,14 +65,7 @@ wideBandDiffusiveRadiationMixedFvPatchScalarField
     const fvPatchFieldMapper& mapper
 )
 :
-    mixedFvPatchScalarField(ptf, p, iF, mapper),
-    radiationCoupledBase
-    (
-        p,
-        ptf.emissivityMethod(),
-        ptf.emissivity_
-    ),
-    TName_(ptf.TName_)
+    mixedFvPatchScalarField(ptf, p, iF, mapper)
 {}
 
 
@@ -82,11 +77,9 @@ wideBandDiffusiveRadiationMixedFvPatchScalarField
     const dictionary& dict
 )
 :
-    mixedFvPatchScalarField(p, iF),
-    radiationCoupledBase(p, dict),
-    TName_(dict.lookupOrDefault<word>("T", "T"))
+    mixedFvPatchScalarField(p, iF)
 {
-    if (dict.found("value"))
+    if (dict.found("refValue"))
     {
         fvPatchScalarField::operator=
         (
@@ -98,12 +91,9 @@ wideBandDiffusiveRadiationMixedFvPatchScalarField
     }
     else
     {
-        const scalarField& Tp =
-            patch().lookupPatchField<volScalarField, scalar>(TName_);
-
-        refValue() =
-            4.0*physicoChemical::sigma.value()*pow4(Tp)*emissivity()/pi;
+        refValue() = 0.0;
         refGrad() = 0.0;
+        valueFraction() = 1.0;
 
         fvPatchScalarField::operator=(refValue());
     }
@@ -116,14 +106,7 @@ wideBandDiffusiveRadiationMixedFvPatchScalarField
     const wideBandDiffusiveRadiationMixedFvPatchScalarField& ptf
 )
 :
-    mixedFvPatchScalarField(ptf),
-    radiationCoupledBase
-    (
-        ptf.patch(),
-        ptf.emissivityMethod(),
-        ptf.emissivity_
-    ),
-    TName_(ptf.TName_)
+    mixedFvPatchScalarField(ptf)
 {}
 
 
@@ -134,14 +117,7 @@ wideBandDiffusiveRadiationMixedFvPatchScalarField
     const DimensionedField<scalar, volMesh>& iF
 )
 :
-    mixedFvPatchScalarField(ptf, iF),
-    radiationCoupledBase
-    (
-        ptf.patch(),
-        ptf.emissivityMethod(),
-        ptf.emissivity_
-    ),
-    TName_(ptf.TName_)
+    mixedFvPatchScalarField(ptf, iF)
 {}
 
 
@@ -193,18 +169,97 @@ updateCoeffs()
         dom.blackBody().bLambda(lambdaId).boundaryField()[patchi]
     );
 
-    scalarField temissivity = emissivity();
+    const boundaryRadiationProperties& boundaryRadiation =
+        boundaryRadiationProperties::New(internalField().mesh());
+
+
+    const tmp<scalarField> temissivity
+    (
+        boundaryRadiation.emissivity(patch().index(), lambdaId)
+    );
+    const scalarField& emissivity = temissivity();
+
+    const tmp<scalarField> ttransmissivity
+    (
+        boundaryRadiation.transmissivity(patch().index(), lambdaId)
+    );
+    const scalarField& transmissivity = ttransmissivity();
 
     scalarField& qem = ray.qem().boundaryFieldRef()[patchi];
     scalarField& qin = ray.qin().boundaryFieldRef()[patchi];
 
-    // Use updated Ir while iterating over rays
-    // avoids to used lagged qin
-    scalarField Ir = dom.IRay(0).qin().boundaryField()[patchi];
-
-    for (label rayI=1; rayI < dom.nRay(); rayI++)
+    // Calculate Ir into the wall on the same lambdaId
+    scalarField Ir(patch().size(), Zero);
+    forAll(Iw, facei)
     {
-        Ir += dom.IRay(rayI).qin().boundaryField()[patchi];
+        for (label rayi=0; rayi < dom.nRay(); rayi++)
+        {
+            const vector& d = dom.IRay(rayi).d();
+
+            if ((-n[facei] & d) < 0.0)
+            {
+                // q into the wall
+                const scalarField& IFace =
+                    dom.IRay(rayi).ILambda(lambdaId).boundaryField()[patchi];
+
+                const vector& rayDave = dom.IRay(rayi).dAve();
+                Ir[facei] += IFace[facei]*(n[facei] & rayDave);
+            }
+        }
+    }
+
+    if (dom.useSolarLoad())
+    {
+        // Looking for primary heat flux single band
+        Ir += patch().lookupPatchField<volScalarField,scalar>
+        (
+            dom.primaryFluxName_ + "_" + name(lambdaId)
+        );
+
+        word qSecName = dom.relfectedFluxName_ + "_" + name(lambdaId);
+
+        if (this->db().foundObject<volScalarField>(qSecName))
+        {
+             const volScalarField& qSec =
+                this->db().lookupObject<volScalarField>(qSecName);
+
+            Ir += qSec.boundaryField()[patch().index()];
+        }
+    }
+
+    scalarField Iexternal(this->size(), 0.0);
+
+    if (dom.useExternalBeam())
+    {
+        const vector sunDir = dom.solarCalc().direction();
+        const scalar directSolarRad =
+            dom.solarCalc().directSolarRad()
+           *dom.spectralDistribution()[lambdaId];
+
+        //label nRaysBeam = dom.nRaysBeam();
+        label SunRayId(-1);
+        scalar maxSunRay = -GREAT;
+
+        // Looking for the ray closest to the Sun direction
+        for (label rayI=0; rayI < dom.nRay(); rayI++)
+        {
+            const vector& iD = dom.IRay(rayI).d();
+            scalar dir = sunDir & iD;
+            if (dir > maxSunRay)
+            {
+                maxSunRay = dir;
+                SunRayId = rayI;
+            }
+        }
+
+        if (rayId == SunRayId)
+        {
+            const scalarField nAve(n & dom.IRay(rayId).dAve());
+            forAll(Iexternal, faceI)
+            {
+                Iexternal[faceI] = directSolarRad/mag(dom.IRay(rayId).dAve());
+            }
+        }
     }
 
     forAll(Iw, facei)
@@ -217,13 +272,14 @@ updateCoeffs()
             refGrad()[facei] = 0.0;
             valueFraction()[facei] = 1.0;
             refValue()[facei] =
-                (
-                    Ir[facei]*(1.0 - temissivity[facei])
-                  + temissivity[facei]*Eb[facei]
+                Iexternal[facei]*transmissivity[facei]
+              + (
+                    Ir[facei]*(1.0 - emissivity[facei])
+                  + emissivity[facei]*Eb[facei]
                 )/pi;
 
-            // Emmited heat flux from this ray direction
-            qem[facei] = refValue()[facei]*nAve[facei];
+            // Emitted heat flux from this ray direction (sum over lambdaId)
+            qem[facei] += refValue()[facei]*nAve[facei];
         }
         else
         {
@@ -232,8 +288,8 @@ updateCoeffs()
             refGrad()[facei] = 0.0;
             refValue()[facei] = 0.0; //not used
 
-            // Incident heat flux on this ray direction
-            qin[facei] = Iw[facei]*nAve[facei];
+            // Incident heat flux on this ray direction (sum over lambdaId)
+            qin[facei] += Iw[facei]*nAve[facei];
         }
     }
 
@@ -250,8 +306,6 @@ void Foam::radiation::wideBandDiffusiveRadiationMixedFvPatchScalarField::write
 ) const
 {
     mixedFvPatchScalarField::write(os);
-    radiationCoupledBase::write(os);
-    writeEntryIfDifferent<word>(os, "T", "T", TName_);
 }
 
 

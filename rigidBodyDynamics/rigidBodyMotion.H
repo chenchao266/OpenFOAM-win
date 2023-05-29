@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2016-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2016-2017 OpenFOAM Foundation
+    Copyright (C) 2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -50,11 +53,16 @@ SourceFiles
 #include "rigidBodyModelState.H"
 #include "pointField.H"
 #include "Switch.H"
+#include "Function1.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 namespace Foam
 {
+
+// Forward declarations
+class Time;
+
 namespace RBD
 {
 
@@ -83,7 +91,7 @@ class rigidBodyMotion
         List<spatialTransform> X00_;
 
         //- Acceleration relaxation coefficient
-        scalar aRelax_;
+        autoPtr<Function1<scalar>> aRelax_;
 
         //- Acceleration damping coefficient (for steady-state simulations)
         scalar aDamp_;
@@ -100,11 +108,11 @@ class rigidBodyMotion
         //- Initialize the body-state
         void initialize();
 
-        //- Disallow copy construct
-        rigidBodyMotion(const rigidBodyMotion&);
+        //- No copy construct
+        rigidBodyMotion(const rigidBodyMotion&) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const rigidBodyMotion&);
+        //- No copy assignment
+        void operator=(const rigidBodyMotion&) = delete;
 
 
 public:
@@ -112,17 +120,19 @@ public:
     // Constructors
 
         //- Construct null
-        rigidBodyMotion();
+        rigidBodyMotion(const Time& time);
 
         //- Construct from dictionary
         rigidBodyMotion
         (
+            const Time& time,
             const dictionary& dict
         );
 
         //- Construct from constant and state dictionaries
         rigidBodyMotion
         (
+            const Time& time,
             const dictionary& dict,
             const dictionary& stateDict
         );
@@ -180,6 +190,12 @@ public:
 
             //- Report the status of the motion of the given body
             void status(const label bodyID) const;
+
+            //- Report linear velocity of the given body
+            const vector vCofR(const label bodyID) const;
+
+            //- Report CofR of the given body
+            const vector cCofR(const label bodyID) const;
 
 
         // Transformations

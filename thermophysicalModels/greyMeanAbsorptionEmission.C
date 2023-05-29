@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -58,10 +61,10 @@ Foam::radiation::greyMeanAbsorptionEmission::greyMeanAbsorptionEmission
     absorptionEmissionModel(dict, mesh),
     coeffsDict_((dict.optionalSubDict(typeName + "Coeffs"))),
     speciesNames_(0),
-    specieIndex_(label(0)),
+    specieIndex_(Zero),
     lookUpTablePtr_(),
     thermo_(mesh.lookupObject<fluidThermo>(basicThermo::dictName)),
-    EhrrCoeff_(readScalar(coeffsDict_.lookup("EhrrCoeff"))),
+    EhrrCoeff_(coeffsDict_.get<scalar>("EhrrCoeff")),
     Yj_(nSpecies_)
 {
     if (!isA<basicSpecieMixture>(thermo_))
@@ -75,42 +78,44 @@ Foam::radiation::greyMeanAbsorptionEmission::greyMeanAbsorptionEmission
     label nFunc = 0;
     const dictionary& functionDicts = dict.optionalSubDict(typeName + "Coeffs");
 
-    forAllConstIter(dictionary, functionDicts, iter)
+    for (const entry& dEntry : functionDicts)
     {
-        // safety:
-        if (!iter().isDict())
+        if (!dEntry.isDict())  // safety
         {
             continue;
         }
-        const word& key = iter().keyword();
+
+        const word& key = dEntry.keyword();
+        const dictionary& dict = dEntry.dict();
+
         speciesNames_.insert(key, nFunc);
-        const dictionary& dict = iter().dict();
+
         coeffs_[nFunc].initialise(dict);
         nFunc++;
     }
 
-    if (coeffsDict_.found("lookUpTableFileName"))
+    if
+    (
+        coeffsDict_.found("lookUpTableFileName")
+     && "none" != coeffsDict_.get<word>("lookUpTableFileName")
+    )
     {
-        const word name = coeffsDict_.lookup("lookUpTableFileName");
-        if (name != "none")
-        {
-            lookUpTablePtr_.set
+        lookUpTablePtr_.reset
+        (
+            new interpolationLookUpTable<scalar>
             (
-                new interpolationLookUpTable<scalar>
-                (
-                    fileName(coeffsDict_.lookup("lookUpTableFileName")),
-                    mesh.time().constant(),
-                    mesh
-                )
-            );
+                coeffsDict_.get<fileName>("lookUpTableFileName"),
+                mesh.time().constant(),
+                mesh
+            )
+        );
 
-            if (!mesh.foundObject<volScalarField>("ft"))
-            {
-                FatalErrorInFunction
-                    << "specie ft is not present to use with "
-                    << "lookUpTableFileName " << nl
-                    << exit(FatalError);
-            }
+        if (!mesh.foundObject<volScalarField>("ft"))
+        {
+            FatalErrorInFunction
+                << "specie ft is not present to use with "
+                << "lookUpTableFileName " << nl
+                << exit(FatalError);
         }
     }
 
@@ -118,50 +123,55 @@ Foam::radiation::greyMeanAbsorptionEmission::greyMeanAbsorptionEmission
     // look-up table and save the corresponding indices of the look-up table
 
     label j = 0;
-    forAllConstIter(HashTable<label>, speciesNames_, iter)
+    forAllConstIters(speciesNames_, iter)
     {
-        if (!lookUpTablePtr_.empty())
+        const word& specieName = iter.key();
+        const label index = iter.val();
+
+        volScalarField* fldPtr = mesh.getObjectPtr<volScalarField>(specieName);
+
+        if (lookUpTablePtr_)
         {
-            if (lookUpTablePtr_().found(iter.key()))
+            if (lookUpTablePtr_().found(specieName))
             {
-                label index = lookUpTablePtr_().findFieldIndex(iter.key());
+                const label fieldIndex =
+                    lookUpTablePtr_().findFieldIndex(specieName);
 
-                Info<< "specie: " << iter.key() << " found on look-up table "
-                    << " with index: " << index << endl;
+                Info<< "specie: " << specieName << " found on look-up table "
+                    << " with index: " << fieldIndex << endl;
 
-                specieIndex_[iter()] = index;
+                specieIndex_[index] = fieldIndex;
             }
-            else if (mesh.foundObject<volScalarField>(iter.key()))
+            else if (fldPtr)
             {
-                Yj_.set(j, &mesh.lookupObjectRef<volScalarField>(iter.key()));
-                specieIndex_[iter()] = 0;
+                Yj_.set(j, fldPtr);
+                specieIndex_[index] = 0;
                 j++;
                 Info<< "specie: " << iter.key() << " is being solved" << endl;
             }
             else
             {
                 FatalErrorInFunction
-                    << "specie: " << iter.key()
+                    << "specie: " << specieName
                     << " is neither in look-up table: "
                     << lookUpTablePtr_().tableName()
                     << " nor is being solved" << nl
                     << exit(FatalError);
             }
         }
-        else if (mesh.foundObject<volScalarField>(iter.key()))
+        else if (fldPtr)
         {
-            Yj_.set(j, &mesh.lookupObjectRef<volScalarField>(iter.key()));
-            specieIndex_[iter()] = 0;
+            Yj_.set(j, fldPtr);
+            specieIndex_[index] = 0;
             j++;
         }
         else
         {
             FatalErrorInFunction
-                << " there is not lookup table and the specie" << nl
-                << iter.key() << nl
+                << "There is no lookup table and the specie" << nl
+                << specieName << nl
                 << " is not found " << nl
                 << exit(FatalError);
-
         }
     }
 }
@@ -197,7 +207,7 @@ Foam::radiation::greyMeanAbsorptionEmission::aCont(const label bandI) const
                 IOobject::NO_WRITE
             ),
             mesh(),
-            dimensionedScalar("a", dimless/dimLength, 0.0),
+            dimensionedScalar(dimless/dimLength, Zero),
             extrapolatedCalculatedFvPatchVectorField::typeName
         )
     );
@@ -206,7 +216,7 @@ Foam::radiation::greyMeanAbsorptionEmission::aCont(const label bandI) const
 
     forAll(a, celli)
     {
-        forAllConstIter(HashTable<label>, speciesNames_, iter)
+        forAllConstIters(speciesNames_, iter)
         {
             label n = iter();
             scalar Xipi = 0.0;
@@ -278,14 +288,15 @@ Foam::radiation::greyMeanAbsorptionEmission::ECont(const label bandI) const
                 IOobject::NO_WRITE
             ),
             mesh_,
-            dimensionedScalar("E", dimMass/dimLength/pow3(dimTime), 0.0)
+            dimensionedScalar(dimMass/dimLength/pow3(dimTime), Zero)
         )
     );
 
-    if (mesh_.foundObject<volScalarField>("Qdot"))
+    const volScalarField* QdotPtr = mesh_.findObject<volScalarField>("Qdot");
+
+    if (QdotPtr)
     {
-        const volScalarField& Qdot =
-            mesh_.lookupObject<volScalarField>("Qdot");
+        const volScalarField& Qdot = *QdotPtr;
 
         if (Qdot.dimensions() == dimEnergy/dimTime)
         {

@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2016 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -22,17 +25,20 @@ License
     along with OpenFOAM.  If not, see <http://www.gnu.org/licenses/>.
 
 Class
-    Foam::meshReaders::STARCD
+    Foam::fileFormats::STARCDMeshReader
 
 Description
-    Read pro-STAR vrt/cel/bnd files.
+    Read PROSTAR vrt/cel/bnd files.
     The protected data in meshReader are filled.
 
-    Starting with pro-STAR version 4, the files have become easier to read.
+    Starting with PROSTAR version 4, the files have become easier to read.
     - vertices are space-delimited.
     - the cell format is logical.
     - trimmed and degenerate cells are saved as polyhedral.
     - the boundaries corresponds to cells and their faces.
+
+Notes
+    - Shell entries are read, yet ignored.
 
 SourceFiles
     STARCDMeshReader.C
@@ -43,6 +49,7 @@ SourceFiles
 #define STARCDMeshReader_H
 
 #include "meshReader.H"
+#include "STARCDCore.H"
 #include "boundaryRegion.H"
 #include "cellShape.H"
 #include "IFstream.H"
@@ -52,27 +59,27 @@ SourceFiles
 namespace Foam
 {
 
-namespace meshReaders
+namespace fileFormats
 {
 
 /*---------------------------------------------------------------------------*\
-                    Class meshReaders::STARCD Declaration
+                Class fileFormats::STARCDMeshReader Declaration
 \*---------------------------------------------------------------------------*/
 
-class STARCD
+class STARCDMeshReader
 :
-    public meshReader
+    public meshReader,
+    protected STARCDCore
 {
+    // Private data
+
+        //- Retain solid cell types
+        bool keepSolids_;
+
 
 protected:
 
     // Protected Data
-
-        static const char* const defaultBoundaryName;
-        static const char* const defaultSolidBoundaryName;
-
-        //- Face addressing from pro-STAR faces -> OpenFOAM faces
-        static const int starToFoamFaceAddr[4][6];
 
         //- Cell shapes
         cellShapeList cellShapes_;
@@ -92,8 +99,8 @@ protected:
         //- Read the mesh from the file(s)
         virtual bool readGeometry(const scalar scaleFactor = 1.0);
 
-        //- Read points from file
-        void readPoints(const fileName&, const scalar scaleFactor);
+        //- Read points from file, return the max prostar id used.
+        label readPoints(const fileName&, const scalar scaleFactor);
 
         //- Read cell connectivities from file
         virtual void readCells(const fileName&);
@@ -107,76 +114,29 @@ protected:
         //- Read auxiliary data from constant/{boundaryRegion,cellTable}
         void readAux(const objectRegistry&);
 
-        //- Read and discard to newline
-        static void readToNewline(IFstream&);
-
-        //- Read header
-        static bool readHeader(IFstream&, word fileSignature);
-
-
-private:
-
-    // Private member functions
-
-        //- Disallow default bitwise copy construct
-        STARCD(const STARCD&);
-
-        //- Disallow default bitwise assignment
-        void operator=(const STARCD&);
-
-
-protected:
-
-        enum cellType
-        {
-            starcdFluidType   = 1,
-            starcdSolidType   = 2,
-            starcdBaffleType  = 3,
-            starcdShellType   = 4,
-            starcdLineType    = 5,
-            starcdPointType   = 6
-        };
-
-        enum shapeType
-        {
-            starcdPoint = 1,
-            starcdLine  = 2,
-            starcdShell = 3,
-            starcdHex   = 11,
-            starcdPrism = 12,
-            starcdTet   = 13,
-            starcdPyr   = 14,
-            starcdPoly  = 255
-        };
-
 
 public:
-
-    // Static data
-
-        //- Keep solids (default false)
-        static bool keepSolids;
-
 
     // Constructors
 
         //- Construct from case name
-        STARCD
+        STARCDMeshReader
         (
             const fileName& prefix,
-            const objectRegistry&,
-            const scalar scaleFactor = 1.0
+            const objectRegistry& registry,
+            const scalar scaleFactor = 1.0,
+            const bool keepSolids = false
         );
 
 
     //- Destructor
-    virtual ~STARCD();
+    virtual ~STARCDMeshReader() = default;
 };
 
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
-} // End namespace meshReaders
+} // End namespace fileFormats
 } // End namespace Foam
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //

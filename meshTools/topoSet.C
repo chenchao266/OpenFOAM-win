@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2016-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -27,7 +30,7 @@ License
 #include "mapPolyMesh.H"
 #include "polyMesh.H"
 #include "boundBox.H"
-#include "Time.T.H"
+#include "Time1.H"
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
 
@@ -37,12 +40,18 @@ namespace Foam
     defineRunTimeSelectionTable(topoSet, word);
     defineRunTimeSelectionTable(topoSet, size);
     defineRunTimeSelectionTable(topoSet, set);
+
+    int Foam::topoSet::disallowGenericSets
+    (
+        debug::debugSwitch("disallowGenericSets", 0)
+    );
 }
 
 
-// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+// * * * * * * * * * * * * * * * * Selectors * * * * * * * * * * * * * * * * //
 
-Foam::autoPtr<Foam::topoSet> Foam::topoSet::New
+Foam::autoPtr<Foam::topoSet>
+Foam::topoSet::New
 (
     const word& setType,
     const polyMesh& mesh,
@@ -51,24 +60,24 @@ Foam::autoPtr<Foam::topoSet> Foam::topoSet::New
     writeOption w
 )
 {
-    wordConstructorTable::iterator cstrIter =
-        wordConstructorTablePtr_->find(setType);
+    auto* ctorPtr = wordConstructorTable(setType);
 
-    if (cstrIter == wordConstructorTablePtr_->end())
+    if (!ctorPtr)
     {
-        FatalErrorInFunction
-            << "Unknown set type " << setType
-            << endl << endl
-            << "Valid set types : " << endl
-            << wordConstructorTablePtr_->sortedToc()
-            << exit(FatalError);
+        FatalErrorInLookup
+        (
+            "set",
+            setType,
+            *wordConstructorTablePtr_
+        ) << exit(FatalError);
     }
 
-    return autoPtr<topoSet>(cstrIter()(mesh, name, r, w));
+    return autoPtr<topoSet>(ctorPtr(mesh, name, r, w));
 }
 
 
-Foam::autoPtr<Foam::topoSet> Foam::topoSet::New
+Foam::autoPtr<Foam::topoSet>
+Foam::topoSet::New
 (
     const word& setType,
     const polyMesh& mesh,
@@ -77,24 +86,24 @@ Foam::autoPtr<Foam::topoSet> Foam::topoSet::New
     writeOption w
 )
 {
-    sizeConstructorTable::iterator cstrIter =
-        sizeConstructorTablePtr_->find(setType);
+    auto* ctorPtr = sizeConstructorTable(setType);
 
-    if (cstrIter == sizeConstructorTablePtr_->end())
+    if (!ctorPtr)
     {
-        FatalErrorInFunction
-            << "Unknown set type " << setType
-            << endl << endl
-            << "Valid set types : " << endl
-            << sizeConstructorTablePtr_->sortedToc()
-            << exit(FatalError);
+        FatalErrorInLookup
+        (
+            "set",
+            setType,
+            *sizeConstructorTablePtr_
+        ) << exit(FatalError);
     }
 
-    return autoPtr<topoSet>(cstrIter()(mesh, name, size, w));
+    return autoPtr<topoSet>(ctorPtr(mesh, name, size, w));
 }
 
 
-Foam::autoPtr<Foam::topoSet> Foam::topoSet::New
+Foam::autoPtr<Foam::topoSet>
+Foam::topoSet::New
 (
     const word& setType,
     const polyMesh& mesh,
@@ -103,22 +112,23 @@ Foam::autoPtr<Foam::topoSet> Foam::topoSet::New
     writeOption w
 )
 {
-    setConstructorTable::iterator cstrIter =
-        setConstructorTablePtr_->find(setType);
+    auto* ctorPtr = setConstructorTable(setType);
 
-    if (cstrIter == setConstructorTablePtr_->end())
+    if (!ctorPtr)
     {
-        FatalErrorInFunction
-            << "Unknown set type " << setType
-            << endl << endl
-            << "Valid set types : " << endl
-            << setConstructorTablePtr_->sortedToc()
-            << exit(FatalError);
+        FatalErrorInLookup
+        (
+            "set",
+            setType,
+            *setConstructorTablePtr_
+        ) << exit(FatalError);
     }
 
-    return autoPtr<topoSet>(cstrIter()(mesh, name, set, w));
+    return autoPtr<topoSet>(ctorPtr(mesh, name, set, w));
 }
 
+
+// * * * * * * * * * * * * * Static Member Functions * * * * * * * * * * * * //
 
 Foam::fileName Foam::topoSet::localPath
 (
@@ -134,62 +144,75 @@ Foam::fileName Foam::topoSet::localPath
 
 // Update stored cell numbers using map.
 // Do in two passes to prevent allocation if nothing changed.
-void Foam::topoSet::updateLabels(const labelList& map)
+void Foam::topoSet::updateLabels(const labelUList& map)
 {
+    labelHashSet& labels = *this;
+
     // Iterate over map to see if anything changed
+
     bool changed = false;
 
-    forAllConstIter(labelHashSet, *this, iter)
+    for (const label oldId : labels)
     {
-        if ((iter.key() < 0) || (iter.key() > map.size()))
+        if (oldId < 0 || oldId >= map.size())
         {
             FatalErrorInFunction
-                << "Illegal content " << iter.key() << " of set:" << name()
-                << " of type " << type() << endl
-                << "Value should be between 0 and " << map.size()-1
+                << "Illegal content " << oldId << " of set:" << name()
+                << " of type " << type() << nl
+                << "Value should be between [0," << map.size() << ')'
+                << endl
                 << abort(FatalError);
         }
 
-        const label newCelli = map[iter.key()];
+        const label newId = map[oldId];
 
-        if (newCelli != iter.key())
+        if (newId != oldId)
         {
             changed = true;
-
+            #ifdef FULLDEBUG
+            continue;  // Check all elements in FULLDEBUG mode
+            #endif
             break;
         }
     }
 
-    // Relabel (use second Map to prevent overlapping)
-    if (changed)
+    if (!changed)
     {
-        labelHashSet newSet(2*size());
-
-        forAllConstIter(labelHashSet, *this, iter)
-        {
-            const label newCelli = map[iter.key()];
-
-            if (newCelli >= 0)
-            {
-                newSet.insert(newCelli);
-            }
-        }
-
-        transfer(newSet);
+        return;
     }
+
+
+    // Relabel. Use second labelHashSet to prevent overlapping.
+
+    labelHashSet newLabels(2*labels.size());
+
+    for (const label oldId : labels)
+    {
+        const label newId = map[oldId];
+
+        if (newId >= 0)
+        {
+            newLabels.set(newId);
+        }
+    }
+
+    labels.transfer(newLabels);
 }
 
 
-void Foam::topoSet::check(const label maxLabel)
+void Foam::topoSet::check(const label maxSize)
 {
-    forAllConstIter(topoSet, *this, iter)
+    const labelHashSet& labels = *this;
+
+    for (const label oldId : labels)
     {
-        if ((iter.key() < 0) || (iter.key() > maxLabel))
+        if (oldId < 0 || oldId >= maxSize)
         {
             FatalErrorInFunction
-                << "Illegal content " << iter.key() << " of set:" << name()
-                << " of type " << type() << endl
-                << "Value should be between 0 and " << maxLabel
+                << "Illegal content " << oldId << " of set:" << name()
+                << " of type " << type() << nl
+                << "Value should be between [0," << maxSize << ')'
+                << endl
                 << abort(FatalError);
         }
     }
@@ -207,16 +230,16 @@ void Foam::topoSet::writeDebug
 {
     label n = 0;
 
-    for (; (iter != end()) && (n < maxElem); ++iter)
+    for (; (iter != cend()) && (n < maxElem); ++iter)
     {
-        if ((n != 0) && ((n % 10) == 0))
+        if (n && ((n % 10) == 0))
         {
-            os << endl;
+            os << nl;
         }
         os << iter.key() << ' ';
 
-        n++;
-        elemI++;
+        ++n;
+        ++elemI;
     }
 }
 
@@ -233,16 +256,16 @@ void Foam::topoSet::writeDebug
 {
     label n = 0;
 
-    for (; (iter != end()) && (n < maxElem); ++iter)
+    for (; (iter != cend()) && (n < maxElem); ++iter)
     {
-        if ((n != 0) && ((n % 3) == 0))
+        if (n && ((n % 3) == 0))
         {
-            os << endl;
+            os << nl;
         }
         os << iter.key() << coords[iter.key()] << ' ';
 
-        n++;
-        elemI++;
+        ++n;
+        ++elemI;
     }
 }
 
@@ -258,11 +281,11 @@ void Foam::topoSet::writeDebug
     boundBox bb(pointField(coords, toc()), true);
 
     os  << "Set bounding box: min = "
-        << bb.min() << "    max = " << bb.max() << " metres. " << endl << endl;
+        << bb.min() << "    max = " << bb.max() << " metres." << nl << endl;
 
     label n = 0;
 
-    topoSet::const_iterator iter = begin();
+    topoSet::const_iterator iter = this->cbegin();
 
     if (size() <= maxLen)
     {
@@ -273,7 +296,7 @@ void Foam::topoSet::writeDebug
         label halfLen = maxLen/2;
 
         os  << "Size larger than " << maxLen << ". Printing first and last "
-            << halfLen << " elements:" << endl << endl;
+            << halfLen << " elements:" << nl << endl;
 
         writeDebug(os, coords, halfLen, iter, n);
 
@@ -289,6 +312,73 @@ void Foam::topoSet::writeDebug
 }
 
 
+// * * * * * * * * * * * * * Static Member Functions * * * * * * * * * * * * //
+
+Foam::IOobject Foam::topoSet::findIOobject
+(
+    const polyMesh& mesh,
+    const word& name,
+    readOption r,
+    writeOption w
+)
+{
+    IOobject io
+    (
+        name,
+        mesh.time().findInstance
+        (
+            mesh.dbDir()/polyMesh::meshSubDir/"sets",
+            word::null,
+            IOobject::READ_IF_PRESENT,
+            mesh.facesInstance()
+        ),
+        polyMesh::meshSubDir/"sets",
+        mesh,
+        r,
+        w
+    );
+
+    if (!io.typeHeaderOk<topoSet>(false) && disallowGenericSets != 0)
+    {
+        DebugInfo<< "Setting no read for set " << name << endl;
+        io.readOpt(IOobject::NO_READ);
+    }
+
+    return io;
+}
+
+
+Foam::IOobject Foam::topoSet::findIOobject
+(
+    const Time& runTime,
+    const word& name,
+    readOption r,
+    writeOption w
+)
+{
+    return IOobject
+    (
+        name,
+        runTime.findInstance
+        (
+            polyMesh::meshSubDir/"sets",
+            word::null,
+            IOobject::MUST_READ,
+            runTime.findInstance
+            (
+                polyMesh::meshSubDir,
+                "faces",
+                IOobject::READ_IF_PRESENT
+            )
+        ),
+        polyMesh::meshSubDir/"sets",
+        runTime,
+        r,
+        w
+    );
+}
+
+
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
 Foam::topoSet::topoSet(const IOobject& obj, const word& wantedType)
@@ -299,10 +389,7 @@ Foam::topoSet::topoSet(const IOobject& obj, const word& wantedType)
     (
         readOpt() == IOobject::MUST_READ
      || readOpt() == IOobject::MUST_READ_IF_MODIFIED
-     || (
-            readOpt() == IOobject::READ_IF_PRESENT
-         && headerOk()
-        )
+     || (readOpt() == IOobject::READ_IF_PRESENT && headerOk())
     )
     {
         if (readStream(wantedType).good())
@@ -324,33 +411,13 @@ Foam::topoSet::topoSet
     writeOption w
 )
 :
-    regIOobject
-    (
-        IOobject
-        (
-            name,
-            mesh.time().findInstance
-            (
-                mesh.dbDir()/polyMesh::meshSubDir/"sets",
-                word::null,
-                r,  //IOobject::MUST_READ,
-                mesh.facesInstance()
-            ),
-            polyMesh::meshSubDir/"sets",
-            mesh,
-            r,
-            w
-        )
-    )
+    regIOobject(findIOobject(mesh, name, r, w))
 {
     if
     (
         readOpt() == IOobject::MUST_READ
      || readOpt() == IOobject::MUST_READ_IF_MODIFIED
-     || (
-            readOpt() == IOobject::READ_IF_PRESENT
-         && headerOk()
-        )
+     || (readOpt() == IOobject::READ_IF_PRESENT && headerOk())
     )
     {
         if (readStream(wantedType).good())
@@ -371,24 +438,7 @@ Foam::topoSet::topoSet
     writeOption w
 )
 :
-    regIOobject
-    (
-        IOobject
-        (
-            name,
-            mesh.time().findInstance
-            (
-                mesh.dbDir()/polyMesh::meshSubDir/"sets",
-                word::null,
-                IOobject::NO_READ,
-                mesh.facesInstance()
-            ),
-            polyMesh::meshSubDir/"sets",
-            mesh,
-            IOobject::NO_READ,
-            w
-        )
-    ),
+    regIOobject(findIOobject(mesh, name, IOobject::NO_READ, w)),
     labelHashSet(size)
 {}
 
@@ -397,68 +447,110 @@ Foam::topoSet::topoSet
 (
     const polyMesh& mesh,
     const word& name,
-    const labelHashSet& set,
+    const labelHashSet& labels,
     writeOption w
 )
 :
-    regIOobject
-    (
-        IOobject
-        (
-            name,
-            mesh.time().findInstance
-            (
-                mesh.dbDir()/polyMesh::meshSubDir/"sets",
-                word::null,
-                IOobject::NO_READ,
-                mesh.facesInstance()
-            ),
-            polyMesh::meshSubDir/"sets",
-            mesh,
-            IOobject::NO_READ,
-            w
-        )
-    ),
-    labelHashSet(set)
+    regIOobject(findIOobject(mesh, name, IOobject::NO_READ, w)),
+    labelHashSet(labels)
 {}
 
 
-Foam::topoSet::topoSet(const IOobject& obj, const label size)
+Foam::topoSet::topoSet
+(
+    const polyMesh& mesh,
+    const word& name,
+    labelHashSet&& labels,
+    writeOption w
+)
 :
-    regIOobject(obj),
+    regIOobject(findIOobject(mesh, name, IOobject::NO_READ, w)),
+    labelHashSet(std::move(labels))
+{}
+
+
+Foam::topoSet::topoSet
+(
+    const polyMesh& mesh,
+    const word& name,
+    const labelUList& labels,
+    writeOption w
+)
+:
+    regIOobject(findIOobject(mesh, name, IOobject::NO_READ, w)),
+    labelHashSet(labels)
+{}
+
+
+Foam::topoSet::topoSet(const IOobject& io, const label size)
+:
+    regIOobject(io),
     labelHashSet(size)
 {}
 
 
-Foam::topoSet::topoSet(const IOobject& obj, const labelHashSet& set)
+Foam::topoSet::topoSet(const IOobject& io, const labelHashSet& labels)
 :
-    regIOobject(obj),
-    labelHashSet(set)
+    regIOobject(io),
+    labelHashSet(labels)
 {}
 
 
-
-// * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
-
-Foam::topoSet::~topoSet()
+Foam::topoSet::topoSet(const IOobject& io, labelHashSet&& labels)
+:
+    regIOobject(io),
+    labelHashSet(std::move(labels))
 {}
 
 
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
 
+bool Foam::topoSet::found(const label id) const
+{
+    return static_cast<const labelHashSet&>(*this).found(id);
+}
+
+
+bool Foam::topoSet::set(const label id)
+{
+    return static_cast<labelHashSet&>(*this).set(id);
+}
+
+
+bool Foam::topoSet::unset(const label id)
+{
+    return static_cast<labelHashSet&>(*this).unset(id);
+}
+
+
+void Foam::topoSet::set(const labelUList& labels)
+{
+    static_cast<labelHashSet&>(*this).set(labels);
+}
+
+
+void Foam::topoSet::unset(const labelUList& labels)
+{
+    static_cast<labelHashSet&>(*this).unset(labels);
+}
+
+
 void Foam::topoSet::invert(const label maxLen)
 {
-    // Keep copy of current set.
-    labelHashSet currentSet(*this);
+    // Retain a copy of the original (current) set.
+    labelHashSet original
+    (
+        std::move(static_cast<labelHashSet&>(*this))
+    );
 
-    clear();
-    resize(2*(maxLen - currentSet.size()));
+    clear();  // Maybe don't trust the previous move operation
+    resize(2*max(64, (maxLen - original.size())));
 
-    for (label celli = 0; celli < maxLen; celli++)
+    for (label id=0; id < maxLen; ++id)
     {
-        if (!currentSet.found(celli))
+        if (!original.found(id))
         {
-            insert(celli);
+            this->set(id);
         }
     }
 }
@@ -466,38 +558,28 @@ void Foam::topoSet::invert(const label maxLen)
 
 void Foam::topoSet::subset(const topoSet& set)
 {
-    // Keep copy of current set.
-    labelHashSet currentSet(*this);
-
-    clear();
-    resize(2*min(currentSet.size(), set.size()));
-
-    forAllConstIter(labelHashSet, currentSet, iter)
-    {
-        if (set.found(iter.key()))
-        {
-            // element present in both currentSet and set.
-            insert(iter.key());
-        }
-    }
+    // Only retain entries found in both sets
+    static_cast<labelHashSet&>(*this) &= set;
 }
 
 
 void Foam::topoSet::addSet(const topoSet& set)
 {
-    forAllConstIter(topoSet, set, iter)
-    {
-        insert(iter.key());
-    }
+    // Add entries to the set
+    static_cast<labelHashSet&>(*this) |= set;
+}
+
+
+void Foam::topoSet::subtractSet(const topoSet& set)
+{
+    // Subtract entries from the set
+    static_cast<labelHashSet&>(*this) -= set;
 }
 
 
 void Foam::topoSet::deleteSet(const topoSet& set)
 {
-    forAllConstIter(topoSet, set, iter)
-    {
-        erase(iter.key());
-    }
+    this->subtractSet(set);
 }
 
 
@@ -511,7 +593,7 @@ void Foam::topoSet::writeDebug(Ostream& os, const label maxLen) const
 {
     label n = 0;
 
-    topoSet::const_iterator iter = begin();
+    topoSet::const_iterator iter = this->cbegin();
 
     if (size() <= maxLen)
     {
@@ -522,7 +604,7 @@ void Foam::topoSet::writeDebug(Ostream& os, const label maxLen) const
         label halfLen = maxLen/2;
 
         os  << "Size larger than " << maxLen << ". Printing first and last "
-            << halfLen << " elements:" << endl << endl;
+            << halfLen << " elements:" << nl << endl;
 
         writeDebug(os, halfLen, iter, n);
 
@@ -547,6 +629,26 @@ bool Foam::topoSet::writeData(Ostream& os) const
 void Foam::topoSet::updateMesh(const mapPolyMesh&)
 {
     NotImplemented;
+}
+
+
+void Foam::topoSet::removeFiles(const polyMesh& mesh)
+{
+    IOobject io
+    (
+        "dummy",
+        mesh.facesInstance(),
+        mesh.meshSubDir/"sets",
+        mesh
+    );
+    fileName setsDir(io.path());
+
+    if (debug) DebugVar(setsDir);
+
+    if (isDir(setsDir))
+    {
+        rmDir(setsDir);
+    }
 }
 
 

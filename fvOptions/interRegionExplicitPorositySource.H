@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2012-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2012-2016 OpenFOAM Foundation
+    Copyright (C) 2019-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -24,8 +27,46 @@ License
 Class
     Foam::fv::interRegionExplicitPorositySource
 
+Group
+    grpFvOptionsSources
+
 Description
-    Inter-region explicit porosity source.
+    Applies inter-region explicit porosity source.
+
+Usage
+    Minimal example by using \c constant/fvOptions:
+    \verbatim
+    interRegionExplicitPorositySource1
+    {
+        // Mandatory entries (unmodifiable)
+        type                 interRegionExplicitPorositySource;
+
+        interRegionExplicitPorositySourceCoeffs
+        {
+            // Mandatory entries (unmodifiable)
+            type     <porosityModel>;
+
+            // Optional entries (runtime modifiable)
+            U        U;
+            mu       thermo:mu;
+        }
+
+        // Mandatory/Optional (inherited) entries
+        ...
+    }
+    \endverbatim
+
+    where the entries mean:
+    \table
+      Property  | Description                     | Type   | Reqd  | Dflt
+      type  | Type name: interRegionExplicitPorositySource | word  | yes | -
+      type  | Name of porosity model              | word   | yes   | -
+      U     | Name of operand velocity field      | word   | no    | U
+      mu    | Name of operand dynamic viscosity field | word | no  | thermo:mu
+    \endtable
+
+    The inherited entries are elaborated in:
+     - \link interRegionOption.H \endlink
 
     Sources described by, for example using the DarcyForchheimer model:
 
@@ -40,15 +81,16 @@ Description
 
             coordinateSystem
             {
-                e1  (0.70710678 0.70710678 0);
-                e2  (0 0 1);
+                origin  (0 0 0);
+                e1      (0.70710678 0.70710678 0);
+                e2      (0 0 1);
             }
         }
     }
     \endverbatim
 
 Note
-    The porous region must be selected as a cellZone.
+  - The porous region must be selected as a cellZone.
 
 SourceFiles
     interRegionExplicitPorositySource.C
@@ -65,11 +107,11 @@ SourceFiles
 namespace Foam
 {
 
+// Forward declarations
 class porosityModel;
 
 namespace fv
 {
-
 
 /*---------------------------------------------------------------------------*\
                    Class interRegionExplicitPorositySource Declaration
@@ -79,10 +121,9 @@ class interRegionExplicitPorositySource
 :
     public interRegionOption
 {
-
 protected:
 
-    // Protected data
+    // Protected Data
 
         //- Run-time selectable porosity model
         autoPtr<porosityModel> porosityPtr_;
@@ -90,11 +131,10 @@ protected:
         //- First iteration
         bool firstIter_;
 
-        //- Velocity field name, default = U
+        //- Name of operand velocity field
         word UName_;
 
-        //- Dynamic viscosity field name (compressible case only)
-        //  default = thermo:mu
+        //- Name of operand dynamic viscosity field (compressible case only)
         word muName_;
 
 
@@ -102,20 +142,6 @@ protected:
 
         //- Initialise
         void initialise();
-
-
-private:
-
-    // Private Member Functions
-
-        //- Disallow default bitwise copy construct
-        interRegionExplicitPorositySource
-        (
-            const interRegionExplicitPorositySource&
-        );
-
-        //- Disallow default bitwise assignment
-        void operator=(const interRegionExplicitPorositySource&);
 
 
 public:
@@ -135,10 +161,18 @@ public:
             const fvMesh& mesh
         );
 
+        //- No copy construct
+        interRegionExplicitPorositySource
+        (
+            const interRegionExplicitPorositySource&
+        ) = delete;
+
+        //- No copy assignment
+        void operator=(const interRegionExplicitPorositySource&) = delete;
+
 
     //- Destructor
-    virtual ~interRegionExplicitPorositySource()
-    {}
+    virtual ~interRegionExplicitPorositySource() = default;
 
 
     // Member Functions

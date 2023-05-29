@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -57,7 +59,7 @@ Foam::anisotropicFilter::anisotropicFilter
             mesh
         ),
         mesh,
-        dimensionedVector("zero", dimLength*dimLength, Zero),
+        dimensionedVector(dimLength*dimLength, Zero),
         calculatedFvPatchVectorField::typeName
     )
 {
@@ -86,7 +88,7 @@ Foam::anisotropicFilter::anisotropicFilter
     LESfilter(mesh),
     widthCoeff_
     (
-        readScalar(bd.optionalSubDict(type() + "Coeffs").lookup("widthCoeff"))
+        bd.optionalSubDict(type() + "Coeffs").get<scalar>("widthCoeff")
     ),
     coeff_
     (
@@ -97,7 +99,7 @@ Foam::anisotropicFilter::anisotropicFilter
             mesh
         ),
         mesh,
-        dimensionedVector("zero", dimLength*dimLength, Zero),
+        dimensionedVector(dimLength*dimLength, Zero),
         calculatedFvPatchScalarField::typeName
     )
 {
@@ -121,7 +123,7 @@ Foam::anisotropicFilter::anisotropicFilter
 
 void Foam::anisotropicFilter::read(const dictionary& bd)
 {
-    bd.optionalSubDict(type() + "Coeffs").lookup("widthCoeff") >> widthCoeff_;
+    bd.optionalSubDict(type() + "Coeffs").readEntry("widthCoeff", widthCoeff_);
 }
 
 

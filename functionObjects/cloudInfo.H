@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2012-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2012-2016 OpenFOAM Foundation
+    Copyright (C) 2015-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -34,12 +37,13 @@ Description
     - total current number of parcels
     - total current mass of parcels
 
+Usage
     Example of function object specification:
     \verbatim
     cloudInfo1
     {
         type        cloudInfo;
-        libs        ("libcloudFunctionObjects.so");
+        libs        (lagrangianFunctionObjects);
         ...
         clouds
         (
@@ -49,12 +53,11 @@ Description
     }
     \endverbatim
 
-
-Usage
+    Where the entries comprise:
     \table
-        Property     | Description             | Required    | Default value
-        type         | type name: cloudInfo    | yes         |
-        clouds       | list of clouds names to process |yes  |
+        Property     | Description                          | Required | Default
+        type         | type name: cloudInfo                 | yes |
+        clouds       | list of clouds names to process      | yes |
     \endtable
 
     The output data of each cloud is written to a file named \<cloudName\>.dat
@@ -93,21 +96,26 @@ class cloudInfo
 {
 protected:
 
+        //- Switch to send output to Info as well
+        Switch log_;
+
+        //- List of cloud names
+        wordList cloudNames_;
+
+        //- Output file per cloud
+        PtrList<OFstream> filePtrs_;
+
     // Protected Member Functions
 
         //- File header information
-        virtual void writeFileHeader(const label i);
+        virtual void writeFileHeader(Ostream& os) const;
 
 
-private:
+        //- No copy construct
+        cloudInfo(const cloudInfo&) = delete;
 
-    // Private member functions
-
-        //- Disallow default bitwise copy construct
-        cloudInfo(const cloudInfo&);
-
-        //- Disallow default bitwise assignment
-        void operator=(const cloudInfo&);
+        //- No copy assignment
+        void operator=(const cloudInfo&) = delete;
 
 
 public:
@@ -128,13 +136,13 @@ public:
 
 
     //- Destructor
-    virtual ~cloudInfo();
+    virtual ~cloudInfo() = default;
 
 
     // Member Functions
 
         //- Read the controls
-        virtual bool read(const dictionary&);
+        virtual bool read(const dictionary& dict);
 
         //- Execute, currently does nothing
         virtual bool execute();

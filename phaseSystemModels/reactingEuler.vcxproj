@@ -1,0 +1,277 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|Win32">
+      <Configuration>Debug</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|Win32">
+      <Configuration>Release</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Debug|x64">
+      <Configuration>Debug</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64">
+      <Configuration>Release</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="reactingEuler\alphaContactAngleFvPatchScalarField.C" />
+    <ClCompile Include="reactingEuler\alphatFixedDmdtWallBoilingWallFunctionFvPatchScalarField.C" />
+    <ClCompile Include="reactingEuler\alphatPhaseChangeJayatillekeWallFunctionFvPatchScalarField.C" />
+    <ClCompile Include="reactingEuler\alphatPhaseChangeWallFunctionFvPatchScalarField.C" />
+    <ClCompile Include="reactingEuler\alphatWallBoilingWallFunctionFvPatchScalarField.C" />
+    <ClCompile Include="reactingEuler\Antal.C" />
+    <ClCompile Include="reactingEuler\Antoine.C" />
+    <ClCompile Include="reactingEuler\AntoineExtended.C" />
+    <ClCompile Include="reactingEuler\ArdenBuck.C" />
+    <ClCompile Include="reactingEuler\aspectRatioModel.C" />
+    <ClCompile Include="reactingEuler\AttouFerschneider.C" />
+    <ClCompile Include="reactingEuler\Beetstra.C" />
+    <ClCompile Include="reactingEuler\binaryBreakupModel.C" />
+    <ClCompile Include="reactingEuler\blendingMethod.C" />
+    <ClCompile Include="reactingEuler\breakupModel.C" />
+    <ClCompile Include="reactingEuler\BreenWestwater.C" />
+    <ClCompile Include="reactingEuler\Bromley.C" />
+    <ClCompile Include="reactingEuler\Burns.C" />
+    <ClCompile Include="reactingEuler\CarnahanStarlingRadial.C" />
+    <ClCompile Include="reactingEuler\CHFModel.C" />
+    <ClCompile Include="reactingEuler\CHFSubCoolModel.C" />
+    <ClCompile Include="reactingEuler\coalescenceModel.C" />
+    <ClCompile Include="reactingEuler\Cole.C" />
+    <ClCompile Include="reactingEuler\conductivityModel.C" />
+    <ClCompile Include="reactingEuler\constantAspectRatio.C" />
+    <ClCompile Include="reactingEuler\constantCoalescence.C" />
+    <ClCompile Include="reactingEuler\constantDiameter.C" />
+    <ClCompile Include="reactingEuler\constantDrift.C" />
+    <ClCompile Include="reactingEuler\constantLiftCoefficient.C" />
+    <ClCompile Include="reactingEuler\constantNucleation.C" />
+    <ClCompile Include="reactingEuler\constantNuHeatTransfer.C" />
+    <ClCompile Include="reactingEuler\constantSaturationConditions.C" />
+    <ClCompile Include="reactingEuler\constantSurfaceTensionCoefficient.C" />
+    <ClCompile Include="reactingEuler\constantTurbulentDispersionCoefficient.C" />
+    <ClCompile Include="reactingEuler\constantVirtualMassCoefficient.C" />
+    <ClCompile Include="reactingEuler\copiedFixedValueFvPatchScalarField.C" />
+    <ClCompile Include="reactingEuler\cosine.C" />
+    <ClCompile Include="reactingEuler\cosineWallDamping.C" />
+    <ClCompile Include="reactingEuler\CoulaloglouTavlaridesCoalescence.C" />
+    <ClCompile Include="reactingEuler\daughterSizeDistributionModel.C" />
+    <ClCompile Include="reactingEuler\densityChange.C" />
+    <ClCompile Include="reactingEuler\departureDiameterModel.C" />
+    <ClCompile Include="reactingEuler\departureFrequencyModel.C" />
+    <ClCompile Include="reactingEuler\deposition.C" />
+    <ClCompile Include="reactingEuler\diameterModel.C" />
+    <ClCompile Include="reactingEuler\dragModel.C" />
+    <ClCompile Include="reactingEuler\driftModel.C" />
+    <ClCompile Include="reactingEuler\dummy.C" />
+    <ClCompile Include="reactingEuler\Ergun.C" />
+    <ClCompile Include="reactingEuler\exponential.C" />
+    <ClCompile Include="reactingEuler\exponential2.C" />
+    <ClCompile Include="reactingEuler\filmBoilingModel.C" />
+    <ClCompile Include="reactingEuler\fixedMultiPhaseHeatFluxFvPatchScalarField.C" />
+    <ClCompile Include="reactingEuler\Frank.C" />
+    <ClCompile Include="reactingEuler\frictionalStressModel.C" />
+    <ClCompile Include="reactingEuler\Frossling.C" />
+    <ClCompile Include="reactingEuler\function1.C" />
+    <ClCompile Include="reactingEuler\Gibilaro.C" />
+    <ClCompile Include="reactingEuler\GidaspowConductivity.C" />
+    <ClCompile Include="reactingEuler\GidaspowErgunWenYu.C" />
+    <ClCompile Include="reactingEuler\GidaspowSchillerNaumann.C" />
+    <ClCompile Include="reactingEuler\GidaspowViscosity.C" />
+    <ClCompile Include="reactingEuler\Gosman.C" />
+    <ClCompile Include="reactingEuler\granularPressureModel.C" />
+    <ClCompile Include="reactingEuler\heatTransferModel.C" />
+    <ClCompile Include="reactingEuler\HrenyaSinclairConductivity.C" />
+    <ClCompile Include="reactingEuler\HrenyaSinclairViscosity.C" />
+    <ClCompile Include="reactingEuler\HuaXu.C" />
+    <ClCompile Include="reactingEuler\hydrodynamic.C" />
+    <ClCompile Include="reactingEuler\hyperbolic.C" />
+    <ClCompile Include="reactingEuler\IATE.C" />
+    <ClCompile Include="reactingEuler\IATEsource.C" />
+    <ClCompile Include="reactingEuler\interfaceCompositionModel2.C" />
+    <ClCompile Include="reactingEuler\InterfaceCompositionModels.C" />
+    <ClCompile Include="reactingEuler\interpolatedWallDamping.C" />
+    <ClCompile Include="reactingEuler\IshiiZuber.C" />
+    <ClCompile Include="reactingEuler\isothermalDiameter.C" />
+    <ClCompile Include="reactingEuler\Jeschar.C" />
+    <ClCompile Include="reactingEuler\JohnsonJacksonFrictionalStress.C" />
+    <ClCompile Include="reactingEuler\JohnsonJacksonParticleSlipFvPatchVectorField.C" />
+    <ClCompile Include="reactingEuler\JohnsonJacksonParticleThetaFvPatchScalarField.C" />
+    <ClCompile Include="reactingEuler\JohnsonJacksonSchaefferFrictionalStress.C" />
+    <ClCompile Include="reactingEuler\kineticTheoryModel.C" />
+    <ClCompile Include="reactingEuler\KocamustafaogullariIshii.C" />
+    <ClCompile Include="reactingEuler\Kutadeladze.C" />
+    <ClCompile Include="reactingEuler\LaakkonenAlopaeusAittamaa.C" />
+    <ClCompile Include="reactingEuler\LaakkonenAlopaeusAittamaaDsd.C" />
+    <ClCompile Include="reactingEuler\Lain.C" />
+    <ClCompile Include="reactingEuler\Lamb.C" />
+    <ClCompile Include="reactingEuler\Lavieville.C" />
+    <ClCompile Include="reactingEuler\LegendreMagnaudet.C" />
+    <ClCompile Include="reactingEuler\LehrMilliesMewes.C" />
+    <ClCompile Include="reactingEuler\LehrMilliesMewesCoalescence.C" />
+    <ClCompile Include="reactingEuler\LeidenfrostModel.C" />
+    <ClCompile Include="reactingEuler\LemmertChawla.C" />
+    <ClCompile Include="reactingEuler\liftModel.C" />
+    <ClCompile Include="reactingEuler\linear.C" />
+    <ClCompile Include="reactingEuler\linear2.C" />
+    <ClCompile Include="reactingEuler\linearTsubDiameter.C" />
+    <ClCompile Include="reactingEuler\linearWallDamping.C" />
+    <ClCompile Include="reactingEuler\LopezDeBertodano.C" />
+    <ClCompile Include="reactingEuler\LunPressure.C" />
+    <ClCompile Include="reactingEuler\LunSavageRadial.C" />
+    <ClCompile Include="reactingEuler\Luo.C" />
+    <ClCompile Include="reactingEuler\LuoSvendsen.C" />
+    <ClCompile Include="reactingEuler\massTransferModel.C" />
+    <ClCompile Include="reactingEuler\MHFModel.C" />
+    <ClCompile Include="reactingEuler\Moraga.C" />
+    <ClCompile Include="reactingEuler\multiphaseCompressibleTurbulenceModels.C" />
+    <ClCompile Include="reactingEuler\multiphaseSystem.C" />
+    <ClCompile Include="reactingEuler\multiphaseSystemNew.C" />
+    <ClCompile Include="reactingEuler\multiphaseSystems.C" />
+    <ClCompile Include="reactingEuler\noBlending.C" />
+    <ClCompile Include="reactingEuler\noLift.C" />
+    <ClCompile Include="reactingEuler\noneViscosity.C" />
+    <ClCompile Include="reactingEuler\noSwarm.C" />
+    <ClCompile Include="reactingEuler\noTurbulentDispersion.C" />
+    <ClCompile Include="reactingEuler\noVirtualMass.C" />
+    <ClCompile Include="reactingEuler\noWallDamping.C" />
+    <ClCompile Include="reactingEuler\noWallLubrication.C" />
+    <ClCompile Include="reactingEuler\nucleateFluxModel.C" />
+    <ClCompile Include="reactingEuler\nucleationModel.C" />
+    <ClCompile Include="reactingEuler\nucleationSiteModel.C" />
+    <ClCompile Include="reactingEuler\orderedPhasePair.C" />
+    <ClCompile Include="reactingEuler\partitioningModel.C" />
+    <ClCompile Include="reactingEuler\phaseChange.C" />
+    <ClCompile Include="reactingEuler\phaseChange2.C" />
+    <ClCompile Include="reactingEuler\phaseForces.C" />
+    <ClCompile Include="reactingEuler\phaseFraction.C" />
+    <ClCompile Include="reactingEuler\phaseModel.C" />
+    <ClCompile Include="reactingEuler\phaseModels.C" />
+    <ClCompile Include="reactingEuler\phasePair.C" />
+    <ClCompile Include="reactingEuler\phasePairKey.C" />
+    <ClCompile Include="reactingEuler\phasePressureModel.C" />
+    <ClCompile Include="reactingEuler\phaseSystem.C" />
+    <ClCompile Include="reactingEuler\phaseTransferModel.C" />
+    <ClCompile Include="reactingEuler\polynomial.C" />
+    <ClCompile Include="reactingEuler\populationBalanceModel.C" />
+    <ClCompile Include="reactingEuler\powerLaw.C" />
+    <ClCompile Include="reactingEuler\powerLawUniformBinary.C" />
+    <ClCompile Include="reactingEuler\PrinceBlanch.C" />
+    <ClCompile Include="reactingEuler\radialModel.C" />
+    <ClCompile Include="reactingEuler\randomCoalescence.C" />
+    <ClCompile Include="reactingEuler\RanzMarshall.C" />
+    <ClCompile Include="reactingEuler\reactingEulerHtcModel.C" />
+    <ClCompile Include="reactingEuler\saturationModel.C" />
+    <ClCompile Include="reactingEuler\SchaefferFrictionalStress.C" />
+    <ClCompile Include="reactingEuler\SchillerNaumann.C" />
+    <ClCompile Include="reactingEuler\Schroeder.C" />
+    <ClCompile Include="reactingEuler\segregated.C" />
+    <ClCompile Include="reactingEuler\Shirai.C" />
+    <ClCompile Include="reactingEuler\SinclairJacksonRadial.C" />
+    <ClCompile Include="reactingEuler\sineWallDamping.C" />
+    <ClCompile Include="reactingEuler\sizeDistribution.C" />
+    <ClCompile Include="reactingEuler\sizeGroup.C" />
+    <ClCompile Include="reactingEuler\sphericalHeatTransfer.C" />
+    <ClCompile Include="reactingEuler\sphericalMassTransfer.C" />
+    <ClCompile Include="reactingEuler\Spiegler.C" />
+    <ClCompile Include="reactingEuler\surfaceTensionModel.C" />
+    <ClCompile Include="reactingEuler\swarmCorrection.C" />
+    <ClCompile Include="reactingEuler\SyamlalConductivity.C" />
+    <ClCompile Include="reactingEuler\SyamlalOBrien.C" />
+    <ClCompile Include="reactingEuler\SyamlalRogersOBrienPressure.C" />
+    <ClCompile Include="reactingEuler\SyamlalViscosity.C" />
+    <ClCompile Include="reactingEuler\Tatsumoto.C" />
+    <ClCompile Include="reactingEuler\TDNBModel.C" />
+    <ClCompile Include="reactingEuler\Tenneti.C" />
+    <ClCompile Include="reactingEuler\TolubinskiKostanchuk.C" />
+    <ClCompile Include="reactingEuler\TomiyamaAnalytic.C" />
+    <ClCompile Include="reactingEuler\TomiyamaAspectRatio.C" />
+    <ClCompile Include="reactingEuler\TomiyamaCorrelated.C" />
+    <ClCompile Include="reactingEuler\TomiyamaKataokaZunSakaguchi.C" />
+    <ClCompile Include="reactingEuler\TomiyamaLift.C" />
+    <ClCompile Include="reactingEuler\TomiyamaSwarm.C" />
+    <ClCompile Include="reactingEuler\TomiyamaWallLubrication.C" />
+    <ClCompile Include="reactingEuler\turbulentBreakUp.C" />
+    <ClCompile Include="reactingEuler\turbulentDispersionModel.C" />
+    <ClCompile Include="reactingEuler\twoPhaseCompressibleTurbulenceModels.C" />
+    <ClCompile Include="reactingEuler\twoPhaseSystem.C" />
+    <ClCompile Include="reactingEuler\twoPhaseSystemNew.C" />
+    <ClCompile Include="reactingEuler\twoPhaseSystems.C" />
+    <ClCompile Include="reactingEuler\uniformBinary.C" />
+    <ClCompile Include="reactingEuler\VakhrushevEfremov.C" />
+    <ClCompile Include="reactingEuler\velocityGroup.C" />
+    <ClCompile Include="reactingEuler\virtualMassModel.C" />
+    <ClCompile Include="reactingEuler\viscosityModel.C" />
+    <ClCompile Include="reactingEuler\wakeEntrainmentCoalescence.C" />
+    <ClCompile Include="reactingEuler\wallBoiling.C" />
+    <ClCompile Include="reactingEuler\wallBoiling2.C" />
+    <ClCompile Include="reactingEuler\wallDampedLift.C" />
+    <ClCompile Include="reactingEuler\wallDampingModel.C" />
+    <ClCompile Include="reactingEuler\wallDependentModel.C" />
+    <ClCompile Include="reactingEuler\wallLubricationModel.C" />
+    <ClCompile Include="reactingEuler\Wellek.C" />
+    <ClCompile Include="reactingEuler\WenYu.C" />
+    <ClCompile Include="reactingEuler\Zuber.C" />
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <VCProjectVersion>15.0</VCProjectVersion>
+    <ProjectGuid>{7765262B-3060-4265-926F-9FFF26253321}</ProjectGuid>
+    <WindowsTargetPlatformVersion>10.0.17763.0</WindowsTargetPlatformVersion>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <PlatformToolset>v143</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v143</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <PlatformToolset>v141</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v141</PlatformToolset>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings">
+  </ImportGroup>
+  <ImportGroup Label="Shared">
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <PropertyGroup Label="UserMacros" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <IntDir>$(Platform)\$(Configuration)\$(ProjectName)</IntDir>
+  </PropertyGroup>
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <ClCompile>
+      <AdditionalIncludeDirectories>..\OpenFOAM\algorithms;..\OpenFOAM\containers;..\OpenFOAM\db;..\OpenFOAM\dimensionedTypes;..\OpenFOAM\dimensionSet;..\OpenFOAM\fields;..\OpenFOAM\global;..\OpenFOAM\graph;..\OpenFOAM\include;..\OpenFOAM\interpolations;..\OpenFOAM\matrices;..\OpenFOAM\memory;..\OpenFOAM\meshes;..\OpenFOAM\primitives;..\OSspecific;..\meshTools;..\finiteVolume;..\TurbulenceModels;..\thermophysicalModels;..\transportModels;..\dynamicMesh;..\functionObjects;..\combustionmodels;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>WM_LABEL_SIZE=64;WM_DP;NoRepository;WIN32;WIN64;_WINDOWS;NOMINMAX;_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <CompileAs>CompileAsCpp</CompileAs>
+      <LanguageStandard>stdcpp17</LanguageStandard>
+    </ClCompile>
+  </ItemDefinitionGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets">
+  </ImportGroup>
+</Project>

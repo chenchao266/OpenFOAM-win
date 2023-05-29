@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2018-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -24,8 +27,9 @@ License
 \*---------------------------------------------------------------------------*/
 
 #include "systemCall.H"
-#include "Time.T.H"
+#include "Time1.H"
 #include "dynamicCode.H"
+#include "foamVersion.H"
 #include "addToRunTimeSelectionTable.H"
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
@@ -46,6 +50,36 @@ namespace functionObjects
 }
 
 
+// * * * * * * * * * * * * Protected Member Functions  * * * * * * * * * * * //
+
+Foam::label Foam::functionObjects::systemCall::dispatch(const stringList& calls)
+{
+    if (calls.empty())
+    {
+        return 0;
+    }
+
+    label nCalls = 0;
+
+    if (!masterOnly_ || Pstream::master())
+    {
+        for (const string& call : calls)
+        {
+            Foam::system(call); // Handles empty command as a successful no-op.
+            ++nCalls;
+        }
+    }
+
+    // MPI barrier
+    if (masterOnly_)
+    {
+        Pstream::scatter(nCalls);
+    }
+
+    return nCalls;
+}
+
+
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
 Foam::functionObjects::systemCall::systemCall
@@ -57,47 +91,57 @@ Foam::functionObjects::systemCall::systemCall
 :
     functionObject(name),
     executeCalls_(),
+    writeCalls_(),
     endCalls_(),
-    writeCalls_()
+    masterOnly_(false)
 {
     read(dict);
 }
-
-
-// * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
-
-Foam::functionObjects::systemCall::~systemCall()
-{}
 
 
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
 
 bool Foam::functionObjects::systemCall::read(const dictionary& dict)
 {
+    functionObject::read(dict);
+
+    executeCalls_.clear();
+    writeCalls_.clear();
+    endCalls_.clear();
+
     dict.readIfPresent("executeCalls", executeCalls_);
-    dict.readIfPresent("endCalls", endCalls_);
     dict.readIfPresent("writeCalls", writeCalls_);
+    dict.readIfPresent("endCalls", endCalls_);
+    masterOnly_ = dict.getOrDefault("master", false);
 
     if (executeCalls_.empty() && endCalls_.empty() && writeCalls_.empty())
     {
         WarningInFunction
-            << "no executeCalls, endCalls or writeCalls defined."
+            << "No executeCalls, endCalls or writeCalls defined."
             << endl;
+    }
+    else if (isAdministrator())
+    {
+        FatalErrorInFunction
+            << "System calls should not be executed by someone"
+            << " with administrator rights for security reasons." << nl
+            << nl << endl
+            << exit(FatalError);
     }
     else if (!dynamicCode::allowSystemOperations)
     {
         FatalErrorInFunction
-            << "Executing user-supplied system calls is not enabled by "
-            << "default because of " << nl
-            << "security issues.  If you trust the case you can enable this "
-            << "facility by " << nl
-            << "adding to the InfoSwitches setting in the system controlDict:"
+            << "Executing user-supplied system calls may have been disabled"
+            << " by default" << nl
+            << "for security reasons." << nl
+            << "If you trust the code, you may enable this by adding"
             << nl << nl
             << "    allowSystemOperations 1" << nl << nl
-            << "The system controlDict is either" << nl << nl
-            << "    ~/.OpenFOAM/$WM_PROJECT_VERSION/controlDict" << nl << nl
-            << "or" << nl << nl
-            << "    $WM_PROJECT_DIR/etc/controlDict" << nl << nl
+            << "to the InfoSwitches setting in the system controlDict." << nl
+            << "The system controlDict is any of" << nl << nl
+            << "    ~/.OpenFOAM/" << foamVersion::api << "/controlDict" << nl
+            << "    ~/.OpenFOAM/controlDict" << nl
+            << "    $WM_PROJECT_DIR/etc/controlDict" << nl << endl
             << exit(FatalError);
     }
 
@@ -107,33 +151,21 @@ bool Foam::functionObjects::systemCall::read(const dictionary& dict)
 
 bool Foam::functionObjects::systemCall::execute()
 {
-    forAll(executeCalls_, callI)
-    {
-        Foam::system(executeCalls_[callI]);
-    }
-
-    return true;
-}
-
-
-bool Foam::functionObjects::systemCall::end()
-{
-    forAll(endCalls_, callI)
-    {
-        Foam::system(endCalls_[callI]);
-    }
-
+    dispatch(executeCalls_);
     return true;
 }
 
 
 bool Foam::functionObjects::systemCall::write()
 {
-    forAll(writeCalls_, callI)
-    {
-        Foam::system(writeCalls_[callI]);
-    }
+    dispatch(writeCalls_);
+    return true;
+}
 
+
+bool Foam::functionObjects::systemCall::end()
+{
+    dispatch(endCalls_);
     return true;
 }
 

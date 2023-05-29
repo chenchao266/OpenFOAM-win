@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2019-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -25,10 +28,10 @@ License
 
 #include "cellFeatures.H"
 #include "primitiveMesh.H"
-#include "HashSet.T.H"
-#include "Map.T.H"
+#include "HashSet.H"
+#include "Map.H"
 #include "demandDrivenData.H"
-#include "ListOps.T.H"
+#include "ListOps.H"
 #include "meshTools.H"
 
 // * * * * * * * * * * * * * Private Member Functions  * * * * * * * * * * * //
@@ -124,25 +127,21 @@ bool Foam::cellFeatures::isCellFeatureEdge
 
     // Check the angle between them by comparing the face normals.
 
-    vector n0 = mesh_.faceAreas()[face0];
-    n0 /= mag(n0);
-
-    vector n1 = mesh_.faceAreas()[face1];
-    n1 /= mag(n1);
+    const vector n0 = normalised(mesh_.faceAreas()[face0]);
+    const vector n1 = normalised(mesh_.faceAreas()[face1]);
 
     scalar cosAngle = n0 & n1;
-
 
     const edge& e = mesh_.edges()[edgeI];
 
     const face& f0 = mesh_.faces()[face0];
 
-    label face0Start = findIndex(f0, e.start());
+    label face0Start = f0.find(e.start());
     label face0End   = f0.fcIndex(face0Start);
 
     const face& f1 = mesh_.faces()[face1];
 
-    label face1Start = findIndex(f1, e.start());
+    label face1Start = f1.find(e.start());
     label face1End   = f1.fcIndex(face1Start);
 
     if
@@ -167,10 +166,8 @@ bool Foam::cellFeatures::isCellFeatureEdge
     {
         return true;
     }
-    else
-    {
-        return false;
-    }
+
+    return false;
 }
 
 
@@ -183,16 +180,12 @@ void Foam::cellFeatures::walkSuperFace
     Map<label>& toSuperFace
 ) const
 {
-    if (!toSuperFace.found(facei))
+    if (toSuperFace.insert(facei, superFacei))
     {
-        toSuperFace.insert(facei, superFacei);
-
         const labelList& fEdges = mesh_.faceEdges()[facei];
 
-        forAll(fEdges, fEdgeI)
+        for (const label edgeI : fEdges)
         {
-            label edgeI = fEdges[fEdgeI];
-
             if (!featureEdge_.found(edgeI))
             {
                 label face0;
@@ -429,13 +422,11 @@ bool Foam::cellFeatures::isFeaturePoint(const label edge0, const label edge1)
 
     const edge& e0 = mesh_.edges()[edge0];
 
-    vector e0Vec = e0.vec(mesh_.points());
-    e0Vec /= mag(e0Vec);
+    const vector e0Vec = e0.unitVec(mesh_.points());
 
     const edge& e1 = mesh_.edges()[edge1];
 
-    vector e1Vec = e1.vec(mesh_.points());
-    e1Vec /= mag(e1Vec);
+    const vector e1Vec = e1.unitVec(mesh_.points());
 
     scalar cosAngle;
 
@@ -468,18 +459,19 @@ bool Foam::cellFeatures::isFeaturePoint(const label edge0, const label edge1)
 
     if (cosAngle < minCos_)
     {
-        // Angle larger than criterium
+        // Angle larger than criterion
         return true;
     }
-    else
-    {
-        return false;
-    }
+
+    return false;
 }
 
 
-bool Foam::cellFeatures::isFeatureVertex(const label facei, const label vertI)
- const
+bool Foam::cellFeatures::isFeatureVertex
+(
+    const label facei,
+    const label vertI
+) const
 {
     if
     (

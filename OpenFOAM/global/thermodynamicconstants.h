@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2015 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2015 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -33,7 +35,8 @@ Description
 #define thermodynamicConstants_H
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
-#include "scalar.H"
+#include "scalarFwd.H"
+
 namespace Foam
 {
 namespace constant
@@ -43,13 +46,13 @@ namespace thermodynamic
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
-    //- Universal gas constant (default in [J/(kmol K)])
+    //- Universal gas constant: default in [J/(kmol K)]
     extern const scalar RR;
 
-    //- Standard pressure (default in [Pa])
+    //- Standard pressure: default in [Pa]
     extern const scalar Pstd;
 
-    //- Standard temperature (default in [K])
+    //- Standard temperature: default in [K]
     extern const scalar Tstd;
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //

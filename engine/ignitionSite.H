@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -37,17 +40,18 @@ SourceFiles
 #ifndef ignitionSite_H
 #define ignitionSite_H
 
-#include "vector.H"
+#include "vector2.H"
 #include "labelList.H"
 #include "scalarList.H"
 #include "autoPtr.H"
-#include "dictionary.H"
+#include "dictionary2.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 namespace Foam
 {
 
+// Forward Declarations
 class Time;
 class engineTime;
 class fvMesh;
@@ -58,7 +62,7 @@ class fvMesh;
 
 class ignitionSite
 {
-    // Private data
+    // Private Data
 
         const Time& db_;
         const fvMesh& mesh_;
@@ -86,10 +90,9 @@ class ignitionSite
 
 public:
 
-    // Public classes
+    // Public Classes
 
-        //- Class used for the read-construction of
-        //  PtrLists of ignitionSite
+        //- Read-construction of PtrLists of ignitionSite
         class iNew
         {
             const Time& db_;
@@ -105,9 +108,15 @@ public:
 
             autoPtr<ignitionSite> operator()(Istream& is) const
             {
-                return autoPtr<ignitionSite>(new ignitionSite(is, db_, mesh_));
+                return autoPtr<ignitionSite>::New(is, db_, mesh_);
             }
         };
+
+
+    // Generated Methods
+
+        //- Copy construct
+        ignitionSite(const ignitionSite&) = default;
 
 
     // Constructors
@@ -121,7 +130,7 @@ public:
         //- Clone
         autoPtr<ignitionSite> clone() const
         {
-            return autoPtr<ignitionSite>(new ignitionSite(*this));
+            return autoPtr<ignitionSite>::New(*this);
         }
 
 

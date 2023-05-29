@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -26,7 +29,7 @@ License
 #include "waveDisplacementPointPatchVectorField.H"
 #include "pointPatchFields.H"
 #include "addToRunTimeSelectionTable.H"
-#include "Time.T.H"
+#include "Time1.H"
 #include "polyMesh.H"
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
@@ -55,8 +58,8 @@ waveDisplacementPointPatchVectorField
 :
     fixedValuePointPatchField<vector>(p, iF, dict),
     amplitude_(dict.lookup("amplitude")),
-    omega_(readScalar(dict.lookup("omega"))),
-    waveNumber_(dict.lookupOrDefault<vector>("waveNumber", Zero))
+    omega_(dict.get<scalar>("omega")),
+    waveNumber_(dict.getOrDefault<vector>("waveNumber", Zero))
 {
     if (!dict.found("value"))
     {
@@ -121,12 +124,9 @@ void Foam::waveDisplacementPointPatchVectorField::updateCoeffs()
 void Foam::waveDisplacementPointPatchVectorField::write(Ostream& os) const
 {
     pointPatchField<vector>::write(os);
-    os.writeKeyword("amplitude")
-        << amplitude_ << token::END_STATEMENT << nl;
-    os.writeKeyword("omega")
-        << omega_ << token::END_STATEMENT << nl;
-    os.writeKeyword("waveNumber")
-        << waveNumber_ << token::END_STATEMENT << nl;
+    os.writeEntry("amplitude", amplitude_);
+    os.writeEntry("omega", omega_);
+    os.writeEntry("waveNumber", waveNumber_);
     writeEntry("value", os);
 }
 

@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -24,6 +27,9 @@ License
 Class
     Foam::chemistryReader
 
+Group
+    grpReactionThermophysicalChemistryReaders
+
 Description
     Abstract class for reading chemistry
 
@@ -37,8 +43,8 @@ SourceFiles
 
 #include "typeInfo.H"
 #include "specieElement.H"
-#include "Reaction.T.H"
-#include "ReactionList.T.H"
+#include "Reaction.H"
+#include "ReactionList.H"
 #include "runTimeSelectionTables.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
@@ -48,7 +54,6 @@ namespace Foam
 
 typedef HashTable<List<specieElement>> speciesCompositionTable;
 
-
 /*---------------------------------------------------------------------------*\
                       Class chemistryReader Declaration
 \*---------------------------------------------------------------------------*/
@@ -56,15 +61,6 @@ typedef HashTable<List<specieElement>> speciesCompositionTable;
 template<class ThermoType>
 class chemistryReader
 {
-    // Private Member Functions
-
-        //- Disallow default bitwise copy construct
-        chemistryReader(const chemistryReader&);
-
-        //- Disallow default bitwise assignment
-        void operator=(const chemistryReader&);
-
-
 public:
 
     //- Runtime type information
@@ -76,7 +72,7 @@ public:
 
     // Constructors
 
-        //- Construct null
+        //- Default construct
         chemistryReader()
         {}
 
@@ -107,8 +103,7 @@ public:
 
 
     //- Destructor
-    virtual ~chemistryReader()
-    {}
+    virtual ~chemistryReader() = default;
 
 
     // Member Functions
@@ -120,7 +115,7 @@ public:
         virtual const speciesCompositionTable& specieComposition() const = 0;
 
         //- Return access to the thermo packages
-        virtual const HashPtrTable<ThermoType>& speciesThermo() const = 0;
+        virtual const ReactionTable<ThermoType>& speciesThermo() const = 0;
 
         //- Return access to the list of reactions
         virtual const ReactionList<ThermoType>& reactions() const = 0;
@@ -148,7 +143,7 @@ public:
 
 #define makeChemistryReaderType(Reader, Thermo)                                \
     defineNamedTemplateTypeNameAndDebug(Reader<Thermo>, 0);                    \
-    chemistryReader<Thermo>::adddictionaryConstructorToTable<Reader<Thermo>> \
+    chemistryReader<Thermo>::adddictionaryConstructorToTable<Reader<Thermo>>   \
         add##Reader##Thermo##ConstructorToTable_
 
 

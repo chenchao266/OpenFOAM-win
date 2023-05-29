@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -27,49 +29,51 @@ License
 #include "uLabel.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
-namespace Foam {
+ namespace Foam{
 #if WM_LABEL_SIZE == 32
-    const char* const pTraits<uint64_t>::typeName = "uint64";
-    const char* const pTraits<uint32_t>::typeName = "uLabel";
+const char* const pTraits<uint64_t>::typeName = "uint64";
+const char* const pTraits<uint32_t>::typeName = "uLabel";
 #elif WM_LABEL_SIZE == 64
-    const char* const pTraits<uint64_t>::typeName = "uLabel";
-    const char* const pTraits<uint32_t>::typeName = "uint32";
+const char* const pTraits<uint64_t>::typeName = "uLabel";
+const char* const pTraits<uint32_t>::typeName = "uint32";
 #endif
 
 
-    // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
-    uLabel pow(uLabel a, uLabel b)
+uLabel pow(uLabel a, uLabel b)
+{
+    uLabel ans = 1;
+    for (uLabel i=0; i<b; i++)
     {
-        uLabel ans = 1;
-        for (uLabel i = 0; i < b; i++)
-        {
-            ans *= a;
-        }
-
-        return ans;
+        ans *= a;
     }
 
-
-    uLabel factorial(uLabel n)
-    {
-        static uLabel factTable[13] =
-        {
-            1, 1, 2, 6, 24, 120, 720, 5040, 40320,
-            362880, 3628800, 39916800, 479001600
-        };
-
-#ifdef FULLDEBUG
-        if (n > 12)
-        {
-            FatalErrorInFunction
-                << "n value out of range (> 12)"
-                << abort(FatalError);
-        }
-#endif
-
-        return factTable[n];
-    }
-
+    return ans;
 }
+
+
+uLabel factorial(uLabel n)
+{
+    static uLabel factTable[13] =
+    {
+        1, 1, 2, 6, 24, 120, 720, 5040, 40320,
+        362880, 3628800, 39916800, 479001600
+    };
+
+    #ifdef FULLDEBUG
+    if (n > 12)
+    {
+        FatalErrorInFunction
+            << "n value out of range (> 12)"
+            << abort(FatalError);
+    }
+    #endif
+
+    return factTable[n];
+}
+
+
 // ************************************************************************* //
+
+ } // End namespace Foam

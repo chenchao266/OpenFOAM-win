@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2012-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2012-2017 OpenFOAM Foundation
+    Copyright (C) 2018-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -28,8 +31,7 @@ License
 #include "faceZoneSet.H"
 #include "searchableSurface.H"
 #include "syncTools.H"
-#include "Time.T.H"
-
+#include "Time1.H"
 #include "addToRunTimeSelectionTable.H"
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
@@ -43,6 +45,20 @@ namespace Foam
         searchableSurfaceToFaceZone,
         word
     );
+    addToRunTimeSelectionTable
+    (
+        topoSetFaceZoneSource,
+        searchableSurfaceToFaceZone,
+        word
+    );
+    addNamedToRunTimeSelectionTable
+    (
+        topoSetFaceZoneSource,
+        searchableSurfaceToFaceZone,
+        word,
+        surface
+    );
+
 }
 
 
@@ -55,27 +71,53 @@ Foam::topoSetSource::addToUsageTable Foam::searchableSurfaceToFaceZone::usage_
 );
 
 
+// * * * * * * * * * * * * * Static Member Functions * * * * * * * * * * * * //
+
+Foam::word Foam::searchableSurfaceToFaceZone::getSurfaceName
+(
+    const dictionary& dict,
+    const word& defaultName
+)
+{
+    // Unfortunately cannot get a good default name from the dictionary name.
+    // It could be
+    //     sourceInfo { .. }
+    // But even with something like
+    //     mySurf.stl { .. }
+    // The dictName() method will only return the "stl" ending.
+
+
+    return
+        dict.getOrDefaultCompat<word>
+        (
+            "surfaceName",
+            {{"name", 1806}},
+            defaultName
+        );
+}
+
+
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
-// Construct from dictionary
 Foam::searchableSurfaceToFaceZone::searchableSurfaceToFaceZone
 (
+    const word& surfaceType,
     const polyMesh& mesh,
     const dictionary& dict
 )
 :
-    topoSetSource(mesh),
+    topoSetFaceZoneSource(mesh),
     surfacePtr_
     (
         searchableSurface::New
         (
-            word(dict.lookup("surface")),
+            surfaceType,
             IOobject
             (
-                dict.lookupOrDefault("name", mesh.objectRegistry::db().name()),
-                mesh.time().constant(),
-                "triSurface",
-                mesh.objectRegistry::db(),
+                getSurfaceName(dict, mesh.objectRegistry::db().name()),
+                mesh.time().constant(),     // Instance
+                "triSurface",               // Local
+                mesh.objectRegistry::db(),  // Registry
                 IOobject::MUST_READ,
                 IOobject::NO_WRITE
             ),
@@ -85,9 +127,18 @@ Foam::searchableSurfaceToFaceZone::searchableSurfaceToFaceZone
 {}
 
 
-// * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
-
-Foam::searchableSurfaceToFaceZone::~searchableSurfaceToFaceZone()
+Foam::searchableSurfaceToFaceZone::searchableSurfaceToFaceZone
+(
+    const polyMesh& mesh,
+    const dictionary& dict
+)
+:
+    searchableSurfaceToFaceZone
+    (
+        dict.getCompat<word>("surfaceType", {{"surface", 0}}),
+        mesh,
+        dict
+    )
 {}
 
 
@@ -103,6 +154,7 @@ void Foam::searchableSurfaceToFaceZone::applyToSet
     {
         WarningInFunction
             << "Operation only allowed on a faceZoneSet." << endl;
+        return;
     }
     else
     {
@@ -129,10 +181,8 @@ void Foam::searchableSurfaceToFaceZone::applyToSet
 
         const polyBoundaryMesh& pbm = mesh_.boundaryMesh();
 
-        forAll(pbm, patchi)
+        for (const polyPatch& pp : pbm)
         {
-            const polyPatch& pp = pbm[patchi];
-
             if (pp.coupled())
             {
                 forAll(pp, i)
@@ -166,10 +216,13 @@ void Foam::searchableSurfaceToFaceZone::applyToSet
         // Select intersected faces
         // ~~~~~~~~~~~~~~~~~~~~~~~~
 
-        if ((action == topoSetSource::NEW) || (action == topoSetSource::ADD))
+        if (action == topoSetSource::ADD || action == topoSetSource::NEW)
         {
-            Info<< "    Adding all faces from surface "
-                << surfacePtr_().name() << " ..." << endl;
+            if (verbose_)
+            {
+                Info<< "    Adding all faces from surface "
+                    << surfacePtr_().name() << " ..." << endl;
+            }
 
             DynamicList<label> newAddressing(fzSet.addressing());
             DynamicList<bool> newFlipMap(fzSet.flipMap());
@@ -188,10 +241,13 @@ void Foam::searchableSurfaceToFaceZone::applyToSet
             fzSet.flipMap().transfer(newFlipMap);
             fzSet.updateSet();
         }
-        else if (action == topoSetSource::DELETE)
+        else if (action == topoSetSource::SUBTRACT)
         {
-            Info<< "    Removing all faces from surface "
-                << surfacePtr_().name() << " ..." << endl;
+            if (verbose_)
+            {
+                Info<< "    Removing all faces from surface "
+                    << surfacePtr_().name() << " ..." << endl;
+            }
 
             // Start off empty
             DynamicList<label> newAddressing(fzSet.addressing().size());

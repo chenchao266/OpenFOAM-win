@@ -1,9 +1,12 @@
-﻿/*---------------------------------------------------------------------------*\
+/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2018-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -23,7 +26,7 @@ License
 
 \*---------------------------------------------------------------------------*/
 
-//#include "sampledCuttingPlane.H"
+#include "sampledCuttingPlane.H"
 #include "volFieldsFwd.H"
 #include "pointFields.H"
 #include "volPointInterpolation.H"
@@ -32,66 +35,81 @@ License
 
 template<class Type>
 Foam::tmp<Foam::Field<Type>>
-Foam::sampledCuttingPlane::sampleField
+Foam::sampledCuttingPlane::sampleOnFaces
 (
-    const GeometricField<Type, fvPatchField, volMesh>& vField
+    const interpolation<Type>& sampler
 ) const
 {
-    return tmp<Field<Type>>(new Field<Type>(vField, surface().meshCells()));
+    return sampledSurface::sampleOnFaces
+    (
+        sampler,
+        meshCells(),
+        surface(),
+        points()
+    );
 }
 
 
 template<class Type>
 Foam::tmp<Foam::Field<Type>>
-Foam::sampledCuttingPlane::interpolateField
+Foam::sampledCuttingPlane::sampleOnIsoSurfacePoints
 (
     const interpolation<Type>& interpolator
 ) const
 {
-    // Get fields to sample. Assume volPointInterpolation!
-    const GeometricField<Type, fvPatchField, volMesh>& volFld =
-        interpolator.psi();
-
-    if (subMeshPtr_.valid())
+    if (!isoSurfacePtr_)
     {
-        tmp<GeometricField<Type, fvPatchField, volMesh>> tvolSubFld =
-            subMeshPtr_().interpolate(volFld);
-
-        const GeometricField<Type, fvPatchField, volMesh>& volSubFld =
-            tvolSubFld();
-
-        tmp<GeometricField<Type, pointPatchField, pointMesh>> tpointSubFld =
-            volPointInterpolation::New(volSubFld.mesh()).interpolate(volSubFld);
-
-        // Sample.
-        return surface().interpolate
-        (
-            (
-                average_
-              ? pointAverage(tpointSubFld())()
-              : volSubFld
-            ),
-            tpointSubFld()
-        );
+        FatalErrorInFunction
+            << "cannot call without an iso-surface" << nl
+            << exit(FatalError);
     }
-    else
+
+    // Assume volPointInterpolation for the point field!
+    const auto& volFld = interpolator.psi();
+
+    tmp<GeometricField<Type, fvPatchField, volMesh>> tvolFld(volFld);
+    tmp<GeometricField<Type, pointPatchField, pointMesh>> tpointFld;
+
+    if (subMeshPtr_)
     {
-        tmp<GeometricField<Type, pointPatchField, pointMesh>> tpointFld
-        (
-            volPointInterpolation::New(volFld.mesh()).interpolate(volFld)
-        );
-
-        // Sample.
-        return surface().interpolate
-        (
-            (
-                average_
-              ? pointAverage(tpointFld())()
-              : volFld
-            ),
-            tpointFld()
-        );
+        // Replace with subset
+        tvolFld.reset(subMeshPtr_->interpolate(volFld));
     }
+
+    // Interpolated point field
+    tpointFld.reset
+    (
+        volPointInterpolation::New(tvolFld().mesh()).interpolate(tvolFld())
+    );
+
+    if (average_)
+    {
+        tvolFld.reset(pointAverage(tpointFld()));
+    }
+
+    return isoSurfacePtr_->interpolate(tvolFld(), tpointFld());
+}
+
+
+template<class Type>
+Foam::tmp<Foam::Field<Type>>
+Foam::sampledCuttingPlane::sampleOnPoints
+(
+    const interpolation<Type>& interpolator
+) const
+{
+    if (isoSurfacePtr_)
+    {
+        return this->sampleOnIsoSurfacePoints(interpolator);
+    }
+
+    return sampledSurface::sampleOnPoints
+    (
+        interpolator,
+        meshCells(),
+        surface(),
+        points()
+    );
 }
 
 

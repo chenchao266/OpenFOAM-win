@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017, 2020 OpenFOAM Foundation
+    Copyright (C) 2016-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -24,7 +27,7 @@ License
 \*---------------------------------------------------------------------------*/
 
 #include "polyMesh.H"
-#include "Time.T.H"
+#include "Time1.h"
 #include "cellIOList.H"
 #include "wedgePolyPatch.H"
 #include "emptyPolyPatch.H"
@@ -33,19 +36,18 @@ License
 #include "polyMeshTetDecomposition.H"
 #include "indexedOctree.H"
 #include "treeDataCell.H"
-#include "MeshObject.T.H"
+#include "MeshObject.H"
 #include "pointMesh.H"
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
-using namespace Foam;
+
 namespace Foam
 {
     defineTypeNameAndDebug(polyMesh, 0);
 
     word polyMesh::defaultRegion = "region0";
     word polyMesh::meshSubDir = "polyMesh";
-}
-
+ 
 
 // * * * * * * * * * * * * * Private Member Functions  * * * * * * * * * * * //
 
@@ -67,20 +69,29 @@ void polyMesh::calcDirections() const
 
     forAll(boundaryMesh(), patchi)
     {
-        if (boundaryMesh()[patchi].size())
+        const polyPatch& pp = boundaryMesh()[patchi];
+        if (isA<emptyPolyPatch>(pp))
         {
-            if (isA<emptyPolyPatch>(boundaryMesh()[patchi]))
+            // Force calculation of geometric properties, independent of
+            // size. This avoids parallel synchronisation problems.
+            const vectorField::subField fa(pp.faceAreas());
+
+            if (pp.size())
             {
                 nEmptyPatches++;
-                emptyDirVec += sum(cmptMag(boundaryMesh()[patchi].faceAreas()));
+                emptyDirVec += sum(cmptMag(fa));
             }
-            else if (isA<wedgePolyPatch>(boundaryMesh()[patchi]))
-            {
-                const wedgePolyPatch& wpp = refCast<const wedgePolyPatch>
-                (
-                    boundaryMesh()[patchi]
-                );
+        }
+        else if (isA<wedgePolyPatch>(pp))
+        {
+            const wedgePolyPatch& wpp = refCast<const wedgePolyPatch>(pp);
 
+            // Force calculation of geometric properties, independent of
+            // size. This avoids parallel synchronisation problems.
+            (void)wpp.faceNormals();
+
+            if (pp.size())
+            {
                 nWedgePatches++;
                 wedgeDirVec += cmptMag(wpp.centreNormal());
             }
@@ -94,7 +105,7 @@ void polyMesh::calcDirections() const
     {
         reduce(emptyDirVec, sumOp<vector>());
 
-        emptyDirVec /= mag(emptyDirVec);
+        emptyDirVec.normalise();
 
         for (direction cmpt=0; cmpt<vector::nComponents; cmpt++)
         {
@@ -118,7 +129,7 @@ void polyMesh::calcDirections() const
     {
         reduce(wedgeDirVec, sumOp<vector>());
 
-        wedgeDirVec /= mag(wedgeDirVec);
+        wedgeDirVec.normalise();
 
         for (direction cmpt=0; cmpt<vector::nComponents; cmpt++)
         {
@@ -147,20 +158,20 @@ autoPtr<labelIOList> polyMesh::readTetBasePtIs() const
         IOobject::NO_WRITE
     );
 
-    if (io.typeHeaderOk<labelIOList>())
+    if (io.typeHeaderOk<labelIOList>(true))
     {
-        return autoPtr<labelIOList>(new labelIOList(io));
+        return autoPtr<labelIOList>::New(io);
     }
-    else
-    {
-        return autoPtr<labelIOList>(nullptr);
-    }
+
+    return nullptr;
 }
 
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
-polyMesh::polyMesh(const IOobject& io) :    objectRegistry(io),
+polyMesh::polyMesh(const IOobject& io, const bool doInit)
+:
+    objectRegistry(io),
     primitiveMesh(),
     points_
     (
@@ -216,7 +227,13 @@ polyMesh::polyMesh(const IOobject& io) :    objectRegistry(io),
         IOobject
         (
             "boundary",
-            time().findInstance(meshDir(), "boundary"),
+            time().findInstance // allow 'newer' boundary file
+            (
+                meshDir(),
+                "boundary",
+                IOobject::MUST_READ,
+                faces_.instance()
+            ),
             meshSubDir,
             *this,
             IOobject::MUST_READ,
@@ -235,12 +252,13 @@ polyMesh::polyMesh(const IOobject& io) :    objectRegistry(io),
         IOobject
         (
             "pointZones",
-            time().findInstance
-            (
-                meshDir(),
-                "pointZones",
-                IOobject::READ_IF_PRESENT
-            ),
+            //time().findInstance
+            //(
+            //    meshDir(),
+            //    "pointZones",
+            //    IOobject::READ_IF_PRESENT
+            //),
+            faces_.instance(),
             meshSubDir,
             *this,
             IOobject::READ_IF_PRESENT,
@@ -253,12 +271,13 @@ polyMesh::polyMesh(const IOobject& io) :    objectRegistry(io),
         IOobject
         (
             "faceZones",
-            time().findInstance
-            (
-                meshDir(),
-                "faceZones",
-                IOobject::READ_IF_PRESENT
-            ),
+            //time().findInstance
+            //(
+            //    meshDir(),
+            //    "faceZones",
+            //    IOobject::READ_IF_PRESENT
+            //),
+            faces_.instance(),
             meshSubDir,
             *this,
             IOobject::READ_IF_PRESENT,
@@ -271,12 +290,13 @@ polyMesh::polyMesh(const IOobject& io) :    objectRegistry(io),
         IOobject
         (
             "cellZones",
-            time().findInstance
-            (
-                meshDir(),
-                "cellZones",
-                IOobject::READ_IF_PRESENT
-            ),
+            //time().findInstance
+            //(
+            //    meshDir(),
+            //    "cellZones",
+            //    IOobject::READ_IF_PRESENT
+            //),
+            faces_.instance(),
             meshSubDir,
             *this,
             IOobject::READ_IF_PRESENT,
@@ -287,8 +307,10 @@ polyMesh::polyMesh(const IOobject& io) :    objectRegistry(io),
     globalMeshDataPtr_(nullptr),
     moving_(false),
     topoChanging_(false),
+    storeOldCellCentres_(false),
     curMotionTimeIndex_(time().timeIndex()),
-    oldPointsPtr_(nullptr)
+    oldPointsPtr_(nullptr),
+    oldCellCentresPtr_(nullptr)
 {
     if (!owner_.headerClassName().empty())
     {
@@ -316,38 +338,62 @@ polyMesh::polyMesh(const IOobject& io) :    objectRegistry(io),
         neighbour_.write();
     }
 
+    // Warn if global empty mesh
+    if (returnReduce(boundary_.empty(), orOp<bool>()))
+    {
+        WarningInFunction
+            << "mesh missing boundary on one or more domains" << endl;
+
+        if (returnReduce(nPoints(), sumOp<label>()) == 0)
+        {
+            WarningInFunction
+                << "no points in mesh" << endl;
+        }
+        if (returnReduce(nCells(), sumOp<label>()) == 0)
+        {
+            WarningInFunction
+                << "no cells in mesh" << endl;
+        }
+    }
+
+    if (doInit)
+    {
+        polyMesh::init(false);  // do not init lower levels
+    }
+}
+
+
+bool polyMesh::init(const bool doInit)
+{
+    if (doInit)
+    {
+        primitiveMesh::init(doInit);
+    }
+
     // Calculate topology for the patches (processor-processor comms etc.)
     boundary_.updateMesh();
 
     // Calculate the geometry for the patches (transformation tensors etc.)
     boundary_.calcGeometry();
 
-    // Warn if global empty mesh
-    if (returnReduce(nPoints(), sumOp<label>()) == 0)
-    {
-        WarningInFunction
-            << "no points in mesh" << endl;
-    }
-    if (returnReduce(nCells(), sumOp<label>()) == 0)
-    {
-        WarningInFunction
-            << "no cells in mesh" << endl;
-    }
-
     // Initialise demand-driven data
     calcDirections();
+
+    return false;
 }
 
 
 polyMesh::polyMesh
 (
     const IOobject& io,
-    const Xfer<pointField>& points,
-    const Xfer<faceList>& faces,
-    const Xfer<labelList>& owner,
-    const Xfer<labelList>& neighbour,
+    pointField&& points,
+    faceList&& faces,
+    labelList&& owner,
+    labelList&& neighbour,
     const bool syncPar
-) :    objectRegistry(io),
+)
+:
+    objectRegistry(io),
     primitiveMesh(),
     points_
     (
@@ -357,10 +403,10 @@ polyMesh::polyMesh
             instance(),
             meshSubDir,
             *this,
-            io.readOpt(),
-            IOobject::AUTO_WRITE
+            IOobject::NO_READ,  //io.readOpt(),
+            io.writeOpt()
         ),
-        points
+        std::move(points)
     ),
     faces_
     (
@@ -370,10 +416,10 @@ polyMesh::polyMesh
             instance(),
             meshSubDir,
             *this,
-            io.readOpt(),
-            IOobject::AUTO_WRITE
+            IOobject::NO_READ,  //io.readOpt(),
+            io.writeOpt()
         ),
-        faces
+        std::move(faces)
     ),
     owner_
     (
@@ -383,10 +429,10 @@ polyMesh::polyMesh
             instance(),
             meshSubDir,
             *this,
-            io.readOpt(),
-            IOobject::AUTO_WRITE
+            IOobject::NO_READ,  //io.readOpt(),
+            io.writeOpt()
         ),
-        owner
+        std::move(owner)
     ),
     neighbour_
     (
@@ -396,10 +442,10 @@ polyMesh::polyMesh
             instance(),
             meshSubDir,
             *this,
-            io.readOpt(),
-            IOobject::AUTO_WRITE
+            IOobject::NO_READ,  //io.readOpt(),
+            io.writeOpt()
         ),
-        neighbour
+        std::move(neighbour)
     ),
     clearedPrimitives_(false),
     boundary_
@@ -410,8 +456,8 @@ polyMesh::polyMesh
             instance(),
             meshSubDir,
             *this,
-            io.readOpt(),
-            IOobject::AUTO_WRITE
+            IOobject::NO_READ,  // ignore since no alternative can be supplied
+            io.writeOpt()
         ),
         *this,
         polyPatchList()
@@ -420,7 +466,7 @@ polyMesh::polyMesh
     comm_(UPstream::worldComm),
     geometricD_(Zero),
     solutionD_(Zero),
-    tetBasePtIsPtr_(readTetBasePtIs()),
+    tetBasePtIsPtr_(nullptr),
     cellTreePtr_(nullptr),
     pointZones_
     (
@@ -430,7 +476,7 @@ polyMesh::polyMesh
             instance(),
             meshSubDir,
             *this,
-            io.readOpt(),
+            IOobject::NO_READ,  // ignore since no alternative can be supplied
             IOobject::NO_WRITE
         ),
         *this,
@@ -444,7 +490,7 @@ polyMesh::polyMesh
             instance(),
             meshSubDir,
             *this,
-            io.readOpt(),
+            IOobject::NO_READ,// ignore since no alternative can be supplied
             IOobject::NO_WRITE
         ),
         *this,
@@ -458,7 +504,7 @@ polyMesh::polyMesh
             instance(),
             meshSubDir,
             *this,
-            io.readOpt(),
+            IOobject::NO_READ,  // ignore since no alternative can be supplied
             IOobject::NO_WRITE
         ),
         *this,
@@ -467,8 +513,10 @@ polyMesh::polyMesh
     globalMeshDataPtr_(nullptr),
     moving_(false),
     topoChanging_(false),
+    storeOldCellCentres_(false),
     curMotionTimeIndex_(time().timeIndex()),
-    oldPointsPtr_(nullptr)
+    oldPointsPtr_(nullptr),
+    oldCellCentresPtr_(nullptr)
 {
     // Check if the faces and cells are valid
     forAll(faces_, facei)
@@ -492,11 +540,13 @@ polyMesh::polyMesh
 polyMesh::polyMesh
 (
     const IOobject& io,
-    const Xfer<pointField>& points,
-    const Xfer<faceList>& faces,
-    const Xfer<cellList>& cells,
+    pointField&& points,
+    faceList&& faces,
+    cellList&& cells,
     const bool syncPar
-) :    objectRegistry(io),
+)
+:
+    objectRegistry(io),
     primitiveMesh(),
     points_
     (
@@ -507,9 +557,9 @@ polyMesh::polyMesh
             meshSubDir,
             *this,
             IOobject::NO_READ,
-            IOobject::AUTO_WRITE
+            io.writeOpt()
         ),
-        points
+        std::move(points)
     ),
     faces_
     (
@@ -520,9 +570,9 @@ polyMesh::polyMesh
             meshSubDir,
             *this,
             IOobject::NO_READ,
-            IOobject::AUTO_WRITE
+            io.writeOpt()
         ),
-        faces
+        std::move(faces)
     ),
     owner_
     (
@@ -533,7 +583,7 @@ polyMesh::polyMesh
             meshSubDir,
             *this,
             IOobject::NO_READ,
-            IOobject::AUTO_WRITE
+            io.writeOpt()
         ),
         0
     ),
@@ -546,7 +596,7 @@ polyMesh::polyMesh
             meshSubDir,
             *this,
             IOobject::NO_READ,
-            IOobject::AUTO_WRITE
+            io.writeOpt()
         ),
         0
     ),
@@ -560,7 +610,7 @@ polyMesh::polyMesh
             meshSubDir,
             *this,
             IOobject::NO_READ,
-            IOobject::AUTO_WRITE
+            io.writeOpt()
         ),
         *this,
         0
@@ -569,7 +619,7 @@ polyMesh::polyMesh
     comm_(UPstream::worldComm),
     geometricD_(Zero),
     solutionD_(Zero),
-    tetBasePtIsPtr_(readTetBasePtIs()),
+    tetBasePtIsPtr_(nullptr),
     cellTreePtr_(nullptr),
     pointZones_
     (
@@ -616,8 +666,10 @@ polyMesh::polyMesh
     globalMeshDataPtr_(nullptr),
     moving_(false),
     topoChanging_(false),
+    storeOldCellCentres_(false),
     curMotionTimeIndex_(time().timeIndex()),
-    oldPointsPtr_(nullptr)
+    oldPointsPtr_(nullptr),
+    oldCellCentresPtr_(nullptr)
 {
     // Check if faces are valid
     forAll(faces_, facei)
@@ -633,8 +685,8 @@ polyMesh::polyMesh
         }
     }
 
-    // transfer in cell list
-    cellList cLst(cells);
+    // Transfer in cell list
+    cellList cLst(std::move(cells));
 
     // Check if cells are valid
     forAll(cLst, celli)
@@ -655,14 +707,20 @@ polyMesh::polyMesh
 }
 
 
+polyMesh::polyMesh(const IOobject& io, const zero, const bool syncPar)
+:
+    polyMesh(io, pointField(), faceList(), labelList(), labelList(), syncPar)
+{}
+
+
 void polyMesh::resetPrimitives
 (
-    const Xfer<pointField>& points,
-    const Xfer<faceList>& faces,
-    const Xfer<labelList>& owner,
-    const Xfer<labelList>& neighbour,
-    const labelList& patchSizes,
-    const labelList& patchStarts,
+    autoPtr<pointField>&& points,
+    autoPtr<faceList>&& faces,
+    autoPtr<labelList>&& owner,
+    autoPtr<labelList>&& neighbour,
+    const labelUList& patchSizes,
+    const labelUList& patchStarts,
     const bool validBoundary
 )
 {
@@ -671,25 +729,25 @@ void polyMesh::resetPrimitives
 
     // Take over new primitive data.
     // Optimized to avoid overwriting data at all
-    if (notNull(points))
+    if (points)
     {
-        points_.transfer(points());
+        points_.transfer(*points);
         bounds_ = boundBox(points_, validBoundary);
     }
 
-    if (notNull(faces))
+    if (faces)
     {
-        faces_.transfer(faces());
+        faces_.transfer(*faces);
     }
 
-    if (notNull(owner))
+    if (owner)
     {
-        owner_.transfer(owner());
+        owner_.transfer(*owner);
     }
 
-    if (notNull(neighbour))
+    if (neighbour)
     {
-        neighbour_.transfer(neighbour());
+        neighbour_.transfer(*neighbour);
     }
 
 
@@ -773,10 +831,8 @@ const fileName& polyMesh::dbDir() const
     {
         return parent().dbDir();
     }
-    else
-    {
-        return objectRegistry::dbDir();
-    }
+
+    return objectRegistry::dbDir();
 }
 
 
@@ -811,7 +867,7 @@ const Vector<label>& polyMesh::geometricD() const
 
 label polyMesh::nGeometricD() const
 {
-    return cmptSum(geometricD() + Vector<label>::one)/2;
+    return cmptSum(geometricD() + Vector<label>::one_)/2;
 }
 
 
@@ -828,13 +884,13 @@ const Vector<label>& polyMesh::solutionD() const
 
 label polyMesh::nSolutionD() const
 {
-    return cmptSum(solutionD() + Vector<label>::one)/2;
+    return cmptSum(solutionD() + Vector<label>::one_)/2;
 }
 
 
 const labelIOList& polyMesh::tetBasePtIs() const
 {
-    if (tetBasePtIsPtr_.empty())
+    if (!tetBasePtIsPtr_)
     {
         if (debug)
         {
@@ -861,22 +917,22 @@ const labelIOList& polyMesh::tetBasePtIs() const
         );
     }
 
-    return tetBasePtIsPtr_();
+    return *tetBasePtIsPtr_;
 }
 
 
 const indexedOctree<treeDataCell>&
 polyMesh::cellTree() const
 {
-    if (cellTreePtr_.empty())
+    if (!cellTreePtr_)
     {
         treeBoundBox overallBb(points());
 
-        static Random rndGen(261782);
+        Random rndGen(261782);
 
         overallBb = overallBb.extend(rndGen, 1e-4);
-        overallBb.min() -= point(ROOTVSMALL, ROOTVSMALL, ROOTVSMALL);
-        overallBb.max() += point(ROOTVSMALL, ROOTVSMALL, ROOTVSMALL);
+        overallBb.min() -= point::uniform(ROOTVSMALL);
+        overallBb.max() += point::uniform(ROOTVSMALL);
 
         cellTreePtr_.reset
         (
@@ -896,13 +952,13 @@ polyMesh::cellTree() const
         );
     }
 
-    return cellTreePtr_();
+    return *cellTreePtr_;
 }
 
 
 void polyMesh::addPatches
 (
-    const List<polyPatch*>& p,
+    PtrList<polyPatch>& plist,
     const bool validBoundary
 )
 {
@@ -917,13 +973,7 @@ void polyMesh::addPatches
     geometricD_ = Zero;
     solutionD_ = Zero;
 
-    boundary_.setSize(p.size());
-
-    // Copy the patch pointers
-    forAll(p, pI)
-    {
-        boundary_.set(pI, p[pI]);
-    }
+    boundary_.transfer(plist);
 
     // parallelData depends on the processorPatch ordering so force
     // recalculation. Problem: should really be done in removeBoundary but
@@ -969,7 +1019,7 @@ void polyMesh::addZones
             pointZones_.set(pI, pz[pI]);
         }
 
-        pointZones_.writeOpt() = IOobject::AUTO_WRITE;
+        pointZones_.writeOpt(IOobject::AUTO_WRITE);
     }
 
     // Face zones
@@ -983,7 +1033,7 @@ void polyMesh::addZones
             faceZones_.set(fI, fz[fI]);
         }
 
-        faceZones_.writeOpt() = IOobject::AUTO_WRITE;
+        faceZones_.writeOpt(IOobject::AUTO_WRITE);
     }
 
     // Cell zones
@@ -997,8 +1047,21 @@ void polyMesh::addZones
             cellZones_.set(cI, cz[cI]);
         }
 
-        cellZones_.writeOpt() = IOobject::AUTO_WRITE;
+        cellZones_.writeOpt(IOobject::AUTO_WRITE);
     }
+}
+
+
+void polyMesh::addPatches
+(
+    const List<polyPatch*>& p,
+    const bool validBoundary
+)
+{
+    // Acquire ownership of the pointers
+    PtrList<polyPatch> plist(const_cast<List<polyPatch*>&>(p));
+
+    addPatches(plist, validBoundary);
 }
 
 
@@ -1054,19 +1117,41 @@ const labelList& polyMesh::faceNeighbour() const
 
 const pointField& polyMesh::oldPoints() const
 {
-    if (oldPointsPtr_.empty())
+    if (!moving_)
+    {
+        return points_;
+    }
+
+    if (!oldPointsPtr_)
     {
         if (debug)
         {
-            WarningInFunction
-                << endl;
+            WarningInFunction << endl;
         }
 
         oldPointsPtr_.reset(new pointField(points_));
         curMotionTimeIndex_ = time().timeIndex();
     }
 
-    return oldPointsPtr_();
+    return *oldPointsPtr_;
+}
+
+
+const pointField& polyMesh::oldCellCentres() const
+{
+    storeOldCellCentres_ = true;
+
+    if (!moving_)
+    {
+        return cellCentres();
+    }
+
+    if (!oldCellCentresPtr_)
+    {
+        oldCellCentresPtr_.reset(new pointField(cellCentres()));
+    }
+
+    return *oldCellCentresPtr_;
 }
 
 
@@ -1075,18 +1160,38 @@ tmp<scalarField> polyMesh::movePoints
     const pointField& newPoints
 )
 {
-    if (debug)
+    DebugInFunction
+        << "Moving points for time " << time().value()
+        << " index " << time().timeIndex() << endl;
+
+    if (newPoints.size() != points_.size())
     {
-        InfoInFunction
-            << "Moving points for time " << time().value()
-            << " index " << time().timeIndex() << endl;
+        FatalErrorInFunction
+            << "Size of newPoints " << newPoints.size()
+            << " does not correspond to current mesh points size "
+            << points_.size()
+            << exit(FatalError);
     }
+
 
     moving(true);
 
     // Pick up old points
     if (curMotionTimeIndex_ != time().timeIndex())
     {
+        if (debug)
+        {
+            Info<< "tmp<scalarField> polyMesh::movePoints(const pointField&) : "
+                << " Storing current points for time " << time().value()
+                << " index " << time().timeIndex() << endl;
+        }
+
+        if (storeOldCellCentres_)
+        {
+            oldCellCentresPtr_.clear();
+            oldCellCentresPtr_.reset(new pointField(cellCentres()));
+        }
+
         // Mesh motion in the new time step
         oldPointsPtr_.clear();
         oldPointsPtr_.reset(new pointField(points_));
@@ -1110,15 +1215,15 @@ tmp<scalarField> polyMesh::movePoints
         }
     }
 
-    points_.writeOpt() = IOobject::AUTO_WRITE;
+    points_.writeOpt(IOobject::AUTO_WRITE);
     points_.instance() = time().timeName();
     points_.eventNo() = getEvent();
 
-    if (tetBasePtIsPtr_.valid())
+    if (tetBasePtIsPtr_)
     {
-        tetBasePtIsPtr_().writeOpt() = IOobject::AUTO_WRITE;
-        tetBasePtIsPtr_().instance() = time().timeName();
-        tetBasePtIsPtr_().eventNo() = getEvent();
+        tetBasePtIsPtr_->writeOpt(IOobject::AUTO_WRITE);
+        tetBasePtIsPtr_->instance() = time().timeName();
+        tetBasePtIsPtr_->eventNo() = getEvent();
     }
 
     tmp<scalarField> sweptVols = primitiveMesh::movePoints
@@ -1128,9 +1233,9 @@ tmp<scalarField> polyMesh::movePoints
     );
 
     // Adjust parallel shared points
-    if (globalMeshDataPtr_.valid())
+    if (globalMeshDataPtr_)
     {
-        globalMeshDataPtr_().movePoints(points_);
+        globalMeshDataPtr_->movePoints(points_);
     }
 
     // Force recalculation of all geometric data with new points
@@ -1142,12 +1247,24 @@ tmp<scalarField> polyMesh::movePoints
     faceZones_.movePoints(points_);
     cellZones_.movePoints(points_);
 
-    // Cell tree might become invalid
+    // Reset cell tree - it gets built from mesh geometry so might have
+    // wrong boxes. It is correct as long as none of the cells leaves
+    // the boxes it is in which most likely is almost never the case except
+    // for tiny displacements. An alternative is to check the displacements
+    // to see if they are tiny - imagine a big windtunnel with a small rotating
+    // object. In this case the processors without the rotating object wouldn't
+    // have to clear any geometry. However your critical path still stays the
+    // same so no time would be gained (unless the decomposition gets weighted).
+    // Small benefit for lots of scope for problems so not done.
     cellTreePtr_.clear();
 
     // Reset valid directions (could change with rotation)
     geometricD_ = Zero;
     solutionD_ = Zero;
+
+    // Note: tet-base decomposition does not get cleared. Ideally your face
+    // decomposition should not change during mesh motion ...
+
 
     meshObject::movePoints<polyMesh>(*this);
     meshObject::movePoints<pointMesh>(*this);
@@ -1170,12 +1287,13 @@ void polyMesh::resetMotion() const
 {
     curMotionTimeIndex_ = 0;
     oldPointsPtr_.clear();
+    oldCellCentresPtr_.clear();
 }
 
 
 const globalMeshData& polyMesh::globalData() const
 {
-    if (globalMeshDataPtr_.empty())
+    if (!globalMeshDataPtr_)
     {
         if (debug)
         {
@@ -1187,17 +1305,17 @@ const globalMeshData& polyMesh::globalData() const
         globalMeshDataPtr_.reset(new globalMeshData(*this));
     }
 
-    return globalMeshDataPtr_();
+    return *globalMeshDataPtr_;
 }
 
 
-label polyMesh::comm() const
+label polyMesh::comm() const noexcept
 {
     return comm_;
 }
 
 
-label& polyMesh::comm()
+label& polyMesh::comm() noexcept
 {
     return comm_;
 }
@@ -1327,7 +1445,7 @@ bool polyMesh::pointInCell
 
                     vector proj = p - faceTri.centre();
 
-                    if ((faceTri.normal() & proj) > 0)
+                    if ((faceTri.areaNormal() & proj) > 0)
                     {
                         return false;
                     }
@@ -1357,7 +1475,7 @@ bool polyMesh::pointInCell
 
                     vector proj = p - faceTri.centre();
 
-                    if ((faceTri.normal() & proj) > 0)
+                    if ((faceTri.areaNormal() & proj) > 0)
                     {
                         return false;
                     }
@@ -1428,6 +1546,15 @@ label polyMesh::findCell
         // Approximate search avoiding the construction of an octree
         // and cell decomposition
 
+        if (Pstream::parRun() && decompMode == FACE_DIAG_TRIS)
+        {
+            // Force construction of face-diagonal decomposition before testing
+            // for zero cells. If parallel running a local domain might have
+            // zero cells so never construct the face-diagonal decomposition
+            // (which uses parallel transfers)
+            (void)tetBasePtIs();
+        }
+
         // Find the nearest cell centre to this location
         label celli = findNearestCell(p);
 
@@ -1453,5 +1580,5 @@ label polyMesh::findCell
     }
 }
 
-
+}
 // ************************************************************************* //

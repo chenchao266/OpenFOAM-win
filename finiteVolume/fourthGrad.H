@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2019-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -23,6 +26,9 @@ License
 
 Class
     Foam::fv::fourthGrad
+
+Group
+    grpFvGradSchemes
 
 Description
     Second-order gradient scheme using least-squares.
@@ -58,11 +64,11 @@ class fourthGrad
 {
     // Private Member Functions
 
-        //- Disallow default bitwise copy construct
-        fourthGrad(const fourthGrad&);
+        //- No copy construct
+        fourthGrad(const fourthGrad&) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const fourthGrad&);
+        //- No copy assignment
+        void operator=(const fourthGrad&) = delete;
 
 
 public:
@@ -83,7 +89,7 @@ public:
     // Member Functions
 
         //- Return the gradient of the given field to the gradScheme::grad
-        //  for optional caching
+        //- for optional caching
         virtual tmp
         <
             GeometricField

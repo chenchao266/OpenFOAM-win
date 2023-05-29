@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2012-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2012-2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -77,15 +79,14 @@ private:
         //- Return the component corresponding to the given component name
         direction cmpt(const word& cmptName) const;
 
-        //- Disallow default bitwise copy construct
+        //- No copy construct
         componentVelocityMotionSolver
         (
             const componentVelocityMotionSolver&
-        );
+        ) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const componentVelocityMotionSolver&);
-
+        //- No copy assignment
+        void operator=(const componentVelocityMotionSolver&) = delete;
 
 public:
 

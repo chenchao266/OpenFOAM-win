@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -67,10 +69,10 @@ inline Foam::RBD::cuboid::cuboid
 )
 :
     rigidBody(name, rigidBodyInertia()),
-    L_(dict.lookup("L"))
+    L_(dict.get<vector>("L"))
 {
-    const scalar m(readScalar(dict.lookup("mass")));
-    const vector c(dict.lookup("centreOfMass"));
+    const scalar m(dict.get<scalar>("mass"));
+    const vector c(dict.get<vector>("centreOfMass"));
     rigidBodyInertia::operator=(rigidBodyInertia(m, c, I(m, L_)));
 }
 

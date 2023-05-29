@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2017 OpenFOAM Foundation
+    Copyright (C) 2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -35,13 +38,7 @@ namespace Foam
 namespace fv
 {
     defineTypeNameAndDebug(radiation, 0);
-
-    addToRunTimeSelectionTable
-    (
-        option,
-        radiation,
-        dictionary
-    );
+    addToRunTimeSelectionTable(option, radiation, dictionary);
 }
 }
 
@@ -56,14 +53,13 @@ Foam::fv::radiation::radiation
     const fvMesh& mesh
 )
 :
-    option(sourceName, modelType, dict, mesh)
+    fv::option(sourceName, modelType, dict, mesh)
 {
-    const basicThermo& thermo =
-        mesh_.lookupObject<basicThermo>(basicThermo::dictName);
+    const auto& thermo = mesh_.lookupObject<basicThermo>(basicThermo::dictName);
 
-    fieldNames_.setSize(1);
+    fieldNames_.resize(1);
     fieldNames_[0] = thermo.he().name();
-    applied_.setSize(fieldNames_.size(), false);
+    fv::option::resetApplied();
 
     radiation_ = Foam::radiation::radiationModel::New(thermo.T());
 }
@@ -84,8 +80,7 @@ void Foam::fv::radiation::addSup
     const label fieldi
 )
 {
-    const basicThermo& thermo =
-        mesh_.lookupObject<basicThermo>(basicThermo::dictName);
+    const auto& thermo = mesh_.lookupObject<basicThermo>(basicThermo::dictName);
 
     radiation_->correct();
 

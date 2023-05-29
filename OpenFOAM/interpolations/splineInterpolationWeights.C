@@ -1,9 +1,12 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2012-2015 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2012-2015 OpenFOAM Foundation
+    Copyright (C) 2019 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -25,32 +28,34 @@ License
 
 #include "splineInterpolationWeights.H"
 #include "addToRunTimeSelectionTable.H"
-#include "ListOps.T.H"
+#include "ListOps.H"
 #include "linearInterpolationWeights.H"
-
-// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
-
-namespace Foam
-{
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
 
-defineTypeNameAndDebug(splineInterpolationWeights, 0);
-addToRunTimeSelectionTable
-(
-    interpolationWeights,
-    splineInterpolationWeights,
-    word
-);
+namespace Foam
+{
+    defineTypeNameAndDebug(splineInterpolationWeights, 0);
+    addToRunTimeSelectionTable
+    (
+        interpolationWeights,
+        splineInterpolationWeights,
+        word
+    );
+} // End namespace Foam
 
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
+
+ namespace Foam{
 splineInterpolationWeights::splineInterpolationWeights
 (
     const scalarField& samples,
     const bool checkEqualDistance
-) :    interpolationWeights(samples),
+)
+:
+    interpolationWeights(samples),
     index_(-1)
 {
     if (checkEqualDistance && samples_.size() > 2)
@@ -216,8 +221,6 @@ bool splineInterpolationWeights::valueWeights
 }
 
 
-// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
-
-} // End namespace Foam
-
 // ************************************************************************* //
+
+ } // End namespace Foam

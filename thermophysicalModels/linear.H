@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2013-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2013-2017 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -24,6 +26,9 @@ License
 Class
     Foam::linear
 
+Group
+    grpSpecieEquationOfState
+
 Description
     Linear equation of state with constant compressibility
 
@@ -37,8 +42,8 @@ SourceFiles
 
 \*---------------------------------------------------------------------------*/
 
-#ifndef linear_H
-#define linear_H
+#ifndef linearEOS_H
+#define linearEOS_H
 
 #include "autoPtr.H"
 
@@ -148,6 +153,12 @@ public:
 
             //- Return Cp departure [J/(kg K]
             inline scalar Cp(scalar p, scalar T) const;
+
+            //- Return internal energy departure [J/kg]
+            inline scalar E(const scalar p, const scalar T) const;
+
+            //- Return Cv departure [J/(kg K]
+            inline scalar Cv(scalar p, scalar T) const;
 
             //- Return entropy [J/(kg K)]
             inline scalar S(const scalar p, const scalar T) const;

@@ -1,9 +1,12 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2015-2018 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -26,7 +29,7 @@ Class
 
 Description
     Set of sets to sample.
-    Call sampledSets.write() to sample&write files.
+    Call sampledSets.write() to sample and write files.
 
 SourceFiles
     sampledSets.C
@@ -36,21 +39,21 @@ SourceFiles
 #ifndef sampledSets_H
 #define sampledSets_H
 
-#include "functionObject.H"
+#include "regionFunctionObject.H"
 #include "sampledSet.H"
 #include "volFieldsFwd.H"
 #include "meshSearch.H"
 #include "interpolation.H"
 #include "coordSet.H"
 #include "writer.H"
-#include "wordReList.H"
+#include "wordRes.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 namespace Foam
 {
 
-// Forward declaration of classes
+// Forward Declarations
 class Time;
 class objectRegistry;
 class dictionary;
@@ -62,10 +65,10 @@ class fvMesh;
 
 class sampledSets
 :
-    public functionObject,
+    public functionObjects::regionFunctionObject,
     public PtrList<sampledSet>
 {
-    // Private classes
+    // Private Classes
 
         //- Class used for grouping field types
         template<class Type>
@@ -79,18 +82,7 @@ class sampledSets
             autoPtr<writer<Type>> formatter;
 
             //- Construct null
-            fieldGroup()
-            :
-                DynamicList<word>(0),
-                formatter(nullptr)
-            {}
-
-            //- Construct for a particular format
-            fieldGroup(const word& writeFormat)
-            :
-                DynamicList<word>(0),
-                formatter(writer<Type>::New(writeFormat))
-            {}
+            fieldGroup() = default;
 
             //- Reset format and field list
             void clear()
@@ -99,12 +91,10 @@ class sampledSets
                 formatter.clear();
             }
 
-            //- Assign a new formatter
-            void operator=(const word& writeFormat)
+            void setFormatter(const word& writeFormat, const dictionary& dict)
             {
-                formatter = writer<Type>::New(writeFormat);
+                formatter = writer<Type>::New(writeFormat, dict);
             }
-
         };
 
 
@@ -149,13 +139,13 @@ class sampledSets
         };
 
 
-    // Static data members
+    // Static Data Members
 
         //- Output verbosity
         static bool verbose_;
 
 
-    // Private data
+    // Private Data
 
         //- Const reference to fvMesh
         const fvMesh& mesh_;
@@ -173,31 +163,34 @@ class sampledSets
         meshSearch searchEngine_;
 
 
-        // Read from dictonary
+    // Read from dictionary
 
-            //- Names of fields to sample
-            wordReList fieldSelection_;
+        //- Names of fields to sample
+        wordRes fieldSelection_;
 
-            //- Interpolation scheme to use
-            word interpolationScheme_;
+        //- Interpolation scheme to use
+        word interpolationScheme_;
 
-            //- Output format to use
-            word writeFormat_;
+        //- Output format to use
+        word writeFormat_;
 
-
-        // Categorized scalar/vector/tensor fields
-
-            fieldGroup<scalar> scalarFields_;
-            fieldGroup<vector> vectorFields_;
-            fieldGroup<sphericalTensor> sphericalTensorFields_;
-            fieldGroup<symmTensor> symmTensorFields_;
-            fieldGroup<tensor> tensorFields_;
+        //- Dictionary containing writer options
+        dictionary writeFormatOptions_;
 
 
-        // Merging structures
+    // Categorized scalar/vector/tensor fields
 
-            PtrList<coordSet> masterSampledSets_;
-            labelListList indexSets_;
+        fieldGroup<scalar> scalarFields_;
+        fieldGroup<vector> vectorFields_;
+        fieldGroup<sphericalTensor> sphericalTensorFields_;
+        fieldGroup<symmTensor> symmTensorFields_;
+        fieldGroup<tensor> tensorFields_;
+
+
+    // Merging structures
+
+        PtrList<coordSet> masterSampledSets_;
+        labelListList indexSets_;
 
 
     // Private Member Functions
@@ -205,14 +198,11 @@ class sampledSets
         //- Clear old field groups
         void clearFieldGroups();
 
-        //- Append fieldName to the appropriate group
-        label appendFieldGroup(const word& fieldName, const word& fieldType);
-
         //- Classify field types, returns the number of fields
         label classifyFields();
 
         //- Combine points from all processors. Sort by curveDist and produce
-        //  index list. Valid result only on master processor.
+        //- index list. Valid result only on master processor.
         void combineSampledSets
         (
             PtrList<coordSet>& masterSampledSets,
@@ -229,8 +219,9 @@ class sampledSets
             PtrList<volFieldSampler<T>>& masterFields
         );
 
+        //- Write set on master, return fileName
         template<class Type>
-        void writeSampleFile
+        fileName writeSampleFile
         (
             const coordSet& masterSampleSet,
             const PtrList<volFieldSampler<Type>>& masterFields,
@@ -243,9 +234,11 @@ class sampledSets
         void sampleAndWrite(fieldGroup<Type>& fields);
 
 
-        //- Disallow default bitwise copy construct and assignment
-        sampledSets(const sampledSets&);
-        void operator=(const sampledSets&);
+        //- No copy construct
+        sampledSets(const sampledSets&) = delete;
+
+        //- No copy assignment
+        void operator=(const sampledSets&) = delete;
 
 
 public:
@@ -276,13 +269,14 @@ public:
 
 
     //- Destructor
-    virtual ~sampledSets();
+    virtual ~sampledSets() = default;
 
 
     // Member Functions
 
-        //- Set verbosity level
-        void verbose(const bool verbosity = true);
+        //- Enable/disable verbose output
+        //  \return old value
+        bool verbose(const bool on);
 
         //- Read the sampledSets
         virtual bool read(const dictionary&);

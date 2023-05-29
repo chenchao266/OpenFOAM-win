@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2015-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2015-2016 OpenFOAM Foundation
+    Copyright (C) 2016 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -37,6 +40,10 @@ Description
             // Optional entry enabling the calculation
             // of the normal-to-wall field
             nRequired false;
+
+            // Optional entry delaying wall distance update to every n steps
+            // Default is 1 (update every step)
+            updateInterval 5;
         }
     \endverbatim
 
@@ -53,7 +60,7 @@ SourceFiles
 #ifndef wallDist_H
 #define wallDist_H
 
-#include "MeshObject.T.H"
+#include "MeshObject.H"
 #include "patchDistMethod.H"
 #include "volFields.H"
 
@@ -78,17 +85,26 @@ class wallDist
         //- Name for the patch set, e.g. "wall"
         const word patchTypeName_;
 
+        //- Construction dictionary
+        const dictionary dict_;
+
         //- Run-time selected method to generate the distance-to-wall field
         mutable autoPtr<patchDistMethod> pdm_;
 
         //- Distance-to-wall field
         mutable volScalarField y_;
 
+        //- Normal-to-wall field
+        mutable tmp<volVectorField> n_;
+
+        //- Update wall distance every updateInterval_ steps
+        const label updateInterval_;
+
         //- Flag to indicate if the distance-to-wall field is required
         mutable bool nRequired_;
 
-        //- Normal-to-wall field
-        mutable tmp<volVectorField> n_;
+        //- Flag to indicate whether the wall distance requires updating
+        bool requireUpdate_;
 
 
     // Private Member Functions
@@ -96,11 +112,11 @@ class wallDist
         //- Construct the normal-to-wall field as required
         void constructn() const;
 
-        //- Disallow default bitwise copy construct
-        wallDist(const wallDist&);
+        //- No copy construct
+        wallDist(const wallDist&) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const wallDist&);
+        //- No copy assignment
+        void operator=(const wallDist&) = delete;
 
 
 public:
@@ -111,19 +127,29 @@ public:
 
     // Constructors
 
-        //- Construct from mesh and optional patch type name
-        wallDist
-        (
-            const fvMesh& mesh,
-            const word& patchTypeName = "wall"
-        );
-
         //- Construct from mesh, patch IDs and optional patch type name
         wallDist
         (
             const fvMesh& mesh,
             const labelHashSet& patchIDs,
             const word& patchTypeName = "patch"
+        );
+
+        //- Construct from mesh, patch IDs, default patch distance method
+        //  and optional patch type name
+        wallDist
+        (
+            const fvMesh& mesh,
+            const word& defaultPatchDistMethod,
+            const labelHashSet& patchIDs,
+            const word& patchTypeName = "patch"
+        );
+
+        //- Construct from mesh and optional patch type name
+        wallDist
+        (
+            const fvMesh& mesh,
+            const word& patchTypeName = "wall"
         );
 
 

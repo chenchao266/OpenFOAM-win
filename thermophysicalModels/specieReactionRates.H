@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2016 OpenFOAM Foundation
+    Copyright (C) 2016-2019 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -34,7 +37,7 @@ Description
 See also
     Foam::functionObjects::fvMeshFunctionObject
     Foam::functionObjects::volRegion
-    Foam::functionObjects::logFiles
+    Foam::functionObjects::writeFile
 
 SourceFiles
     specieReactionRates.C
@@ -46,7 +49,7 @@ SourceFiles
 
 #include "fvMeshFunctionObject.H"
 #include "volRegion.H"
-#include "logFiles.H"
+#include "writeFile.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -56,7 +59,7 @@ namespace functionObjects
 {
 
 /*---------------------------------------------------------------------------*\
-                          Class specieReactionRates Declaration
+                     Class specieReactionRates Declaration
 \*---------------------------------------------------------------------------*/
 
 template<class ChemistryModelType>
@@ -64,7 +67,7 @@ class specieReactionRates
 :
     public fvMeshFunctionObject,
     public volRegion,
-    public logFiles
+    public writeFile
 {
     // Private Member Data
 
@@ -74,13 +77,13 @@ class specieReactionRates
     // Private Member Functions
 
         //- File header information
-        virtual void writeFileHeader(const label i);
+        virtual void writeFileHeader(Ostream& os) const;
 
-        //- Disallow default bitwise copy construct
-        specieReactionRates(const specieReactionRates&);
+        //- No copy construct
+        specieReactionRates(const specieReactionRates&) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const specieReactionRates&);
+        //- No copy assignment
+        void operator=(const specieReactionRates&) = delete;
 
 
 public:
@@ -101,13 +104,13 @@ public:
 
 
     //- Destructor
-    virtual ~specieReactionRates();
+    virtual ~specieReactionRates() = default;
 
 
     // Member Functions
 
         //- Read the specieReactionRates data
-        virtual bool read(const dictionary&);
+        virtual bool read(const dictionary& dict);
 
         //- Do nothing
         virtual bool execute();

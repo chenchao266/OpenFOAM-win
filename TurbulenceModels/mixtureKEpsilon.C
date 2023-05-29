@@ -1,9 +1,12 @@
-﻿/*---------------------------------------------------------------------------*\
+/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2013-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2013-2017 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -23,10 +26,11 @@ License
 
 \*---------------------------------------------------------------------------*/
 
-//#include "mixtureKEpsilon.H"
+#include "mixtureKEpsilon.H"
 #include "fvOptions.H"
 #include "bound.H"
 #include "twoPhaseSystem.H"
+#include "dragModel.H"
 #include "virtualMassModel.H"
 #include "fixedValueFvPatchFields.H"
 #include "inletOutletFvPatchFields.H"
@@ -70,7 +74,7 @@ mixtureKEpsilon<BasicTurbulenceModel>::mixtureKEpsilon
 
     Cmu_
     (
-        dimensioned<scalar>::lookupOrAddToDict
+        dimensioned<scalar>::getOrAddToDict
         (
             "Cmu",
             this->coeffDict_,
@@ -79,7 +83,7 @@ mixtureKEpsilon<BasicTurbulenceModel>::mixtureKEpsilon
     ),
     C1_
     (
-        dimensioned<scalar>::lookupOrAddToDict
+        dimensioned<scalar>::getOrAddToDict
         (
             "C1",
             this->coeffDict_,
@@ -88,7 +92,7 @@ mixtureKEpsilon<BasicTurbulenceModel>::mixtureKEpsilon
     ),
     C2_
     (
-        dimensioned<scalar>::lookupOrAddToDict
+        dimensioned<scalar>::getOrAddToDict
         (
             "C2",
             this->coeffDict_,
@@ -97,7 +101,7 @@ mixtureKEpsilon<BasicTurbulenceModel>::mixtureKEpsilon
     ),
     C3_
     (
-        dimensioned<scalar>::lookupOrAddToDict
+        dimensioned<scalar>::getOrAddToDict
         (
             "C3",
             this->coeffDict_,
@@ -106,7 +110,7 @@ mixtureKEpsilon<BasicTurbulenceModel>::mixtureKEpsilon
     ),
     Cp_
     (
-        dimensioned<scalar>::lookupOrAddToDict
+        dimensioned<scalar>::getOrAddToDict
         (
             "Cp",
             this->coeffDict_,
@@ -115,7 +119,7 @@ mixtureKEpsilon<BasicTurbulenceModel>::mixtureKEpsilon
     ),
     sigmak_
     (
-        dimensioned<scalar>::lookupOrAddToDict
+        dimensioned<scalar>::getOrAddToDict
         (
             "sigmak",
             this->coeffDict_,
@@ -124,7 +128,7 @@ mixtureKEpsilon<BasicTurbulenceModel>::mixtureKEpsilon
     ),
     sigmaEps_
     (
-        dimensioned<scalar>::lookupOrAddToDict
+        dimensioned<scalar>::getOrAddToDict
         (
             "sigmaEps",
             this->coeffDict_,
@@ -136,7 +140,7 @@ mixtureKEpsilon<BasicTurbulenceModel>::mixtureKEpsilon
     (
         IOobject
         (
-            IOobject::groupName("k", U.group()),
+            IOobject::groupName("k", alphaRhoPhi.group()),
             this->runTime_.timeName(),
             this->mesh_,
             IOobject::MUST_READ,
@@ -148,7 +152,7 @@ mixtureKEpsilon<BasicTurbulenceModel>::mixtureKEpsilon
     (
         IOobject
         (
-            IOobject::groupName("epsilon", U.group()),
+            IOobject::groupName("epsilon", alphaRhoPhi.group()),
             this->runTime_.timeName(),
             this->mesh_,
             IOobject::MUST_READ,
@@ -220,7 +224,7 @@ void mixtureKEpsilon<BasicTurbulenceModel>::correctInletOutlet
 template<class BasicTurbulenceModel>
 void mixtureKEpsilon<BasicTurbulenceModel>::initMixtureFields()
 {
-    if (rhom_.valid()) return;
+    if (rhom_) return;
 
     // Local references to gas-phase properties
     const volScalarField& kg = this->k_;
@@ -236,7 +240,7 @@ void mixtureKEpsilon<BasicTurbulenceModel>::initMixtureFields()
         this->runTime_.timeName(this->runTime_.startTime().value())
     );
 
-    Ct2_.set
+    Ct2_.reset
     (
         new volScalarField
         (
@@ -252,7 +256,7 @@ void mixtureKEpsilon<BasicTurbulenceModel>::initMixtureFields()
         )
     );
 
-    rhom_.set
+    rhom_.reset
     (
         new volScalarField
         (
@@ -268,7 +272,7 @@ void mixtureKEpsilon<BasicTurbulenceModel>::initMixtureFields()
         )
     );
 
-    km_.set
+    km_.reset
     (
         new volScalarField
         (
@@ -286,7 +290,7 @@ void mixtureKEpsilon<BasicTurbulenceModel>::initMixtureFields()
     );
     correctInletOutlet(km_(), kl);
 
-    epsilonm_.set
+    epsilonm_.reset
     (
         new volScalarField
         (
@@ -323,10 +327,8 @@ bool mixtureKEpsilon<BasicTurbulenceModel>::read()
 
         return true;
     }
-    else
-    {
-        return false;
-    }
+
+    return false;
 }
 
 
@@ -389,7 +391,7 @@ tmp<volScalarField> mixtureKEpsilon<BasicTurbulenceModel>::Ct2() const
     volScalarField beta
     (
         (6*this->Cmu_/(4*sqrt(3.0/2.0)))
-       *fluid.drag(gas).K()/liquid.rho()
+       *fluid.Kd()/liquid.rho()
        *(liquidTurbulence.k_/liquidTurbulence.epsilon_)
     );
     volScalarField Ct0((3 + beta)/(1 + beta + 2*gas.rho()/liquid.rho()));
@@ -413,9 +415,11 @@ tmp<volScalarField> mixtureKEpsilon<BasicTurbulenceModel>::rhogEff() const
 {
     const transportModel& gas = this->transport();
     const twoPhaseSystem& fluid = refCast<const twoPhaseSystem>(gas.fluid());
+    const virtualMassModel& virtualMass =
+        fluid.lookupSubModel<virtualMassModel>(gas, fluid.otherPhase(gas));
     return
         gas.rho()
-      + fluid.virtualMass(gas).Cvm()*fluid.otherPhase(gas).rho();
+      + virtualMass.Cvm()*fluid.otherPhase(gas).rho();
 }
 
 
@@ -491,6 +495,8 @@ tmp<volScalarField> mixtureKEpsilon<BasicTurbulenceModel>::bubbleG() const
     const twoPhaseSystem& fluid = refCast<const twoPhaseSystem>(gas.fluid());
     const transportModel& liquid = fluid.otherPhase(gas);
 
+    const dragModel& drag = fluid.lookupSubModel<dragModel>(gas, liquid);
+
     volScalarField magUr(mag(liquidTurbulence.U() - this->U()));
 
     // Lahey model
@@ -500,7 +506,7 @@ tmp<volScalarField> mixtureKEpsilon<BasicTurbulenceModel>::bubbleG() const
        *liquid*liquid.rho()
        *(
             pow3(magUr)
-          + pow(fluid.drag(gas).CdRe()*liquid.nu()/gas.d(), 4.0/3.0)
+          + pow(drag.CdRe()*liquid.nu()/gas.d(), 4.0/3.0)
            *pow(magUr, 5.0/3.0)
         )
        *gas
@@ -510,7 +516,7 @@ tmp<volScalarField> mixtureKEpsilon<BasicTurbulenceModel>::bubbleG() const
     // Simple model
     // tmp<volScalarField> bubbleG
     // (
-    //     Cp_*liquid*fluid.drag(gas).K()*sqr(magUr)
+    //     Cp_*liquid*drag.K()*sqr(magUr)
     // );
 
     return bubbleG;

@@ -1,9 +1,12 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2019-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -28,7 +31,6 @@ License
 
 // * * * * * * * * * * * * * Private Member Functions  * * * * * * * * * * * //
 
-// Update this with w2.
 template<class TrackingData>
 inline bool Foam::pointEdgeStructuredWalk::update
 (
@@ -43,41 +45,41 @@ inline bool Foam::pointEdgeStructuredWalk::update
         dist_ = w2.dist_ + mag(point0_-w2.previousPoint_);
         previousPoint_ = point0_;
         data_ = w2.data_;
+        index_ = w2.index_;
 
         return true;
     }
-    else
-    {
-        return false;
-    }
+
+    return false;
 }
 
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
-// Null constructor
 inline Foam::pointEdgeStructuredWalk::pointEdgeStructuredWalk()
 :
-    point0_(vector::max),
-    previousPoint_(vector::max),
+    point0_(point::max_),
+    previousPoint_(point::max_),
     dist_(0),
-    data_(Zero)
+    data_(Zero),
+    index_(-1)
 {}
 
 
-// Construct from origin, distance
 inline Foam::pointEdgeStructuredWalk::pointEdgeStructuredWalk
 (
     const point& point0,
     const point& previousPoint,
     const scalar dist,
-    const vector& data
+    const vector& data,
+    const label index
 )
 :
     point0_(point0),
     previousPoint_(previousPoint),
     dist_(dist),
-    data_(data)
+    data_(data),
+    index_(index)
 {}
 
 
@@ -85,32 +87,14 @@ inline Foam::pointEdgeStructuredWalk::pointEdgeStructuredWalk
 
 inline bool Foam::pointEdgeStructuredWalk::inZone() const
 {
-    return point0_ != vector::max;
-}
-
-
-//inline const Foam::point& Foam::pointEdgeStructuredWalk::previousPoint() const
-//{
-//    return previousPoint_;
-//}
-
-
-inline Foam::scalar Foam::pointEdgeStructuredWalk::dist() const
-{
-    return dist_;
-}
-
-
-inline const Foam::vector& Foam::pointEdgeStructuredWalk::data() const
-{
-    return data_;
+    return point0_ != point::max_;
 }
 
 
 template<class TrackingData>
 inline bool Foam::pointEdgeStructuredWalk::valid(TrackingData& td) const
 {
-    return previousPoint_ != vector::max;
+    return previousPoint_ != point::max_;
 }
 
 
@@ -123,7 +107,7 @@ inline bool Foam::pointEdgeStructuredWalk::sameGeometry
     TrackingData& td
 ) const
 {
-    scalar diff = Foam::mag(dist() - w2.dist());
+    const scalar diff = Foam::mag(dist() - w2.dist());
 
     if (diff < SMALL)
     {
@@ -199,10 +183,8 @@ inline bool Foam::pointEdgeStructuredWalk::updatePoint
     {
         return update(edgeInfo, tol, td);
     }
-    else
-    {
-        return false;
-    }
+
+    return false;
 }
 
 
@@ -221,10 +203,8 @@ inline bool Foam::pointEdgeStructuredWalk::updatePoint
     {
         return update(newPointInfo, tol, td);
     }
-    else
-    {
-        return false;
-    }
+
+    return false;
 }
 
 
@@ -257,10 +237,8 @@ inline bool Foam::pointEdgeStructuredWalk::updateEdge
     {
         return update(pointInfo, tol, td);
     }
-    else
-    {
-        return false;
-    }
+
+    return false;
 }
 
 
@@ -279,7 +257,7 @@ inline bool Foam::pointEdgeStructuredWalk::equal
 
 inline bool Foam::pointEdgeStructuredWalk::operator==
 (
-    const Foam::pointEdgeStructuredWalk& rhs
+    const pointEdgeStructuredWalk& rhs
 ) const
 {
     return previousPoint_ == rhs.previousPoint_;
@@ -288,7 +266,7 @@ inline bool Foam::pointEdgeStructuredWalk::operator==
 
 inline bool Foam::pointEdgeStructuredWalk::operator!=
 (
-    const Foam::pointEdgeStructuredWalk& rhs
+    const pointEdgeStructuredWalk& rhs
 ) const
 {
     return !(*this == rhs);

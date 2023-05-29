@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2015 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2015 OpenFOAM Foundation
+    Copyright (C) 2016 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -59,12 +62,11 @@ class cubeRootVolDelta
 
     // Private Member Functions
 
-        //- Disallow default bitwise copy construct and assignment
-        cubeRootVolDelta(const cubeRootVolDelta&);
-        void operator=(const cubeRootVolDelta&);
+        //- No copy construct
+        cubeRootVolDelta(const cubeRootVolDelta&) = delete;
 
-        // Calculate the delta values
-        void calcDelta();
+        //- No copy assignment
+        void operator=(const cubeRootVolDelta&) = delete;
 
 
 public:
@@ -85,11 +87,13 @@ public:
 
 
     //- Destructor
-    virtual ~cubeRootVolDelta()
-    {}
+    virtual ~cubeRootVolDelta() = default;
 
 
     // Member Functions
+
+        //- Calculate the delta values
+        void calcDelta();
 
         //- Read the LESdelta dictionary
         virtual void read(const dictionary&);

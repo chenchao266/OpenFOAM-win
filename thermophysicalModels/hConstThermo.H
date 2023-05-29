@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -23,6 +26,9 @@ License
 
 Class
     Foam::hConstThermo
+
+Group
+    grpSpecieThermo
 
 Description
     Constant properties thermodynamics package
@@ -89,6 +95,12 @@ class hConstThermo
         scalar Cp_;
         scalar Hf_;
 
+        //- Reference temperature
+        scalar Tref_;
+
+        //- Reference sensible enthalpy
+        scalar Hsref_;
+
 
     // Private Member Functions
 
@@ -97,7 +109,9 @@ class hConstThermo
         (
             const EquationOfState& st,
             const scalar cp,
-            const scalar hf
+            const scalar hf,
+            const scalar Tref,
+            const scalar Href
         );
 
 
@@ -126,7 +140,7 @@ public:
             return "hConst<" + EquationOfState::typeName() + '>';
         }
 
-        //- Limit the temperature to be in the range Tlow_ to Thigh_
+        //- Limit temperature to be within the range
         inline scalar limit(const scalar T) const;
 
 
@@ -146,6 +160,19 @@ public:
 
             //- Entropy [J/(kg K)]
             inline scalar S(const scalar p, const scalar T) const;
+
+            //- Gibbs free energy of the mixture in the standard state [J/kg]
+            inline scalar Gstd(const scalar T) const;
+
+            #include "HtoEthermo.H"
+
+
+        // Derivative term used for Jacobian
+
+
+            //- Temperature derivative of heat capacity at constant pressure
+            inline scalar dCpdT(const scalar p, const scalar T) const;
+
 
 
         // I-O

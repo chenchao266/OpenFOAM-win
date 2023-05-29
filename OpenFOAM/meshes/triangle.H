@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2018-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -36,41 +39,37 @@ SourceFiles
 #define triangle_H
 
 #include "intersection.H"
-#include "vector.H"
-#include "tensor.H"
-#include "pointHit.H"
+#include "vector2.H"
+#include "tensor2.H"
+#include "pointHit2.H"
 #include "Random.H"
-#include "cachedRandom.H"
-#include "FixedList.T.H"
-#include "UList.T.H"
+#include "FixedList.H"
+#include "UList.H"
 #include "linePointRef.H"
-#include "barycentric2D.H"
+#include "barycentric2D2.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 namespace Foam
 {
 
-class Istream;
-class Ostream;
-
-// Forward declaration of friend functions and operators
+// Forward Declarations
+class plane;
+class triPoints;
 
 template<class Point, class PointRef> class triangle;
 
 template<class Point, class PointRef>
-inline Istream& operator>>
-(
-    Istream&,
-    triangle<Point, PointRef>&
-);
+inline Istream& operator>>(Istream&, triangle<Point, PointRef>&);
 
 template<class Point, class PointRef>
-inline Ostream& operator<<
-(
-    Ostream&,
-    const triangle<Point, PointRef>&
-);
+inline Ostream& operator<<(Ostream&, const triangle<Point, PointRef>&);
+
+
+// Common Typedefs
+
+//- A triangle using referred points
+typedef triangle<point, const point&> triPointRef;
 
 
 /*---------------------------------------------------------------------------*\
@@ -80,37 +79,111 @@ inline Ostream& operator<<
 template<class Point, class PointRef>
 class triangle
 {
-    // Private data
+public:
+
+    // Public Typedefs
+
+        //- The point type
+        typedef Point point_type;
+
+        //- Storage type for triangles originating from intersecting triangle
+        //- with another triangle
+        typedef FixedList<triPoints, 27> triIntersectionList;
+
+        //- The proximity classifications
+        enum proxType
+        {
+            NONE = 0,   //!< Unknown proximity
+            POINT,      //!< Close to point
+            EDGE        //!< Close to edge
+        };
+
+
+    // Public classes
+
+        // Classes for use in sliceWithPlane. What to do with decomposition
+        // of triangle.
+
+            //- Dummy
+            class dummyOp
+            {
+            public:
+                inline void operator()(const triPoints&);
+            };
+
+            //- Sum resulting areas
+            class sumAreaOp
+            {
+            public:
+                scalar area_;
+
+                inline sumAreaOp();
+
+                inline void operator()(const triPoints&);
+            };
+
+            //- Store resulting tris
+            class storeOp
+            {
+            public:
+                triIntersectionList& tris_;
+                label& nTris_;
+
+                inline storeOp(triIntersectionList&, label&);
+
+                inline void operator()(const triPoints&);
+            };
+
+
+private:
+
+    // Private Data
 
         PointRef a_, b_, c_;
 
 
+   // Private Member Functions
+
+        //- Helper: calculate intersection point
+        inline static point planeIntersection
+        (
+            const FixedList<scalar, 3>& d,
+            const triPoints& t,
+            const label negI,
+            const label posI
+        );
+
+        //- Helper: slice triangle with plane
+        template<class AboveOp, class BelowOp>
+        inline static void triSliceWithPlane
+        (
+            const plane& pln,
+            const triPoints& tri,
+            AboveOp& aboveOp,
+            BelowOp& belowOp
+        );
+
+
 public:
-
-    //- Return types for classify
-    enum proxType
-    {
-        NONE,
-        POINT,  // Close to point
-        EDGE    // Close to edge
-    };
-
 
     // Constructors
 
         //- Construct from three points
         inline triangle(const Point& a, const Point& b, const Point& c);
 
+        //- Construct from three points
+        inline triangle(const FixedList<Point, 3>& tri);
+
         //- Construct from three points in the list of points
         //  The indices could be from triFace etc.
         inline triangle
         (
-            const UList<Point>&,
+            const UList<Point>& points,
             const FixedList<label, 3>& indices
         );
 
         //- Construct from Istream
-        inline triangle(Istream&);
+        inline explicit triangle(Istream& is);
 
 
     // Member Functions
@@ -132,11 +205,22 @@ public:
             //- Return centre (centroid)
             inline Point centre() const;
 
+            //- The area normal - with magnitude equal to area of triangle
+            inline vector areaNormal() const;
+
+            //- Return unit normal
+            inline vector unitNormal() const;
+
+            //- Legacy name for areaNormal().
+            //  \deprecated(2018-06) Deprecated for new use
+            FOAM_DEPRECATED_FOR(2018-12, "areaNormal() or unitNormal()")
+            vector normal() const
+            {
+                return areaNormal();
+            }
+
             //- Return scalar magnitude
             inline scalar mag() const;
-
-            //- Return vector normal
-            inline vector normal() const;
 
             //- Return circum-centre
             inline Point circumCentre() const;
@@ -156,17 +240,13 @@ public:
             //  point and density specification
             inline tensor inertia
             (
-                PointRef refPt = vector::_zero,
+                PointRef refPt = Zero,
                 scalar density = 1.0
             ) const;
 
             //- Return a random point on the triangle from a uniform
             //  distribution
             inline Point randomPoint(Random& rndGen) const;
-
-            //- Return a random point on the triangle from a uniform
-            //  distribution
-            inline Point randomPoint(cachedRandom& rndGen) const;
 
             //- Calculate the point from the given barycentric coordinates.
             inline Point barycentricToPoint(const barycentric2D& bary) const;
@@ -201,7 +281,7 @@ public:
             //  intersection=p+t*q. Only defined for VISIBLE, FULL_RAY or
             //  HALF_RAY. tol increases the virtual size of the triangle
             // by a relative factor.
-            inline pointHit intersect
+            inline pointHit intersection
             (
                 const point& p,
                 const vector& q,
@@ -243,8 +323,37 @@ public:
                 pointHit& edgePoint
             ) const;
 
+            //- The sign for which side of the face plane the point is on.
+            //  Uses the supplied tolerance for rounding around zero.
+            //  \return
+            //  -  0: on plane
+            //  - +1: front-side
+            //  - -1: back-side
+            inline int sign(const point& p, const scalar tol = SMALL) const;
 
-    // IOstream operators
+            //- Decompose triangle into triangles above and below plane
+            template<class AboveOp, class BelowOp>
+            inline void sliceWithPlane
+            (
+                const plane& pln,
+                AboveOp& aboveOp,
+                BelowOp& belowOp
+            ) const;
+
+            //- Decompose triangle into triangles inside and outside
+            //  (with respect to user provided normal) other
+            //  triangle.
+            template<class InsideOp, class OutsideOp>
+            inline void triangleOverlap
+            (
+                const vector& n,
+                const triangle<Point, PointRef>& tri,
+                InsideOp& insideOp,
+                OutsideOp& outsideOp
+            ) const;
+
+
+    // IOstream Operators
 
         friend Istream& operator>> <Point, PointRef>
         (
@@ -267,6 +376,12 @@ public:
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 #include "triangleI.H"
+
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+#ifdef NoRepository
+#   include "triangle.C"
+#endif
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 

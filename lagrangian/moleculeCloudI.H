@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -301,12 +303,9 @@ inline Foam::vector Foam::moleculeCloud::equipartitionLinearVelocity
     scalar mass
 )
 {
-    return sqrt(physicoChemical::k.value()*temperature/mass)*vector
-    (
-        rndGen_.GaussNormal(),
-        rndGen_.GaussNormal(),
-        rndGen_.GaussNormal()
-    );
+    return
+        sqrt(physicoChemical::k.value()*temperature/mass)
+       *rndGen_.GaussNormal<vector>();
 }
 
 
@@ -323,17 +322,17 @@ inline Foam::vector Foam::moleculeCloud::equipartitionAngularMomentum
         return sqrtKbT*vector
         (
             0.0,
-            sqrt(cP.momentOfInertia().yy())*rndGen_.GaussNormal(),
-            sqrt(cP.momentOfInertia().zz())*rndGen_.GaussNormal()
+            sqrt(cP.momentOfInertia().yy())*rndGen_.GaussNormal<scalar>(),
+            sqrt(cP.momentOfInertia().zz())*rndGen_.GaussNormal<scalar>()
         );
     }
     else
     {
         return sqrtKbT*vector
         (
-            sqrt(cP.momentOfInertia().xx())*rndGen_.GaussNormal(),
-            sqrt(cP.momentOfInertia().yy())*rndGen_.GaussNormal(),
-            sqrt(cP.momentOfInertia().zz())*rndGen_.GaussNormal()
+            sqrt(cP.momentOfInertia().xx())*rndGen_.GaussNormal<scalar>(),
+            sqrt(cP.momentOfInertia().yy())*rndGen_.GaussNormal<scalar>(),
+            sqrt(cP.momentOfInertia().zz())*rndGen_.GaussNormal<scalar>()
         );
     }
 }

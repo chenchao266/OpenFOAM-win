@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -57,10 +59,7 @@ template<class Specie, int PolySize>
 inline Foam::autoPtr<Foam::icoPolynomial<Specie, PolySize>>
 Foam::icoPolynomial<Specie, PolySize>::clone() const
 {
-    return autoPtr<icoPolynomial<Specie, PolySize>>
-    (
-        new icoPolynomial<Specie, PolySize>(*this)
-    );
+    return autoPtr<icoPolynomial<Specie, PolySize>>::New(*this);
 }
 
 
@@ -68,10 +67,7 @@ template<class Specie, int PolySize>
 inline Foam::autoPtr<Foam::icoPolynomial<Specie, PolySize>>
 Foam::icoPolynomial<Specie, PolySize>::New(const dictionary& dict)
 {
-    return autoPtr<icoPolynomial<Specie, PolySize>>
-    (
-        new icoPolynomial<Specie, PolySize>(dict)
-    );
+    return autoPtr<icoPolynomial<Specie, PolySize>>::New(dict);
 }
 
 
@@ -101,6 +97,28 @@ inline Foam::scalar Foam::icoPolynomial<Specie, PolySize>::H
 
 template<class Specie, int PolySize>
 inline Foam::scalar Foam::icoPolynomial<Specie, PolySize>::Cp
+(
+    scalar p,
+    scalar T
+) const
+{
+    return 0;
+}
+
+
+template<class Specie, int PolySize>
+inline Foam::scalar Foam::icoPolynomial<Specie, PolySize>::E
+(
+    scalar p,
+    scalar T
+) const
+{
+    return 0;
+}
+
+
+template<class Specie, int PolySize>
+inline Foam::scalar Foam::icoPolynomial<Specie, PolySize>::Cv
 (
     scalar p,
     scalar T
@@ -150,23 +168,11 @@ inline Foam::scalar Foam::icoPolynomial<Specie, PolySize>::CpMCv
     scalar T
 ) const
 {
-    return -(p/sqr(rhoCoeffs_.value(T)))*rhoCoeffs_.derivative(T);
+    return 0;
 }
 
 
 // * * * * * * * * * * * * * * * Member Operators  * * * * * * * * * * * * * //
-
-template<class Specie, int PolySize>
-inline void Foam::icoPolynomial<Specie, PolySize>::operator=
-(
-    const icoPolynomial<Specie, PolySize>& ip
-)
-{
-    Specie::operator=(ip);
-
-    rhoCoeffs_ = ip.rhoCoeffs_;
-}
-
 
 template<class Specie, int PolySize>
 inline void Foam::icoPolynomial<Specie, PolySize>::operator+=

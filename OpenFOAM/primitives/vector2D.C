@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -26,51 +28,55 @@ Description
 
 \*---------------------------------------------------------------------------*/
 
-#include "vector2D.H"
+#include "vector2D2.H"
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
-namespace Foam {
-    template<>
-    const char* const vector2D::vsType::typeName = "vector2D";
 
-    template<>
-    const char* const vector2D::vsType::componentNames[] = { "x", "y" };
 
-    template<>
-    const vector2D vector2D::vsType::vsType::_zero
-    (
-        vector2D::uniform(0)
-    );
+ namespace Foam{
+template<>
+const char* const vector2D::vsType::typeName = "vector2D";
 
-    template<>
-    const vector2D vector2D::vsType::one
-    (
-        vector2D::uniform(1)
-    );
+template<>
+const char* const vector2D::vsType::componentNames[] = {"x", "y"};
 
-    template<>
-    const vector2D vector2D::vsType::max
-    (
-        vector2D::uniform(VGREAT)
-    );
+template<>
+const vector2D vector2D::vsType::vsType::zero_
+(
+    vector2D::uniform(0)
+);
 
-    template<>
-    const vector2D vector2D::vsType::min
-    (
-        vector2D::uniform(-VGREAT)
-    );
+template<>
+const vector2D vector2D::vsType::one_
+(
+    vector2D::uniform(1)
+);
 
-    template<>
-    const vector2D vector2D::vsType::rootMax
-    (
-        vector2D::uniform(ROOTVGREAT)
-    );
+template<>
+const vector2D vector2D::vsType::max_
+(
+    vector2D::uniform(VGREAT)
+);
 
-    template<>
-    const vector2D vector2D::vsType::rootMin
-    (
-        vector2D::uniform(-ROOTVGREAT)
-    );
+template<>
+const vector2D vector2D::vsType::min_
+(
+    vector2D::uniform(-VGREAT)
+);
 
-}
+template<>
+const vector2D vector2D::vsType::rootMax_
+(
+    vector2D::uniform(ROOTVGREAT)
+);
+
+template<>
+const vector2D vector2D::vsType::rootMin_
+(
+    vector2D::uniform(-ROOTVGREAT)
+);
+
+
 // ************************************************************************* //
+
+ } // End namespace Foam

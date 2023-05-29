@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -26,51 +28,55 @@ License
 #include "labelVector.H"
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
-namespace Foam {
-    template<>
-    const char* const labelVector::vsType::typeName = "labelVector";
 
-    template<>
-    const char* const labelVector::vsType::componentNames[] =
-    {
-        "x", "y", "z"
-    };
 
-    template<>
-    const labelVector labelVector::vsType::_zero
-    (
-        labelVector::uniform(0)
-    );
+ namespace Foam{
+template<>
+const char* const labelVector::vsType::typeName = "labelVector";
 
-    template<>
-    const labelVector labelVector::vsType::one
-    (
-        labelVector::uniform(1)
-    );
+template<>
+const char* const labelVector::vsType::componentNames[] =
+{
+    "x", "y", "z"
+};
 
-    template<>
-    const labelVector labelVector::vsType::max
-    (
-        labelVector::uniform(labelMax)
-    );
+template<>
+const labelVector labelVector::vsType::zero_
+(
+    labelVector::uniform(0)
+);
 
-    template<>
-    const labelVector labelVector::vsType::min
-    (
-        labelVector::uniform(-labelMax)
-    );
+template<>
+const labelVector labelVector::vsType::one_
+(
+    labelVector::uniform(1)
+);
 
-    template<>
-    const labelVector labelVector::vsType::rootMax
-    (
-        labelVector::uniform(sqrt(scalar(labelMax)))
-    );
+template<>
+const labelVector labelVector::vsType::max_
+(
+    labelVector::uniform(labelMax)
+);
 
-    template<>
-    const labelVector labelVector::vsType::rootMin
-    (
-        labelVector::uniform(-sqrt(scalar(labelMax)))
-    );
+template<>
+const labelVector labelVector::vsType::min_
+(
+    labelVector::uniform(-labelMax)
+);
 
-}
+template<>
+const labelVector labelVector::vsType::rootMax_
+(
+    labelVector::uniform(sqrt(scalar(labelMax)))
+);
+
+template<>
+const labelVector labelVector::vsType::rootMin_
+(
+    labelVector::uniform(-sqrt(scalar(labelMax)))
+);
+
+
 // ************************************************************************* //
+
+ } // End namespace Foam

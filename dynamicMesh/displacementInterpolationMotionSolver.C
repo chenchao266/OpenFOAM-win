@@ -1,9 +1,12 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2015 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -25,9 +28,9 @@ License
 
 #include "displacementInterpolationMotionSolver.H"
 #include "addToRunTimeSelectionTable.H"
-#include "SortableList.T.H"
-#include "IOList.T.H"
-#include "Tuple2.T.H"
+#include "SortableList.H"
+#include "GlobalIOList.H"
+#include "Tuple2.H"
 #include "mapPolyMesh.H"
 #include "interpolateXY.H"
 
@@ -44,21 +47,24 @@ namespace Foam
         dictionary
     );
 
+    addToRunTimeSelectionTable
+    (
+        displacementMotionSolver,
+        displacementInterpolationMotionSolver,
+        displacement
+    );
+
     template<>
-    const word IOList<Tuple2<scalar, vector>>::typeName("scalarVectorTable");
+    const word GlobalIOList<Tuple2<scalar, vector>>::typeName
+    (
+        "scalarVectorTable"
+    );
 }
 
 
-// * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
+// * * * * * * * * * * * * * Private Member Functions  * * * * * * * * * * * //
 
-Foam::displacementInterpolationMotionSolver::
-displacementInterpolationMotionSolver
-(
-    const polyMesh& mesh,
-    const IOdictionary& dict
-)
-:
-    displacementMotionSolver(mesh, dict, typeName)
+void Foam::displacementInterpolationMotionSolver::calcInterpolation()
 {
     // Get zones and their interpolation tables for displacement
     // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
@@ -68,7 +74,7 @@ displacementInterpolationMotionSolver
         coeffDict().lookup("interpolationTables")
     );
 
-    const faceZoneMesh& fZones = mesh.faceZones();
+    const faceZoneMesh& fZones = mesh().faceZones();
 
     times_.setSize(fZones.size());
     displacements_.setSize(fZones.size());
@@ -82,20 +88,20 @@ displacementInterpolationMotionSolver
         {
             FatalErrorInFunction
                 << "Cannot find zone " << zoneName << endl
-                << "Valid zones are " << mesh.faceZones().names()
+                << "Valid zones are " << fZones.names()
                 << exit(FatalError);
         }
 
         const word& tableName = faceZoneToTable[i][1];
 
-        IOList<Tuple2<scalar, vector>> table
+        GlobalIOList<Tuple2<scalar, vector>> table
         (
             IOobject
             (
                 tableName,
-                mesh.time().constant(),
+                mesh().time().constant(),
                 "tables",
-                mesh,
+                mesh(),
                 IOobject::MUST_READ,
                 IOobject::NO_WRITE,
                 false
@@ -236,7 +242,7 @@ displacementInterpolationMotionSolver
         // ~~~~~~~~~~~~~~~
 
         // Count all the points inbetween rangeI and rangeI+1
-        labelList nRangePoints(rangeToCoord.size(), 0);
+        labelList nRangePoints(rangeToCoord.size(), Zero);
 
         forAll(meshCoords, pointi)
         {
@@ -289,11 +295,34 @@ displacementInterpolationMotionSolver
 }
 
 
-// * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
+// * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
 Foam::displacementInterpolationMotionSolver::
-~displacementInterpolationMotionSolver()
-{}
+displacementInterpolationMotionSolver
+(
+    const polyMesh& mesh,
+    const IOdictionary& dict
+)
+:
+    displacementMotionSolver(mesh, dict, typeName)
+{
+    calcInterpolation();
+}
+
+
+Foam::displacementInterpolationMotionSolver::
+displacementInterpolationMotionSolver
+(
+    const polyMesh& mesh,
+    const IOdictionary& dict,
+    const pointVectorField& pointDisplacement,
+    const pointIOField& points0
+)
+:
+    displacementMotionSolver(mesh, dict, pointDisplacement, points0, typeName)
+{
+    calcInterpolation();
+}
 
 
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
@@ -348,11 +377,11 @@ Foam::displacementInterpolationMotionSolver::curPoints() const
             // Get the two zones bounding the range
             label minZoneI = rangeZone[rangeI];
             //vector minDisp =
-            //    (minZoneI == -1 ? vector::_zero : zoneDisp[minZoneI]);
+            //    (minZoneI == -1 ? vector::zero_ : zoneDisp[minZoneI]);
             scalar minDisp = (minZoneI == -1 ? 0.0 : zoneDisp[minZoneI][dir]);
             label maxZoneI = rangeZone[rangeI+1];
             //vector maxDisp =
-            //    (maxZoneI == -1 ? vector::_zero : zoneDisp[maxZoneI]);
+            //    (maxZoneI == -1 ? vector::zero_ : zoneDisp[maxZoneI]);
             scalar maxDisp = (maxZoneI == -1 ? 0.0 : zoneDisp[maxZoneI][dir]);
 
             forAll(rPoints, i)

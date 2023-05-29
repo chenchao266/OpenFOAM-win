@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2012-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2012-2014 OpenFOAM Foundation
+    Copyright (C) 2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -25,7 +28,7 @@ License
 
 #include "IOporosityModelList.H"
 #include "fvMesh.H"
-#include "Time.T.H"
+#include "Time1.H"
 
 // * * * * * * * * * * * * Private Member Functions  * * * * * * * * * * * * //
 
@@ -47,16 +50,16 @@ Foam::IOobject Foam::IOporosityModelList::createIOobject
     {
         Info<< "Creating porosity model list from " << io.name() << nl << endl;
 
-        io.readOpt() = IOobject::MUST_READ_IF_MODIFIED;
-        return io;
+        io.readOpt(IOobject::MUST_READ_IF_MODIFIED);
     }
     else
     {
         Info<< "No porosity models present" << nl << endl;
 
-        io.readOpt() = IOobject::NO_READ;
-        return io;
+        io.readOpt(IOobject::NO_READ);
     }
+
+    return io;
 }
 
 
@@ -79,10 +82,8 @@ bool Foam::IOporosityModelList::read()
         porosityModelList::read(*this);
         return true;
     }
-    else
-    {
-        return false;
-    }
+
+    return false;
 }
 
 

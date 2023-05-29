@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -110,11 +112,11 @@ bool Foam::sixDoFRigidBodyMotionRestraints::linearSpring::read
 {
     sixDoFRigidBodyMotionRestraint::read(sDoFRBMRDict);
 
-    sDoFRBMRCoeffs_.lookup("anchor") >> anchor_;
-    sDoFRBMRCoeffs_.lookup("refAttachmentPt") >> refAttachmentPt_;
-    sDoFRBMRCoeffs_.lookup("stiffness") >> stiffness_;
-    sDoFRBMRCoeffs_.lookup("damping") >> damping_;
-    sDoFRBMRCoeffs_.lookup("restLength") >> restLength_;
+    sDoFRBMRCoeffs_.readEntry("anchor", anchor_);
+    sDoFRBMRCoeffs_.readEntry("refAttachmentPt", refAttachmentPt_);
+    sDoFRBMRCoeffs_.readEntry("stiffness", stiffness_);
+    sDoFRBMRCoeffs_.readEntry("damping", damping_);
+    sDoFRBMRCoeffs_.readEntry("restLength", restLength_);
 
     return true;
 }
@@ -125,20 +127,11 @@ void Foam::sixDoFRigidBodyMotionRestraints::linearSpring::write
     Ostream& os
 ) const
 {
-    os.writeKeyword("anchor")
-        << anchor_ << token::END_STATEMENT << nl;
-
-    os.writeKeyword("refAttachmentPt")
-        << refAttachmentPt_ << token::END_STATEMENT << nl;
-
-    os.writeKeyword("stiffness")
-        << stiffness_ << token::END_STATEMENT << nl;
-
-    os.writeKeyword("damping")
-        << damping_ << token::END_STATEMENT << nl;
-
-    os.writeKeyword("restLength")
-        << restLength_ << token::END_STATEMENT << nl;
+    os.writeEntry("anchor", anchor_);
+    os.writeEntry("refAttachmentPt", refAttachmentPt_);
+    os.writeEntry("stiffness", stiffness_);
+    os.writeEntry("damping", damping_);
+    os.writeEntry("restLength", restLength_);
 }
 
 // ************************************************************************* //

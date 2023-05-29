@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2013 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2013 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -25,10 +27,10 @@ License
 
 #include "processorCyclicGAMGInterfaceField.H"
 #include "addToRunTimeSelectionTable.H"
-#include "lduMatrix.H"
+#include "lduMatrix2.H"
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
-using namespace Foam;
+
 namespace Foam
 {
     defineTypeNameAndDebug(processorCyclicGAMGInterfaceField, 0);
@@ -44,32 +46,36 @@ namespace Foam
         processorCyclicGAMGInterfaceField,
         lduInterfaceField
     );
+
+
+
+    // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
+
+    processorCyclicGAMGInterfaceField::processorCyclicGAMGInterfaceField
+    (
+        const GAMGInterface& GAMGCp,
+        const lduInterfaceField& fineInterface
+    )
+        :
+        processorGAMGInterfaceField(GAMGCp, fineInterface)
+    {}
+
+
+    processorCyclicGAMGInterfaceField::processorCyclicGAMGInterfaceField
+    (
+        const GAMGInterface& GAMGCp,
+        const bool doTransform,
+        const int rank
+    )
+        :
+        processorGAMGInterfaceField(GAMGCp, doTransform, rank)
+    {}
+
+
+    // * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
+
+    processorCyclicGAMGInterfaceField::~processorCyclicGAMGInterfaceField()
+    {}
+
 }
-
-
-// * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
-
-processorCyclicGAMGInterfaceField::processorCyclicGAMGInterfaceField
-(
-    const GAMGInterface& GAMGCp,
-    const lduInterfaceField& fineInterface
-) :    processorGAMGInterfaceField(GAMGCp, fineInterface)
-{}
-
-
-processorCyclicGAMGInterfaceField::processorCyclicGAMGInterfaceField
-(
-    const GAMGInterface& GAMGCp,
-    const bool doTransform,
-    const int rank
-) :    processorGAMGInterfaceField(GAMGCp, doTransform, rank)
-{}
-
-
-// * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
-
-processorCyclicGAMGInterfaceField::~processorCyclicGAMGInterfaceField()
-{}
-
-
 // ************************************************************************* //

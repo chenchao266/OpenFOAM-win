@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011 OpenFOAM Foundation
+    Copyright (C) 2020-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -25,43 +28,17 @@ License
 
 #include "patchInteractionData.H"
 #include "dictionaryEntry.H"
-#include "PatchInteractionModel.T.H"
+#include "PatchInteractionModel.H"
 
 // * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * * //
 
 Foam::patchInteractionData::patchInteractionData()
 :
-    interactionTypeName_("unknownInteractionTypeName"),
-    patchName_("unknownPatch"),
-    e_(0.0),
-    mu_(0.0)
+    interactionTypeName_(),
+    patchName_(),
+    e_(0),
+    mu_(0)
 {}
-
-
-// * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * * //
-
-const Foam::word& Foam::patchInteractionData::interactionTypeName() const
-{
-    return interactionTypeName_;
-}
-
-
-const Foam::word& Foam::patchInteractionData::patchName() const
-{
-    return patchName_;
-}
-
-
-Foam::scalar Foam::patchInteractionData::e() const
-{
-    return e_;
-}
-
-
-Foam::scalar Foam::patchInteractionData::mu() const
-{
-    return mu_;
-}
 
 
 // * * * * * * * * * * * * * * * IOstream Operators  * * * * * * * * * * * * //
@@ -72,14 +49,16 @@ Foam::Istream& Foam::operator>>
     patchInteractionData& pid
 )
 {
-    is.check("Istream& operator>>(Istream&, patchInteractionData&)");
+    is.check(FUNCTION_NAME);
 
-    const dictionaryEntry entry(dictionary::null, is);
+    const dictionaryEntry dictEntry(dictionary::null, is);
+    const dictionary& dict = dictEntry.dict();
 
-    pid.patchName_ = entry.keyword();
-    entry.lookup("type") >> pid.interactionTypeName_;
-    pid.e_ = entry.lookupOrDefault<scalar>("e", 1.0);
-    pid.mu_ = entry.lookupOrDefault<scalar>("mu", 0.0);
+    pid.patchName_ = dictEntry.keyword();
+
+    dict.readEntry("type", pid.interactionTypeName_);
+    pid.e_ = dict.getOrDefault<scalar>("e", 1);
+    pid.mu_ = dict.getOrDefault<scalar>("mu", 0);
 
     return is;
 }

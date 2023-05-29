@@ -1,9 +1,11 @@
-﻿/*---------------------------------------------------------------------------*\
+/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2015-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2015-2017 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -23,7 +25,7 @@ License
 
 \*---------------------------------------------------------------------------*/
 
-//#include "nonlinearEddyViscosity.H"
+#include "nonlinearEddyViscosity.H"
 #include "fvc.H"
 #include "fvm.H"
 
@@ -58,17 +60,12 @@ Foam::nonlinearEddyViscosity<BasicTurbulenceModel>::nonlinearEddyViscosity
     (
         IOobject
         (
-            IOobject::groupName("nonlinearStress", U.group()),
+            IOobject::groupName("nonlinearStress", alphaRhoPhi.group()),
             this->runTime_.timeName(),
             this->mesh_
         ),
         this->mesh_,
-        dimensionedSymmTensor
-        (
-            "nonlinearStress",
-            sqr(dimVelocity),
-            Zero
-        )
+        dimensionedSymmTensor(sqr(dimVelocity), Zero)
     )
 {}
 
@@ -92,11 +89,23 @@ template<class BasicTurbulenceModel>
 Foam::tmp<Foam::volSymmTensorField>
 Foam::nonlinearEddyViscosity<BasicTurbulenceModel>::devRhoReff() const
 {
+    return devRhoReff(this->U_);
+}
+
+
+template<class BasicTurbulenceModel>
+Foam::tmp<Foam::volSymmTensorField>
+Foam::nonlinearEddyViscosity<BasicTurbulenceModel>::devRhoReff
+(
+    const volVectorField& U
+) const
+{
     tmp<volSymmTensorField> tdevRhoReff
     (
-        eddyViscosity<BasicTurbulenceModel>::devRhoReff()
+        eddyViscosity<BasicTurbulenceModel>::devRhoReff(U)
     );
     tdevRhoReff.ref() += this->rho_*nonlinearStress_;
+
     return tdevRhoReff;
 }
 

@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2016 OpenFOAM Foundation
+    Copyright (C) 2016-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -29,26 +32,50 @@ Group
 
 Description
     Writes the cell-centres volVectorField and the three component fields as
-    volScalarFields.
+    \c volScalarFields.
 
-    Example of function object specification:
+    Operands:
+    \table
+      Operand          | Type           | Location
+      input            | -              | -
+      output file      | -              | -
+      output field 1   | volVectorField | $FOAM_CASE/\<time\>/C
+      output field 2   | volScalarField | $FOAM_CASE/\<time\>/{Cx,Cy,Cz}
+    \endtable
+
+Usage
+    Minimal example by using \c system/controlDict.functions:
     \verbatim
     writeCellCentres
     {
+        // Mandatory entries (unmodifiable)
         type        writeCellCentres;
-        libs        ("libfieldFunctionObjects.so");
+        libs        (fieldFunctionObjects);
+
+        // Optional (inherited) entries
         ...
     }
     \endverbatim
 
-Usage
+    where the entries mean:
     \table
-        Property  | Description                 | Required    | Default value
-        type      | type name: writeCellCentres | yes       |
+      Property   | Description                        | Type | Req'd | Dflt
+      type       | Type name: writeCellCentres        | word |  yes  | -
+      libs       | Library name: fieldFunctionObjects | word |  yes  | -
     \endtable
 
+    The inherited entries are elaborated in:
+     - \link functionObject.H \endlink
+
+    Minimal example by using the \c postProcess utility:
+    \verbatim
+        postProcess -func writeCellCentres
+    \endverbatim
+
 See also
-    Foam::functionObjects::fvMeshFunctionObject
+    - Foam::functionObject
+    - Foam::functionObjects::fvMeshFunctionObject
+    - ExtendedCodeGuide::functionObjects::field::writeCellCentres
 
 SourceFiles
     writeCellCentres.C
@@ -75,15 +102,6 @@ class writeCellCentres
 :
     public fvMeshFunctionObject
 {
-    // Private member functions
-
-        //- Disallow default bitwise copy construct
-        writeCellCentres(const writeCellCentres&);
-
-        //- Disallow default bitwise assignment
-        void operator=(const writeCellCentres&);
-
-
 public:
 
     //- Runtime type information
@@ -100,12 +118,21 @@ public:
             const dictionary& dict
         );
 
+        //- No copy construct
+        writeCellCentres(const writeCellCentres&) = delete;
+
+        //- No copy assignment
+        void operator=(const writeCellCentres&) = delete;
+
 
     //- Destructor
-    virtual ~writeCellCentres();
+    virtual ~writeCellCentres() = default;
 
 
     // Member Functions
+
+        //- Read the cell-centre rate data
+        virtual bool read(const dictionary&);
 
         //- Do nothing
         virtual bool execute();

@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2015 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2014 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -24,30 +26,14 @@ License
 \*---------------------------------------------------------------------------*/
 
 #include "basicKinematicCollidingCloud.H"
-
-#include "makeParcelCloudFunctionObjects.H"
-
-// Kinematic
-#include "makeParcelForces.H"
-#include "makeParcelDispersionModels.H"
-#include "makeParcelInjectionModels.H"
-#include "makeParcelCollisionModels.H"
-#include "makeParcelPatchInteractionModels.H"
-#include "makeParcelStochasticCollisionModels.H"
-#include "makeParcelSurfaceFilmModels.H"
+#include "makeParcelTurbulenceDispersionModels.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
-makeParcelCloudFunctionObjects(basicKinematicCollidingCloud);
-
-// Kinematic sub-models
-makeParcelForces(basicKinematicCollidingCloud);
-makeParcelDispersionModels(basicKinematicCollidingCloud);
-makeParcelInjectionModels(basicKinematicCollidingCloud);
-makeParcelCollisionModels(basicKinematicCollidingCloud);
-makeParcelPatchInteractionModels(basicKinematicCollidingCloud);
-makeParcelStochasticCollisionModels(basicKinematicCollidingCloud);
-makeParcelSurfaceFilmModels(basicKinematicCollidingCloud);
+namespace Foam
+{
+    makeParcelTurbulenceDispersionModels(basicKinematicCollidingCloud);
+}
 
 
 // ************************************************************************* //

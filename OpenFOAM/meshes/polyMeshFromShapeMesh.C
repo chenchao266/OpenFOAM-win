@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016, 2020 OpenFOAM Foundation
+    Copyright (C) 2018-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -24,22 +27,23 @@ License
 \*---------------------------------------------------------------------------*/
 
 #include "polyMesh.H"
-#include "Time.T.H"
+#include "Time1.h"
 #include "primitiveMesh.H"
-#include "DynamicList.T.H"
+#include "DynamicList.H"
 #include "indexedOctree.H"
 #include "treeDataCell.H"
 #include "globalMeshData.H"
 
 // * * * * * * * * * * * * * Private Member Functions  * * * * * * * * * * * //
-using namespace Foam;
+
+
+ namespace Foam{
 labelListList polyMesh::cellShapePointCells
 (
     const cellShapeList& c
 ) const
 {
-    List<DynamicList<label, primitiveMesh::cellsPerPoint_>>
-        pc(points().size());
+    List<DynamicList<label>> pc(points().size());
 
     // For each cell
     forAll(c, i)
@@ -51,8 +55,7 @@ labelListList polyMesh::cellShapePointCells
         {
             // Set working point label
             label curPoint = labels[j];
-            DynamicList<label, primitiveMesh::cellsPerPoint_>& curPointCells =
-                pc[curPoint];
+            DynamicList<label>& curPointCells = pc[curPoint];
 
             // Enter the cell label in the point's cell list
             curPointCells.append(i);
@@ -117,6 +120,7 @@ labelList polyMesh::facePatchFaceCells
         {
             FatalErrorInFunction
                 << "face " << fI << " in patch " << patchID
+                << " vertices " << UIndirectList<point>(points(), curFace)
                 << " does not have neighbour cell"
                 << " face: " << patchFaces[fI]
                 << abort(FatalError);
@@ -140,7 +144,7 @@ void polyMesh::setTopology
 )
 {
     // Calculate the faces of all cells
-    // Initialise maximum possible numer of mesh faces to 0
+    // Initialise maximum possible number of mesh faces to 0
     label maxFaces = 0;
 
     // Set up a list of face shapes for each cell
@@ -156,7 +160,7 @@ void polyMesh::setTopology
         // Initialise cells to -1 to flag undefined faces
         static_cast<labelList&>(cells[celli]) = -1;
 
-        // Count maximum possible numer of mesh faces
+        // Count maximum possible number of mesh faces
         maxFaces += cellsFaceShapes[celli].size();
     }
 
@@ -205,7 +209,7 @@ void polyMesh::setTopology
             // For all points
             forAll(curPoints, pointi)
             {
-                // dGget the list of cells sharing this point
+                // Get the list of cells sharing this point
                 const labelList& curNeighbours =
                     PointCells[curPoints[pointi]];
 
@@ -284,6 +288,7 @@ void polyMesh::setTopology
     }
 
     // Do boundary faces
+    const label nInternalFaces = nFaces;
 
     patchSizes.setSize(boundaryFaces.size(), -1);
     patchStarts.setSize(boundaryFaces.size(), -1);
@@ -304,6 +309,9 @@ void polyMesh::setTopology
         // Grab the start label
         label curPatchStart = nFaces;
 
+        // Suppress multiple warnings per patch
+        bool patchWarned = false;
+
         forAll(patchFaces, facei)
         {
             const face& curFace = patchFaces[facei];
@@ -319,25 +327,75 @@ void polyMesh::setTopology
             {
                 if (face::sameVertices(facesOfCellInside[cellFacei], curFace))
                 {
-                    if (cells[cellInside][cellFacei] >= 0)
-                    {
-                        FatalErrorInFunction
-                            << "Trying to specify a boundary face " << curFace
-                            << " on the face on cell " << cellInside
-                            << " which is either an internal face or already "
-                            << "belongs to some other patch.  This is face "
-                            << facei << " of patch "
-                            << patchi << " named "
-                            << boundaryPatchNames[patchi] << "."
-                            << abort(FatalError);
-                    }
-
                     found = true;
 
-                    // Set the patch face to corresponding cell-face
-                    faces_[nFaces] = facesOfCellInside[cellFacei];
+                    const label meshFacei = cells[cellInside][cellFacei];
 
-                    cells[cellInside][cellFacei] = nFaces;
+                    if (meshFacei >= 0)
+                    {
+                        // Already have mesh face for this side of the
+                        // cellshape. This can happen for duplicate faces.
+                        // It might be
+                        // an error or explicitly desired (e.g. duplicate
+                        // baffles or acmi). We could have a special 7-faced
+                        // hex shape instead so we can have additional patches
+                        // but that would be unworkable.
+                        // So now either
+                        // - exit with error
+                        // - or warn and append face to addressing
+                        // Note that duplicate baffles
+                        // - cannot be on an internal faces
+                        // - cannot be on the same patch (for now?)
+
+                        if
+                        (
+                            meshFacei < nInternalFaces
+                         || meshFacei >= curPatchStart
+                        )
+                        {
+                            FatalErrorInFunction
+                                << "Trying to specify a boundary face "
+                                << curFace
+                                << " on the face on cell " << cellInside
+                                << " which is either an internal face"
+                                << " or already belongs to the same patch."
+                                << " This is face " << facei << " of patch "
+                                << patchi << " named "
+                                << boundaryPatchNames[patchi] << "."
+                                << exit(FatalError);
+                        }
+
+
+                        if (!patchWarned)
+                        {
+                            WarningInFunction
+                                << "Trying to specify a boundary face "
+                                << curFace
+                                << " on the face on cell " << cellInside
+                                << " which is either an internal face"
+                                << " or already belongs to some other patch."
+                                << " This is face " << facei << " of patch "
+                                << patchi << " named "
+                                << boundaryPatchNames[patchi] << "."
+                                //<< abort(FatalError);
+                                << endl;
+                            patchWarned = true;
+                        }
+
+                        faces_.setSize(faces_.size()+1);
+
+                        // Set the patch face to corresponding cell-face
+                        faces_[nFaces] = facesOfCellInside[cellFacei];
+
+                        cells[cellInside].append(nFaces);
+                    }
+                    else
+                    {
+                        // Set the patch face to corresponding cell-face
+                        faces_[nFaces] = facesOfCellInside[cellFacei];
+
+                        cells[cellInside][cellFacei] = nFaces;
+                    }
 
                     break;
                 }
@@ -383,15 +441,13 @@ void polyMesh::setTopology
 
     // Reset the size of the face list
     faces_.setSize(nFaces);
-
-    return ;
 }
 
 
 polyMesh::polyMesh
 (
     const IOobject& io,
-    const Xfer<pointField>& points,
+    pointField&& points,
     const cellShapeList& cellsAsShapes,
     const faceListList& boundaryFaces,
     const wordList& boundaryPatchNames,
@@ -400,7 +456,9 @@ polyMesh::polyMesh
     const word& defaultBoundaryPatchType,
     const wordList& boundaryPatchPhysicalTypes,
     const bool syncPar
-) :    objectRegistry(io),
+)
+:
+    objectRegistry(io),
     primitiveMesh(),
     points_
     (
@@ -413,7 +471,7 @@ polyMesh::polyMesh
             IOobject::NO_READ,
             IOobject::AUTO_WRITE
         ),
-        points
+        std::move(points)
     ),
     faces_
     (
@@ -520,16 +578,13 @@ polyMesh::polyMesh
     globalMeshDataPtr_(nullptr),
     moving_(false),
     topoChanging_(false),
+    storeOldCellCentres_(false),
     curMotionTimeIndex_(time().timeIndex()),
-    oldPointsPtr_(nullptr)
+    oldPointsPtr_(nullptr),
+    oldCellCentresPtr_(nullptr)
 {
-    if (debug)
-    {
-        Info<<"Constructing polyMesh from cell and boundary shapes." << endl;
-    }
-
-    // Remove all of the old mesh files if they exist
-    removeFiles(instance());
+    DebugInfo
+        << "Constructing polyMesh from cell and boundary shapes." << endl;
 
     // Calculate faces and cells
     labelList patchSizes;
@@ -592,11 +647,12 @@ polyMesh::polyMesh
     {
         WarningInFunction
             << "Found " << nDefaultFaces
-            << " undefined faces in mesh; adding to default patch." << endl;
+            << " undefined faces in mesh; adding to default patch "
+            << defaultBoundaryPatchName << endl;
 
         // Check if there already exists a defaultFaces patch as last patch
         // and reuse it.
-        label patchi = findIndex(boundaryPatchNames, defaultBoundaryPatchName);
+        label patchi = boundaryPatchNames.find(defaultBoundaryPatchName);
 
         if (patchi != -1)
         {
@@ -674,7 +730,7 @@ polyMesh::polyMesh
 polyMesh::polyMesh
 (
     const IOobject& io,
-    const Xfer<pointField>& points,
+    pointField&& points,
     const cellShapeList& cellsAsShapes,
     const faceListList& boundaryFaces,
     const wordList& boundaryPatchNames,
@@ -682,7 +738,9 @@ polyMesh::polyMesh
     const word& defaultBoundaryPatchName,
     const word& defaultBoundaryPatchType,
     const bool syncPar
-) :    objectRegistry(io),
+)
+:
+    objectRegistry(io),
     primitiveMesh(),
     points_
     (
@@ -695,7 +753,7 @@ polyMesh::polyMesh
             IOobject::NO_READ,
             IOobject::AUTO_WRITE
         ),
-        points
+        std::move(points)
     ),
     faces_
     (
@@ -802,16 +860,13 @@ polyMesh::polyMesh
     globalMeshDataPtr_(nullptr),
     moving_(false),
     topoChanging_(false),
+    storeOldCellCentres_(false),
     curMotionTimeIndex_(time().timeIndex()),
-    oldPointsPtr_(nullptr)
+    oldPointsPtr_(nullptr),
+    oldCellCentresPtr_(nullptr)
 {
-    if (debug)
-    {
-        Info<<"Constructing polyMesh from cell and boundary shapes." << endl;
-    }
-
-    // Remove all of the old mesh files if they exist
-    removeFiles(instance());
+    DebugInfo
+        << "Constructing polyMesh from cell and boundary shapes." << endl;
 
     // Calculate faces and cells
     labelList patchSizes;
@@ -866,11 +921,12 @@ polyMesh::polyMesh
     {
         WarningInFunction
             << "Found " << nDefaultFaces
-            << " undefined faces in mesh; adding to default patch." << endl;
+            << " undefined faces in mesh; adding to default patch "
+            << defaultBoundaryPatchName << endl;
 
         // Check if there already exists a defaultFaces patch as last patch
         // and reuse it.
-        label patchi = findIndex(boundaryPatchNames, defaultBoundaryPatchName);
+        label patchi = boundaryPatchNames.find(defaultBoundaryPatchName);
 
         if (patchi != -1)
         {
@@ -939,10 +995,12 @@ polyMesh::polyMesh
     {
         if (checkMesh())
         {
-            Info << "Mesh OK" << endl;
+            Info<< "Mesh OK" << endl;
         }
     }
 }
 
 
 // ************************************************************************* //
+
+ } // End namespace Foam

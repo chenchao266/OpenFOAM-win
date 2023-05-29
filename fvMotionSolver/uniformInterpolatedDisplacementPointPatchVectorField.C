@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2012-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2012-2016 OpenFOAM Foundation
+    Copyright (C) 2019-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -26,11 +29,11 @@ License
 #include "uniformInterpolatedDisplacementPointPatchVectorField.H"
 #include "pointFields.H"
 #include "addToRunTimeSelectionTable.H"
-#include "Time.T.H"
+#include "Time1.H"
 #include "polyMesh.H"
 #include "interpolationWeights.H"
 #include "uniformInterpolate.H"
-#include "ReadFields.T.H"
+#include "ReadFields.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -71,12 +74,12 @@ uniformInterpolatedDisplacementPointPatchVectorField
     DynamicList<word> names(allTimes.size());
     DynamicList<scalar> values(allTimes.size());
 
-    forAll(allTimes, i)
+    for (const instant& inst : allTimes)
     {
         IOobject io
         (
             fieldName_,
-            allTimes[i].name(),
+            inst.name(),
             pMesh(),
             IOobject::MUST_READ,
             IOobject::NO_WRITE,
@@ -84,8 +87,8 @@ uniformInterpolatedDisplacementPointPatchVectorField
         );
         if (io.typeHeaderOk<pointVectorField>(false))
         {
-            names.append(allTimes[i].name());
-            values.append(allTimes[i].value());
+            names.append(inst.name());
+            values.append(inst.value());
         }
     }
     timeNames_.transfer(names);
@@ -152,7 +155,7 @@ void uniformInterpolatedDisplacementPointPatchVectorField::updateCoeffs()
         return;
     }
 
-    if (!interpolatorPtr_.valid())
+    if (!interpolatorPtr_)
     {
         interpolatorPtr_ = interpolationWeights::New
         (
@@ -185,9 +188,9 @@ void uniformInterpolatedDisplacementPointPatchVectorField::updateCoeffs()
         (
             pMesh.thisDb().subRegistry("fieldsCache", true)
         );
-        // Save old times so we now which ones have been loaded and need
+        // Save old times so we know which ones have been loaded and need
         // 'correctBoundaryConditions'. Bit messy.
-        HashSet<word> oldTimes(fieldsCache.toc());
+        wordHashSet oldTimes(fieldsCache.toc());
 
         ReadFields<pointVectorField>
         (
@@ -196,7 +199,7 @@ void uniformInterpolatedDisplacementPointPatchVectorField::updateCoeffs()
             currentTimeNames
         );
 
-        forAllConstIter(objectRegistry, fieldsCache, fieldsCacheIter)
+        forAllConstIters(fieldsCache, fieldsCacheIter)
         {
             if (!oldTimes.found(fieldsCacheIter.key()))
             {
@@ -210,8 +213,11 @@ void uniformInterpolatedDisplacementPointPatchVectorField::updateCoeffs()
                     const objectRegistry&
                 >(*fieldsCacheIter());
 
-                timeCache.lookupObjectRef<pointVectorField>(fieldName_)
-                    .correctBoundaryConditions();
+
+                pointVectorField& d =
+                    timeCache.lookupObjectRef<pointVectorField>(fieldName_);
+
+                d.correctBoundaryConditions();
             }
         }
     }
@@ -253,10 +259,8 @@ void uniformInterpolatedDisplacementPointPatchVectorField::write(Ostream& os)
 const
 {
     pointPatchField<vector>::write(os);
-    os.writeKeyword("field")
-        << fieldName_ << token::END_STATEMENT << nl;
-    os.writeKeyword("interpolationScheme")
-        << interpolationScheme_ << token::END_STATEMENT << nl;
+    os.writeEntry("field", fieldName_);
+    os.writeEntry("interpolationScheme", interpolationScheme_);
     writeEntry("value", os);
 }
 

@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2014 OpenFOAM Foundation
+    Copyright (C) 2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -25,70 +28,97 @@ License
 
 #include "baseIOdictionary.H"
 #include "objectRegistry.H"
-#include "Pstream.T.H"
-#include "Time.T.H"
+#include "Pstream.H"
+#include "Time1.h"
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
-using namespace Foam;
+
 namespace Foam
 {
-defineTypeNameAndDebug(baseIOdictionary, 0);
+    defineTypeNameAndDebug(baseIOdictionary, 0);
 
-bool baseIOdictionary::writeDictionaries
-(
-    debug::infoSwitch("writeDictionaries", 0)
-);
+    bool baseIOdictionary::writeDictionaries
+    (
+        debug::infoSwitch("writeDictionaries", 0)
+    );
+
+
+
+    // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
+
+    baseIOdictionary::baseIOdictionary
+    (
+        const IOobject& io,
+        const dictionary* fallback
+    )
+        :
+        regIOobject(io)
+    {
+        dictionary::name() = IOobject::objectPath();
+    }
+
+
+    baseIOdictionary::baseIOdictionary
+    (
+        const IOobject& io,
+        const dictionary& dict
+    )
+        :
+        baseIOdictionary(io, &dict)
+    {}
+
+
+    baseIOdictionary::baseIOdictionary
+    (
+        const IOobject& io,
+        Istream& is
+    )
+        :
+        regIOobject(io)
+    {
+        dictionary::name() = IOobject::objectPath();
+    }
+
+
+    // * * * * * * * * * * * * * * * Members Functions * * * * * * * * * * * * * //
+
+    const word& baseIOdictionary::name() const
+    {
+        return regIOobject::name();
+    }
+
+
+    bool baseIOdictionary::readData(Istream& is)
+    {
+        is >> *this;
+
+        if (writeDictionaries && Pstream::master() && !is.bad())
+        {
+            Sout << nl
+                << "--- baseIOdictionary " << name()
+                << ' ' << objectPath() << ":" << nl;
+            writeHeader(Sout);
+            writeData(Sout);
+            Sout << "--- End of baseIOdictionary " << name() << nl << endl;
+        }
+
+        return !is.bad();
+    }
+
+
+    bool baseIOdictionary::writeData(Ostream& os) const
+    {
+        dictionary::write(os, false);
+        return os.good();
+    }
+
+
+    // * * * * * * * * * * * * * * * Member Operators  * * * * * * * * * * * * * //
+
+    void baseIOdictionary::operator=(const baseIOdictionary& rhs)
+    {
+        dictionary::operator=(rhs);
+    }
+
 }
-
-
-// * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
-
-baseIOdictionary::baseIOdictionary(const IOobject& io) :    regIOobject(io)
-{
-    dictionary::name() = IOobject::objectPath();
-}
-
-
-baseIOdictionary::baseIOdictionary
-(
-    const IOobject& io,
-    const dictionary& dict
-) :    regIOobject(io)
-{
-    dictionary::name() = IOobject::objectPath();
-}
-
-
-baseIOdictionary::baseIOdictionary
-(
-    const IOobject& io,
-    Istream& is
-) :    regIOobject(io)
-{
-    dictionary::name() = IOobject::objectPath();
-}
-
-
-// * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * * //
-
-baseIOdictionary::~baseIOdictionary()
-{}
-
-
-// * * * * * * * * * * * * * * * Members Functions * * * * * * * * * * * * * //
-
-const word& baseIOdictionary::name() const
-{
-    return regIOobject::name();
-}
-
-
-// * * * * * * * * * * * * * * * Member Operators  * * * * * * * * * * * * * //
-
-void baseIOdictionary::operator=(const baseIOdictionary& rhs)
-{
-    dictionary::operator=(rhs);
-}
-
-
 // ************************************************************************* //

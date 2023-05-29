@@ -1,9 +1,12 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011 OpenFOAM Foundation
+    Copyright (C) 2019 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -24,10 +27,13 @@ License
 Class
     Foam::FDICPreconditioner
 
+Group
+    grpLduMatrixPreconditioners
+
 Description
     Faster version of the DICPreconditioner diagonal-based incomplete
     Cholesky preconditioner for symmetric matrices
-    (symmetric equivalent of DILU) in which the the reciprocal of the
+    (symmetric equivalent of DILU) in which the reciprocal of the
     preconditioned diagonal and the upper coefficients divided by the diagonal
     are calculated and stored.
 
@@ -39,7 +45,7 @@ SourceFiles
 #ifndef FDICPreconditioner_H
 #define FDICPreconditioner_H
 
-#include "lduMatrix.H"
+#include "lduMatrix2.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -50,23 +56,25 @@ namespace Foam
                            Class FDICPreconditioner Declaration
 \*---------------------------------------------------------------------------*/
 
-class FDICPreconditioner :    public lduMatrix::preconditioner
+class FDICPreconditioner
+:
+    public lduMatrix::preconditioner
 {
     // Private data
 
         //- The reciprocal preconditioned diagonal
-        scalarField rD_;
-        scalarField rDuUpper_;
-        scalarField rDlUpper_;
+        solveScalarField rD_;
+        solveScalarField rDuUpper_;
+        solveScalarField rDlUpper_;
 
 
     // Private Member Functions
 
-        //- Disallow default bitwise copy construct
-        FDICPreconditioner(const FDICPreconditioner&);
+        //- No copy construct
+        FDICPreconditioner(const FDICPreconditioner&) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const FDICPreconditioner&);
+        //- No copy assignment
+        void operator=(const FDICPreconditioner&) = delete;
 
 
 public:
@@ -86,8 +94,7 @@ public:
 
 
     //- Destructor
-    virtual ~FDICPreconditioner()
-    {}
+    virtual ~FDICPreconditioner() = default;
 
 
     // Member Functions
@@ -95,8 +102,8 @@ public:
         //- Return wA the preconditioned form of residual rA
         virtual void precondition
         (
-            scalarField& wA,
-            const scalarField& rA,
+            solveScalarField& wA,
+            const solveScalarField& rA,
             const direction cmpt=0
         ) const;
 };

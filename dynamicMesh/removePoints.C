@@ -1,9 +1,12 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2018 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -23,9 +26,9 @@ License
 
 \*---------------------------------------------------------------------------*/
 
-#include "BiIndirectList.T.H"
+#include "BiIndirectList.H"
 #include "removePoints.H"
-#include "PstreamReduceOps.T.H"
+#include "PstreamReduceOps.H"
 #include "polyMesh.H"
 #include "polyTopoChange.H"
 #include "polyRemovePoint.H"
@@ -213,11 +216,8 @@ Foam::label Foam::removePoints::countPointUsage
             label vLeft = e0.otherVertex(common);
             label vRight = e1.otherVertex(common);
 
-            vector e0Vec = points[common] - points[vLeft];
-            e0Vec /= mag(e0Vec) + VSMALL;
-
-            vector e1Vec = points[vRight] - points[common];
-            e1Vec /= mag(e1Vec) + VSMALL;
+            const vector e0Vec = normalised(points[common] - points[vLeft]);
+            const vector e1Vec = normalised(points[vRight] - points[common]);
 
             if ((e0Vec & e1Vec) > minCos)
             {
@@ -343,10 +343,7 @@ void Foam::removePoints::setRefinement
             // Store faces affected
             const labelList& pFaces = mesh_.pointFaces()[pointi];
 
-            forAll(pFaces, i)
-            {
-                facesAffected.insert(pFaces[i]);
-            }
+            facesAffected.insert(pFaces);
         }
     }
 
@@ -363,10 +360,8 @@ void Foam::removePoints::setRefinement
     }
     label nSaved = 0;
 
-    forAllConstIter(labelHashSet, facesAffected, iter)
+    for (const label facei : facesAffected)
     {
-        label facei = iter.key();
-
         const face& f = mesh_.faces()[facei];
 
         face newFace(f.size());
@@ -436,7 +431,7 @@ void Foam::removePoints::setRefinement
                         mesh_.points(),
                         savedPoints_,
                         savedFaces_[saveI]  // saved face
-                    )
+                    )()
                 );
 
                 if (meshPoints != keptPoints)
@@ -467,7 +462,7 @@ void Foam::removePoints::updateMesh(const mapPolyMesh& map)
                 {
                     FatalErrorInFunction
                         << "Old face " << savedFaceLabels_[localI]
-                        << " seems to have dissapeared."
+                        << " seems to have disappeared."
                         << abort(FatalError);
                 }
                 savedFaceLabels_[localI] = newFacei;
@@ -493,7 +488,7 @@ void Foam::removePoints::updateMesh(const mapPolyMesh& map)
                     {
                         FatalErrorInFunction
                             << "Old point " << pointi
-                            << " seems to have dissapeared."
+                            << " seems to have disappeared."
                             << abort(FatalError);
                     }
                 }
@@ -625,7 +620,7 @@ void Foam::removePoints::getUnrefimentSet
                     {
                         label savedPointi = -savedFace[fp]-1;
 
-                        if (savedPoints_[savedPointi] == vector::max)
+                        if (savedPoints_[savedPointi] == vector::max_)
                         {
                             FatalErrorInFunction
                                 << "Trying to restore point " << savedPointi
@@ -646,7 +641,7 @@ void Foam::removePoints::getUnrefimentSet
         // restoring. Note that this is over all saved faces, not just over
         // the ones in undoFaces.
 
-        boolListList faceVertexRestore(mesh_.nFaces()-mesh_.nInternalFaces());
+        boolListList faceVertexRestore(mesh_.nBoundaryFaces());
 
         // Populate with my local points-to-restore.
         forAll(savedFaces_, saveI)
@@ -789,7 +784,7 @@ void Foam::removePoints::setUnrefinement
     {
         label localI = localPoints[i];
 
-        if (savedPoints_[localI] == vector::max)
+        if (savedPoints_[localI] == vector::max_)
         {
             FatalErrorInFunction
                 << "Saved point " << localI << " already restored!"
@@ -808,7 +803,7 @@ void Foam::removePoints::setUnrefinement
         );
 
         // Mark the restored points so they are not restored again.
-        savedPoints_[localI] = vector::max;
+        savedPoints_[localI] = vector::max_;
     }
 
     forAll(localFaces, i)

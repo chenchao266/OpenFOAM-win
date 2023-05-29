@@ -1,9 +1,12 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2014 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2014 OpenFOAM Foundation
+    Copyright (C) 2020-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -25,7 +28,7 @@ Class
     Foam::prefixOSstream
 
 Description
-    Version of OSstream which prints a prefix on each line.
+    Version of OSstream that prints a prefix on each line.
 
     This is useful for running in parallel as it allows the processor number
     to be automatically prepended to each message line.
@@ -46,14 +49,17 @@ namespace Foam
 {
 
 /*---------------------------------------------------------------------------*\
-                           Class prefixOSstream Declaration
+                       Class prefixOSstream Declaration
 \*---------------------------------------------------------------------------*/
 
-class prefixOSstream :    public OSstream
+class prefixOSstream
+:
+    public OSstream
 {
-    // Private data
+    // Private Data
 
         bool printPrefix_;
+
         string prefix_;
 
 
@@ -66,82 +72,94 @@ public:
 
     // Constructors
 
-        //- Set stream status
+        //- Construct and set stream status
         prefixOSstream
         (
-            ostream& os,
-            const string& name,
-            streamFormat format=ASCII,
-            versionNumber version=currentVersion,
-            compressionType compression=UNCOMPRESSED
+            std::ostream& os,
+            const string& streamName,
+            IOstreamOption streamOpt = IOstreamOption()
         );
 
+        //- Construct and set stream status
+        prefixOSstream
+        (
+            std::ostream& os,
+            const string& streamName,
+            IOstreamOption::streamFormat fmt,
+            IOstreamOption::versionNumber ver = IOstreamOption::currentVersion,
+            IOstreamOption::compressionType cmp = IOstreamOption::UNCOMPRESSED
+        )
+        :
+            prefixOSstream(os, streamName, IOstreamOption(fmt, ver, cmp))
+        {}
 
-    // Member functions
+
+    // Member Functions
 
         // Enquiry
 
-            //- Return the prefix of the stream
-            const string& prefix() const
+            //- Return the stream prefix
+            const string& prefix() const noexcept
             {
                 return prefix_;
             }
 
-            //- Return non-const access to the prefix of the stream
-            string& prefix()
+            //- Return non-const access to the stream prefix
+            string& prefix() noexcept
             {
                 return prefix_;
             }
 
 
-        // Write functions
+        // Write Functions
 
-            //- Write next token to stream
-            virtual Ostream& write(const token&);
+            //- Write token to stream or otherwise handle it.
+            //  \return false if the token type was not handled by this method
+            virtual bool write(const token& tok);
 
             //- Write character
-            virtual Ostream& write(const char);
+            virtual Ostream& write(const char c);
 
             //- Write character string
-            virtual Ostream& write(const char*);
+            virtual Ostream& write(const char* str);
 
             //- Write word
-            virtual Ostream& write(const word&);
+            virtual Ostream& write(const word& val);
 
             //- Write string
-            virtual Ostream& write(const string&);
+            virtual Ostream& write(const string& val);
 
             //- Write std::string surrounded by quotes.
             //  Optional write without quotes.
             virtual Ostream& writeQuoted
             (
-                const std::string&,
+                const std::string& val,
                 const bool quoted=true
             );
 
             //- Write int32_t
-            virtual Ostream& write(const int32_t);
+            virtual Ostream& write(const int32_t val);
 
             //- Write int64_t
-            virtual Ostream& write(const int64_t);
+            virtual Ostream& write(const int64_t val);
 
             //- Write floatScalar
-            virtual Ostream& write(const floatScalar);
+            virtual Ostream& write(const floatScalar val);
 
             //- Write doubleScalar
-            virtual Ostream& write(const doubleScalar);
+            virtual Ostream& write(const doubleScalar val);
 
             //- Write binary block
-            virtual Ostream& write(const char*, std::streamsize);
+            virtual Ostream& write(const char* buf, std::streamsize count);
 
             //- Add indentation characters
             virtual void indent();
 
 
-        // Print
+    // Print
 
-            //- Print description of IOstream to Ostream
-            virtual void print(Ostream&) const;
+        //- Print stream description to Ostream
+        virtual void print(Ostream& os) const;
 };
 
 

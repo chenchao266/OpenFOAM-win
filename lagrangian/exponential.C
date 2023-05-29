@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2013-2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -30,70 +32,81 @@ License
 
 namespace Foam
 {
-namespace distributionModels
+namespace ParticleStressModels
 {
     defineTypeNameAndDebug(exponential, 0);
-    addToRunTimeSelectionTable(distributionModel, exponential, dictionary);
+
+    addToRunTimeSelectionTable
+    (
+        ParticleStressModel,
+        exponential,
+        dictionary
+    );
 }
 }
+
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
-Foam::distributionModels::exponential::exponential
+Foam::ParticleStressModels::exponential::exponential
 (
-    const dictionary& dict,
-    cachedRandom& rndGen
+    const dictionary& dict
 )
 :
-    distributionModel(typeName, dict, rndGen),
-    minValue_(readScalar(distributionModelDict_.lookup("minValue"))),
-    maxValue_(readScalar(distributionModelDict_.lookup("maxValue"))),
-    lambda_(readScalar(distributionModelDict_.lookup("lambda")))
-{
-    check();
-}
+    ParticleStressModel(dict),
+    preExp_(dict.get<scalar>("preExp")),
+    expMax_(dict.get<scalar>("expMax")),
+    g0_(dict.get<scalar>("g0"))
+{}
 
 
-Foam::distributionModels::exponential::exponential(const exponential& p)
+Foam::ParticleStressModels::exponential::exponential
+(
+    const exponential& hc
+)
 :
-    distributionModel(p),
-    minValue_(p.minValue_),
-    maxValue_(p.maxValue_),
-    lambda_(p.lambda_)
+    ParticleStressModel(hc),
+    preExp_(hc.preExp_),
+    expMax_(hc.expMax_),
+    g0_(hc.g0_)
 {}
 
 
 // * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
 
-Foam::distributionModels::exponential::~exponential()
+Foam::ParticleStressModels::exponential::~exponential()
 {}
 
 
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
 
-Foam::scalar Foam::distributionModels::exponential::sample() const
+Foam::tmp<Foam::Field<Foam::scalar>>
+Foam::ParticleStressModels::exponential::tau
+(
+    const Field<scalar>& alpha,
+    const Field<scalar>& rho,
+    const Field<scalar>& uSqr
+) const
 {
-    scalar y = rndGen_.sample01<scalar>();
-    scalar K = exp(-lambda_*maxValue_) - exp(-lambda_*minValue_);
-    return -(1.0/lambda_)*log(exp(-lambda_*minValue_) + y*K);
+    return dTaudTheta(alpha, rho, uSqr)/preExp_;
 }
 
 
-Foam::scalar Foam::distributionModels::exponential::minValue() const
+Foam::tmp<Foam::Field<Foam::scalar>>
+Foam::ParticleStressModels::exponential::dTaudTheta
+(
+    const Field<scalar>& alpha,
+    const Field<scalar>& rho,
+    const Field<scalar>& uSqr
+) const
 {
-    return minValue_;
-}
-
-
-Foam::scalar Foam::distributionModels::exponential::maxValue() const
-{
-    return maxValue_;
-}
-
-
-Foam::scalar Foam::distributionModels::exponential::meanValue() const
-{
-    return 1.0/lambda_;
+    return
+        g0_
+       *min
+        (
+            exp(preExp_*(alpha - alphaPacked_)),
+            expMax_
+        );
 }
 
 

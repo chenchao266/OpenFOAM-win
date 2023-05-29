@@ -1,9 +1,11 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -26,6 +28,7 @@ Class
 
 Description
     Collection of all hex degenerate matchers (hex, wedge, prism etc.)
+
     Has static member function to match a shape.
 
 See also
@@ -52,13 +55,12 @@ namespace Foam
 {
 
 /*---------------------------------------------------------------------------*\
-                           Class degenerateMatcher Declaration
+                      Class degenerateMatcher Declaration
 \*---------------------------------------------------------------------------*/
 
 class degenerateMatcher
 {
-
-    // Static data members
+    // Static Data Members
 
         //- Matchers for all degenerate hex shapes
         static hexMatcher hex;
@@ -68,7 +70,8 @@ class degenerateMatcher
         static pyrMatcher pyr;
         static tetMatcher tet;
 
-    // Static functions
+
+    // Static Functions
 
         //- Recognize basic shape
         static cellShape match
@@ -81,13 +84,13 @@ class degenerateMatcher
 
 public:
 
-    // Static data members
+    // Static Functions
 
         //- Recognize shape given faces of a cell
         static cellShape match(const faceList& faces);
 
         //- Recognize given uncollapsed shape (usually hex) with duplicate
-        //  vertices. cellShape just used to extract faces.
+        //- vertices. cellShape just used to extract faces.
         static cellShape match(const cellShape& shape);
 
         //- Recognize shape given mesh and celli

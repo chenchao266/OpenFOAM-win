@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2015 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2018-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -25,20 +28,31 @@ License
 
 #include "zoneToCell.H"
 #include "polyMesh.H"
-
 #include "addToRunTimeSelectionTable.H"
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
 
 namespace Foam
 {
-
-defineTypeNameAndDebug(zoneToCell, 0);
-
-addToRunTimeSelectionTable(topoSetSource, zoneToCell, word);
-
-addToRunTimeSelectionTable(topoSetSource, zoneToCell, istream);
-
+    defineTypeNameAndDebug(zoneToCell, 0);
+    addToRunTimeSelectionTable(topoSetSource, zoneToCell, word);
+    addToRunTimeSelectionTable(topoSetSource, zoneToCell, istream);
+    addToRunTimeSelectionTable(topoSetCellSource, zoneToCell, word);
+    addToRunTimeSelectionTable(topoSetCellSource, zoneToCell, istream);
+    addNamedToRunTimeSelectionTable
+    (
+        topoSetCellSource,
+        zoneToCell,
+        word,
+        zone
+    );
+    addNamedToRunTimeSelectionTable
+    (
+        topoSetCellSource,
+        zoneToCell,
+        istream,
+        zone
+    );
 }
 
 
@@ -53,88 +67,180 @@ Foam::topoSetSource::addToUsageTable Foam::zoneToCell::usage_
 
 // * * * * * * * * * * * * * Private Member Functions  * * * * * * * * * * * //
 
-void Foam::zoneToCell::combine(topoSet& set, const bool add) const
+void Foam::zoneToCell::combine
+(
+    topoSet& set,
+    const labelUList& zoneIDs,
+    const bool add,
+    const bool verbosity
+) const
 {
-    bool hasMatched = false;
+    const label nZones = mesh_.cellZones().size();
 
-    forAll(mesh_.cellZones(), i)
+    if (zoneIDs.empty() || !nZones)
     {
-        const cellZone& zone = mesh_.cellZones()[i];
+        return;  // Nothing to do
+    }
 
-        if (zoneName_.match(zone.name()))
+    for (const label zonei : zoneIDs)
+    {
+        if (zonei < 0 || zonei >= nZones)
         {
-            const labelList& cellLabels = mesh_.cellZones()[i];
+            continue;
+        }
 
-            Info<< "    Found matching zone " << zone.name()
-                << " with " << cellLabels.size() << " cells." << endl;
+        const auto& zone = mesh_.cellZones()[zonei];
 
-            hasMatched = true;
+        if (verbosity)
+        {
+            Info<< "    Using zone " << zone.name()
+                << " with " << zone.size() << " cells." << endl;
+        }
 
-            forAll(cellLabels, i)
+        for (const label celli : zone)
+        {
+            // Only do active cells
+            if (celli >= 0 && celli < mesh_.nCells())
             {
-                // Only do active cells
-                if (cellLabels[i] < mesh_.nCells())
-                {
-                    addOrDelete(set, cellLabels[i], add);
-                }
+                addOrDelete(set, celli, add);
             }
         }
     }
+}
 
-    if (!hasMatched)
+
+void Foam::zoneToCell::combine(topoSet& set, const bool add) const
+{
+    if (!zoneIDs_.empty())
+    {
+        combine(set, zoneIDs_, add, false);
+        return;
+    }
+
+    if (zoneMatcher_.empty())
+    {
+        return;  // Nothing to do
+    }
+
+    const labelList matched(mesh_.cellZones().indices(zoneMatcher_));
+
+    if (matched.empty())
     {
         WarningInFunction
-            << "Cannot find any cellZone named " << zoneName_ << endl
-            << "Valid names are " << mesh_.cellZones().names() << endl;
+            << "Cannot find any cellZone matching "
+            << flatOutput(zoneMatcher_) << nl
+            << "Valid names: " << flatOutput(mesh_.cellZones().names())
+            << endl;
+
+        return;  // Nothing to do
     }
+
+    combine(set, matched, add, verbose_);
 }
 
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
-// Construct from components
 Foam::zoneToCell::zoneToCell
 (
     const polyMesh& mesh,
-    const word& zoneName
+    const wordRes& zoneSelector
 )
 :
-    topoSetSource(mesh),
-    zoneName_(zoneName)
+    topoSetCellSource(mesh),
+    zoneMatcher_(zoneSelector)
 {}
 
 
-// Construct from dictionary
+Foam::zoneToCell::zoneToCell
+(
+    const polyMesh& mesh,
+    const wordRe& zoneName
+)
+:
+    topoSetCellSource(mesh),
+    zoneMatcher_(one{}, zoneName)
+{}
+
+
+Foam::zoneToCell::zoneToCell
+(
+    const polyMesh& mesh,
+    const labelUList& zoneIDs
+)
+:
+    topoSetCellSource(mesh),
+    zoneMatcher_(),
+    zoneIDs_(zoneIDs)
+{}
+
+
 Foam::zoneToCell::zoneToCell
 (
     const polyMesh& mesh,
     const dictionary& dict
 )
 :
-    topoSetSource(mesh),
-    zoneName_(dict.lookup("name"))
-{}
+    topoSetCellSource(mesh),
+    zoneMatcher_()
+{
+    // Look for 'zones' and 'zone', but accept 'name' as well
+    if (!dict.readIfPresent("zones", zoneMatcher_))
+    {
+        zoneMatcher_.resize(1);
+        zoneMatcher_.first() =
+            dict.getCompat<wordRe>("zone", {{"name", 1806}});
+    }
+}
 
 
-// Construct from Istream
 Foam::zoneToCell::zoneToCell
 (
     const polyMesh& mesh,
     Istream& is
 )
 :
-    topoSetSource(mesh),
-    zoneName_(checkIs(is))
-{}
-
-
-// * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
-
-Foam::zoneToCell::~zoneToCell()
+    zoneToCell(mesh, wordRe(checkIs(is)))
 {}
 
 
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
+
+const Foam::wordRes& Foam::zoneToCell::zones() const noexcept
+{
+    return zoneMatcher_;
+}
+
+
+void Foam::zoneToCell::zones(const wordRes& zonesSelector)
+{
+    zoneMatcher_ = zonesSelector;
+    zoneIDs_.clear();
+}
+
+
+void Foam::zoneToCell::zones(const wordRe& zoneName)
+{
+    zoneMatcher_.resize(1);
+    zoneMatcher_.first() = zoneName;
+    zoneIDs_.clear();
+}
+
+
+void Foam::zoneToCell::zones(const labelUList& zoneIDs)
+{
+    zoneMatcher_.clear();
+    zoneIDs_ = zoneIDs;
+}
+
+
+void Foam::zoneToCell::zones(const label zoneID)
+{
+    zoneMatcher_.clear();
+    zoneIDs_.resize(1);
+    zoneIDs_.first() = zoneID;
+}
+
 
 void Foam::zoneToCell::applyToSet
 (
@@ -142,17 +248,23 @@ void Foam::zoneToCell::applyToSet
     topoSet& set
 ) const
 {
-    if ((action == topoSetSource::NEW) || (action == topoSetSource::ADD))
+    if (action == topoSetSource::ADD || action == topoSetSource::NEW)
     {
-        Info<< "    Adding all cells of cellZone " << zoneName_ << " ..."
-            << endl;
+        if (verbose_ && !zoneMatcher_.empty())
+        {
+            Info<< "    Adding all cells of cell zones "
+                << flatOutput(zoneMatcher_) << " ..." << endl;
+        }
 
         combine(set, true);
     }
-    else if (action == topoSetSource::DELETE)
+    else if (action == topoSetSource::SUBTRACT)
     {
-        Info<< "    Removing all cells of cellZone " << zoneName_ << " ..."
-            << endl;
+        if (verbose_ && !zoneMatcher_.empty())
+        {
+            Info<< "    Removing all cells of cell zones "
+                << flatOutput(zoneMatcher_) << " ..." << endl;
+        }
 
         combine(set, false);
     }

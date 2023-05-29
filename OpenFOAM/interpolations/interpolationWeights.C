@@ -1,9 +1,12 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2012-2015 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2012-2015 OpenFOAM Foundation
+    Copyright (C) 2019-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -25,25 +28,24 @@ License
 
 #include "interpolationWeights.H"
 #include "addToRunTimeSelectionTable.H"
-#include "Time.T.H"
+#include "Time1.H"
 
-// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+// * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
 
 namespace Foam
 {
-
-// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
-
-defineTypeNameAndDebug(interpolationWeights, 0);
-defineRunTimeSelectionTable(interpolationWeights, word);
+    defineTypeNameAndDebug(interpolationWeights, 0);
+    defineRunTimeSelectionTable(interpolationWeights, word);
+} // End namespace Foam
 
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
-interpolationWeights::interpolationWeights
-(
-    const scalarField& samples
-) :    samples_(samples)
+
+ namespace Foam{
+interpolationWeights::interpolationWeights(const scalarField& samples)
+:
+    samples_(samples)
 {}
 
 
@@ -55,39 +57,24 @@ autoPtr<interpolationWeights> interpolationWeights::New
     const scalarField& samples
 )
 {
-    if (debug)
+    DebugInFunction << "Selecting interpolationWeights " << type << endl;
+
+    auto* ctorPtr = wordConstructorTable(type);
+
+    if (!ctorPtr)
     {
-        InfoInFunction
-            << "Selecting interpolationWeights "
-            << type << endl;
+        FatalErrorInLookup
+        (
+            "interpolationWeights",
+            type,
+            *wordConstructorTablePtr_
+        ) << exit(FatalError);
     }
 
-    wordConstructorTable::iterator cstrIter =
-        wordConstructorTablePtr_->find(type);
-
-    if (cstrIter == wordConstructorTablePtr_->end())
-    {
-        FatalErrorInFunction
-            << "Unknown interpolationWeights type "
-            << type
-            << endl << endl
-            << "Valid interpolationWeights types are :" << endl
-            << wordConstructorTablePtr_->sortedToc()
-            << exit(FatalError);
-    }
-
-    return autoPtr<interpolationWeights>(cstrIter()(samples));
+    return autoPtr<interpolationWeights>(ctorPtr(samples));
 }
 
 
-// * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
-
-interpolationWeights::~interpolationWeights()
-{}
-
-
-// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
-
-} // End namespace Foam
-
 // ************************************************************************* //
+
+ } // End namespace Foam

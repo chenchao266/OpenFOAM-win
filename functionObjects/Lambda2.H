@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2013-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2013-2016 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -28,13 +31,52 @@ Group
     grpFieldFunctionObjects
 
 Description
-    Calculates and outputs the second largest eigenvalue of the sum of the
-    square of the symmetrical and anti-symmetrical parts of the velocity
-    gradient tensor.
+    Computes the second largest eigenvalue of the sum of the square of
+    the symmetrical and anti-symmetrical parts of the velocity gradient tensor.
+
+    Operands:
+    \table
+      Operand          | Type           | Location
+      input            | volVectorField | $FOAM_CASE/\<time\>/\<inpField\>
+      output file      | -              | -
+      output field     | volScalarField | $FOAM_CASE/\<time\>/\<outField\>
+    \endtable
+
+Usage
+    Minimal example by using \c system/controlDict.functions:
+    \verbatim
+    Lambda21
+    {
+        // Mandatory entries (unmodifiable)
+        type            Lambda2;
+        libs            (fieldFunctionObjects);
+
+        // Optional (inherited) entries
+        ...
+    }
+    \endverbatim
+
+    where the entries mean:
+    \table
+      Property     | Description                        | Type | Req'd | Dflt
+      type         | Type name: Lambda2                 | word |  yes  | -
+      libs         | Library name: fieldFunctionObjects | word |  yes  | -
+    \endtable
+
+    The inherited entries are elaborated in:
+     - \link functionObject.H \endlink
+     - \link fieldExpression.H \endlink
+
+    Minimal example by using the \c postProcess utility:
+    \verbatim
+        postProcess -func Lambda2
+    \endverbatim
 
 See also
-    Foam::functionObjects::fieldExpression
-    Foam::functionObjects::fvMeshFunctionObject
+    - Foam::functionObject
+    - Foam::functionObjects::fvMeshFunctionObject
+    - Foam::functionObjects::fieldExpression
+    - ExtendedCodeGuide::functionObjects::field::Lambda2
 
 SourceFiles
     Lambda2.C
@@ -83,9 +125,15 @@ public:
             const dictionary& dict
         );
 
+        //- No copy construct
+        Lambda2(const Lambda2&) = delete;
+
+        //- No copy assignment
+        void operator=(const Lambda2&) = delete;
+
 
     //- Destructor
-    virtual ~Lambda2();
+    virtual ~Lambda2() = default;
 };
 
 

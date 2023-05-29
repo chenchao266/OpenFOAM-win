@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -22,7 +24,7 @@ License
     along with OpenFOAM.  If not, see <http://www.gnu.org/licenses/>.
 
 Class
-    Foam::noPhaseChange
+    Foam::regionModels::surfaceFilmModels::noPhaseChange
 
 Description
     Dummy phase change model for 'none'
@@ -58,11 +60,11 @@ private:
 
     // Private member functions
 
-        //- Disallow default bitwise copy construct
-        noPhaseChange(const noPhaseChange&);
+        //- No copy construct
+        noPhaseChange(const noPhaseChange&) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const noPhaseChange&);
+        //- No copy assignment
+        void operator=(const noPhaseChange&) = delete;
 
 
 public:
@@ -74,7 +76,7 @@ public:
     // Constructors
 
         //- Construct from surface film model
-        noPhaseChange(surfaceFilmModel& film, const dictionary& dict);
+        noPhaseChange(surfaceFilmRegionModel& film, const dictionary& dict);
 
 
     //- Destructor

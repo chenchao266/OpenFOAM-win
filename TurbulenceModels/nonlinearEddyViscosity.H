@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2015-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2015-2016 OpenFOAM Foundation
+    Copyright (C) 2019 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -93,8 +96,7 @@ public:
 
 
     //- Destructor
-    virtual ~nonlinearEddyViscosity()
-    {}
+    virtual ~nonlinearEddyViscosity() = default;
 
 
     // Member Functions
@@ -104,6 +106,12 @@ public:
 
         //- Return the effective stress tensor
         virtual tmp<volSymmTensorField> devRhoReff() const;
+
+        //- Return the effective stress tensor based on a given velocity field
+        virtual tmp<volSymmTensorField> devRhoReff
+        (
+            const volVectorField& U
+        ) const;
 
         //- Return the source term for the momentum equation
         virtual tmp<fvVectorMatrix> divDevRhoReff(volVectorField& U) const;

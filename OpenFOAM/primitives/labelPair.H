@@ -1,9 +1,11 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -22,31 +24,46 @@ License
     along with OpenFOAM.  If not, see <http://www.gnu.org/licenses/>.
 
 Typedef
-    Foam::labelPair
+    Foam::labelPairPair
 
 Description
-    Label pair
+    A pair of labelPairs.
 
 Typedef
     Foam::labelPairList
 
 Description
-    List of labelPairs
+    List of labelPairs.
+
+Typedef
+    Foam::labelPairUList
+
+Description
+    UList of labelPairs.
+
+Typedef
+    Foam::labelPairSubList
+
+Description
+    A SubList of labelPairs.
 
 \*---------------------------------------------------------------------------*/
 
 #ifndef labelPair_H
 #define labelPair_H
 
-#include "Pair.T.H"
-#include "List.T.H"
+#include "List.H"
+#include "SubList.H"
+#include "Pair.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 namespace Foam
 {
-    typedef Pair<label> labelPair;
+    typedef Pair<labelPair> labelPairPair;
     typedef List<labelPair> labelPairList;
+    typedef UList<labelPair> labelPairUList;
+    typedef SubList<labelPair> labelPairSubList;
 }
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //

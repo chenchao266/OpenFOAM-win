@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2013-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2013-2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -24,8 +26,11 @@ License
 Class
     Foam::radiation::mixtureFractionSoot
 
+Group
+    grpRadiationSootSubModels
+
 Description
-    This soot model is purely an state model. The ammount of soot produced is
+    This soot model is purely an state model. The amount of soot produced is
     determined by a single step chemistry as :
 
         nuf Fuel + nuOx Ox = nuP P + nuSoot soot
@@ -60,7 +65,7 @@ SourceFiles
 
 #include "interpolationLookUpTable.H"
 #include "sootModel.H"
-#include "HashTable.T.H"
+#include "HashTable.H"
 
 #include "fluidThermo.H"
 #include "singleStepReactingMixture.H"

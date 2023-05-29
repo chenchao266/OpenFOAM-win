@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2017-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -24,15 +27,17 @@ License
 \*---------------------------------------------------------------------------*/
 
 #include "thermoSingleLayer.H"
+#include "fvcDdt2.H"
 #include "fvcDiv.H"
 #include "fvcLaplacian.H"
 #include "fvcFlux.H"
 #include "fvm.H"
-#include "addToRunTimeSelectionTable.H"
 #include "zeroGradientFvPatchFields.H"
+#include "mixedFvPatchFields.H"
 #include "mappedFieldFvPatchField.H"
 #include "mapDistribute.H"
 #include "constants.H"
+#include "addToRunTimeSelectionTable.H"
 
 // Sub-models
 #include "filmThermoModel.H"
@@ -54,7 +59,7 @@ namespace surfaceFilmModels
 
 defineTypeNameAndDebug(thermoSingleLayer, 0);
 
-addToRunTimeSelectionTable(surfaceFilmModel, thermoSingleLayer, mesh);
+addToRunTimeSelectionTable(surfaceFilmRegionModel, thermoSingleLayer, mesh);
 
 // * * * * * * * * * * * * Private Member Functions  * * * * * * * * * * * * //
 
@@ -66,7 +71,8 @@ wordList thermoSingleLayer::hsBoundaryTypes()
         if
         (
             T_.boundaryField()[patchi].fixesValue()
-         || bTypes[patchi] == mappedFieldFvPatchField<scalar>::typeName
+         || isA<mixedFvPatchScalarField>(T_.boundaryField()[patchi])
+         || isA<mappedFieldFvPatchField<scalar>>(T_.boundaryField()[patchi])
         )
         {
             bTypes[patchi] = fixedValueFvPatchField<scalar>::typeName;
@@ -88,14 +94,11 @@ bool thermoSingleLayer::read()
 
 void thermoSingleLayer::resetPrimaryRegionSourceTerms()
 {
-    if (debug)
-    {
-        InfoInFunction << endl;
-    }
+    DebugInFunction << endl;
 
     kinematicSingleLayer::resetPrimaryRegionSourceTerms();
 
-    hsSpPrimary_ == dimensionedScalar("zero", hsSp_.dimensions(), 0.0);
+    hsSpPrimary_ == dimensionedScalar(hsSp_.dimensions(), Zero);
 }
 
 
@@ -147,10 +150,7 @@ void thermoSingleLayer::updateSurfaceTemperatures()
 
 void thermoSingleLayer::transferPrimaryRegionThermoFields()
 {
-    if (debug)
-    {
-        InfoInFunction << endl;
-    }
+    DebugInFunction << endl;
 
     kinematicSingleLayer::transferPrimaryRegionThermoFields();
 
@@ -166,17 +166,14 @@ void thermoSingleLayer::transferPrimaryRegionThermoFields()
 
 void thermoSingleLayer::transferPrimaryRegionSourceFields()
 {
-    if (debug)
-    {
-        InfoInFunction << endl;
-    }
+    DebugInFunction << endl;
 
     kinematicSingleLayer::transferPrimaryRegionSourceFields();
 
     volScalarField::Boundary& hsSpPrimaryBf =
         hsSpPrimary_.boundaryFieldRef();
 
-    // Convert accummulated source terms into per unit area per unit time
+    // Convert accumulated source terms into per unit area per unit time
     const scalar deltaT = time_.deltaTValue();
     forAll(hsSpPrimaryBf, patchi)
     {
@@ -227,10 +224,7 @@ void thermoSingleLayer::correctAlpha()
 
 void thermoSingleLayer::updateSubmodels()
 {
-    if (debug)
-    {
-        InfoInFunction << endl;
-    }
+    DebugInFunction << endl;
 
     // Update heat transfer coefficient sub-models
     htcs_->correct();
@@ -268,29 +262,29 @@ void thermoSingleLayer::updateSubmodels()
 
 tmp<fvScalarMatrix> thermoSingleLayer::q(volScalarField& hs) const
 {
-    const volScalarField alpha(pos(delta_ - deltaSmall_));
-
     return
     (
         // Heat-transfer to the primary region
       - fvm::Sp(htcs_->h()/Cp_, hs)
-      + htcs_->h()*(hs/Cp_ + alpha*(TPrimary_ - T_))
+      + htcs_->h()*(hs/Cp_ + alpha_*(TPrimary_ - T_))
 
         // Heat-transfer to the wall
       - fvm::Sp(htcw_->h()/Cp_, hs)
-      + htcw_->h()*(hs/Cp_ + alpha*(Tw_- T_))
+      + htcw_->h()*(hs/Cp_ + alpha_*(Tw_- T_))
     );
 }
 
 
 void thermoSingleLayer::solveEnergy()
 {
-    if (debug)
-    {
-        InfoInFunction << endl;
-    }
+    DebugInFunction << endl;
 
-    updateSurfaceTemperatures();
+    dimensionedScalar residualDeltaRho
+    (
+        "residualDeltaRho",
+        deltaRho_.dimensions(),
+        1e-10
+    );
 
     solve
     (
@@ -306,6 +300,9 @@ void thermoSingleLayer::solveEnergy()
 
     // Evaluate viscosity from user-model
     viscosity_->correct(pPrimary_, T_);
+
+    // Update film wall and surface temperatures
+    updateSurfaceTemperatures();
 }
 
 
@@ -333,7 +330,7 @@ thermoSingleLayer::thermoSingleLayer
             IOobject::AUTO_WRITE
         ),
         regionMesh(),
-        dimensionedScalar("Cp", dimEnergy/dimMass/dimTemperature, 0.0),
+        dimensionedScalar(dimEnergy/dimMass/dimTemperature, Zero),
         zeroGradientFvPatchScalarField::typeName
     ),
     kappa_
@@ -347,12 +344,7 @@ thermoSingleLayer::thermoSingleLayer
             IOobject::AUTO_WRITE
         ),
         regionMesh(),
-        dimensionedScalar
-        (
-            "kappa",
-            dimEnergy/dimTime/dimLength/dimTemperature,
-            0.0
-        ),
+        dimensionedScalar(dimEnergy/dimTime/dimLength/dimTemperature, Zero),
         zeroGradientFvPatchScalarField::typeName
     ),
 
@@ -405,7 +397,7 @@ thermoSingleLayer::thermoSingleLayer
             IOobject::NO_WRITE
         ),
         regionMesh(),
-        dimensionedScalar("zero", dimEnergy/dimMass, 0.0),
+        dimensionedScalar(dimEnergy/dimMass, Zero),
         hsBoundaryTypes()
     ),
 
@@ -420,12 +412,12 @@ thermoSingleLayer::thermoSingleLayer
             IOobject::NO_WRITE
         ),
         regionMesh(),
-        dimensionedScalar("zero", dimEnergy, 0),
+        dimensionedScalar(dimEnergy, Zero),
         zeroGradientFvPatchScalarField::typeName
     ),
 
-    deltaWet_(readScalar(coeffs_.lookup("deltaWet"))),
-    hydrophilic_(readBool(coeffs_.lookup("hydrophilic"))),
+    deltaWet_(coeffs_.get<scalar>("deltaWet")),
+    hydrophilic_(coeffs_.get<bool>("hydrophilic")),
     hydrophilicDryScale_(0.0),
     hydrophilicWetScale_(0.0),
 
@@ -440,7 +432,7 @@ thermoSingleLayer::thermoSingleLayer
             IOobject::NO_WRITE
         ),
         regionMesh(),
-        dimensionedScalar("zero", dimEnergy/dimArea/dimTime, 0.0),
+        dimensionedScalar(dimEnergy/dimArea/dimTime, Zero),
         this->mappedPushedFieldPatchTypes<scalar>()
     ),
 
@@ -455,7 +447,7 @@ thermoSingleLayer::thermoSingleLayer
             IOobject::NO_WRITE
         ),
         primaryMesh(),
-        dimensionedScalar("zero", hsSp_.dimensions(), 0.0)
+        dimensionedScalar(hsSp_.dimensions(), Zero)
     ),
 
     TPrimary_
@@ -469,7 +461,7 @@ thermoSingleLayer::thermoSingleLayer
             IOobject::NO_WRITE
         ),
         regionMesh(),
-        dimensionedScalar("zero", dimTemperature, 0.0),
+        dimensionedScalar(dimTemperature, Zero),
         this->mappedFieldAndInternalPatchTypes<scalar>()
     ),
 
@@ -519,7 +511,7 @@ thermoSingleLayer::thermoSingleLayer
                         IOobject::NO_WRITE
                     ),
                     regionMesh(),
-                    dimensionedScalar("zero", dimless, 0.0),
+                    dimensionedScalar(dimless, Zero),
                     pSp_.boundaryField().types()
                 )
             );
@@ -528,8 +520,8 @@ thermoSingleLayer::thermoSingleLayer
 
     if (hydrophilic_)
     {
-        coeffs_.lookup("hydrophilicDryScale") >> hydrophilicDryScale_;
-        coeffs_.lookup("hydrophilicWetScale") >> hydrophilicWetScale_;
+        coeffs_.readEntry("hydrophilicDryScale", hydrophilicDryScale_);
+        coeffs_.readEntry("hydrophilicWetScale", hydrophilicWetScale_);
     }
 
     if (readFields)
@@ -595,10 +587,8 @@ void thermoSingleLayer::addSources
         energySource
     );
 
-    if (debug)
-    {
-        Info<< "    energy   = " << energySource << nl << endl;
-    }
+    DebugInfo
+        << "    energy   = " << energySource << nl << nl;
 
     hsSpPrimary_.boundaryFieldRef()[patchi][facei] -= energySource;
 }
@@ -606,31 +596,19 @@ void thermoSingleLayer::addSources
 
 void thermoSingleLayer::preEvolveRegion()
 {
-    if (debug)
-    {
-        InfoInFunction << endl;
-    }
+    DebugInFunction << endl;
 
     kinematicSingleLayer::preEvolveRegion();
-    primaryEnergyTrans_ == dimensionedScalar("zero", dimEnergy, 0.0);
+    primaryEnergyTrans_ == dimensionedScalar(dimEnergy, Zero);
 }
 
 
 void thermoSingleLayer::evolveRegion()
 {
-    if (debug)
-    {
-        InfoInFunction << endl;
-    }
+    DebugInFunction << endl;
 
-    // Update film coverage indicator
-    correctAlpha();
-
-    // Update film wall and surface velocities
-    updateSurfaceVelocities();
-
-    // Update film wall and surface temperatures
-    updateSurfaceTemperatures();
+    // Solve continuity for deltaRho_
+    solveContinuity();
 
     // Update sub-models to provide updated source contributions
     updateSubmodels();
@@ -647,7 +625,8 @@ void thermoSingleLayer::evolveRegion()
         tmp<volScalarField> tpp(this->pp());
 
         // Solve for momentum for U_
-        tmp<fvVectorMatrix> UEqn = solveMomentum(tpu(), tpp());
+        tmp<fvVectorMatrix> tUEqn = solveMomentum(tpu(), tpp());
+        fvVectorMatrix& UEqn = tUEqn.ref();
 
         // Solve energy for hs_ - also updates thermo
         solveEnergy();
@@ -656,7 +635,7 @@ void thermoSingleLayer::evolveRegion()
         for (int corr=1; corr<=nCorr_; corr++)
         {
             // Solve thickness for delta_
-            solveThickness(tpu(), tpp(), UEqn());
+            solveThickness(tpu(), tpp(), UEqn);
         }
     }
 
@@ -665,9 +644,6 @@ void thermoSingleLayer::evolveRegion()
 
     // Update temperature using latest hs_
     T_ == T(hs_);
-
-    // Reset source terms for next time integration
-    resetPrimaryRegionSourceTerms();
 }
 
 
@@ -730,7 +706,7 @@ tmp<volScalarField::Internal> thermoSingleLayer::Srho() const
         (
             IOobject
             (
-                "thermoSingleLayer::Srho",
+                typeName + ":Srho",
                 time().timeName(),
                 primaryMesh(),
                 IOobject::NO_READ,
@@ -738,7 +714,7 @@ tmp<volScalarField::Internal> thermoSingleLayer::Srho() const
                 false
             ),
             primaryMesh(),
-            dimensionedScalar("zero", dimMass/dimVolume/dimTime, 0.0)
+            dimensionedScalar(dimMass/dimVolume/dimTime, Zero)
         )
     );
 
@@ -756,7 +732,7 @@ tmp<volScalarField::Internal> thermoSingleLayer::Srho() const
         toPrimary(filmPatchi, patchMass);
 
         const label primaryPatchi = primaryPatchIDs()[i];
-        const unallocLabelList& cells =
+        const labelUList& cells =
             primaryMesh().boundaryMesh()[primaryPatchi].faceCells();
 
         forAll(patchMass, j)
@@ -782,7 +758,7 @@ tmp<volScalarField::Internal> thermoSingleLayer::Srho
         (
             IOobject
             (
-                "thermoSingleLayer::Srho(" + Foam::name(i) + ")",
+                typeName + ":Srho(" + Foam::name(i) + ")",
                 time_.timeName(),
                 primaryMesh(),
                 IOobject::NO_READ,
@@ -790,7 +766,7 @@ tmp<volScalarField::Internal> thermoSingleLayer::Srho
                 false
             ),
             primaryMesh(),
-            dimensionedScalar("zero", dimMass/dimVolume/dimTime, 0.0)
+            dimensionedScalar(dimMass/dimVolume/dimTime, Zero)
         )
     );
 
@@ -810,7 +786,7 @@ tmp<volScalarField::Internal> thermoSingleLayer::Srho
             toPrimary(filmPatchi, patchMass);
 
             const label primaryPatchi = primaryPatchIDs()[i];
-            const unallocLabelList& cells =
+            const labelUList& cells =
                 primaryMesh().boundaryMesh()[primaryPatchi].faceCells();
 
             forAll(patchMass, j)
@@ -832,7 +808,7 @@ tmp<volScalarField::Internal> thermoSingleLayer::Sh() const
         (
             IOobject
             (
-                "thermoSingleLayer::Sh",
+                typeName + ":Sh",
                 time().timeName(),
                 primaryMesh(),
                 IOobject::NO_READ,
@@ -840,7 +816,7 @@ tmp<volScalarField::Internal> thermoSingleLayer::Sh() const
                 false
             ),
             primaryMesh(),
-            dimensionedScalar("zero", dimEnergy/dimVolume/dimTime, 0.0)
+            dimensionedScalar(dimEnergy/dimVolume/dimTime, Zero)
         )
     );
 
@@ -857,8 +833,9 @@ tmp<volScalarField::Internal> thermoSingleLayer::Sh() const
 
         toPrimary(filmPatchi, patchEnergy);
 
-        const unallocLabelList& cells =
-            primaryMesh().boundaryMesh()[primaryPatchIDs()[i]].faceCells();
+        const label primaryPatchi = primaryPatchIDs()[i];
+        const labelUList& cells =
+            primaryMesh().boundaryMesh()[primaryPatchi].faceCells();
 
         forAll(patchEnergy, j)
         {
@@ -872,8 +849,8 @@ tmp<volScalarField::Internal> thermoSingleLayer::Sh() const
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
-} // end namespace Foam
-} // end namespace regionModels
-} // end namespace surfaceFilmModels
+} // End namespace Foam
+} // End namespace regionModels
+} // End namespace surfaceFilmModels
 
 // ************************************************************************* //

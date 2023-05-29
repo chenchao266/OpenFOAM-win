@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2016-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2016-2017 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -40,11 +42,11 @@ void Foam::RBD::rigidBodyModelState::write(dictionary& dict) const
 
 void Foam::RBD::rigidBodyModelState::write(Ostream& os) const
 {
-    os.writeKeyword("q") << q_ << token::END_STATEMENT << nl;
-    os.writeKeyword("qDot") << qDot_ << token::END_STATEMENT << nl;
-    os.writeKeyword("qDdot") << qDdot_ << token::END_STATEMENT << nl;
-    os.writeKeyword("t") << t_ << token::END_STATEMENT << nl;
-    os.writeKeyword("deltaT") << deltaT_ << token::END_STATEMENT << nl;
+    os.writeEntry("q", q_);
+    os.writeEntry("qDot", qDot_);
+    os.writeEntry("qDdot", qDdot_);
+    os.writeEntry("t", t_);
+    os.writeEntry("deltaT", deltaT_);
 }
 
 
@@ -62,13 +64,7 @@ Foam::Istream& Foam::RBD::operator>>
         >> state.t_
         >> state.deltaT_;
 
-    // Check state of Istream
-    is.check
-    (
-        "Foam::Istream& Foam::operator>>"
-        "(Foam::Istream&, Foam::RBD::rigidBodyModelState&)"
-    );
-
+    is.check(FUNCTION_NAME);
     return is;
 }
 
@@ -85,13 +81,7 @@ Foam::Ostream& Foam::RBD::operator<<
         << token::SPACE << state.t_
         << token::SPACE << state.deltaT_;
 
-    // Check state of Ostream
-    os.check
-    (
-        "Foam::Ostream& Foam::operator<<(Foam::Ostream&, "
-        "const Foam::RBD::rigidBodyModelState&)"
-    );
-
+    os.check(FUNCTION_NAME);
     return os;
 }
 

@@ -1,9 +1,12 @@
-﻿/*---------------------------------------------------------------------------*\
+/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2015 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2015 OpenFOAM Foundation
+    Copyright (C) 2019 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -72,14 +75,12 @@ Foam::cyclicAMIFvsPatchField<Type>::cyclicAMIFvsPatchField
 )
 :
     coupledFvsPatchField<Type>(p, iF, dict),
-    cyclicAMIPatch_(refCast<const cyclicAMIFvPatch>(p))
+    cyclicAMIPatch_(refCast<const cyclicAMIFvPatch>(p, dict))
 {
     if (!isA<cyclicAMIFvPatch>(p))
     {
-        FatalIOErrorInFunction
-        (
-            dict
-        )   << "patch " << this->patch().index() << " not cyclicAMI type. "
+        FatalIOErrorInFunction(dict)
+            << "patch " << this->patch().index() << " not cyclicAMI type. "
             << "Patch type = " << p.type()
             << exit(FatalIOError);
     }
@@ -114,21 +115,7 @@ Foam::cyclicAMIFvsPatchField<Type>::cyclicAMIFvsPatchField
 template<class Type>
 bool Foam::cyclicAMIFvsPatchField<Type>::coupled() const
 {
-    if
-    (
-        Pstream::parRun()
-     || (
-            this->cyclicAMIPatch_.size()
-         && this->cyclicAMIPatch_.cyclicAMIPatch().neighbPatch().size()
-        )
-    )
-    {
-        return true;
-    }
-    else
-    {
-        return false;
-    }
+    return cyclicAMIPatch_.coupled();
 }
 
 

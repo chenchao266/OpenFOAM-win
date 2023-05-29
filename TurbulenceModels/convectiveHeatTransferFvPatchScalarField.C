@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -72,7 +74,7 @@ convectiveHeatTransferFvPatchScalarField
 )
 :
     fixedValueFvPatchScalarField(p, iF, dict),
-    L_(readScalar(dict.lookup("L")))
+    L_(dict.get<scalar>("L"))
 {}
 
 
@@ -161,7 +163,7 @@ void convectiveHeatTransferFvPatchScalarField::updateCoeffs()
 void convectiveHeatTransferFvPatchScalarField::write(Ostream& os) const
 {
     fvPatchField<scalar>::write(os);
-    os.writeKeyword("L") << L_ << token::END_STATEMENT << nl;
+    os.writeEntry("L", L_);
     writeEntry("value", os);
 }
 

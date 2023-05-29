@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2017-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -24,161 +27,223 @@ License
 \*---------------------------------------------------------------------------*/
 
 #include "JobInfo.H"
-#include "OSspecific.H"
 #include "clock.H"
 #include "OFstream.H"
-#include "Pstream.T.H"
+#include "OSspecific.H"
+#include "Pstream.H"
+#include "foamVersion.H"
+
+// Fallback for job-control directory is in the user-directory
+// ~/.OpenFOAM/jobControl
+
+#ifndef FOAM_RESOURCE_USER_CONFIG_DIRNAME
+#define FOAM_RESOURCE_USER_CONFIG_DIRNAME ".OpenFOAM"
+#ifdef FULLDEBUG
+    #warning FOAM_RESOURCE_USER_CONFIG_DIRNAME was undefined (now ".OpenFOAM")
+#endif
+#endif
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
-namespace Foam {
-    bool JobInfo::writeJobInfo(debug::infoSwitch("writeJobInfo", 0));
-    JobInfo jobInfo;
 
 
-    // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
+ namespace Foam{
+bool JobInfo::writeJobInfo(debug::infoSwitch("writeJobInfo", 0));
+JobInfo jobInfo;
 
-    JobInfo::JobInfo() : runningJobPath_(),
-        finishedJobPath_(),
-        cpuTime_()
+// Foam::JobInfo::constructed  defined in globals.C
+
+
+// * * * * * * * * * * * * * * * Local Functions * * * * * * * * * * * * * * //
+
+
+ } // End namespace Foam
+namespace Foam
+{
+
+// Ensure given directory exists (called on master only)
+static inline bool ensureJobDirExists(const fileName& dir)
+{
+    if (!isDir(dir) && !mkDir(dir))
     {
-        name() = "JobInfo";
+        std::cerr
+            << "WARNING: no JobInfo directory: " << dir << nl
+            << "    disabling JobInfo" << nl;
 
-        if (writeJobInfo && Pstream::master())
-        {
-            string baseDir = getEnv("FOAM_JOB_DIR");
-            string jobFile = hostName() + '.' + ::Foam::name(pid());
-
-            fileName runningDir(baseDir / "runningJobs");
-            fileName finishedDir(baseDir / "finishedJobs");
-
-            runningJobPath_ = runningDir / jobFile;
-            finishedJobPath_ = finishedDir / jobFile;
-
-            if (baseDir.empty())
-            {
-                FatalErrorInFunction
-                    << "Cannot get JobInfo directory $FOAM_JOB_DIR"
-                    << ::Foam::exit(FatalError);
-            }
-
-            if (!isDir(runningDir) && !mkDir(runningDir))
-            {
-                FatalErrorInFunction
-                    << "Cannot make JobInfo directory " << runningDir
-                    << ::Foam::exit(FatalError);
-            }
-
-            if (!isDir(finishedDir) && !mkDir(finishedDir))
-            {
-                FatalErrorInFunction
-                    << "Cannot make JobInfo directory " << finishedDir
-                    << ::Foam::exit(FatalError);
-            }
-        }
-
-        constructed = true;
+        return false;
     }
 
-
-    // * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
-
-    JobInfo::~JobInfo()
-    {
-        if (writeJobInfo && constructed && Pstream::master())
-        {
-            mv(runningJobPath_, finishedJobPath_);
-        }
-
-        constructed = false;
-    }
-
-
-    // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
-
-    bool JobInfo::write(Ostream& os) const
-    {
-        if (writeJobInfo && Pstream::master())
-        {
-            if (os.good())
-            {
-                dictionary::write(os, false);
-                return true;
-            }
-            else
-            {
-                return false;
-            }
-        }
-        else
-        {
-            return true;
-        }
-    }
-
-
-    void JobInfo::write() const
-    {
-        if (writeJobInfo && Pstream::master())
-        {
-            if (!write(OFstream(runningJobPath_)()))
-            {
-                FatalErrorInFunction
-                    << "Failed to write to JobInfo file "
-                    << runningJobPath_
-                    << ::Foam::exit(FatalError);
-            }
-        }
-    }
-
-
-    void JobInfo::end(const word& terminationType)
-    {
-        if (writeJobInfo && constructed && Pstream::master())
-        {
-            add("cpuTime", cpuTime_.elapsedCpuTime());
-            add("endDate", clock::date());
-            add("endTime", clock::clockTime());
-
-            if (!found("termination"))
-            {
-                add("termination", terminationType);
-            }
-
-            rm(runningJobPath_);
-            write(OFstream(finishedJobPath_)());
-        }
-
-        constructed = false;
-    }
-
-
-    void JobInfo::end()
-    {
-        end("normal");
-    }
-
-
-    void JobInfo::exit()
-    {
-        end("exit");
-    }
-
-
-    void JobInfo::abort()
-    {
-        end("abort");
-    }
-
-
-    void JobInfo::signalEnd() const
-    {
-        if (writeJobInfo && constructed && Pstream::master())
-        {
-            mv(runningJobPath_, finishedJobPath_);
-        }
-
-        constructed = false;
-    }
-
+    return true;
 }
+
+
+// Write dictionary entries (called on master only)
+static inline bool writeJobDict(Ostream& os, const dictionary& dict)
+{
+    if (os.good())
+    {
+        dict.writeEntries(os, true);  // With extraNewLine=true
+        return true;
+    }
+
+    return false;
+}
+
+} // End namespace Foam
+
+
+// * * * * * * * * * * * * * Static Member Functions * * * * * * * * * * * * //
+
+
+ namespace Foam{
+void JobInfo::disable() noexcept
+{
+    writeJobInfo = false;
+}
+
+
+void JobInfo::shutdown()
+{
+    jobInfo.jobEnding();
+}
+
+
+void JobInfo::shutdown(bool isAbort)
+{
+    if (isAbort)
+    {
+        jobInfo.jobEnding("abort");
+    }
+    else
+    {
+        jobInfo.jobEnding("exit");
+    }
+}
+
+
+// * * * * * * * * * * * * * Private Member Functions  * * * * * * * * * * * //
+
+void JobInfo::jobEnding()
+{
+    if (!running_.empty())
+    {
+        if (!mv(running_, finished_))
+        {
+            rm(running_);
+        }
+    }
+
+    running_.clear();
+    finished_.clear();
+    constructed = false;
+}
+
+
+void JobInfo::jobEnding(const word& terminationType)
+{
+    if (writeJobInfo && !finished_.empty())
+    {
+        add("cpuTime", cpuTime_.elapsedCpuTime());
+        add("endDate", clock::date());
+        add("endTime", clock::clockTime());
+
+        if (!terminationType.empty() && !found("termination"))
+        {
+            add("termination", terminationType);
+        }
+
+        rm(running_);
+        OFstream os(finished_);
+        if (!writeJobDict(os, *this))
+        {
+            std::cerr
+                << "WARNING: could not write JobInfo file: "
+                << finished_ << nl;
+        }
+    }
+
+    running_.clear();
+    finished_.clear();
+    constructed = false;
+}
+
+
+// * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
+
+JobInfo::JobInfo()
+{
+    if (constructed)
+    {
+        std::cerr
+            << "WARNING: JobInfo was already constructed. "
+               "Should be a singleton!!" << nl;
+    }
+
+    // Only populate on master process, and when enabled
+    if (writeJobInfo && Pstream::master())
+    {
+        string jobDir = getEnv("FOAM_JOB_DIR");
+        if (jobDir.empty())
+        {
+            jobDir = home()/FOAM_RESOURCE_USER_CONFIG_DIRNAME/"jobControl";
+        }
+        string jobFile = hostName() + '.' + ::Foam::name(pid());
+        running_  = jobDir/"runningJobs"/jobFile;
+        finished_ = jobDir/"finishedJobs"/jobFile;
+
+        if
+        (
+            !ensureJobDirExists(jobDir)
+         || !ensureJobDirExists(running_.path())
+         || !ensureJobDirExists(finished_.path())
+        )
+        {
+            running_.clear();
+            finished_.clear();
+        }
+    }
+
+    dictionary::name() = "JobInfo";
+    constructed = true;
+}
+
+
+// * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
+
+JobInfo::~JobInfo()
+{
+    jobEnding();
+}
+
+
+// * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
+
+void JobInfo::write() const
+{
+    if (writeJobInfo && !running_.empty())
+    {
+        OFstream os(running_);
+        if (!writeJobDict(os, *this))
+        {
+            std::cerr
+                << "WARNING: could not write JobInfo file: "
+                << running_ << nl;
+
+            // Normally does not happen
+            const_cast<fileName&>(running_).clear();
+        }
+    }
+}
+
+
+void JobInfo::stop() { jobEnding("normal"); }
+
+void JobInfo::exit() { jobEnding("exit"); }
+
+void JobInfo::abort() { jobEnding("abort"); }
+
+void JobInfo::signalEnd() { jobEnding(); }
+
+
 // ************************************************************************* //
+
+ } // End namespace Foam

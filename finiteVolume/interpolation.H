@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2019 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -39,6 +42,7 @@ Description
 #include "autoPtr.H"
 #include "runTimeSelectionTables.H"
 #include "tetIndices.H"
+#include "barycentric.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -115,8 +119,7 @@ public:
 
 
     //- Destructor
-    virtual ~interpolation()
-    {}
+    virtual ~interpolation() = default;
 
 
     // Member Functions
@@ -137,7 +140,7 @@ public:
 
         //- Interpolate field to the given coordinates in the tetrahedron
         //  defined by the given indices.  Calls interpolate function
-        //  above here execpt where overridden by derived
+        //  above here except where overridden by derived
         //  interpolation types.
         virtual Type interpolate
         (

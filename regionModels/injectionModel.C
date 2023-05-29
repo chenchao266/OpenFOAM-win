@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -49,7 +51,7 @@ void injectionModel::addToInjectedMass(const scalar dMass)
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
-injectionModel::injectionModel(surfaceFilmModel& film)
+injectionModel::injectionModel(surfaceFilmRegionModel& film)
 :
     filmSubModelBase(film),
     injectedMass_(0.0)
@@ -59,7 +61,7 @@ injectionModel::injectionModel(surfaceFilmModel& film)
 injectionModel::injectionModel
 (
     const word& modelType,
-    surfaceFilmModel& film,
+    surfaceFilmRegionModel& film,
     const dictionary& dict
 )
 :

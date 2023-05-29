@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2015 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2015 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -37,19 +40,17 @@ SourceFiles
 #define gradingDescriptors_H
 
 #include "gradingDescriptor.H"
-#include "List.T.H"
+#include "List.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 namespace Foam
 {
 
+// Forward Declarations
 class Istream;
-class Ostream;
-
-// Forward declaration of friend functions and operators
 class gradingDescriptors;
-Istream& operator>>(Istream&, gradingDescriptors&);
+Istream& operator>>(Istream& is, gradingDescriptors& gd);
 
 /*---------------------------------------------------------------------------*\
                      Class gradingDescriptors Declaration
@@ -59,19 +60,29 @@ class gradingDescriptors
 :
     public List<gradingDescriptor>
 {
-
 public:
 
     // Constructors
 
-        //- Default constructor
+        //- Default construct with a single default gradingDescriptor
         gradingDescriptors();
 
-        //- Construct from a gradingDescriptor
-        gradingDescriptors(const gradingDescriptor& gd);
+        //- Construct with specified number of default gradingDescriptor
+        explicit gradingDescriptors(const label len);
+
+        //- Construct from a single gradingDescriptor
+        explicit gradingDescriptors(const gradingDescriptor& gd);
 
 
-    // Member functions
+    // Member Functions
+
+        //- Adjust expansion ratios.
+        //  Trap negative value and treat as its inverse.
+        void correct();
+
+        //- Normalize blockFractions and nDivFractions for the list
+        //- of gradingDescriptors, and call correct()
+        void normalise();
 
         //- Return the inverse gradingDescriptors with 1/expansionRatio
         gradingDescriptors inv() const;

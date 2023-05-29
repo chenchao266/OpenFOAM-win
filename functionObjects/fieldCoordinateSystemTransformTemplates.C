@@ -1,9 +1,12 @@
-﻿/*---------------------------------------------------------------------------*\
+/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2016-2018 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -23,7 +26,7 @@ License
 
 \*---------------------------------------------------------------------------*/
 
-//#include "fieldCoordinateSystemTransform.H"
+#include "fieldCoordinateSystemTransform.H"
 #include "volFields.H"
 #include "surfaceFields.H"
 #include "transformGeometricField.H"
@@ -41,7 +44,24 @@ void Foam::functionObjects::fieldCoordinateSystemTransform::transformField
     store
     (
         transFieldName,
-        Foam::transform(dimensionedTensor(coordSys_.R().R()), field)
+        Foam::invTransform(dimensionedTensor(csysPtr_->R()), field)
+    );
+}
+
+
+template<class FieldType, class RotationFieldType>
+void Foam::functionObjects::fieldCoordinateSystemTransform::transformField
+(
+    const RotationFieldType& rot,
+    const FieldType& field
+)
+{
+    word transFieldName(transformFieldName(field.name()));
+
+    store
+    (
+        transFieldName,
+        Foam::invTransform(rot, field)
     );
 }
 
@@ -52,30 +72,56 @@ void Foam::functionObjects::fieldCoordinateSystemTransform::transform
     const word& fieldName
 )
 {
-    typedef volFieldType<Type> VolFieldType;
-    typedef surfaceFieldType<Type> SurfaceFieldType;
+    typedef GeometricField<Type, fvPatchField, volMesh> VolFieldType;
+    typedef GeometricField<Type, fvsPatchField, surfaceMesh> SurfaceFieldType;
 
-    if (mesh_.foundObject<VolFieldType>(fieldName))
+    // Scalar quantities (bool, label, scalar) and sphericalTensor quantities
+    // are transform invariant. Use (pTraits<Type>::nComponents == 1) to avoid
+    // avoid generating a tensor field for a non-uniform transformation.
+
+    if (foundObject<VolFieldType>(fieldName))
     {
-        Foam_DebugInfo
+        DebugInfo
             << type() << ": Field " << fieldName << " already in database"
             << endl;
 
-        transformField<VolFieldType>
-        (
-            mesh_.lookupObject<VolFieldType>(fieldName)
-        );
+        if (csysPtr_->uniform() || pTraits<Type>::nComponents == 1)
+        {
+            transformField<VolFieldType>
+            (
+                lookupObject<VolFieldType>(fieldName)
+            );
+        }
+        else
+        {
+            transformField<VolFieldType>
+            (
+                vrotTensor(),
+                lookupObject<VolFieldType>(fieldName)
+            );
+        }
     }
-    else if (mesh_.foundObject<SurfaceFieldType>(fieldName))
+    else if (foundObject<SurfaceFieldType>(fieldName))
     {
-        Foam_DebugInfo
+        DebugInfo
             << type() << ": Field " << fieldName << " already in database"
             << endl;
 
-        transformField<SurfaceFieldType>
-        (
-            mesh_.lookupObject<SurfaceFieldType>(fieldName)
-        );
+        if (csysPtr_->uniform() || pTraits<Type>::nComponents == 1)
+        {
+            transformField<SurfaceFieldType>
+            (
+                lookupObject<SurfaceFieldType>(fieldName)
+            );
+        }
+        else
+        {
+            transformField<SurfaceFieldType>
+            (
+                srotTensor(),
+                lookupObject<SurfaceFieldType>(fieldName)
+            );
+        }
     }
     else
     {
@@ -88,35 +134,49 @@ void Foam::functionObjects::fieldCoordinateSystemTransform::transform
             IOobject::NO_WRITE
         );
 
-        if
-        (
-            fieldHeader.typeHeaderOk<VolFieldType>(false)
-         && fieldHeader.headerClassName() == VolFieldType::typeName
-        )
+        if (fieldHeader.typeHeaderOk<VolFieldType>(true, true, false))
         {
-            Foam_DebugInfo
+            DebugInfo
                 << type() << ": Field " << fieldName << " read from file"
                 << endl;
 
-            transformField<VolFieldType>
-            (
-                mesh_.lookupObject<VolFieldType>(fieldName)
-            );
+            if (csysPtr_->uniform() || pTraits<Type>::nComponents == 1)
+            {
+                transformField<VolFieldType>
+                (
+                    lookupObject<VolFieldType>(fieldName)
+                );
+            }
+            else
+            {
+                transformField<VolFieldType>
+                (
+                    vrotTensor(),
+                    lookupObject<VolFieldType>(fieldName)
+                );
+            }
         }
-        else if
-        (
-            fieldHeader.typeHeaderOk<SurfaceFieldType>(false)
-         && fieldHeader.headerClassName() == SurfaceFieldType::typeName
-        )
+        else if (fieldHeader.typeHeaderOk<SurfaceFieldType>(true, true, false))
         {
-            Foam_DebugInfo
+            DebugInfo
                 << type() << ": Field " << fieldName << " read from file"
                 << endl;
 
-            transformField<SurfaceFieldType>
-            (
-                mesh_.lookupObject<SurfaceFieldType>(fieldName)
-            );
+            if (csysPtr_->uniform() || pTraits<Type>::nComponents == 1)
+            {
+                transformField<SurfaceFieldType>
+                (
+                    lookupObject<SurfaceFieldType>(fieldName)
+                );
+            }
+            else
+            {
+                transformField<SurfaceFieldType>
+                (
+                    srotTensor(),
+                    lookupObject<SurfaceFieldType>(fieldName)
+                );
+            }
         }
     }
 }

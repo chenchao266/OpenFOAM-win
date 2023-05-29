@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2020-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -23,6 +26,9 @@ License
 
 Class
     Foam::hPolynomialThermo
+
+Group
+    grpSpecieThermo
 
 Description
     Thermodynamics package templated on the equation of state, using polynomial
@@ -74,14 +80,14 @@ See also
 #define hPolynomialThermo_H
 
 #include "scalar.H"
-#include "Polynomial.T.H"
+#include "Polynomial.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 namespace Foam
 {
 
-// Forward declaration of friend functions and operators
+// Forward Declarations
 
 template<class EquationOfState, int PolySize>
 class hPolynomialThermo;
@@ -124,7 +130,7 @@ class hPolynomialThermo
 :
     public EquationOfState
 {
-    // Private data
+    // Private Data
 
         //- Heat of formation
         scalar Hf_;
@@ -135,6 +141,18 @@ class hPolynomialThermo
         //- Specific heat at constant pressure polynomial coeffs
         Polynomial<PolySize> CpCoeffs_;
 
+        //- Reference temperature
+        scalar Tref_;
+
+        //- Reference enthalphy
+        scalar Href_;
+
+        //- Reference entropy
+        scalar Sref_;
+
+        //- Reference pressure
+        scalar Pref_;
+
         //- Enthalpy polynomial coeffs - derived from cp [J/kg]
         //  NOTE: relative to Tstd
         typename Polynomial<PolySize>::intPolyType hCoeffs_;
@@ -144,6 +162,12 @@ class hPolynomialThermo
 
 
     // Private Member Functions
+
+        //- Coeffs name. Eg, "CpCoeffs<10>"
+        inline static word coeffsName(const char* name)
+        {
+            return word(name + ("Coeffs<" + std::to_string(PolySize) + '>'));
+        }
 
         //- Construct from components
         inline hPolynomialThermo
@@ -158,6 +182,9 @@ class hPolynomialThermo
 
 
 public:
+
+    // Generated Methods: copy construct, copy assignment
+
 
     // Constructors
 
@@ -176,7 +203,7 @@ public:
             return "hPolynomial<" + EquationOfState::typeName() + '>';
         }
 
-        //- Limit the temperature to be in the range Tlow_ to Thigh_
+        //- Limit temperature to be within the range
         inline scalar limit(const scalar) const;
 
 
@@ -197,21 +224,34 @@ public:
             //- Entropy [J/(kg K)]
             inline scalar S(const scalar p, const scalar T) const;
 
+            //- Gibbs free energy of the mixture in the standard state [J/kg]
+            inline scalar Gstd(const scalar T) const;
 
-        // I-O
+
+            #include "HtoEthermo.H"
+
+
+        // Derivative term used for Jacobian
+
+
+            //- Temperature derivative of heat capacity at constant pressure
+            inline scalar dCpdT(const scalar p, const scalar T) const;
+
+
+
+        // IO
 
             //- Write to Ostream
             void write(Ostream& os) const;
 
 
-    // Member operators
+    // Member Operators
 
-        inline void operator=(const hPolynomialThermo&);
         inline void operator+=(const hPolynomialThermo&);
         inline void operator*=(const scalar);
 
 
-    // Friend operators
+    // Friend Operators
 
         friend hPolynomialThermo operator+ <EquationOfState, PolySize>
         (
@@ -232,7 +272,7 @@ public:
         );
 
 
-    // Ostream Operator
+    // IOstream Operators
 
         friend Ostream& operator<< <EquationOfState, PolySize>
         (

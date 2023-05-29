@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2016-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -25,8 +28,48 @@ Class
     Foam::sampledCuttingPlane
 
 Description
-    A sampledSurface defined by a plane using the iso-surface algorithm
-    to 'cut' the mesh.
+    A sampledSurface defined by a plane using an iso-surface algorithm
+    to \a cut the mesh.
+
+    This is often embedded as part of a sampled surfaces function object.
+
+Usage
+    Example of function object partial specification:
+    \verbatim
+    surfaces
+    {
+        surface1
+        {
+            type        cuttingPlane;
+            planeType   pointAndNormal;
+            pointAndNormalDict
+            {
+                ...
+            }
+        }
+    }
+    \endverbatim
+
+    Where the sub-entries comprise:
+    \table
+        Property | Description                              | Required | Default
+        type     | cuttingPlane                             | yes |
+        planeType | plane description (pointAndNormal etc)  | yes |
+        offsets   | Offsets of the origin in the normal direction | no | (0)
+        isoMethod | Iso-algorithm (cell/topo/point)         | no  | topo
+        bounds   | limit with bounding box                  | no  |
+        zone     | limit to cell zone (name or regex)       | no  |
+        zones    | limit to cell zones (names, regexs)      | no  |
+        exposedPatchName | name for zone subset             | optional |
+        regularise | Face simplification (enum or bool)     | no  | true
+        mergeTol | tolerance for merging points             | no  | 1e-6
+    \endtable
+
+Note
+    The keyword \c zones has priority over \c zone.
+
+SeeAlso
+    Foam::plane
 
 SourceFiles
     sampledCuttingPlane.C
@@ -37,11 +80,9 @@ SourceFiles
 #define sampledCuttingPlane_H
 
 #include "sampledSurface.H"
-#include "isoSurface.H"
-//#include "isoSurfaceCell.H"
 #include "plane.H"
-#include "ZoneIDs.H"
 #include "fvMeshSubset.H"
+#include "isoSurfaceBase.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -49,29 +90,32 @@ namespace Foam
 {
 
 /*---------------------------------------------------------------------------*\
-                       Class sampledCuttingPlane Declaration
+                     Class sampledCuttingPlane Declaration
 \*---------------------------------------------------------------------------*/
 
 class sampledCuttingPlane
 :
     public sampledSurface
 {
-    // Private data
+    // Private Data
 
         //- Plane
         const plane plane_;
 
-        //- Merge tolerance
-        const scalar mergeTol_;
+        //- The offsets to the plane - defaults to (0).
+        List<scalar> offsets_;
 
-        //- Whether to coarsen
-        const Switch regularise_;
+        //- Parameters (filtering etc) for iso-surface
+        isoSurfaceParams isoParams_;
 
         //- Whether to recalculate cell values as average of point values
-        const Switch average_;
+        bool average_;
 
-        //- Zone name/index (if restricted to zones)
-        mutable cellZoneID zoneID_;
+        //- Use simple sub-meshing in algorithm itself
+        bool simpleSubMesh_;
+
+        //- The zone or zones in which cutting is to occur
+        wordRes zoneNames_;
 
         //- For zones: patch to put exposed faces into
         mutable word exposedPatchName_;
@@ -80,8 +124,28 @@ class sampledCuttingPlane
         mutable bool needsUpdate_;
 
 
-        //- Optional subsetted mesh
-        autoPtr<fvMeshSubset> subMeshPtr_;
+    // Sampling geometry. Directly stored or via an iso-surface (ALGO_POINT)
+
+        //- The extracted surface (direct storage)
+        mutable meshedSurface surface_;
+
+        //- For every face the original cell in mesh (direct storage)
+        mutable labelList meshCells_;
+
+        //- Constructed iso-surface (ALGO_POINT), for interpolators
+        autoPtr<isoSurfaceBase> isoSurfacePtr_;
+
+
+    // Mesh Subsetting
+
+        //- Cached subMesh for (pre-)subset of cell zones
+        mutable autoPtr<fvMeshSubset> subMeshPtr_;
+
+        //- Cached ignore cells for (post-)subset of cell zones
+        mutable autoPtr<bitSet> ignoreCellsPtr_;
+
+
+    // Fields
 
         //- Distance to cell centres
         autoPtr<volScalarField> cellDistancePtr_;
@@ -89,31 +153,56 @@ class sampledCuttingPlane
         //- Distance to points
         scalarField pointDistance_;
 
-        //- Constructed iso surface
-        //autoPtr<isoSurfaceCell> isoSurfPtr_;
-        autoPtr<isoSurface> isoSurfPtr_;
-
-        //- Triangles converted to faceList
-        mutable autoPtr<faceList> facesPtr_;
-
 
     // Private Member Functions
+
+        //- Check and warn if bounding box does not intersect mesh or plane
+        void checkBoundsIntersection
+        (
+            const plane& pln,
+            const boundBox& meshBb
+        ) const;
+
+        //- Fill cellDistance, pointDistance fields for the specified plane
+        void setDistanceFields(const plane& pln);
+
+        //- Collect iso-surfaces into a single surface (No point merging)
+        void combineSurfaces(PtrList<isoSurfaceBase>& isoSurfPtrs);
 
         //- Create iso surface
         void createGeometry();
 
-        //- Sample field on faces
+        //- Sample volume field onto surface faces
         template<class Type>
-        tmp<Field<Type>> sampleField
+        tmp<Field<Type>> sampleOnFaces
         (
-            const GeometricField<Type, fvPatchField, volMesh>& vField
+            const interpolation<Type>& sampler
+        ) const;
+
+        //- Interpolate volume field onto surface points
+        template<class Type>
+        tmp<Field<Type>> sampleOnPoints
+        (
+            const interpolation<Type>& interpolator
+        ) const;
+
+        //- Use isoSurfacePtr_ for point interpolation
+        template<class Type>
+        tmp<Field<Type>> sampleOnIsoSurfacePoints
+        (
+            const interpolation<Type>& interpolator
         ) const;
 
 
-        template<class Type>
-        tmp<Field<Type>>
-        interpolateField(const interpolation<Type>&) const;
+protected:
 
+    // Protected Member Functions
+
+        //- Is currently backed by an isoSurfacePtr_
+        bool hasIsoSurface() const
+        {
+            return bool(isoSurfacePtr_);
+        }
 
 public:
 
@@ -133,7 +222,7 @@ public:
 
 
     //- Destructor
-    virtual ~sampledCuttingPlane();
+    virtual ~sampledCuttingPlane() = default;
 
 
     // Member Functions
@@ -150,6 +239,26 @@ public:
         //  Do nothing (and return false) if no update was needed
         virtual bool update();
 
+        //- The current surface geometry
+        const meshedSurface& surface() const
+        {
+            if (isoSurfacePtr_)
+            {
+                return *isoSurfacePtr_;
+            }
+            return surface_;
+        }
+
+        //- For each face, the original cell in mesh
+        const labelList& meshCells() const
+        {
+            if (isoSurfacePtr_)
+            {
+                return isoSurfacePtr_->meshCells();
+            }
+            return meshCells_;
+        }
+
         //- Points of surface
         virtual const pointField& points() const
         {
@@ -159,90 +268,104 @@ public:
         //- Faces of surface
         virtual const faceList& faces() const
         {
-            if (facesPtr_.empty())
-            {
-                const triSurface& s = surface();
-
-                facesPtr_.reset(new faceList(s.size()));
-
-                forAll(s, i)
-                {
-                    facesPtr_()[i] = s[i].triFaceFace();
-                }
-            }
-            return facesPtr_;
+            return surface().surfFaces();
         }
 
-
-        //const isoSurfaceCell& surface() const
-        const isoSurface& surface() const
+        //- Per-face zone/region information
+        virtual const labelList& zoneIds() const
         {
-            return isoSurfPtr_();
+            return labelList::null();
         }
 
-        //- Sample field on surface
+        //- Face area magnitudes
+        virtual const vectorField& Sf() const
+        {
+            return surface().Sf();
+        }
+
+        //- Face area magnitudes
+        virtual const scalarField& magSf() const
+        {
+            return surface().magSf();
+        }
+
+        //- Face centres
+        virtual const vectorField& Cf() const
+        {
+            return surface().Cf();
+        }
+
+
+    // Sample
+
+        //- Sample volume field onto surface faces
         virtual tmp<scalarField> sample
         (
-            const volScalarField&
+            const interpolation<scalar>& sampler
         ) const;
 
-        //- Sample field on surface
+        //- Sample volume field onto surface faces
         virtual tmp<vectorField> sample
         (
-            const volVectorField&
+            const interpolation<vector>& sampler
         ) const;
 
-        //- Sample field on surface
+        //- Sample volume field onto surface faces
         virtual tmp<sphericalTensorField> sample
         (
-            const volSphericalTensorField&
+            const interpolation<sphericalTensor>& sampler
         ) const;
 
-        //- Sample field on surface
+        //- Sample volume field onto surface faces
         virtual tmp<symmTensorField> sample
         (
-            const volSymmTensorField&
+            const interpolation<symmTensor>& sampler
         ) const;
 
-        //- Sample field on surface
+        //- Sample volume field onto surface faces
         virtual tmp<tensorField> sample
         (
-            const volTensorField&
+            const interpolation<tensor>& sampler
         ) const;
 
 
-        //- Interpolate field on surface
+    // Interpolate
+
+        //- Interpolate volume field onto surface points
         virtual tmp<scalarField> interpolate
         (
-            const interpolation<scalar>&
+            const interpolation<scalar>& interpolator
         ) const;
 
-        //- Interpolate field on surface
+        //- Interpolate volume field onto surface points
         virtual tmp<vectorField> interpolate
         (
-            const interpolation<vector>&
+            const interpolation<vector>& interpolator
         ) const;
 
-        //- Interpolate field on surface
+        //- Interpolate volume field onto surface points
         virtual tmp<sphericalTensorField> interpolate
         (
-            const interpolation<sphericalTensor>&
+            const interpolation<sphericalTensor>& interpolator
         ) const;
 
-        //- Interpolate field on surface
+        //- Interpolate volume field onto surface points
         virtual tmp<symmTensorField> interpolate
         (
-            const interpolation<symmTensor>&
+            const interpolation<symmTensor>& interpolator
         ) const;
 
-        //- Interpolate field on surface
+        //- Interpolate volume field onto surface points
         virtual tmp<tensorField> interpolate
         (
-            const interpolation<tensor>&
+            const interpolation<tensor>& interpolator
         ) const;
 
-        //- Write
-        virtual void print(Ostream&) const;
+
+    // Output
+
+        //- Print information
+        virtual void print(Ostream& os, int level=0) const;
 };
 
 

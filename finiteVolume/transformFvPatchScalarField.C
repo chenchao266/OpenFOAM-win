@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2015 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2015 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -34,7 +36,7 @@ Foam::transformFvPatchField<Foam::scalar>::valueInternalCoeffs
     const tmp<scalarField>&
 ) const
 {
-     return tmp<scalarField>(new scalarField(size(), 1.0));
+    return tmp<scalarField>::New(size(), 1.0);
 }
 
 
@@ -42,7 +44,7 @@ template<>
 Foam::tmp<Foam::scalarField>
 Foam::transformFvPatchField<Foam::scalar>::gradientInternalCoeffs() const
 {
-    return tmp<scalarField>(new scalarField(size(), 0.0));
+    return tmp<scalarField>::New(size(), Zero);
 }
 
 

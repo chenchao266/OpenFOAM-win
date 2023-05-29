@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -24,6 +27,9 @@ License
 Class
     Foam::janafThermo
 
+Group
+    grpSpecieThermo
+
 Description
     JANAF tables based thermodynamics package templated
     into the equation of state.
@@ -38,14 +44,14 @@ SourceFiles
 #define janafThermo_H
 
 #include "scalar.H"
-#include "FixedList.T.H"
+#include "FixedList.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 namespace Foam
 {
 
-// Forward declaration of friend functions and operators
+// Forward Declarations
 
 template<class EquationOfState> class janafThermo;
 
@@ -87,18 +93,17 @@ class janafThermo
 :
     public EquationOfState
 {
-
 public:
 
-    // Public data
+    // Public Data
 
-        static const int nCoeffs_ = 7;
+        static constexpr int nCoeffs_ = 7;
         typedef FixedList<scalar, nCoeffs_> coeffArray;
 
 
 private:
 
-    // Private data
+    // Private Data
 
         // Temperature limits of applicability of functions
         scalar Tlow_, Thigh_, Tcommon_;
@@ -185,6 +190,18 @@ public:
 
             //- Entropy [J/(kg K)]
             inline scalar S(const scalar p, const scalar T) const;
+
+            //- Gibbs free energy of the mixture in the standard state [J/kg]
+            inline scalar Gstd(const scalar T) const;
+
+            #include "HtoEthermo.H"
+
+
+        // Derivative term used for Jacobian
+
+
+            //- Temperature derivative of heat capacity at constant pressure
+            inline scalar dCpdT(const scalar p, const scalar T) const;
 
 
         // I-O

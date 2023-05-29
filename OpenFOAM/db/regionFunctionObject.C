@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2016-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2016 OpenFOAM Foundation
+    Copyright (C) 2016-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -24,112 +27,159 @@ License
 \*---------------------------------------------------------------------------*/
 
 #include "regionFunctionObject.H"
-#include "Time.T.H"
+#include "Time1.h"
 #include "polyMesh.H"
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
-using namespace Foam;
+
 namespace Foam
 {
-namespace functionObjects
-{
-    defineTypeNameAndDebug(regionFunctionObject, 0);
-}
-}
-
-
-// * * * * * * * * * * * * * Protected Member Functions  * * * * * * * * * * //
-
-bool functionObjects::regionFunctionObject::writeObject
-(
-    const word& fieldName
-)
-{
-    if (obr_.foundObject<regIOobject>(fieldName))
+    namespace functionObjects
     {
-        const regIOobject& field = obr_.lookupObject<regIOobject>(fieldName);
-
-        Log << "    functionObjects::" << type() << " " << name()
-            << " writing field: " << field.name() << endl;
-
-        field.write();
-
-        return true;
+        defineTypeNameAndDebug(regionFunctionObject, 0);
     }
-    else
+
+
+
+    // * * * * * * * * * * * * * Protected Member Functions  * * * * * * * * * * //
+
+    const objectRegistry&
+        functionObjects::regionFunctionObject::obr() const
     {
+        if (!obrPtr_ && !subRegistryName_.empty())
+        {
+            // Recursive - so we also find things registered on Time
+            obrPtr_ = obr_.cfindObject<objectRegistry>(subRegistryName_, true);
+
+            // Also search functionObject output ("functionObjectObjects")
+            if (!obrPtr_)
+            {
+                obrPtr_ =
+                    storedObjects().cfindObject<objectRegistry>(subRegistryName_);
+            }
+
+            if (!obrPtr_)
+            {
+                WarningInFunction
+                    << "Could not locate subRegion \""
+                    << subRegistryName_ << '"' << nl;
+            }
+        }
+
+        return (obrPtr_ ? *obrPtr_ : obr_);
+    }
+
+
+    bool functionObjects::regionFunctionObject::writeObject
+    (
+        const word& fieldName
+    )
+    {
+        const regIOobject* ptr = this->cfindObject<regIOobject>(fieldName);
+
+        if (ptr)
+        {
+            Log << "    functionObjects::" << type() << " " << name()
+                << " writing field: " << ptr->name() << endl;
+
+            ptr->write();
+
+            return true;
+        }
+
         return false;
     }
-}
 
 
-bool functionObjects::regionFunctionObject::clearObject
-(
-    const word& fieldName
-)
-{
-    if (foundObject<regIOobject>(fieldName))
+    bool functionObjects::regionFunctionObject::clearObject
+    (
+        const word& fieldName
+    )
     {
-        regIOobject& resultObject = lookupObjectRef<regIOobject>(fieldName);
+        // Same as getObjectPtr, since the object is already non-const
+        regIOobject* ptr = this->findObject<regIOobject>(fieldName);
 
-        if (resultObject.ownedByRegistry())
+        if (ptr)
         {
-            return resultObject.checkOut();
+            if (ptr->ownedByRegistry())
+            {
+                return ptr->checkOut();
+            }
+            else
+            {
+                return false;
+            }
         }
-        else
-        {
-            return false;
-        }
-    }
-    else
-    {
+
         return true;
     }
-}
 
 
-// * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
-
-functionObjects::regionFunctionObject::regionFunctionObject
-(
-    const word& name,
-    const Time& runTime,
-    const dictionary& dict
-) :    functionObject(name),
-    time_(runTime),
-    obr_
+    void functionObjects::regionFunctionObject::clearObjects
     (
-        runTime.lookupObject<objectRegistry>
-        (
-            dict.lookupOrDefault("region", polyMesh::defaultRegion)
-        )
+        const wordList& objNames
     )
-{}
+    {
+        for (const word& objName : objNames)
+        {
+            regIOobject* ptr = this->findObject<regIOobject>(objName);
+
+            if (ptr && ptr->ownedByRegistry())
+            {
+                ptr->checkOut();
+            }
+        }
+    }
 
 
-functionObjects::regionFunctionObject::regionFunctionObject
-(
-    const word& name,
-    const objectRegistry& obr,
-    const dictionary& dict
-) :    functionObject(name),
-    time_(obr.time()),
-    obr_(obr)
-{}
+    // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
+
+    functionObjects::regionFunctionObject::regionFunctionObject
+    (
+        const word& name,
+        const Time& runTime,
+        const dictionary& dict
+    )
+        :
+        stateFunctionObject(name, runTime),
+        subRegistryName_(dict.getOrDefault<word>("subRegion", word::null)),
+        obr_
+        (
+            runTime.lookupObject<objectRegistry>
+            (
+                dict.getOrDefault("region", polyMesh::defaultRegion)
+                )
+        ),
+        obrPtr_(nullptr)
+    {}
 
 
-// * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
+    functionObjects::regionFunctionObject::regionFunctionObject
+    (
+        const word& name,
+        const objectRegistry& obr,
+        const dictionary& dict
+    )
+        :
+        stateFunctionObject(name, obr.time()),
+        subRegistryName_(dict.getOrDefault<word>("subRegion", word::null)),
+        obr_(obr),
+        obrPtr_(nullptr)
+    {}
 
-functionObjects::regionFunctionObject::~regionFunctionObject()
-{}
 
+    // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
 
-// * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
+    bool functionObjects::regionFunctionObject::read(const dictionary& dict)
+    {
+        stateFunctionObject::read(dict);
 
-bool functionObjects::regionFunctionObject::read(const dictionary& dict)
-{
-    return functionObject::read(dict);
+        subRegistryName_ = dict.getOrDefault<word>("subRegion", word::null);
+
+        obrPtr_ = nullptr;
+
+        return true;
+    }
+
 }
-
-
 // ************************************************************************* //

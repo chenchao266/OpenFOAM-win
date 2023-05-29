@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -65,11 +67,11 @@ class nearWallDistNoSearch
         //- Do all calculations.
         void doAll();
 
-        //- Disallow default bitwise copy construct
-        nearWallDistNoSearch(const nearWallDistNoSearch&);
+        //- No copy construct
+        nearWallDistNoSearch(const nearWallDistNoSearch&) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const nearWallDistNoSearch&);
+        //- No copy assignment
+        void operator=(const nearWallDistNoSearch&) = delete;
 
 
 public:

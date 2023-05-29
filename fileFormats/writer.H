@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -56,19 +59,19 @@ SourceFiles
 
 #include "fileName.H"
 #include "wordList.H"
-#include "vector.H"
-#include "tensor.H"
+#include "vector2.H"
+#include "tensor2.H"
 #include "typeInfo.H"
 #include "runTimeSelectionTables.H"
 #include "autoPtr.H"
-#include "Field.T.H"
+#include "Field.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 namespace Foam
 {
 
-// Forward declaration of classes
+// Forward Declarations
 class coordSet;
 
 /*---------------------------------------------------------------------------*\
@@ -78,7 +81,6 @@ class coordSet;
 template<class Type>
 class writer
 {
-
 protected:
 
     //- Generates filename from coordSet and sampled fields
@@ -121,21 +123,42 @@ public:
             ()
         );
 
+        declareRunTimeSelectionTable
+        (
+            autoPtr,
+            writer,
+            dict,
+            (
+                const dictionary& formatOptions
+            ),
+            (formatOptions)
+        );
+
 
     // Selectors
 
         //- Return a reference to the selected writer
         static autoPtr<writer> New(const word& writeFormat);
 
+        //- Return a reference to the selected writer
+        static autoPtr<writer> New
+        (
+            const word& writeFormat,
+            const dictionary& formatOptions
+        );
+
 
     // Constructors
 
-        //- Construct null
+        //- Default construct
         writer();
+
+        //- Construct with dictionary
+        explicit writer(const dictionary& dict);
 
 
     //- Destructor
-    virtual ~writer() = 0;
+    virtual ~writer() = default;
 
 
     // Member Functions
@@ -176,9 +199,10 @@ public:
         virtual void write
         (
             const bool writeTracks,
-            const PtrList<coordSet>&,
+            const List<scalarField>& times,
+            const PtrList<coordSet>& tracks,
             const wordList& valueSetNames,
-            const List<List<Field<Type>>>&,
+            const List<List<Field<Type>>>& valueSets,
             Ostream&
         ) const = 0;
 

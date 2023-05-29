@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2012-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2012-2017 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -51,7 +53,7 @@ addToRunTimeSelectionTable
 
 primaryRadiation::primaryRadiation
 (
-    surfaceFilmModel& film,
+    surfaceFilmRegionModel& film,
     const dictionary& dict
 )
 :
@@ -67,7 +69,7 @@ primaryRadiation::primaryRadiation
             IOobject::NO_WRITE
         ),
         film.regionMesh(),
-        dimensionedScalar("zero", dimMass/pow3(dimTime), 0.0),
+        dimensionedScalar(dimMass/pow3(dimTime), Zero),
         film.mappedPushedFieldPatchTypes<scalar>()
     )
 {}
@@ -103,7 +105,7 @@ tmp<volScalarField> primaryRadiation::Shs()
                 IOobject::NO_WRITE
             ),
             film().regionMesh(),
-            dimensionedScalar("zero", dimMass/pow3(dimTime), 0.0)
+            dimensionedScalar(dimMass/pow3(dimTime), Zero)
         )
     );
 

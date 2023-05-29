@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2019-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -46,16 +49,15 @@ SourceFiles
 namespace Foam
 {
 
+// Forward Declarations
 template<class Type> class wallPointData;
-
-// Forward declaration of friend functions and operators
 
 template<class Type> Istream& operator>>(Istream&, wallPointData<Type>&);
 template<class Type> Ostream& operator<<(Ostream&, const wallPointData<Type>&);
 
 
 /*---------------------------------------------------------------------------*\
-                           Class wallPointData Declaration
+                        Class wallPointData Declaration
 \*---------------------------------------------------------------------------*/
 
 template<class Type>
@@ -63,7 +65,7 @@ class wallPointData
 :
     public wallPoint
 {
-    // Private data
+    // Private Data
 
         //- Data at nearest wall center
         Type data_;
@@ -71,9 +73,9 @@ class wallPointData
 
     // Private Member Functions
 
-        //- Evaluate distance to point. Update distSqr, origin from whomever
-        //  is nearer pt. Return true if w2 is closer to point,
-        //  false otherwise.
+        //- Evaluate distance to point.
+        //  Update distSqr, origin from whomever is nearer pt.
+        //  \return true if w2 is closer to point, false otherwise.
         template<class TrackingData>
         inline bool update
         (
@@ -86,12 +88,15 @@ class wallPointData
 
 public:
 
-    typedef Type dataType;
+    // Public Typedefs
+
+        //- Type of additional data carried
+        typedef Type dataType;
 
 
     // Constructors
 
-        //- Construct null
+        //- Default construct
         inline wallPointData();
 
         //- Construct from origin, normal, distance
@@ -107,10 +112,17 @@ public:
 
         // Access
 
-            inline const Type& data() const;
-            inline Type& data();
+            const Type& data() const
+            {
+                return data_;
+            }
+            Type& data()
+            {
+                return data_;
+            }
 
-        // Needed by meshWave
+
+        // Needed by MeshWave
 
             //- Influence of neighbouring face.
             //  Calls update(...) with cellCentre of celli
@@ -151,7 +163,6 @@ public:
                 TrackingData& td
             );
 
-    // Member Operators
 
     // IOstream Operators
 
@@ -160,48 +171,22 @@ public:
 };
 
 
-//- Data associated with wallPointData type are contiguous. List the usual
-//  ones.
+// * * * * * * * * * * * * * * * * * Traits  * * * * * * * * * * * * * * * * //
 
-template<>
-inline bool contiguous<wallPointData<bool>>()
-{
-    return contiguous<wallPoint>();
-}
-template<>
-inline bool contiguous<wallPointData<label>>()
-{
-    return contiguous<wallPoint>();
-}
-template<>
-inline bool contiguous<wallPointData<scalar>>()
-{
-    return contiguous<wallPoint>();
-}
-template<>
-inline bool contiguous<wallPointData<vector>>()
-{
-    return contiguous<wallPoint>();
-}
-template<>
-inline bool contiguous<wallPointData<sphericalTensor>>()
-{
-    return contiguous<wallPoint>();
-}
-template<>
-inline bool contiguous<wallPointData<symmTensor>>()
-{
-    return contiguous<wallPoint>();
-}
-template<>
-inline bool contiguous<wallPointData<tensor>>()
-{
-    return contiguous<wallPoint>();
-}
+//- Data are contiguous if data type is contiguous
+template<class Type>
+struct is_contiguous<wallPointData<Type>> : is_contiguous<Type> {};
+
+//- Data are contiguous label if data type is label
+template<class Type>
+struct is_contiguous_label<wallPointData<Type>> : is_contiguous_label<Type> {};
+
+//- Data are contiguous scalar if data type is scalar
+template<class Type>
+struct is_contiguous_scalar<wallPointData<Type>> : is_contiguous_scalar<Type>{};
 
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
-
 
 } // End namespace Foam
 

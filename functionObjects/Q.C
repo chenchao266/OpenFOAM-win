@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2013-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2013-2016 OpenFOAM Foundation
+    Copyright (C) 2019-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -34,13 +37,7 @@ namespace Foam
 namespace functionObjects
 {
     defineTypeNameAndDebug(Q, 0);
-
-    addToRunTimeSelectionTable
-    (
-        functionObject,
-        Q,
-        dictionary
-    );
+    addToRunTimeSelectionTable(functionObject, Q, dictionary);
 }
 }
 
@@ -61,10 +58,8 @@ bool Foam::functionObjects::Q::calc()
             0.5*(sqr(tr(gradU)) - tr(((gradU) & (gradU))))
         );
     }
-    else
-    {
-        return false;
-    }
+
+    return false;
 }
 
 
@@ -81,12 +76,6 @@ Foam::functionObjects::Q::Q
 {
     setResultName(typeName, "U");
 }
-
-
-// * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
-
-Foam::functionObjects::Q::~Q()
-{}
 
 
 // ************************************************************************* //

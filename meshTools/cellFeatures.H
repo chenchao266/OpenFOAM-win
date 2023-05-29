@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -43,9 +45,9 @@ SourceFiles
 #include "faceList.H"
 #include "labelList.H"
 #include "boolList.H"
-#include "HashSet.T.H"
-#include "Map.T.H"
-#include "DynamicList.T.H"
+#include "HashSet.H"
+#include "Map.H"
+#include "DynamicList.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -105,11 +107,11 @@ class cellFeatures
         void calcSuperFaces() const;
 
 
-        //- Disallow default bitwise copy construct
-        cellFeatures(const cellFeatures&);
+        //- No copy construct
+        cellFeatures(const cellFeatures&) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const cellFeatures&);
+        //- No copy assignment
+        void operator=(const cellFeatures&) = delete;
 
 public:
 

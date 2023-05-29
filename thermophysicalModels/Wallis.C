@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2015 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2015 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -52,29 +54,30 @@ Foam::compressibilityModels::Wallis::Wallis
 )
 :
     barotropicCompressibilityModel(compressibilityProperties, gamma, psiName),
+    pSat_
+    (
+       "pSat",
+       dimPressure,
+       compressibilityProperties_
+    ),
     psiv_
     (
         "psiv",
         dimCompressibility,
-        compressibilityProperties_.lookup("psiv")
+        compressibilityProperties_
     ),
     psil_
     (
         "psil",
         dimCompressibility,
-        compressibilityProperties_.lookup("psil")
+        compressibilityProperties_
     ),
-    rhovSat_
-    (
-        "rhovSat",
-        dimDensity,
-        compressibilityProperties_.lookup("rhovSat")
-    ),
+    rhovSat_(psiv_*pSat_),
     rholSat_
     (
         "rholSat",
         dimDensity,
-        compressibilityProperties_.lookup("rholSat")
+        compressibilityProperties_
     )
 {
     correct();
@@ -87,7 +90,7 @@ void Foam::compressibilityModels::Wallis::correct()
 {
     psi_ =
         (gamma_*rhovSat_ + (scalar(1) - gamma_)*rholSat_)
-       *(gamma_*psiv_/rhovSat_ + (scalar(1) - gamma_)*psil_/rholSat_);
+       *(gamma_/pSat_ + (scalar(1) - gamma_)*psil_/rholSat_);
 }
 
 
@@ -98,10 +101,11 @@ bool Foam::compressibilityModels::Wallis::read
 {
     barotropicCompressibilityModel::read(compressibilityProperties);
 
-    compressibilityProperties_.lookup("psiv") >> psiv_;
-    compressibilityProperties_.lookup("psil") >> psil_;
-    compressibilityProperties_.lookup("rhovSat") >> rhovSat_;
-    compressibilityProperties_.lookup("rholSat") >> rholSat_;
+    compressibilityProperties_.readEntry("pSat", pSat_);
+    compressibilityProperties_.readEntry("psiv", psiv_);
+    compressibilityProperties_.readEntry("psil", psil_);
+    rhovSat_ = psiv_*pSat_;
+    compressibilityProperties_.readEntry("rholSat", rholSat_);
 
     return true;
 }

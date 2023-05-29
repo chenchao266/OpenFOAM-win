@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2019 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -26,20 +29,19 @@ License
 #include "hexCellLooper.H"
 #include "cellFeatures.H"
 #include "polyMesh.H"
-#include "cellModeller.H"
+#include "cellModel.H"
 #include "plane.H"
-#include "ListOps.T.H"
+#include "ListOps.H"
 #include "meshTools.H"
 #include "OFstream.H"
-
 #include "addToRunTimeSelectionTable.H"
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
 
 namespace Foam
 {
-defineTypeNameAndDebug(hexCellLooper, 0);
-addToRunTimeSelectionTable(cellLooper, hexCellLooper, word);
+    defineTypeNameAndDebug(hexCellLooper, 0);
+    addToRunTimeSelectionTable(cellLooper, hexCellLooper, word);
 }
 
 
@@ -99,10 +101,8 @@ bool Foam::hexCellLooper::walkHex
 
         return false;
     }
-    else
-    {
-        return true;
-    }
+
+    return true;
 }
 
 
@@ -149,17 +149,10 @@ void Foam::hexCellLooper::makeFace
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
-// Construct from components
 Foam::hexCellLooper::hexCellLooper(const polyMesh& mesh)
 :
     geomCellLooper(mesh),
-    hex_(*(cellModeller::lookup("hex")))
-{}
-
-
-// * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
-
-Foam::hexCellLooper::~hexCellLooper()
+    hex_(cellModel::ref(cellModel::HEX))
 {}
 
 
@@ -261,7 +254,7 @@ bool Foam::hexCellLooper::cut
         {
             FatalErrorInFunction
                 << " on points:" << facePoints << endl
-                << UIndirectList<point>(facePoints, faceVerts)()
+                << UIndirectList<point>(facePoints, faceVerts)
                 << abort(FatalError);
         }
     }

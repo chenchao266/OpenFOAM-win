@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -22,7 +24,7 @@ License
     along with OpenFOAM.  If not, see <http://www.gnu.org/licenses/>.
 
 Description
-    Calulate the face centres and areas.
+    Calculate the face centres and areas.
 
     Calculate the centre by breaking the face into triangles using the face
     centre and area-weighted averaging their centres.  This method copes with
@@ -31,10 +33,12 @@ Description
 \*---------------------------------------------------------------------------*/
 
 #include "primitiveMesh.H"
-
+#include "primitiveMeshTools.H"
 
 // * * * * * * * * * * * * * Private Member Functions  * * * * * * * * * * * //
-using namespace Foam;
+
+
+ namespace Foam{
 void primitiveMesh::calcFaceCentresAndAreas() const
 {
     if (debug)
@@ -59,7 +63,7 @@ void primitiveMesh::calcFaceCentresAndAreas() const
     faceAreasPtr_ = new vectorField(nFaces());
     vectorField& fAreas = *faceAreasPtr_;
 
-    makeFaceCentresAndAreas(points(), fCtrs, fAreas);
+    primitiveMeshTools::makeFaceCentresAndAreas(*this, points(), fCtrs, fAreas);
 
     if (debug)
     {
@@ -70,78 +74,14 @@ void primitiveMesh::calcFaceCentresAndAreas() const
 }
 
 
-void primitiveMesh::makeFaceCentresAndAreas
-(
-    const pointField& p,
-    vectorField& fCtrs,
-    vectorField& fAreas
-) const
-{
-    const faceList& fs = faces();
-
-    forAll(fs, facei)
-    {
-        const labelList& f = fs[facei];
-        label nPoints = f.size();
-
-        // If the face is a triangle, do a direct calculation for efficiency
-        // and to avoid round-off error-related problems
-        if (nPoints == 3)
-        {
-            fCtrs[facei] = (1.0/3.0)*(p[f[0]] + p[f[1]] + p[f[2]]);
-            fAreas[facei] = 0.5*((p[f[1]] - p[f[0]])^(p[f[2]] - p[f[0]]));
-        }
-        else
-        {
-            vector sumN = Zero;
-            scalar sumA = 0.0;
-            vector sumAc = Zero;
-
-            point fCentre = p[f[0]];
-            for (label pi = 1; pi < nPoints; pi++)
-            {
-                fCentre += p[f[pi]];
-            }
-
-            fCentre /= nPoints;
-
-            for (label pi = 0; pi < nPoints; pi++)
-            {
-                const point& nextPoint = p[f[(pi + 1) % nPoints]];
-
-                vector c = p[f[pi]] + nextPoint + fCentre;
-                vector n = (nextPoint - p[f[pi]])^(fCentre - p[f[pi]]);
-                scalar a = mag(n);
-
-                sumN += n;
-                sumA += a;
-                sumAc += a*c;
-            }
-
-            // This is to deal with zero-area faces. Mark very small faces
-            // to be detected in e.g., processorPolyPatch.
-            if (sumA < ROOTVSMALL)
-            {
-                fCtrs[facei] = fCentre;
-                fAreas[facei] = Zero;
-            }
-            else
-            {
-                fCtrs[facei] = (1.0/3.0)*sumAc/sumA;
-                fAreas[facei] = 0.5*sumN;
-            }
-        }
-    }
-}
-
-
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
 
 const vectorField& primitiveMesh::faceCentres() const
 {
     if (!faceCentresPtr_)
     {
-        calcFaceCentresAndAreas();
+        //calcFaceCentresAndAreas();
+        const_cast<primitiveMesh&>(*this).updateGeom();
     }
 
     return *faceCentresPtr_;
@@ -152,7 +92,8 @@ const vectorField& primitiveMesh::faceAreas() const
 {
     if (!faceAreasPtr_)
     {
-        calcFaceCentresAndAreas();
+        //calcFaceCentresAndAreas();
+        const_cast<primitiveMesh&>(*this).updateGeom();
     }
 
     return *faceAreasPtr_;
@@ -160,3 +101,5 @@ const vectorField& primitiveMesh::faceAreas() const
 
 
 // ************************************************************************* //
+
+ } // End namespace Foam

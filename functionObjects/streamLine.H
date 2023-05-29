@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2015-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -31,71 +34,114 @@ Description
     Generates streamline data by sampling a set of user-specified fields along a
     particle track, transported by a user-specified velocity field.
 
-    Example of function object specification:
+    Operands:
+    \table
+      Operand        | Type  | Location
+      input          | -     | -
+      output file    | -     <!--
+                 --> | $FOAM_CASE/postProcessing/sets/\<FO\>/\<time\>/\<file\>
+      output field   | -     | -
+    \endtable
+
+Usage
+    Minimal example by using \c system/controlDict.functions:
     \verbatim
     streamLine1
     {
+        // Mandatory entries (unmodifiable)
         type            streamLine;
-        libs            ("libfieldFunctionObjects.so");
+        libs            (fieldFunctionObjects);
 
-        writeControl    writeTime;
-
+        // Mandatory entries (runtime modifiable)
+        U               <fieldTrack>;
+        fields          (<fieldTrack> <field1> ... <fieldN>);
         setFormat       vtk;
-        U               U;
-        trackForward    yes;
-
-        fields
-        (
-            U
-            p
-        );
-
+        direction       bidirectional;
         lifeTime        10000;
-        trackLength     1e-3;
-        nSubCycle       5;
-        cloudName       particleTracks;
-
+        cloud           particleTracks;
         seedSampleSet
         {
             type        uniform;
-            axis        x;  //distance;
+            axis        x;
             start       (-0.0205 0.0001 0.00001);
             end         (-0.0205 0.0005 0.00001);
             nPoints     100;
         }
+
+        // Optional entries (runtime modifiable)
+        bounds          (0.2 -10 -10)(0.22 10 10);
+        trackLength     1e-3;
+        nSubCycle       1;
+        interpolationScheme cellPoint;
+
+        // Deprecated
+        // trackForward true;
+
+        // Optional (inherited) entries
+        ...
     }
     \endverbatim
 
-Usage
+    where the entries mean:
     \table
-        Property     | Description             | Required    | Default value
-        type         | Type name: streamLine   | yes         |
-        setFormat    | Output data type        | yes         |
-        U            | Tracking velocity field name | no     | U
-        fields       | Fields to sample        | yes         |
-        lifetime     | Maximum number of particle tracking steps | yes |
-        trackLength  | Tracking segment length | no          |
-        nSubCycle    | Number of tracking steps per cell | no|
-        cloudName    | Cloud name to use       | yes         |
-        seedSampleSet| Seeding method (see below)| yes       |
+      Property     | Description                           | Type | Req'd | Dflt
+      type         | Type name: streamLine                 | word |  yes  | -
+      libs         | Library name: fieldFunctionObjects    | word |  yes  | -
+      U            | Name of tracking velocity field       | word |  yes  | -
+      fields       | Names of operand fields to sample     | wordList | yes | -
+      setFormat    | Type of output data                   | word |  yes  | -
+      direction    | Direction to track                    | vector | yes | -
+      lifetime     | Maximum number of particle tracking steps | label | yes | -
+      cloud        | Name of cloud                         | word |  yes  | -
+      seedSampleSet| Name of seeding method (see below)    | word |  yes  | -
+      bounds       | Bounding box to trim tracks    | vector | no | invertedBox
+      trackLength  | Tracking segment length              | scalar | no | VGREAT
+      nSubCycle    | Number of tracking steps per cell    | label  | no | 1
+      interpolationScheme | Interp. scheme for sample   | word | no | cellPoint
     \endtable
 
-    Where \c seedSampleSet \c type is typically one of
-    \plaintable
+    Options for the \c seedSampleSet entry:
+    \verbatim
         uniform | uniform particle seeding
         cloud   | cloud of points
         triSurfaceMeshPointSet | points according to a tri-surface mesh
-    \endplaintable
+    \endverbatim
+
+    Options for the \c setFormat entry:
+    \verbatim
+        csv
+        ensight
+        gnuplot
+        jplot
+        nastran
+        raw
+        vtk
+        xmgr
+    \endverbatim
+
+    Options for the \c direction entry:
+    \verbatim
+        bidirectional
+        forward
+        backward
+    \endverbatim
+
+    The inherited entries are elaborated in:
+     - \link functionObject.H \endlink
+
+    Usage by the \c postProcess utility is not available.
 
 Note
-    When specifying the track resolution, the \c trackLength OR \c nSubCycle
-    option should be used
+    When specifying the track resolution, the \c trackLength or \c nSubCycle
+    option should be used.
 
 See also
-    Foam::functionObject
-    Foam::functionObjects::timeControl
-    Foam::sampledSet
-    Foam::wallBoundedStreamLine
+    - Foam::functionObject
+    - Foam::functionObjects::fvMeshFunctionObject
+    - Foam::sampledSet
+    - Foam::wallBoundedStreamLine
+    - Foam::streamLineBase
+    - ExtendedCodeGuide::functionObjects::field::streamLine
 
 SourceFiles
     streamLine.C
@@ -105,22 +151,15 @@ SourceFiles
 #ifndef functionObjects_streamLine_H
 #define functionObjects_streamLine_H
 
-#include "fvMeshFunctionObject.H"
-#include "volFieldsFwd.H"
-#include "DynamicList.T.H"
-#include "scalarList.H"
-#include "vectorList.H"
-#include "writer.H"
-#include "indirectPrimitivePatch.H"
+#include "streamLineBase.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 namespace Foam
 {
 
-// Forward declaration of classes
-class meshSearch;
-class sampledSet;
+class objectRegistry;
+class dictionary;
 
 namespace functionObjects
 {
@@ -131,88 +170,12 @@ namespace functionObjects
 
 class streamLine
 :
-    public fvMeshFunctionObject
+    public streamLineBase
 {
-    // Private data
-
-        //- Input dictionary
-        dictionary dict_;
-
-        //- List of fields to sample
-        wordList fields_;
-
-        //- Field to transport particle with
-        word UName_;
-
-        //- Interpolation scheme to use
-        word interpolationScheme_;
-
-        //- Whether to use +u or -u
-        bool trackForward_;
-
-        //- Maximum lifetime (= number of cells) of particle
-        label lifeTime_;
+    // Private Data
 
         //- Number of subcycling steps
         label nSubCycle_;
-
-        //- Track length
-        scalar trackLength_;
-
-        //- Optional specified name of particles
-        word cloudName_;
-
-        //- Type of seed
-        word seedSet_;
-
-        //- Names of scalar fields
-        wordList scalarNames_;
-
-        //- Names of vector fields
-        wordList vectorNames_;
-
-
-        // Demand driven
-
-            //- Mesh searching enigne
-            autoPtr<meshSearch> meshSearchPtr_;
-
-            //- Seed set engine
-            autoPtr<sampledSet> sampledSetPtr_;
-
-            //- Axis of the sampled points to output
-            word sampledSetAxis_;
-
-            //- File writer for scalar data
-            autoPtr<writer<scalar>> scalarFormatterPtr_;
-
-            //- File writer for vector data
-            autoPtr<writer<vector>> vectorFormatterPtr_;
-
-
-        // Generated data
-
-            //- All tracks. Per particle the points it passed through
-            DynamicList<List<point>> allTracks_;
-
-            //- Per scalarField, per particle, the sampled value.
-            List<DynamicList<scalarList>> allScalars_;
-
-            //- Per scalarField, per particle, the sampled value.
-            List<DynamicList<vectorList>> allVectors_;
-
-
-        //- Construct patch out of all wall patch faces
-        autoPtr<indirectPrimitivePatch> wallPatch() const;
-
-        //- Do all seeding and tracking
-        void track();
-
-        //- Disallow default bitwise copy construct
-        streamLine(const streamLine&);
-
-        //- Disallow default bitwise assignment
-        void operator=(const streamLine&);
 
 
 public:
@@ -231,27 +194,24 @@ public:
             const dictionary& dict
         );
 
+        //- No copy construct
+        streamLine(const streamLine&) = delete;
+
+        //- No copy assignment
+        void operator=(const streamLine&) = delete;
+
 
     //- Destructor
-    virtual ~streamLine();
+    virtual ~streamLine() = default;
 
 
     // Member Functions
 
-        //- Read the field average data
+        //- Read settings
         virtual bool read(const dictionary&);
 
-        //- Do nothing
-        virtual bool execute();
-
-        //- Calculate and write the steamlines
-        virtual bool write();
-
-        //- Update for changes of mesh
-        virtual void updateMesh(const mapPolyMesh&);
-
-        //- Update for mesh point-motion
-        virtual void movePoints(const polyMesh&);
+        //- Do the actual tracking to fill the track data
+        virtual void track();
 };
 
 

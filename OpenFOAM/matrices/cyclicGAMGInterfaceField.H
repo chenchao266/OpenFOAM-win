@@ -1,9 +1,12 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2013 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2013 OpenFOAM Foundation
+    Copyright (C) 2019 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -35,7 +38,7 @@ SourceFiles
 #ifndef cyclicGAMGInterfaceField_H
 #define cyclicGAMGInterfaceField_H
 
-#include "GAMGInterfaceField.T.H"
+#include "GAMGInterfaceField.H"
 #include "cyclicGAMGInterface.H"
 #include "cyclicLduInterfaceField.H"
 
@@ -48,7 +51,9 @@ namespace Foam
                   Class cyclicGAMGInterfaceField Declaration
 \*---------------------------------------------------------------------------*/
 
-class cyclicGAMGInterfaceField :    public GAMGInterfaceField,
+class cyclicGAMGInterfaceField
+:
+    public GAMGInterfaceField,
     virtual public cyclicLduInterfaceField
 {
     // Private data
@@ -65,11 +70,11 @@ class cyclicGAMGInterfaceField :    public GAMGInterfaceField,
 
     // Private Member Functions
 
-        //- Disallow default bitwise copy construct
-        cyclicGAMGInterfaceField(const cyclicGAMGInterfaceField&);
+        //- No copy construct
+        cyclicGAMGInterfaceField(const cyclicGAMGInterfaceField&) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const cyclicGAMGInterfaceField&);
+        //- No copy assignment
+        void operator=(const cyclicGAMGInterfaceField&) = delete;
 
 
 public:
@@ -97,7 +102,7 @@ public:
 
 
     //- Destructor
-    virtual ~cyclicGAMGInterfaceField();
+    virtual ~cyclicGAMGInterfaceField() = default;
 
 
     // Member Functions
@@ -113,7 +118,7 @@ public:
 
         //- Cyclic interface functions
 
-            //- Does the interface field perform the transfromation
+            //- Does the interface field perform the transformation
             virtual bool doTransform() const
             {
                 return doTransform_;
@@ -143,8 +148,11 @@ public:
             //- Update result field based on interface functionality
             virtual void updateInterfaceMatrix
             (
-                scalarField& result,
-                const scalarField& psiInternal,
+                solveScalarField& result,
+                const bool add,
+                const lduAddressing& lduAddr,
+                const label patchId,
+                const solveScalarField& psiInternal,
                 const scalarField& coeffs,
                 const direction cmpt,
                 const Pstream::commsTypes commsType

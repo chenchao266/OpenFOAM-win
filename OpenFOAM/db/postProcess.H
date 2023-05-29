@@ -1,9 +1,12 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2016 OpenFOAM Foundation
+    Copyright (C) 2018 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -61,6 +64,8 @@ Description
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
+
+ namespace Foam{
 argList::addBoolOption
 (
     argList::postProcessOptionName,
@@ -78,7 +83,7 @@ if (argList::postProcess(argc, argv))
 
     #include "setRootCase.H"
 
-    if (args.optionFound("list"))
+    if (args.found("list"))
     {
         functionObjectList::list();
         return 0;
@@ -96,7 +101,7 @@ if (argList::postProcess(argc, argv))
     // if not constructed from runTime
     dictionary functionsDict;
 
-    HashSet<word> selectedFields;
+    HashSet<wordRe> selectedFields;
 
     // Construct functionObjectList
     autoPtr<functionObjectList> functionsPtr
@@ -110,19 +115,34 @@ if (argList::postProcess(argc, argv))
 
         Info<< "Time = " << runTime.timeName() << endl;
 
-        if (mesh.readUpdate() != polyMesh::UNCHANGED)
+        switch (mesh.readUpdate())
         {
-            // Update functionObjects if mesh changes
-            functionsPtr = functionObjectList::New
-            (
-                args,
-                runTime,
-                functionsDict,
-                selectedFields
-            );
+            case polyMesh::POINTS_MOVED:
+            {
+                functionsPtr->movePoints(mesh);
+                break;
+            }
+            case polyMesh::TOPO_CHANGE:
+            case polyMesh::TOPO_PATCH_CHANGE:
+            {
+                mapPolyMesh mpm(mesh);
+                functionsPtr->updateMesh(mpm);
+                break;
+            }
+            case polyMesh::UNCHANGED:
+            {
+                // No additional work
+                break;
+            }
+            default:
+            {
+                FatalErrorIn(args.executable())
+                    << "Unhandled enumeration"
+                    << abort(FatalError);
+            }
         }
 
-        FatalIOError.throwExceptions();
+        FatalIOError.throwing(true);
 
         try
         {
@@ -143,8 +163,11 @@ if (argList::postProcess(argc, argv))
             {
                 functionsPtr->end();
             }
+
+            // Report to output (avoid overwriting values from simulation)
+            profiling::print(Info);
         }
-        catch (IOerror& err)
+        catch (const IOerror& err)
         {
             Warning<< err << endl;
         }
@@ -168,3 +191,5 @@ if (argList::postProcess(argc, argv))
 #undef CREATE_CONTROL
 
 // ************************************************************************* //
+
+ } // End namespace Foam

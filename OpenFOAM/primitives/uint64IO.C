@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2014-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2014-2016 OpenFOAM Foundation
+    Copyright (C) 2017-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -24,77 +27,144 @@ License
 \*---------------------------------------------------------------------------*/
 
 #include "uint64.H"
+#include "parsing.H"
 #include "IOstreams.H"
+#include <cinttypes>
+#include <cmath>
 
-#include <sstream>
+// * * * * * * * * * * * * * * * IOstream Operators  * * * * * * * * * * * * //
 
-// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
-namespace Foam {
-    word name(const uint64_t val)
+
+ namespace Foam{
+uint64_t readUint64(const char* buf)
+{
+    char *endptr = nullptr;
+    errno = 0;
+    const uintmax_t parsed = ::strtoumax(buf, &endptr, 10);
+
+    const uint64_t val = uint64_t(parsed);
+
+    const parsing::errorType err =
+    (
+        (parsed > UINT64_MAX)
+      ? parsing::errorType::RANGE
+      : parsing::checkConversion(buf, endptr)
+    );
+
+    if (err != parsing::errorType::NONE)
     {
-        std::ostringstream buf;
-        buf << val;
-        return buf.str();
+        FatalIOErrorInFunction("unknown")
+            << parsing::errorNames[err] << " '" << buf << "'"
+            << exit(FatalIOError);
     }
 
+    return val;
+}
 
-    // * * * * * * * * * * * * * * * IOstream Operators  * * * * * * * * * * * * //
 
-    Istream& operator>>(Istream& is, uint64_t& i)
+bool readUint64(const char* buf, uint64_t& val)
+{
+    char *endptr = nullptr;
+    errno = 0;
+    const uintmax_t parsed = ::strtoumax(buf, &endptr, 10);
+
+    val = uint64_t(parsed);
+
+    return
+    (
+        (parsed > UINT64_MAX)
+      ? false
+      : (parsing::checkConversion(buf, endptr) == parsing::errorType::NONE)
+    );
+}
+
+
+uint64_t readUint64(Istream& is)
+{
+    uint64_t val(0);
+    is >> val;
+
+    return val;
+}
+
+
+Istream& operator>>(Istream& is, uint64_t& val)
+{
+    token t(is);
+
+    if (!t.good())
     {
-        token t(is);
-
-        if (!t.good())
-        {
-            is.setBad();
-            return is;
-        }
-
-        if (t.isLabel())
-        {
-            i = uint64_t(t.labelToken());
-        }
-        else
-        {
-            is.setBad();
-            FatalIOErrorInFunction(is)
-                << "wrong token type - expected uint64_t, found " << t.info()
-                << exit(FatalIOError);
-
-            return is;
-        }
-
-        // Check state of Istream
-        is.check("Istream& operator>>(Istream&, uint64_t&)");
-
+        FatalIOErrorInFunction(is)
+            << "Bad token - could not get uint64"
+            << exit(FatalIOError);
+        is.setBad();
         return is;
     }
 
-
-    uint64_t readUint64(Istream& is)
+    if (t.isLabel())
     {
-        uint64_t val;
-        is >> val;
+        val = uint64_t(t.labelToken());
+    }
+    else if (t.isScalar())
+    {
+        const scalar sval(t.scalarToken());
+        const uintmax_t parsed = uintmax_t(std::round(sval));
+        val = 0 + uint64_t(parsed);
 
-        return val;
+        // Accept integral floating-point values.
+        // Eg, from string expression evaluation (#1696)
+
+        if ((sval < -1e-4) || parsed > UINT64_MAX)
+        {
+            FatalIOErrorInFunction(is)
+                << "Expected label (uint64), value out-of-range "
+                << t.info()
+                << exit(FatalIOError);
+            is.setBad();
+            return is;
+        }
+        else if (1e-4 < std::abs(sval - scalar(parsed)))
+        {
+            FatalIOErrorInFunction(is)
+                << "Expected label (uint64), found non-integral value "
+                << t.info()
+                << exit(FatalIOError);
+            is.setBad();
+            return is;
+        }
+    }
+    else
+    {
+        FatalIOErrorInFunction(is)
+            << "Wrong token type - expected label (uint64), found "
+            << t.info()
+            << exit(FatalIOError);
+        is.setBad();
+        return is;
     }
 
-
-    bool read(const char* buf, uint64_t& s)
-    {
-        char *endptr = nullptr;
-        long l = strtol(buf, &endptr, 10);
-        s = uint64_t(l);
-        return (*endptr == 0);
-    }
-
-
-    Ostream& operator<<(Ostream& os, const uint64_t i)
-    {
-        os.write(label(i));
-        os.check("Ostream& operator<<(Ostream&, const uint64_t)");
-        return os;
-    }
-
+    is.check(FUNCTION_NAME);
+    return is;
 }
+
+
+Ostream& operator<<(Ostream& os, const uint64_t val)
+{
+    os.write(label(val));
+    os.check(FUNCTION_NAME);
+    return os;
+}
+
+
+#ifdef __APPLE__
+Ostream& operator<<(Ostream& os, const unsigned long val)
+{
+    os << uint64_t(val);
+    return os;
+}
+#endif
+
+
 // ************************************************************************* //
+
+ } // End namespace Foam

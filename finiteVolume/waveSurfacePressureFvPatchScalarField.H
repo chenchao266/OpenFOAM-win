@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -79,7 +81,7 @@ SourceFiles
 #define waveSurfacePressureFvPatchScalarField_H
 
 #include "fixedValueFvPatchFields.H"
-#include "NamedEnum.T.H"
+#include "Enum.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -121,7 +123,7 @@ private:
         word rhoName_;
 
         //- Time scheme type names
-        static const NamedEnum<ddtSchemeType, 3> ddtSchemeTypeNames_;
+        static const Enum<ddtSchemeType> ddtSchemeTypeNames_;
 
 
 public:

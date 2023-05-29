@@ -1,9 +1,13 @@
-﻿/*---------------------------------------------------------------------------*\
+/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2020 ENERCON GmbH
+    Copyright (C) 2018-2020 OpenCFD Ltd
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -23,43 +27,220 @@ License
 
 \*---------------------------------------------------------------------------*/
 
-//#include "actuationDiskSource.H"
+#include "actuationDiskSource.H"
+#include "fvMesh.H"
+#include "fvMatrix.H"
 #include "volFields.H"
 
-// * * * * * * * * * * * * * * *  Member Functions * * * * * * * * * * * * * //
+// * * * * * * * * * * * * * Private Member Functions  * * * * * * * * * * * //
 
-template<class RhoFieldType>
-void Foam::fv::actuationDiskSource::addActuationDiskAxialInertialResistance
+template<class AlphaFieldType, class RhoFieldType>
+void Foam::fv::actuationDiskSource::calc
 (
-    vectorField& Usource,
-    const labelList& cells,
-    const scalarField& Vcells,
+    const AlphaFieldType& alpha,
     const RhoFieldType& rho,
-    const vectorField& U
-) const
+    fvMatrix<vector>& eqn
+)
 {
-    scalar a = 1.0 - Cp_/Ct_;
-    vector uniDiskDir = diskDir_/mag(diskDir_);
-    tensor E(Zero);
-    E.xx() = uniDiskDir.x();
-    E.yy() = uniDiskDir.y();
-    E.zz() = uniDiskDir.z();
-
-    vector upU = vector(VGREAT, VGREAT, VGREAT);
-    scalar upRho = VGREAT;
-    if (upstreamCellId_ != -1)
+    switch (forceMethod_)
     {
-        upU =  U[upstreamCellId_];
-        upRho = rho[upstreamCellId_];
+        case forceMethodType::FROUDE:
+        {
+            calcFroudeMethod(alpha, rho, eqn);
+            break;
+        }
+
+        case forceMethodType::VARIABLE_SCALING:
+        {
+            calcVariableScalingMethod(alpha, rho, eqn);
+            break;
+        }
+
+        default:
+            break;
     }
-    reduce(upU, minOp<vector>());
-    reduce(upRho, minOp<scalar>());
+}
 
-    scalar T = 2.0*upRho*diskArea_*mag(upU)*a*(1 - a);
 
-    forAll(cells, i)
+template<class AlphaFieldType, class RhoFieldType>
+void Foam::fv::actuationDiskSource::calcFroudeMethod
+(
+    const AlphaFieldType& alpha,
+    const RhoFieldType& rho,
+    fvMatrix<vector>& eqn
+)
+{
+    const vectorField& U = eqn.psi();
+    vectorField& Usource = eqn.source();
+    const scalarField& cellsV = mesh_.V();
+
+    // Compute upstream U and rho, spatial-averaged over monitor-region
+    vector Uref(Zero);
+    scalar rhoRef = 0.0;
+    label szMonitorCells = monitorCells_.size();
+
+    for (const label celli : monitorCells_)
     {
-        Usource[cells[i]] += ((Vcells[cells[i]]/V())*T*E) & upU;
+        Uref += U[celli];
+        rhoRef = rhoRef + rho[celli];
+    }
+    reduce(Uref, sumOp<vector>());
+    reduce(rhoRef, sumOp<scalar>());
+    reduce(szMonitorCells, sumOp<label>());
+
+    if (szMonitorCells == 0)
+    {
+        FatalErrorInFunction
+            << "No cell is available for incoming velocity monitoring."
+            << exit(FatalError);
+    }
+
+    Uref /= szMonitorCells;
+    rhoRef /= szMonitorCells;
+
+    const scalar Ct = sink_*UvsCtPtr_->value(mag(Uref));
+    const scalar Cp = sink_*UvsCpPtr_->value(mag(Uref));
+
+    if (Cp <= VSMALL || Ct <= VSMALL)
+    {
+        FatalErrorInFunction
+           << "Cp and Ct must be greater than zero." << nl
+           << "Cp = " << Cp << ", Ct = " << Ct
+           << exit(FatalError);
+    }
+
+    // (BJSB:Eq. 3.9)
+    const scalar a = 1.0 - Cp/Ct;
+    const scalar T = 2.0*rhoRef*diskArea_*magSqr(Uref & diskDir_)*a*(1 - a);
+
+    for (const label celli : cells_)
+    {
+        Usource[celli] += ((cellsV[celli]/V())*T)*diskDir_;
+    }
+
+    if
+    (
+        mesh_.time().timeOutputValue() >= writeFileStart_
+     && mesh_.time().timeOutputValue() <= writeFileEnd_
+    )
+    {
+        Ostream& os = file();
+        writeCurrentTime(os);
+
+        os  << Uref << tab << Cp << tab << Ct << tab << a << tab << T
+            << endl;
+    }
+}
+
+
+template<class AlphaFieldType, class RhoFieldType>
+void Foam::fv::actuationDiskSource::calcVariableScalingMethod
+(
+    const AlphaFieldType& alpha,
+    const RhoFieldType& rho,
+    fvMatrix<vector>& eqn
+)
+{
+    const vectorField& U = eqn.psi();
+    vectorField& Usource = eqn.source();
+    const scalarField& cellsV = mesh_.V();
+
+    // Monitor and average monitor-region U and rho
+    vector Uref(Zero);
+    scalar rhoRef = 0.0;
+    label szMonitorCells = monitorCells_.size();
+
+    for (const label celli : monitorCells_)
+    {
+        Uref += U[celli];
+        rhoRef = rhoRef + rho[celli];
+    }
+    reduce(Uref, sumOp<vector>());
+    reduce(rhoRef, sumOp<scalar>());
+    reduce(szMonitorCells, sumOp<label>());
+
+    if (szMonitorCells == 0)
+    {
+        FatalErrorInFunction
+            << "No cell is available for incoming velocity monitoring."
+            << exit(FatalError);
+    }
+
+    Uref /= szMonitorCells;
+    const scalar magUref = mag(Uref);
+    rhoRef /= szMonitorCells;
+
+    // Monitor and average U and rho on actuator disk
+    vector Udisk(Zero);
+    scalar rhoDisk = 0.0;
+    scalar totalV = 0.0;
+
+    for (const label celli : cells_)
+    {
+        Udisk += U[celli]*cellsV[celli];
+        rhoDisk += rho[celli]*cellsV[celli];
+        totalV += cellsV[celli];
+    }
+    reduce(Udisk, sumOp<vector>());
+    reduce(rhoDisk, sumOp<scalar>());
+    reduce(totalV, sumOp<scalar>());
+
+    if (totalV < SMALL)
+    {
+        FatalErrorInFunction
+            << "No cell in the actuator disk."
+            << exit(FatalError);
+    }
+
+    Udisk /= totalV;
+    const scalar magUdisk = mag(Udisk);
+    rhoDisk /= totalV;
+
+    if (mag(Udisk) < SMALL)
+    {
+        FatalErrorInFunction
+            << "Velocity spatial-averaged on actuator disk is zero." << nl
+            << "Please check if the initial U field is zero."
+            << exit(FatalError);
+    }
+
+    // Interpolated thrust/power coeffs from power/thrust curves
+    const scalar Ct = sink_*UvsCtPtr_->value(magUref);
+    const scalar Cp = sink_*UvsCpPtr_->value(magUref);
+
+    if (Cp <= VSMALL || Ct <= VSMALL)
+    {
+        FatalErrorInFunction
+           << "Cp and Ct must be greater than zero." << nl
+           << "Cp = " << Cp << ", Ct = " << Ct
+           << exit(FatalError);
+    }
+
+    // Calibrated thrust/power coeffs from power/thrust curves (LSRMTK:Eq. 6)
+    const scalar CtStar = Ct*sqr(magUref/magUdisk);
+    const scalar CpStar = Cp*pow3(magUref/magUdisk);
+
+    // Compute calibrated thrust/power (LSRMTK:Eq. 5)
+    const scalar T = 0.5*rhoRef*diskArea_*magSqr(Udisk & diskDir_)*CtStar;
+    const scalar P = 0.5*rhoRef*diskArea_*pow3(mag(Udisk & diskDir_))*CpStar;
+
+    for (const label celli : cells_)
+    {
+        Usource[celli] += (cellsV[celli]/totalV*T)*diskDir_;
+    }
+
+    if
+    (
+        mesh_.time().timeOutputValue() >= writeFileStart_
+     && mesh_.time().timeOutputValue() <= writeFileEnd_
+    )
+    {
+        Ostream& os = file();
+        writeCurrentTime(os);
+
+        os  << Uref << tab << Cp << tab << Ct << tab
+            << Udisk << tab << CpStar << tab << CtStar << tab << T << tab << P
+            << endl;
     }
 }
 

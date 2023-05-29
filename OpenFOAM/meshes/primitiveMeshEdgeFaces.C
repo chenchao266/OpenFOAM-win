@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2015 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2015 OpenFOAM Foundation
+    Copyright (C) 2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -24,10 +27,12 @@ License
 \*---------------------------------------------------------------------------*/
 
 #include "primitiveMesh.H"
-#include "ListOps.T.H"
+#include "ListOps.H"
 
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
-using namespace Foam;
+
+
+ namespace Foam{
 const labelListList& primitiveMesh::edgeFaces() const
 {
     if (!efPtr_)
@@ -66,7 +71,9 @@ const labelList& primitiveMesh::edgeFaces
     }
     else
     {
-        // Use the fact that pointEdges are sorted in incrementing edge order
+        // Use the fact that pointFaces are sorted in incrementing edge order
+        // (since they get constructed by inverting the faces which walks
+        //  in increasing face order)
         const edge& e = edges()[edgeI];
         const labelList& pFaces0 = pointFaces()[e[0]];
         const labelList& pFaces1 = pointFaces()[e[1]];
@@ -78,20 +85,38 @@ const labelList& primitiveMesh::edgeFaces
 
         while (i0 < pFaces0.size() && i1 < pFaces1.size())
         {
-            if (pFaces0[i0] < pFaces1[i1])
+            const label f0 = pFaces0[i0];
+            const label f1 = pFaces1[i1];
+
+            if (f0 < f1)
             {
                 ++i0;
             }
-            else if (pFaces0[i0] > pFaces1[i1])
+            else if (f0 > f1)
             {
                 ++i1;
             }
             else
             {
-                // Equal. Append.
-                storage.append(pFaces0[i0]);
-                ++i0;
-                ++i1;
+                // Equal face. Check if indeed on consecutive vertices on both
+                // faces since it could be that there is an 'ear' where one
+                // side is a triangle  and the other side is part of a bigger
+                // face (e.g. quad). Now all vertex-vertex pairs on the
+                // triangle are edges but there is no cross connection on the
+                // bigger face.
+                const face& f = faces()[f0];
+                const label fp0 = f.find(e[0]);
+
+                if (f[f.fcIndex(fp0)] == e[1] || f[f.rcIndex(fp0)] == e[1])
+                {
+                    storage.append(f0);
+                    ++i0;
+                    ++i1;
+                }
+                else
+                {
+                    ++i1;
+                }
             }
         }
 
@@ -107,3 +132,5 @@ const labelList& primitiveMesh::edgeFaces(const label edgeI) const
 
 
 // ************************************************************************* //
+
+ } // End namespace Foam

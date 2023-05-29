@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2015-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -25,7 +28,7 @@ License
 
 //#include "sampledSets.H"
 #include "volFields.H"
-#include "ListListOps.T.H"
+#include "globalIndex.H"
 
 // * * * * * * * * * * * * * Private Member Functions  * * * * * * * * * * * //
 
@@ -60,7 +63,7 @@ Foam::sampledSets::volFieldSampler<Type>::volFieldSampler
             if (celli == -1 && facei == -1)
             {
                 // Special condition for illegal sampling points
-                values[sampleI] = pTraits<Type>::max;
+                values[sampleI] = pTraits<Type>::max_;
             }
             else
             {
@@ -98,7 +101,7 @@ Foam::sampledSets::volFieldSampler<Type>::volFieldSampler
 
             if (celli ==-1)
             {
-                values[sampleI] = pTraits<Type>::max;
+                values[sampleI] = pTraits<Type>::max_;
             }
             else
             {
@@ -122,7 +125,7 @@ Foam::sampledSets::volFieldSampler<Type>::volFieldSampler
 
 
 template<class Type>
-void Foam::sampledSets::writeSampleFile
+Foam::fileName Foam::sampledSets::writeSampleFile
 (
     const coordSet& masterSampleSet,
     const PtrList<volFieldSampler<Type>>& masterFields,
@@ -133,35 +136,63 @@ void Foam::sampledSets::writeSampleFile
 {
     wordList valueSetNames(masterFields.size());
     List<const Field<Type>*> valueSets(masterFields.size());
-
     forAll(masterFields, fieldi)
     {
-        valueSetNames[fieldi] = masterFields[fieldi].name();
-        valueSets[fieldi] = &masterFields[fieldi][setI];
+        const word& fieldName = masterFields[fieldi].name();
+
+        valueSetNames[fieldi] = fieldName;
+
+        // Values only available on master
+        Type averageValue, minValue, maxValue;
+        label sizeValue;
+        if (Pstream::master())
+        {
+            valueSets[fieldi] = &masterFields[fieldi][setI];
+            averageValue = average(*valueSets[fieldi]);
+            minValue = min(*valueSets[fieldi]);
+            maxValue = max(*valueSets[fieldi]);
+            sizeValue = valueSets[fieldi]->size();
+        }
+        Pstream::scatter(averageValue);
+        Pstream::scatter(minValue);
+        Pstream::scatter(maxValue);
+        Pstream::scatter(sizeValue);
+
+        // Set results
+
+        setResult("average(" + fieldName + ")", averageValue);
+        setResult("min(" + fieldName + ")", minValue);
+        setResult("max(" + fieldName + ")", maxValue);
+        setResult("size(" + fieldName + ")", sizeValue);
     }
 
-    fileName fName
-    (
-        timeDir/formatter.getFileName(masterSampleSet, valueSetNames)
-    );
+    fileName fName;
+    if (Pstream::master())
+    {
+        fName = timeDir/formatter.getFileName(masterSampleSet, valueSetNames);
 
-    OFstream ofs(fName);
-    if (ofs.opened())
-    {
-        formatter.write
-        (
-            masterSampleSet,
-            valueSetNames,
-            valueSets,
-            ofs
-        );
+        OFstream ofs(fName);
+        if (ofs.opened())
+        {
+            formatter.write
+            (
+                masterSampleSet,
+                valueSetNames,
+                valueSets,
+                ofs
+            );
+        }
+        else
+        {
+            WarningInFunction
+                << "File " << ofs.name() << " could not be opened. "
+                << "No data will be written" << endl;
+        }
     }
-    else
-    {
-        WarningInFunction
-            << "File " << ofs.name() << " could not be opened. "
-            << "No data will be written" << endl;
-    }
+
+    Pstream::scatter(fName);
+
+    return fName;
 }
 
 
@@ -180,21 +211,12 @@ void Foam::sampledSets::combineSampledValues
         forAll(indexSets, setI)
         {
             // Collect data from all processors
-            List<Field<T>> gatheredData(Pstream::nProcs());
-            gatheredData[Pstream::myProcNo()] = sampledFields[fieldi][setI];
-            Pstream::gatherList(gatheredData);
+
+            Field<T> allData;
+            globalIndex::gatherOp(sampledFields[fieldi][setI], allData);
 
             if (Pstream::master())
             {
-                Field<T> allData
-                (
-                    ListListOps::combine<Field<T>>
-                    (
-                        gatheredData,
-                        Foam::accessOp<Field<T>>()
-                    )
-                );
-
                 masterValues[setI] = UIndirectList<T>
                 (
                     allData,
@@ -217,19 +239,16 @@ void Foam::sampledSets::combineSampledValues
 
 
 template<class Type>
-void Foam::sampledSets::sampleAndWrite
-(
-    fieldGroup<Type>& fields
-)
+void Foam::sampledSets::sampleAndWrite(fieldGroup<Type>& fields)
 {
     if (fields.size())
     {
-        bool interpolate = interpolationScheme_ != "cell";
+        const bool interpolate = interpolationScheme_ != "cell";
 
         // Create or use existing writer
-        if (fields.formatter.empty())
+        if (!fields.formatter)
         {
-            fields = writeFormat_;
+            fields.setFormatter(writeFormat_, writeFormatOptions_);
         }
 
         // Storage for interpolated values
@@ -321,18 +340,33 @@ void Foam::sampledSets::sampleAndWrite
         PtrList<volFieldSampler<Type>> masterFields(sampledFields.size());
         combineSampledValues(sampledFields, indexSets_, masterFields);
 
-        if (Pstream::master())
+        forAll(masterSampledSets_, setI)
         {
-            forAll(masterSampledSets_, setI)
+            fileName sampleFile = writeSampleFile
+            (
+                masterSampledSets_[setI],
+                masterFields,
+                setI,
+                outputPath_/mesh_.time().timeName(),
+                fields.formatter()
+            );
+
+            if (sampleFile.size())
             {
-                writeSampleFile
-                (
-                    masterSampledSets_[setI],
-                    masterFields,
-                    setI,
-                    outputPath_/mesh_.time().timeName(),
-                    fields.formatter()
-                );
+                // Case-local file name with "<case>" to make relocatable
+
+                forAll(masterFields, fieldi)
+                {
+                    dictionary propsDict;
+                    propsDict.add
+                    (
+                        "file",
+                        time_.relativePath(sampleFile, true)
+                    );
+
+                    const word& fieldName = masterFields[fieldi].name();
+                    setProperty(fieldName, propsDict);
+                }
             }
         }
     }

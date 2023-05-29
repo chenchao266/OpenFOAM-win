@@ -1,9 +1,12 @@
-﻿/*---------------------------------------------------------------------------*\
+/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2013 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2013 OpenFOAM Foundation
+    Copyright (C) 2019 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -23,40 +26,39 @@ License
 
 \*---------------------------------------------------------------------------*/
 
-#include "GeometricField.T.H"
+#include "GeometricField.H"
 #include "volMesh.H"
 #include "fvPatchField.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
-namespace Foam {
-    template<class Type>
-    void solutionControl::storePrevIter() const
+
+template<class Type>
+void Foam::solutionControl::storePrevIter() const
+{
+    typedef GeometricField<Type, fvPatchField, volMesh> GeoField;
+
+    HashTable<GeoField*> flds(mesh_.objectRegistry::lookupClass<GeoField>());
+
+    forAllIters(flds, iter)
     {
-    typedef volFieldType<Type> GeoField;
+        GeoField& fld = *iter();
 
-        HashTable<GeoField*>
-            flds(mesh_.objectRegistry::lookupClass<GeoField>());
+        const word& fldName = fld.name();
 
-        forAllIter(typename HashTable<GeoField*>, flds, iter)
+        if
+        (
+            (fldName.find("PrevIter") == std::string::npos)
+         && mesh_.relaxField(fldName)
+        )
         {
-            GeoField& fld = *iter();
+            DebugInfo
+                << algorithmName_ << ": storing previous iter for "
+                << fldName << endl;
 
-            const word& fName = fld.name();
-
-            size_t prevIterField = fName.find("PrevIter");
-
-            if ((prevIterField == word::npos) && mesh_.relaxField(fName))
-            {
-                if (debug)
-                {
-                    Info << algorithmName_ << ": storing previous iter for "
-                        << fName << endl;
-                }
-
-                fld.storePrevIter();
-            }
+            fld.storePrevIter();
         }
     }
-
 }
+
+
 // ************************************************************************* //

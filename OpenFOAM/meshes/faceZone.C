@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2017-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -33,510 +36,611 @@ License
 #include "syncTools.H"
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
-using namespace Foam;
+
 namespace Foam
 {
     defineTypeNameAndDebug(faceZone, 0);
     defineRunTimeSelectionTable(faceZone, dictionary);
     addToRunTimeSelectionTable(faceZone, faceZone, dictionary);
-}
 
-const char* const faceZone::labelsName = "faceLabels";
+    const char* const faceZone::labelsName = "faceLabels";
 
 
-// * * * * * * * * * * * * Protected Member Functions  * * * * * * * * * * * //
+    // * * * * * * * * * * * * * Private Member Functions  * * * * * * * * * * * //
 
-void faceZone::calcFaceZonePatch() const
-{
-    if (debug)
+    void faceZone::setFlipMap(const bool val)
     {
-        InfoInFunction << "Calculating primitive patch" << endl;
-    }
-
-    if (patchPtr_)
-    {
-        FatalErrorInFunction
-            << "primitive face zone patch already calculated"
-            << abort(FatalError);
-    }
-
-    patchPtr_ =
-        new primitiveFacePatch
-        (
-            faceList(size()),
-            zoneMesh().mesh().points()
-        );
-
-    primitiveFacePatch& patch = *patchPtr_;
-
-    const faceList& f = zoneMesh().mesh().faces();
-
-    const labelList& addr = *this;
-    const boolList& flip = flipMap();
-
-    forAll(addr, facei)
-    {
-        if (flip[facei])
+        // Match size for flipMap
+        if (flipMap_.size() == this->size())
         {
-            patch[facei] = f[addr[facei]].reverseFace();
+            flipMap_ = val;
         }
         else
         {
-            patch[facei] = f[addr[facei]];
+            // Avoid copying old values on resize
+            flipMap_.clear();
+            flipMap_.resize(this->size(), val);
         }
     }
 
-    if (debug)
+
+    // * * * * * * * * * * * * Protected Member Functions  * * * * * * * * * * * //
+
+    void faceZone::calcFaceZonePatch() const
     {
-        InfoInFunction << "Finished calculating primitive patch" << endl;
-    }
-}
+        DebugInFunction << "Calculating primitive patch" << endl;
 
-
-void faceZone::calcCellLayers() const
-{
-    if (debug)
-    {
-        InfoInFunction << "Calculating master cells" << endl;
-    }
-
-    // It is an error to attempt to recalculate edgeCells
-    // if the pointer is already set
-    if (masterCellsPtr_ || slaveCellsPtr_)
-    {
-        FatalErrorInFunction
-            << "cell layers already calculated"
-            << abort(FatalError);
-    }
-    else
-    {
-        // Go through all the faces in the master zone.  Choose the
-        // master or slave cell based on the face flip
-
-        const labelList& own = zoneMesh().mesh().faceOwner();
-        const labelList& nei = zoneMesh().mesh().faceNeighbour();
-
-        const labelList& mf = *this;
-
-        const boolList& faceFlip = flipMap();
-
-        masterCellsPtr_ = new labelList(mf.size());
-        labelList& mc = *masterCellsPtr_;
-
-        slaveCellsPtr_ = new labelList(mf.size());
-        labelList& sc = *slaveCellsPtr_;
-
-        forAll(mf, facei)
+        if (patchPtr_)
         {
-            label ownCelli = own[mf[facei]];
-            label neiCelli =
+            FatalErrorInFunction
+                << "primitive face zone patch already calculated"
+                << abort(FatalError);
+        }
+
+        patchPtr_ =
+            new primitiveFacePatch
             (
-                zoneMesh().mesh().isInternalFace(mf[facei])
-              ? nei[mf[facei]]
-              : -1
+                faceList(size()),
+                zoneMesh().mesh().points()
             );
 
-            if (!faceFlip[facei])
+        primitiveFacePatch& patch = *patchPtr_;
+
+        const faceList& f = zoneMesh().mesh().faces();
+
+        const labelList& addr = *this;
+        const boolList& flip = flipMap();
+
+        forAll(addr, facei)
+        {
+            if (flip[facei])
             {
-                // Face is oriented correctly, no flip needed
-                mc[facei] = neiCelli;
-                sc[facei] = ownCelli;
+                patch[facei] = f[addr[facei]].reverseFace();
             }
             else
             {
-                mc[facei] = ownCelli;
-                sc[facei] = neiCelli;
+                patch[facei] = f[addr[facei]];
+            }
+        }
+
+        DebugInfo << "Finished calculating primitive patch" << endl;
+    }
+
+
+    void faceZone::calcCellLayers() const
+    {
+        DebugInFunction << "Calculating master cells" << endl;
+
+        // It is an error to attempt to recalculate edgeCells
+        // if the pointer is already set
+        if (masterCellsPtr_ || slaveCellsPtr_)
+        {
+            FatalErrorInFunction
+                << "cell layers already calculated"
+                << abort(FatalError);
+        }
+        else
+        {
+            // Go through all the faces in the master zone.  Choose the
+            // master or slave cell based on the face flip
+
+            const labelList& own = zoneMesh().mesh().faceOwner();
+            const labelList& nei = zoneMesh().mesh().faceNeighbour();
+
+            const labelList& mf = *this;
+
+            const boolList& faceFlip = flipMap();
+
+            masterCellsPtr_ = new labelList(mf.size());
+            labelList& mc = *masterCellsPtr_;
+
+            slaveCellsPtr_ = new labelList(mf.size());
+            labelList& sc = *slaveCellsPtr_;
+
+            forAll(mf, facei)
+            {
+                const label ownCelli = own[mf[facei]];
+                const label neiCelli =
+                    (
+                        zoneMesh().mesh().isInternalFace(mf[facei])
+                        ? nei[mf[facei]]
+                        : -1
+                        );
+
+                if (!faceFlip[facei])
+                {
+                    // Face is oriented correctly, no flip needed
+                    mc[facei] = neiCelli;
+                    sc[facei] = ownCelli;
+                }
+                else
+                {
+                    mc[facei] = ownCelli;
+                    sc[facei] = neiCelli;
+                }
             }
         }
     }
-}
 
 
-void faceZone::checkAddressing() const
-{
-    if (size() != flipMap_.size())
+    void faceZone::checkAddressing() const
     {
-        FatalErrorInFunction
-            << "Size of addressing: " << size()
-            << " size of flip map: " << flipMap_.size()
-            << abort(FatalError);
-    }
+        const labelList& addr = *this;
 
-    const labelList& mf = *this;
-
-    // Note: nFaces, nCells might not be set yet on mesh so use owner size
-    const label nFaces = zoneMesh().mesh().faceOwner().size();
-
-    bool hasWarned = false;
-    forAll(mf, i)
-    {
-        if (!hasWarned && (mf[i] < 0 || mf[i] >= nFaces))
+        if (addr.size() != flipMap_.size())
         {
-            WarningInFunction
-                << "Illegal face index " << mf[i] << " outside range 0.."
-                << nFaces-1 << endl;
-            hasWarned = true;
+            FatalErrorInFunction
+                << "Size of addressing: " << addr.size()
+                << " size of flip map: " << flipMap_.size()
+                << abort(FatalError);
+        }
+
+        // Note: nFaces, nCells might not be set yet on mesh so use owner size
+        const label nFaces = zoneMesh().mesh().faceOwner().size();
+
+        for (const label facei : addr)
+        {
+            if (facei < 0 || facei >= nFaces)
+            {
+                WarningInFunction
+                    << "Illegal face index " << facei
+                    << " outside range 0.." << nFaces - 1 << endl;
+                break;  // Only report once
+            }
         }
     }
-}
 
 
-// * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
+    // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
-faceZone::faceZone
-(
-    const word& name,
-    const labelUList& addr,
-    const boolList& fm,
-    const label index,
-    const faceZoneMesh& zm
-) :    zone(name, addr, index),
-    flipMap_(fm),
-    zoneMesh_(zm),
-    patchPtr_(nullptr),
-    masterCellsPtr_(nullptr),
-    slaveCellsPtr_(nullptr),
-    mePtr_(nullptr)
-{
-    checkAddressing();
-}
+    faceZone::faceZone
+    (
+        const word& name,
+        const label index,
+        const faceZoneMesh& zm
+    )
+        :
+        zone(name, index),
+        flipMap_(),
+        zoneMesh_(zm),
+        patchPtr_(nullptr),
+        masterCellsPtr_(nullptr),
+        slaveCellsPtr_(nullptr),
+        mePtr_(nullptr)
+    {}
 
 
-faceZone::faceZone
-(
-    const word& name,
-    const Xfer<labelList>& addr,
-    const Xfer<boolList>& fm,
-    const label index,
-    const faceZoneMesh& zm
-) :    zone(name, addr, index),
-    flipMap_(fm),
-    zoneMesh_(zm),
-    patchPtr_(nullptr),
-    masterCellsPtr_(nullptr),
-    slaveCellsPtr_(nullptr),
-    mePtr_(nullptr)
-{
-    checkAddressing();
-}
-
-
-faceZone::faceZone
-(
-    const word& name,
-    const dictionary& dict,
-    const label index,
-    const faceZoneMesh& zm
-) :    zone(name, dict, this->labelsName, index),
-    flipMap_(dict.lookup("flipMap")),
-    zoneMesh_(zm),
-    patchPtr_(nullptr),
-    masterCellsPtr_(nullptr),
-    slaveCellsPtr_(nullptr),
-    mePtr_(nullptr)
-{
-    checkAddressing();
-}
-
-
-faceZone::faceZone
-(
-    const faceZone& fz,
-    const labelUList& addr,
-    const boolList& fm,
-    const label index,
-    const faceZoneMesh& zm
-) :    zone(fz, addr, index),
-    flipMap_(fm),
-    zoneMesh_(zm),
-    patchPtr_(nullptr),
-    masterCellsPtr_(nullptr),
-    slaveCellsPtr_(nullptr),
-    mePtr_(nullptr)
-{
-    checkAddressing();
-}
-
-
-faceZone::faceZone
-(
-    const faceZone& fz,
-    const Xfer<labelList>& addr,
-    const Xfer<boolList>& fm,
-    const label index,
-    const faceZoneMesh& zm
-) :    zone(fz, addr, index),
-    flipMap_(fm),
-    zoneMesh_(zm),
-    patchPtr_(nullptr),
-    masterCellsPtr_(nullptr),
-    slaveCellsPtr_(nullptr),
-    mePtr_(nullptr)
-{
-    checkAddressing();
-}
-
-
-// * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
-
-faceZone::~faceZone()
-{
-    clearAddressing();
-}
-
-
-// * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
-
-const faceZoneMesh& faceZone::zoneMesh() const
-{
-    return zoneMesh_;
-}
-
-
-label faceZone::whichFace(const label globalFaceID) const
-{
-    return zone::localID(globalFaceID);
-}
-
-
-const primitiveFacePatch& faceZone::operator()() const
-{
-    if (!patchPtr_)
+    faceZone::faceZone
+    (
+        const word& name,
+        const labelUList& addr,
+        const bool flipMapValue,
+        const label index,
+        const faceZoneMesh& zm
+    )
+        :
+        zone(name, addr, index),
+        flipMap_(),
+        zoneMesh_(zm),
+        patchPtr_(nullptr),
+        masterCellsPtr_(nullptr),
+        slaveCellsPtr_(nullptr),
+        mePtr_(nullptr)
     {
-        calcFaceZonePatch();
+        flipMap_.resize(size(), flipMapValue);
+        checkAddressing();
     }
 
-    return *patchPtr_;
-}
 
-
-const labelList& faceZone::masterCells() const
-{
-    if (!masterCellsPtr_)
+    faceZone::faceZone
+    (
+        const word& name,
+        labelList&& addr,
+        const bool flipMapValue,
+        const label index,
+        const faceZoneMesh& zm
+    )
+        :
+        zone(name, std::move(addr), index),
+        flipMap_(),
+        zoneMesh_(zm),
+        patchPtr_(nullptr),
+        masterCellsPtr_(nullptr),
+        slaveCellsPtr_(nullptr),
+        mePtr_(nullptr)
     {
-        calcCellLayers();
+        flipMap_.resize(size(), flipMapValue);
+        checkAddressing();
     }
 
-    return *masterCellsPtr_;
-}
 
-
-const labelList& faceZone::slaveCells() const
-{
-    if (!slaveCellsPtr_)
+    faceZone::faceZone
+    (
+        const word& name,
+        const labelUList& addr,
+        const boolUList& fm,
+        const label index,
+        const faceZoneMesh& zm
+    )
+        :
+        zone(name, addr, index),
+        flipMap_(fm),
+        zoneMesh_(zm),
+        patchPtr_(nullptr),
+        masterCellsPtr_(nullptr),
+        slaveCellsPtr_(nullptr),
+        mePtr_(nullptr)
     {
-        calcCellLayers();
+        checkAddressing();
     }
 
-    return *slaveCellsPtr_;
-}
 
-
-const labelList& faceZone::meshEdges() const
-{
-    if (!mePtr_)
+    faceZone::faceZone
+    (
+        const word& name,
+        labelList&& addr,
+        boolList&& fm,
+        const label index,
+        const faceZoneMesh& zm
+    )
+        :
+        zone(name, std::move(addr), index),
+        flipMap_(std::move(fm)),
+        zoneMesh_(zm),
+        patchPtr_(nullptr),
+        masterCellsPtr_(nullptr),
+        slaveCellsPtr_(nullptr),
+        mePtr_(nullptr)
     {
-        mePtr_ =
-            new labelList
-            (
-                operator()().meshEdges
+        checkAddressing();
+    }
+
+
+    faceZone::faceZone
+    (
+        const word& name,
+        const dictionary& dict,
+        const label index,
+        const faceZoneMesh& zm
+    )
+        :
+        zone(name, dict, this->labelsName, index),
+        flipMap_(dict.lookup("flipMap")),
+        zoneMesh_(zm),
+        patchPtr_(nullptr),
+        masterCellsPtr_(nullptr),
+        slaveCellsPtr_(nullptr),
+        mePtr_(nullptr)
+    {
+        checkAddressing();
+    }
+
+
+    faceZone::faceZone
+    (
+        const faceZone& origZone,
+        const labelUList& addr,
+        const boolUList& fm,
+        const label index,
+        const faceZoneMesh& zm
+    )
+        :
+        zone(origZone, addr, index),
+        flipMap_(fm),
+        zoneMesh_(zm),
+        patchPtr_(nullptr),
+        masterCellsPtr_(nullptr),
+        slaveCellsPtr_(nullptr),
+        mePtr_(nullptr)
+    {
+        checkAddressing();
+    }
+
+
+    faceZone::faceZone
+    (
+        const faceZone& origZone,
+        labelList&& addr,
+        boolList&& fm,
+        const label index,
+        const faceZoneMesh& zm
+    )
+        :
+        zone(origZone, std::move(addr), index),
+        flipMap_(std::move(fm)),
+        zoneMesh_(zm),
+        patchPtr_(nullptr),
+        masterCellsPtr_(nullptr),
+        slaveCellsPtr_(nullptr),
+        mePtr_(nullptr)
+    {
+        checkAddressing();
+    }
+
+
+    // * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
+
+    faceZone::~faceZone()
+    {
+        clearAddressing();
+    }
+
+
+    // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
+
+    label faceZone::whichFace(const label globalFaceID) const
+    {
+        return zone::localID(globalFaceID);
+    }
+
+
+    const primitiveFacePatch& faceZone::operator()() const
+    {
+        if (!patchPtr_)
+        {
+            calcFaceZonePatch();
+        }
+
+        return *patchPtr_;
+    }
+
+
+    const labelList& faceZone::masterCells() const
+    {
+        if (!masterCellsPtr_)
+        {
+            calcCellLayers();
+        }
+
+        return *masterCellsPtr_;
+    }
+
+
+    const labelList& faceZone::slaveCells() const
+    {
+        if (!slaveCellsPtr_)
+        {
+            calcCellLayers();
+        }
+
+        return *slaveCellsPtr_;
+    }
+
+
+    const labelList& faceZone::meshEdges() const
+    {
+        if (!mePtr_)
+        {
+            mePtr_ =
+                new labelList
                 (
-                    zoneMesh().mesh().edges(),
-                    zoneMesh().mesh().pointEdges()
-                )
-            );
-    }
-
-    return *mePtr_;
-}
-
-
-void faceZone::clearAddressing()
-{
-    zone::clearAddressing();
-
-    deleteDemandDrivenData(patchPtr_);
-
-    deleteDemandDrivenData(masterCellsPtr_);
-    deleteDemandDrivenData(slaveCellsPtr_);
-
-    deleteDemandDrivenData(mePtr_);
-}
-
-
-void faceZone::resetAddressing
-(
-    const labelUList& addr,
-    const boolList& flipMap
-)
-{
-    clearAddressing();
-    labelList::operator=(addr);
-    flipMap_ = flipMap;
-}
-
-
-void faceZone::updateMesh(const mapPolyMesh& mpm)
-{
-    clearAddressing();
-
-    labelList newAddressing(size());
-    boolList newFlipMap(flipMap_.size());
-    label nFaces = 0;
-
-    const labelList& faceMap = mpm.reverseFaceMap();
-
-    forAll(*this, i)
-    {
-        const label facei = operator[](i);
-
-        if (faceMap[facei] >= 0)
-        {
-            newAddressing[nFaces] = faceMap[facei];
-            newFlipMap[nFaces] = flipMap_[i];       // Keep flip map.
-            nFaces++;
+                    operator()().meshEdges
+                    (
+                        zoneMesh().mesh().edges(),
+                        zoneMesh().mesh().pointEdges()
+                    )
+                );
         }
+
+        return *mePtr_;
     }
 
-    newAddressing.setSize(nFaces);
-    newFlipMap.setSize(nFaces);
 
-    transfer(newAddressing);
-    flipMap_.transfer(newFlipMap);
-}
-
-
-bool faceZone::checkDefinition(const bool report) const
-{
-    return zone::checkDefinition(zoneMesh().mesh().faces().size(), report);
-}
-
-
-bool faceZone::checkParallelSync(const bool report) const
-{
-    const polyMesh& mesh = zoneMesh().mesh();
-    const polyBoundaryMesh& bm = mesh.boundaryMesh();
-
-    bool hasError = false;
-
-
-    // Check that zone faces are synced
-    // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
-
+    void faceZone::clearAddressing()
     {
-        boolList neiZoneFace(mesh.nFaces()-mesh.nInternalFaces(), false);
-        boolList neiZoneFlip(mesh.nFaces()-mesh.nInternalFaces(), false);
-        forAll(*this, i)
-        {
-            const label facei = operator[](i);
+        zone::clearAddressing();
 
-            if (!mesh.isInternalFace(facei))
+        deleteDemandDrivenData(patchPtr_);
+
+        deleteDemandDrivenData(masterCellsPtr_);
+        deleteDemandDrivenData(slaveCellsPtr_);
+
+        deleteDemandDrivenData(mePtr_);
+    }
+
+
+    void faceZone::resetAddressing
+    (
+        const labelUList& addr,
+        const bool flipMapValue
+    )
+    {
+        clearAddressing();
+        labelList::operator=(addr);
+        setFlipMap(flipMapValue);
+    }
+
+
+    void faceZone::resetAddressing
+    (
+        const labelUList& addr,
+        const boolUList& flipMap
+    )
+    {
+        clearAddressing();
+        labelList::operator=(addr);
+        flipMap_ = flipMap;
+    }
+
+
+    void faceZone::resetAddressing
+    (
+        labelList&& addr,
+        const bool flipMapValue
+    )
+    {
+        clearAddressing();
+        labelList::transfer(addr);
+        setFlipMap(flipMapValue);
+    }
+
+
+    void faceZone::updateMesh(const mapPolyMesh& mpm)
+    {
+        clearAddressing();
+
+        labelList newAddressing(size());
+        boolList newFlipMap(flipMap_.size());
+        label nFaces = 0;
+
+        const labelList& addr = *this;
+        const labelList& faceMap = mpm.reverseFaceMap();
+
+        forAll(addr, i)
+        {
+            const label facei = addr[i];
+
+            if (faceMap[facei] >= 0)
             {
-                neiZoneFace[facei-mesh.nInternalFaces()] = true;
-                neiZoneFlip[facei-mesh.nInternalFaces()] = flipMap()[i];
+                newAddressing[nFaces] = faceMap[facei];
+                newFlipMap[nFaces] = flipMap_[i];       // Keep flip map.
+                nFaces++;
             }
         }
-        boolList myZoneFace(neiZoneFace);
-        syncTools::swapBoundaryFaceList(mesh, neiZoneFace);
-        boolList myZoneFlip(neiZoneFlip);
-        syncTools::swapBoundaryFaceList(mesh, neiZoneFlip);
 
-        forAll(*this, i)
+        newAddressing.setSize(nFaces);
+        newFlipMap.setSize(nFaces);
+
+        transfer(newAddressing);
+        flipMap_.transfer(newFlipMap);
+    }
+
+
+    bool faceZone::checkDefinition(const bool report) const
+    {
+        return zone::checkDefinition(zoneMesh().mesh().faces().size(), report);
+    }
+
+
+    bool faceZone::checkParallelSync(const bool report) const
+    {
+        const polyMesh& mesh = zoneMesh().mesh();
+        const polyBoundaryMesh& bm = mesh.boundaryMesh();
+
+        bool hasError = false;
+
+
+        // Check that zone faces are synced
+        // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
         {
-            const label facei = operator[](i);
-            const label patchi = bm.whichPatch(facei);
+            const labelList& addr = *this;
 
-            if (patchi != -1 && bm[patchi].coupled())
+            boolList neiZoneFace(mesh.nBoundaryFaces(), false);
+            boolList neiZoneFlip(mesh.nBoundaryFaces(), false);
+
+            forAll(addr, i)
             {
-                const label bFacei = facei-mesh.nInternalFaces();
+                const label facei = addr[i];
 
-                // Check face in zone on both sides
-                if (myZoneFace[bFacei] != neiZoneFace[bFacei])
+                if (!mesh.isInternalFace(facei))
                 {
-                    hasError = true;
-
-                    if (report)
-                    {
-                        Pout<< " ***Problem with faceZone " << index()
-                            << " named " << name()
-                            << ". Face " << facei
-                            << " on coupled patch "
-                            << bm[patchi].name()
-                            << " is not consistent with its coupled neighbour."
-                            << endl;
-                    }
-                    else
-                    {
-                        // w/o report - can stop checking now
-                        break;
-                    }
+                    neiZoneFace[facei - mesh.nInternalFaces()] = true;
+                    neiZoneFlip[facei - mesh.nInternalFaces()] = flipMap()[i];
                 }
-                else if (myZoneFlip[bFacei] == neiZoneFlip[bFacei])
-                {
-                    // Flip state should be opposite.
-                    hasError = true;
+            }
+            boolList myZoneFace(neiZoneFace);
+            syncTools::swapBoundaryFaceList(mesh, neiZoneFace);
+            boolList myZoneFlip(neiZoneFlip);
+            syncTools::swapBoundaryFaceList(mesh, neiZoneFlip);
 
-                    if (report)
+            forAll(addr, i)
+            {
+                const label facei = addr[i];
+                const label patchi = bm.whichPatch(facei);
+
+                if (patchi != -1 && bm[patchi].coupled())
+                {
+                    const label bFacei = facei - mesh.nInternalFaces();
+
+                    // Check face in zone on both sides
+                    if (myZoneFace[bFacei] != neiZoneFace[bFacei])
                     {
-                        Pout<< " ***Problem with faceZone " << index()
-                            << " named " << name()
-                            << ". Face " << facei
-                            << " on coupled patch "
-                            << bm[patchi].name()
-                            << " does not have consistent flipMap"
-                            << " across coupled faces."
-                            << endl;
+                        hasError = true;
+
+                        if (report)
+                        {
+                            Pout << " ***Problem with faceZone " << index()
+                                << " named " << name()
+                                << ". Face " << facei
+                                << " on coupled patch "
+                                << bm[patchi].name()
+                                << " is not consistent with its coupled neighbour."
+                                << endl;
+                        }
+                        else
+                        {
+                            // w/o report - can stop checking now
+                            break;
+                        }
                     }
-                    else
+                    else if (myZoneFlip[bFacei] == neiZoneFlip[bFacei])
                     {
-                        // w/o report - can stop checking now
-                        break;
+                        // Flip state should be opposite.
+                        hasError = true;
+
+                        if (report)
+                        {
+                            Pout << " ***Problem with faceZone " << index()
+                                << " named " << name()
+                                << ". Face " << facei
+                                << " on coupled patch "
+                                << bm[patchi].name()
+                                << " does not have consistent flipMap"
+                                << " across coupled faces."
+                                << endl;
+                        }
+                        else
+                        {
+                            // w/o report - can stop checking now
+                            break;
+                        }
                     }
                 }
             }
         }
+
+        return returnReduce(hasError, orOp<bool>());
     }
 
-    return returnReduce(hasError, orOp<bool>());
-}
 
-
-void faceZone::movePoints(const pointField& p)
-{
-    if (patchPtr_)
+    void faceZone::movePoints(const pointField& pts)
     {
-        patchPtr_->movePoints(p);
+        if (patchPtr_)
+        {
+            patchPtr_->movePoints(pts);
+        }
     }
+
+    void faceZone::write(Ostream& os) const
+    {
+        os << nl << name()
+            << nl << static_cast<const labelList&>(*this)
+            << nl << flipMap();
+    }
+
+
+    void faceZone::writeDict(Ostream& os) const
+    {
+        os.beginBlock(name());
+
+        os.writeEntry("type", type());
+        zoneIdentifier::write(os);
+        writeEntry(this->labelsName, os);
+        flipMap().writeEntry("flipMap", os);
+
+        os.endBlock();
+    }
+
+
+    // * * * * * * * * * * * * * * * Ostream Operator  * * * * * * * * * * * * * //
+
+    Ostream& operator<<(Ostream& os, const faceZone& zn)
+    {
+        zn.write(os);
+        os.check(FUNCTION_NAME);
+        return os;
+    }
+
 }
-
-void faceZone::write(Ostream& os) const
-{
-    os  << nl << name()
-        << nl << static_cast<const labelList&>(*this)
-        << nl << flipMap();
-}
-
-
-void faceZone::writeDict(Ostream& os) const
-{
-    os  << nl << name() << nl << token::BEGIN_BLOCK << nl
-        << "    type " << type() << token::END_STATEMENT << nl;
-
-    writeEntry(this->labelsName, os);
-    flipMap().writeEntry("flipMap", os);
-
-    os  << token::END_BLOCK << endl;
-}
-
-
-// * * * * * * * * * * * * * * * Ostream Operator  * * * * * * * * * * * * * //
-
-Ostream& operator<<(Ostream& os, const faceZone& zn)
-{
-    zn.write(os);
-    os.check("Ostream& operator<<(Ostream&, const faceZone&");
-    return os;
-}
-
-
 // ************************************************************************* //

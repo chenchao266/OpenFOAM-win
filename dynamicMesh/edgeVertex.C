@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2018-2019 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -27,9 +30,7 @@ License
 #include "meshTools.H"
 #include "refineCell.H"
 
-
 // * * * * * * * * * * * * * * * Static Functions  * * * * * * * * * * * * * //
-
 
 // Update stored refine list using map
 void Foam::edgeVertex::updateLabels
@@ -68,18 +69,18 @@ void Foam::edgeVertex::updateLabels
     // Iterate over map to see if anything changed
     bool changed = false;
 
-    forAllConstIter(Map<label>, cellPairs, iter)
+    forAllConstIters(cellPairs, iter)
     {
         label newMaster = map[iter.key()];
 
         label newSlave = -1;
 
-        if (iter() != -1)
+        if (iter.val() != -1)
         {
-            newSlave = map[iter()];
+            newSlave = map[iter.val()];
         }
 
-        if ((newMaster != iter.key()) || (newSlave != iter()))
+        if ((newMaster != iter.key()) || (newSlave != iter.val()))
         {
             changed = true;
 
@@ -92,15 +93,15 @@ void Foam::edgeVertex::updateLabels
     {
         Map<label> newCellPairs(2*cellPairs.size());
 
-        forAllConstIter(Map<label>, cellPairs, iter)
+        forAllConstIters(cellPairs, iter)
         {
             label newMaster = map[iter.key()];
 
             label newSlave = -1;
 
-            if (iter() != -1)
+            if (iter.val() != -1)
             {
-                newSlave = map[iter()];
+                newSlave = map[iter.val()];
             }
 
             if (newMaster == -1)
@@ -131,11 +132,11 @@ void Foam::edgeVertex::updateLabels
     // Iterate over map to see if anything changed
     bool changed = false;
 
-    forAllConstIter(labelHashSet, cells, iter)
+    for (const label celli : cells)
     {
-        const label newCelli = map[iter.key()];
+        const label newCelli = map[celli];
 
-        if (newCelli != iter.key())
+        if (newCelli != celli)
         {
             changed = true;
 
@@ -148,9 +149,9 @@ void Foam::edgeVertex::updateLabels
     {
         labelHashSet newCells(2*cells.size());
 
-        forAllConstIter(labelHashSet, cells, iter)
+        for (const label celli : cells)
         {
-            const label newCelli = map[iter.key()];
+            const label newCelli = map[celli];
 
             if (newCelli != -1)
             {

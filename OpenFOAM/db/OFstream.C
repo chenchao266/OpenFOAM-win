@@ -2,15 +2,14 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
 -------------------------------------------------------------------------------
- 2011 Symscape: Always access files in binary mode.
- 2014-02-21 blueCAPE Lda: Modifications for blueCFD-Core 2.3
- 2017-09-14 blueCAPE Lda: Modifications for blueCFD-Core 2017
-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2017-2021 OpenCFD Ltd.
+-------------------------------------------------------------------------------
 License
-    This file is a derivative work of OpenFOAM.
+    This file is part of OpenFOAM.
 
     OpenFOAM is free software: you can redistribute it and/or modify it
     under the terms of the GNU General Public License as published by
@@ -25,172 +24,147 @@ License
     You should have received a copy of the GNU General Public License
     along with OpenFOAM.  If not, see <http://www.gnu.org/licenses/>.
 
-Modifications
-    This file has been modified by blueCAPE's unofficial mingw patches for
-    OpenFOAM.
-    For more information about these patches, visit:
-        http://bluecfd.com/Core
-
 \*---------------------------------------------------------------------------*/
 
 #include "OFstream.H"
 #include "OSspecific.H"
-#include "gzstream.h"
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
-using namespace Foam;
+
 namespace Foam
 {
     defineTypeNameAndDebug(OFstream, 0);
-}
 
 
-// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
-OFstreamAllocator::OFstreamAllocator
-(
-    const fileName& pathname,
-    IOstream::compressionType compression,
-    const bool append
-) :    ofPtr_(nullptr)
-{
-    if (pathname.empty())
+    // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
+
+    OFstream::OFstream
+    (
+        std::nullptr_t
+    )
+        :
+        ofstreamPointer(nullptr),
+        OSstream(*(ofstreamPointer::get()), "/dev/null")
     {
-        if (OFstream::debug)
-        {
-            InfoInFunction << "Cannot open null file " << endl;
-        }
-    }
-    ofstream::openmode mode(ofstream::out);
-    if (append)
-    {
-        mode |= ofstream::app;
+        setState(ofstreamPointer::get()->rdstate());
+        setOpened();
+
+        lineNumber_ = 1;
     }
 
-#if defined( WIN32 ) || defined( WIN64 )
-    // Use binary mode in case we write binary.
-    // Causes windows reading to fail if we don't
-    mode |= ofstream::binary;
-#endif
 
-    if (compression == IOstream::COMPRESSED)
+    OFstream::OFstream
+    (
+        const fileName& pathname,
+        IOstreamOption streamOpt,
+        const bool append
+    )
+        :
+        ofstreamPointer(pathname, streamOpt.compression(), append),
+        OSstream(*(ofstreamPointer::get()), pathname, streamOpt)
     {
-        // Get identically named uncompressed version out of the way
-        fileName::Type pathType = type(pathname, false);
-        if (pathType == fileName::FILE || pathType == fileName::LINK)
-        {
-            rm(pathname);
-        }
-        fileName gzPathName(pathname + ".gz");
+        setClosed();
+        setState(ofstreamPointer::get()->rdstate());
 
-        if (!append && type(gzPathName) == fileName::LINK)
+        if (good())
         {
-            // Disallow writing into softlink to avoid any problems with
-            // e.g. softlinked initial fields
-            rm(gzPathName);
+            setOpened();
+        }
+        else
+        {
+            setBad();
         }
 
-        ofPtr_ = new ogzstream(gzPathName.c_str(), mode);
-    }
-    else
-    {
-        // get identically named compressed version out of the way
-        fileName gzPathName(pathname + ".gz");
-        fileName::Type gzType = type(gzPathName, false);
-        if (gzType == fileName::FILE || gzType == fileName::LINK)
-        {
-            rm(gzPathName);
-        }
-        if (!append && type(pathname, false) == fileName::LINK)
-        {
-            // Disallow writing into softlink to avoid any problems with
-            // e.g. softlinked initial fields
-            rm(pathname);
-        }
+        lineNumber_ = 1;
 
-        ofPtr_ = new ofstream(pathname.c_str(), mode);
-    }
-}
-
-
-OFstreamAllocator::~OFstreamAllocator()
-{
-    delete ofPtr_;
-}
-
-
-// * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
-
-OFstream::OFstream
-(
-    const fileName& pathname,
-    streamFormat format,
-    versionNumber version,
-    compressionType compression,
-    const bool append
-) :    OFstreamAllocator(pathname, compression, append),
-    OSstream(*ofPtr_, "OFstream.sinkFile_", format, version, compression),
-    pathname_(pathname)
-{
-    setClosed();
-    setState(ofPtr_->rdstate());
-
-    if (!good())
-    {
         if (debug)
         {
-            InfoInFunction
-                << "Could not open file " << pathname
-                << "for input\n"
-                   "in stream " << info() << ::Foam::endl;
+            if (pathname.empty())
+            {
+                InfoInFunction
+                    << "Cannot open empty file name"
+                    << ::Foam::endl;
+            }
+
+            if (!opened())
+            {
+                InfoInFunction
+                    << "Could not open file " << pathname
+                    << " for output\n" << info() << ::Foam::endl;
+            }
+        }
+    }
+
+
+    // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
+
+    std::ostream& OFstream::stdStream()
+    {
+        std::ostream* ptr = ofstreamPointer::get();
+
+        if (!ptr)
+        {
+            FatalErrorInFunction
+                << "No stream allocated\n"
+                << abort(FatalError);
         }
 
-        setBad();
+        return *ptr;
     }
-    else
+
+
+    const std::ostream& OFstream::stdStream() const
     {
-        setOpened();
+        const std::ostream* ptr = ofstreamPointer::get();
+
+        if (!ptr)
+        {
+            FatalErrorInFunction
+                << "No stream allocated\n"
+                << abort(FatalError);
+        }
+
+        return *ptr;
     }
 
-    lineNumber_ = 1;
-}
 
-
-// * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
-
-OFstream::~OFstream()
-{}
-
-
-// * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
-
-std::ostream& OFstream::stdStream()
-{
-    if (!ofPtr_)
+    void OFstream::rewind()
     {
-        FatalErrorInFunction
-            << "No stream allocated." << abort(FatalError);
+        if (IOstreamOption::COMPRESSED == ofstreamPointer::whichCompression())
+        {
+            ofstreamPointer::reopen_gz(this->name() + ".gz");
+        }
+        else
+        {
+            // Reopen (truncate)
+            ofstreamPointer::reopen(this->name());
+        }
+
+        // As per OSstream::rewind()
+
+        lineNumber_ = 1;  // Reset line number
+        setState(ofstreamPointer::get()->rdstate());
+
+        if (good())
+        {
+            setOpened();
+        }
+        else
+        {
+            setClosed();
+            setBad();
+        }
+
+        stdStream().rdbuf()->pubseekpos(0, std::ios_base::out);
     }
-    return *ofPtr_;
-}
 
 
-const std::ostream& OFstream::stdStream() const
-{
-    if (!ofPtr_)
+    void OFstream::print(Ostream& os) const
     {
-        FatalErrorInFunction
-            << "No stream allocated." << abort(FatalError);
+        os << "OFstream: ";
+        OSstream::print(os);
     }
-    return *ofPtr_;
+
 }
-
-
-void OFstream::print(Ostream& os) const
-{
-    os  << "    OFstream: ";
-    OSstream::print(os);
-}
-
-
 // ************************************************************************* //

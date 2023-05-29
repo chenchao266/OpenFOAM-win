@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2016 OpenFOAM Foundation
+    Copyright (C) 2019 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -24,6 +27,12 @@ License
 \*---------------------------------------------------------------------------*/
 
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
+
+inline const Foam::Time& Foam::RBD::rigidBodyModel::time() const
+{
+    return time_;
+}
+
 
 inline Foam::label Foam::RBD::rigidBodyModel::nBodies() const
 {
@@ -105,6 +114,11 @@ Foam::RBD::rigidBodyModel::v(const label i) const
     return v_[i];
 }
 
+inline const Foam::spatialVector&
+Foam::RBD::rigidBodyModel::a(const label i) const
+{
+    return a_[i];
+}
 
 inline bool Foam::RBD::rigidBodyModel::merged(label bodyID) const
 {

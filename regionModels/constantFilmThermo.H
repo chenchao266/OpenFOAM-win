@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2013-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2013-2017 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -22,7 +24,7 @@ License
     along with OpenFOAM.  If not, see <http://www.gnu.org/licenses/>.
 
 Class
-    Foam::constantFilmThermo
+    Foam::regionModels::surfaceFilmModels::constantFilmThermo
 
 Description
     Constant thermo model
@@ -122,11 +124,11 @@ private:
         //- Initialise thermoData object
         void init(thermoData& td);
 
-        //- Disallow default bitwise copy construct
-        constantFilmThermo(const constantFilmThermo&);
+        //- No copy construct
+        constantFilmThermo(const constantFilmThermo&) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const constantFilmThermo&);
+        //- No copy assignment
+        void operator=(const constantFilmThermo&) = delete;
 
 
 public:
@@ -140,7 +142,7 @@ public:
         //- Construct from surface film model and dictionary
         constantFilmThermo
         (
-            surfaceFilmModel& film,
+            surfaceFilmRegionModel& film,
             const dictionary& dict
         );
 

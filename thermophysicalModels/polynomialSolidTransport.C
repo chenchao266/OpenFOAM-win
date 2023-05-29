@@ -1,9 +1,11 @@
-﻿/*---------------------------------------------------------------------------*\
+/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2013-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2013-2017 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -23,7 +25,7 @@ License
 
 \*---------------------------------------------------------------------------*/
 
-//#include "polynomialSolidTransport.H"
+#include "polynomialSolidTransport.H"
 #include "IOstreams.H"
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
@@ -35,15 +37,8 @@ Foam::polynomialSolidTransport<Thermo, PolySize>::polynomialSolidTransport
 )
 :
     Thermo(dict),
-    kappaCoeffs_
-    (
-        dict.subDict("transport").lookup
-        (
-            "kappaCoeffs<" + Foam::name(PolySize) + '>'
-        )
-    )
-{
-}
+    kappaCoeffs_(dict.subDict("transport").lookup(coeffsName("kappa")))
+{}
 
 
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
@@ -53,14 +48,12 @@ void Foam::polynomialSolidTransport<Thermo, PolySize>::write(Ostream& os) const
 {
     Thermo::write(os);
 
-    dictionary dict("transport");
-
-    dict.add
-    (
-        word("kappaCoeffs<" + Foam::name(PolySize) + '>'),
-        kappaCoeffs_
-    );
-    os  << indent << dict.dictName() << dict;
+    // Entries in dictionary format
+    {
+        os.beginBlock("transport");
+        os.writeEntry(coeffsName("kappa"), kappaCoeffs_);
+        os.endBlock();
+    }
 }
 
 

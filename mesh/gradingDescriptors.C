@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2015 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2015 OpenFOAM Foundation
+    Copyright (C) 2019-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -33,6 +36,15 @@ Foam::gradingDescriptors::gradingDescriptors()
 {}
 
 
+Foam::gradingDescriptors::gradingDescriptors
+(
+    const label len
+)
+:
+    List<gradingDescriptor>(len, gradingDescriptor())
+{}
+
+
 Foam::gradingDescriptors::gradingDescriptors(const gradingDescriptor& gd)
 :
     List<gradingDescriptor>(1, gd)
@@ -40,6 +52,35 @@ Foam::gradingDescriptors::gradingDescriptors(const gradingDescriptor& gd)
 
 
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
+
+void Foam::gradingDescriptors::correct()
+{
+    for (gradingDescriptor& gd : *this)
+    {
+        gd.correct();
+    }
+}
+
+
+void Foam::gradingDescriptors::normalise()
+{
+    scalar sumBlockFraction = 0;
+    scalar sumNDivFraction = 0;
+
+    for (const gradingDescriptor& gd : *this)
+    {
+        sumBlockFraction += gd.blockFraction_;
+        sumNDivFraction += gd.nDivFraction_;
+    }
+
+    for (gradingDescriptor& gd : *this)
+    {
+        gd.blockFraction_ /= sumBlockFraction;
+        gd.nDivFraction_  /= sumNDivFraction;
+        gd.correct();
+    }
+}
+
 
 Foam::gradingDescriptors Foam::gradingDescriptors::inv() const
 {
@@ -64,36 +105,19 @@ Foam::Istream& Foam::operator>>(Istream& is, gradingDescriptors& gds)
     if (t.isNumber())
     {
         gds = gradingDescriptors(gradingDescriptor(t.number()));
+        gds.correct();
     }
     else
     {
         is.putBack(t);
 
         // Read the list for gradingDescriptors
-        is >> static_cast<List<gradingDescriptor>& >(gds);
+        is >> static_cast<List<gradingDescriptor>&>(gds);
 
-        // Check state of Istream
-        is.check("operator>>(Istream&, gradingDescriptor&)");
-
-        // Normalize the blockFractions and nDivFractions
-        // of the list of gradingDescriptors
-
-        scalar sumBlockFraction = 0;
-        scalar sumNDivFraction = 0;
-
-        forAll(gds, i)
-        {
-            sumBlockFraction += gds[i].blockFraction_;
-            sumNDivFraction += gds[i].nDivFraction_;
-        }
-
-        forAll(gds, i)
-        {
-            gds[i].blockFraction_ /= sumBlockFraction;
-            gds[i].nDivFraction_ /= sumNDivFraction;
-        }
+        gds.normalise();
     }
 
+    is.check(FUNCTION_NAME);
     return is;
 }
 

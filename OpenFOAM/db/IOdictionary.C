@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -24,57 +27,69 @@ License
 \*---------------------------------------------------------------------------*/
 
 #include "IOdictionary.H"
+#include "objectRegistry.H"
+#include "Pstream.H"
+#include "Time1.h"
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 namespace Foam
 {
-    IOdictionary::IOdictionary(const IOobject& io) : baseIOdictionary(io)
-    {
-        readHeaderOk(IOstream::ASCII, typeName);
+IOdictionary::IOdictionary
+(
+    const IOobject& io,
+    const dictionary* fallback
+)
+:
+    IOdictionary(io, typeName, fallback)
+{}
 
-        // For if MUST_READ_IF_MODIFIED
-        addWatch();
+
+IOdictionary::IOdictionary
+(
+    const IOobject& io,
+    const dictionary& dict
+)
+:
+    IOdictionary(io, typeName, &dict)
+{}
+
+
+IOdictionary::IOdictionary
+(
+    const IOobject& io,
+    const word& wantedType,
+    const dictionary* fallback
+)
+:
+    baseIOdictionary(io, fallback)
+{
+    if (!readHeaderOk(IOstream::ASCII, wantedType) && fallback)
+    {
+        dictionary::operator=(*fallback);
     }
 
-
-    IOdictionary::IOdictionary
-    (
-        const IOobject& io,
-        const dictionary& dict
-    ) : baseIOdictionary(io, dict)
-    {
-        if (!readHeaderOk(IOstream::ASCII, typeName))
-        {
-            dictionary::operator=(dict);
-        }
-
-        // For if MUST_READ_IF_MODIFIED
-        addWatch();
-    }
-
-
-    IOdictionary::IOdictionary
-    (
-        const IOobject& io,
-        Istream& is
-    ) : baseIOdictionary(io, is)
-    {
-        // Note that we do construct the dictionary null and read in
-        // afterwards
-        // so that if there is some fancy massaging due to a
-        // functionEntry in
-        // the dictionary at least the type information is already complete.
-        is >> *this;
-
-        // For if MUST_READ_IF_MODIFIED
-        addWatch();
-    }
-
-
-    // * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * * //
-
-    IOdictionary::~IOdictionary()
-    {}
-
+    // For if MUST_READ_IF_MODIFIED
+    addWatch();
 }
+
+
+IOdictionary::IOdictionary
+(
+    const IOobject& io,
+    Istream& is
+)
+:
+    baseIOdictionary(io, is)
+{
+    // Default construct dictionary and read in afterwards
+    // so that if there is some fancy massaging due to a
+    // functionEntry in
+    // the dictionary at least the type information is already complete.
+    is  >> *this;
+
+    // For if MUST_READ_IF_MODIFIED
+    addWatch();
+}
+}
+
 // ************************************************************************* //

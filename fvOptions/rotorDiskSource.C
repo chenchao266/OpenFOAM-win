@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2018-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -29,6 +32,7 @@ License
 #include "fvMatrices.H"
 #include "geometricOneField.H"
 #include "syncTools.H"
+#include "unitConversion.H"
 
 using namespace Foam::constant;
 
@@ -41,28 +45,30 @@ namespace Foam
         defineTypeNameAndDebug(rotorDiskSource, 0);
         addToRunTimeSelectionTable(option, rotorDiskSource, dictionary);
     }
-
-    template<> const char* NamedEnum<fv::rotorDiskSource::geometryModeType, 2>::
-        names[] =
-    {
-        "auto",
-        "specified"
-    };
-
-    const NamedEnum<fv::rotorDiskSource::geometryModeType, 2>
-        fv::rotorDiskSource::geometryModeTypeNames_;
-
-    template<> const char* NamedEnum<fv::rotorDiskSource::inletFlowType, 3>::
-        names[] =
-    {
-        "fixed",
-        "surfaceNormal",
-        "local"
-    };
-
-    const NamedEnum<fv::rotorDiskSource::inletFlowType, 3>
-        fv::rotorDiskSource::inletFlowTypeNames_;
 }
+
+
+const Foam::Enum
+<
+    Foam::fv::rotorDiskSource::geometryModeType
+>
+Foam::fv::rotorDiskSource::geometryModeTypeNames_
+({
+    { geometryModeType::gmAuto, "auto" },
+    { geometryModeType::gmSpecified, "specified" },
+});
+
+
+const Foam::Enum
+<
+    Foam::fv::rotorDiskSource::inletFlowType
+>
+Foam::fv::rotorDiskSource::inletFlowTypeNames_
+({
+    { inletFlowType::ifFixed, "fixed" },
+    { inletFlowType::ifSurfaceNormal, "surfaceNormal" },
+    { inletFlowType::ifLocal, "local" },
+});
 
 
 // * * * * * * * * * * * * Protected Member Functions  * * * * * * * * * * * //
@@ -82,16 +88,13 @@ void Foam::fv::rotorDiskSource::checkData()
             {
                 case ifFixed:
                 {
-                    coeffs_.lookup("inletVelocity") >> inletVelocity_;
+                    coeffs_.readEntry("inletVelocity", inletVelocity_);
                     break;
                 }
                 case ifSurfaceNormal:
                 {
-                    scalar UIn
-                    (
-                        readScalar(coeffs_.lookup("inletNormalVelocity"))
-                    );
-                    inletVelocity_ = -coordSys_.R().e3()*UIn;
+                    scalar UIn(coeffs_.get<scalar>("inletNormalVelocity"));
+                    inletVelocity_ = -coordSys_.e3()*UIn;
                     break;
                 }
                 case ifLocal:
@@ -104,7 +107,6 @@ void Foam::fv::rotorDiskSource::checkData()
                         << "Unknown inlet velocity type" << abort(FatalError);
                 }
             }
-
 
             break;
         }
@@ -138,7 +140,7 @@ void Foam::fv::rotorDiskSource::setFaceArea(vector& axis, const bool correct)
 
     // Calculate cell addressing for selected cells
     labelList cellAddr(mesh_.nCells(), -1);
-    UIndirectList<label>(cellAddr, cells_) = identity(cells_.size());
+    labelUIndList(cellAddr, cells_) = identity(cells_.size());
     labelList nbrFaceCellAddr(mesh_.nFaces() - nInternalFaces, -1);
     forAll(pbm, patchi)
     {
@@ -247,7 +249,7 @@ void Foam::fv::rotorDiskSource::setFaceArea(vector& axis, const bool correct)
                 IOobject::NO_WRITE
             ),
             mesh_,
-            dimensionedScalar("0", dimArea, 0)
+            dimensionedScalar(dimArea, Zero)
         );
         UIndirectList<scalar>(area.primitiveField(), cells_) = area_;
 
@@ -261,13 +263,13 @@ void Foam::fv::rotorDiskSource::setFaceArea(vector& axis, const bool correct)
 
 void Foam::fv::rotorDiskSource::createCoordinateSystem()
 {
-    // Construct the local rotor co-prdinate system
+    // Construct the local rotor coordinate system
     vector origin(Zero);
     vector axis(Zero);
     vector refDir(Zero);
 
     geometryModeType gm =
-        geometryModeTypeNames_.read(coeffs_.lookup("geometryMode"));
+        geometryModeTypeNames_.get("geometryMode", coeffs_);
 
     switch (gm)
     {
@@ -318,31 +320,20 @@ void Foam::fv::rotorDiskSource::createCoordinateSystem()
                 }
             }
             reduce(axis, maxMagSqrOp<vector>());
-            axis /= mag(axis);
+            axis.normalise();
 
             // Correct the axis direction using a point above the rotor
             {
-                vector pointAbove(coeffs_.lookup("pointAbove"));
+                vector pointAbove(coeffs_.get<vector>("pointAbove"));
                 vector dir = pointAbove - origin;
-                dir /= mag(dir);
+                dir.normalise();
                 if ((dir & axis) < 0)
                 {
                     axis *= -1.0;
                 }
             }
 
-            coeffs_.lookup("refDirection") >> refDir;
-
-            cylindrical_.reset
-            (
-                new cylindrical
-                (
-                    mesh_,
-                    axis,
-                    origin,
-                    cells_
-                )
-            );
+            coeffs_.readEntry("refDirection", refDir);
 
             // Set the face areas and apply correction to calculated axis
             // e.g. if cellZone is more than a single layer in thickness
@@ -352,20 +343,9 @@ void Foam::fv::rotorDiskSource::createCoordinateSystem()
         }
         case gmSpecified:
         {
-            coeffs_.lookup("origin") >> origin;
-            coeffs_.lookup("axis") >> axis;
-            coeffs_.lookup("refDirection") >> refDir;
-
-            cylindrical_.reset
-            (
-                new cylindrical
-                (
-                    mesh_,
-                    axis,
-                    origin,
-                    cells_
-                )
-            );
+            coeffs_.readEntry("origin", origin);
+            coeffs_.readEntry("axis", axis);
+            coeffs_.readEntry("refDirection", refDir);
 
             setFaceArea(axis, false);
 
@@ -376,11 +356,12 @@ void Foam::fv::rotorDiskSource::createCoordinateSystem()
             FatalErrorInFunction
                 << "Unknown geometryMode " << geometryModeTypeNames_[gm]
                 << ". Available geometry modes include "
-                << geometryModeTypeNames_ << exit(FatalError);
+                << geometryModeTypeNames_
+                << exit(FatalError);
         }
     }
 
-    coordSys_ = cylindricalCS("rotorCoordSys", origin, axis, refDir, false);
+    coordSys_ = coordSystem::cylindrical(origin, axis, refDir);
 
     const scalar sumArea = gSum(area_);
     const scalar diameter = Foam::sqrt(4.0*sumArea/mathematical::pi);
@@ -388,24 +369,25 @@ void Foam::fv::rotorDiskSource::createCoordinateSystem()
         << "    - disk diameter = " << diameter << nl
         << "    - disk area     = " << sumArea << nl
         << "    - origin        = " << coordSys_.origin() << nl
-        << "    - r-axis        = " << coordSys_.R().e1() << nl
-        << "    - psi-axis      = " << coordSys_.R().e2() << nl
-        << "    - z-axis        = " << coordSys_.R().e3() << endl;
+        << "    - r-axis        = " << coordSys_.e1() << nl
+        << "    - psi-axis      = " << coordSys_.e2() << nl
+        << "    - z-axis        = " << coordSys_.e3() << endl;
 }
 
 
 void Foam::fv::rotorDiskSource::constructGeometry()
 {
-    const vectorField& C = mesh_.C();
+    const pointUIndList cc(mesh_.C(), cells_);
+
+    // Optional: for later transform(), invTransform()
+    /// Rcyl_.reset(coordSys_.R(cc).ptr());
 
     forAll(cells_, i)
     {
         if (area_[i] > ROOTVSMALL)
         {
-            const label celli = cells_[i];
-
-            // Position in (planar) rotor co-ordinate system
-            x_[i] = coordSys_.localPosition(C[celli]);
+            // Position in (planar) rotor coordinate system
+            x_[i] = coordSys_.localPosition(cc[i]);
 
             // Cache max radius
             rMax_ = max(rMax_, x_[i].x());
@@ -421,8 +403,7 @@ void Foam::fv::rotorDiskSource::constructGeometry()
             // rotor cone system
             scalar c = cos(beta);
             scalar s = sin(beta);
-            R_[i] = tensor(c, 0, -s, 0, 1, 0, s, 0, c);
-            invR_[i] = R_[i].T();
+            Rcone_[i] = tensor(c, 0, -s, 0, 1, 0, s, 0, c);
         }
     }
 }
@@ -438,10 +419,7 @@ Foam::tmp<Foam::vectorField> Foam::fv::rotorDiskSource::inflowVelocity
         case ifFixed:
         case ifSurfaceNormal:
         {
-            return tmp<vectorField>
-            (
-                new vectorField(mesh_.nCells(), inletVelocity_)
-            );
+            return tmp<vectorField>::New(mesh_.nCells(), inletVelocity_);
 
             break;
         }
@@ -458,7 +436,7 @@ Foam::tmp<Foam::vectorField> Foam::fv::rotorDiskSource::inflowVelocity
         }
     }
 
-    return tmp<vectorField>(new vectorField(mesh_.nCells(), Zero));
+    return tmp<vectorField>::New(mesh_.nCells(), Zero);
 }
 
 
@@ -473,7 +451,7 @@ Foam::fv::rotorDiskSource::rotorDiskSource
 
 )
 :
-    cellSetOption(name, modelType, dict, mesh),
+    fv::cellSetOption(name, modelType, dict, mesh),
     rhoRef_(1.0),
     omega_(0.0),
     nBlades_(0),
@@ -482,11 +460,9 @@ Foam::fv::rotorDiskSource::rotorDiskSource
     tipEffect_(1.0),
     flap_(),
     x_(cells_.size(), Zero),
-    R_(cells_.size(), I),
-    invR_(cells_.size(), I),
-    area_(cells_.size(), 0.0),
-    coordSys_(false),
-    cylindrical_(),
+    Rcone_(cells_.size(), I),
+    area_(cells_.size(), Zero),
+    coordSys_(),
     rMax_(0.0),
     trim_(trimModel::New(*this, coeffs_)),
     blade_(coeffs_.subDict("blade")),
@@ -494,12 +470,6 @@ Foam::fv::rotorDiskSource::rotorDiskSource
 {
     read(dict);
 }
-
-
-// * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
-
-Foam::fv::rotorDiskSource::~rotorDiskSource()
-{}
 
 
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
@@ -519,16 +489,11 @@ void Foam::fv::rotorDiskSource::addSup
             mesh_
         ),
         mesh_,
-        dimensionedVector
-        (
-            "zero",
-            eqn.dimensions()/dimVolume,
-            Zero
-        )
+        dimensionedVector(eqn.dimensions()/dimVolume, Zero)
     );
 
     // Read the reference density for incompressible flow
-    coeffs_.lookup("rhoRef") >> rhoRef_;
+    coeffs_.readEntry("rhoRef", rhoRef_);
 
     const vectorField Uin(inflowVelocity(eqn.psi()));
     trim_->correct(Uin, force);
@@ -560,12 +525,7 @@ void Foam::fv::rotorDiskSource::addSup
             mesh_
         ),
         mesh_,
-        dimensionedVector
-        (
-            "zero",
-            eqn.dimensions()/dimVolume,
-            Zero
-        )
+        dimensionedVector(eqn.dimensions()/dimVolume, Zero)
     );
 
     const vectorField Uin(inflowVelocity(eqn.psi()));
@@ -584,34 +544,30 @@ void Foam::fv::rotorDiskSource::addSup
 
 bool Foam::fv::rotorDiskSource::read(const dictionary& dict)
 {
-    if (cellSetOption::read(dict))
+    if (fv::cellSetOption::read(dict))
     {
-        coeffs_.lookup("fields") >> fieldNames_;
-        applied_.setSize(fieldNames_.size(), false);
+        coeffs_.readEntry("fields", fieldNames_);
+        fv::option::resetApplied();
 
-        // Read co-ordinate system/geometry invariant properties
-        scalar rpm(readScalar(coeffs_.lookup("rpm")));
-        omega_ = rpm/60.0*mathematical::twoPi;
+        // Read coordinate system/geometry invariant properties
+        omega_ = rpmToRads(coeffs_.get<scalar>("rpm"));
 
-        coeffs_.lookup("nBlades") >> nBlades_;
+        coeffs_.readEntry("nBlades", nBlades_);
 
-        inletFlow_ = inletFlowTypeNames_.read(coeffs_.lookup("inletFlowType"));
+        inletFlowTypeNames_.readEntry("inletFlowType", coeffs_, inletFlow_);
 
-        coeffs_.lookup("tipEffect") >> tipEffect_;
+        coeffs_.readEntry("tipEffect", tipEffect_);
 
         const dictionary& flapCoeffs(coeffs_.subDict("flapCoeffs"));
-        flapCoeffs.lookup("beta0") >> flap_.beta0;
-        flapCoeffs.lookup("beta1c") >> flap_.beta1c;
-        flapCoeffs.lookup("beta2s") >> flap_.beta2s;
-        flap_.beta0 = degToRad(flap_.beta0);
-        flap_.beta1c = degToRad(flap_.beta1c);
-        flap_.beta2s = degToRad(flap_.beta2s);
+        flap_.beta0 = degToRad(flapCoeffs.get<scalar>("beta0"));
+        flap_.beta1c = degToRad(flapCoeffs.get<scalar>("beta1c"));
+        flap_.beta2s = degToRad(flapCoeffs.get<scalar>("beta2s"));
 
 
-        // Create co-ordinate system
+        // Create coordinate system
         createCoordinateSystem();
 
-        // Read co-odinate system dependent properties
+        // Read coordinate system dependent properties
         checkData();
 
         constructGeometry();
@@ -626,10 +582,8 @@ bool Foam::fv::rotorDiskSource::read(const dictionary& dict)
 
         return true;
     }
-    else
-    {
-        return false;
-    }
+
+    return false;
 }
 
 

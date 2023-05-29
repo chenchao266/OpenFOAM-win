@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2016-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2016-2017 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -58,10 +60,7 @@ template<class Thermo, int PolySize>
 inline Foam::autoPtr<Foam::logPolynomialTransport<Thermo, PolySize>>
 Foam::logPolynomialTransport<Thermo, PolySize>::clone() const
 {
-    return autoPtr<logPolynomialTransport<Thermo, PolySize>>
-    (
-        new logPolynomialTransport<Thermo, PolySize>(*this)
-    );
+    return autoPtr<logPolynomialTransport<Thermo, PolySize>>::New(*this);
 }
 
 
@@ -69,10 +68,7 @@ template<class Thermo, int PolySize>
 inline Foam::autoPtr<Foam::logPolynomialTransport<Thermo, PolySize>>
 Foam::logPolynomialTransport<Thermo, PolySize>::New(const dictionary& dict)
 {
-    return autoPtr<logPolynomialTransport<Thermo, PolySize>>
-    (
-        new logPolynomialTransport<Thermo, PolySize>(dict)
-    );
+    return autoPtr<logPolynomialTransport<Thermo, PolySize>>::New(dict);
 }
 
 
@@ -111,19 +107,6 @@ inline Foam::scalar Foam::logPolynomialTransport<Thermo, PolySize>::alphah
 
 
 // * * * * * * * * * * * * * * * Member Operators  * * * * * * * * * * * * * //
-
-template<class Thermo, int PolySize>
-inline void Foam::logPolynomialTransport<Thermo, PolySize>::operator=
-(
-    const logPolynomialTransport<Thermo, PolySize>& pt
-)
-{
-    Thermo::operator=(pt);
-
-    muCoeffs_ = pt.muCoeffs_;
-    kappaCoeffs_ = pt.kappaCoeffs_;
-}
-
 
 template<class Thermo, int PolySize>
 inline void Foam::logPolynomialTransport<Thermo, PolySize>::operator+=

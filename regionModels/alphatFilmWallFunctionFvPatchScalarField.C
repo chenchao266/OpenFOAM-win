@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -25,7 +28,7 @@ License
 
 #include "alphatFilmWallFunctionFvPatchScalarField.H"
 #include "turbulentFluidThermoModel.H"
-#include "surfaceFilmModel.H"
+#include "surfaceFilmRegionModel.H"
 #include "fvPatchFieldMapper.H"
 #include "volFields.H"
 #include "addToRunTimeSelectionTable.H"
@@ -51,6 +54,7 @@ alphatFilmWallFunctionFvPatchScalarField
 )
 :
     fixedValueFvPatchScalarField(p, iF),
+    filmRegionName_("surfaceFilmProperties"),
     B_(5.5),
     yPlusCrit_(11.05),
     Cmu_(0.09),
@@ -69,6 +73,7 @@ alphatFilmWallFunctionFvPatchScalarField
 )
 :
     fixedValueFvPatchScalarField(ptf, p, iF, mapper),
+    filmRegionName_(ptf.filmRegionName_),
     B_(ptf.B_),
     yPlusCrit_(ptf.yPlusCrit_),
     Cmu_(ptf.Cmu_),
@@ -86,11 +91,15 @@ alphatFilmWallFunctionFvPatchScalarField
 )
 :
     fixedValueFvPatchScalarField(p, iF, dict),
-    B_(dict.lookupOrDefault("B", 5.5)),
-    yPlusCrit_(dict.lookupOrDefault("yPlusCrit", 11.05)),
-    Cmu_(dict.lookupOrDefault("Cmu", 0.09)),
-    kappa_(dict.lookupOrDefault("kappa", 0.41)),
-    Prt_(dict.lookupOrDefault("Prt", 0.85))
+    filmRegionName_
+    (
+        dict.getOrDefault<word>("filmRegion", "surfaceFilmProperties")
+    ),
+    B_(dict.getOrDefault("B", 5.5)),
+    yPlusCrit_(dict.getOrDefault("yPlusCrit", 11.05)),
+    Cmu_(dict.getOrDefault("Cmu", 0.09)),
+    kappa_(dict.getOrDefault("kappa", 0.41)),
+    Prt_(dict.getOrDefault("Prt", 0.85))
 {}
 
 
@@ -101,6 +110,7 @@ alphatFilmWallFunctionFvPatchScalarField
 )
 :
     fixedValueFvPatchScalarField(fwfpsf),
+    filmRegionName_(fwfpsf.filmRegionName_),
     B_(fwfpsf.B_),
     yPlusCrit_(fwfpsf.yPlusCrit_),
     Cmu_(fwfpsf.Cmu_),
@@ -117,6 +127,7 @@ alphatFilmWallFunctionFvPatchScalarField
 )
 :
     fixedValueFvPatchScalarField(fwfpsf, iF),
+    filmRegionName_(fwfpsf.filmRegionName_),
     B_(fwfpsf.B_),
     yPlusCrit_(fwfpsf.yPlusCrit_),
     Cmu_(fwfpsf.Cmu_),
@@ -134,28 +145,27 @@ void alphatFilmWallFunctionFvPatchScalarField::updateCoeffs()
         return;
     }
 
-    typedef regionModels::surfaceFilmModels::surfaceFilmModel modelType;
+    const auto* filmModelPtr = db().time().findObject
+        <regionModels::surfaceFilmModels::surfaceFilmRegionModel>
+        (filmRegionName_);
+
+    if (!filmModelPtr)
+    {
+        // Do nothing on construction - film model doesn't exist yet
+        return;
+    }
+
+    const auto& filmModel = *filmModelPtr;
+
 
     // Since we're inside initEvaluate/evaluate there might be processor
     // comms underway. Change the tag we use.
     int oldTag = UPstream::msgType();
     UPstream::msgType() = oldTag+1;
 
-    bool foundFilm =
-        db().time().foundObject<modelType>("surfaceFilmProperties");
-
-    if (!foundFilm)
-    {
-        // Do nothing on construction - film model doesn't exist yet
-        return;
-    }
-
     const label patchi = patch().index();
 
     // Retrieve phase change mass from surface film model
-    const modelType& filmModel =
-        db().time().lookupObject<modelType>("surfaceFilmProperties");
-
     const label filmPatchi = filmModel.regionPatchID(patchi);
 
     tmp<volScalarField> mDotFilm(filmModel.primaryMassTrans());
@@ -230,11 +240,17 @@ void alphatFilmWallFunctionFvPatchScalarField::updateCoeffs()
 void alphatFilmWallFunctionFvPatchScalarField::write(Ostream& os) const
 {
     fvPatchField<scalar>::write(os);
-    os.writeKeyword("B") << B_ << token::END_STATEMENT << nl;
-    os.writeKeyword("yPlusCrit") << yPlusCrit_ << token::END_STATEMENT << nl;
-    os.writeKeyword("Cmu") << Cmu_ << token::END_STATEMENT << nl;
-    os.writeKeyword("kappa") << kappa_ << token::END_STATEMENT << nl;
-    os.writeKeyword("Prt") << Prt_ << token::END_STATEMENT << nl;
+    os.writeEntryIfDifferent<word>
+    (
+        "filmRegion",
+        "surfaceFilmProperties",
+        filmRegionName_
+    );
+    os.writeEntry("B", B_);
+    os.writeEntry("yPlusCrit", yPlusCrit_);
+    os.writeEntry("Cmu", Cmu_);
+    os.writeEntry("kappa", kappa_);
+    os.writeEntry("Prt", Prt_);
     writeEntry("value", os);
 }
 

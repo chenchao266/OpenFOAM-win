@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2015-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2015-2016 OpenFOAM Foundation
+    Copyright (C) 2018-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -25,6 +28,7 @@ License
 
 #include "buoyancyEnergy.H"
 #include "fvMatrices.H"
+#include "gravityMeshObject.H"
 #include "addToRunTimeSelectionTable.H"
 
 // * * * * * * * * * * * * * Static Member Functions * * * * * * * * * * * * //
@@ -34,13 +38,7 @@ namespace Foam
 namespace fv
 {
     defineTypeNameAndDebug(buoyancyEnergy, 0);
-
-    addToRunTimeSelectionTable
-    (
-        option,
-        buoyancyEnergy,
-        dictionary
-    );
+    addToRunTimeSelectionTable(option, buoyancyEnergy, dictionary);
 }
 }
 
@@ -55,10 +53,10 @@ Foam::fv::buoyancyEnergy::buoyancyEnergy
     const fvMesh& mesh
 )
 :
-    option(sourceName, modelType, dict, mesh),
-    UName_(coeffs_.lookupOrDefault<word>("U", "U"))
+    fv::option(sourceName, modelType, dict, mesh),
+    UName_(coeffs_.getOrDefault<word>("U", "U"))
 {
-    coeffs_.lookup("fields") >> fieldNames_;
+    coeffs_.readEntry("fields", fieldNames_);
 
     if (fieldNames_.size() != 1)
     {
@@ -66,7 +64,7 @@ Foam::fv::buoyancyEnergy::buoyancyEnergy
             << "settings are:" << fieldNames_ << exit(FatalError);
     }
 
-    applied_.setSize(fieldNames_.size(), false);
+    fv::option::resetApplied();
 }
 
 
@@ -80,11 +78,24 @@ void Foam::fv::buoyancyEnergy::addSup
 )
 {
     const uniformDimensionedVectorField& g =
-        mesh_.lookupObject<uniformDimensionedVectorField>("g");
+        meshObjects::gravity::New(mesh_.time());
 
-    const volVectorField& U = mesh_.lookupObject<volVectorField>(UName_);
+    const auto& U = mesh_.lookupObject<volVectorField>(UName_);
 
     eqn += rho*(U&g);
+}
+
+
+bool Foam::fv::buoyancyEnergy::read(const dictionary& dict)
+{
+    if (fv::option::read(dict))
+    {
+        coeffs_.readIfPresent("UName", UName_);
+
+        return true;
+    }
+
+    return false;
 }
 
 

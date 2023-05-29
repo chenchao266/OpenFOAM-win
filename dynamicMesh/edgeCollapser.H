@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -38,12 +40,12 @@ SourceFiles
 #define edgeCollapser_H
 
 #include "pointEdgeCollapse.H"
-#include "DynamicList.T.H"
-#include "Field.T.H"
+#include "DynamicList.H"
+#include "Field.H"
 #include "pointFieldFwd.H"
-#include "Map.T.H"
+#include "Map.H"
 #include "labelPair.H"
-#include "HashSet.T.H"
+#include "HashSet.H"
 #include "typeInfo.H"
 #include "Switch.H"
 
@@ -52,9 +54,9 @@ SourceFiles
 namespace Foam
 {
 
-// Forward declaration of classes
+// Forward Declarations
 class polyMesh;
-class PackedBoolList;
+class bitSet;
 class polyTopoChange;
 class globalIndex;
 class face;
@@ -92,7 +94,7 @@ private:
 
         //- Allow a face to be collapsed to a point early, before the test
         //  to collapse to an edge
-        const Switch allowEarlyCollapseToPoint_;
+        const bool allowEarlyCollapseToPoint_;
 
         //- Fraction of maxCollapseFaceToPointSideLengthCoeff_ to use when
         //  allowEarlyCollapseToPoint_ is on
@@ -123,7 +125,7 @@ private:
             const scalarList& dNeg,
             const scalarList& dPos,
             const scalar dShift,
-            PackedBoolList& collapseEdge,
+            bitSet& collapseEdge,
             Map<point>& collapsePointToLocation
         ) const;
 
@@ -136,7 +138,7 @@ private:
             const labelList& pointPriority,
             const point& fC,
             const labelList& facePts,
-            PackedBoolList& collapseEdge,
+            bitSet& collapseEdge,
             Map<point>& collapsePointToLocation
         ) const;
 
@@ -161,7 +163,7 @@ private:
             const face& f,
             const label facei,
             const scalar targetFaceSize,
-            PackedBoolList& collapseEdge,
+            bitSet& collapseEdge,
             Map<point>& collapsePointToLocation,
             const scalarField& faceFilterFactor
         ) const;
@@ -184,8 +186,8 @@ private:
         //  location
         label breakStringsAtEdges
         (
-            const PackedBoolList& markedEdges,
-            PackedBoolList& collapseEdge,
+            const bitSet& markedEdges,
+            bitSet& collapseEdge,
             List<pointEdgeCollapse>& allPointInfo
         ) const;
 
@@ -195,7 +197,7 @@ private:
         void determineDuplicatePointsOnFace
         (
             const face& f,
-            PackedBoolList& markedPoints,
+            bitSet& markedPoints,
             labelHashSet& uniqueCollapses,
             labelHashSet& duplicateCollapses,
             List<pointEdgeCollapse>& allPointInfo
@@ -223,7 +225,7 @@ private:
         (
             const globalIndex& globalPoints,
             const labelList& boundaryPoint,
-            const PackedBoolList& collapseEdge,
+            const bitSet& collapseEdge,
             const Map<point>& collapsePointToLocation,
             List<pointEdgeCollapse>& allPointInfo
         ) const;
@@ -236,11 +238,11 @@ private:
             face& f
         ) const;
 
-        //- Disallow default bitwise copy construct
-        edgeCollapser(const edgeCollapser&);
+        //- No copy construct
+        edgeCollapser(const edgeCollapser&) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const edgeCollapser&);
+        //- No copy assignment
+        void operator=(const edgeCollapser&) = delete;
 
 
 public:
@@ -252,7 +254,7 @@ public:
     // Constructors
 
         //- Construct from mesh
-        edgeCollapser(const polyMesh& mesh);
+        explicit edgeCollapser(const polyMesh& mesh);
 
         //- Construct from mesh and dict
         edgeCollapser(const polyMesh& mesh, const dictionary& dict);
@@ -263,7 +265,7 @@ public:
         // Check
 
             //- Calls motionSmoother::checkMesh and returns a set of bad faces
-            static HashSet<label> checkBadFaces
+            static labelHashSet checkBadFaces
             (
                 const polyMesh& mesh,
                 const dictionary& meshQualityDict
@@ -275,7 +277,7 @@ public:
             (
                 const polyMesh& mesh,
                 const dictionary& meshQualityDict,
-                PackedBoolList& isErrorPoint
+                bitSet& isErrorPoint
             );
 
             //- Ensure that the collapse is parallel consistent and update
@@ -287,7 +289,7 @@ public:
                 const globalIndex& globalPoints,
                 const labelList& pointPriority,
                 const Map<point>& collapsePointToLocation,
-                PackedBoolList& collapseEdge,
+                bitSet& collapseEdge,
                 List<pointEdgeCollapse>& allPointInfo,
                 const bool allowCellCollapse = false
             ) const;
@@ -308,7 +310,7 @@ public:
             (
                 const scalarField& minEdgeLen,
                 const labelList& pointPriority,
-                PackedBoolList& collapseEdge,
+                bitSet& collapseEdge,
                 Map<point>& collapsePointToLocation
             ) const;
 
@@ -317,7 +319,7 @@ public:
             (
                 const scalar maxCos,
                 const labelList& pointPriority,
-                PackedBoolList& collapseEdge,
+                bitSet& collapseEdge,
                 Map<point>& collapsePointToLocation
             ) const;
 
@@ -325,13 +327,13 @@ public:
             //  edges that need to be collapsed in order to remove these faces.
             //  Also returns a map of new locations for points that will move
             //  as a result of the collapse.
-            //  Use in conjuctions with edgeCollapser to synchronise the
+            //  Use in conjunction with edgeCollapser to synchronise the
             //  collapses and modify the mesh
             labelPair markSmallSliverFaces
             (
                 const scalarField& faceFilterFactor,
                 const labelList& pointPriority,
-                PackedBoolList& collapseEdge,
+                bitSet& collapseEdge,
                 Map<point>& collapsePointToLocation
             ) const;
 
@@ -341,7 +343,7 @@ public:
                 const faceZone& fZone,
                 const scalarField& faceFilterFactor,
                 const labelList& pointPriority,
-                PackedBoolList& collapseEdge,
+                bitSet& collapseEdge,
                 Map<point>& collapsePointToLocation
             ) const;
 };

@@ -1,9 +1,11 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -22,60 +24,293 @@ License
     along with OpenFOAM.  If not, see <http://www.gnu.org/licenses/>.
 
 Class
-    Foam::reactingMultiphaseCloud
+    Foam::ReactingMultiphaseCloud
+
+Group
+    grpLagrangianIntermediateClouds
 
 Description
-    Virtual abstract base class for templated reactingMultiphaseCloud
+    Templated base class for multiphase reacting cloud
+
+    - Adds to reacting cloud
+      - multiphase composition
+      - devolatilisatsion
+      - surface reactions
 
 SourceFiles
-    reactingMultiphaseCloud.C
+    ReactingMultiphaseCloudI.H
+    ReactingMultiphaseCloud.C
 
 \*---------------------------------------------------------------------------*/
 
-#ifndef reactingMultiphaseCloud_H
-#define reactingMultiphaseCloud_H
+#ifndef ReactingMultiphaseCloud_H
+#define ReactingMultiphaseCloud_H
 
-#include "typeInfo.H"
+#include "reactingMultiphaseCloud2.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 namespace Foam
 {
 
+// Forward declaration of classes
+
+template<class CloudType>
+class DevolatilisationModel;
+
+template<class CloudType>
+class SurfaceReactionModel;
+
 /*---------------------------------------------------------------------------*\
-                  Class reactingMultiphaseCloud Declaration
+                   Class ReactingMultiphaseCloud Declaration
 \*---------------------------------------------------------------------------*/
 
-class reactingMultiphaseCloud
+template<class CloudType>
+class ReactingMultiphaseCloud
+:
+    public CloudType,
+    public reactingMultiphaseCloud
 {
-    // Private Member Functions
+public:
 
-        //- Disallow default bitwise copy construct
-        reactingMultiphaseCloud(const reactingMultiphaseCloud&);
+    // Public typedefs
 
-        //- Disallow default bitwise assignment
-        void operator=(const reactingMultiphaseCloud&);
+        //- Type of cloud this cloud was instantiated for
+        typedef CloudType cloudType;
+
+        //- Type of parcel the cloud was instantiated for
+        typedef typename CloudType::particleType parcelType;
+
+        //- Convenience typedef for this cloud type
+        typedef ReactingMultiphaseCloud<CloudType> reactingMultiphaseCloudType;
+
+
+private:
+
+    // Private data
+
+        //- Cloud copy pointer
+        autoPtr<ReactingMultiphaseCloud<CloudType>> cloudCopyPtr_;
+
+
+    // Private member functions
+
+        //- No copy construct
+        ReactingMultiphaseCloud(const ReactingMultiphaseCloud&) = delete;
+
+        //- No copy assignment
+        void operator=(const ReactingMultiphaseCloud&) = delete;
+
+
+protected:
+
+    // Protected data
+
+        //- Parcel constant properties
+        typename parcelType::constantProperties constProps_;
+
+
+        // References to the cloud sub-models
+
+            //- Devolatilisation model
+            autoPtr
+            <
+                DevolatilisationModel<ReactingMultiphaseCloud<CloudType>>
+            >
+            devolatilisationModel_;
+
+            //- Surface reaction model
+            autoPtr
+            <
+                SurfaceReactionModel<ReactingMultiphaseCloud<CloudType>>
+            >
+            surfaceReactionModel_;
+
+
+        // Check
+
+            //- Total mass transferred to continuous phase via devolatilisation
+            scalar dMassDevolatilisation_;
+
+            //- Total mass transferred to continuous phase via surface
+            //  reactions
+            scalar dMassSurfaceReaction_;
+
+
+    // Protected Member Functions
+
+        // Initialisation
+
+            //- Set cloud sub-models
+            void setModels();
+
+
+        // Cloud evolution functions
+
+            //- Reset state of cloud
+            void cloudReset(ReactingMultiphaseCloud<CloudType>& c);
 
 
 public:
 
-    //- Runtime type information
-    TypeName("reactingMultiphaseCloud");
-
     // Constructors
 
-        //- Null constructor
-        reactingMultiphaseCloud();
+        //- Construct given carrier gas fields
+        ReactingMultiphaseCloud
+        (
+            const word& cloudName,
+            const volScalarField& rho,
+            const volVectorField& U,
+            const dimensionedVector& g,
+            const SLGThermo& thermo,
+            bool readFields = true
+        );
+
+
+        //- Copy constructor with new name
+        ReactingMultiphaseCloud
+        (
+            ReactingMultiphaseCloud<CloudType>& c,
+            const word& name
+        );
+
+        //- Copy constructor with new name - creates bare cloud
+        ReactingMultiphaseCloud
+        (
+            const fvMesh& mesh,
+            const word& name,
+            const ReactingMultiphaseCloud<CloudType>& c
+        );
+
+        //- Construct and return clone based on (this) with new name
+        virtual autoPtr<Cloud<parcelType>> clone(const word& name)
+        {
+            return autoPtr<Cloud<parcelType>>
+            (
+                new ReactingMultiphaseCloud(*this, name)
+            );
+        }
+
+        //- Construct and return bare clone based on (this) with new name
+        virtual autoPtr<Cloud<parcelType>> cloneBare(const word& name) const
+        {
+            return autoPtr<Cloud<parcelType>>
+            (
+                new ReactingMultiphaseCloud(this->mesh(), name, *this)
+            );
+        }
 
 
     //- Destructor
-    virtual ~reactingMultiphaseCloud();
+    virtual ~ReactingMultiphaseCloud();
+
+
+    // Member Functions
+
+        // Access
+
+            //- Return a reference to the cloud copy
+            inline const ReactingMultiphaseCloud& cloudCopy() const;
+
+            //- Return the constant properties
+            inline const typename parcelType::constantProperties&
+                constProps() const;
+
+            //- Return access to the constant properties
+            inline typename parcelType::constantProperties& constProps();
+
+
+            // Sub-models
+
+                //- Return const access to devolatilisation model
+                inline const DevolatilisationModel
+                <
+                    ReactingMultiphaseCloud<CloudType>
+                >&
+                devolatilisation() const;
+
+                //- Return reference to devolatilisation model
+                inline DevolatilisationModel
+                <
+                    ReactingMultiphaseCloud<CloudType>
+                >&
+                devolatilisation();
+
+                //- Return const access to reacting surface reaction model
+                inline const SurfaceReactionModel
+                <
+                    ReactingMultiphaseCloud<CloudType>
+                >&
+                surfaceReaction() const;
+
+                //- Return reference to reacting surface reaction model
+                inline SurfaceReactionModel
+                <
+                    ReactingMultiphaseCloud<CloudType>
+                >&
+                surfaceReaction();
+
+
+        // Cloud evolution functions
+
+            //- Set parcel thermo properties
+            void setParcelThermoProperties
+            (
+                parcelType& parcel,
+                const scalar lagrangianDt
+            );
+
+            //- Check parcel properties
+            void checkParcelProperties
+            (
+                parcelType& parcel,
+                const scalar lagrangianDt,
+                const bool fullyDescribed
+            );
+
+            //- Store the current cloud state
+            void storeState();
+
+            //- Reset the current cloud to the previously stored state
+            void restoreState();
+
+            //- Reset the cloud source terms
+            void resetSourceTerms();
+
+            //- Evolve the cloud
+            void evolve();
+
+
+        // Mapping
+
+            //- Remap the cells of particles corresponding to the
+            //  mesh topology change with a default tracking data object
+            virtual void autoMap(const mapPolyMesh&);
+
+
+        // I-O
+
+            //- Print cloud information
+            void info();
+
+            //- Write the field data for the cloud
+            virtual void writeFields() const;
 };
 
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 } // End namespace Foam
+
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+#include "ReactingMultiphaseCloudI.H"
+
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+#ifdef NoRepository
+    #include "ReactingMultiphaseCloud.C"
+#endif
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 

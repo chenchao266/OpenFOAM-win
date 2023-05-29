@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -46,9 +48,9 @@ inline Foam::powerSeriesReactionRate::powerSeriesReactionRate
     const dictionary& dict
 )
 :
-    A_(readScalar(dict.lookup("A"))),
-    beta_(readScalar(dict.lookup("beta"))),
-    Ta_(readScalar(dict.lookup("Ta"))),
+    A_(dict.get<scalar>("A")),
+    beta_(dict.get<scalar>("beta")),
+    Ta_(dict.get<scalar>("Ta")),
     coeffs_(dict.lookup("coeffs"))
 {}
 
@@ -73,7 +75,7 @@ inline Foam::scalar Foam::powerSeriesReactionRate::operator()
 
     forAll(coeffs_, n)
     {
-        expArg += coeffs_[n]/pow(T, (int)(n + 1));
+        expArg += coeffs_[n]/pow(T, (const int)n + 1);
     }
 
     lta *= exp(expArg);
@@ -84,10 +86,10 @@ inline Foam::scalar Foam::powerSeriesReactionRate::operator()
 
 inline void Foam::powerSeriesReactionRate::write(Ostream& os) const
 {
-    os.writeKeyword("A") << A_ << token::END_STATEMENT << nl;
-    os.writeKeyword("beta") << beta_ << token::END_STATEMENT << nl;
-    os.writeKeyword("Ta") << Ta_ << token::END_STATEMENT << nl;
-    os.writeKeyword("coeffs") << coeffs_ << token::END_STATEMENT << nl;
+    os.writeEntry("A", A_);
+    os.writeEntry("beta", beta_);
+    os.writeEntry("Ta", Ta_);
+    os.writeEntry("coeffs", coeffs_);
 }
 
 

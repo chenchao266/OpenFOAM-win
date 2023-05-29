@@ -1,9 +1,11 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2013 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2013 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -22,7 +24,9 @@ License
     along with OpenFOAM.  If not, see <http://www.gnu.org/licenses/>.
 
 \*---------------------------------------------------------------------------*/
-namespace Foam {
+
+
+ namespace Foam{
 template<class Type>
 scalar uniformInterpolationTable<Type>::x0() const
 {
@@ -92,5 +96,7 @@ scalar uniformInterpolationTable<Type>::xMax() const
     return x0_ + dx_*(size() - 1);
 }
 
-}
+
 // ************************************************************************* //
+
+ } // End namespace Foam

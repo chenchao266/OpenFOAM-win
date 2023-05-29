@@ -1,9 +1,12 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -38,7 +41,7 @@ inline bool Foam::pointEdgePoint::update
     TrackingData& td
 )
 {
-    scalar dist2 = magSqr(pt - w2.origin());
+    const scalar dist2 = magSqr(pt - w2.origin());
 
     if (!valid(td))
     {
@@ -49,7 +52,7 @@ inline bool Foam::pointEdgePoint::update
         return true;
     }
 
-    scalar diff = distSqr_ - dist2;
+    const scalar diff = distSqr_ - dist2;
 
     if (diff < 0)
     {
@@ -91,7 +94,7 @@ inline bool Foam::pointEdgePoint::update
         return true;
     }
 
-    scalar diff = distSqr_ - w2.distSqr();
+    const scalar diff = distSqr_ - w2.distSqr();
 
     if (diff < 0)
     {
@@ -117,15 +120,13 @@ inline bool Foam::pointEdgePoint::update
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
-// Null constructor
 inline Foam::pointEdgePoint::pointEdgePoint()
 :
-    origin_(point::max),
+    origin_(point::max_),
     distSqr_(GREAT)
 {}
 
 
-// Construct from origin, distance
 inline Foam::pointEdgePoint::pointEdgePoint
 (
     const point& origin,
@@ -137,32 +138,12 @@ inline Foam::pointEdgePoint::pointEdgePoint
 {}
 
 
-// Construct as copy
-inline Foam::pointEdgePoint::pointEdgePoint(const pointEdgePoint& wpt)
-:
-    origin_(wpt.origin()),
-    distSqr_(wpt.distSqr())
-{}
-
-
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
-
-inline const Foam::point& Foam::pointEdgePoint::origin() const
-{
-    return origin_;
-}
-
-
-inline Foam::scalar Foam::pointEdgePoint::distSqr() const
-{
-    return distSqr_;
-}
-
 
 template<class TrackingData>
 inline bool Foam::pointEdgePoint::valid(TrackingData& td) const
 {
-    return origin_ != point::max;
+    return origin_ != point::max_;
 }
 
 
@@ -175,7 +156,7 @@ inline bool Foam::pointEdgePoint::sameGeometry
     TrackingData& td
 ) const
 {
-    scalar diff = Foam::mag(distSqr() - w2.distSqr());
+    const scalar diff = Foam::mag(distSqr() - w2.distSqr());
 
     if (diff < SMALL)
     {
@@ -309,15 +290,19 @@ inline bool Foam::pointEdgePoint::equal
 
 // * * * * * * * * * * * * * * * Member Operators  * * * * * * * * * * * * * //
 
-inline bool Foam::pointEdgePoint::operator==(const Foam::pointEdgePoint& rhs)
-const
+inline bool Foam::pointEdgePoint::operator==
+(
+    const pointEdgePoint& rhs
+) const
 {
-    return (origin() == rhs.origin()) && (distSqr() == rhs.distSqr());
+    return origin_ == rhs.origin_ && distSqr_ == rhs.distSqr_;
 }
 
 
-inline bool Foam::pointEdgePoint::operator!=(const Foam::pointEdgePoint& rhs)
-const
+inline bool Foam::pointEdgePoint::operator!=
+(
+    const pointEdgePoint& rhs
+) const
 {
     return !(*this == rhs);
 }

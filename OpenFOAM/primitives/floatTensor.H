@@ -1,9 +1,12 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2016 OpenFOAM Foundation
+    Copyright (C) 2019 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -25,7 +28,7 @@ Typedef
     Foam::floatTensor
 
 Description
-    FloatTensor of scalars.
+    A Tensor of float precision values
 
 SourceFiles
     floatTensor.C
@@ -35,8 +38,7 @@ SourceFiles
 #ifndef floatTensor_H
 #define floatTensor_H
 
-#include "Tensor.T.H"
-#include "contiguous.H"
+#include "Tensor.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -46,11 +48,6 @@ namespace Foam
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 typedef Tensor<float> floatTensor;
-
-//- Data associated with floatTensor type are contiguous
-template<>
-inline bool contiguous<floatTensor>() {return true;}
-
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 

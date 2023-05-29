@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -23,6 +25,9 @@ License
 
 Class
     Foam::fixedBlended
+
+Group
+    grpFvSurfaceInterpolationSchemes
 
 Description
     Two-scheme fixed-blending differencing scheme.
@@ -72,11 +77,11 @@ class fixedBlended
         tmp<surfaceInterpolationScheme<Type>> tScheme2_;
 
 
-        //- Disallow default bitwise copy construct
-        fixedBlended(const fixedBlended&);
+        //- No copy construct
+        fixedBlended(const fixedBlended&) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const fixedBlended&);
+        //- No copy assignment
+        void operator=(const fixedBlended&) = delete;
 
 
 public:
@@ -168,7 +173,7 @@ public:
         tmp<surfaceScalarField>
         weights
         (
-            const volFieldType<Type>& vf
+            const GeometricField<Type, fvPatchField, volMesh>& vf
         ) const
         {
             return
@@ -179,10 +184,10 @@ public:
 
         //- Return the face-interpolate of the given cell field
         //  with explicit correction
-        tmp<surfaceFieldType<Type>>
+        tmp<GeometricField<Type, fvsPatchField, surfaceMesh>>
         interpolate
         (
-            const volFieldType<Type>& vf
+            const GeometricField<Type, fvPatchField, volMesh>& vf
         ) const
         {
             return
@@ -200,10 +205,10 @@ public:
 
         //- Return the explicit correction to the face-interpolate
         //  for the given field
-        virtual tmp<surfaceFieldType<Type>>
+        virtual tmp<GeometricField<Type, fvsPatchField, surfaceMesh>>
         correction
         (
-            const volFieldType<Type>& vf
+            const GeometricField<Type, fvPatchField, volMesh>& vf
         ) const
         {
             if (tScheme1_().corrected())
@@ -237,7 +242,7 @@ public:
             }
             else
             {
-                return tmp<surfaceFieldType<Type>>
+                return tmp<GeometricField<Type, fvsPatchField, surfaceMesh>>
                 (
                     nullptr
                 );

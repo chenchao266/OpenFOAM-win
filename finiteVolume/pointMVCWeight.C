@@ -1,9 +1,11 @@
-﻿/*---------------------------------------------------------------------------*\
+/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -112,7 +114,7 @@ void Foam::pointMVCWeight::calcWeights
             u(j) = uVec[toLocal[f[j]]];
         }
 
-        vector v(point::_zero);
+        vector v(Zero);
         forAll(f, j)
         {
             label jPlus1 = f.fcIndex(j);
@@ -156,10 +158,8 @@ void Foam::pointMVCWeight::calcWeights
             label jPlus1 = f.fcIndex(j);
             //Pout<< "    uj:" << u[j] << " ujPlus1:" << u[jPlus1] << endl;
 
-            vector n0 = u[j]^v;
-            n0 /= mag(n0);
-            vector n1 = u[jPlus1]^v;
-            n1 /= mag(n1);
+            const vector n0 = normalised(u[j] ^ v);
+            const vector n1 = normalised(u[jPlus1] ^ v);
 
             scalar l = min(mag(n0 - n1), 2.0);
             //Pout<< "    l:" << l << endl;

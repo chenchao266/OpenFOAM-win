@@ -12,7 +12,7 @@
 #include "tre-config.h"
 
 #ifdef HAVE_SYS_TYPES_H
-//#include <sys/types.h>
+#include <sys/types.h>
 #endif /* HAVE_SYS_TYPES_H */
 
 #ifdef HAVE_LIBUTF8_H

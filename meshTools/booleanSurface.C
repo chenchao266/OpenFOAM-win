@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2015 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -37,6 +40,18 @@ namespace Foam
 {
 defineTypeNameAndDebug(booleanSurface, 0);
 }
+
+const Foam::Enum
+<
+    Foam::booleanSurface::booleanOpType
+>
+Foam::booleanSurface::booleanOpTypeNames
+({
+    { booleanOpType::UNION, "union" },
+    { booleanOpType::INTERSECTION, "intersection" },
+    { booleanOpType::DIFFERENCE, "difference" },
+    { booleanOpType::ALL, "all" },
+});
 
 
 // * * * * * * * * * * * * * Private Member Functions  * * * * * * * * * * * //

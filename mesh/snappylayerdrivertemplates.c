@@ -1,9 +1,11 @@
-﻿/*---------------------------------------------------------------------------*\
+/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2012 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -23,7 +25,7 @@ License
 
 \*---------------------------------------------------------------------------*/
 
-//#include "snappyLayerDriver.H"
+#include "snappyLayerDriver.H"
 #include "syncTools.H"
 
 // * * * * * * * * * * * * * Private Member Functions  * * * * * * * * * * * //
@@ -32,7 +34,7 @@ template<class Type>
 void Foam::snappyLayerDriver::averageNeighbours
 (
     const polyMesh& mesh,
-    const PackedBoolList& isMasterEdge,
+    const bitSet& isMasterEdge,
     const labelList& meshEdges,
     const labelList& meshPoints,
     const edgeList& edges,
@@ -43,11 +45,11 @@ void Foam::snappyLayerDriver::averageNeighbours
 {
     const pointField& pts = mesh.points();
 
-    average = Zero;
+    average = Type(Zero);
 
     forAll(edges, edgeI)
     {
-        if (isMasterEdge.get(meshEdges[edgeI]) == 1)
+        if (isMasterEdge.test(meshEdges[edgeI]))
         {
             const edge& e = edges[edgeI];
             //scalar eWeight = edgeWeights[edgeI];
@@ -77,7 +79,7 @@ void Foam::snappyLayerDriver::averageNeighbours
         meshPoints,
         average,
         plusEqOp<Type>(),
-        (Type)Zero     // null value 
+        Type(Zero)          // null value
     );
 
     average *= invSumWeight;

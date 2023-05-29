@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -23,6 +26,9 @@ License
 
 Class
     Foam::sutherlandTransport
+
+Group
+    grpSpecieTransport
 
 Description
     Transport package using Sutherland's formula.
@@ -49,7 +55,7 @@ SourceFiles
 namespace Foam
 {
 
-// Forward declaration of friend functions and operators
+// Forward Declarations
 
 template<class Thermo> class sutherlandTransport;
 
@@ -84,7 +90,7 @@ class sutherlandTransport
 :
     public Thermo
 {
-    // Private data
+    // Private Data
 
         // Sutherland's coefficients
         scalar As_, Ts_;
@@ -105,6 +111,9 @@ class sutherlandTransport
 
 
 public:
+
+    // Generated Methods: copy construct, copy assignment
+
 
     // Constructors
 
@@ -128,10 +137,10 @@ public:
         inline sutherlandTransport(const word&, const sutherlandTransport&);
 
         //- Construct from dictionary
-        sutherlandTransport(const dictionary& dict);
+        explicit sutherlandTransport(const dictionary& dict);
 
         //- Construct from base thermo and dictionary
-        sutherlandTransport(const Thermo& t,const dictionary& dict);
+        sutherlandTransport(const Thermo& t, const dictionary& dict);
 
         //- Construct and return a clone
         inline autoPtr<sutherlandTransport> clone() const;
@@ -140,7 +149,7 @@ public:
         inline static autoPtr<sutherlandTransport> New(const dictionary& dict);
 
 
-    // Member functions
+    // Member Functions
 
         //- Return the instantiated type name
         static word typeName()
@@ -164,16 +173,14 @@ public:
         void write(Ostream& os) const;
 
 
-    // Member operators
-
-        inline void operator=(const sutherlandTransport&);
+    // Member Operators
 
         inline void operator+=(const sutherlandTransport&);
 
         inline void operator*=(const scalar);
 
 
-    // Friend operators
+    // Friend Operators
 
         friend sutherlandTransport operator+ <Thermo>
         (
@@ -188,7 +195,7 @@ public:
         );
 
 
-    // Ostream Operator
+    // IOstream Operators
 
         friend Ostream& operator<< <Thermo>
         (

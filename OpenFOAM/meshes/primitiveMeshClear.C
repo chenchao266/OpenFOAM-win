@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -27,7 +29,9 @@ License
 #include "demandDrivenData.H"
 
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
-using namespace Foam;
+
+
+ namespace Foam{
 void primitiveMesh::printAllocated() const
 {
     Pout<< "primitiveMesh allocated :" << endl;
@@ -138,6 +142,20 @@ void primitiveMesh::clearGeom()
 }
 
 
+void primitiveMesh::clearCellGeom()
+{
+    if (debug)
+    {
+        Pout<< "primitiveMesh::clearCellGeom() : "
+            << "clearing cell centres and volumes"
+            << endl;
+    }
+
+    deleteDemandDrivenData(cellCentresPtr_);
+    deleteDemandDrivenData(cellVolumesPtr_);
+}
+
+
 void primitiveMesh::clearAddressing()
 {
     if (debug)
@@ -175,3 +193,5 @@ void primitiveMesh::clearOut()
 
 
 // ************************************************************************* //
+
+ } // End namespace Foam

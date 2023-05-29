@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2013 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2013 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -66,16 +68,10 @@ public:
     // Constructors
 
         //- Construct read
-        motionSmootherData
-        (
-            const pointMesh&
-        );
+        explicit motionSmootherData(const pointMesh& pMesh);
 
         //- Construct from pointDisplacement
-        motionSmootherData
-        (
-            const pointVectorField&
-        );
+        explicit motionSmootherData(const pointVectorField& displacement);
 
 
     // Member Functions

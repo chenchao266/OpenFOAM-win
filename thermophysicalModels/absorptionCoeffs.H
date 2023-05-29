@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -36,7 +38,7 @@ SourceFiles
 #ifndef absorptionCoeffs_H
 #define absorptionCoeffs_H
 
-#include "List.T.H"
+#include "List.H"
 #include "IOstreams.H"
 #include "IOdictionary.H"
 
@@ -64,14 +66,8 @@ private:
 
     // Private data
 
-        // Temperature limits of applicability for functions
-
-            scalar Tcommon_;
-
-            scalar Tlow_;
-
-            scalar Thigh_;
-
+        // Temperature limits of applicability of functions
+        scalar Tlow_, Thigh_, Tcommon_;
 
         // Polynomial using inverse temperatures
         bool invTemp_;
@@ -90,13 +86,12 @@ public:
 
     // Constructors
 
-        // Null constructor
-        absorptionCoeffs()
-        {}
+        //- Default construct
+        absorptionCoeffs() = default;
 
 
     //- Destructor
-    ~absorptionCoeffs();
+    ~absorptionCoeffs() = default;
 
 
     // Member functions

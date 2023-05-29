@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2019-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -24,13 +27,14 @@ License
 \*---------------------------------------------------------------------------*/
 
 #include "thermophysicalFunction.H"
-#include "HashTable.T.H"
+#include "HashTable.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 namespace Foam
 {
     defineTypeNameAndDebug(thermophysicalFunction, 0);
+    defineRunTimeSelectionTable(thermophysicalFunction, Istream);
     defineRunTimeSelectionTable(thermophysicalFunction, dictionary);
 }
 
@@ -39,33 +43,52 @@ namespace Foam
 
 Foam::autoPtr<Foam::thermophysicalFunction> Foam::thermophysicalFunction::New
 (
+    Istream& is
+)
+{
+    DebugInFunction << "Constructing thermophysicalFunction" << endl;
+
+    const word functionType(is);
+
+    auto* ctorPtr = IstreamConstructorTable(functionType);
+
+    if (!ctorPtr)
+    {
+        FatalErrorInLookup
+        (
+            "thermophysicalFunction",
+            functionType,
+            *IstreamConstructorTablePtr_
+        ) << abort(FatalError);
+    }
+
+    return autoPtr<thermophysicalFunction>(ctorPtr(is));
+}
+
+
+Foam::autoPtr<Foam::thermophysicalFunction> Foam::thermophysicalFunction::New
+(
     const dictionary& dict
 )
 {
-    if (debug)
+    DebugInFunction << "Constructing thermophysicalFunction" << endl;
+
+    const word functionType(dict.get<word>("functionType"));
+
+    auto* ctorPtr = dictionaryConstructorTable(functionType);
+
+    if (!ctorPtr)
     {
-        InfoInFunction
-            << "Constructing thermophysicalFunction"
-            << endl;
+        FatalIOErrorInLookup
+        (
+            dict,
+            "thermophysicalFunction",
+            functionType,
+            *dictionaryConstructorTablePtr_
+        ) << abort(FatalIOError);
     }
 
-    const word thermophysicalFunctionType(dict.lookup("functionType"));
-
-    dictionaryConstructorTable::iterator cstrIter =
-        dictionaryConstructorTablePtr_->find(thermophysicalFunctionType);
-
-    if (cstrIter == dictionaryConstructorTablePtr_->end())
-    {
-        FatalErrorInFunction
-            << "Unknown thermophysicalFunction type "
-            << thermophysicalFunctionType
-            << nl << nl
-            << "Valid thermophysicalFunction types are :" << endl
-            << dictionaryConstructorTablePtr_->sortedToc()
-            << abort(FatalError);
-    }
-
-    return autoPtr<thermophysicalFunction>(cstrIter()(dict));
+    return autoPtr<thermophysicalFunction>(ctorPtr(dict));
 }
 
 

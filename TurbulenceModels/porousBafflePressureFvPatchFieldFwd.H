@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -23,8 +25,8 @@ License
 
 \*---------------------------------------------------------------------------*/
 
-#ifndef porousBafflePressureFvPatchFieldsFwd_H
-#define porousBafflePressureFvPatchFieldsFwd_H
+#ifndef porousBafflePressureFvPatchFieldFwd_H
+#define porousBafflePressureFvPatchFieldFwd_H
 
 #include "fieldTypes.H"
 

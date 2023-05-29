@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2017 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -80,6 +82,15 @@ public:
 
     // Member Functions
 
+        //- Return the instantiated type name
+        static word typeName()
+        {
+            return
+                "thermophysicalPropertiesSelector<"
+              + ThermophysicalProperties::typeName
+              + '>';
+        }
+
         //- Return reference to the selected physical properties class
         inline const ThermophysicalProperties& properties() const;
 
@@ -89,7 +100,7 @@ public:
             //- Molecular weight [kg/kmol]
             inline scalar W() const;
 
-            //- Limit the temperature to be in the range Tlow_ to Thigh_
+            //- Limit temperature to be within the range
             inline scalar limit(const scalar T) const;
 
 
@@ -121,6 +132,15 @@ public:
 
             //- Chemical enthalpy [J/kg]
             inline scalar Hc() const;
+
+             //- Heat capacity at constant volume [J/(kg K)]
+            inline scalar Cv(const scalar p, const scalar T) const;
+
+            //- Sensible internal energy [J/kg]
+            inline scalar Es(const scalar p, const scalar T) const;
+
+            //- Absolute internal energy [J/kg]
+            inline scalar Ea(const scalar p, const scalar T) const;
 
             // Entropy [J/(kg K)]
             inline scalar S(const scalar p, const scalar T) const;

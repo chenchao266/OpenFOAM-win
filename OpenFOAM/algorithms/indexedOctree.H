@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -22,7 +24,7 @@ License
     along with OpenFOAM.  If not, see <http://www.gnu.org/licenses/>.
 
 Class
-    indexedOctree
+    Foam::indexedOctree
 
 Description
     Non-pointer based hierarchical recursive searching
@@ -36,12 +38,12 @@ SourceFiles
 #define indexedOctree_H
 
 #include "treeBoundBox.H"
-#include "pointIndexHit.H"
-#include "FixedList.T.H"
-#include "Ostream.H"
-#include "HashSet.T.H"
+#include "pointIndexHit2.H"
+#include "FixedList.H"
+#include "_Ostream.H"
+#include "HashSet.H"
 #include "labelBits.H"
-#include "PackedList.T.H"
+#include "PackedList.H"
 #include "volumeType.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
@@ -67,7 +69,9 @@ TemplateName(indexedOctree);
 \*---------------------------------------------------------------------------*/
 
 template<class Type>
-class indexedOctree :    public indexedOctreeName
+class indexedOctree
+:
+    public indexedOctreeName
 {
 public:
 
@@ -430,10 +434,7 @@ public:
         //- Clone
         autoPtr<indexedOctree<Type>> clone() const
         {
-            return autoPtr<indexedOctree<Type>>
-            (
-                new indexedOctree<Type>(*this)
-            );
+            return autoPtr<indexedOctree<Type>>::New(*this);
         }
 
     // Member Functions
@@ -468,6 +469,12 @@ public:
                         << "Tree is empty" << abort(FatalError);
                 }
                 return nodes_[0].bb_;
+            }
+
+            //- Per node, per octant whether is fully inside/outside/mixed.
+            PackedList<2>& nodeTypes() const
+            {
+                return nodeTypes_;
             }
 
 

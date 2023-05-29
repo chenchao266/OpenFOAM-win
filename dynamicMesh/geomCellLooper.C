@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2019-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -25,16 +28,23 @@ License
 
 #include "geomCellLooper.H"
 #include "polyMesh.H"
-#include "DynamicList.T.H"
+#include "DynamicList.H"
 #include "plane.H"
 #include "meshTools.H"
-#include "SortableList.T.H"
+#include "SortableList.H"
 #include "triSurfaceTools.H"
-#include "HashSet.T.H"
-#include "ListOps.T.H"
+#include "HashSet.H"
+#include "ListOps.H"
 #include "transform.H"
-
 #include "addToRunTimeSelectionTable.H"
+
+// * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
+
+namespace Foam
+{
+    defineTypeNameAndDebug(geomCellLooper, 0);
+    addToRunTimeSelectionTable(cellLooper, geomCellLooper, word);
+}
 
 
 // Extension factor of edges to make sure we catch intersections through
@@ -44,17 +54,6 @@ const Foam::scalar Foam::geomCellLooper::pointEqualTol_ = 1e-3;
 
 // Snap cuts through edges onto edge endpoints. Fraction of edge length.
 Foam::scalar Foam::geomCellLooper::snapTol_ = 0.1;
-
-
-// * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
-
-namespace Foam
-{
-
-defineTypeNameAndDebug(geomCellLooper, 0);
-addToRunTimeSelectionTable(cellLooper, geomCellLooper, word);
-
-}
 
 
 // * * * * * * * * * * * * * Private Member Functions  * * * * * * * * * * * //
@@ -124,10 +123,8 @@ Foam::label Foam::geomCellLooper::snapToVert
     {
         return e.end();
     }
-    else
-    {
-        return -1;
-    }
+
+    return -1;
 }
 
 
@@ -159,9 +156,7 @@ void Foam::geomCellLooper::getBase(const vector& n, vector& e0, vector& e1)
 
 
     // Use component normal to n as base vector.
-    e0 = base - nComp*n;
-
-    e0 /= mag(e0) + VSMALL;
+    e0 = normalised(base - nComp * n);
 
     e1 = n ^ e0;
 
@@ -210,16 +205,9 @@ bool Foam::geomCellLooper::edgeEndsCut
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
-// Construct from components
 Foam::geomCellLooper::geomCellLooper(const polyMesh& mesh)
 :
     cellLooper(mesh)
-{}
-
-
-// * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
-
-Foam::geomCellLooper::~geomCellLooper()
 {}
 
 
@@ -302,14 +290,12 @@ bool Foam::geomCellLooper::cut
         // Check distance of endpoints to cutPlane
         //
 
-        if (!checkedPoints.found(e.start()))
+        if (checkedPoints.insert(e.start()))
         {
-            checkedPoints.insert(e.start());
+            const scalar typLen = pointEqualTol_ * minEdgeLen(e.start());
 
-            scalar typStartLen = pointEqualTol_ * minEdgeLen(e.start());
-
-            // Check distance of startPt to plane.
-            if (cutPlane.distance(points[e.start()]) < typStartLen)
+            // Check distance to plane.
+            if (cutPlane.distance(points[e.start()]) < typLen)
             {
                 // Use point.
                 localLoop.append(vertToEVert(e.start()));
@@ -318,14 +304,13 @@ bool Foam::geomCellLooper::cut
                 useStart = true;
             }
         }
-        if (!checkedPoints.found(e.end()))
+
+        if (checkedPoints.insert(e.end()))
         {
-            checkedPoints.insert(e.end());
+            const scalar typLen = pointEqualTol_ * minEdgeLen(e.end());
 
-            scalar typEndLen = pointEqualTol_ * minEdgeLen(e.end());
-
-            // Check distance of endPt to plane.
-            if (cutPlane.distance(points[e.end()]) < typEndLen)
+            // Check distance to plane.
+            if (cutPlane.distance(points[e.end()]) < typLen)
             {
                 // Use point.
                 localLoop.append(vertToEVert(e.end()));
@@ -363,7 +348,7 @@ bool Foam::geomCellLooper::cut
                     // endpoint so only insert if unique.
                     label cut = vertToEVert(cutVertI);
 
-                    if (findIndex(localLoop, cut) == -1)
+                    if (!localLoop.found(cut))
                     {
                         localLoop.append(vertToEVert(cutVertI));
                         localLoopWeights.append(-GREAT);
@@ -404,8 +389,7 @@ bool Foam::geomCellLooper::cut
 
     forAll(sortedAngles, i)
     {
-        vector toCtr(loopPoints[i] - ctr);
-        toCtr /= mag(toCtr);
+        const vector toCtr = normalised(loopPoints[i] - ctr);
 
         sortedAngles[i] = pseudoAngle(e0, e1, toCtr);
     }

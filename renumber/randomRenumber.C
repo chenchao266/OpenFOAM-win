@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2012 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2012 OpenFOAM Foundation
+    Copyright (C) 2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -65,8 +68,8 @@ Foam::labelList Foam::randomRenumber::renumber
     {
         forAll(newToOld, i)
         {
-            label j = rndGen.integer(0, newToOld.size()-1);
-            Swap(newToOld[i], newToOld[j]);
+            label j = rndGen.position<label>(0, newToOld.size()-1);
+            std::swap(newToOld[i], newToOld[j]);
         }
     }
     return newToOld;

@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2019-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -32,21 +35,21 @@ License
 Foam::edgeMesh::edgeMesh
 (
     const fileName& name,
-    const word& ext
+    const word& fileType
 )
 :
-    points_(0),
-    edges_(0),
+    points_(),
+    edges_(),
     pointEdgesPtr_(nullptr)
 {
-    read(name, ext);
+    read(name, fileType);
 }
 
 
 Foam::edgeMesh::edgeMesh(const fileName& name)
 :
-    points_(0),
-    edges_(0),
+    points_(),
+    edges_(),
     pointEdgesPtr_(nullptr)
 {
     read(name);
@@ -57,28 +60,25 @@ Foam::edgeMesh::edgeMesh(const fileName& name)
 
 bool Foam::edgeMesh::read(const fileName& name)
 {
-    word ext = name.ext();
+    word ext(name.ext());
     if (ext == "gz")
     {
         fileName unzipName = name.lessExt();
         return read(unzipName, unzipName.ext());
     }
-    else
-    {
-        return read(name, ext);
-    }
+
+    return read(name, ext);
 }
 
 
-// Read from file in given format
 bool Foam::edgeMesh::read
 (
     const fileName& name,
-    const word& ext
+    const word& fileType
 )
 {
-    // read via selector mechanism
-    transfer(New(name, ext)());
+    // Read via selector mechanism
+    transfer(*New(name, fileType));
     return true;
 }
 
@@ -86,31 +86,39 @@ bool Foam::edgeMesh::read
 void Foam::edgeMesh::write
 (
     const fileName& name,
-    const edgeMesh& mesh
+    const word& fileType,
+    const edgeMesh& mesh,
+    IOstreamOption streamOpt,
+    const dictionary& options
 )
 {
-    if (debug)
+    DebugInFunction << "Writing to " << name << endl;
+
+    auto* mfuncPtr = writefileExtensionMemberFunctionTable(fileType);
+
+    if (!mfuncPtr)
     {
-        InfoInFunction << "Writing to " << name << endl;
+        FatalErrorInLookup
+        (
+            "extension",
+            fileType,
+            *writefileExtensionMemberFunctionTablePtr_
+        ) << exit(FatalError);
     }
 
-    const word ext = name.ext();
+    mfuncPtr(name, mesh, streamOpt, options);
+}
 
-    writefileExtensionMemberFunctionTable::iterator mfIter =
-        writefileExtensionMemberFunctionTablePtr_->find(ext);
 
-    if (mfIter == writefileExtensionMemberFunctionTablePtr_->end())
-    {
-        FatalErrorInFunction
-            << "Unknown file extension " << ext << nl << nl
-            << "Valid types are :" << endl
-            << writefileExtensionMemberFunctionTablePtr_->sortedToc()
-            << exit(FatalError);
-    }
-    else
-    {
-        mfIter()(name, mesh);
-    }
+void Foam::edgeMesh::write
+(
+    const fileName& name,
+    const edgeMesh& mesh,
+    IOstreamOption streamOpt,
+    const dictionary& options
+)
+{
+    write(name, name.ext(), mesh, streamOpt, options);
 }
 
 
@@ -128,9 +136,7 @@ Foam::Ostream& Foam::operator<<(Ostream& os, const edgeMesh& em)
 {
     fileFormats::edgeMeshFormat::write(os, em.points_, em.edges_);
 
-    // Check state of Ostream
-    os.check("Ostream& operator<<(Ostream&, const edgeMesh&)");
-
+    os.check(FUNCTION_NAME);
     return os;
 }
 
@@ -139,11 +145,9 @@ Foam::Istream& Foam::operator>>(Istream& is, edgeMesh& em)
 {
     fileFormats::edgeMeshFormat::read(is, em.points_, em.edges_);
 
-    em.pointEdgesPtr_.clear();
+    em.pointEdgesPtr_.reset(nullptr);
 
-    // Check state of Istream
-    is.check("Istream& operator>>(Istream&, edgeMesh&)");
-
+    is.check(FUNCTION_NAME);
     return is;
 }
 

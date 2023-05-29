@@ -1,9 +1,11 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2013 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2013 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -36,7 +38,7 @@ SourceFiles
 #ifndef pairGAMGAgglomeration_H
 #define pairGAMGAgglomeration_H
 
-#include "GAMGAgglomeration.T.H"
+#include "GAMGAgglomeration.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -47,7 +49,9 @@ namespace Foam
                            Class pairGAMGAgglomeration Declaration
 \*---------------------------------------------------------------------------*/
 
-class pairGAMGAgglomeration :    public GAMGAgglomeration
+class pairGAMGAgglomeration
+:
+    public GAMGAgglomeration
 {
     // Private data
 
@@ -69,11 +73,11 @@ protected:
             const scalarField& faceWeights
         );
 
-        //- Disallow default bitwise copy construct
-        pairGAMGAgglomeration(const pairGAMGAgglomeration&);
+        //- No copy construct
+        pairGAMGAgglomeration(const pairGAMGAgglomeration&) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const pairGAMGAgglomeration&);
+        //- No copy assignment
+        void operator=(const pairGAMGAgglomeration&) = delete;
 
 
 public:

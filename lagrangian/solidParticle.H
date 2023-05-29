@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2016-2019 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -39,7 +42,7 @@ SourceFiles
 #define solidParticle_H
 
 #include "particle.H"
-#include "IOstream.H"
+#include "_IOstream.H"
 #include "autoPtr.H"
 #include "interpolationCellPoint.H"
 #include "contiguous.H"
@@ -49,11 +52,8 @@ SourceFiles
 namespace Foam
 {
 
+// Forward Declarations
 class solidParticleCloud;
-
-
-// Forward declaration of friend functions and operators
-
 class solidParticle;
 
 Ostream& operator<<(Ostream&, const solidParticle&);
@@ -67,10 +67,7 @@ class solidParticle
 :
     public particle
 {
-    // Private data
-
-        //- Size in bytes of the fields
-        static const std::size_t sizeofFields_;
+    // Private Data
 
         //- Diameter
         scalar d_;
@@ -86,7 +83,7 @@ public:
     //- Class used to pass tracking data to the trackToFace function
     class trackingData
     :
-        public particle::TrackingData<solidParticleCloud>
+        public particle::trackingData
     {
         // Interpolators for continuous phase fields
 
@@ -104,7 +101,7 @@ public:
 
             inline trackingData
             (
-                solidParticleCloud& spc,
+                const solidParticleCloud& spc,
                 const interpolationCellPoint<scalar>& rhoInterp,
                 const interpolationCellPoint<vector>& UInterp,
                 const interpolationCellPoint<scalar>& nuInterp,
@@ -124,7 +121,23 @@ public:
     };
 
 
+    // Static data members
+
+        //- Size in bytes of the fields
+        static const std::size_t sizeofFields;
+
+
     // Constructors
+
+        //- Construct from a position and a cell
+        //  Searches for the rest of the required topology.
+        //  Other properties are zero initialised.
+        inline solidParticle
+        (
+            const polyMesh& mesh,
+            const vector& position,
+            const label celli = -1
+        );
 
         //- Construct from components
         inline solidParticle
@@ -143,7 +156,8 @@ public:
         (
             const polyMesh& mesh,
             Istream& is,
-            bool readFields = true
+            bool readFields = true,
+            bool newFormat = true
         );
 
         //- Construct and return a clone
@@ -152,8 +166,7 @@ public:
             return autoPtr<particle>(new solidParticle(*this));
         }
 
-        //- Factory class to read-construct particles used for
-        //  parallel transfer
+        //- Factory class to read-construct particles (for parallel transfer)
         class iNew
         {
             const polyMesh& mesh_;
@@ -167,10 +180,7 @@ public:
 
             autoPtr<solidParticle> operator()(Istream& is) const
             {
-                return autoPtr<solidParticle>
-                (
-                    new solidParticle(mesh_, is, true)
-                );
+                return autoPtr<solidParticle>::New(mesh_, is, true);
             }
         };
 
@@ -189,44 +199,21 @@ public:
         // Tracking
 
             //- Move
-            bool move(trackingData&, const scalar);
+            bool move(solidParticleCloud&, trackingData&, const scalar);
 
 
         // Patch interactions
 
             //- Overridable function to handle the particle hitting a patch
             //  Executed before other patch-hitting functions
-            bool hitPatch
-            (
-                const polyPatch&,
-                trackingData& td,
-                const label patchi,
-                const scalar trackFraction,
-                const tetIndices& tetIs
-            );
+            bool hitPatch(solidParticleCloud& cloud, trackingData& td);
 
             //- Overridable function to handle the particle hitting a
             //  processorPatch
-            void hitProcessorPatch
-            (
-                const processorPolyPatch&,
-                trackingData& td
-            );
+            void hitProcessorPatch(solidParticleCloud& cloud, trackingData& td);
 
             //- Overridable function to handle the particle hitting a wallPatch
-            void hitWallPatch
-            (
-                const wallPolyPatch&,
-                trackingData& td,
-                const tetIndices&
-            );
-
-            //- Overridable function to handle the particle hitting a polyPatch
-            void hitPatch
-            (
-                const polyPatch&,
-                trackingData& td
-            );
+            void hitWallPatch(solidParticleCloud& cloud, trackingData& td);
 
             //- Transform the physical properties of the particle
             //  according to the given transformation tensor
@@ -235,10 +222,6 @@ public:
             //- Transform the physical properties of the particle
             //  according to the given separation vector
             virtual void transformProperties(const vector& separation);
-
-            //- The nearest distance to a wall that
-            //  the particle can be in the n direction
-            virtual scalar wallImpactDistance(const vector& n) const;
 
 
     // I-O
@@ -254,11 +237,10 @@ public:
 };
 
 
-template<>
-inline bool contiguous<solidParticle>()
-{
-    return true;
-}
+// * * * * * * * * * * * * * * * * * Traits  * * * * * * * * * * * * * * * * //
+
+//- Contiguous data for solidParticle
+template<> struct is_contiguous<solidParticle> : std::true_type {};
 
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //

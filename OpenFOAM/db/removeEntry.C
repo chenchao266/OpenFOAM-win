@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011 OpenFOAM Foundation
+    Copyright (C) 2017-2019 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -24,57 +27,69 @@ License
 \*---------------------------------------------------------------------------*/
 
 #include "removeEntry.H"
-#include "dictionary.H"
+#include "dictionary2.H"
 #include "stringListOps.H"
-#include "IStringStream.H"
-#include "OStringStream.H"
 #include "addToMemberFunctionSelectionTable.H"
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
-using namespace Foam;
-const word functionEntries::removeEntry::typeName
-(
-    functionEntries::removeEntry::typeName_()
-);
-
-// Don't lookup the debug switch here as the debug switch dictionary
-// might include removeEntry
-int functionEntries::removeEntry::debug(0);
 
 namespace Foam
 {
 namespace functionEntries
 {
-    addToMemberFunctionSelectionTable
+    addNamedToMemberFunctionSelectionTable
     (
         functionEntry,
         removeEntry,
         execute,
-        dictionaryIstream
+        dictionaryIstream,
+        remove
     );
-}
-}
+} // End namespace functionEntries
+} // End namespace Foam
 
 
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
 
+
+ namespace Foam{
 bool functionEntries::removeEntry::execute
 (
     dictionary& parentDict,
     Istream& is
 )
 {
-    wordList   dictKeys = parentDict.toc();
-    wordReList patterns = readList<wordRe>(is);
+    const wordRes patterns(functionEntry::readStringList<wordRe>(is));
 
-    labelList indices = findStrings(patterns, dictKeys);
-
-    forAll(indices, indexI)
+    for (const wordRe& key : patterns)
     {
-        parentDict.remove(dictKeys[indices[indexI]]);
+        if (key.isLiteral() && key.find('/') != string::npos)
+        {
+            // Remove scoped keyword, or keyword in the local scope
+            auto finder(parentDict.searchScoped(key, keyType::LITERAL));
+
+            if (finder.good())
+            {
+                finder.context().remove(finder.ptr()->keyword());
+            }
+        }
+        else
+        {
+            // Remove by pattern
+            const wordList dictKeys = parentDict.toc();
+            const labelList indices = findStrings(key, dictKeys);
+
+            for (const auto idx : indices)
+            {
+                parentDict.remove(dictKeys[idx]);
+            }
+        }
     }
 
     return true;
 }
 
+
 // ************************************************************************* //
+
+ } // End namespace Foam

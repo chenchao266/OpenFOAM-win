@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2015-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -28,59 +31,82 @@ Group
     grpFieldFunctionObjects
 
 Description
-    Calculates the value and location of scalar minimum and maximum for a list
-    of user-specified fields.
+    Computes the values and locations of field minima and maxima.
+    These are good indicators of calculation performance, e.g. to confirm that
+    predicted results are within expected bounds, or how well a case is
+    converging.
 
-    For variables with a rank greater than zero, either the min/max of a
-    component value or the magnitude is reported.  When operating in parallel,
-    the processor owning the value is also given.
+    Multiple fields can be processed, where for rank > 0 primitives, e.g.
+    vectors and tensors, the extrema can be calculated per component, or by
+    magnitude.  In addition, spatial location and local processor index are
+    included in the output.
 
-    Example of function object specification:
+    Operands:
+    \table
+      Operand        | Type | Location
+      input          | -    | -
+      output file    | dat  | $FOAM_CASE/postProcessing/\<FO\>/\<time\>/\<file\>
+      output field   | -    | -
+    \endtable
+
+Usage
+    Minimal example by using \c system/controlDict.functions:
     \verbatim
     fieldMinMax1
     {
+        // Mandatory entries (unmodifiable)
         type        fieldMinMax;
-        libs        ("libfieldFunctionObjects.so");
-        ...
-        write       yes;
-        log         yes;
-        location    yes;
+        libs        (fieldFunctionObjects);
+
+        // Mandatory entries (runtime modifiable)
         mode        magnitude;
-        fields
-        (
-            U
-            p
-        );
+        fields      (<field1> <field2> ... <fieldN>);
+
+        // Optional entries (runtime modifiable)
+        location    true;
+
+        // Optional (inherited) entries
+        ...
     }
     \endverbatim
 
-Usage
+    where the entries mean:
     \table
-        Property     | Description             | Required    | Default value
-        type         | type name: fieldMinMax  | yes         |
-        write        | write min/max data to file |  no      | yes
-        log          | write min/max data to standard output | no | no
-        location     | write location of the min/max value | no | yes
-        mode         | calculation mode: magnitude or component | no | magnitude
+      Property     | Description                        | Type | Req'd | Dflt
+      type         | Type name: fieldMinMax             | word |  yes  | -
+      libs         | Library name: fieldFunctionObjects | word |  yes  | -
+      fields       | List of operand fields             | wordList | yes | -
+      location     | Write location of the min/max value | bool | no   | true
+      mode   | Calculation mode: magnitude or component | word | no | magnitude
     \endtable
 
-    Output data is written to the file \<timeDir\>/fieldMinMax.dat
+    The inherited entries are elaborated in:
+     - \link functionObject.H \endlink
+     - \link writeFile.H \endlink
+
+    Usage by the \c postProcess utility is not available.
 
 See also
-    Foam::functionObjects::fvMeshFunctionObject
-    Foam::functionObjects::logFiles
+    - Foam::functionObject
+    - Foam::functionObjects::fvMeshFunctionObject
+    - Foam::functionObjects::writeFile
+    - ExtendedCodeGuide::functionObjects::field::fieldMinMax
 
 SourceFiles
     fieldMinMax.C
+    fieldMinMaxTemplates.C
 
 \*---------------------------------------------------------------------------*/
 
 #ifndef functionObjects_fieldMinMax_H
 #define functionObjects_fieldMinMax_H
 
+#include "Switch.H"
+#include "Enum.H"
 #include "fvMeshFunctionObject.H"
-#include "logFiles.H"
-#include "vector.H"
+#include "writeFile.H"
+#include "vector2.H"
+#include "volFieldSelection.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -90,37 +116,41 @@ namespace functionObjects
 {
 
 /*---------------------------------------------------------------------------*\
-                       Class fieldMinMax Declaration
+                         Class fieldMinMax Declaration
 \*---------------------------------------------------------------------------*/
 
 class fieldMinMax
 :
     public fvMeshFunctionObject,
-    public logFiles
+    public writeFile
 {
+
 public:
 
-    enum modeType
-    {
-        mdMag,
-        mdCmpt
-    };
+    // Public Enumerations
+
+        enum modeType
+        {
+            mdMag,      //!< magnitude
+            mdCmpt      //!< component
+        };
+
 
 protected:
 
-    // Protected data
+    // Protected Data
 
         //- Mode type names
-        static const NamedEnum<modeType, 2> modeTypeNames_;
+        static const Enum<modeType> modeTypeNames_;
 
-        //- Switch to write location of min/max values
-        Switch location_;
+        //- Flag to write location of min/max values
+        bool location_;
 
         //- Mode for min/max - only applicable for ranks > 0
         modeType mode_;
 
         //- Fields to assess min/max
-        wordList fieldSet_;
+        volFieldSelection fieldSet_;
 
 
     // Protected Member Functions
@@ -141,11 +171,17 @@ protected:
             const Type& maxValue
         );
 
-        //- Disallow default bitwise copy construct
-        fieldMinMax(const fieldMinMax&);
 
-        //- Disallow default bitwise assignment
-        void operator=(const fieldMinMax&);
+        //- Output file header information
+        virtual void writeFileHeader(Ostream& os);
+
+        //- Calculate the field min/max for a given field type
+        template<class Type>
+        void calcMinMaxFieldType
+        (
+            const GeometricField<Type, fvPatchField, volMesh>& field,
+            const word& outputFieldName
+        );
 
         //- Calculate the field min/max
         template<class Type>
@@ -154,9 +190,6 @@ protected:
             const word& fieldName,
             const modeType& mode
         );
-
-        //- Output file header information
-        virtual void writeFileHeader(const label i);
 
 
 public:
@@ -175,9 +208,15 @@ public:
             const dictionary& dict
         );
 
+        //- No copy construct
+        fieldMinMax(const fieldMinMax&) = delete;
+
+        //- No copy assignment
+        void operator=(const fieldMinMax&) = delete;
+
 
     //- Destructor
-    virtual ~fieldMinMax();
+    virtual ~fieldMinMax() = default;
 
 
     // Member Functions

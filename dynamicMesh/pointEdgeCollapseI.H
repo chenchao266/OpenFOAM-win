@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2012-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2012-2016 OpenFOAM Foundation
+    Copyright (C) 2019-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -28,7 +31,6 @@ License
 
 // * * * * * * * * * * * * * Private Member Functions  * * * * * * * * * * * //
 
-// Update this with w2.
 template<class TrackingData>
 inline bool Foam::pointEdgeCollapse::update
 (
@@ -91,55 +93,8 @@ inline bool Foam::pointEdgeCollapse::update
             return nearer;
         }
     }
-    else
-    {
-        return false;
-    }
-}
 
-
-// * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
-
-// Null constructor
-inline Foam::pointEdgeCollapse::pointEdgeCollapse()
-:
-    collapsePoint_(GREAT, GREAT, GREAT),
-    collapseIndex_(-2),
-    collapsePriority_(-2)
-{}
-
-
-// Construct from origin, distance
-inline Foam::pointEdgeCollapse::pointEdgeCollapse
-(
-    const point& collapsePoint,
-    const label collapseIndex,
-    const label collapsePriority
-)
-:
-    collapsePoint_(collapsePoint),
-    collapseIndex_(collapseIndex),
-    collapsePriority_(collapsePriority)
-{}
-
-
-// * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
-
-inline const Foam::point& Foam::pointEdgeCollapse::collapsePoint() const
-{
-    return collapsePoint_;
-}
-
-
-inline Foam::label Foam::pointEdgeCollapse::collapseIndex() const
-{
-    return collapseIndex_;
-}
-
-
-inline Foam::label Foam::pointEdgeCollapse::collapsePriority() const
-{
-    return collapsePriority_;
+    return false;
 }
 
 
@@ -158,6 +113,31 @@ inline bool Foam::pointEdgeCollapse::samePoint(const point& pt) const
     }
 }
 
+
+// * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
+
+inline Foam::pointEdgeCollapse::pointEdgeCollapse()
+:
+    collapsePoint_(GREAT, GREAT, GREAT),
+    collapseIndex_(-2),
+    collapsePriority_(-2)
+{}
+
+
+inline Foam::pointEdgeCollapse::pointEdgeCollapse
+(
+    const point& collapsePoint,
+    const label collapseIndex,
+    const label collapsePriority
+)
+:
+    collapsePoint_(collapsePoint),
+    collapseIndex_(collapseIndex),
+    collapsePriority_(collapsePriority)
+{}
+
+
+// * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
 
 template<class TrackingData>
 inline bool Foam::pointEdgeCollapse::valid(TrackingData& td) const
@@ -281,7 +261,7 @@ inline bool Foam::pointEdgeCollapse::equal
 
 inline bool Foam::pointEdgeCollapse::operator==
 (
-    const Foam::pointEdgeCollapse& rhs
+    const pointEdgeCollapse& rhs
 ) const
 {
     return
@@ -293,7 +273,7 @@ inline bool Foam::pointEdgeCollapse::operator==
 
 inline bool Foam::pointEdgeCollapse::operator!=
 (
-    const Foam::pointEdgeCollapse& rhs
+    const pointEdgeCollapse& rhs
 ) const
 {
     return !(*this == rhs);

@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2013-2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -22,10 +24,14 @@ License
     along with OpenFOAM.  If not, see <http://www.gnu.org/licenses/>.
 
 Class
-    Foam::exponential
+    Foam::ParticleStressModels::exponential
+
+Group
+    grpLagrangianIntermediateMPPICParticleStressSubModels
 
 Description
-    exponential distribution model
+    Exponential inter-particle stress model of the same form as used in
+    twoPhaseEulerFoam
 
 SourceFiles
     exponential.C
@@ -35,13 +41,13 @@ SourceFiles
 #ifndef exponential_H
 #define exponential_H
 
-#include "distributionModel.H"
+#include "ParticleStressModel.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 namespace Foam
 {
-namespace distributionModels
+namespace ParticleStressModels
 {
 
 /*---------------------------------------------------------------------------*\
@@ -50,20 +56,18 @@ namespace distributionModels
 
 class exponential
 :
-    public distributionModel
+    public ParticleStressModel
 {
     // Private data
 
-        //- Distribution minimum
-        scalar minValue_;
+        //- Pre-exponential factor
+        scalar preExp_;
 
-        //- Distribution maximum
-        scalar maxValue_;
+        //- Maximum limit of the exponential
+        scalar expMax_;
 
-
-        // Model coefficients
-
-            scalar lambda_;
+        //- Front coefficient
+        scalar g0_;
 
 
 public:
@@ -72,18 +76,21 @@ public:
     TypeName("exponential");
 
 
-    // Constructors
+    //- Constructors
 
         //- Construct from components
-        exponential(const dictionary& dict, cachedRandom& rndGen);
+        exponential(const dictionary& dict);
 
         //- Construct copy
-        exponential(const exponential& p);
+        exponential(const exponential& hc);
 
-        //- Construct and return a clone
-        virtual autoPtr<distributionModel> clone() const
+        //- Clone
+        virtual autoPtr<ParticleStressModel> clone() const
         {
-            return autoPtr<distributionModel>(new exponential(*this));
+            return autoPtr<ParticleStressModel>
+            (
+                new exponential(*this)
+            );
         }
 
 
@@ -91,25 +98,29 @@ public:
     virtual ~exponential();
 
 
-    // Member Functions
+    //- Member Functions
 
-        //- Sample the distributionModel
-        virtual scalar sample() const;
+        //- Collision stress
+        tmp<Field<scalar>> tau
+        (
+            const Field<scalar>& alpha,
+            const Field<scalar>& rho,
+            const Field<scalar>& uRms
+        ) const;
 
-        //- Return the minimum value
-        virtual scalar minValue() const;
-
-        //- Return the maximum value
-        virtual scalar maxValue() const;
-
-        //- Return the mean value
-        virtual scalar meanValue() const;
+        //- Collision stress derivative w.r.t. the volume fraction
+        tmp<Field<scalar>> dTaudTheta
+        (
+            const Field<scalar>& alpha,
+            const Field<scalar>& rho,
+            const Field<scalar>& uRms
+        ) const;
 };
 
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
-} // End namespace distributionModels
+} // End namespace ParticleStressModels
 } // End namespace Foam
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //

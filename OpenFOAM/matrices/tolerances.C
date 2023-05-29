@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011 OpenFOAM Foundation
+    Copyright (C) 2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -24,11 +27,15 @@ License
 \*---------------------------------------------------------------------------*/
 
 #include "tolerances.H"
-#include "Time.T.H"
+#include "Time1.H"
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
-using namespace Foam;
-tolerances::tolerances(const Time& t, const fileName& dictName) :    IOdictionary
+
+
+ namespace Foam{
+tolerances::tolerances(const Time& t, const fileName& dictName)
+:
+    IOdictionary
     (
         IOobject
         (
@@ -39,12 +46,11 @@ tolerances::tolerances(const Time& t, const fileName& dictName) :    IOdictionar
             IOobject::NO_WRITE
         )
     ),
-    relaxationFactors_(ITstream("relaxationFactors", tokenList())()),
-    solverTolerances_(ITstream("solverTolerances", tokenList())()),
-    solverRelativeTolerances_
-    (
-        ITstream("solverRelativeTolerances", tokenList())()
-    )
+
+    // Named, but empty dictionaries
+    relaxationFactors_("relaxationFactors"),
+    solverTolerances_("solverTolerances"),
+    solverRelativeTolerances_("solverRelativeTolerances")
 {
     read();
 }
@@ -56,8 +62,8 @@ bool tolerances::read()
 {
     if (regIOobject::read())
     {
-        const word toleranceSetName(lookup("toleranceSet"));
-        const dictionary& toleranceSet(subDict(toleranceSetName));
+        const word toleranceSetName(get<word>("toleranceSet"));
+        const dictionary& toleranceSet = subDict(toleranceSetName);
 
         if (toleranceSet.found("relaxationFactors"))
         {
@@ -77,10 +83,8 @@ bool tolerances::read()
 
         return true;
     }
-    else
-    {
-        return false;
-    }
+
+    return false;
 }
 
 
@@ -92,13 +96,13 @@ bool tolerances::relax(const word& name) const
 
 scalar tolerances::relaxationFactor(const word& name) const
 {
-    return readScalar(relaxationFactors_.lookup(name));
+    return relaxationFactors_.get<scalar>(name);
 }
 
 
 scalar tolerances::solverTolerance(const word& name) const
 {
-    return readScalar(solverTolerances_.lookup(name));
+    return solverTolerances_.get<scalar>(name);
 }
 
 
@@ -110,8 +114,10 @@ bool tolerances::solverRelativeTolerances() const
 
 scalar tolerances::solverRelativeTolerance(const word& name) const
 {
-    return readScalar(solverRelativeTolerances_.lookup(name));
+    return solverRelativeTolerances_.get<scalar>(name);
 }
 
 
 // ************************************************************************* //
+
+ } // End namespace Foam

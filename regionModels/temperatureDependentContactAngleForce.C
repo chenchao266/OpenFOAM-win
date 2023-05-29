@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2017 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -50,12 +52,12 @@ addToRunTimeSelectionTable
 
 temperatureDependentContactAngleForce::temperatureDependentContactAngleForce
 (
-    surfaceFilmModel& film,
+    surfaceFilmRegionModel& film,
     const dictionary& dict
 )
 :
     contactAngleForce(typeName, film, dict),
-    thetaPtr_(Function1<scalar>::New("theta", coeffDict_))
+    thetaPtr_(Function1<scalar>::New("theta", coeffDict_, &film.regionMesh()))
 {}
 
 
@@ -80,7 +82,7 @@ tmp<volScalarField> temperatureDependentContactAngleForce::theta() const
                 filmModel_.regionMesh()
             ),
             filmModel_.regionMesh(),
-            dimensionedScalar("0", dimless, 0)
+            dimensionedScalar(dimless, Zero)
         )
     );
 

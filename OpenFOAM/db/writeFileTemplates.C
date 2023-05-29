@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2013-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2013-2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -22,24 +24,25 @@ License
     along with OpenFOAM.  If not, see <http://www.gnu.org/licenses/>.
 
 \*---------------------------------------------------------------------------*/
-//#include "writeFile.H"
+
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
-namespace Foam {
-    namespace functionObjects
-    {
-        template<class Type>
-        void writeFile::writeHeaderValue
-        (
-            Ostream& os,
-            const string& property,
-            const Type& value
-        ) const
-        {
-            os << setw(1) << '#' << setw(1) << ' '
-                << setf(ios_base::left) << setw(charWidth() - 2) << property.c_str()
-                << setw(1) << ':' << setw(1) << ' ' << value << nl;
-        }
-    }
+
+
+ namespace Foam{
+template<class Type>
+void functionObjects::writeFile::writeHeaderValue
+(
+    Ostream& os,
+    const string& property,
+    const Type& value
+) const
+{
+    os  << setw(1) << '#' << setw(1) << ' '
+        << setf(ios_base::left) << setw(charWidth() - 2) << property.c_str()
+        << setw(1) << ':' << setw(1) << ' ' << value << nl;
 }
 
+
 // ************************************************************************* //
+
+ } // End namespace Foam

@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -46,13 +48,7 @@ Foam::Ostream& Foam::operator<<(Ostream& os, const reducedUnits& rU)
         << tab << "refNumberDensity = " << rU.refNumberDensity() << " m^-3"
         << endl;
 
-    // Check state of Ostream
-    os.check
-    (
-        "Foam::Ostream& Foam::operator<<(Foam::Ostream&, "
-        "const Foam::reducedUnits&)"
-    );
-
+    os.check(FUNCTION_NAME);
     return os;
 }
 

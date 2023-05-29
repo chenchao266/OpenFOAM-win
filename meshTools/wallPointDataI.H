@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -23,17 +26,12 @@ License
 
 \*---------------------------------------------------------------------------*/
 
-// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
-
-namespace Foam
-{
-
 // * * * * * * * * * * * * * Private Member Functions  * * * * * * * * * * * //
 
 // Update this with w2 if w2 nearer to pt.
 template<class Type>
 template<class TrackingData>
-inline bool wallPointData<Type>::update
+inline bool Foam::wallPointData<Type>::update
 (
     const point& pt,
     const wallPointData<Type>& w2,
@@ -41,11 +39,11 @@ inline bool wallPointData<Type>::update
     TrackingData& td
 )
 {
-    scalar dist2 = magSqr(pt - w2.origin());
+    const scalar dist2 = magSqr(pt - w2.origin());
 
     if (valid(td))
     {
-        scalar diff = distSqr() - dist2;
+        const scalar diff = distSqr() - dist2;
 
         if (diff < 0)
         {
@@ -74,18 +72,16 @@ inline bool wallPointData<Type>::update
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
-// Null constructor
 template<class Type>
-inline wallPointData<Type>::wallPointData()
+inline Foam::wallPointData<Type>::wallPointData()
 :
     wallPoint(),
     data_()
 {}
 
 
-// Construct from components
 template<class Type>
-inline wallPointData<Type>::wallPointData
+inline Foam::wallPointData<Type>::wallPointData
 (
     const point& origin,
     const Type& data,
@@ -99,24 +95,10 @@ inline wallPointData<Type>::wallPointData
 
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
 
-template<class Type>
-inline const Type& wallPointData<Type>::data() const
-{
-    return data_;
-}
-
-
-template<class Type>
-inline Type& wallPointData<Type>::data()
-{
-    return data_;
-}
-
-
 // Update this with w2 if w2 nearer to pt.
 template<class Type>
 template<class TrackingData>
-inline bool wallPointData<Type>::updateCell
+inline bool Foam::wallPointData<Type>::updateCell
 (
     const polyMesh& mesh,
     const label thisCelli,
@@ -141,7 +123,7 @@ inline bool wallPointData<Type>::updateCell
 // Update this with w2 if w2 nearer to pt.
 template<class Type>
 template<class TrackingData>
-inline bool wallPointData<Type>::updateFace
+inline bool Foam::wallPointData<Type>::updateFace
 (
     const polyMesh& mesh,
     const label thisFacei,
@@ -166,7 +148,7 @@ inline bool wallPointData<Type>::updateFace
 // Update this with w2 if w2 nearer to pt.
 template<class Type>
 template<class TrackingData>
-inline bool wallPointData<Type>::updateFace
+inline bool Foam::wallPointData<Type>::updateFace
 (
     const polyMesh& mesh,
     const label thisFacei,
@@ -186,9 +168,5 @@ inline bool wallPointData<Type>::updateFace
     );
 }
 
-
-// ************************************************************************* //
-
-} // End namespace Foam
 
 // ************************************************************************* //

@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -21,15 +24,12 @@ License
     You should have received a copy of the GNU General Public License
     along with OpenFOAM.  If not, see <http://www.gnu.org/licenses/>.
 
-Description
-    Cell layer addition/removal mesh modifier
-
 \*---------------------------------------------------------------------------*/
 
 #include "layerAdditionRemoval.H"
 #include "polyTopoChanger.H"
 #include "polyMesh.H"
-#include "Time.T.H"
+#include "Time1.H"
 #include "primitiveMesh.H"
 #include "polyTopoChange.H"
 #include "addToRunTimeSelectionTable.H"
@@ -95,38 +95,10 @@ void Foam::layerAdditionRemoval::checkDefinition()
 }
 
 
-Foam::scalar Foam::layerAdditionRemoval::readOldThickness
-(
-    const dictionary& dict
-)
-{
-    return dict.lookupOrDefault("oldLayerThickness", -1.0);
-}
-
-
 void Foam::layerAdditionRemoval::clearAddressing() const
 {
-    if (pointsPairingPtr_)
-    {
-        if (debug)
-        {
-            Pout<< "layerAdditionRemoval::clearAddressing()" << nl
-                << "    clearing pointsPairingPtr_" << endl;
-        }
-
-        deleteDemandDrivenData(pointsPairingPtr_);
-    }
-
-    if (facesPairingPtr_)
-    {
-        if (debug)
-        {
-            Pout<< "layerAdditionRemoval::clearAddressing()" << nl
-                << "    clearing facesPairingPtr_" << endl;
-        }
-
-        deleteDemandDrivenData(facesPairingPtr_);
-    }
+    pointsPairingPtr_.reset(nullptr);
+    facesPairingPtr_.reset(nullptr);
 }
 
 
@@ -140,7 +112,7 @@ Foam::layerAdditionRemoval::layerAdditionRemoval
     const word& zoneName,
     const scalar minThickness,
     const scalar maxThickness,
-    const Switch thicknessFromVolume
+    const bool thicknessFromVolume
 )
 :
     polyMeshModifier(name, index, ptc, true),
@@ -166,29 +138,18 @@ Foam::layerAdditionRemoval::layerAdditionRemoval
     const polyTopoChanger& ptc
 )
 :
-    polyMeshModifier(name, index, ptc, Switch(dict.lookup("active"))),
+    polyMeshModifier(name, index, ptc, dict.get<bool>("active")),
     faceZoneID_(dict.lookup("faceZoneName"), ptc.mesh().faceZones()),
-    minLayerThickness_(readScalar(dict.lookup("minLayerThickness"))),
-    maxLayerThickness_(readScalar(dict.lookup("maxLayerThickness"))),
-    thicknessFromVolume_
-    (
-        dict.lookupOrDefault<Switch>("thicknessFromVolume", true)
-    ),
-    oldLayerThickness_(readOldThickness(dict)),
+    minLayerThickness_(dict.get<scalar>("minLayerThickness")),
+    maxLayerThickness_(dict.get<scalar>("maxLayerThickness")),
+    thicknessFromVolume_(dict.getOrDefault("thicknessFromVolume", true)),
+    oldLayerThickness_(dict.getOrDefault<scalar>("oldLayerThickness", -1)),
     pointsPairingPtr_(nullptr),
     facesPairingPtr_(nullptr),
     triggerRemoval_(-1),
     triggerAddition_(-1)
 {
     checkDefinition();
-}
-
-
-// * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
-
-Foam::layerAdditionRemoval::~layerAdditionRemoval()
-{
-    clearAddressing();
 }
 
 

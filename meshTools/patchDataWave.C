@@ -1,9 +1,12 @@
-﻿/*---------------------------------------------------------------------------*\
+/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -23,13 +26,19 @@ License
 
 \*---------------------------------------------------------------------------*/
 
-//#include "patchDataWave.H"
+#include "patchDataWave.H"
+
+// * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
+
+template<class TransferType, class TrackingData>
+int Foam::patchDataWave<TransferType, TrackingData>::dummyTrackData_ = 12345;
+
 
 // * * * * * * * * * * * * * Private Member Functions  * * * * * * * * * * * //
 
 // Set initial set of changed faces (= all wall faces)
-template<class TransferType>
-void Foam::patchDataWave<TransferType>::setChangedFaces
+template<class TransferType, class TrackingData>
+void Foam::patchDataWave<TransferType, TrackingData>::setChangedFaces
 (
     const labelHashSet& patchIDs,
     labelList& changedFaces,
@@ -70,10 +79,10 @@ void Foam::patchDataWave<TransferType>::setChangedFaces
 
 
 // Copy from MeshWave data into *this (distance) and field_ (transported data)
-template<class TransferType>
-Foam::label Foam::patchDataWave<TransferType>::getValues
+template<class TransferType, class TrackingData>
+Foam::label Foam::patchDataWave<TransferType, TrackingData>::getValues
 (
-    const MeshWave<TransferType>& waveInfo
+    const MeshWave<TransferType, TrackingData>& waveInfo
 )
 {
     const polyMesh& mesh = cellDistFuncs::mesh();
@@ -167,41 +176,43 @@ Foam::label Foam::patchDataWave<TransferType>::getValues
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
 // Construct from components
-template<class TransferType>
-Foam::patchDataWave<TransferType>::patchDataWave
+template<class TransferType, class TrackingData>
+Foam::patchDataWave<TransferType, TrackingData>::patchDataWave
 (
     const polyMesh& mesh,
     const labelHashSet& patchIDs,
     const UPtrList<Field<Type>>& initialPatchValuePtrs,
-    const bool correctWalls
+    const bool correctWalls,
+    TrackingData& td
 )
 :
     cellDistFuncs(mesh),
     patchIDs_(patchIDs),
     initialPatchValuePtrs_(initialPatchValuePtrs),
     correctWalls_(correctWalls),
+    td_(td),
     nUnset_(0),
     distance_(mesh.nCells()),
     patchDistance_(mesh.boundaryMesh().size()),
     cellData_(mesh.nCells()),
     patchData_(mesh.boundaryMesh().size())
 {
-    patchDataWave<TransferType>::correct();
+    patchDataWave<TransferType, TrackingData>::correct();
 }
 
 
 // * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
 
-template<class TransferType>
-Foam::patchDataWave<TransferType>::~patchDataWave()
+template<class TransferType, class TrackingData>
+Foam::patchDataWave<TransferType, TrackingData>::~patchDataWave()
 {}
 
 
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
 
 // Correct for mesh geom/topo changes
-template<class TransferType>
-void Foam::patchDataWave<TransferType>::correct()
+template<class TransferType, class TrackingData>
+void Foam::patchDataWave<TransferType, TrackingData>::correct()
 {
     //
     // Set initial changed faces: set TransferType for wall faces
@@ -220,12 +231,13 @@ void Foam::patchDataWave<TransferType>::correct()
     // Do calculate wall distance by 'growing' from faces.
     //
 
-    MeshWave<TransferType> waveInfo
+    MeshWave<TransferType, TrackingData> waveInfo
     (
         mesh(),
         changedFaces,
         faceDist,
-        mesh().globalData().nTotalCells()+1 // max iterations
+        mesh().globalData().nTotalCells()+1,    // max iterations
+        td_
     );
 
 

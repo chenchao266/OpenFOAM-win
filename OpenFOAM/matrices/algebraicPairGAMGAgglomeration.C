@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2016 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -24,7 +27,7 @@ License
 \*---------------------------------------------------------------------------*/
 
 #include "algebraicPairGAMGAgglomeration.H"
-#include "lduMatrix.H"
+#include "lduMatrix2.H"
 #include "addToRunTimeSelectionTable.H"
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
@@ -39,17 +42,18 @@ namespace Foam
         algebraicPairGAMGAgglomeration,
         lduMatrix
     );
-}
 
 
-// * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
-namespace Foam
-{
+
+    // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
+
     algebraicPairGAMGAgglomeration::algebraicPairGAMGAgglomeration
     (
         const lduMatrix& matrix,
         const dictionary& controlDict
-    ) : pairGAMGAgglomeration(matrix.mesh(), controlDict)
+    )
+        :
+        pairGAMGAgglomeration(matrix.mesh(), controlDict)
     {
         const lduMesh& mesh = matrix.mesh();
 
@@ -62,6 +66,6 @@ namespace Foam
             agglomerate(mesh, mag(matrix.upper()));
         }
     }
-}
 
+}
 // ************************************************************************* //

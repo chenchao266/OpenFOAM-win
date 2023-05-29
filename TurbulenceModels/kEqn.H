@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2019-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -58,7 +61,7 @@ SourceFiles
 #ifndef kEqn_H
 #define kEqn_H
 
-#include "LESeddyViscosity.T.H"
+#include "LESeddyViscosity.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -76,13 +79,6 @@ class kEqn
 :
     public LESeddyViscosity<BasicTurbulenceModel>
 {
-    // Private Member Functions
-
-        // Disallow default bitwise copy construct and assignment
-        kEqn(const kEqn&);
-        void operator=(const kEqn&);
-
-
 protected:
 
     // Protected data
@@ -98,6 +94,13 @@ protected:
 
 
     // Protected Member Functions
+
+        //- No copy construct
+        kEqn(const kEqn&) = delete;
+
+        //- No copy assignment
+        void operator=(const kEqn&) = delete;
+
 
         virtual void correctNut();
         virtual tmp<fvScalarMatrix> kSource() const;
@@ -131,8 +134,7 @@ public:
 
 
     //- Destructor
-    virtual ~kEqn()
-    {}
+    virtual ~kEqn() = default;
 
 
     // Member Functions
@@ -145,9 +147,6 @@ public:
         {
             return k_;
         }
-
-        //- Return sub-grid disipation rate
-        virtual tmp<volScalarField> epsilon() const;
 
         //- Return the effective diffusivity for k
         tmp<volScalarField> DkEff() const

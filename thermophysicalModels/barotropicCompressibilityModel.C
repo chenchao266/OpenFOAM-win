@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -55,7 +57,7 @@ Foam::barotropicCompressibilityModel::barotropicCompressibilityModel
             gamma.mesh()
         ),
         gamma.mesh(),
-        dimensionedScalar(psiName, dimensionSet(0, -2, 2, 0, 0), 0)
+        dimensionedScalar(dimensionSet(0, -2, 2, 0, 0), Zero)
     ),
     gamma_(gamma)
 {}

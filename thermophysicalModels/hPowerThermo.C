@@ -1,9 +1,11 @@
-﻿/*---------------------------------------------------------------------------*\
+/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2012-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2012-2017 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -23,7 +25,7 @@ License
 
 \*---------------------------------------------------------------------------*/
 
-//#include "hPowerThermo.H"
+#include "hPowerThermo.H"
 #include "IOstreams.H"
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
@@ -35,10 +37,10 @@ Foam::hPowerThermo<EquationOfState>::hPowerThermo
 )
 :
     EquationOfState(dict),
-    c0_(readScalar(dict.subDict("thermodynamics").lookup("C0"))),
-    n0_(readScalar(dict.subDict("thermodynamics").lookup("n0"))),
-    Tref_(readScalar(dict.subDict("thermodynamics").lookup("Tref"))),
-    Hf_(readScalar(dict.subDict("thermodynamics").lookup("Hf")))
+    c0_(dict.subDict("thermodynamics").get<scalar>("C0")),
+    n0_(dict.subDict("thermodynamics").get<scalar>("n0")),
+    Tref_(dict.subDict("thermodynamics").get<scalar>("Tref")),
+    Hf_(dict.subDict("thermodynamics").get<scalar>("Hf"))
 {}
 
 

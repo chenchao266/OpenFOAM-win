@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -25,16 +27,25 @@ License
 
 #include "searchablePlane.H"
 #include "addToRunTimeSelectionTable.H"
-#include "SortableList.T.H"
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
 
 namespace Foam
 {
-
-defineTypeNameAndDebug(searchablePlane, 0);
-addToRunTimeSelectionTable(searchableSurface, searchablePlane, dict);
-
+    defineTypeNameAndDebug(searchablePlane, 0);
+    addToRunTimeSelectionTable
+    (
+        searchableSurface,
+        searchablePlane,
+        dict
+    );
+    addNamedToRunTimeSelectionTable
+    (
+        searchableSurface,
+        searchablePlane,
+        dict,
+        plane
+    );
 }
 
 
@@ -68,21 +79,19 @@ Foam::pointIndexHit Foam::searchablePlane::findLine
 
 Foam::boundBox Foam::searchablePlane::calcBounds() const
 {
-    point max(VGREAT, VGREAT, VGREAT);
+    boundBox bb(boundBox::greatBox);
 
     for (direction dir = 0; dir < vector::nComponents; dir++)
     {
         if (mag(normal()[dir]) - 1 < SMALL)
         {
-            max[dir] = 0;
-
+            bb.min()[dir] = 0;
+            bb.max()[dir] = 0;
             break;
         }
     }
 
-    point min = -max;
-
-    return boundBox(min, max);
+    return bb;
 }
 
 
@@ -115,12 +124,6 @@ Foam::searchablePlane::searchablePlane
 }
 
 
-// * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
-
-Foam::searchablePlane::~searchablePlane()
-{}
-
-
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
 
 const Foam::wordList& Foam::searchablePlane::regions() const
@@ -140,10 +143,10 @@ void Foam::searchablePlane::boundingSpheres
     scalarField& radiusSqr
 ) const
 {
-    centres.setSize(1);
-    centres[0] = refPoint();
+    centres.resize(1);
+    radiusSqr.resize(1);
 
-    radiusSqr.setSize(1);
+    centres[0] = origin();
     radiusSqr[0] = Foam::sqr(GREAT);
 }
 

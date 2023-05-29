@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2015-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -24,7 +27,7 @@ License
 \*---------------------------------------------------------------------------*/
 
 #include "nearWallFields.H"
-#include "wordReList.H"
+#include "wordRes.H"
 #include "findCellParticle.H"
 #include "mappedPatchBase.H"
 #include "OBJstream.H"
@@ -48,9 +51,8 @@ void Foam::functionObjects::nearWallFields::calcAddressing()
 {
     // Count number of faces
     label nPatchFaces = 0;
-    forAllConstIter(labelHashSet, patchSet_, iter)
+    for (const label patchi : patchSet_)
     {
-        label patchi = iter.key();
         nPatchFaces += mesh_.boundary()[patchi].size();
     }
 
@@ -70,25 +72,79 @@ void Foam::functionObjects::nearWallFields::calcAddressing()
     // Add particles to track to sample locations
     nPatchFaces = 0;
 
-    forAllConstIter(labelHashSet, patchSet_, iter)
+    for (const label patchi : patchSet_)
     {
-        label patchi = iter.key();
         const fvPatch& patch = mesh_.boundary()[patchi];
 
-        vectorField nf(patch.nf());
+        const vectorField nf(patch.nf());
+        const vectorField faceCellCentres(patch.patch().faceCellCentres());
+        const labelUList& faceCells = patch.patch().faceCells();
+        const vectorField::subField faceCentres = patch.patch().faceCentres();
 
         forAll(patch, patchFacei)
         {
-            const point& start = patch.Cf()[patchFacei];
-            const point end = start - distance_*nf[patchFacei];
+            label meshFacei = patch.start()+patchFacei;
 
+            // Find starting point on face (since faceCentre might not
+            // be on face-diagonal decomposition)
+            pointIndexHit startInfo
+            (
+                mappedPatchBase::facePoint
+                (
+                    mesh_,
+                    meshFacei,
+                    polyMesh::FACE_DIAG_TRIS
+                )
+            );
+
+
+            // Starting point and tet
+            point start;
+            const label celli = faceCells[patchFacei];
+
+            if (startInfo.hit())
+            {
+                // Move start point slightly in so it is inside the tet
+                const face& f = mesh_.faces()[meshFacei];
+
+                label tetFacei = meshFacei;
+                label tetPti = (startInfo.index()+1) % f.size();
+
+                start = startInfo.hitPoint();
+
+                // Uncomment below to shift slightly in:
+                tetIndices tet(celli, tetFacei, tetPti);
+                start =
+                    (1.0 - 1e-6)*startInfo.hitPoint()
+                  + 1e-6*tet.tet(mesh_).centre();
+
+                // Re-check that we have a valid location
+                mesh_.findTetFacePt(celli, start, tetFacei, tetPti);
+                if (tetFacei == -1)
+                {
+                    start = faceCellCentres[patchFacei];
+                }
+            }
+            else
+            {
+                // Fallback: start tracking from neighbouring cell centre
+                start = faceCellCentres[patchFacei];
+            }
+
+
+            // TBD: why use start? and not faceCentres[patchFacei]
+            //const point end = start-distance_*nf[patchFacei];
+            const point end = faceCentres[patchFacei]-distance_*nf[patchFacei];
+
+
+            // Add a particle to the cloud with originating face as passive data
             cloud.addParticle
             (
                 new findCellParticle
                 (
                     mesh_,
                     start,
-                    patch.faceCells()[patchFacei],
+                    celli,
                     end,
                     globalWalls.toGlobal(nPatchFaces) // passive data
                 )
@@ -110,9 +166,8 @@ void Foam::functionObjects::nearWallFields::calcAddressing()
         );
         InfoInFunction << "Dumping tracks to " << str.name() << endl;
 
-        forAllConstIter(Cloud<findCellParticle>, cloud, iter)
+        for (const findCellParticle& tp : cloud)
         {
-            const findCellParticle& tp = iter();
             str.write(linePointRef(tp.position(), tp.end()));
         }
     }
@@ -136,15 +191,14 @@ void Foam::functionObjects::nearWallFields::calcAddressing()
     {
         start.setSize(nPatchFaces);
         nPatchFaces = 0;
-        forAllConstIter(Cloud<findCellParticle>, cloud, iter)
+        for (const findCellParticle& tp : cloud)
         {
-            const findCellParticle& tp = iter();
             start[nPatchFaces++] = tp.position();
         }
     }
 
 
-    cloud.move(td, maxTrackLen);
+    cloud.move(cloud, td, maxTrackLen);
 
 
     // Rework cell-to-globalpatchface into a map
@@ -202,24 +256,20 @@ Foam::functionObjects::nearWallFields::nearWallFields
 }
 
 
-// * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
-
-Foam::functionObjects::nearWallFields::~nearWallFields()
-{
-    DebugInFunction << endl;
-}
-
-
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
 
 bool Foam::functionObjects::nearWallFields::read(const dictionary& dict)
 {
     fvMeshFunctionObject::read(dict);
 
-    dict.lookup("fields") >> fieldSet_;
+    dict.readEntry("fields", fieldSet_);
+    dict.readEntry("distance", distance_);
+
     patchSet_ =
-        mesh_.boundaryMesh().patchSet(wordReList(dict.lookup("patches")));
-    distance_ = readScalar(dict.lookup("distance"));
+        mesh_.boundaryMesh().patchSet
+        (
+            dict.get<wordRes>("patches")
+        );
 
 
     // Clear out any previously loaded fields
@@ -237,16 +287,16 @@ bool Foam::functionObjects::nearWallFields::read(const dictionary& dict)
     // Convert field to map
     fieldMap_.resize(2*fieldSet_.size());
     reverseFieldMap_.resize(2*fieldSet_.size());
-    forAll(fieldSet_, setI)
+    forAll(fieldSet_, seti)
     {
-        const word& fldName = fieldSet_[setI].first();
-        const word& sampleFldName = fieldSet_[setI].second();
+        const word& fldName = fieldSet_[seti].first();
+        const word& sampleFldName = fieldSet_[seti].second();
 
         fieldMap_.insert(fldName, sampleFldName);
         reverseFieldMap_.insert(sampleFldName, fldName);
     }
 
-    Log  << type() << " " << name()
+    Info<< type() << " " << name()
         << ": Sampling " << fieldMap_.size() << " fields" << endl;
 
     // Do analysis

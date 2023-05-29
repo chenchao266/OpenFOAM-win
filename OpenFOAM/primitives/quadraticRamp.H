@@ -1,9 +1,12 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2017 OpenFOAM Foundation
+    Copyright (C) 2020-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -25,8 +28,8 @@ Class
     Foam::Function1Types::quadraticRamp
 
 Description
-    Quadratic ramp function starting from 0 and increasing quadraticRampally
-    to 1 from \c t_0 over the \c duration and remaining at 1 thereafter.
+    Quadratic ramp function starting from 0 and increasing quadratically
+    to 1 from \c start over the \c duration and remaining at 1 thereafter.
 
 See also
     Foam::Function1Types::ramp
@@ -36,8 +39,8 @@ SourceFiles
 
 \*---------------------------------------------------------------------------*/
 
-#ifndef quadraticRamp_H
-#define quadraticRamp_H
+#ifndef Function1Types_quadraticRamp_H
+#define Function1Types_quadraticRamp_H
 
 #include "ramp.H"
 
@@ -49,47 +52,38 @@ namespace Function1Types
 {
 
 /*---------------------------------------------------------------------------*\
-                           Class quadraticRamp Declaration
+                        Class quadraticRamp Declaration
 \*---------------------------------------------------------------------------*/
 
-class quadraticRamp :    public ramp
+class quadraticRamp
+:
+    public ramp
 {
-    // Private Member Functions
-
-        //- Disallow default bitwise assignment
-        void operator=(const quadraticRamp&);
-
-
 public:
 
-    // Runtime type information
+    //- Runtime type information
     TypeName("quadraticRamp");
 
 
     // Constructors
 
-        //- Construct from entry name and dictionary
+        //- Construct from entry name, dictionary and optional registry
         quadraticRamp
         (
             const word& entryName,
-            const dictionary& dict
+            const dictionary& dict,
+            const objectRegistry* obrPtr = nullptr
         );
-
-        //- Construct and return a clone
-        virtual tmp<Function1<scalar>> clone() const
-        {
-            return tmp<Function1<scalar>>(new quadraticRamp(*this));
-        }
 
 
     //- Destructor
-    virtual ~quadraticRamp();
+    virtual ~quadraticRamp() = default;
 
 
     // Member Functions
 
         //- Return value for time t
-        scalar value(const scalar t) const;
+        virtual inline scalar value(const scalar t) const;
 };
 
 
@@ -97,6 +91,10 @@ public:
 
 } // End namespace Function1Types
 } // End namespace Foam
+
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+#include "quadraticRampI.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 

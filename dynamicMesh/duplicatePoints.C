@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2019 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -31,21 +34,18 @@ License
 #include "polyMesh.H"
 #include "OFstream.H"
 #include "meshTools.H"
-#include "Time.T.H"
+#include "Time1.H"
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
 
 namespace Foam
 {
-
-defineTypeNameAndDebug(duplicatePoints, 0);
-
+    defineTypeNameAndDebug(duplicatePoints, 0);
 }
 
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
-// Construct from mesh
 Foam::duplicatePoints::duplicatePoints(const polyMesh& mesh)
 :
     mesh_(mesh),
@@ -73,10 +73,10 @@ void Foam::duplicatePoints::setRefinement
     // Per point-to-be-duplicated, in order of the regions the point added.
     duplicates_.setSize(meshPointMap.size());
 
-    forAllConstIter(Map<label>, meshPointMap, iter)
+    forAllConstIters(meshPointMap, iter)
     {
-        label pointi = iter.key();
-        label localI = iter();
+        const label pointi = iter.key();
+        const label localI = iter.val();
         const labelList& regions = pointRegions[localI];
 
         duplicates_[localI].setSize(regions.size());
@@ -85,7 +85,7 @@ void Foam::duplicatePoints::setRefinement
         {
             duplicates_[localI][i] = meshMod.addPoint
             (
-                mesh_.points()[pointi],  // point
+                mesh_.points()[pointi], // point
                 pointi,                 // master point
                 -1,                     // zone for point
                 true                    // supports a cell
@@ -109,10 +109,10 @@ void Foam::duplicatePoints::setRefinement
 
     face newFace;
 
-    forAllConstIter(Map<label>, meshFaceMap, iter)
+    forAllConstIters(meshFaceMap, iter)
     {
-        label facei = iter.key();
-        label localI = iter();
+        const label facei = iter.key();
+        const label localI = iter.val();
 
         // Replace points with duplicated ones.
         const face& fRegion = faceRegions[localI];
@@ -135,7 +135,7 @@ void Foam::duplicatePoints::setRefinement
                 const labelList& dupPoints = duplicates_[iter()];
 
                 // Look up index of my region in the regions for this point
-                label index = findIndex(regions, fRegion[fp]);
+                label index = regions.find(fRegion[fp]);
                 // Get the corresponding added point
                 newFace[fp] = dupPoints[index];
             }
@@ -191,9 +191,9 @@ void Foam::duplicatePoints::setRefinement
         // Output duplicated points
         {
             OFstream str(mesh_.time().path()/"duplicatedPoints.obj");
-            forAllConstIter(Map<label>, meshPointMap, iter)
+            forAllConstIters(meshPointMap, iter)
             {
-                label localI = iter();
+                const label localI = iter.val();
                 const labelList& dups = duplicates_[localI];
 
                 forAll(dups, i)

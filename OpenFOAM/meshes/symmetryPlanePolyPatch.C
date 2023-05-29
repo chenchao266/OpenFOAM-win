@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2013-2015 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2013-2015 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -28,116 +30,126 @@ License
 #include "symmetryPolyPatch.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
-using namespace Foam;
+
 namespace Foam
 {
     defineTypeNameAndDebug(symmetryPlanePolyPatch, 0);
 
     addToRunTimeSelectionTable(polyPatch, symmetryPlanePolyPatch, word);
     addToRunTimeSelectionTable(polyPatch, symmetryPlanePolyPatch, dictionary);
-}
 
 
-// * * * * * * * * * * * Protected Member Functions  * * * * * * * * * * * * //
 
-void symmetryPlanePolyPatch::calcGeometry(PstreamBuffers&)
-{
-    if (n_ == vector::rootMax)
+    // * * * * * * * * * * * Protected Member Functions  * * * * * * * * * * * * //
+
+    void symmetryPlanePolyPatch::calcGeometry(PstreamBuffers&)
     {
-        if (returnReduce(size(), sumOp<label>()))
+        if (n_ == vector::rootMax_)
         {
-            const vectorField& nf(faceNormals());
-            n_ = gAverage(nf);
-
-            if (debug)
+            if (returnReduce(size(), sumOp<label>()))
             {
-                Info<< "Patch " << name() << " calculated average normal "
-                    << n_ << endl;
-            }
+                const vectorField& nf(faceNormals());
+                n_ = gAverage(nf);
 
-
-            // Check the symmetry plane is planar
-            forAll(nf, facei)
-            {
-                if (magSqr(n_ - nf[facei]) > SMALL)
+                if (debug)
                 {
-                    FatalErrorInFunction
-                        << "Symmetry plane '" << name() << "' is not planar."
-                        << endl
-                        << "At local face at "
-                        << primitivePatch::faceCentres()[facei]
-                        << " the normal " << nf[facei]
-                        << " differs from the average normal " << n_
-                        << " by " << magSqr(n_ - nf[facei]) << endl
-                        << "Either split the patch into planar parts"
-                        << " or use the " << symmetryPolyPatch::typeName
-                        << " patch type"
-                        << exit(FatalError);
+                    Info << "Patch " << name() << " calculated average normal "
+                        << n_ << endl;
+                }
+
+
+                // Check the symmetry plane is planar
+                forAll(nf, facei)
+                {
+                    if (magSqr(n_ - nf[facei]) > SMALL)
+                    {
+                        FatalErrorInFunction
+                            << "Symmetry plane '" << name() << "' is not planar."
+                            << endl
+                            << "At local face at "
+                            << primitivePatch::faceCentres()[facei]
+                            << " the normal " << nf[facei]
+                            << " differs from the average normal " << n_
+                            << " by " << magSqr(n_ - nf[facei]) << endl
+                            << "Either split the patch into planar parts"
+                            << " or use the " << symmetryPolyPatch::typeName
+                            << " patch type"
+                            << exit(FatalError);
+                    }
                 }
             }
         }
     }
+
+
+    // * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * * * * * //
+
+    symmetryPlanePolyPatch::symmetryPlanePolyPatch
+    (
+        const word& name,
+        const label size,
+        const label start,
+        const label index,
+        const polyBoundaryMesh& bm,
+        const word& patchType
+    )
+        :
+        polyPatch(name, size, start, index, bm, patchType),
+        n_(vector::rootMax_)
+    {}
+
+
+    symmetryPlanePolyPatch::symmetryPlanePolyPatch
+    (
+        const word& name,
+        const dictionary& dict,
+        const label index,
+        const polyBoundaryMesh& bm,
+        const word& patchType
+    )
+        :
+        polyPatch(name, dict, index, bm, patchType),
+        n_(vector::rootMax_)
+    {}
+
+
+    symmetryPlanePolyPatch::symmetryPlanePolyPatch
+    (
+        const symmetryPlanePolyPatch& pp,
+        const polyBoundaryMesh& bm
+    )
+        :
+        polyPatch(pp, bm),
+        n_(pp.n_)
+    {}
+
+
+    symmetryPlanePolyPatch::symmetryPlanePolyPatch
+    (
+        const symmetryPlanePolyPatch& pp,
+        const polyBoundaryMesh& bm,
+        const label index,
+        const label newSize,
+        const label newStart
+    )
+        :
+        polyPatch(pp, bm, index, newSize, newStart),
+        n_(pp.n_)
+    {}
+
+
+    symmetryPlanePolyPatch::symmetryPlanePolyPatch
+    (
+        const symmetryPlanePolyPatch& pp,
+        const polyBoundaryMesh& bm,
+        const label index,
+        const labelUList& mapAddressing,
+        const label newStart
+    )
+        :
+        polyPatch(pp, bm, index, mapAddressing, newStart),
+        n_(pp.n_)
+    {}
+
 }
-
-
-// * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * * * * * //
-
-symmetryPlanePolyPatch::symmetryPlanePolyPatch
-(
-    const word& name,
-    const label size,
-    const label start,
-    const label index,
-    const polyBoundaryMesh& bm,
-    const word& patchType
-) :    polyPatch(name, size, start, index, bm, patchType),
-    n_(vector::rootMax)
-{}
-
-
-symmetryPlanePolyPatch::symmetryPlanePolyPatch
-(
-    const word& name,
-    const dictionary& dict,
-    const label index,
-    const polyBoundaryMesh& bm,
-    const word& patchType
-) :    polyPatch(name, dict, index, bm, patchType),
-    n_(vector::rootMax)
-{}
-
-
-symmetryPlanePolyPatch::symmetryPlanePolyPatch
-(
-    const symmetryPlanePolyPatch& pp,
-    const polyBoundaryMesh& bm
-) :    polyPatch(pp, bm),
-    n_(pp.n_)
-{}
-
-
-symmetryPlanePolyPatch::symmetryPlanePolyPatch
-(
-    const symmetryPlanePolyPatch& pp,
-    const polyBoundaryMesh& bm,
-    const label index,
-    const label newSize,
-    const label newStart
-) :    polyPatch(pp, bm, index, newSize, newStart),
-    n_(pp.n_)
-{}
-
-
-symmetryPlanePolyPatch::symmetryPlanePolyPatch
-(
-    const symmetryPlanePolyPatch& pp,
-    const polyBoundaryMesh& bm,
-    const label index,
-    const labelUList& mapAddressing,
-    const label newStart
-) :    polyPatch(pp, bm, index, mapAddressing, newStart),
-    n_(pp.n_)
-{}
-
-
 // ************************************************************************* //

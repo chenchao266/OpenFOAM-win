@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2016-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -24,12 +27,13 @@ License
 \*---------------------------------------------------------------------------*/
 
 #include "abort.H"
-#include "dictionary.H"
+#include "dictionary2.H"
 #include "error.H"
-#include "Time.T.H"
+#include "Time1.H"
 #include "OSspecific.H"
-#include "PstreamReduceOps.T.H"
+#include "PstreamReduceOps.H"
 #include "addToRunTimeSelectionTable.H"
+#include <fstream>
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
 
@@ -48,38 +52,84 @@ namespace functionObjects
 }
 }
 
-template<>
-const char* Foam::NamedEnum
-<
-    Foam::functionObjects::abort::actionType,
-    3
->::names[] =
+
+// * * * * * * * * * * * * * * * Local Functions * * * * * * * * * * * * * * //
+
+namespace Foam
 {
-    "noWriteNow",
-    "writeNow",
-    "nextWrite"
-};
 
-const Foam::NamedEnum
-<
-    Foam::functionObjects::abort::actionType,
-    3
-> Foam::functionObjects::abort::actionTypeNames_;
-
-
-// * * * * * * * * * * * * * Private Member Functions  * * * * * * * * * * * //
-
-void Foam::functionObjects::abort::removeFile() const
+// Read file contents and return a stop control as follows:
+//
+// - action=writeNow, action=nextWrite action=noWriteNow :
+//   The signalled action. Report as corresponding <action>.
+//
+// Anything else (empty file, no action=, etc) is reported as <unknown>.
+//
+static enum Time::stopAtControls getStopAction(const std::string& filename)
 {
-    bool hasAbort = isFile(abortFile_);
-    reduce(hasAbort, orOp<bool>());
+    // Slurp entire input file (must exist) as a single string
+    std::string fileContent;
 
-    if (hasAbort && Pstream::master())
+    std::ifstream is(filename);
+    std::getline(is, fileContent, '\0');
+
+    const auto equals = fileContent.find('=');
+
+    if (equals != std::string::npos)
     {
-        // Cleanup ABORT file (on master only)
-        rm(abortFile_);
+        const word actionName(word::validate(fileContent.substr(equals+1)));
+
+        return
+            Time::stopAtControlNames.lookup
+            (
+                actionName,
+                Time::stopAtControls::saUnknown
+            );
+    }
+
+    return Time::stopAtControls::saUnknown;
+}
+
+
+// Long description for the action name
+static std::string longDescription(const Time::stopAtControls ctrl)
+{
+    switch (ctrl)
+    {
+        case Time::saEndTime :
+        {
+            return "continue simulation to the endTime";
+            break;
+        }
+
+        case Time::saNoWriteNow :
+        {
+            return "stop without writing data";
+            break;
+        }
+
+        case Time::saWriteNow :
+        {
+            return "stop and write data";
+            break;
+        }
+
+        case Time::saNextWrite :
+        {
+            return "stop after next data write";
+            break;
+        }
+
+        default:
+        {
+            // Invalid choices already filtered out by Enum
+            return "unknown action";
+            break;
+        }
     }
 }
+
+}  // End namespace Foam
 
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
@@ -91,42 +141,58 @@ Foam::functionObjects::abort::abort
     const dictionary& dict
 )
 :
-    functionObject(name),
-    time_(runTime),
-    abortFile_("$FOAM_CASE/" + name),
-    action_(nextWrite)
+    timeFunctionObject(name, runTime),
+    file_(),
+    defaultAction_(Time::stopAtControls::saUnknown),
+    triggered_(false)
 {
-    abortFile_.expand();
     read(dict);
 
-    // Remove any old files from previous runs
-    removeFile();
+    // Cleanup old files from previous runs
+    if (Pstream::master())
+    {
+        Foam::rm(file_);
+    }
 }
-
-
-// * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
-
-Foam::functionObjects::abort::~abort()
-{}
 
 
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
 
 bool Foam::functionObjects::abort::read(const dictionary& dict)
 {
-    if (dict.found("action"))
+    timeFunctionObject::read(dict);
+
+    file_.clear();
+
+    if (dict.readIfPresent("file", file_))
     {
-        action_ = actionTypeNames_.read(dict.lookup("action"));
-    }
-    else
-    {
-        action_ = nextWrite;
+        file_.expand();
+        if (!file_.empty() && !file_.isAbsolute())
+        {
+            file_ = time_.globalPath()/file_;
+            file_.clean();  // Remove unneeded ".."
+        }
     }
 
-    if (dict.readIfPresent("file", abortFile_))
+    // Ensure we always have a reasonable default file
+    if (file_.empty())
     {
-        abortFile_.expand();
+        file_ = time_.globalPath()/name();
+        file_.clean();  // Remove unneeded ".."
     }
+
+    triggered_ = false;
+
+    defaultAction_ = Time::stopAtControlNames.getOrDefault
+    (
+        "action",
+        dict,
+        Time::stopAtControls::saNextWrite
+    );
+
+    Info<< type() << " activated ("
+        << longDescription(defaultAction_).c_str() <<")" << nl
+        << "    File: " << file_ << endl;
 
     return true;
 }
@@ -134,48 +200,38 @@ bool Foam::functionObjects::abort::read(const dictionary& dict)
 
 bool Foam::functionObjects::abort::execute()
 {
-    bool hasAbort = isFile(abortFile_);
-    reduce(hasAbort, orOp<bool>());
-
-    if (hasAbort)
+    // If it has been triggered (eg, nextWrite) don't need to check it again
+    if (!triggered_)
     {
-        switch (action_)
+        auto action = Time::stopAtControls::saUnknown;
+
+        if (Pstream::master() && Foam::isFile(file_))
         {
-            case noWriteNow :
-            {
-                if (time_.stopAt(Time::saNoWriteNow))
-                {
-                    Info<< "USER REQUESTED ABORT (timeIndex="
-                        << time_.timeIndex()
-                        << "): stop without writing data"
-                        << endl;
-                }
-                break;
-            }
+            action = getStopAction(file_);
 
-            case writeNow :
+            if (Time::stopAtControls::saUnknown == action)
             {
-                if (time_.stopAt(Time::saWriteNow))
-                {
-                    Info<< "USER REQUESTED ABORT (timeIndex="
-                        << time_.timeIndex()
-                        << "): stop+write data"
-                        << endl;
-                }
-                break;
-            }
+                // An unknown action means an empty file or bad content.
+                // Treat as a request for the default action.
 
-            case nextWrite :
-            {
-                if (time_.stopAt(Time::saNextWrite))
-                {
-                    Info<< "USER REQUESTED ABORT (timeIndex="
-                        << time_.timeIndex()
-                        << "): stop after next data write"
-                        << endl;
-                }
-                break;
+                action = defaultAction_;
             }
+        }
+
+        // Send to slaves. Also acts as an MPI barrier
+        label intAction(action);
+        Pstream::scatter(intAction);
+
+        action = Time::stopAtControls(intAction);
+
+        // Call stopAt() on all processes
+        triggered_ = time_.stopAt(action);
+
+        if (triggered_)
+        {
+            Info<< "USER REQUESTED ABORT (timeIndex="
+                << time_.timeIndex() << "): "
+                << longDescription(action).c_str() << endl;
         }
     }
 
@@ -191,7 +247,12 @@ bool Foam::functionObjects::abort::write()
 
 bool Foam::functionObjects::abort::end()
 {
-    removeFile();
+    // Cleanup trigger file
+    if (Pstream::master())
+    {
+        Foam::rm(file_);
+    }
+
     return true;
 }
 

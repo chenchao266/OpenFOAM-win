@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2012 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2012 OpenFOAM Foundation
+    Copyright (C) 2019 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -27,7 +30,7 @@ License
 #include "addToRunTimeSelectionTable.H"
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
-using namespace Foam;
+
 namespace Foam
 {
     defineTypeNameAndDebug(gnuplotGraph, 0);
@@ -35,41 +38,41 @@ namespace Foam
 
     typedef graph::writer graphWriter;
     addToRunTimeSelectionTable(graphWriter, gnuplotGraph, word);
-}
 
 
-// * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
 
-void gnuplotGraph::write(const graph& g, Ostream& os) const
-{
-    os  << "#set term postscript color" << endl
-        << "set output \"" << word(g.title()) << ".ps\"" << endl
-        << "set title " << g.title() << " 0,0" << endl << "show title" << endl
-        << "set xlabel " << g.xName() << " 0,0" << endl << "show xlabel" << endl
-        << "set ylabel " << g.yName() << " 0,0" << endl << "show ylabel" << endl
-        << "plot";
+    // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
 
-    bool firstField = true;
-
-    forAllConstIter(graph, g, iter)
+    void gnuplotGraph::write(const graph& g, Ostream& os) const
     {
-        if (!firstField)
+        os << "#set term postscript color" << endl
+            << "set output \"" << word(g.title()) << ".ps\"" << endl
+            << "set title " << g.title() << " 0,0" << endl << "show title" << endl
+            << "set xlabel " << g.xName() << " 0,0" << endl << "show xlabel" << endl
+            << "set ylabel " << g.yName() << " 0,0" << endl << "show ylabel" << endl
+            << "plot";
+
+        bool firstField = true;
+
+        forAllConstIters(g, iter)
         {
-            os << ',';
+            if (!firstField)
+            {
+                os << ',';
+            }
+            firstField = false;
+
+            os << "'-' title " << iter()->name() << " with lines";
         }
-        firstField = false;
+        os << "; pause -1" << endl;
 
-        os  << "'-' title " << iter()->name() << " with lines";
+
+        forAllConstIters(g, iter)
+        {
+            os << endl;
+            writeXY(g.x(), *iter(), os);
+        }
     }
-    os << "; pause -1" << endl;
 
-
-    forAllConstIter(graph, g, iter)
-    {
-        os  << endl;
-        writeXY(g.x(), *iter(), os);
-    }
 }
-
-
 // ************************************************************************* //

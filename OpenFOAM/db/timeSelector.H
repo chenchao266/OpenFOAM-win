@@ -1,9 +1,12 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2015 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2015 OpenFOAM Foundation
+    Copyright (C) 2018 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -37,14 +40,14 @@ Description
     #include "createTime.H"
     instantList timeDirs = timeSelector::select0(runTime, args);
     ...
-    forAll(timeDirs, timeI)
+    forAll(timeDirs, timei)
     {
         ...
     }
     \endverbatim
 
-    The result program would receive \b -time, @b -latestTime, @b -constant
-    and \b -noZero options. The @b -constant option explicitly includes the
+    The result program would receive \b -time, \b -latestTime, \b -constant
+    and \b -noZero options. The \b -constant option explicitly includes the
     \c constant/ directory in the time list and the \b -noZero option
     explicitly excludes the \c 0/ directory from the time list.
 
@@ -79,7 +82,7 @@ SourceFiles
 namespace Foam
 {
 
-// Forward declaration of classes
+// Forward Declarations
 class argList;
 class Time;
 
@@ -87,35 +90,40 @@ class Time;
                         Class timeSelector Declaration
 \*---------------------------------------------------------------------------*/
 
-class timeSelector :    public scalarRanges
+class timeSelector
+:
+    private scalarRanges
 {
 public:
 
     // Constructors
 
-        //- Construct Null
-        timeSelector();
+        //- Default construct
+        timeSelector() = default;
 
-        //- Construct from Istream
-        timeSelector(Istream&);
+        //- Construct by parsing string for time ranges
+        explicit timeSelector(const std::string& str);
 
 
     // Member Functions
 
         //- Return true if the given instant is within the ranges
-        bool selected(const instant&) const;
+        bool selected(const instant& value) const;
 
         //- Return the set of selected instants in the given list that are
-        //  within the ranges
-        List<bool> selected(const instantList&) const;
+        //- within the ranges
+        List<bool> selected(const instantList& times) const;
 
         //- Select a list of Time values that are within the ranges
-        instantList select(const instantList&) const;
+        instantList select(const instantList& times) const;
 
         //- Select a list of Time values that are within the ranges
-        void inplaceSelect(instantList&) const;
+        void inplaceSelect(instantList& times) const;
 
-        //- Add the options handled by timeSelector to argList::validOptions
+
+    // Static Member Functions
+
+        //- Add timeSelector options to argList::validOptions
         //
         // \param constant
         //   Add the \b -constant option to include the \c constant/ directory
@@ -125,7 +133,7 @@ public:
         //   behaviour (and \b -latestTime behaviour) to exclude the \c 0/
         //   directory. The \c 0/ directory will only be included when
         //   \b -withZero is specified.
-        //   The \b -noZero option has precedence over the @b -withZero option.
+        //   The \b -noZero option has precedence over the \b -withZero option.
         static void addOptions
         (
             const bool constant=true,
@@ -135,14 +143,14 @@ public:
         //- Return the set of times selected based on the argList options
         static instantList select
         (
-            const instantList&,
+            const instantList& times,
             const argList& args,
             const word& constantName = "constant"
         );
 
         //- Return the set of times selected based on the argList options
-        //  also set the runTime to the first instance or the
-        //  \c constant/ directory if no instances are specified or available
+        //- and also set the runTime to the first instance or the
+        //- \c constant/ directory if no instances are specified or available
         static instantList select0
         (
             Time& runTime,
@@ -150,24 +158,12 @@ public:
         );
 
         //- If any time option provided return the set of times (as select0)
-        //  otherwise return just the current time.
+        //- otherwise return just the current time.
         //  Also set the runTime to the first instance
         static instantList selectIfPresent
         (
             Time& runTime,
             const argList& args
-        );
-
-        //- Return the set of times selected based on the argList options
-        //  including support for \b -newTimes in which times are selected
-        //  if the file 'fName' does not exist in the time directory.
-        //  Also set the runTime to the first instance or the
-        //  \c constant/ directory if no instances are specified or available
-        static instantList select
-        (
-            Time& runTime,
-            const argList& args,
-            const word& fName
         );
 };
 

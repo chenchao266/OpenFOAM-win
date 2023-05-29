@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -29,82 +31,85 @@ License
 
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
-namespace Foam
+
+
+ namespace Foam{
+template<class Type>
+nonuniformTransformCyclicPointPatchField<Type>::
+nonuniformTransformCyclicPointPatchField
+(
+    const pointPatch& p,
+    const DimensionedField<Type, pointMesh>& iF
+)
+:
+    cyclicPointPatchField<Type>(p, iF)
+{}
+
+
+template<class Type>
+nonuniformTransformCyclicPointPatchField<Type>::
+nonuniformTransformCyclicPointPatchField
+(
+    const pointPatch& p,
+    const DimensionedField<Type, pointMesh>& iF,
+    const dictionary& dict
+)
+:
+    cyclicPointPatchField<Type>(p, iF, dict)
+{}
+
+
+template<class Type>
+nonuniformTransformCyclicPointPatchField<Type>::
+nonuniformTransformCyclicPointPatchField
+(
+    const nonuniformTransformCyclicPointPatchField<Type>& ptf,
+    const pointPatch& p,
+    const DimensionedField<Type, pointMesh>& iF,
+    const pointPatchFieldMapper& mapper
+)
+:
+    cyclicPointPatchField<Type>(ptf, p, iF, mapper)
+{}
+
+
+template<class Type>
+nonuniformTransformCyclicPointPatchField<Type>::
+nonuniformTransformCyclicPointPatchField
+(
+    const nonuniformTransformCyclicPointPatchField<Type>& ptf,
+    const DimensionedField<Type, pointMesh>& iF
+)
+:
+    cyclicPointPatchField<Type>(ptf, iF)
+{}
+
+
+// * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
+
+template<class Type>
+void nonuniformTransformCyclicPointPatchField<Type>::evaluate
+(
+    const Pstream::commsTypes
+)
 {
-    template<class Type>
-    nonuniformTransformCyclicPointPatchField<Type>::
-        nonuniformTransformCyclicPointPatchField
-        (
-            const pointPatch& p,
-            const DimensionedField<Type, pointMesh>& iF
-        )
-        :
-        cyclicPointPatchField<Type>(p, iF)
-    {}
+    const vectorField& nHat = this->patch().pointNormals();
 
-
-    template<class Type>
-    nonuniformTransformCyclicPointPatchField<Type>::
-        nonuniformTransformCyclicPointPatchField
-        (
-            const pointPatch& p,
-            const DimensionedField<Type, pointMesh>& iF,
-            const dictionary& dict
-        )
-        :
-        cyclicPointPatchField<Type>(p, iF, dict)
-    {}
-
-
-    template<class Type>
-    nonuniformTransformCyclicPointPatchField<Type>::
-        nonuniformTransformCyclicPointPatchField
-        (
-            const nonuniformTransformCyclicPointPatchField<Type>& ptf,
-            const pointPatch& p,
-            const DimensionedField<Type, pointMesh>& iF,
-            const pointPatchFieldMapper& mapper
-        )
-        :
-        cyclicPointPatchField<Type>(ptf, p, iF, mapper)
-    {}
-
-
-    template<class Type>
-    nonuniformTransformCyclicPointPatchField<Type>::
-        nonuniformTransformCyclicPointPatchField
-        (
-            const nonuniformTransformCyclicPointPatchField<Type>& ptf,
-            const DimensionedField<Type, pointMesh>& iF
-        )
-        :
-        cyclicPointPatchField<Type>(ptf, iF)
-    {}
-
-
-    // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
-
-    template<class Type>
-    void nonuniformTransformCyclicPointPatchField<Type>::evaluate
+    tmp<Field<Type>> tvalues =
     (
-        const Pstream::commsTypes
-    )
-    {
-        const vectorField& nHat = this->patch().pointNormals();
+        (
+            this->patchInternalField()
+          + transform(I - 2.0*sqr(nHat), this->patchInternalField())
+        )/2.0
+    );
 
-        tmp<Field<Type>> tvalues =
-            (
-            (
-                this->patchInternalField()
-                + transform(I - 2.0*sqr(nHat), this->patchInternalField())
-                ) / 2.0
-                );
+    // Get internal field to insert values into
+    Field<Type>& iF = const_cast<Field<Type>&>(this->primitiveField());
 
-        // Get internal field to insert values into
-        Field<Type>& iF = const_cast<Field<Type>&>(this->primitiveField());
-
-        this->setInInternalField(iF, tvalues());
-    }
-
+    this->setInInternalField(iF, tvalues());
 }
+
+
 // ************************************************************************* //
+
+ } // End namespace Foam

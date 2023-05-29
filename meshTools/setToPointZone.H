@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011 OpenFOAM Foundation
+    Copyright (C) 2018-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -25,7 +28,52 @@ Class
     Foam::setToPointZone
 
 Description
-    A topoSetSource to select points based on usage in a pointSet.
+    A \c topoSetSource to convert a \c pointSet
+    to a \c pointZone (and associated \c pointSet).
+
+    Operands:
+    \table
+      Operand   | Type      | Location
+      input     | pointSet  | $FOAM_CASE/constant/polyMesh/sets/\<set\>
+      output 1  | pointSet  | $FOAM_CASE/constant/polyMesh/sets/\<set\>
+      output 2  | pointZone | $FOAM_CASE/constant/polyMesh/pointZones
+    \endtable
+
+Usage
+    Minimal example by using \c system/topoSetDict.actions:
+    \verbatim
+    {
+        // Mandatory (inherited) entries
+        name        <name>;
+        type        pointZoneSet;
+        action      <action>;
+
+        // Mandatory entries
+        source      setToCellZone;
+        set         <pointSetName>;
+    }
+    \endverbatim
+
+    where the entries mean:
+    \table
+      Property   | Description                           | Type | Req'd | Dflt
+      name       | Name of pointZone                     | word |  yes  | -
+      type       | Type name: pointZoneSet               | word |  yes  | -
+      action     | Action applied on points - see below  | word |  yes  | -
+      source     | Source name: setToPointZone           | word |  yes  | -
+      set        | Name of input pointSet                | word |  yes  | -
+    \endtable
+
+    Options for the \c action entry:
+    \verbatim
+      new      | Create a new pointZone from selected points of a pointSet
+      add      | Add selected points of a pointSet into this pointZone
+      subtract | Remove selected points of a pointSet from this pointZone
+    \endverbatim
+
+See also
+    - Foam::topoSetSource
+    - Foam::topoSetPointSource
 
 SourceFiles
     setToPointZone.C
@@ -35,7 +83,7 @@ SourceFiles
 #ifndef setToPointZone_H
 #define setToPointZone_H
 
-#include "topoSetSource.H"
+#include "topoSetPointZoneSource.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -48,9 +96,9 @@ namespace Foam
 
 class setToPointZone
 :
-    public topoSetSource
+    public topoSetPointZoneSource
 {
-    // Private data
+    // Private Data
 
         //- Add usage string
         static addToUsageTable usage_;
@@ -58,10 +106,12 @@ class setToPointZone
         //- Name of set to use
         word setName_;
 
+
 public:
 
     //- Runtime type information
     TypeName("setToPointZone");
+
 
     // Constructors
 
@@ -73,37 +123,23 @@ public:
         );
 
         //- Construct from dictionary
-        setToPointZone
-        (
-            const polyMesh& mesh,
-            const dictionary& dict
-        );
+        setToPointZone(const polyMesh& mesh, const dictionary& dict);
 
         //- Construct from Istream
-        setToPointZone
-        (
-            const polyMesh& mesh,
-            Istream&
-        );
+        setToPointZone(const polyMesh& mesh, Istream& is);
 
 
     //- Destructor
-    virtual ~setToPointZone();
+    virtual ~setToPointZone() = default;
 
 
     // Member Functions
 
-        virtual sourceType setType() const
-        {
-            return POINTZONESOURCE;
-        }
-
         virtual void applyToSet
         (
             const topoSetSource::setAction action,
-            topoSet&
+            topoSet& set
         ) const;
-
 };
 
 

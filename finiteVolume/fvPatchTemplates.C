@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2019 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -33,10 +36,19 @@ Foam::tmp<Foam::Field<Type>> Foam::fvPatch::patchInternalField
     const UList<Type>& f
 ) const
 {
-    tmp<Field<Type>> tpif(new Field<Type>(size()));
-    Field<Type>& pif = tpif.ref();
+    return patchInternalField(f, this->faceCells());
+}
 
-    const labelUList& faceCells = this->faceCells();
+
+template<class Type>
+Foam::tmp<Foam::Field<Type>> Foam::fvPatch::patchInternalField
+(
+    const UList<Type>& f,
+    const labelUList& faceCells
+) const
+{
+    auto tpif = tmp<Field<Type>>::New(size());
+    auto& pif = tpif.ref();
 
     forAll(pif, facei)
     {
@@ -54,7 +66,7 @@ void Foam::fvPatch::patchInternalField
     Field<Type>& pif
 ) const
 {
-    pif.setSize(size());
+    pif.resize(size());
 
     const labelUList& faceCells = this->faceCells();
 
@@ -72,16 +84,6 @@ const typename GeometricField::Patch& Foam::fvPatch::patchField
 ) const
 {
     return gf.boundaryField()[index()];
-}
-
-
-template<class GeometricField, class Type>
-typename GeometricField::Patch& Foam::fvPatch::patchField
-(
-    GeometricField& gf
-) const
-{
-    return gf.boundaryFieldRef()[index()];
 }
 
 

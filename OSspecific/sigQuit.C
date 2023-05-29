@@ -2,15 +2,15 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
 -------------------------------------------------------------------------------
+    Copyright (C) 2011-2015 OpenFOAM Foundation
+    Copyright (C) 2011 Symscape
+    Copyright (C) 2018-2021 OpenCFD Ltd.
+-------------------------------------------------------------------------------
 License
-    This file is part of blueCAPE's unofficial mingw patches for OpenFOAM.
-    For more information about these patches, visit:
-         http://bluecfd.com/Core
-
-    This file is a derivative work of OpenFOAM.
+    This file is part of OpenFOAM.
 
     OpenFOAM is free software: you can redistribute it and/or modify it
     under the terms of the GNU General Public License as published by
@@ -25,59 +25,33 @@ License
     You should have received a copy of the GNU General Public License
     along with OpenFOAM.  If not, see <http://www.gnu.org/licenses/>.
 
-Modifications
-    This file is based on the original version for POSIX:
-        OpenFOAM/src/OSspecific/POSIX/
-
-    This file was developed for Windows by:
-        Copyright            : (C) 2011 Symscape
-        Website              : www.symscape.com
-
-    This copy of this file has been created by blueCAPE's unofficial mingw
-    patches for OpenFOAM.
-    For more information about these patches, visit:
-        http://bluecfd.com/Core
-
-    Modifications made:
-      - Derived from the patches for blueCFD 2.1 and 2.2.
-
-Class
-    sigQuit
-
 \*---------------------------------------------------------------------------*/
 
-#include "error.H"
 #include "sigQuit.H"
+#include "error.H"
 #include "JobInfo.H"
 #include "IOstreams.H"
 
-// SIGBREAK is best alternative to SIGQUIT on windows
+// File-local functions
+#include "signalMacros.C"
+
+// NOTE: SIGBREAK is the best alternative to SIGQUIT on windows
+
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
 
-__p_sig_fn_t Foam::sigQuit::oldAction_ = SIG_DFL;
+bool Foam::sigQuit::sigActive_ = false;
+
 
 // * * * * * * * * * * * * * Private Member Functions  * * * * * * * * * * * //
 
-void Foam::sigQuit::sigQuitHandler(int)
+void Foam::sigQuit::sigHandler(int)
 {
-    // Reset old handling
-    const __p_sig_fn_t success = ::signal(SIGBREAK, oldAction_);
+    resetHandler("SIGBREAK", SIGBREAK);
 
-    if (SIG_ERR == success)
-    {
-        FatalErrorIn("Foam::sigQuit::sigQuitHandler()")   
-            << "Cannot reset SIGBREAK trapping"
-            << abort(FatalError);    
-    }
-
-    // Update jobInfo file
-    jobInfo.signalEnd();
-
+    JobInfo::shutdown();        // From running -> finished
     error::printStack(Perr);
-
-    // Throw signal (to old handler)
-    ::raise(SIGBREAK);
+    ::raise(SIGBREAK);          // Throw signal (to old handler)
 }
 
 
@@ -85,7 +59,7 @@ void Foam::sigQuit::sigQuitHandler(int)
 
 Foam::sigQuit::sigQuit()
 {
-    oldAction_ = SIG_DFL;
+    set(false);
 }
 
 
@@ -93,43 +67,33 @@ Foam::sigQuit::sigQuit()
 
 Foam::sigQuit::~sigQuit()
 {
-    // Reset old handling
-    if (SIG_DFL != oldAction_)
-    {
-        const __p_sig_fn_t success = ::signal(SIGBREAK, oldAction_);
-        oldAction_ = SIG_DFL;
-
-        if (SIG_ERR == success)
-        {
-            FatalErrorIn("Foam::sigQuit::~sigQuit()")
-                << "Cannot reset SIGBREAK trapping"
-                << abort(FatalError);    
-        }
-    }
+    unset(false);
 }
 
 
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
 
-void Foam::sigQuit::set(const bool verbose)
+void Foam::sigQuit::set(bool)
 {
-    if (SIG_DFL != oldAction_)
+    if (sigActive_)
     {
-        FatalErrorIn("Foam::sigQuit::set()")   
-            << "Cannot call sigQuit::set() more than once"
-            << abort(FatalError);
+        return;
     }
+    sigActive_ = true;
 
-    oldAction_ = ::signal(SIGBREAK, &Foam::sigQuit::sigQuitHandler);        
+    setHandler("SIGBREAK", SIGBREAK, sigHandler);
+}
 
-    if (SIG_ERR == oldAction_)
+
+void Foam::sigQuit::unset(bool)
+{
+    if (!sigActive_)
     {
-        oldAction_ = SIG_DFL;
-
-        // Not a FatalErrorIn or abort because fails under wine
-        WarningIn("Foam::sigQuit::set()")
-            << "Cannot set SIGBREAK trapping" << endl;
+        return;
     }
+    sigActive_ = false;
+
+    resetHandler("SIGBREAK", SIGBREAK);
 }
 
 

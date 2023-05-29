@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2015-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -73,7 +76,7 @@ void Pstream::gatherList
             label belowID = myComm.below()[belowI];
             const labelList& belowLeaves = comms[belowID].allBelow();
 
-            if (contiguous<T>())
+            if (is_contiguous<T>::value)
             {
                 List<T> receivedValues(belowLeaves.size() + 1);
 
@@ -81,8 +84,8 @@ void Pstream::gatherList
                 (
                     UPstream::commsTypes::scheduled,
                     belowID,
-                    reinterpret_cast<char*>(receivedValues.begin()),
-                    receivedValues.byteSize(),
+                    receivedValues.data_bytes(),
+                    receivedValues.size_bytes(),
                     tag,
                     comm
                 );
@@ -143,7 +146,7 @@ void Pstream::gatherList
                     << " data:" << Values[UPstream::myProcNo(comm)] << endl;
             }
 
-            if (contiguous<T>())
+            if (is_contiguous<T>::value)
             {
                 List<T> sendingValues(belowLeaves.size() + 1);
                 sendingValues[0] = Values[UPstream::myProcNo(comm)];
@@ -157,8 +160,8 @@ void Pstream::gatherList
                 (
                     UPstream::commsTypes::scheduled,
                     myComm.above(),
-                    reinterpret_cast<const char*>(sendingValues.begin()),
-                    sendingValues.byteSize(),
+                    sendingValues.cdata_bytes(),
+                    sendingValues.size_bytes(),
                     tag,
                     comm
                 );
@@ -230,12 +233,12 @@ void Pstream::scatterList
         // Get my communication order
         const commsStruct& myComm = comms[UPstream::myProcNo(comm)];
 
-        // Reveive from up
+        // Receive from up
         if (myComm.above() != -1)
         {
             const labelList& notBelowLeaves = myComm.allNotBelow();
 
-            if (contiguous<T>())
+            if (is_contiguous<T>::value)
             {
                 List<T> receivedValues(notBelowLeaves.size());
 
@@ -243,8 +246,8 @@ void Pstream::scatterList
                 (
                     UPstream::commsTypes::scheduled,
                     myComm.above(),
-                    reinterpret_cast<char*>(receivedValues.begin()),
-                    receivedValues.byteSize(),
+                    receivedValues.data_bytes(),
+                    receivedValues.size_bytes(),
                     tag,
                     comm
                 );
@@ -286,7 +289,7 @@ void Pstream::scatterList
             label belowID = myComm.below()[belowI];
             const labelList& notBelowLeaves = comms[belowID].allNotBelow();
 
-            if (contiguous<T>())
+            if (is_contiguous<T>::value)
             {
                 List<T> sendingValues(notBelowLeaves.size());
 
@@ -299,8 +302,8 @@ void Pstream::scatterList
                 (
                     UPstream::commsTypes::scheduled,
                     belowID,
-                    reinterpret_cast<const char*>(sendingValues.begin()),
-                    sendingValues.byteSize(),
+                    sendingValues.cdata_bytes(),
+                    sendingValues.size_bytes(),
                     tag,
                     comm
                 );

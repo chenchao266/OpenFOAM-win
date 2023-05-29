@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2012-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2012-2016 OpenFOAM Foundation
+    Copyright (C) 2019-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -28,12 +31,42 @@ Group
     grpFieldFunctionObjects
 
 Description
+    Intermediate class for handling field expression function objects
+    (e.g. \c blendingFactor etc.) whereinto a single field is input.
+
+Usage
+    Minimal example by using \c system/controlDict.functions:
+    \verbatim
+    <functionObject>
+    {
+        // Mandatory and optional entries
+        ...
+
+        // Inherited entries
+        field             <field>;
+        result            <fieldResult>;
+        cellZones         ( <cellZone1> <cellZone2> ... <cellZoneN> );
+        nLayers           <label>;
+    }
+    \endverbatim
+
+    where the entries mean:
+    \table
+      Property  | Description                             | Type  | Reqd | Deflt
+      field     | Name of the operand field               | word  | yes  | -
+      result    | Name of the output field  | word | no   | \<FO\>(\<field\>)
+      cellZones | Names of cellZones                    | wordRes | no   | -
+      nLayers   | Number of cell layers around cellZones  | label | no   | 0
+    \endtable
 
 See also
-    Foam::functionObjects::fvMeshFunctionObject
+    - Foam::functionObject
+    - Foam::functionObjects::fvMeshFunctionObject
+    - ExtendedCodeGuide::functionObjects::field::fieldExpression
 
 SourceFiles
     fieldExpression.C
+    fieldExpressionTemplates.C
 
 \*---------------------------------------------------------------------------*/
 
@@ -42,6 +75,7 @@ SourceFiles
 
 #include "fvMeshFunctionObject.H"
 #include "volFieldsFwd.H"
+#include "zoneSubSet.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -60,7 +94,7 @@ class fieldExpression
 {
 protected:
 
-    // Protected member data
+    // Protected Data
 
         //- Name of field to process
         word fieldName_;
@@ -68,26 +102,21 @@ protected:
         //- Name of result field
         word resultName_;
 
+        //- Sub-set mesh
+        autoPtr<Detail::zoneSubSet> zoneSubSetPtr_;
 
-    // Protected member functions
 
+    // Protected Member Functions
+
+        //- Calculate the components of the field and return true if successful
         virtual bool calc() = 0;
 
+        //- Set the name of result field
         void setResultName(const word& typeName, const word& defaultArg);
 
+        //- Return true if required objects are found
         template<class Type>
-        bool foundObject(const word& name);
-
-
-private:
-
-    // Private Member Functions
-
-        //- Disallow default bitwise copy construct
-        fieldExpression(const fieldExpression&);
-
-        //- Disallow default bitwise assignment
-        void operator=(const fieldExpression&);
+        bool foundObject(const word& name, const bool verbose = true) const;
 
 
 public:
@@ -108,15 +137,21 @@ public:
             const word& resultName = word::null
         );
 
+        //- No copy construct
+        fieldExpression(const fieldExpression&) = delete;
+
+        //- No copy assignment
+        void operator=(const fieldExpression&) = delete;
+
 
     //- Destructor
-    virtual ~fieldExpression();
+    virtual ~fieldExpression() = default;
 
 
     // Member Functions
 
         //- Read the fieldExpression data
-        virtual bool read(const dictionary&);
+        virtual bool read(const dictionary& dict);
 
         //- Calculate the result field
         virtual bool execute();

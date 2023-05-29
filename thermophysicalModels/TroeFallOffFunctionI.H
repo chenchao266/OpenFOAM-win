@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -42,10 +44,10 @@ inline Foam::TroeFallOffFunction::TroeFallOffFunction
 
 inline Foam::TroeFallOffFunction::TroeFallOffFunction(const dictionary& dict)
 :
-    alpha_(readScalar(dict.lookup("alpha"))),
-    Tsss_(readScalar(dict.lookup("Tsss"))),
-    Ts_(readScalar(dict.lookup("Ts"))),
-    Tss_(readScalar(dict.lookup("Tss")))
+    alpha_(dict.get<scalar>("alpha")),
+    Tsss_(dict.get<scalar>("Tsss")),
+    Ts_(dict.get<scalar>("Ts")),
+    Tss_(dict.get<scalar>("Tss"))
 {}
 
 
@@ -77,10 +79,10 @@ inline Foam::scalar Foam::TroeFallOffFunction::operator()
 
 inline void Foam::TroeFallOffFunction::write(Ostream& os) const
 {
-    os.writeKeyword("alpha") << alpha_ << token::END_STATEMENT << nl;
-    os.writeKeyword("Tsss") << Tsss_ << token::END_STATEMENT << nl;
-    os.writeKeyword("Ts") << Ts_ << token::END_STATEMENT << nl;
-    os.writeKeyword("Tss") << Tss_ << token::END_STATEMENT << nl;
+    os.writeEntry("alpha", alpha_);
+    os.writeEntry("Tsss", Tsss_);
+    os.writeEntry("Ts", Ts_);
+    os.writeEntry("Tss", Tss_);
 }
 
 

@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -56,10 +58,7 @@ Foam::constAnIsoSolidTransport<Thermo>::New
     const dictionary& dict
 )
 {
-    return autoPtr<constAnIsoSolidTransport<Thermo>>
-    (
-        new constAnIsoSolidTransport<Thermo>(dict)
-    );
+    return autoPtr<constAnIsoSolidTransport<Thermo>>::New(dict);
 }
 
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
@@ -84,7 +83,7 @@ inline Foam::scalar Foam::constAnIsoSolidTransport<Thermo>::
 mu(const scalar p, const scalar T) const
 {
     NotImplemented;
-    return scalar(0);
+    return 0;
 }
 
 
@@ -96,16 +95,6 @@ alphah(const scalar p, const scalar T) const
 }
 
 // * * * * * * * * * * * * * * * Member Operators  * * * * * * * * * * * * * //
-
-template<class Thermo>
-inline void Foam::constAnIsoSolidTransport<Thermo>::operator=
-(
-    const constAnIsoSolidTransport<Thermo>& ct
-)
-{
-    kappa_ = ct.kappa_;
-}
-
 
 template<class Thermo>
 inline void Foam::constAnIsoSolidTransport<Thermo>::operator+=

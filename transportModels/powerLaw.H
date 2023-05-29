@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2017-2019 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -32,8 +35,8 @@ SourceFiles
 
 \*---------------------------------------------------------------------------*/
 
-#ifndef powerLaw_H
-#define powerLaw_H
+#ifndef viscosityModels_powerLaw_H
+#define viscosityModels_powerLaw_H
 
 #include "viscosityModel.H"
 #include "dimensionedScalar.H"
@@ -63,10 +66,15 @@ class powerLaw
         dimensionedScalar nuMin_;
         dimensionedScalar nuMax_;
 
+
+protected:
+
+    // Protected data
+
         volScalarField nu_;
 
 
-    // Private Member Functions
+    // Protected Member Functions
 
         //- Calculate and return the laminar viscosity
         tmp<volScalarField> calcNu() const;
@@ -91,8 +99,7 @@ public:
 
 
     //- Destructor
-    virtual ~powerLaw()
-    {}
+    virtual ~powerLaw() = default;
 
 
     // Member Functions

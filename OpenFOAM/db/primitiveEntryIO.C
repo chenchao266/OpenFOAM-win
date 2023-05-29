@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2015 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2015 OpenFOAM Foundation
+    Copyright (C) 2017-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -21,282 +24,324 @@ License
     You should have received a copy of the GNU General Public License
     along with OpenFOAM.  If not, see <http://www.gnu.org/licenses/>.
 
-Description
-    PrimitiveEntry constructor from Istream and Ostream output operator.
-
 \*---------------------------------------------------------------------------*/
 
 #include "primitiveEntry.H"
 #include "functionEntry.H"
+#include "evalEntry.H"
 
 // * * * * * * * * * * * * * Private Member Functions  * * * * * * * * * * * //
-namespace Foam {
-    void primitiveEntry::append
-    (
-        const token& currToken,
-        const dictionary& dict,
-        Istream& is
-    )
+
+
+ namespace Foam{
+bool primitiveEntry::acceptToken
+(
+    const token& tok,
+    const dictionary& dict,
+    Istream& is
+)
+{
+    bool accept = tok.good();
+
+    if (tok.isDirective())
     {
-        if (currToken.isWord())
-        {
-            const word& w = currToken.wordToken();
+        // Directive (wordToken) begins with '#'. Eg, "#include"
+        // Remove leading '#' sigil before dispatching
 
-            if
-                (
-                    disableFunctionEntries
-                    || w.size() == 1
-                    || (
-                        !(w[0] == '$' && expandVariable(w, dict))
-                        && !(w[0] == '#' && expandFunction(w, dict, is))
-                        )
-                    )
-            {
-                newElmt(tokenIndex()++) = currToken;
-            }
-        }
-        else if (currToken.isVariable())
-        {
-            const string& w = currToken.stringToken();
+        const word& key = tok.wordToken();
 
-            if
-                (
-                    disableFunctionEntries
-                    || w.size() <= 3
-                    || !(
-                        w[0] == '$'
-                        && w[1] == token::BEGIN_BLOCK
-                        && expandVariable(w, dict)
-                        )
-                    )
-            {
-                newElmt(tokenIndex()++) = currToken;
-            }
-        }
-        else
-        {
-            newElmt(tokenIndex()++) = currToken;
-        }
-    }
-
-
-    bool primitiveEntry::expandFunction
-    (
-        const word& keyword,
-        const dictionary& parentDict,
-        Istream& is
-    )
-    {
-        word functionName = keyword(1, keyword.size() - 1);
-        return functionEntry::execute(functionName, parentDict, *this, is);
-    }
-
-
-    bool primitiveEntry::read(const dictionary& dict, Istream& is)
-    {
-        is.fatalCheck
+        // Min-size is 2: sigil '#' with any content
+        accept =
         (
-            "primitiveEntry::readData(const dictionary&, Istream&)"
+            (disableFunctionEntries || key.size() < 2)
+         || !expandFunction(key.substr(1), dict, is)
         );
+    }
+    else if (tok.isExpression())
+    {
+        // Expression (stringToken): ${{ expr }}
+        // Surrounding delimiters are stripped as required in evalEntry
 
-        label blockCount = 0;
-        token currToken;
+        const string& key = tok.stringToken();
 
-        if
+        // Min-size is 6: decorators '${{}}' with any content
+        accept =
+        (
+            (disableFunctionEntries || key.size() < 6)
+         || !functionEntries::evalEntry::execute
             (
-                !is.read(currToken).bad()
-                && currToken.good()
-                && currToken != token::END_STATEMENT
-                )
-        {
-            append(currToken, dict, is);
-
-            if
-                (
-                    currToken == token::BEGIN_BLOCK
-                    || currToken == token::BEGIN_LIST
-                    )
-            {
-                blockCount++;
-            }
-
-            while
-                (
-                    !is.read(currToken).bad()
-                    && currToken.good()
-                    && !(currToken == token::END_STATEMENT && blockCount == 0)
-                    )
-            {
-                if
-                    (
-                        currToken == token::BEGIN_BLOCK
-                        || currToken == token::BEGIN_LIST
-                        )
-                {
-                    blockCount++;
-                }
-                else if
-                    (
-                        currToken == token::END_BLOCK
-                        || currToken == token::END_LIST
-                        )
-                {
-                    blockCount--;
-                }
-
-                append(currToken, dict, is);
-            }
-        }
-
-        is.fatalCheck
-        (
-            "primitiveEntry::readData(const dictionary&, Istream&)"
-        );
-
-        if (currToken.good())
-        {
-            return true;
-        }
-        else
-        {
-            return false;
-        }
-    }
-
-
-    void primitiveEntry::readEntry(const dictionary& dict, Istream& is)
-    {
-        label keywordLineNumber = is.lineNumber();
-        tokenIndex() = 0;
-
-        if (read(dict, is))
-        {
-            setSize(tokenIndex());
-            tokenIndex() = 0;
-        }
-        else
-        {
-            std::ostringstream os;
-            os << "ill defined primitiveEntry starting at keyword '"
-                << keyword() << '\''
-                << " on line " << keywordLineNumber
-                << " and ending at line " << is.lineNumber();
-
-            SafeFatalIOErrorInFunction
-            (
-                is,
-                os.str()
-            );
-        }
-    }
-
-
-    // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
-
-    primitiveEntry::primitiveEntry
-    (
-        const keyType& key,
-        const dictionary& dict,
-        Istream& is
-    ) : entry(key),
-        ITstream
-        (
-            is.name() + '.' + key,
-            tokenList(10),
-            is.format(),
-            is.version()
-        )
-    {
-        readEntry(dict, is);
-    }
-
-
-    primitiveEntry::primitiveEntry(const keyType& key, Istream& is) : entry(key),
-        ITstream
-        (
-            is.name() + '.' + key,
-            tokenList(10),
-            is.format(),
-            is.version()
-        )
-    {
-        readEntry(dictionary::null, is);
-    }
-
-
-    // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
-
-    void primitiveEntry::write(Ostream& os, const bool contentsOnly) const
-    {
-        if (!contentsOnly)
-        {
-            os.writeKeyword(keyword());
-        }
-
-        for (label i = 0; i < size(); ++i)
-        {
-            const token& t = operator[](i);
-            if (t.type() == token::VERBATIMSTRING)
-            {
-                // Bypass token output operator to avoid losing verbatimness.
-                // Handle in Ostreams themselves
-                os.write(t);
-            }
-            else
-            {
-                os << t;
-            }
-
-            if (i < size() - 1)
-            {
-                os << token::SPACE;
-            }
-        }
-
-        if (!contentsOnly)
-        {
-            os << token::END_STATEMENT << endl;
-        }
-    }
-
-
-    void primitiveEntry::write(Ostream& os) const
-    {
-        this->write(os, false);
-    }
-
-
-    // * * * * * * * * * * * * * Ostream operator  * * * * * * * * * * * * * * * //
-
-    template<>
-    Ostream& operator<<
-        (
-            Ostream& os,
-            const InfoProxy<primitiveEntry>& ip
+                dict,
+                *this,
+                key,
+                1,      // Field width is 1
+                is      // For error messages
             )
+        );
+    }
+    else if (tok.isVariable())
     {
-        const primitiveEntry& e = ip.t_;
+        // Variable (stringToken): starts with '$'
+        // Eg, "$varName" or "${varName}"
+        // Remove leading '$' sigil before dispatching
 
-        e.print(os);
+        const string& key = tok.stringToken();
 
-        const label nPrintTokens = 10;
-
-        os << "    primitiveEntry '" << e.keyword() << "' comprises ";
-
-        for (label i = 0; i < min(e.size(), nPrintTokens); i++)
-        {
-            os << nl << "        " << e[i].info();
-        }
-
-        if (e.size() > nPrintTokens)
-        {
-            os << " ...";
-        }
-
-        os << endl;
-
-        return os;
+        // Min-size is 2: sigil '$' with any content
+        accept =
+        (
+            (disableFunctionEntries || key.size() < 2)
+         || !expandVariable(key.substr(1), dict)
+        );
     }
 
+    return accept;
 }
+
+
+bool primitiveEntry::expandFunction
+(
+    const word& functionName,
+    const dictionary& dict,
+    Istream& is
+)
+{
+    return functionEntry::execute(functionName, dict, *this, is);
+}
+
+
+bool primitiveEntry::read(const dictionary& dict, Istream& is)
+{
+    is.fatalCheck(FUNCTION_NAME);
+
+    // Track balanced bracket/brace pairs, with max stack depth of 60.
+    // Use a bitmask to track the opening char: 0 = '()', 1 = '{}'
+    //
+    // Notes
+    // - the bitmask is set *before* increasing the depth since the left
+    //   shift implicitly carries a 1-offset with it.
+    //   Eg, (1u << 0) already corresponds to depth=1 (the first bit)
+    //
+    // - similarly, the bitmask is tested *after* decreasing depth
+
+    uint64_t balanced = 0u;
+    int depth = 0;
+    token tok;
+
+    while
+    (
+        !is.read(tok).bad() && tok.good()
+     && !(tok == token::END_STATEMENT && depth == 0)
+    )
+    {
+        if (tok.isPunctuation())
+        {
+            const char c = tok.pToken();
+            switch (c)
+            {
+                case token::BEGIN_LIST:
+                {
+                    if (depth >= 0 && depth < 61)
+                    {
+                        balanced &= ~(1u << depth); // clear bit
+                    }
+                    ++depth;
+                }
+                break;
+
+                case token::BEGIN_BLOCK:
+                {
+                    if (depth >= 0 && depth < 61)
+                    {
+                        balanced |= (1u << depth); // set bit
+                    }
+                    ++depth;
+                }
+                break;
+
+                case token::END_LIST:
+                {
+                    --depth;
+                    if (depth < 0)
+                    {
+                        reportReadWarning
+                        (
+                            is,
+                            "Too many closing ')' ... was a ';' forgotten?"
+                        );
+                    }
+                    else if (depth < 61 && ((balanced >> depth) & 1u))
+                    {
+                        // Bit was set, but expected it to be unset.
+                        reportReadWarning(is, "Imbalanced '{' with ')'");
+                    }
+                }
+                break;
+
+                case token::END_BLOCK:
+                {
+                    --depth;
+                    if (depth < 0)
+                    {
+                        reportReadWarning
+                        (
+                            is,
+                            "Too many closing '}' ... was a ';' forgotten?"
+                        );
+                    }
+                    else if (depth < 61 && !((balanced >> depth) & 1u))
+                    {
+                        // Bit was unset, but expected it to be set.
+                        reportReadWarning(is, "Imbalanced '(' with '}'");
+                    }
+                }
+                break;
+            }
+        }
+
+        if (acceptToken(tok, dict, is))
+        {
+            newElmt(tokenIndex()++) = std::move(tok);
+        }
+
+        // With/without move: clear any old content and force to have a
+        // known good token so that we can rely on it for the return value.
+
+        tok = token::punctuationToken::NULL_TOKEN;
+    }
+
+    if (depth)
+    {
+        reportReadWarning(is, "Imbalanced brackets");
+    }
+
+    is.fatalCheck(FUNCTION_NAME);
+    return tok.good();
+}
+
+
+void primitiveEntry::readEntry(const dictionary& dict, Istream& is)
+{
+    const label keywordLineNumber = is.lineNumber();
+    tokenIndex() = 0;
+
+    if (read(dict, is))
+    {
+        setSize(tokenIndex());
+        tokenIndex() = 0;
+    }
+    else
+    {
+        std::ostringstream os;
+        os  << "ill defined primitiveEntry starting at keyword '"
+            << keyword() << '\''
+            << " on line " << keywordLineNumber
+            << " and ending at line " << is.lineNumber();
+
+        SafeFatalIOErrorInFunction
+        (
+            is,
+            os.str()
+        );
+    }
+}
+
+
+// * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
+
+primitiveEntry::primitiveEntry
+(
+    const keyType& key,
+    const dictionary& dict,
+    Istream& is
+)
+:
+    entry(key),
+    ITstream
+    (
+        is.name() + '.' + key,
+        tokenList(10),
+        static_cast<IOstreamOption>(is)
+    )
+{
+    readEntry(dict, is);
+}
+
+
+primitiveEntry::primitiveEntry(const keyType& key, Istream& is)
+:
+    primitiveEntry(key, dictionary::null, is)
+{}
+
+
+// * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
+
+void primitiveEntry::write(Ostream& os, const bool contentsOnly) const
+{
+    if (!contentsOnly)
+    {
+        os.writeKeyword(keyword());
+    }
+
+    bool addSpace = false;  // Separate from previous token with a space
+    for (const token& tok : *this)
+    {
+        if (addSpace) os << token::SPACE;
+        addSpace = true;
+
+        // Output token with direct handling in Ostream(s),
+        // or use normal '<<' output operator
+        if (!os.write(tok))
+        {
+            os  << tok;
+        }
+    }
+
+    if (!contentsOnly)
+    {
+        os  << token::END_STATEMENT << endl;
+    }
+}
+
+
+void primitiveEntry::write(Ostream& os) const
+{
+    this->write(os, false);
+}
+
+
+// * * * * * * * * * * * * * * * IOstream Operators  * * * * * * * * * * * * //
+
+template<>
+Ostream& operator<<
+(
+    Ostream& os,
+    const InfoProxy<primitiveEntry>& ip
+)
+{
+    const primitiveEntry& e = ip.t_;
+
+    e.print(os);
+
+    const label nPrintTokens = 10;
+
+    os  << "    primitiveEntry '" << e.keyword() << "' comprises ";
+
+    for (label i=0; i<min(e.size(), nPrintTokens); ++i)
+    {
+        os  << nl << "        " << e[i].info();
+    }
+
+    if (e.size() > nPrintTokens)
+    {
+        os  << " ...";
+    }
+
+    os  << endl;
+
+    return os;
+}
+
+
 // ************************************************************************* //
+
+ } // End namespace Foam

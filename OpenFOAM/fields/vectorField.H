@@ -1,9 +1,12 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2019 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -28,7 +31,7 @@ Description
     Specialisation of Field\<T\> for vector.
 
 SourceFiles
-    vectorField.C
+    vectorFieldTemplates.C
 
 \*---------------------------------------------------------------------------*/
 
@@ -36,7 +39,7 @@ SourceFiles
 #define vectorField_H
 
 #include "scalarField.H"
-#include "vector.H"
+#include "vector2.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -49,16 +52,45 @@ typedef Field<vector> vectorField;
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
-tmp<vectorField> zip
+//- Zip together vector field from components
+template<class Cmpt>
+void zip
 (
-    const tmp<scalarField>& x,
-    const tmp<scalarField>& y,
-    const tmp<scalarField>& z
+    Field<Vector<Cmpt>>& result,
+    const UList<Cmpt>& x,
+    const UList<Cmpt>& y,
+    const UList<Cmpt>& z
 );
+
+//- Zip together vector field from components
+template<class Cmpt>
+tmp<Field<Vector<Cmpt>>> zip
+(
+    const Field<Cmpt>& x,
+    const Field<Cmpt>& y,
+    const Field<Cmpt>& z
+);
+
+//- Unzip vector field into components
+template<class Cmpt>
+void unzip
+(
+    const UList<Vector<Cmpt>>& input,
+    Field<Cmpt>& x,
+    Field<Cmpt>& y,
+    Field<Cmpt>& z
+);
+
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 } // End namespace Foam
+
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+#ifdef NoRepository
+    #include "vectorFieldTemplates.C"
+#endif
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 

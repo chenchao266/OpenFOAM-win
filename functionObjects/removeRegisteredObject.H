@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2013-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2013-2016 OpenFOAM Foundation
+    Copyright (C) 2015-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -30,18 +33,19 @@ Group
 Description
     Removes registered objects if present in the database.
 
+Usage
     Example of function object specification:
     \verbatim
     removeRegisteredObject1
     {
         type        removeRegisteredObject;
-        libs        ("libutilityFunctionObjects.so");
+        libs        (utilityFunctionObjects);
         ...
         objects     (obj1 obj2);
     }
     \endverbatim
 
-Usage
+    Where the entries comprise:
     \table
         Property     | Description             | Required    | Default value
         type         | type name: removeRegisteredObject | yes |
@@ -59,17 +63,13 @@ SourceFiles
 #ifndef functionObjects_removeRegisteredObject_H
 #define functionObjects_removeRegisteredObject_H
 
-#include "functionObject.H"
+#include "regionFunctionObject.H"
 #include "wordList.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 namespace Foam
 {
-
-// Forward declaration of classes
-class objectRegistry;
-
 namespace functionObjects
 {
 
@@ -79,12 +79,9 @@ namespace functionObjects
 
 class removeRegisteredObject
 :
-    public functionObject
+    public regionFunctionObject
 {
-    // Private data
-
-        //- Reference to the objectRegistry
-        const objectRegistry& obr_;
+    // Private Data
 
         //- Names of objects to control
         wordList objectNames_;
@@ -92,11 +89,11 @@ class removeRegisteredObject
 
     // Private member functions
 
-        //- Disallow default bitwise copy construct
-        removeRegisteredObject(const removeRegisteredObject&);
+        //- No copy construct
+        removeRegisteredObject(const removeRegisteredObject&) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const removeRegisteredObject&);
+        //- No copy assignment
+        void operator=(const removeRegisteredObject&) = delete;
 
 
 public:
@@ -117,13 +114,13 @@ public:
 
 
     //- Destructor
-    virtual ~removeRegisteredObject();
+    virtual ~removeRegisteredObject() = default;
 
 
     // Member Functions
 
         //- Read the removeRegisteredObject data
-        virtual bool read(const dictionary&);
+        virtual bool read(const dictionary& dict);
 
         //- Remove the registered objects
         virtual bool execute();

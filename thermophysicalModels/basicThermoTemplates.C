@@ -1,9 +1,12 @@
-﻿/*---------------------------------------------------------------------------*\
+/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2012-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2012-2017 OpenFOAM Foundation
+    Copyright (C) 2017-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -23,179 +26,106 @@ License
 
 \*---------------------------------------------------------------------------*/
 
-//#include "basicThermo.H"
+#include "basicThermo.H"
 
-// * * * * * * * * * * * * * * * * Selectors * * * * * * * * * * * * * * * * //
+// * * * * * * * * * * * * * Private Member Functions  * * * * * * * * * * * //
 
-template<class Thermo, class Table>
-typename Table::iterator Foam::basicThermo::lookupThermo
+template<class Thermo, class ThermoConstructTable>
+typename ThermoConstructTable::mapped_type
+Foam::basicThermo::getThermoOrDie
 (
     const dictionary& thermoTypeDict,
-    Table* tablePtr,
-    const int nCmpt,
-    const char* cmptNames[],
-    const word& thermoTypeName
+    ThermoConstructTable& thermoTable,
+    const word& thermoTypeName,
+    const wordList& cmptNames
 )
 {
     // Lookup the thermo package
-    typename Table::iterator cstrIter = tablePtr->find(thermoTypeName);
+
+    auto ctorIter = thermoTable.cfind(thermoTypeName);
 
     // Print error message if package not found in the table
-    if (cstrIter == tablePtr->end())
+    if (!ctorIter.found())
     {
-        FatalErrorInFunction
-            << "Unknown " << Thermo::typeName << " type " << nl
-            << "thermoType" << thermoTypeDict << nl << nl
-            << "Valid " << Thermo::typeName << " types are:"
-            << nl << nl;
-
-        // Get the list of all the suitable thermo packages available
-        wordList validThermoTypeNames
+        FatalIOErrorInLookup
         (
-            tablePtr->sortedToc()
+            thermoTypeDict,
+            Thermo::typeName,
+            word::null, // Suppress long name? Just output dictionary (above)
+            thermoTable
         );
 
-        // Build a table of the thermo packages constituent parts
-        // Note: row-0 contains the names of constituent parts
-        List<wordList> validThermoTypeNameCmpts
+        basicThermo::printThermoNames
         (
-            validThermoTypeNames.size() + 1
-        );
+            FatalIOError,
+            cmptNames,
+            thermoTable.sortedToc()
+        ) << exit(FatalIOError);
 
-        validThermoTypeNameCmpts[0].setSize(nCmpt);
-        forAll(validThermoTypeNameCmpts[0], j)
-        {
-            validThermoTypeNameCmpts[0][j] = cmptNames[j];
-        }
-
-        // Split the thermo package names into their constituent parts
-        // Removing incompatible entries from the list
-        label j = 0;
-        forAll(validThermoTypeNames, i)
-        {
-            wordList names
-            (
-                Thermo::splitThermoName(validThermoTypeNames[i], nCmpt)
-            );
-
-            if (names.size())
-            {
-                validThermoTypeNameCmpts[j++] = names;
-            }
-        }
-        validThermoTypeNameCmpts.setSize(j);
-
-        // Print the table of available packages
-        // in terms of their constituent parts
-        printTable(validThermoTypeNameCmpts, FatalError);
-
-        FatalError<< exit(FatalError);
+        // return nullptr;
     }
 
-    return cstrIter;
+    return ctorIter.val();
 }
 
 
-template<class Thermo, class Table>
-typename Table::iterator Foam::basicThermo::lookupThermo
+template<class Thermo, class ThermoConstructTable>
+typename ThermoConstructTable::mapped_type
+Foam::basicThermo::getThermoOrDie
 (
     const dictionary& thermoDict,
-    Table* tablePtr
+    ThermoConstructTable& thermoTable
 )
 {
-    if (thermoDict.isDict("thermoType"))
+    const dictionary* dictptr = thermoDict.findDict("thermoType");
+
+    if (dictptr)
     {
-        const dictionary& thermoTypeDict(thermoDict.subDict("thermoType"));
+        const auto& thermoTypeDict = *dictptr;
+
+        const wordList* cmptHeaderPtr = &(wordList::null());
+
+        // Thermo package name, constructed from components
+        const word thermoTypeName
+        (
+            basicThermo::makeThermoName(thermoTypeDict, cmptHeaderPtr)
+        );
 
         Info<< "Selecting thermodynamics package " << thermoTypeDict << endl;
 
-        if (thermoTypeDict.found("properties"))
-        {
-            const int nCmpt = 4;
-            const char* cmptNames[nCmpt] =
-            {
-                "type",
-                "mixture",
-                "properties",
-                "energy"
-            };
-
-            // Construct the name of the thermo package from the components
-            const word thermoTypeName
-            (
-                word(thermoTypeDict.lookup("type")) + '<'
-              + word(thermoTypeDict.lookup("mixture")) + '<'
-              + word(thermoTypeDict.lookup("properties")) + ','
-              + word(thermoTypeDict.lookup("energy")) + ">>"
-            );
-
-            return lookupThermo<Thermo, Table>
-            (
-                thermoTypeDict,
-                tablePtr,
-                nCmpt,
-                cmptNames,
-                thermoTypeName
-            );
-        }
-        else
-        {
-            const int nCmpt = 7;
-            const char* cmptNames[nCmpt] =
-            {
-                "type",
-                "mixture",
-                "transport",
-                "thermo",
-                "equationOfState",
-                "specie",
-                "energy"
-            };
-
-            // Construct the name of the thermo package from the components
-            const word thermoTypeName
-            (
-                word(thermoTypeDict.lookup("type")) + '<'
-              + word(thermoTypeDict.lookup("mixture")) + '<'
-              + word(thermoTypeDict.lookup("transport")) + '<'
-              + word(thermoTypeDict.lookup("thermo")) + '<'
-              + word(thermoTypeDict.lookup("equationOfState")) + '<'
-              + word(thermoTypeDict.lookup("specie")) + ">>,"
-              + word(thermoTypeDict.lookup("energy")) + ">>>"
-            );
-
-            return lookupThermo<Thermo, Table>
-            (
-                thermoTypeDict,
-                tablePtr,
-                nCmpt,
-                cmptNames,
-                thermoTypeName
-            );
-        }
+        return getThermoOrDie<Thermo, ThermoConstructTable>
+        (
+            thermoTypeDict,
+            thermoTable,
+            thermoTypeName,
+            *cmptHeaderPtr
+        );
     }
     else
     {
-        const word thermoTypeName(thermoDict.lookup("thermoType"));
+        const word thermoTypeName(thermoDict.get<word>("thermoType"));
 
         Info<< "Selecting thermodynamics package " << thermoTypeName << endl;
 
-        typename Table::iterator cstrIter = tablePtr->find(thermoTypeName);
+        auto ctorIter = thermoTable.cfind(thermoTypeName);
 
-        if (cstrIter == tablePtr->end())
+        if (!ctorIter.found())
         {
-            FatalErrorInFunction
-                << "Unknown " << Thermo::typeName << " type "
-                << thermoTypeName << nl << nl
-                << "Valid " << Thermo::typeName << " types are:" << nl
-                << tablePtr->sortedToc() << nl
-                << exit(FatalError);
+            FatalIOErrorInLookup
+            (
+                thermoDict,
+                Thermo::typeName,
+                thermoTypeName,
+                thermoTable
+            ) << exit(FatalIOError);
         }
 
-        return cstrIter;
+        return ctorIter.val();
     }
 }
 
+
+// * * * * * * * * * * * * * * * * Selectors * * * * * * * * * * * * * * * * //
 
 template<class Thermo>
 Foam::autoPtr<Thermo> Foam::basicThermo::New
@@ -217,14 +147,13 @@ Foam::autoPtr<Thermo> Foam::basicThermo::New
         )
     );
 
-    typename Thermo::fvMeshConstructorTable::iterator cstrIter =
-        lookupThermo<Thermo, typename Thermo::fvMeshConstructorTable>
-        (
-            thermoDict,
-            Thermo::fvMeshConstructorTablePtr_
-        );
+    auto* ctorPtr = getThermoOrDie<Thermo>
+    (
+        thermoDict,
+        *(Thermo::fvMeshConstructorTablePtr_)
+    );
 
-    return autoPtr<Thermo>(cstrIter()(mesh, phaseName));
+    return autoPtr<Thermo>(ctorPtr(mesh, phaseName));
 }
 
 
@@ -236,14 +165,44 @@ Foam::autoPtr<Thermo> Foam::basicThermo::New
     const word& phaseName
 )
 {
-    typename Thermo::dictionaryConstructorTable::iterator cstrIter =
-        lookupThermo<Thermo, typename Thermo::dictionaryConstructorTable>
-        (
-            dict,
-            Thermo::dictionaryConstructorTablePtr_
-        );
+    auto* ctorPtr = getThermoOrDie<Thermo>
+    (
+        dict,
+        *(Thermo::dictionaryConstructorTablePtr_)
+    );
 
-    return autoPtr<Thermo>(cstrIter()(mesh, dict, phaseName));
+    return autoPtr<Thermo>(ctorPtr(mesh, dict, phaseName));
+}
+
+
+template<class Thermo>
+Foam::autoPtr<Thermo> Foam::basicThermo::New
+(
+    const fvMesh& mesh,
+    const word& phaseName,
+    const word& dictName
+)
+{
+    IOdictionary thermoDict
+    (
+        IOobject
+        (
+            dictName,
+            mesh.time().constant(),
+            mesh,
+            IOobject::MUST_READ_IF_MODIFIED,
+            IOobject::NO_WRITE,
+            false
+        )
+    );
+
+    auto* ctorPtr = getThermoOrDie<Thermo>
+    (
+        thermoDict,
+        *(Thermo::fvMeshDictPhaseConstructorTablePtr_)
+    );
+
+    return autoPtr<Thermo>(ctorPtr(mesh, phaseName, dictName));
 }
 
 

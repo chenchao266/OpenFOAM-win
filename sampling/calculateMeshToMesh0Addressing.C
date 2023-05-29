@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2020 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -29,9 +32,7 @@ Description
 \*---------------------------------------------------------------------------*/
 
 #include "meshToMesh0.H"
-#include "SubField.T.H"
 
-#include "indexedOctree.H"
 #include "treeDataCell.H"
 #include "treeDataFace.H"
 
@@ -39,11 +40,8 @@ Description
 
 void Foam::meshToMesh0::calcAddressing()
 {
-    if (debug)
-    {
-        InfoInFunction
-            << "Calculating mesh-to-mesh cell addressing" << endl;
-    }
+    DebugInFunction
+        << "Calculating mesh-to-mesh cell addressing" << endl;
 
     // set reference to cells
     const cellList& fromCells = fromMesh_.cells();
@@ -60,10 +58,7 @@ void Foam::meshToMesh0::calcAddressing()
 
     // visit all boundaries and mark the cell next to the boundary.
 
-    if (debug)
-    {
-        InfoInFunction << "Setting up rescue" << endl;
-    }
+    DebugInFunction << "Setting up rescue" << endl;
 
     List<bool> boundaryCell(fromCells.size(), false);
 
@@ -91,13 +86,11 @@ void Foam::meshToMesh0::calcAddressing()
         meshBb.max() + vector(typDim, typDim, typDim)
     );
 
-    if (debug)
-    {
-        Info<< "\nMesh" << endl;
-        Info<< "   bounding box           : " << meshBb << endl;
-        Info<< "   bounding box (shifted) : " << shiftedBb << endl;
-        Info<< "   typical dimension      :" << shiftedBb.typDim() << endl;
-    }
+    DebugInfo
+        << "\nMesh" << nl
+        << "   bounding box           : " << meshBb << nl
+        << "   bounding box (shifted) : " << shiftedBb << nl
+        << "   typical dimension      : " << shiftedBb.typDim() << endl;
 
     indexedOctree<treeDataCell> oc
     (
@@ -201,11 +194,8 @@ void Foam::meshToMesh0::calcAddressing()
         }
     }
 
-    if (debug)
-    {
-        InfoInFunction
-            << "Finished calculating mesh-to-mesh cell addressing" << endl;
-    }
+    DebugInFunction
+        << "Finished calculating mesh-to-mesh cell addressing" << endl;
 }
 
 
@@ -281,6 +271,11 @@ void Foam::meshToMesh0::cellAddresses
             if (boundaryCell[curCell])
             {
                 cellAddressing_[toI] = oc.findInside(p);
+
+                if (cellAddressing_[toI] != -1)
+                {
+                    curCell = cellAddressing_[toI];
+                }
             }
             else
             {
@@ -331,8 +326,13 @@ void Foam::meshToMesh0::cellAddresses
 
                 if (!found)
                 {
-                    // Still not found so us the octree
+                    // Still not found so use the octree
                     cellAddressing_[toI] = oc.findInside(p);
+
+                    if (cellAddressing_[toI] != -1)
+                    {
+                        curCell = cellAddressing_[toI];
+                    }
                 }
             }
         }

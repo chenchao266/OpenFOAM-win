@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -56,10 +58,7 @@ template<class Thermo>
 inline Foam::autoPtr<Foam::constTransport<Thermo>>
 Foam::constTransport<Thermo>::clone() const
 {
-    return autoPtr<constTransport<Thermo>>
-    (
-        new constTransport<Thermo>(*this)
-    );
+    return autoPtr<constTransport<Thermo>>::New(*this);
 }
 
 
@@ -70,10 +69,7 @@ Foam::constTransport<Thermo>::New
     const dictionary& dict
 )
 {
-    return autoPtr<constTransport<Thermo>>
-    (
-        new constTransport<Thermo>(dict)
-    );
+    return autoPtr<constTransport<Thermo>>::New(dict);
 }
 
 
@@ -113,19 +109,6 @@ inline Foam::scalar Foam::constTransport<Thermo>::alphah
 
 
 // * * * * * * * * * * * * * * * Member Operators  * * * * * * * * * * * * * //
-
-template<class Thermo>
-inline void Foam::constTransport<Thermo>::operator=
-(
-    const constTransport<Thermo>& ct
-)
-{
-    Thermo::operator=(ct);
-
-    mu_ = ct.mu_;
-    rPr_ = ct.rPr_;
-}
-
 
 template<class Thermo>
 inline void Foam::constTransport<Thermo>::operator+=

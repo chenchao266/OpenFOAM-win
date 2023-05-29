@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011 OpenFOAM Foundation
+    Copyright (C) 2017-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -24,288 +27,304 @@ License
 \*---------------------------------------------------------------------------*/
 
 #include "labelRanges.H"
-#include "ListOps.T.H"
+#include "ListOps.H"
 
-// * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
-namespace Foam {
-    const labelRanges labelRanges::endLabelRanges_;
-    const labelRanges::const_iterator labelRanges::endIter_;
+// * * * * * * * * * * * * * * * Local Functions * * * * * * * * * * * * * * //
 
+namespace Foam
+{
 
-    // * * * * * * * * * * * * * Private Member Functions  * * * * * * * * * * * //
-
-    void labelRanges::insertBefore
-    (
-        const label insert,
-        const labelRange& range
-    )
-    {
-        // insert via copying up
-        label nElem = this->size();
-
-        if (labelRange::debug)
-        {
-            Info << "before insert "
-                << nElem << " elements, insert at " << insert << nl
-                << *this << endl;
-        }
-
-        ParentType::setSize(nElem + 1);
-
-        if (labelRange::debug)
-        {
-            Info << "copy between " << nElem << " and " << insert << nl;
-        }
-
-        for (label i = nElem - 1; i >= insert; --i)
-        {
-            if (labelRange::debug)
-            {
-                Info << "copy from " << (i) << " to " << (i + 1) << nl;
-            }
-
-            ParentType::operator[](i + 1) = ParentType::operator[](i);
-        }
-
-        // finally insert the range
-        if (labelRange::debug)
-        {
-            Info << "finally insert the range at " << insert << nl;
-        }
-        ParentType::operator[](insert) = range;
-    }
-
-
-    void labelRanges::purgeEmpty()
-    {
-        // purge empty ranges by copying down
-        label nElem = 0;
-        forAll(*this, elemI)
-        {
-            if (!ParentType::operator[](elemI).empty())
-            {
-                if (nElem != elemI)
-                {
-                    ParentType::operator[](nElem) = ParentType::operator[](elemI);
-                }
-                ++nElem;
-            }
-        }
-
-        // truncate
-        this->ParentType::setSize(nElem);
-    }
-
-
-    Ostream& labelRanges::printRange
-    (
-        Ostream& os,
-        const labelRange& range
-    ) const
+    // Print range for debugging purposes
+    static Ostream& printRange(Ostream& os, const labelRange& range)
     {
         if (range.empty())
         {
-            os << "empty";
+            os  << "empty";
         }
         else
         {
-            os << range << " = " << range.first() << ":" << range.last();
+            os  << range << " = " << range.first() << ":" << range.last();
         }
         return os;
     }
 
+} // End namespace Foam
 
-    // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
-    labelRanges::labelRanges(Istream& is)
+
+// * * * * * * * * * * * * * Private Member Functions  * * * * * * * * * * * //
+
+
+ namespace Foam{
+void labelRanges::insertBefore
+(
+    const label insert,
+    const labelRange& range
+)
+{
+    auto& list = static_cast<StorageContainer&>(*this);
+
+    // Insert via copying up
+    label nElem = list.size();
+
+    if (labelRange::debug)
     {
-        is >> *this;
+        Info<< "before insert "
+            << nElem << " elements, insert at " << insert << nl
+            << list << endl;
     }
 
+    list.resize(nElem+1);
 
-    // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
-
-    bool labelRanges::add(const labelRange& range)
+    if (labelRange::debug)
     {
-        if (range.empty())
+        Info<< "copy between " << nElem << " and " << insert << nl;
+    }
+
+    for (label i = nElem-1; i >= insert; --i)
+    {
+        if (labelRange::debug)
         {
-            return false;
-        }
-        else if (this->empty())
-        {
-            this->append(range);
-            return true;
+            Info<< "copy from " << (i) << " to " << (i+1) << nl;
         }
 
-        // find the correct place for insertion
-        forAll(*this, elemI)
-        {
-            labelRange& currRange = ParentType::operator[](elemI);
+        list[i+1] = list[i];
+    }
 
-            if (currRange.intersects(range, true))
+    // Finally insert the range
+    if (labelRange::debug)
+    {
+        Info<< "finally insert the range at " << insert << nl;
+    }
+
+    list[insert] = range;
+}
+
+
+void labelRanges::purgeEmpty()
+{
+    auto& list = static_cast<StorageContainer&>(*this);
+
+    // Purge empty ranges by copying down
+    label nElem = 0;
+
+    forAll(list, elemi)
+    {
+        if (!list[elemi].empty())
+        {
+            if (nElem != elemi)
             {
-                // absorb into the existing (adjacent/overlapping) range
-                currRange += range;
-
-                // might connect with the next following range(s)
-                for (; elemI < this->size() - 1; ++elemI)
-                {
-                    labelRange& nextRange = ParentType::operator[](elemI + 1);
-                    if (currRange.intersects(nextRange, true))
-                    {
-                        currRange += nextRange;
-                        nextRange.clear();
-                    }
-                    else
-                    {
-                        break;
-                    }
-                }
-
-                // done - remove any empty ranges that might have been created
-                purgeEmpty();
-                return true;
-                break;
+                list[nElem] = list[elemi];
             }
-            else if (range < currRange)
-            {
-                insertBefore(elemI, range);
-                return true;
-                break;
-            }
+            ++nElem;
         }
+    }
+
+    // Truncate
+    list.resize(nElem);
+}
 
 
-        // not found: simply append
+// * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
+
+labelRanges::labelRanges(Istream& is)
+{
+    is  >> *this;
+}
+
+
+// * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
+
+bool labelRanges::add(const labelRange& range)
+{
+    if (range.empty())
+    {
+        return false;
+    }
+    else if (this->empty())
+    {
         this->append(range);
-
         return true;
     }
 
+    auto& list = static_cast<StorageContainer&>(*this);
 
-    bool labelRanges::remove(const labelRange& range)
+    // Find the correct place for insertion
+    forAll(list, elemi)
     {
-        bool status = false;
-        if (range.empty() || this->empty())
-        {
-            return status;
-        }
+        labelRange& currRange = list[elemi];
 
-        forAll(*this, elemI)
+        if (currRange.overlaps(range, true))
         {
-            labelRange& currRange = ParentType::operator[](elemI);
+            // absorb into the existing (adjacent/overlapping) range
+            currRange.join(range);
 
-            if (range.first() > currRange.first())
+            // Might connect with the next following range(s)
+            for (; elemi < this->size()-1; ++elemi)
             {
-                if (range.last() < currRange.last())
+                labelRange& nextRange = list[elemi+1];
+                if (currRange.overlaps(nextRange, true))
                 {
-                    // removal of range fragments of currRange
-
-                    if (labelRange::debug)
-                    {
-                        Info << "Fragment removal ";
-                        printRange(Info, range) << " from ";
-                        printRange(Info, currRange) << endl;
-                    }
-
-                    // left-hand-side fragment: insert before current range
-                    label lower = currRange.first();
-                    label upper = range.first() - 1;
-
-                    labelRange fragment(lower, upper - lower + 1);
-
-                    // right-hand-side fragment
-                    lower = range.last() + 1;
-                    upper = currRange.last();
-
-                    currRange = labelRange(lower, upper - lower + 1);
-                    status = true;
-                    insertBefore(elemI, fragment);
-
-                    if (labelRange::debug)
-                    {
-                        Info << "fragment ";
-                        printRange(Info, fragment) << endl;
-                        Info << "yields ";
-                        printRange(Info, currRange) << endl;
-                    }
-
-                    // fragmentation can only affect a single range
-                    // thus we are done
+                    currRange.join(nextRange);
+                    nextRange.clear();
+                }
+                else
+                {
                     break;
                 }
-                else if (range.first() <= currRange.last())
-                {
-                    // keep left-hand-side, remove right-hand-side
-
-                    if (labelRange::debug)
-                    {
-                        Info << "RHS removal ";
-                        printRange(Info, range) << " from ";
-                        printRange(Info, currRange) << endl;
-                    }
-
-                    const label lower = currRange.first();
-                    const label upper = range.first() - 1;
-
-                    currRange = labelRange(lower, upper - lower + 1);
-                    status = true;
-
-                    if (labelRange::debug)
-                    {
-                        Info << "yields ";
-                        printRange(Info, currRange) << endl;
-                    }
-                }
             }
-            else if (range.first() <= currRange.first())
-            {
-                if (range.last() >= currRange.first())
-                {
-                    // remove left-hand-side, keep right-hand-side
 
-                    if (labelRange::debug)
-                    {
-                        Info << "LHS removal ";
-                        printRange(Info, range) << " from ";
-                        printRange(Info, currRange) << endl;
-                    }
-
-                    const label lower = range.last() + 1;
-                    const label upper = currRange.last();
-
-                    currRange = labelRange(lower, upper - lower + 1);
-                    status = true;
-
-                    if (labelRange::debug)
-                    {
-                        Info << "yields ";
-                        printRange(Info, currRange) << endl;
-                    }
-                }
-            }
+            // Done - remove any empty ranges that might have been created
+            purgeEmpty();
+            return true;
+            break;
         }
+        else if (range < currRange)
+        {
+            insertBefore(elemi, range);
+            return true;
+            break;
+        }
+    }
 
-        purgeEmpty();
 
+    // not found: simply append
+    this->append(range);
+
+    return true;
+}
+
+
+bool labelRanges::remove(const labelRange& range)
+{
+    bool status = false;
+    if (range.empty() || this->empty())
+    {
         return status;
     }
 
+    auto& list = static_cast<StorageContainer&>(*this);
 
-    // * * * * * * * * * * * * * * * Friend Operators  * * * * * * * * * * * * * //
-
-    Istream& operator>>(Istream& is, labelRanges& ranges)
+    forAll(list, elemi)
     {
-        is >> static_cast<labelRanges::ParentType&>(ranges);
-        return is;
+        labelRange& currRange = list[elemi];
+
+        if (range.first() > currRange.first())
+        {
+            if (range.last() < currRange.last())
+            {
+                // Removal of range fragments of currRange
+
+                if (labelRange::debug)
+                {
+                    Info<< "Fragment removal ";
+                    printRange(Info, range) << " from ";
+                    printRange(Info, currRange) << endl;
+                }
+
+                // left-hand-side fragment: insert before current range
+                label lower = currRange.first();
+                label upper = range.first() - 1;
+
+                labelRange fragment(lower, upper - lower + 1);
+
+                // right-hand-side fragment
+                lower = range.last() + 1;
+                upper = currRange.last();
+
+                currRange.reset(lower, upper - lower + 1);
+                currRange.clampSize();
+                status = true;
+                insertBefore(elemi, fragment);
+
+                if (labelRange::debug)
+                {
+                    Info<< "fragment ";
+                    printRange(Info, fragment) << endl;
+                    Info<< "yields ";
+                    printRange(Info, currRange) << endl;
+                }
+
+                // fragmentation can only affect a single range
+                // thus we are done
+                break;
+            }
+            else if (range.first() <= currRange.last())
+            {
+                // keep left-hand-side, remove right-hand-side
+
+                if (labelRange::debug)
+                {
+                    Info<< "RHS removal ";
+                    printRange(Info, range) << " from ";
+                    printRange(Info, currRange) << endl;
+                }
+
+                const label lower = currRange.first();
+                const label upper = range.first() - 1;
+
+                currRange.reset(lower, upper - lower + 1);
+                currRange.clampSize();
+                status = true;
+
+                if (labelRange::debug)
+                {
+                    Info<< "yields ";
+                    printRange(Info, currRange) << endl;
+                }
+            }
+        }
+        else if (range.first() <= currRange.first())
+        {
+            if (range.last() >= currRange.first())
+            {
+                // remove left-hand-side, keep right-hand-side
+
+                if (labelRange::debug)
+                {
+                    Info<< "LHS removal ";
+                    printRange(Info, range) << " from ";
+                    printRange(Info, currRange) << endl;
+                }
+
+                const label lower = range.last() + 1;
+                const label upper = currRange.last();
+
+                currRange.reset(lower, upper - lower + 1);
+                currRange.clampSize();
+                status = true;
+
+                if (labelRange::debug)
+                {
+                    Info<< "yields ";
+                    printRange(Info, currRange) << endl;
+                }
+            }
+        }
     }
 
+    purgeEmpty();
 
-    Ostream& operator<<(Ostream& os, const labelRanges& ranges)
-    {
-        os << static_cast<const labelRanges::ParentType&>(ranges);
-        return os;
-    }
-
+    return status;
 }
+
+
+// * * * * * * * * * * * * * * * Friend Operators  * * * * * * * * * * * * * //
+
+Istream& operator>>(Istream& is, labelRanges& ranges)
+{
+    is  >> static_cast<labelRanges::StorageContainer&>(ranges);
+    return is;
+}
+
+
+Ostream& operator<<(Ostream& os, const labelRanges& ranges)
+{
+    os  << static_cast<const labelRanges::StorageContainer&>(ranges);
+    return os;
+}
+
+
 // ************************************************************************* //
+
+ } // End namespace Foam

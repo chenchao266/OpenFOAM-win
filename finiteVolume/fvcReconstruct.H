@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -57,7 +59,7 @@ namespace fvc
         <typename outerProduct<vector, Type>::type, fvPatchField, volMesh>
     > reconstruct
     (
-        const surfaceFieldType<Type>&
+        const GeometricField<Type, fvsPatchField, surfaceMesh>&
     );
 
     template<class Type>
@@ -67,7 +69,7 @@ namespace fvc
         <typename outerProduct<vector, Type>::type, fvPatchField, volMesh>
     > reconstruct
     (
-        const tmp<surfaceFieldType<Type>>&
+        const tmp<GeometricField<Type, fvsPatchField, surfaceMesh>>&
     );
 
     tmp<volScalarField> reconstructMag(const surfaceScalarField&);

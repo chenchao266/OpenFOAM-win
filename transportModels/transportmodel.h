@@ -1,9 +1,11 @@
-﻿/*---------------------------------------------------------------------------*\
+/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2013 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2013 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -53,11 +55,11 @@ class transportModel
 {
     // Private Member Functions
 
-        //- Disallow copy construct
-        transportModel(const transportModel&);
+        //- No copy construct
+        transportModel(const transportModel&) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const transportModel&);
+        //- No copy assignment
+        void operator=(const transportModel&) = delete;
 
 
 public:

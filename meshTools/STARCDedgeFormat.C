@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2016 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -24,34 +27,35 @@ License
 \*---------------------------------------------------------------------------*/
 
 #include "STARCDedgeFormat.H"
-#include "ListOps.T.H"
+#include "ListOps.H"
 #include "clock.H"
-#include "PackedBoolList.H"
-#include "IStringStream.H"
+#include "bitSet.H"
+#include "StringStream.H"
 
 // * * * * * * * * * * * * * Private Member Functions  * * * * * * * * * * * //
 
 inline void Foam::fileFormats::STARCDedgeFormat::writeLines
 (
     Ostream& os,
-    const edgeList& edges
+    const edgeList& edges,
+    label starCellId
 )
 {
-    writeHeader(os, "CELL");
+    starCellId = max(1, starCellId);   // Enforce 1-based cellId
 
-    forAll(edges, edgeI)
+    for (const edge& e : edges)
     {
-        const edge& e = edges[edgeI];
-        const label cellId = edgeI + 1;
-
-        os  << cellId                    // includes 1 offset
-            << ' ' << starcdLineShape_   // 2(line) shape
+        os  << starCellId
+            << ' ' << starcdLine         // 2(line) shape
             << ' ' << e.size()
             << ' ' << 401                // arbitrary value
-            << ' ' << starcdLineType_;   // 5(line)
+            << ' ' << starcdLineType;    // 5(line)
 
-        os  << nl << "  " << cellId << "  "
+        os  << nl
+            << "  " << starCellId << "  "
             << (e[0]+1) << "  " << (e[1]+1) << nl;
+
+        ++starCellId;
     }
 }
 
@@ -65,9 +69,9 @@ void Foam::fileFormats::STARCDedgeFormat::writeCase
     const label nEdges
 )
 {
-    word caseName = os.name().lessExt().name();
+    const word caseName = os.name().nameLessExt();
 
-    os  << "! STAR-CD file written " << clock::dateTime().c_str() << nl
+    os  << "! STARCD file written " << clock::dateTime().c_str() << nl
         << "! " << pointLst.size() << " points, " << nEdges << " lines" << nl
         << "! case " << caseName << nl
         << "! ------------------------------" << nl;
@@ -112,18 +116,18 @@ bool Foam::fileFormats::STARCDedgeFormat::read
 
     fileName baseName = filename.lessExt();
 
-    // STAR-CD index of points
+    // STARCD index of points
     List<label> pointId;
 
-    // read points from .vrt file
+    // Read points from .vrt file
     readPoints
     (
-        IFstream(baseName + ".vrt")(),
+        IFstream(starFileName(baseName, STARCDCore::VRT_FILE))(),
         storedPoints(),
         pointId
     );
 
-    // Build inverse mapping (STAR-CD pointId -> index)
+    // Build inverse mapping (STARCD pointId -> index)
     Map<label> mapPointId(2*pointId.size());
     forAll(pointId, i)
     {
@@ -131,13 +135,13 @@ bool Foam::fileFormats::STARCDedgeFormat::read
     }
     pointId.clear();
 
-    // note which points were really used and which can be culled
-    PackedBoolList usedPoints(points().size());
+    // Note which points were really used and which can be culled
+    bitSet usedPoints(points().size());
 
-    //
-    // read .cel file
+
+    // Read .cel file
     // ~~~~~~~~~~~~~~
-    IFstream is(baseName + ".cel");
+    IFstream is(starFileName(baseName, STARCDCore::CEL_FILE));
     if (!is.good())
     {
         FatalErrorInFunction
@@ -145,35 +149,41 @@ bool Foam::fileFormats::STARCDedgeFormat::read
             << exit(FatalError);
     }
 
-    readHeader(is, "PROSTAR_CELL");
+    readHeader(is, STARCDCore::HEADER_CEL);
 
-    DynamicList<edge>  dynEdges;
+    DynamicList<edge> dynEdges;
 
-    label lineLabel, shapeId, nLabels, cellTableId, typeId;
+    label ignoredLabel, shapeId, nLabels, cellTableId, typeId;
     DynamicList<label> vertexLabels(64);
 
-    while ((is >> lineLabel).good())
+    token tok;
+
+    while (is.read(tok).good() && tok.isLabel())
     {
-        is >> shapeId >> nLabels >> cellTableId >> typeId;
+        // const label starCellId = tok.labelToken();
+        is  >> shapeId
+            >> nLabels
+            >> cellTableId
+            >> typeId;
 
         vertexLabels.clear();
         vertexLabels.reserve(nLabels);
 
-        // read indices - max 8 per line
+        // Read indices - max 8 per line
         for (label i = 0; i < nLabels; ++i)
         {
             label vrtId;
             if ((i % 8) == 0)
             {
-               is >> lineLabel;
+                is >> ignoredLabel; // Skip cellId for continuation lines
             }
             is >> vrtId;
 
-            // convert original vertex id to point label
+            // Convert original vertex id to point label
             vertexLabels.append(mapPointId[vrtId]);
         }
 
-        if (typeId == starcdLineType_)
+        if (typeId == starcdLineType)
         {
             if (vertexLabels.size() >= 2)
             {
@@ -187,40 +197,33 @@ bool Foam::fileFormats::STARCDedgeFormat::read
 
     mapPointId.clear();
 
-    // not all the points were used, cull them accordingly
-    if (unsigned(points().size()) != usedPoints.count())
+    // Not all points were used, subset/cull them accordingly
+    if (!usedPoints.all())
     {
         label nUsed = 0;
 
         pointField& pts = storedPoints();
-        forAll(pts, pointi)
+        for (const label pointi : usedPoints)
         {
-            if (usedPoints.get(pointi))
+            if (nUsed != pointi)
             {
-                if (nUsed != pointi)
-                {
-                    pts[nUsed] = pts[pointi];
-                }
-
-                // map prev -> new id
-                mapPointId.set(pointi, nUsed);
-
-                ++nUsed;
+                pts[nUsed] = pts[pointi];
             }
+
+            // Map prev -> new id
+            mapPointId.set(pointi, nUsed);
+
+            ++nUsed;
         }
+        pts.resize(nUsed);
 
-        pts.setSize(nUsed);
-
-        // renumber edge vertices
-        forAll(dynEdges, edgeI)
+        // Renumber edge vertices
+        for (edge& e : dynEdges)
         {
-            edge& e = dynEdges[edgeI];
-
             e[0] = mapPointId[e[0]];
             e[1] = mapPointId[e[1]];
         }
     }
-
 
     storedEdges().transfer(dynEdges);
 
@@ -231,21 +234,36 @@ bool Foam::fileFormats::STARCDedgeFormat::read
 void Foam::fileFormats::STARCDedgeFormat::write
 (
     const fileName& filename,
-    const edgeMesh& mesh
+    const edgeMesh& mesh,
+    IOstreamOption streamOpt,
+    const dictionary&
 )
 {
+    // ASCII only, allow output compression
+    streamOpt.format(IOstream::ASCII);
+
     const pointField& pointLst = mesh.points();
     const edgeList& edgeLst = mesh.edges();
 
     fileName baseName = filename.lessExt();
 
-    writePoints(OFstream(baseName + ".vrt")(), pointLst);
-    writeLines(OFstream(baseName + ".cel")(), edgeLst);
+    // The .vrt file
+    {
+        OFstream os(starFileName(baseName, STARCDCore::VRT_FILE), streamOpt);
+        writePoints(os, pointLst);
+    }
 
-    // write a simple .inp file
+    // The .cel file
+    {
+        OFstream os(starFileName(baseName, STARCDCore::CEL_FILE), streamOpt);
+        writeHeader(os, STARCDCore::HEADER_CEL);
+        writeLines(os, edgeLst);
+    }
+
+    // Write a simple .inp file. Never compressed
     writeCase
     (
-        OFstream(baseName + ".inp")(),
+        OFstream(starFileName(baseName, STARCDCore::INP_FILE))(),
         pointLst,
         edgeLst.size()
     );

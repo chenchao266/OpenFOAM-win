@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2015-2017 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -55,10 +58,20 @@ class hePsiThermo
     // Private Member Functions
 
         //- Calculate the thermo variables
-        void calculate();
+        void calculate
+        (
+            const volScalarField& p,
+            volScalarField& T,
+            volScalarField& he,
+            volScalarField& psi,
+            volScalarField& mu,
+            volScalarField& alpha,
+            const bool doOldTimes
+        );
 
         //- Construct as copy (not implemented)
         hePsiThermo(const hePsiThermo<BasicPsiThermo, MixtureType>&);
+
 
 public:
 
@@ -75,6 +88,14 @@ public:
             const word& phaseName
         );
 
+        //-  Construct from mesh and phase name and dict name
+        hePsiThermo
+        (
+            const fvMesh&,
+            const word& phaseName,
+            const word& dictionaryName
+        );
+
 
     //- Destructor
     virtual ~hePsiThermo();
@@ -84,6 +105,7 @@ public:
 
         //- Update properties
         virtual void correct();
+
 };
 
 

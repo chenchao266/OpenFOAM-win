@@ -1,16 +1,15 @@
-﻿/*---------------------------------------------------------------------------*\
+/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
 -------------------------------------------------------------------------------
+    Copyright (C) 2011-2015 OpenFOAM Foundation
+    Copyright (C) 2016-2019 OpenCFD Ltd.
+-------------------------------------------------------------------------------
 License
-    This file is part of blueCAPE's unofficial mingw patches for OpenFOAM.
-    For more information about these patches, visit:
-         http://bluecfd.com/Core
-
-    This file is a derivative work of OpenFOAM.
+    This file is part of OpenFOAM.
 
     OpenFOAM is free software: you can redistribute it and/or modify it
     under the terms of the GNU General Public License as published by
@@ -25,26 +24,14 @@ License
     You should have received a copy of the GNU General Public License
     along with OpenFOAM.  If not, see <http://www.gnu.org/licenses/>.
 
-Modifications
-    This file is based on the original version for POSIX:
-        OpenFOAM/src/OSspecific/POSIX/
-
-    This file has been created by blueCAPE's unofficial mingw patches for
-    OpenFOAM.
-    For more information about these patches, visit:
-        http://bluecfd.com/Core
-
-    Modifications made:
-      - Derived from the patches for blueCFD 2.1 and 2.2.
-
 Class
     Foam::fileStat
 
 Description
-    Wrapper for stat() system call.
+    Wrapper for stat() and lstat() system calls.
 
 Warning
-    on Linux (an maybe on others) a stat() of an nfs mounted (remote)
+    On Linux (an maybe on others) a stat() of an nfs mounted (remote)
     file does never timeout and cannot be interrupted!
     So e.g. Foam::ping first and hope nfs is running.
 
@@ -56,11 +43,8 @@ SourceFiles
 #ifndef fileStat_H
 #define fileStat_H
 
-
-#include <sys/types.h>
-
 #include <sys/stat.h>
-#include <time.h>
+#include <sys/types.h>
 
 #include "label.H"
 #include "fileName.H"
@@ -70,29 +54,24 @@ SourceFiles
 namespace Foam
 {
 
-// Forward declaration of friend functions and operators
-
+// Forward declarations
 class fileStat;
 
-Istream& operator>>(Istream&, fileStat&);
-Ostream& operator<<(Ostream&, const fileStat&);
- 
-struct stat_extended : stat
-{
-    _timespec64 st_atim;
-};
+Istream& operator>>(Istream& is, fileStat& fs);
+Ostream& operator<<(Ostream& os, const fileStat& fs);
+
 
 /*---------------------------------------------------------------------------*\
-                           Class fileStat Declaration
+                          Class fileStat Declaration
 \*---------------------------------------------------------------------------*/
 
 class fileStat
 {
     // Private data
 
-        struct stat_extended status_;
+        struct stat status_;
 
-        bool isValid_;
+        bool valid_;
 
 
 public:
@@ -103,8 +82,28 @@ public:
         fileStat();
 
         //- Construct from components.
-        //  followLink : in case of link get status of pointed-to file
-        //  maxTime    : time out
+        //
+        //  \param fName The file name or directory name to stat.
+        //  \param followLink If it is a link, get the status of the source
+        //      file/directory.
+        //  \param maxTime The timeout value.
+        //
+        //  \note An empty filename is a no-op.
+        fileStat
+        (
+            const char* fName,
+            const bool followLink = true,
+            const unsigned int maxTime = 0
+        );
+
+        //- Construct from components.
+        //
+        //  \param fName The file name or directory name to stat.
+        //  \param followLink If it is a link, get the status of the source
+        //      file/directory.
+        //  \param maxTime The timeout value.
+        //
+        //  \note An empty filename is a no-op.
         fileStat
         (
             const fileName& fName,
@@ -113,42 +112,53 @@ public:
         );
 
         //- Construct from Istream
-        fileStat(Istream&);
+        explicit fileStat(Istream& is);
 
 
     // Member Functions
 
-        // Access
+    // Access
 
-            //- Raw status
-            const struct stat_extended& status() const
-            {
-                return status_;
-            }
+        //- Raw status
+        const struct stat& status() const
+        {
+            return status_;
+        }
 
-            //- Did constructor fail
-            bool isValid() const
-            {
-                return isValid_;
-            }
+        //- Was file-stat successful?
+        bool valid() const
+        {
+            return valid_;
+        }
+
+        //- Size in bytes. Zero for an invalid file-stat.
+        label size() const;
+
+        //- Return the modification time in seconds.
+        //  Zero for an invalid file-stat.
+        time_t modTime() const;
+
+        //- Return the modification time in seconds (nanosecond resolution)
+        //  Zero for an invalid file-stat.
+        double dmodTime() const;
 
 
-        // Check
+    // Check
 
-            //- Compare two fileStats for same device
-            bool sameDevice(const fileStat& stat2) const;
+        //- Compare two fileStats for same device
+        bool sameDevice(const fileStat& other) const;
 
-            //- Compare two fileStats for same Inode
-            bool sameINode(const fileStat& stat2) const;
+        //- Compare two fileStats for same Inode
+        bool sameINode(const fileStat& other) const;
 
-            //- Compare state against inode
-            bool sameINode(const label iNode) const;
+        //- Compare state against inode
+        bool sameINode(const label iNode) const;
 
 
     // IOstream Operators
 
-        friend Istream& operator>>(Istream&, fileStat&);
-        friend Ostream& operator<<(Ostream&, const fileStat&);
+        friend Istream& operator>>(Istream& is, fileStat& fs);
+        friend Ostream& operator<<(Ostream& os, const fileStat& fs);
 };
 
 

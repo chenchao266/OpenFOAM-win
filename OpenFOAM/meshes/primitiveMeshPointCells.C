@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -27,7 +29,9 @@ License
 #include "cell.H"
 
 // * * * * * * * * * * * * * Private Member Functions  * * * * * * * * * * * //
-using namespace Foam;
+
+
+ namespace Foam{
 void primitiveMesh::calcPointCells() const
 {
     // Loop through cells and mark up points
@@ -61,7 +65,7 @@ void primitiveMesh::calcPointCells() const
 
         // Count number of cells per point
 
-        labelList npc(nPoints(), 0);
+        labelList npc(nPoints(), Zero);
 
         forAll(cf, celli)
         {
@@ -180,3 +184,5 @@ const labelList& primitiveMesh::pointCells(const label pointi) const
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 // ************************************************************************* //
+
+ } // End namespace Foam

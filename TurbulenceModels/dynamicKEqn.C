@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2019-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -49,7 +52,13 @@ volScalarField dynamicKEqn<BasicTurbulenceModel>::Ck
 
     const volSymmTensorField MM
     (
-        simpleFilter_(-2.0*this->delta()*sqrt(KK)*filter_(D))
+        simpleFilter_
+        (
+            -2.0*this->delta()*sqrt
+            (
+                max(KK, dimensionedScalar(KK.dimensions(), Zero))
+            )*filter_(D)
+        )
     );
 
     const volScalarField Ck
@@ -172,7 +181,7 @@ dynamicKEqn<BasicTurbulenceModel>::dynamicKEqn
     (
         IOobject
         (
-            IOobject::groupName("k", this->U_.group()),
+            IOobject::groupName("k", this->alphaRhoPhi_.group()),
             this->runTime_.timeName(),
             this->mesh_,
             IOobject::MUST_READ,
@@ -205,31 +214,8 @@ bool dynamicKEqn<BasicTurbulenceModel>::read()
 
         return true;
     }
-    else
-    {
-        return false;
-    }
-}
 
-
-template<class BasicTurbulenceModel>
-tmp<volScalarField> dynamicKEqn<BasicTurbulenceModel>::epsilon() const
-{
-    return tmp<volScalarField>
-    (
-        new volScalarField
-        (
-            IOobject
-            (
-                IOobject::groupName("epsilon", this->U_.group()),
-                this->runTime_.timeName(),
-                this->mesh_,
-                IOobject::NO_READ,
-                IOobject::NO_WRITE
-            ),
-            Ce()*k()*sqrt(k())/this->delta()
-        )
-    );
+    return false;
 }
 
 

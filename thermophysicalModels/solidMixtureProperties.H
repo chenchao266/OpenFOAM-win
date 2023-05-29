@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -53,7 +55,7 @@ See also
 #define solidMixtureProperties_H
 
 #include "solidProperties.H"
-#include "PtrList.T.H"
+#include "PtrList.H"
 #include "scalarField.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
@@ -89,16 +91,12 @@ public:
         //- Construct and return a clone
         virtual autoPtr<solidMixtureProperties> clone() const
         {
-            return autoPtr<solidMixtureProperties>
-            (
-                new solidMixtureProperties(*this)
-            );
+            return autoPtr<solidMixtureProperties>::New(*this);
         }
 
 
     //- Destructor
-    virtual ~solidMixtureProperties()
-    {}
+    virtual ~solidMixtureProperties() = default;
 
 
     // Selectors

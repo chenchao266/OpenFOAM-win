@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -24,45 +26,53 @@ License
 \*---------------------------------------------------------------------------*/
 
 #include "curve.H"
-#include "Ostream.H"
+#include "_Ostream.H"
 
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
-namespace Foam {
-    curve::curve
-    (
-        const string& name,
-        const curveStyle& style,
-        const label l
-    ) : scalarField(l, 0.0),
-        name_(name),
-        style_(style)
-    {}
 
 
-    curve::curve
-    (
-        const string& name,
-        const curveStyle& style,
-        const scalarField& y
-    ) : scalarField(y),
-        name_(name),
-        style_(style)
-    {}
+ namespace Foam{
+curve::curve
+(
+    const string& name,
+    const curveStyle& style,
+    const label l
+)
+:
+    scalarField(l, Zero),
+    name_(name),
+    style_(style)
+{}
 
 
-    // * * * * * * * * * * * * * * * IOstream Operators  * * * * * * * * * * * * //
+curve::curve
+(
+    const string& name,
+    const curveStyle& style,
+    const scalarField& y
+)
+:
+    scalarField(y),
+    name_(name),
+    style_(style)
+{}
 
-    Ostream& operator<<(Ostream& os, const curve& c)
-    {
-        os << nl
-            << c.name_ << nl
-            << c.style_ << nl
-            << static_cast<const scalarField&>(c);
 
-        os.check("Ostream& operator>>(Ostream&, const curve&)");
+// * * * * * * * * * * * * * * * IOstream Operators  * * * * * * * * * * * * //
 
-        return os;
-    }
+Ostream& operator<<(Ostream& os, const curve& c)
+{
+    os  << nl
+        << c.name_ << nl
+        << c.style_ << nl
+        << static_cast<const scalarField&>(c);
+
+    os.check(FUNCTION_NAME);
+
+    return os;
 }
 
+
 // ************************************************************************* //
+
+ } // End namespace Foam

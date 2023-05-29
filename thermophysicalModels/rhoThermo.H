@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2017 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -23,6 +26,9 @@ License
 
 Class
     Foam::rhoThermo
+
+Group
+    grpRhoThermo
 
 Description
     Basic thermodynamic properties based on density
@@ -90,6 +96,17 @@ public:
     );
 
 
+    //- Declare run-time constructor selection table for dictionary based
+    declareRunTimeSelectionTable
+    (
+        autoPtr,
+        rhoThermo,
+        fvMeshDictPhase,
+        (const fvMesh& mesh, const word& phaseName, const word& dictName),
+        (mesh, phaseName, dictName)
+    );
+
+
     // Constructors
 
         //- Construct from mesh and phase name
@@ -107,12 +124,29 @@ public:
             const word& phaseName
         );
 
+        //- Construct from mesh,dictionary,phase name with a single temperature
+        rhoThermo
+        (
+            const fvMesh&,
+            const word& phaseName,
+            const word& dictionaryName
+        );
+
 
     //- Selector
     static autoPtr<rhoThermo> New
     (
         const fvMesh&,
         const word& phaseName=word::null
+    );
+
+
+    //- Selector
+    static autoPtr<rhoThermo> New
+    (
+        const fvMesh&,
+        const word& phaseName,
+        const word& dictName
     );
 
 
@@ -132,6 +166,16 @@ public:
 
             //- Return non-const access to the local density field [kg/m^3]
             virtual volScalarField& rho();
+
+            //- Add the given density correction to the density field.
+            //  Used to update the density field following pressure solution
+            //  Limit thermo rho between rhoMin and rhoMax
+            virtual void correctRho
+            (
+                const volScalarField& deltaRho,
+                const dimensionedScalar& rhoMin,
+                const dimensionedScalar& rhoMax
+            );
 
             //- Add the given density correction to the density field.
             //  Used to update the density field following pressure solution

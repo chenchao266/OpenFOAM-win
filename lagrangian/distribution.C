@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2019 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -85,9 +88,9 @@ Foam::label Foam::distribution::totalEntries() const
 {
     label sumOfEntries = 0;
 
-    forAllConstIter(Map<label>, *this, iter)
+    forAllConstIters(*this, iter)
     {
-        sumOfEntries += iter();
+        sumOfEntries += iter.val();
 
         if (sumOfEntries < 0)
         {
@@ -113,9 +116,9 @@ Foam::scalar Foam::distribution::approxTotalEntries() const
 {
     scalar sumOfEntries = 0;
 
-    forAllConstIter(Map<label>, *this, iter)
+    forAllConstIters(*this, iter)
     {
-        sumOfEntries += scalar(iter());
+        sumOfEntries += scalar(iter.val());
     }
 
     return sumOfEntries;
@@ -247,22 +250,14 @@ void Foam::distribution::add(const label valueToAdd)
 
 void Foam::distribution::insertMissingKeys()
 {
-    iterator iter(this->begin());
+    List<label> keys = sortedToc();
 
-    List<label> keys = toc();
-
-    sort(keys);
-
-    if (keys.size())
+    if (keys.size() > 2)
     {
-        for (label k = keys[0]; k < keys.last(); k++)
+        for (label k = keys[1]; k < keys.last(); k++)
         {
-            iter = find(k);
-
-            if (iter == this->end())
-            {
-                this->insert(k,0);
-            }
+            // Insert 0, if the entry does not already exist
+            this->insert(k,0);
         }
     }
 }
@@ -274,10 +269,7 @@ Foam::List<Foam::Pair<Foam::scalar>> Foam::distribution::normalised()
 
     insertMissingKeys();
 
-    List<label> keys = toc();
-
-    sort(keys);
-
+    List<label> keys = sortedToc();
     List<Pair<scalar>> normDist(size());
 
     forAll(keys,k)
@@ -420,10 +412,7 @@ Foam::List<Foam::Pair<Foam::scalar>> Foam::distribution::raw()
 {
     insertMissingKeys();
 
-    List<label> keys = toc();
-
-    sort(keys);
-
+    List<label> keys = sortedToc();
     List<Pair<scalar>> rawDist(size());
 
     forAll(keys,k)
@@ -443,12 +432,9 @@ Foam::List<Foam::Pair<Foam::scalar>> Foam::distribution::raw()
 
 void Foam::distribution::operator=(const distribution& rhs)
 {
-    // Check for assignment to self
     if (this == &rhs)
     {
-        FatalErrorInFunction
-            << "Attempted assignment to self"
-            << abort(FatalError);
+        return;  // Self-assignment is a no-op
     }
 
     Map<label>::operator=(rhs);
@@ -464,13 +450,7 @@ Foam::Ostream& Foam::operator<<(Ostream& os, const distribution& d)
     os  << d.binWidth_
         << static_cast<const Map<label>&>(d);
 
-    // Check state of Ostream
-    os.check
-    (
-        "Ostream& operator<<(Ostream&, "
-        "const distribution&)"
-    );
-
+    os.check(FUNCTION_NAME);
     return os;
 }
 

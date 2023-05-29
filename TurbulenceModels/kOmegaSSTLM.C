@@ -1,9 +1,12 @@
-﻿/*---------------------------------------------------------------------------*\
+/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2016-2017 OpenFOAM Foundation
+    Copyright (C) 2019-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -23,7 +26,9 @@ License
 
 \*---------------------------------------------------------------------------*/
 
-//#include "kOmegaSSTLM.H"
+#include "kOmegaSSTLM.H"
+#include "fvOptions.H"
+#include "bound.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -60,13 +65,13 @@ tmp<volScalarField::Internal> kOmegaSSTLM<BasicTurbulenceModel>::Pk
 template<class BasicTurbulenceModel>
 tmp<volScalarField::Internal> kOmegaSSTLM<BasicTurbulenceModel>::epsilonByk
 (
-    const volScalarField::Internal& F1,
-    const volScalarField::Internal& F2
+    const volScalarField& F1,
+    const volTensorField& gradU
 ) const
 {
     return
         min(max(gammaIntEff_, scalar(0.1)), scalar(1))
-       *kOmegaSST<BasicTurbulenceModel>::epsilonByk(F1, F2);
+       *kOmegaSST<BasicTurbulenceModel>::epsilonByk(F1, gradU);
 }
 
 
@@ -81,7 +86,12 @@ tmp<volScalarField::Internal> kOmegaSSTLM<BasicTurbulenceModel>::Fthetat
     const volScalarField::Internal& omega = this->omega_();
     const volScalarField::Internal& y = this->y_();
 
-    const volScalarField::Internal delta(375*Omega*nu*ReThetat_()*y/sqr(Us));
+    dimensionedScalar deltaMin("deltaMin", dimLength, SMALL);
+    volScalarField::Internal delta
+    (
+        max(375*Omega*nu*ReThetat_()*y/sqr(Us), deltaMin)
+    );
+
     const volScalarField::Internal ReOmega(sqr(y)*omega/nu);
     const volScalarField::Internal Fwake(exp(-sqr(ReOmega/1e5)));
 
@@ -89,7 +99,7 @@ tmp<volScalarField::Internal> kOmegaSSTLM<BasicTurbulenceModel>::Fthetat
     (
         new volScalarField::Internal
         (
-            IOobject::groupName("Fthetat", this->U_.group()),
+            IOobject::groupName("Fthetat", this->alphaRhoPhi_.group()),
             min
             (
                 max
@@ -114,7 +124,7 @@ kOmegaSSTLM<BasicTurbulenceModel>::ReThetac() const
         (
             IOobject
             (
-                IOobject::groupName("ReThetac", this->U_.group()),
+                IOobject::groupName("ReThetac", this->alphaRhoPhi_.group()),
                 this->runTime_.timeName(),
                 this->mesh_
             ),
@@ -157,7 +167,7 @@ tmp<volScalarField::Internal> kOmegaSSTLM<BasicTurbulenceModel>::Flength
         (
             IOobject
             (
-                IOobject::groupName("Flength", this->U_.group()),
+                IOobject::groupName("Flength", this->alphaRhoPhi_.group()),
                 this->runTime_.timeName(),
                 this->mesh_
             ),
@@ -222,7 +232,7 @@ tmp<volScalarField::Internal> kOmegaSSTLM<BasicTurbulenceModel>::ReThetat0
         (
             IOobject
             (
-                IOobject::groupName("ReThetat0", this->U_.group()),
+                IOobject::groupName("ReThetat0", this->alphaRhoPhi_.group()),
                 this->runTime_.timeName(),
                 this->mesh_
             ),
@@ -343,7 +353,7 @@ tmp<volScalarField::Internal> kOmegaSSTLM<BasicTurbulenceModel>::Fonset
     (
         new volScalarField::Internal
         (
-            IOobject::groupName("Fonset", this->U_.group()),
+            IOobject::groupName("Fonset", this->alphaRhoPhi_.group()),
             max(Fonset2 - Fonset3, scalar(0))
         )
     );
@@ -373,12 +383,13 @@ kOmegaSSTLM<BasicTurbulenceModel>::kOmegaSSTLM
         alphaRhoPhi,
         phi,
         transport,
-        propertiesName
+        propertiesName,
+        typeName
     ),
 
     ca1_
     (
-        dimensionedScalar::lookupOrAddToDict
+        dimensionedScalar::getOrAddToDict
         (
             "ca1",
             this->coeffDict_,
@@ -387,7 +398,7 @@ kOmegaSSTLM<BasicTurbulenceModel>::kOmegaSSTLM
     ),
     ca2_
     (
-        dimensionedScalar::lookupOrAddToDict
+        dimensionedScalar::getOrAddToDict
         (
             "ca2",
             this->coeffDict_,
@@ -396,7 +407,7 @@ kOmegaSSTLM<BasicTurbulenceModel>::kOmegaSSTLM
     ),
     ce1_
     (
-        dimensionedScalar::lookupOrAddToDict
+        dimensionedScalar::getOrAddToDict
         (
             "ce1",
             this->coeffDict_,
@@ -405,7 +416,7 @@ kOmegaSSTLM<BasicTurbulenceModel>::kOmegaSSTLM
     ),
     ce2_
     (
-        dimensionedScalar::lookupOrAddToDict
+        dimensionedScalar::getOrAddToDict
         (
             "ce2",
             this->coeffDict_,
@@ -414,7 +425,7 @@ kOmegaSSTLM<BasicTurbulenceModel>::kOmegaSSTLM
     ),
     cThetat_
     (
-        dimensionedScalar::lookupOrAddToDict
+        dimensionedScalar::getOrAddToDict
         (
             "cThetat",
             this->coeffDict_,
@@ -423,7 +434,7 @@ kOmegaSSTLM<BasicTurbulenceModel>::kOmegaSSTLM
     ),
     sigmaThetat_
     (
-        dimensionedScalar::lookupOrAddToDict
+        dimensionedScalar::getOrAddToDict
         (
             "sigmaThetat",
             this->coeffDict_,
@@ -432,11 +443,11 @@ kOmegaSSTLM<BasicTurbulenceModel>::kOmegaSSTLM
     ),
     lambdaErr_
     (
-        this->coeffDict_.lookupOrDefault("lambdaErr", 1e-6)
+        this->coeffDict_.template getOrDefault<scalar>("lambdaErr", 1e-6)
     ),
     maxLambdaIter_
     (
-        this->coeffDict_.lookupOrDefault("maxLambdaIter", 10)
+        this->coeffDict_.template getOrDefault<label>("maxLambdaIter", 10)
     ),
     deltaU_("deltaU", dimVelocity, SMALL),
 
@@ -444,7 +455,7 @@ kOmegaSSTLM<BasicTurbulenceModel>::kOmegaSSTLM
     (
         IOobject
         (
-            IOobject::groupName("ReThetat", U.group()),
+            IOobject::groupName("ReThetat", alphaRhoPhi.group()),
             this->runTime_.timeName(),
             this->mesh_,
             IOobject::MUST_READ,
@@ -457,7 +468,7 @@ kOmegaSSTLM<BasicTurbulenceModel>::kOmegaSSTLM
     (
         IOobject
         (
-            IOobject::groupName("gammaInt", U.group()),
+            IOobject::groupName("gammaInt", alphaRhoPhi.group()),
             this->runTime_.timeName(),
             this->mesh_,
             IOobject::MUST_READ,
@@ -470,14 +481,19 @@ kOmegaSSTLM<BasicTurbulenceModel>::kOmegaSSTLM
     (
         IOobject
         (
-            IOobject::groupName("gammaIntEff", U.group()),
+            IOobject::groupName("gammaIntEff", alphaRhoPhi.group()),
             this->runTime_.timeName(),
             this->mesh_
         ),
         this->mesh_,
-        dimensionedScalar("0", dimless, 0)
+        dimensionedScalar(dimless, Zero)
     )
-{}
+{
+    if (type == typeName)
+    {
+        this->printCoeffs(type);
+    }
+}
 
 
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
@@ -498,10 +514,8 @@ bool kOmegaSSTLM<BasicTurbulenceModel>::read()
 
         return true;
     }
-    else
-    {
-        return false;
-    }
+
+    return false;
 }
 
 
@@ -611,11 +625,11 @@ void kOmegaSSTLM<BasicTurbulenceModel>::correct()
         return;
     }
 
-    // Correct ReThetat and gammaInt
-    correctReThetatGammaInt();
-
     // Correct k and omega
     kOmegaSST<BasicTurbulenceModel>::correct();
+
+    // Correct ReThetat and gammaInt
+    correctReThetatGammaInt();
 }
 
 

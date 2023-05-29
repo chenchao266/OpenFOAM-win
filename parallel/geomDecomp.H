@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011 OpenFOAM Foundation
+    Copyright (C) 2018-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -25,7 +28,16 @@ Class
     Foam::geomDecomp
 
 Description
-    Geometrical domain decomposition
+    Base for geometrical domain decomposition methods
+
+    Base coefficients:
+    \table
+        Property  | Description                             | Required | Default
+        n         | (nx ny nz)                              | yes |
+        order     | order of operation                      | no  | xyz
+        delta     | delta (jitter) for rotation matrix      | no  | 0.001
+        rotation  | coordinate rotation                     | no  |
+    \endtable
 
 SourceFiles
     geomDecomp.C
@@ -36,52 +48,98 @@ SourceFiles
 #define geomDecomp_H
 
 #include "decompositionMethod.H"
-#include "Vector.T.H"
+#include "cartesianCS.H"
+#include "Vector.H"
+#include "tmp.H"
 
 namespace Foam
 {
 
 /*---------------------------------------------------------------------------*\
-                           Class geomDecomp Declaration
+                         Class geomDecomp Declaration
 \*---------------------------------------------------------------------------*/
 
 class geomDecomp
 :
     public decompositionMethod
 {
+    // Private Data
+
+        //- Small delta (default: 0.001) to avoid staggering when
+        //- mesh itself is aligned with x/y/z
+        scalar delta_;
+
+        //- Local coordinates, or delta rotation tensor
+        coordSystem::cartesian csys_;
+
+
+    // Private Member Functions
+
+        //- Convert ordering string ("xyz") into list of components.
+        //  Checks for bad entries, but no check for duplicate entries.
+        void setOrder();
+
+        //- Read input values and initialize rotation matrix
+        void readCoeffs();
+
 
 protected:
 
-    // Protected data
+    // Protected Data
 
-        const dictionary& geomDecomDict_;
-
+        //- The divisions
         Vector<label> n_;
-        scalar delta_;
-        tensor rotDelta_;
+
+        //- Decomposition order in terms of components (optional)
+        Vector<direction> order_;
+
+        //- Coefficients for all derived methods
+        const dictionary& coeffsDict_;
+
+
+    // Protected Member Functions
+
+        //- Apply delta (jitter) or rotation to coordinates
+        tmp<pointField> adjustPoints(const pointField&) const;
+
+        //- Check that mesh directions are compatible with decomposition
+        void checkDecompositionDirections(const Vector<label>&) const;
+
 
 public:
 
     // Constructors
 
-        //- Construct given the decomposition dictionary
-        //  and the derived type name
+        //- Construct for derived type name and decomposition dictionary
         geomDecomp
         (
-            const dictionary& decompositionDict,
-            const word& derivedType
+            const word& derivedType,
+            const dictionary& decompDict,
+            int select = selectionType::DEFAULT
         );
+
+        //- Construct for derived type name, decomposition dictionary
+        //- and region name
+        geomDecomp
+        (
+            const word& derivedType,
+            const dictionary& decompDict,
+            const word& regionName,
+            int select = selectionType::DEFAULT
+        );
+
+
+    // Member Functions
 
         //- Return for every coordinate the wanted processor number.
         virtual labelList decompose
         (
             const pointField& points,
             const scalarField& pointWeights
-        ) = 0;
+        ) const = 0;
 
-        //- Like decompose but with uniform weights on the points
-        virtual labelList decompose(const pointField&) = 0;
-
+        //- Decompose with uniform weights on the points
+        virtual labelList decompose(const pointField& points) const = 0;
 };
 
 

@@ -1,9 +1,11 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -25,7 +27,25 @@ Typedef
     Foam::cellList
 
 Description
-    list of cells
+    A List of cells.
+
+Typedef
+    Foam::cellUList
+
+Description
+    A UList of cells.
+
+Typedef
+    Foam::cellSubList
+
+Description
+    A SubList of cells.
+
+Typedef
+    Foam::cellListList
+
+Description
+    A List of cellList.
 
 \*---------------------------------------------------------------------------*/
 
@@ -33,16 +53,9 @@ Description
 #define cellList_H
 
 #include "cell.H"
-#include "List.T.H"
-
-// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
-
-namespace Foam
-{
-    typedef List<cell> cellList;
-}
-
-// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+#include "List.H"
+#include "SubList.H"
+#include "cellListFwd.H"
 
 #endif
 

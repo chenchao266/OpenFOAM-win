@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2012-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2012-2017 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -52,15 +55,9 @@ Foam::porosityModels::powerLaw::powerLaw
 )
 :
     porosityModel(name, modelType, mesh, dict, cellZoneName),
-    C0_(readScalar(coeffs_.lookup("C0"))),
-    C1_(readScalar(coeffs_.lookup("C1"))),
-    rhoName_(coeffs_.lookupOrDefault<word>("rho", "rho"))
-{}
-
-
-// * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
-
-Foam::porosityModels::powerLaw::~powerLaw()
+    C0_(coeffs_.get<scalar>("C0")),
+    C1_(coeffs_.get<scalar>("C1")),
+    rhoName_(coeffs_.getOrDefault<word>("rho", "rho"))
 {}
 
 
@@ -80,7 +77,7 @@ void Foam::porosityModels::powerLaw::calcForce
     vectorField& force
 ) const
 {
-    scalarField Udiag(U.size(), 0.0);
+    scalarField Udiag(U.size(), Zero);
     const scalarField& V = mesh_.V();
 
     apply(Udiag, V, rho, U);
@@ -100,7 +97,7 @@ void Foam::porosityModels::powerLaw::correct
 
     if (UEqn.dimensions() == dimForce)
     {
-        const volScalarField& rho = mesh_.lookupObject<volScalarField>
+        const auto& rho = mesh_.lookupObject<volScalarField>
         (
             IOobject::groupName(rhoName_, U.group())
         );
@@ -139,7 +136,7 @@ void Foam::porosityModels::powerLaw::correct
 
     if (UEqn.dimensions() == dimForce)
     {
-        const volScalarField& rho = mesh_.lookupObject<volScalarField>
+        const auto& rho = mesh_.lookupObject<volScalarField>
         (
             IOobject::groupName(rhoName_, U.group())
         );
@@ -155,8 +152,7 @@ void Foam::porosityModels::powerLaw::correct
 
 bool Foam::porosityModels::powerLaw::writeData(Ostream& os) const
 {
-    os  << indent << name_ << endl;
-    dict_.write(os);
+    dict_.writeEntry(name_, os);
 
     return true;
 }

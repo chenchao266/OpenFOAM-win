@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2019-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -54,29 +57,25 @@ SourceFiles
 #ifndef directionInfo_H
 #define directionInfo_H
 
-#include "point.T.H"
+#include "point.H"
 #include "labelList.H"
-#include "tensor.H"
+#include "tensor2.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 namespace Foam
 {
+
+// Forward Declarations
 class polyPatch;
 class polyMesh;
 class primitiveMesh;
 class edge;
 class face;
-class polyMesh;
-
-
-// Forward declaration of friend functions and operators
-
 class directionInfo;
 
 Istream& operator>>(Istream&, directionInfo&);
 Ostream& operator<<(Ostream&, const directionInfo&);
-
 
 /*---------------------------------------------------------------------------*\
                            Class directionInfo Declaration
@@ -84,12 +83,12 @@ Ostream& operator<<(Ostream&, const directionInfo&);
 
 class directionInfo
 {
-    // Private data
+    // Private Data
 
-        // Either mesh edge or face point
+        //- The mesh edge or face point
         label index_;
 
-        // Local n axis
+        //- The local n axis
         vector n_;
 
 
@@ -127,44 +126,42 @@ public:
             const label edgeI
         );
 
+
     // Constructors
 
-        //- Construct null
+        //- Default construct, index=-1, vector::zero
         inline directionInfo();
 
         //- Construct from components
         inline directionInfo
         (
-            const label,
+            const label index,
             const vector& n
         );
-
-        //- Construct as copy
-        inline directionInfo(const directionInfo&);
 
 
     // Member Functions
 
         // Access
 
-            inline label index() const
+            label index() const
             {
                 return index_;
             }
 
-            inline const vector& n() const
+            const vector& n() const
             {
                 return n_;
             }
 
+
         // Needed by FaceCellWave
 
-            //- Check whether origin has been changed at all or
-            //  still contains original (invalid) value.
+            //- Changed or contains original (invalid) value
             template<class TrackingData>
             inline bool valid(TrackingData& td) const;
 
-            //- Check for identical geometrical data. Used for cyclics checking.
+            //- Check for identical geometrical data (eg, cyclics checking)
             template<class TrackingData>
             inline bool sameGeometry
             (
@@ -241,15 +238,17 @@ public:
                 TrackingData& td
             );
 
-            //- Same (like operator==)
+            //- Test for equality, with TrackingData
             template<class TrackingData>
             inline bool equal(const directionInfo&, TrackingData& td) const;
 
+
     // Member Operators
 
-        // Needed for List IO
+        //- Test for equality
         inline bool operator==(const directionInfo&) const;
 
+        //- Test for inequality
         inline bool operator!=(const directionInfo&) const;
 
 
@@ -260,12 +259,10 @@ public:
 };
 
 
-//- Data associated with directionInfo type are contiguous
-template<>
-inline bool contiguous<directionInfo>()
-{
-    return true;
-}
+// * * * * * * * * * * * * * * * * * Traits  * * * * * * * * * * * * * * * * //
+
+//- Contiguous data for directionInfo
+template<> struct is_contiguous<directionInfo> : std::true_type {};
 
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //

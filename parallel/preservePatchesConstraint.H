@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2015-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2015-2016 OpenFOAM Foundation
+    Copyright (C) 2018 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -22,11 +25,18 @@ License
     along with OpenFOAM.  If not, see <http://www.gnu.org/licenses/>.
 
 Class
-    Foam::preservePatchesConstraint
+    Foam::decompositionConstraints::preservePatches
 
 Description
     Constraint to keep owner and neighbour of (cyclic) patch on same
     processor.
+
+    \heading Dictionary parameters
+    \table
+        Property    | Description                       | Required  | Default
+        type        | preservePatches                   | yes   |
+        patches     | List of patch names or regexs     | yes   |
+    \endtable
 
 SourceFiles
     preservePatchesConstraint.C
@@ -37,7 +47,7 @@ SourceFiles
 #define preservePatchesConstraint_H
 
 #include "decompositionConstraint.H"
-#include "wordReList.H"
+#include "wordRes.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -48,17 +58,17 @@ namespace decompositionConstraints
 {
 
 /*---------------------------------------------------------------------------*\
-                Class preservePatchesConstraint Declaration
+                       Class preservePatches Declaration
 \*---------------------------------------------------------------------------*/
 
-class preservePatchesConstraint
+class preservePatches
 :
     public decompositionConstraint
 {
     // Private data
 
         //- List of patches to keep together
-        wordReList patches_;
+        wordRes patches_;
 
 
 public:
@@ -69,21 +79,15 @@ public:
 
     // Constructors
 
-        //- Construct with generic dictionary with optional entry for type
-        preservePatchesConstraint
-        (
-            const dictionary& constraintsDict,
-            const word& type
-        );
+        //- Construct with constraint dictionary
+        explicit preservePatches(const dictionary& dict);
 
         //- Construct from components
-        preservePatchesConstraint(const wordReList& patches);
-
+        explicit preservePatches(const UList<wordRe>& patches);
 
 
     //- Destructor
-    virtual ~preservePatchesConstraint()
-    {}
+    virtual ~preservePatches() = default;
 
 
     // Member Functions

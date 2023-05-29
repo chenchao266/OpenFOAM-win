@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2015 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2015 OpenFOAM Foundation
+    Copyright (C) 2019 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -27,12 +30,19 @@ Class
 Description
     Extrudes by transforming points normal to the surface by a given distance.
 
+    The linearNormalCoeffs dictionary entries
+    \table
+        Property  | Description                             | Required | Default
+        thickness | Extrusion thickness                     | yes |
+        firstCellThickness | Thickness of the first layer   | no  | 0
+    \endtable
+
 \*---------------------------------------------------------------------------*/
 
 #ifndef linearNormal_H
 #define linearNormal_H
 
-#include "point.T.H"
+#include "point.H"
 #include "extrudeModel.H"
 #include "scalarList.H"
 
@@ -44,7 +54,7 @@ namespace extrudeModels
 {
 
 /*---------------------------------------------------------------------------*\
-                    Class linearNormal Declaration
+                 Class extrudeModels::linearNormal Declaration
 \*---------------------------------------------------------------------------*/
 
 class linearNormal
@@ -59,9 +69,8 @@ class linearNormal
         //- First cell thickness
         scalar firstCellThickness_;
 
-        //- Layer cell distibution
+        //- Layer cell distribution
         scalarList layerPoints_;
-
 
 
 public:
@@ -72,11 +81,11 @@ public:
     // Constructors
 
         //- Construct from dictionary
-        linearNormal(const dictionary& dict);
+        explicit linearNormal(const dictionary& dict);
 
 
     //- Destructor
-    virtual ~linearNormal();
+    virtual ~linearNormal() = default;
 
 
     // Member Operators

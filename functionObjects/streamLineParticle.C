@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2019 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -24,6 +27,7 @@ License
 \*---------------------------------------------------------------------------*/
 
 #include "streamLineParticle.H"
+#include "streamLineParticleCloud.H"
 #include "vectorFieldIOField.H"
 
 // * * * * * * * * * * * * * Private Member Functions  * * * * * * * * * * * //
@@ -43,11 +47,11 @@ Foam::vector Foam::streamLineParticle::interpolateFields
     }
 
     sampledScalars_.setSize(td.vsInterp_.size());
-    forAll(td.vsInterp_, scalarI)
+    forAll(td.vsInterp_, scalari)
     {
-        sampledScalars_[scalarI].append
+        sampledScalars_[scalari].append
         (
-            td.vsInterp_[scalarI].interpolate
+            td.vsInterp_[scalari].interpolate
             (
                 position,
                 celli,
@@ -57,11 +61,11 @@ Foam::vector Foam::streamLineParticle::interpolateFields
     }
 
     sampledVectors_.setSize(td.vvInterp_.size());
-    forAll(td.vvInterp_, vectorI)
+    forAll(td.vvInterp_, vectori)
     {
-        sampledVectors_[vectorI].append
+        sampledVectors_[vectori].append
         (
-            td.vvInterp_[vectorI].interpolate
+            td.vvInterp_[vectori].interpolate
             (
                 position,
                 celli,
@@ -83,10 +87,12 @@ Foam::streamLineParticle::streamLineParticle
     const polyMesh& mesh,
     const vector& position,
     const label celli,
+    const bool trackForward,
     const label lifeTime
 )
 :
     particle(mesh, position, celli),
+    trackForward_(trackForward),
     lifeTime_(lifeTime)
 {}
 
@@ -95,17 +101,19 @@ Foam::streamLineParticle::streamLineParticle
 (
     const polyMesh& mesh,
     Istream& is,
-    bool readFields
+    bool readFields,
+    bool newFormat
 )
 :
-    particle(mesh, is, readFields)
+    particle(mesh, is, readFields, newFormat)
 {
     if (readFields)
     {
         List<scalarList> sampledScalars;
         List<vectorList> sampledVectors;
 
-        is  >> lifeTime_ >> sampledPositions_ >> sampledScalars
+        is  >> trackForward_ >> lifeTime_
+            >> sampledPositions_ >> sampledScalars
             >> sampledVectors;
 
         sampledScalars_.setSize(sampledScalars.size());
@@ -120,12 +128,7 @@ Foam::streamLineParticle::streamLineParticle
         }
     }
 
-    // Check state of Istream
-    is.check
-    (
-        "streamLineParticle::streamLineParticle"
-        "(const Cloud<streamLineParticle>&, Istream&, bool)"
-    );
+    is.check(FUNCTION_NAME);
 }
 
 
@@ -135,9 +138,11 @@ Foam::streamLineParticle::streamLineParticle
 )
 :
     particle(p),
+    trackForward_(p.trackForward_),
     lifeTime_(p.lifeTime_),
     sampledPositions_(p.sampledPositions_),
-    sampledScalars_(p.sampledScalars_)
+    sampledScalars_(p.sampledScalars_),
+    sampledVectors_(p.sampledVectors_)
 {}
 
 
@@ -145,6 +150,7 @@ Foam::streamLineParticle::streamLineParticle
 
 bool Foam::streamLineParticle::move
 (
+    streamLineParticleCloud& cloud,
     trackingData& td,
     const scalar
 )
@@ -169,7 +175,7 @@ bool Foam::streamLineParticle::move
             sampledPositions_.append(position());
             vector U = interpolateFields(td, position(), cell(), face());
 
-            if (!td.trackForward_)
+            if (!trackForward_)
             {
                 U = -U;
             }
@@ -203,7 +209,7 @@ bool Foam::streamLineParticle::move
                 dt = maxDt;
             }
 
-            trackToFace(dt*U, 0, td);
+            trackToAndHitFace(dt*U, 0, cloud, td);
 
             if
             (
@@ -268,14 +274,7 @@ bool Foam::streamLineParticle::move
 }
 
 
-bool Foam::streamLineParticle::hitPatch
-(
-    const polyPatch&,
-    trackingData& td,
-    const label patchi,
-    const scalar trackFraction,
-    const tetIndices& tetIs
-)
+bool Foam::streamLineParticle::hitPatch(streamLineParticleCloud&, trackingData&)
 {
     // Disable generic patch interaction
     return false;
@@ -284,7 +283,7 @@ bool Foam::streamLineParticle::hitPatch
 
 void Foam::streamLineParticle::hitWedgePatch
 (
-    const wedgePolyPatch& pp,
+    streamLineParticleCloud&,
     trackingData& td
 )
 {
@@ -295,7 +294,7 @@ void Foam::streamLineParticle::hitWedgePatch
 
 void Foam::streamLineParticle::hitSymmetryPlanePatch
 (
-    const symmetryPlanePolyPatch& pp,
+    streamLineParticleCloud&,
     trackingData& td
 )
 {
@@ -306,7 +305,7 @@ void Foam::streamLineParticle::hitSymmetryPlanePatch
 
 void Foam::streamLineParticle::hitSymmetryPatch
 (
-    const symmetryPolyPatch& pp,
+    streamLineParticleCloud&,
     trackingData& td
 )
 {
@@ -317,8 +316,32 @@ void Foam::streamLineParticle::hitSymmetryPatch
 
 void Foam::streamLineParticle::hitCyclicPatch
 (
-    const cyclicPolyPatch& pp,
+    streamLineParticleCloud&,
     trackingData& td
+)
+{
+    // Remove particle
+    td.keepParticle = false;
+}
+
+
+void Foam::streamLineParticle::hitCyclicAMIPatch
+(
+    streamLineParticleCloud&,
+    trackingData& td,
+    const vector&
+)
+{
+    // Remove particle
+    td.keepParticle = false;
+}
+
+
+void Foam::streamLineParticle::hitCyclicACMIPatch
+(
+    streamLineParticleCloud&,
+    trackingData& td,
+    const vector&
 )
 {
     // Remove particle
@@ -328,7 +351,7 @@ void Foam::streamLineParticle::hitCyclicPatch
 
 void Foam::streamLineParticle::hitProcessorPatch
 (
-    const processorPolyPatch&,
+    streamLineParticleCloud&,
     trackingData& td
 )
 {
@@ -339,19 +362,7 @@ void Foam::streamLineParticle::hitProcessorPatch
 
 void Foam::streamLineParticle::hitWallPatch
 (
-    const wallPolyPatch& wpp,
-    trackingData& td,
-    const tetIndices&
-)
-{
-    // Remove particle
-    td.keepParticle = false;
-}
-
-
-void Foam::streamLineParticle::hitPatch
-(
-    const polyPatch& wpp,
+    streamLineParticleCloud&,
     trackingData& td
 )
 {
@@ -362,11 +373,7 @@ void Foam::streamLineParticle::hitPatch
 
 void Foam::streamLineParticle::readFields(Cloud<streamLineParticle>& c)
 {
-//    if (!c.size())
-//    {
-//        return;
-//    }
-    bool valid = c.size();
+    const bool valid = c.size();
 
     particle::readFields(c);
 
@@ -385,11 +392,11 @@ void Foam::streamLineParticle::readFields(Cloud<streamLineParticle>& c)
     c.checkFieldIOobject(c, sampledPositions);
 
     label i = 0;
-    forAllIter(Cloud<streamLineParticle>, c, iter)
+    for (streamLineParticle& p : c)
     {
-        iter().lifeTime_ = lifeTime[i];
-        iter().sampledPositions_.transfer(sampledPositions[i]);
-        i++;
+        p.lifeTime_ = lifeTime[i];
+        p.sampledPositions_.transfer(sampledPositions[i]);
+        ++i;
     }
 }
 
@@ -398,7 +405,7 @@ void Foam::streamLineParticle::writeFields(const Cloud<streamLineParticle>& c)
 {
     particle::writeFields(c);
 
-    label np = c.size();
+    const label np = c.size();
 
     IOField<label> lifeTime
     (
@@ -412,11 +419,11 @@ void Foam::streamLineParticle::writeFields(const Cloud<streamLineParticle>& c)
     );
 
     label i = 0;
-    forAllConstIter(Cloud<streamLineParticle>, c, iter)
+    for (const streamLineParticle& p : c)
     {
-        lifeTime[i] = iter().lifeTime_;
-        sampledPositions[i] = iter().sampledPositions_;
-        i++;
+        lifeTime[i] = p.lifeTime_;
+        sampledPositions[i] = p.sampledPositions_;
+        ++i;
     }
 
     lifeTime.write(np > 0);
@@ -429,14 +436,13 @@ void Foam::streamLineParticle::writeFields(const Cloud<streamLineParticle>& c)
 Foam::Ostream& Foam::operator<<(Ostream& os, const streamLineParticle& p)
 {
     os  << static_cast<const particle&>(p)
+        << token::SPACE << p.trackForward_
         << token::SPACE << p.lifeTime_
         << token::SPACE << p.sampledPositions_
         << token::SPACE << p.sampledScalars_
         << token::SPACE << p.sampledVectors_;
 
-    // Check state of Ostream
-    os.check("Ostream& operator<<(Ostream&, const streamLineParticle&)");
-
+    os.check(FUNCTION_NAME);
     return os;
 }
 

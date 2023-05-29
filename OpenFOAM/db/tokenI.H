@@ -1,9 +1,12 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2017-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -23,575 +26,993 @@ License
 
 \*---------------------------------------------------------------------------*/
 
-#include <iostream>
+#include <algorithm>
+
+// * * * * * * * * * * * * * Static Member Functions * * * * * * * * * * * * //
+
+
+ namespace Foam{
+inline token token::boolean(bool on) noexcept
+{
+    token tok;
+    tok.type_ = tokenType::BOOL;
+    tok.data_.labelVal = on;
+
+    return tok;
+}
+
+
+inline token token::flag(int bitmask) noexcept
+{
+    token tok;
+    tok.type_ = tokenType::FLAG;
+    tok.data_.flagVal = bitmask;
+
+    return tok;
+}
+
+
+inline bool token::isseparator(int c) noexcept
+{
+    // NOTE: keep synchronized with ISstream::read(token&)
+
+    switch (c)
+    {
+        case token::END_STATEMENT :
+        case token::BEGIN_LIST :
+        case token::END_LIST :
+        case token::BEGIN_SQR :
+        case token::END_SQR :
+        case token::BEGIN_BLOCK :
+        case token::END_BLOCK :
+        case token::COLON :
+        case token::COMMA :
+        case token::ASSIGN :
+        case token::PLUS :
+        // Excluded token::MINUS since it could start a number
+        case token::MULTIPLY :
+        case token::DIVIDE :
+        {
+            return true;
+        }
+
+        default:
+            break;
+    }
+
+    return false;
+}
+
 
 // * * * * * * * * * * * * * Private Member Functions  * * * * * * * * * * * //
-namespace Foam {
-inline void token::clear()
-{
-    if (type_ == WORD)
-    {
-        delete wordTokenPtr_;
-    }
-    else if (type_ == STRING || type_ == VARIABLE || type_ == VERBATIMSTRING)
-    {
-        delete stringTokenPtr_;
-    }
-    else if (type_ == COMPOUND)
-    {
-        if (compoundTokenPtr_->unique())
-        {
-            delete compoundTokenPtr_;
-        }
-        else
-        {
-            compoundTokenPtr_->refCount::operator--();
-        }
-    }
 
-    type_ = UNDEFINED;
+inline void token::setUndefined() noexcept
+{
+    type_ = tokenType::UNDEFINED;
+    data_.int64Val = 0; // bit-wise zero for union content
+    // leave lineNumber untouched - may still be needed
 }
 
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
-inline token::token() :    type_(UNDEFINED),
-    lineNumber_(0)
+inline constexpr token::token() noexcept
+:
+    data_(), // bit-wise zero for union content
+    type_(tokenType::UNDEFINED),
+    line_(0)
 {}
 
 
-inline token::token(const token& t) :    type_(t.type_),
-    lineNumber_(t.lineNumber_)
+inline token::token(const token& tok)
+:
+    data_(tok.data_), // bit-wise copy of union content
+    type_(tok.type_),
+    line_(tok.line_)
 {
+    // Fundamental: values already handled by bit-wise copy
+    // Pointer: duplicate content or increase refCount
+
     switch (type_)
     {
-        case token::UNDEFINED:
-        break;
+        case tokenType::WORD:
+        case tokenType::DIRECTIVE:
+        {
+            data_.wordPtr = new word(*tok.data_.wordPtr);
+            break;
+        }
 
-        case PUNCTUATION:
-            punctuationToken_ = t.punctuationToken_;
-        break;
+        case tokenType::STRING:
+        case tokenType::EXPRESSION:
+        case tokenType::VARIABLE:
+        case tokenType::VERBATIM:
+        {
+            data_.stringPtr = new string(*tok.data_.stringPtr);
+            break;
+        }
 
-        case WORD:
-            wordTokenPtr_ = new word(*t.wordTokenPtr_);
-        break;
+        case tokenType::COMPOUND:
+        {
+            // Identical pointers, but increase the refCount
+            data_.compoundPtr = tok.data_.compoundPtr;
+            data_.compoundPtr->refCount::operator++();
+            break;
+        }
 
-        case STRING:
-        case VARIABLE:
-        case VERBATIMSTRING:
-            stringTokenPtr_ = new string(*t.stringTokenPtr_);
-        break;
-
-        case LABEL:
-            labelToken_ = t.labelToken_;
-        break;
-
-        case FLOAT_SCALAR:
-            floatScalarToken_ = t.floatScalarToken_;
-        break;
-
-        case DOUBLE_SCALAR:
-            doubleScalarToken_ = t.doubleScalarToken_;
-        break;
-
-        case COMPOUND:
-            compoundTokenPtr_ = t.compoundTokenPtr_;
-            compoundTokenPtr_->refCount::operator++();
-        break;
-
-        case token::ERROR:
-        break;
+        default:
+            break;
     }
 }
 
 
-inline token::token(punctuationToken p, label lineNumber) :    type_(PUNCTUATION),
-    punctuationToken_(p),
-    lineNumber_(lineNumber)
-{}
+inline token::token(token&& tok) noexcept
+:
+    data_(tok.data_), // bit-wise copy of union content
+    type_(tok.type_),
+    line_(tok.line_)
+{
+    tok.setUndefined(); // zero the union content without any checking
+    tok.line_ = 0;
+}
 
 
-inline token::token(const word& w, label lineNumber) :    type_(WORD),
-    wordTokenPtr_(new word(w)),
-    lineNumber_(lineNumber)
-{}
+inline token::token(punctuationToken p, label lineNum) noexcept
+:
+    data_(),
+    type_(tokenType::PUNCTUATION),
+    line_(lineNum)
+{
+    data_.punctuationVal = p;
+}
 
 
-inline token::token(const string& s, label lineNumber) :    type_(STRING),
-    stringTokenPtr_(new string(s)),
-    lineNumber_(lineNumber)
-{}
+inline token::token(const label val, label lineNum) noexcept
+:
+    data_(),
+    type_(tokenType::LABEL),
+    line_(lineNum)
+{
+    data_.labelVal = val;
+}
 
 
-inline token::token(const label l, label lineNumber) :    type_(LABEL),
-    labelToken_(l),
-    lineNumber_(lineNumber)
-{}
+inline token::token(const floatScalar val, label lineNum) noexcept
+:
+    data_(),
+    type_(tokenType::FLOAT),
+    line_(lineNum)
+{
+    data_.floatVal = val;
+}
 
 
-inline token::token(const floatScalar s, label lineNumber) :    type_(FLOAT_SCALAR),
-    floatScalarToken_(s),
-    lineNumber_(lineNumber)
-{}
+inline token::token(const doubleScalar val, label lineNum) noexcept
+:
+    data_(),
+    type_(tokenType::DOUBLE),
+    line_(lineNum)
+{
+    data_.doubleVal = val;
+}
 
 
-inline token::token(const doubleScalar s, label lineNumber) :    type_(DOUBLE_SCALAR),
-    doubleScalarToken_(s),
-    lineNumber_(lineNumber)
-{}
+inline token::token(const word& w, label lineNum)
+:
+    data_(),
+    type_(tokenType::WORD),
+    line_(lineNum)
+{
+    data_.wordPtr = new word(w);
+}
+
+
+inline token::token(const string& str, label lineNum)
+:
+    data_(),
+    type_(tokenType::STRING),
+    line_(lineNum)
+{
+    data_.stringPtr = new string(str);
+}
+
+
+inline token::token(word&& w, label lineNum)
+:
+    data_(),
+    type_(tokenType::WORD),
+    line_(lineNum)
+{
+    data_.wordPtr = new word(std::move(w));
+}
+
+
+inline token::token(string&& str, label lineNum)
+:
+    data_(),
+    type_(tokenType::STRING),
+    line_(lineNum)
+{
+    data_.stringPtr = new string(std::move(str));
+}
+
+
+inline token::token(token::compound* ptr, label lineNum)
+:
+    data_(),
+    type_(tokenType::COMPOUND),
+    line_(lineNum)
+{
+    data_.compoundPtr = ptr;
+}
 
 
 // * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
 
 inline token::~token()
 {
-    clear();
+    reset();
 }
 
 
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
 
-inline token::tokenType  token::type() const
+inline void token::reset()
+{
+    switch (type_)
+    {
+        case tokenType::WORD:
+        case tokenType::DIRECTIVE:
+        {
+            delete data_.wordPtr;
+            break;
+        }
+
+        case tokenType::STRING:
+        case tokenType::EXPRESSION:
+        case tokenType::VARIABLE:
+        case tokenType::VERBATIM:
+        {
+            delete data_.stringPtr;
+            break;
+        }
+
+        case tokenType::COMPOUND:
+        {
+            if (data_.compoundPtr->unique())
+            {
+                delete data_.compoundPtr;
+            }
+            else
+            {
+                data_.compoundPtr->refCount::operator--();
+            }
+            break;
+        }
+
+        default:
+            break;
+    }
+
+    setUndefined();
+}
+
+
+inline void token::swap(token& tok)
+{
+    if (this == &tok)
+    {
+        return;  // Self-swap is a no-op
+    }
+
+    std::swap(data_, tok.data_);
+    std::swap(type_, tok.type_);
+    std::swap(line_, tok.line_);
+}
+
+
+inline token::tokenType token::type() const noexcept
 {
     return type_;
 }
 
-inline token::tokenType&  token::type()
-{
-    return type_;
-}
 
-inline bool token::good() const
+inline bool token::setType(token::tokenType tokType) noexcept
 {
-    return (type_ != ERROR && type_ != UNDEFINED);
-}
-
-inline bool token::undefined() const
-{
-    return (type_ == UNDEFINED);
-}
-
-inline bool token::error() const
-{
-    return (type_ == ERROR);
-}
-
-inline bool token::isPunctuation() const
-{
-    return (type_ == PUNCTUATION);
-}
-
-inline token::punctuationToken  token::pToken() const
-{
-    if (type_ == PUNCTUATION)
+    if (type_ == tokType)
     {
-        return punctuationToken_;
+        // No change required
+        return true;
     }
-    else
+
+    switch (tokType)
     {
-        parseError("punctuation character");
-        return NULL_TOKEN;
+        case tokenType::BOOL:
+        case tokenType::LABEL:
+        {
+            switch (type_)
+            {
+                case tokenType::BOOL:
+                case tokenType::LABEL:
+                    type_ = tokType;
+                    return true;
+                    break;
+
+                default:
+                    break;
+            }
+        }
+        break;
+
+        case tokenType::WORD:
+        case tokenType::DIRECTIVE:
+        {
+            switch (type_)
+            {
+                case tokenType::WORD:
+                case tokenType::DIRECTIVE:
+                    type_ = tokType;
+                    return true;
+                    break;
+
+                default:
+                    break;
+            }
+        }
+        break;
+
+        case tokenType::STRING:
+        case tokenType::EXPRESSION:
+        case tokenType::VARIABLE:
+        case tokenType::VERBATIM:
+        {
+            switch (type_)
+            {
+                // could also go from WORD to STRING etc - to be decided
+                case tokenType::STRING:
+                case tokenType::EXPRESSION:
+                case tokenType::VARIABLE:
+                case tokenType::VERBATIM:
+                    type_ = tokType;
+                    return true;
+                    break;
+
+                default:
+                    break;
+            }
+        }
+        break;
+
+        default:
+            break;
     }
+
+    return false;
 }
 
-inline bool token::isWord() const
+
+inline label token::lineNumber() const noexcept
 {
-    return (type_ == WORD);
+    return line_;
 }
 
-inline const word& token::wordToken() const
+
+inline label token::lineNumber(const label lineNum) noexcept
 {
-    if (type_ == WORD)
+    label old(line_);
+    line_ = lineNum;
+    return old;
+}
+
+
+inline bool token::good() const noexcept
+{
+    return (type_ != tokenType::UNDEFINED && type_ != tokenType::ERROR);
+}
+
+
+inline bool token::undefined() const noexcept
+{
+    return (type_ == tokenType::UNDEFINED);
+}
+
+
+inline bool token::error() const noexcept
+{
+    return (type_ == tokenType::ERROR);
+}
+
+
+inline bool token::isBool() const noexcept
+{
+    return (type_ == tokenType::BOOL);
+}
+
+
+inline bool token::boolToken() const
+{
+    if (type_ == tokenType::BOOL || type_ == tokenType::LABEL)
     {
-        return *wordTokenPtr_;
+        return data_.labelVal;
     }
-    else
+
+    parseError("bool");
+    return false;
+}
+
+
+inline bool token::isFlag() const noexcept
+{
+    return (type_ == tokenType::FLAG);
+}
+
+
+inline int token::flagToken() const
+{
+    if (type_ == tokenType::FLAG)
     {
-        parseError(word::typeName);
-        return word::null;
+        return data_.flagVal;
     }
+
+    parseError("flag bitmask");
+    return NO_FLAG;
 }
 
-inline bool token::isVariable() const
+
+inline bool token::isPunctuation() const noexcept
 {
-    return (type_ == VARIABLE);
+    return (type_ == tokenType::PUNCTUATION);
 }
 
-inline bool token::isString() const
+
+inline bool token::isPunctuation(const punctuationToken p) const noexcept
 {
-    return (type_ == STRING || type_ == VARIABLE || type_ == VERBATIMSTRING);
+    return
+    (
+        type_ == tokenType::PUNCTUATION
+     && data_.punctuationVal == p
+    );
 }
 
-inline const string& token::stringToken() const
+
+inline bool token::isSeparator() const noexcept
 {
-    if (type_ == STRING || type_ == VARIABLE || type_ == VERBATIMSTRING)
+    return
+    (
+        type_ == tokenType::PUNCTUATION
+     && isseparator(data_.punctuationVal)
+    );
+}
+
+
+inline token::punctuationToken token::pToken() const
+{
+    if (type_ == tokenType::PUNCTUATION)
     {
-        return *stringTokenPtr_;
+        return data_.punctuationVal;
     }
-    else
-    {
-        parseError(string::typeName);
-        return string::null;
-    }
+
+    parseError("punctuation character");
+    return punctuationToken::NULL_TOKEN;
 }
 
-inline bool token::isLabel() const
+
+inline bool token::isLabel() const noexcept
 {
-    return (type_ == LABEL);
+    return (type_ == tokenType::LABEL);
 }
+
+
+inline bool token::isLabel(const label val) const noexcept
+{
+    return
+    (
+        type_ == tokenType::LABEL
+     && data_.labelVal == val
+    );
+}
+
 
 inline label token::labelToken() const
 {
-    if (type_ == LABEL)
+    if (type_ == tokenType::LABEL)
     {
-        return labelToken_;
+        return data_.labelVal;
     }
-    else
-    {
-        parseError(pTraits<label>::typeName);
-        return 0;
-    }
+
+    parseError("label");
+    return 0;
 }
 
-inline bool token::isFloatScalar() const
+
+inline bool token::isFloat() const noexcept
 {
-    return (type_ == FLOAT_SCALAR);
+    return (type_ == tokenType::FLOAT);
 }
 
-inline floatScalar token::floatScalarToken() const
+
+inline floatScalar token::floatToken() const
 {
-    if (type_ == FLOAT_SCALAR)
+    if (type_ == tokenType::FLOAT)
     {
-        return floatScalarToken_;
+        return data_.floatVal;
     }
-    else
-    {
-        parseError("floatScalar");
-        return 0.0;
-    }
+
+    parseError("float");
+    return 0;
 }
 
 
-inline bool token::isDoubleScalar() const
+inline bool token::isDouble() const noexcept
 {
-    return (type_ == DOUBLE_SCALAR);
+    return (type_ == tokenType::DOUBLE);
 }
 
-inline doubleScalar token::doubleScalarToken() const
+
+inline doubleScalar token::doubleToken() const
 {
-    if (type_ == DOUBLE_SCALAR)
+    if (type_ == tokenType::DOUBLE)
     {
-        return doubleScalarToken_;
+        return data_.doubleVal;
     }
-    else
-    {
-        parseError("doubleScalar");
-        return 0.0;
-    }
+
+    parseError("double");
+    return 0;
 }
 
 
-inline bool token::isScalar() const
+inline bool token::isScalar() const noexcept
 {
-    return (type_ == FLOAT_SCALAR || type_ == DOUBLE_SCALAR);
+    return
+    (
+        type_ == tokenType::FLOAT
+     || type_ == tokenType::DOUBLE
+    );
 }
+
 
 inline scalar token::scalarToken() const
 {
-    if (type_ == FLOAT_SCALAR)
+    if (type_ == tokenType::FLOAT)
     {
-        return floatScalarToken_;
+        return data_.floatVal;
     }
-    else if (type_ == DOUBLE_SCALAR)
+    else if (type_ == tokenType::DOUBLE)
     {
-        return doubleScalarToken_;
+        return data_.doubleVal;
     }
-    else
-    {
-        parseError(pTraits<scalar>::typeName);
-        return 0.0;
-    }
+
+    parseError("scalar");
+    return 0;
 }
 
-inline bool token::isNumber() const
+
+inline bool token::isNumber() const noexcept
 {
-    return (type_ == LABEL || isScalar());
+    return (type_ == tokenType::LABEL || isScalar());
 }
+
 
 inline scalar token::number() const
 {
-    if (type_ == LABEL)
+    if (isLabel())
     {
-        return labelToken_;
+        return labelToken();
     }
-    else if (isScalar())
+    if (isScalar())
     {
         return scalarToken();
     }
-    else
-    {
-        parseError("number (label or scalar)");
-        return 0.0;
-    }
+
+    parseError("number (label or scalar)");
+    return 0;
 }
 
-inline bool token::isCompound() const
+
+inline bool token::isWord() const noexcept
 {
-    return (type_ == COMPOUND);
+    return
+    (
+        type_ == tokenType::WORD
+     || type_ == tokenType::DIRECTIVE
+    );
 }
+
+
+inline bool token::isWord(const std::string& s) const
+{
+    return (isWord() && s == *data_.wordPtr);
+}
+
+
+inline bool token::isDirective() const noexcept
+{
+    return (type_ == tokenType::DIRECTIVE);
+}
+
+
+inline const word& token::wordToken() const
+{
+    if
+    (
+        type_ == tokenType::WORD
+     || type_ == tokenType::DIRECTIVE
+    )
+    {
+        return *data_.wordPtr;
+    }
+
+    parseError("word");
+    return word::null;
+}
+
+
+inline bool token::isQuotedString() const noexcept
+{
+    return (type_ == tokenType::STRING);
+}
+
+
+inline bool token::isString() const noexcept
+{
+    return
+    (
+        type_ == tokenType::STRING
+     || type_ == tokenType::EXPRESSION
+     || type_ == tokenType::VARIABLE
+     || type_ == tokenType::VERBATIM
+    );
+}
+
+
+inline bool token::isExpression() const noexcept
+{
+    return (type_ == tokenType::EXPRESSION);
+}
+
+
+inline bool token::isVariable() const noexcept
+{
+    return (type_ == tokenType::VARIABLE);
+}
+
+
+inline bool token::isVerbatim() const noexcept
+{
+    return (type_ == tokenType::VERBATIM);
+}
+
+
+inline bool token::isStringType() const noexcept
+{
+    return (isWord() || isString());
+}
+
+
+inline const string& token::stringToken() const
+{
+    if
+    (
+        type_ == tokenType::STRING
+     || type_ == tokenType::EXPRESSION
+     || type_ == tokenType::VARIABLE
+     || type_ == tokenType::VERBATIM
+    )
+    {
+        return *data_.stringPtr;
+    }
+    else if
+    (
+        type_ == tokenType::WORD
+     || type_ == tokenType::DIRECTIVE
+    )
+    {
+        // Foam::word derives from Foam::string, no need to cast.
+        return *data_.wordPtr;
+    }
+
+    parseError("string");
+    return string::null;
+}
+
+
+inline bool token::isCompound() const noexcept
+{
+    return (type_ == tokenType::COMPOUND);
+}
+
 
 inline const token::compound& token::compoundToken() const
 {
-    if (type_ == COMPOUND)
+    if (type_ == tokenType::COMPOUND)
     {
-        return *compoundTokenPtr_;
+        return *data_.compoundPtr;
     }
-    else
-    {
-        parseError("compound");
-        return *compoundTokenPtr_;
-    }
-}
 
-
-inline label token::lineNumber() const
-{
-    return lineNumber_;
-}
-
-inline label& token::lineNumber()
-{
-    return lineNumber_;
+    parseError("compound");
+    return *data_.compoundPtr;  // This is questionable.
 }
 
 
 inline void token::setBad()
 {
-    clear();
-    type_ = ERROR;
+    reset();
+    type_ = tokenType::ERROR;
 }
 
 
 // * * * * * * * * * * * * * * * Member Operators  * * * * * * * * * * * * * //
 
-inline void token::operator=(const token& t)
+inline void token::operator=(const token& tok)
 {
-    clear();
-    type_ = t.type_;
+    if (this == &tok)
+    {
+        return;  // Self-assignment is a no-op
+    }
+
+    reset();
+
+    type_ = tok.type_;
+    data_ = tok.data_;  // bit-wise copy of union content
+    line_ = tok.line_;
+
+    // Fundamental: values already handled by bit-wise copy
+    // Pointer: duplicate content or increase refCount
 
     switch (type_)
     {
-        case token::UNDEFINED:
+        case tokenType::WORD:
+        case tokenType::DIRECTIVE:
+        {
+            data_.wordPtr = new word(*tok.data_.wordPtr);
+        }
         break;
 
-        case PUNCTUATION:
-            punctuationToken_ = t.punctuationToken_;
+        case tokenType::STRING:
+        case tokenType::EXPRESSION:
+        case tokenType::VARIABLE:
+        case tokenType::VERBATIM:
+        {
+            data_.stringPtr = new string(*tok.data_.stringPtr);
+        }
         break;
 
-        case WORD:
-            wordTokenPtr_ = new word(*t.wordTokenPtr_);
+        case tokenType::COMPOUND:
+        {
+            // Identical pointers, but increase the refCount
+            data_.compoundPtr = tok.data_.compoundPtr;
+            data_.compoundPtr->refCount::operator++();
+        }
         break;
 
-        case STRING:
-        case VARIABLE:
-        case VERBATIMSTRING:
-            stringTokenPtr_ = new string(*t.stringTokenPtr_);
-        break;
+        default:
+            break;
+    }
+}
 
-        case LABEL:
-            labelToken_ = t.labelToken_;
-        break;
 
-        case FLOAT_SCALAR:
-            floatScalarToken_ = t.floatScalarToken_;
-        break;
-
-        case DOUBLE_SCALAR:
-            doubleScalarToken_ = t.doubleScalarToken_;
-        break;
-
-        case COMPOUND:
-            compoundTokenPtr_ = t.compoundTokenPtr_;
-            compoundTokenPtr_->refCount::operator++();
-        break;
-
-        case token::ERROR:
-        break;
+inline void token::operator=(token&& tok)
+{
+    if (this == &tok)
+    {
+        return;  // Self-assignment is a no-op
     }
 
-    lineNumber_ = t.lineNumber_;
+    reset();
+    line_ = 0;
+    swap(tok);
 }
+
 
 inline void token::operator=(const punctuationToken p)
 {
-    clear();
-    type_ = PUNCTUATION;
-    punctuationToken_ = p;
+    reset();
+    type_ = tokenType::PUNCTUATION;
+    data_.punctuationVal = p;
 }
 
-inline void token::operator=(word* wPtr)
+
+inline void token::operator=(const label val)
 {
-    clear();
-    type_ = WORD;
-    wordTokenPtr_ = wPtr;
+    reset();
+    type_ = tokenType::LABEL;
+    data_.labelVal = val;
 }
+
+
+inline void token::operator=(const floatScalar val)
+{
+    reset();
+    type_ = tokenType::FLOAT;
+    data_.floatVal = val;
+}
+
+
+inline void token::operator=(const doubleScalar val)
+{
+    reset();
+    type_ = tokenType::DOUBLE;
+    data_.doubleVal = val;
+}
+
 
 inline void token::operator=(const word& w)
 {
-    operator=(new word(w));
-}
-
-inline void token::operator=(string* sPtr)
-{
-    clear();
-    type_ = STRING;
-    stringTokenPtr_ = sPtr;
-}
-
-inline void token::operator=(const string& s)
-{
-    operator=(new string(s));
-}
-
-inline void token::operator=(const label l)
-{
-    clear();
-    type_ = LABEL;
-    labelToken_ = l;
-}
-
-inline void token::operator=(const floatScalar s)
-{
-    clear();
-    type_ = FLOAT_SCALAR;
-    floatScalarToken_ = s;
-}
-
-inline void token::operator=(const doubleScalar s)
-{
-    clear();
-    type_ = DOUBLE_SCALAR;
-    doubleScalarToken_ = s;
-}
-
-inline void token::operator=(token::compound* cPtr)
-{
-    clear();
-    type_ = COMPOUND;
-    compoundTokenPtr_ = cPtr;
+    reset();
+    type_ = tokenType::WORD;
+    data_.wordPtr = new word(w);
 }
 
 
-inline bool token::operator==(const token& t) const
+inline void token::operator=(const string& str)
 {
-    if (type_ != t.type_)
+    reset();
+    type_ = tokenType::STRING;
+    data_.stringPtr = new string(str);
+}
+
+
+inline void token::operator=(word&& w)
+{
+    reset();
+    type_ = tokenType::WORD;
+    data_.wordPtr = new word(std::move(w));
+}
+
+
+inline void token::operator=(string&& s)
+{
+    reset();
+    type_ = tokenType::STRING;
+    data_.stringPtr = new string(std::move(s));
+}
+
+
+inline void token::operator=(token::compound* ptr)
+{
+    reset();
+    type_ = tokenType::COMPOUND;
+    data_.compoundPtr = ptr;
+}
+
+
+inline void token::operator=(autoPtr<token::compound>&& ptr)
+{
+    reset();
+    type_ = tokenType::COMPOUND;
+    data_.compoundPtr = ptr.release();
+}
+
+
+inline bool token::operator==(const token& tok) const
+{
+    if (type_ != tok.type_)
     {
         return false;
     }
 
     switch (type_)
     {
-        case token::UNDEFINED:
+        case tokenType::UNDEFINED:
             return true;
 
-        case PUNCTUATION:
-            return punctuationToken_ == t.punctuationToken_;
+        case tokenType::BOOL:
+            return data_.labelVal == tok.data_.labelVal;
 
-        case WORD:
-            return *wordTokenPtr_ == *t.wordTokenPtr_;
+        case tokenType::FLAG:
+            return data_.flagVal == tok.data_.flagVal;
 
-        case STRING:
-        case VARIABLE:
-        case VERBATIMSTRING:
-            return *stringTokenPtr_ == *t.stringTokenPtr_;
+        case tokenType::PUNCTUATION:
+            return data_.punctuationVal == tok.data_.punctuationVal;
 
-        case LABEL:
-            return labelToken_ == t.labelToken_;
+        case tokenType::LABEL:
+            return data_.labelVal == tok.data_.labelVal;
 
-        case FLOAT_SCALAR:
-            return equal(floatScalarToken_, t.floatScalarToken_);
+        case tokenType::FLOAT:
+            return equal(data_.floatVal, tok.data_.floatVal);
 
-        case DOUBLE_SCALAR:
-            return equal(doubleScalarToken_, t.doubleScalarToken_);
+        case tokenType::DOUBLE:
+            return equal(data_.doubleVal, tok.data_.doubleVal);
 
-        case COMPOUND:
-            return compoundTokenPtr_ == t.compoundTokenPtr_;
+        case tokenType::WORD:
+        case tokenType::DIRECTIVE:
+            return *data_.wordPtr == *tok.data_.wordPtr;
 
-        case token::ERROR:
+        case tokenType::STRING:
+        case tokenType::EXPRESSION:
+        case tokenType::VARIABLE:
+        case tokenType::VERBATIM:
+            return *data_.stringPtr == *tok.data_.stringPtr;
+
+        case tokenType::COMPOUND:
+            return data_.compoundPtr == tok.data_.compoundPtr;
+
+        case tokenType::ERROR:
             return true;
     }
 
     return false;
 }
 
-inline bool token::operator==(const punctuationToken p) const
+
+inline bool token::operator==(const punctuationToken p) const noexcept
 {
-    return (type_ == PUNCTUATION && punctuationToken_ == p);
+    return isPunctuation(p);
 }
 
-inline bool token::operator==(const word& w) const
-{
-    return (type_ == WORD && wordToken() == w);
-}
 
-inline bool token::operator==(const string& s) const
+inline bool token::operator==(const std::string& s) const
 {
     return
     (
-        (type_ == STRING || type_ == VARIABLE || type_ == VERBATIMSTRING)
-     && stringToken() == s
+        isWord()
+      ? s == *data_.wordPtr
+      : isString() && s == *data_.stringPtr
     );
 }
 
-inline bool token::operator==(const label l) const
+
+inline bool token::operator==(const label val) const noexcept
 {
-    return (type_ == LABEL && labelToken_ == l);
+    return isLabel(val);
 }
 
-inline bool token::operator==(const floatScalar s) const
+
+inline bool token::operator==(const floatScalar val) const noexcept
 {
-    return (type_ == FLOAT_SCALAR && equal(floatScalarToken_, s));
+    return
+    (
+        type_ == tokenType::FLOAT
+     && equal(data_.floatVal, val)
+    );
 }
 
-inline bool token::operator==(const doubleScalar s) const
+
+inline bool token::operator==(const doubleScalar val) const noexcept
 {
-    return (type_ == DOUBLE_SCALAR && equal(doubleScalarToken_, s));
+    return
+    (
+        type_ == tokenType::DOUBLE
+     && equal(data_.doubleVal, val)
+    );
 }
 
-inline bool token::operator!=(const token& t) const
+
+inline bool token::operator!=(const token& tok) const
 {
-    return !operator==(t);
+    return !operator==(tok);
 }
 
-inline bool token::operator!=(const punctuationToken p) const
+
+inline bool token::operator!=(const punctuationToken p) const noexcept
 {
-    return !operator==(p);
+    return !isPunctuation(p);
 }
 
-inline bool token::operator!=(const word& w) const
+
+inline bool token::operator!=(const label val) const noexcept
 {
-    return !operator==(w);
+    return !operator==(val);
 }
 
-inline bool token::operator!=(const string& s) const
+
+inline bool token::operator!=(const floatScalar val) const noexcept
+{
+    return !operator==(val);
+}
+
+
+inline bool token::operator!=(const doubleScalar val) const noexcept
+{
+    return !operator==(val);
+}
+
+
+inline bool token::operator!=(const std::string& s) const
 {
     return !operator==(s);
 }
 
-inline bool token::operator!=(const floatScalar s) const
-{
-    return !operator==(s);
-}
 
-inline bool token::operator!=(const doubleScalar s) const
-{
-    return !operator==(s);
-}
-
-inline bool token::operator!=(const label l) const
-{
-    return !operator==(l);
-}
-
-}
 // ************************************************************************* //
+
+ } // End namespace Foam

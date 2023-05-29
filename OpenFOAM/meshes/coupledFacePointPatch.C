@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2012 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2012 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -27,29 +29,31 @@ License
 #include "pointBoundaryMesh.H"
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
-using namespace Foam;
+
 namespace Foam
 {
-defineTypeNameAndDebug(coupledFacePointPatch, 0);
+    defineTypeNameAndDebug(coupledFacePointPatch, 0);
+
+
+
+    // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
+
+    coupledFacePointPatch::coupledFacePointPatch
+    (
+        const polyPatch& patch,
+        const pointBoundaryMesh& bm
+    )
+        :
+        facePointPatch(patch, bm),
+        coupledPointPatch(bm),
+        coupledPolyPatch_(refCast<const coupledPolyPatch>(patch))
+    {}
+
+
+    // * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
+
+    coupledFacePointPatch::~coupledFacePointPatch()
+    {}
+
 }
-
-
-// * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
-
-coupledFacePointPatch::coupledFacePointPatch
-(
-    const polyPatch& patch,
-    const pointBoundaryMesh& bm
-) :    facePointPatch(patch, bm),
-    coupledPointPatch(bm),
-    coupledPolyPatch_(refCast<const coupledPolyPatch>(patch))
-{}
-
-
-// * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
-
-coupledFacePointPatch::~coupledFacePointPatch()
-{}
-
-
 // ************************************************************************* //

@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -23,18 +25,18 @@ License
 
 \*---------------------------------------------------------------------------*/
 
-#include "CompressibleTurbulenceModel.T.H"
+#include "CompressibleTurbulenceModel2.H"
 #include "compressibleTransportModel.H"
 #include "fluidThermo.H"
 #include "addToRunTimeSelectionTable.H"
-#include "makeTurbulenceModel_Eddy.H"
+#include "makeTurbulenceModel2.H"//Eddy 2
 
-#include "ThermalDiffusivity.T.H"
-#include "EddyDiffusivity.T.H"
+#include "ThermalDiffusivity.H"
+#include "EddyDiffusivity.H"
 
 #include "laminarModel.H"
-#include "RASModel.T.H"
-#include "LESModel.T.H"
+#include "RASModel.H"
+#include "LESModel.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 

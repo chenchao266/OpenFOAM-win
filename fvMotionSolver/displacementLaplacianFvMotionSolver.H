@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -23,6 +25,9 @@ License
 
 Class
     Foam::displacementLaplacianFvMotionSolver
+
+Group
+    grpMeshMotionSolvers
 
 Description
     Mesh motion solver for an fvMesh.  Based on solving the cell-centre
@@ -45,6 +50,7 @@ namespace Foam
 {
 
 // Forward class declarations
+class motionInterpolation;
 class motionDiffusivity;
 
 /*---------------------------------------------------------------------------*\
@@ -65,6 +71,9 @@ class displacementLaplacianFvMotionSolver
         //  boundary conditions.
         mutable autoPtr<pointVectorField> pointLocation_;
 
+        //- Interpolation used to transfer cell displacement to the points
+        autoPtr<motionInterpolation> interpolationPtr_;
+
         //- Diffusivity used to control the motion
         autoPtr<motionDiffusivity> diffusivityPtr_;
 
@@ -75,14 +84,14 @@ class displacementLaplacianFvMotionSolver
 
     // Private Member Functions
 
-        //- Disallow default bitwise copy construct
+        //- No copy construct
         displacementLaplacianFvMotionSolver
         (
             const displacementLaplacianFvMotionSolver&
-        );
+        ) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const displacementLaplacianFvMotionSolver&);
+        //- No copy assignment
+        void operator=(const displacementLaplacianFvMotionSolver&) = delete;
 
 
 public:
@@ -98,6 +107,15 @@ public:
         (
             const polyMesh&,
             const IOdictionary&
+        );
+
+        //- Construct from components
+        displacementLaplacianFvMotionSolver
+        (
+            const polyMesh& mesh,
+            const IOdictionary& dict,
+            const pointVectorField& pointDisplacement,
+            const pointIOField& points0
         );
 
 

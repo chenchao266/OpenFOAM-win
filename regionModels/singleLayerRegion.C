@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -25,7 +28,7 @@ License
 
 #include "singleLayerRegion.H"
 #include "fvMesh.H"
-#include "Time.T.H"
+#include "Time1.H"
 #include "zeroGradientFvPatchFields.H"
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
@@ -56,7 +59,7 @@ void Foam::regionModels::singleLayerRegion::constructMeshObjects()
                 NO_WRITE
             ),
             regionMesh(),
-            dimensionedVector("zero", dimless, Zero),
+            dimensionedVector(dimless, Zero),
             zeroGradientFvPatchField<vector>::typeName
         )
     );
@@ -75,7 +78,7 @@ void Foam::regionModels::singleLayerRegion::constructMeshObjects()
                 NO_WRITE
             ),
             regionMesh(),
-            dimensionedScalar("zero", dimArea, 0.0),
+            dimensionedScalar(dimArea, Zero),
             zeroGradientFvPatchField<scalar>::typeName
         )
     );
@@ -117,7 +120,7 @@ void Foam::regionModels::singleLayerRegion::initialise()
             << abort(FatalError);
     }
 
-    scalarField passiveMagSf(magSf.size(), 0.0);
+    scalarField passiveMagSf(magSf.size(), Zero);
     passivePatchIDs_.setSize(intCoupledPatchIDs_.size(), -1);
     forAll(intCoupledPatchIDs_, i)
     {
@@ -206,27 +209,27 @@ Foam::regionModels::singleLayerRegion::~singleLayerRegion()
 
 const Foam::volVectorField& Foam::regionModels::singleLayerRegion::nHat() const
 {
-    if (!nHatPtr_.valid())
+    if (!nHatPtr_)
     {
         FatalErrorInFunction
             << "Region patch normal vectors not available"
             << abort(FatalError);
     }
 
-    return nHatPtr_();
+    return *nHatPtr_;
 }
 
 
 const Foam::volScalarField& Foam::regionModels::singleLayerRegion::magSf() const
 {
-    if (!magSfPtr_.valid())
+    if (!magSfPtr_)
     {
         FatalErrorInFunction
             << "Region patch areas not available"
             << abort(FatalError);
     }
 
-    return magSfPtr_();
+    return *magSfPtr_;
 }
 
 

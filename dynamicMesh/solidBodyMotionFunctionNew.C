@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2019-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -29,28 +32,28 @@ License
 
 Foam::autoPtr<Foam::solidBodyMotionFunction> Foam::solidBodyMotionFunction::New
 (
-    const dictionary& SBMFCoeffs,
+    const dictionary& dict,
     const Time& runTime
 )
 {
-    const word motionType(SBMFCoeffs.lookup("solidBodyMotionFunction"));
+    const word motionType(dict.get<word>("solidBodyMotionFunction"));
 
     Info<< "Selecting solid-body motion function " << motionType << endl;
 
-    dictionaryConstructorTable::iterator cstrIter =
-        dictionaryConstructorTablePtr_->find(motionType);
+    auto* ctorPtr = dictionaryConstructorTable(motionType);
 
-    if (cstrIter == dictionaryConstructorTablePtr_->end())
+    if (!ctorPtr)
     {
-        FatalErrorInFunction
-            << "Unknown solidBodyMotionFunction type "
-            << motionType << nl << nl
-            << "Valid solidBodyMotionFunctions are : " << endl
-            << dictionaryConstructorTablePtr_->sortedToc()
-            << exit(FatalError);
+        FatalIOErrorInLookup
+        (
+            dict,
+            "solidBodyMotionFunction",
+            motionType,
+            *dictionaryConstructorTablePtr_
+        ) << exit(FatalIOError);
     }
 
-    return autoPtr<solidBodyMotionFunction>(cstrIter()(SBMFCoeffs, runTime));
+    return autoPtr<solidBodyMotionFunction>(ctorPtr(dict, runTime));
 }
 
 

@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2013 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2013 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -36,7 +39,7 @@ SourceFiles
 #ifndef polyMeshFilterSettings_H
 #define polyMeshFilterSettings_H
 
-#include "dictionary.H"
+#include "dictionary2.H"
 #include "Switch.H"
 #include "scalar.H"
 #include "label.H"
@@ -111,7 +114,7 @@ public:
 
 
     //- Destructor
-    ~polyMeshFilterSettings(){};
+    ~polyMeshFilterSettings() = default;
 
 
     // Member Functions
@@ -124,9 +127,7 @@ public:
 
             inline const dictionary& meshQualityCoeffDict() const;
 
-
-            inline const Switch& controlMeshQuality() const;
-
+            inline Switch controlMeshQuality() const;
 
             inline const scalar& minLen() const;
 

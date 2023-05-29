@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -67,11 +70,11 @@ Foam::fv::cellMDLimitedGrad<Foam::scalar>::calcGrad
 
     forAll(owner, facei)
     {
-        label own = owner[facei];
-        label nei = neighbour[facei];
+        const label own = owner[facei];
+        const label nei = neighbour[facei];
 
-        scalar vsfOwn = vsf[own];
-        scalar vsfNei = vsf[nei];
+        const scalar vsfOwn = vsf[own];
+        const scalar vsfNei = vsf[nei];
 
         maxVsf[own] = max(maxVsf[own], vsfNei);
         minVsf[own] = min(minVsf[own], vsfNei);
@@ -95,8 +98,8 @@ Foam::fv::cellMDLimitedGrad<Foam::scalar>::calcGrad
 
             forAll(pOwner, pFacei)
             {
-                label own = pOwner[pFacei];
-                scalar vsfNei = psfNei[pFacei];
+                const label own = pOwner[pFacei];
+                const scalar vsfNei = psfNei[pFacei];
 
                 maxVsf[own] = max(maxVsf[own], vsfNei);
                 minVsf[own] = min(minVsf[own], vsfNei);
@@ -106,8 +109,8 @@ Foam::fv::cellMDLimitedGrad<Foam::scalar>::calcGrad
         {
             forAll(pOwner, pFacei)
             {
-                label own = pOwner[pFacei];
-                scalar vsfNei = psf[pFacei];
+                const label own = pOwner[pFacei];
+                const scalar vsfNei = psf[pFacei];
 
                 maxVsf[own] = max(maxVsf[own], vsfNei);
                 minVsf[own] = min(minVsf[own], vsfNei);
@@ -131,8 +134,8 @@ Foam::fv::cellMDLimitedGrad<Foam::scalar>::calcGrad
 
     forAll(owner, facei)
     {
-        label own = owner[facei];
-        label nei = neighbour[facei];
+        const label own = owner[facei];
+        const label nei = neighbour[facei];
 
         // owner side
         limitFace
@@ -161,7 +164,7 @@ Foam::fv::cellMDLimitedGrad<Foam::scalar>::calcGrad
 
         forAll(pOwner, pFacei)
         {
-            label own = pOwner[pFacei];
+            const label own = pOwner[pFacei];
 
             limitFace
             (
@@ -210,8 +213,8 @@ Foam::fv::cellMDLimitedGrad<Foam::vector>::calcGrad
 
     forAll(owner, facei)
     {
-        label own = owner[facei];
-        label nei = neighbour[facei];
+        const label own = owner[facei];
+        const label nei = neighbour[facei];
 
         const vector& vsfOwn = vsf[own];
         const vector& vsfNei = vsf[nei];
@@ -237,7 +240,7 @@ Foam::fv::cellMDLimitedGrad<Foam::vector>::calcGrad
 
             forAll(pOwner, pFacei)
             {
-                label own = pOwner[pFacei];
+                const label own = pOwner[pFacei];
                 const vector& vsfNei = psfNei[pFacei];
 
                 maxVsf[own] = max(maxVsf[own], vsfNei);
@@ -248,7 +251,7 @@ Foam::fv::cellMDLimitedGrad<Foam::vector>::calcGrad
         {
             forAll(pOwner, pFacei)
             {
-                label own = pOwner[pFacei];
+                const label own = pOwner[pFacei];
                 const vector& vsfNei = psf[pFacei];
 
                 maxVsf[own] = max(maxVsf[own], vsfNei);
@@ -273,8 +276,8 @@ Foam::fv::cellMDLimitedGrad<Foam::vector>::calcGrad
 
     forAll(owner, facei)
     {
-        label own = owner[facei];
-        label nei = neighbour[facei];
+        const label own = owner[facei];
+        const label nei = neighbour[facei];
 
         // owner side
         limitFace
@@ -303,7 +306,7 @@ Foam::fv::cellMDLimitedGrad<Foam::vector>::calcGrad
 
         forAll(pOwner, pFacei)
         {
-            label own = pOwner[pFacei];
+            const label own = pOwner[pFacei];
 
             limitFace
             (

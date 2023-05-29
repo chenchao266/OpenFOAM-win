@@ -1,9 +1,12 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2019-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -24,8 +27,8 @@ License
 \*---------------------------------------------------------------------------*/
 
 #include "splineEdge.H"
+#include "polyLine.H"
 #include "addToRunTimeSelectionTable.H"
-
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
 
@@ -50,13 +53,27 @@ namespace blockEdges
 Foam::blockEdges::splineEdge::splineEdge
 (
     const pointField& points,
-    const label start,
-    const label end,
+    const edge& fromTo,
     const pointField& internalPoints
 )
 :
-    blockEdge(points, start, end),
-    CatmullRomSpline(appendEndPoints(points, start, end, internalPoints))
+    blockEdge(points, fromTo),
+    CatmullRomSpline
+    (
+        polyLine::concat(firstPoint(), internalPoints, lastPoint()).points()
+    )
+{}
+
+
+Foam::blockEdges::splineEdge::splineEdge
+(
+    const pointField& points,
+    const label from,
+    const label to,
+    const pointField& internalPoints
+)
+:
+    splineEdge(points, edge(from,to), internalPoints)
 {}
 
 
@@ -64,30 +81,27 @@ Foam::blockEdges::splineEdge::splineEdge
 (
     const dictionary& dict,
     const label index,
-    const searchableSurfaces& geometry,
+    const searchableSurfaces&,
     const pointField& points,
     Istream& is
 )
 :
     blockEdge(dict, index, points, is),
-    CatmullRomSpline(appendEndPoints(points, start_, end_, pointField(is)))
+    CatmullRomSpline
+    (
+        polyLine::concat(firstPoint(), pointField(is), lastPoint()).points()
+    )
 {
-    token t(is);
-    is.putBack(t);
+    token tok(is);
+    is.putBack(tok);
 
-    // discard unused start/end tangents
-    if (t == token::BEGIN_LIST)
+    // Discard unused start/end tangents
+    if (tok == token::BEGIN_LIST)
     {
         vector tangent0Ignored(is);
         vector tangent1Ignored(is);
     }
 }
-
-
-// * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
-
-Foam::blockEdges::splineEdge::~splineEdge()
-{}
 
 
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //

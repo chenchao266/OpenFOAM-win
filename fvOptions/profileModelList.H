@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2013 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2013 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -35,7 +37,7 @@ SourceFiles
 #ifndef profileModelList_H
 #define profileModelList_H
 
-#include "PtrList.T.H"
+#include "PtrList.H"
 #include "profileModel.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
@@ -44,17 +46,16 @@ namespace Foam
 {
 
 /*---------------------------------------------------------------------------*\
-                    Class profileModelList Declaration
+                      Class profileModelList Declaration
 \*---------------------------------------------------------------------------*/
 
 class profileModelList
 :
     public PtrList<profileModel>
 {
-
 protected:
 
-    // Protected data
+    // Protected Data
 
         //- Dictionary
         const dictionary dict_;
@@ -66,7 +67,7 @@ public:
     profileModelList(const dictionary& dict, const bool readFields = true);
 
     //- Destructor
-    ~profileModelList();
+    ~profileModelList() = default;
 
 
     // Member Functions

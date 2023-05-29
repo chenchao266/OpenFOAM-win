@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2015 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2015 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -27,10 +29,12 @@ License
 #include "IOstreams.H"
 
 // * * * * * * * * * * * * * * * IOstream Operators  * * * * * * * * * * * * //
-using namespace Foam;
+
+
+ namespace Foam{
 unsigned int readUint(Istream& is)
 {
-    unsigned int val;
+    unsigned int val(0);
     is >> val;
 
     return val;
@@ -38,3 +42,5 @@ unsigned int readUint(Istream& is)
 
 
 // ************************************************************************* //
+
+ } // End namespace Foam

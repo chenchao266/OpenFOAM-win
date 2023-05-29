@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -39,21 +41,18 @@ SourceFiles
 #include "scalar.H"
 
 #ifndef idxtype
-#define idxtype int64_t
+#define idxtype int
+#define labeltype Foam::label
 #define realtype Foam::scalar
 #endif
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
-/*---------------------------------------------------------------------------*\
-                           Class metis Declaration
-\*---------------------------------------------------------------------------*/
-
 #ifdef __cplusplus
 extern "C"
 #endif
 void MGridGen(int, idxtype *, realtype *, realtype *, idxtype *, realtype *,
-              int, int, int *, int *, idxtype *, idxtype *);
+              int, int, int *, int *, labeltype *, labeltype *);
 
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //

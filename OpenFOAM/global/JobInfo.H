@@ -1,9 +1,12 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011 OpenFOAM Foundation
+    Copyright (C) 2017-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -25,11 +28,19 @@ Class
     Foam::JobInfo
 
 Description
-    Helper class for recording information about run/finished jobs.
+    Helper class for recording information about run/finished jobs,
+    acts like global singleton.
 
     Writes the following files:
       - $FOAM_JOB_DIR/runningJobs
       - $FOAM_JOB_DIR/finishedJobs
+
+    If FOAM_JOB_DIR is unset, defaults to ~/.OpenFOAM/jobControl
+
+Note
+    JobInfo is treated as a largely failsafe operation.
+    If the directories cannot be written to,
+    only a warning (not an error) is emitted.
 
 SourceFiles
     JobInfo.C
@@ -39,8 +50,7 @@ SourceFiles
 #ifndef JobInfo_H
 #define JobInfo_H
 
-#include "dictionary.H"
-#include "fileName.H"
+#include "dictionary2.H"
 #include "cpuTime.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
@@ -52,50 +62,100 @@ namespace Foam
                            Class JobInfo Declaration
 \*---------------------------------------------------------------------------*/
 
-class JobInfo :    public dictionary
+class JobInfo
+:
+    public dictionary
 {
-    // Private data
-        fileName runningJobPath_;
-        fileName finishedJobPath_;
-        cpuTime  cpuTime_;
+    // Private Data
+
+        //- Full path to "running" job information file (master only)
+        fileName running_;
+
+        //- Full path to "finished" job information file (master only)
+        fileName finished_;
+
+        //- Timing information
+        cpuTime cpuTime_;
+
 
     // Private Member Functions
 
-        bool write(Ostream&) const;
-        void end(const word& terminationType);
+        //- Relocate job file from "running" to "finished" directory.
+        //  Invalidates job contents, clears 'constructed'.
+        void jobEnding();
+
+        //- Add elapsed times, termination type, remove file
+        //- from "running" and create in "finished" directory.
+        //  Invalidates job contents, clears 'constructed'.
+        void jobEnding(const word& terminationType);
+
+        //- No copy construct
+        JobInfo(const JobInfo&) = delete;
+
+        //- No copy assignment
+        void operator=(const JobInfo&) = delete;
 
 
 public:
 
+    //- Global value for constructed job info
     static bool constructed;
+
+    //- Global value for writeJobInfo enabled
     static bool writeJobInfo;
+
 
     // Constructors
 
-        //- Construct null
+        //- Default construct
         JobInfo();
 
 
-    //- Destructor
+    //- Destructor, relocates the job file from running to finished.
     ~JobInfo();
+
+
+    // Static Member Functions
+
+        //- Disallow JobInfo by forcing writeJobInfo (InfoSwitch) off.
+        static void disable() noexcept;
+
+        //- Simple shutdown (finalize) of JobInfo
+        //  Relocates the job file from "running" to "finished".
+        //  Invalidates job contents, clears 'constructed'.
+        static void shutdown();
+
+        //- Exit or abort shutdown (finalize) of JobInfo
+        static void shutdown(bool isAbort);
 
 
     // Member Functions
 
-        // Write
+        //- Write job info to its file in the "running" jobs directory
+        void write() const;
 
-            void write() const;
+        //- Job end with "normal" termination
+        void stop();
 
-            void end();
+        //- Job end with "exit" termination
+        void exit();
 
-            void exit();
+        //- Job end with "abort" termination
+        void abort();
 
-            void abort();
+        //- Relocate job file from "running" to "finished" directory.
+        //  Invalidates job contents, clears 'constructed'.
+        void signalEnd();
 
-            void signalEnd() const;
+
+    // Housekeeping
+
+        //- Same as stop
+        void end() { stop(); }
 };
 
 
+// Job information bookkeeping (global)
 extern JobInfo jobInfo;
 
 

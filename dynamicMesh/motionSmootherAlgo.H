@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2015-2018 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -56,7 +59,8 @@ Note
     and/or edges but no faces of pp). Hence we have to be careful when e.g.
     synchronising displacements that the value from the processor which has
     faces of pp get priority. This is currently handled in setDisplacement
-    by resetting the internal displacement to zero before doing anything
+    by resetting the internal displacement to zero on coupled points
+    that are coupled to patch points before doing anything
     else. The combine operator used will give preference to non-zero
     values.
 
@@ -77,8 +81,8 @@ SourceFiles
 #define motionSmootherAlgo_H
 
 #include "pointFields.H"
-#include "HashSet.T.H"
-#include "PackedBoolList.H"
+#include "HashSet.H"
+#include "bitSet.H"
 #include "indirectPrimitivePatch.H"
 #include "className.H"
 
@@ -103,7 +107,6 @@ class motionSmootherAlgo
         //  zero displacement.
         class maxMagEqOp
         {
-
         public:
 
             void operator()(vector& x, const vector& y) const
@@ -156,15 +159,18 @@ class motionSmootherAlgo
             // displacement on.
             const labelList adaptPatchIDs_;
 
-            // Smoothing and checking parameters
+            //- Smoothing and checking parameters
             dictionary paramDict_;
 
+            //- In test/dry-run mode?
+            const bool dryRun_;
+
             //- Is mesh point on boundary or not
-            PackedBoolList isInternalPoint_;
+            bitSet isInternalPoint_;
 
             //- Is edge master (always except if on coupled boundary and on
             //  lower processor)
-            PackedBoolList isMasterEdge_;
+            bitSet isMasterEdge_;
 
 
     // Private Member Functions
@@ -177,7 +183,7 @@ class motionSmootherAlgo
             const scalarField& edgeWeight
         ) const;
 
-        //- Average postion of connected points.
+        //- Average position of connected points.
         template<class Type>
         tmp<GeometricField<Type, pointPatchField, pointMesh>> avgPositions
         (
@@ -208,7 +214,7 @@ class motionSmootherAlgo
         static void checkFld(const pointScalarField&);
 
         //- Get points used by given faces
-        labelHashSet getPoints(const labelHashSet&) const;
+        labelHashSet getPoints(const labelHashSet& faceLabels) const;
 
         //- Calculate per-edge weight
         tmp<scalarField> calcEdgeWeights(const pointField&) const;
@@ -217,7 +223,7 @@ class motionSmootherAlgo
         void minSmooth
         (
             const scalarField& edgeWeights,
-            const PackedBoolList& isAffectedPoint,
+            const bitSet& isAffectedPoint,
             const pointScalarField& fld,
             pointScalarField& newFld
         ) const;
@@ -226,7 +232,7 @@ class motionSmootherAlgo
         void minSmooth
         (
             const scalarField& edgeWeights,
-            const PackedBoolList& isAffectedPoint,
+            const bitSet& isAffectedPoint,
             const labelList& meshPoints,
             const pointScalarField& fld,
             pointScalarField& newFld
@@ -268,9 +274,6 @@ class motionSmootherAlgo
             pointScalarField&
         ) const;
 
-        //- Helper function. Is point internal?
-        bool isInternalPoint(const label pointi) const;
-
         //- Given a set of faces that cause smoothing and a number of
         //  iterations determine the maximum set of points who are affected
         //  and the accordingly affected faces.
@@ -280,14 +283,14 @@ class motionSmootherAlgo
             const faceSet& wrongFaces,
 
             labelList& affectedFaces,
-            PackedBoolList& isAffectedPoint
+            bitSet& isAffectedPoint
         ) const;
 
-        //- Disallow default bitwise copy construct
-        motionSmootherAlgo(const motionSmootherAlgo&);
+        //- No copy construct
+        motionSmootherAlgo(const motionSmootherAlgo&) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const motionSmootherAlgo&);
+        //- No copy assignment
+        void operator=(const motionSmootherAlgo&) = delete;
 
 
 public:
@@ -306,7 +309,8 @@ public:
             pointScalarField& scale,
             pointField& oldPoints,
             const labelList& adaptPatchIDs,     // patches forming 'outside'
-            const dictionary& paramDict
+            const dictionary& paramDict,
+            const bool dryRun = false
         );
 
 
@@ -332,13 +336,23 @@ public:
 
             const dictionary& paramDict() const;
 
+            //- Return reference to the point motion displacement field
+            pointVectorField& pointDisplacement()
+            {
+                return displacement_;
+            }
+
+            //- Return const reference to the point motion displacement field
+            const pointVectorField& pointDisplacement() const
+            {
+                return displacement_;
+            }
 
 
         // Edit
 
             //- Take over existing mesh position.
             void correct();
-
 
             //- Set patch fields on patchIDs to be consistent with
             //  all other boundary conditions
@@ -435,7 +449,8 @@ public:
                 const bool report,
                 const polyMesh& mesh,
                 const dictionary& dict,
-                labelHashSet& wrongFaces
+                labelHashSet& wrongFaces,
+                const bool dryRun = false
             );
 
             //- Check (subset of mesh) with mesh settings in dict.
@@ -447,7 +462,8 @@ public:
                 const polyMesh& mesh,
                 const dictionary& dict,
                 const labelList& checkFaces,
-                labelHashSet& wrongFaces
+                labelHashSet& wrongFaces,
+                const bool dryRun = false
             );
 
             //- Check (subset of mesh including baffles) with mesh settings
@@ -460,7 +476,8 @@ public:
                 const dictionary& dict,
                 const labelList& checkFaces,
                 const List<labelPair>& baffles,
-                labelHashSet& wrongFaces
+                labelHashSet& wrongFaces,
+                const bool dryRun = false
             );
 
             //- Check part of mesh with mesh settings in dict.
@@ -471,8 +488,10 @@ public:
                 const bool report,
                 const dictionary& dict,
                 const polyMeshGeometry&,
+                const pointField&,
                 const labelList& checkFaces,
-                labelHashSet& wrongFaces
+                labelHashSet& wrongFaces,
+                const bool dryRun = false
             );
 
             //- Check part of mesh including baffles with mesh settings in dict.
@@ -483,9 +502,11 @@ public:
                 const bool report,
                 const dictionary& dict,
                 const polyMeshGeometry&,
+                const pointField&,
                 const labelList& checkFaces,
                 const List<labelPair>& baffles,
-                labelHashSet& wrongFaces
+                labelHashSet& wrongFaces,
+                const bool dryRun = false
             );
 
             // Helper functions to manipulate displacement vector.
@@ -499,6 +520,28 @@ public:
                     const scalarField& edgeWeight,
                     GeometricField<Type, pointPatchField, pointMesh>& newFld
                 ) const;
+
+            //- Wrapper around dictionary::get which does not exit
+            template<class Type>
+            static Type get
+            (
+                const dictionary& dict,
+                const word& keyword,
+                const bool noExit,
+                enum keyType::option matchOpt,
+                const Type& defaultValue = Zero
+            );
+//
+//            //- Wrapper around dictionary::get which does not exit
+//            template<class Type>
+//            static Type get
+//            (
+//                const dictionary& dict,
+//                const word& keyword,
+//                const bool noExit,
+//                bool recursive,
+//                bool patternMatch
+//            );
 };
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //

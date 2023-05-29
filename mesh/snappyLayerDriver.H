@@ -1,9 +1,12 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2015 OpenFOAM Foundation
+    Copyright (C) 2017 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -47,7 +50,6 @@ class removePoints;
 class pointSet;
 class motionSmoother;
 class addPatchCellLayer;
-class pointData;
 class faceSet;
 class layerParameters;
 
@@ -81,9 +83,9 @@ private:
 
             void operator()(vector& x, const vector& y) const
             {
-                if (y != point::max)
+                if (y != point::max_)
                 {
-                    if (x == point::max)
+                    if (x == point::max_)
                     {
                         x = y;
                     }
@@ -107,6 +109,8 @@ private:
         //- From surface region to patch
         const labelList globalToSlavePatch_;
 
+        //- Are we operating in test mode?
+        const bool dryRun_;
 
 
     // Private Member Functions
@@ -161,6 +165,48 @@ private:
                     List<extrudeMode>& extrudeStatus
                 );
 
+                //- Truncate index in face
+                static label constrainFp(const label sz, const label fp);
+
+                //- Count common points between face and its neighbours
+                void countCommonPoints
+                (
+                    const indirectPrimitivePatch&,
+                    const label facei,
+                    Map<label>&
+                ) const;
+
+                //- Check if any common points form single string. Return
+                //  false if not.
+                bool checkCommonOrder
+                (
+                    const label nCommon,
+                    const face& curFace,
+                    const face& nbFace
+                ) const;
+
+                //- Check if any common points form single string; unmark
+                //  points on face if not
+                void checkCommonOrder
+                (
+                    const indirectPrimitivePatch& pp,
+                    const label facei,
+                    const Map<label>& nCommonPoints,
+                    pointField& patchDisp,
+                    labelList& patchNLayers,
+                    List<extrudeMode>& extrudeStatus
+                ) const;
+
+                //- Check if any common points form single string; unmark
+                //  points on face if not
+                void handleNonStringConnected
+                (
+                    const indirectPrimitivePatch& pp,
+                    pointField& patchDisp,
+                    labelList& patchNLayers,
+                    List<extrudeMode>& extrudeStatus
+                ) const;
+
                 //- No extrusion at non-manifold points.
                 void handleNonManifolds
                 (
@@ -178,7 +224,7 @@ private:
                 (
                     const indirectPrimitivePatch& pp,
                     const labelList& meshEdges,
-                    const scalar minCos,
+                    const scalar minAngle,
                     pointField& patchDisp,
                     labelList& patchNLayers,
                     List<extrudeMode>& extrudeStatus
@@ -189,6 +235,7 @@ private:
                 (
                     const indirectPrimitivePatch& pp,
                     const scalar faceRatio,
+                    const boolList& relativeSizes,
                     const scalar edge0Len,
                     const labelList& cellLevel,
                     pointField& patchDisp,
@@ -231,14 +278,17 @@ private:
                     List<extrudeMode>& extrudeStatus
                 ) const;
 
-                //- See what patches boundaryedges should be extruded into
+                //- See what zones and patches edges should be extruded into
                 void determineSidePatches
                 (
                     const globalIndex& globalFaces,
                     const labelListList& edgeGlobalFaces,
                     const indirectPrimitivePatch& pp,
 
-                    labelList& sidePatchID
+                    labelList& edgePatchID,
+                    labelList& edgeZoneID,
+                    boolList& edgeFlip,
+                    labelList& inflateFaceID
                 );
 
                 //- Calculate pointwise wanted and minimum thickness.
@@ -279,6 +329,8 @@ private:
                     const indirectPrimitivePatch& pp,
                     const scalarField& thickness,
                     const scalarField& minThickness,
+                    const scalarField& expansionRatio,
+
                     pointField& patchDisp,
                     labelList& patchNLayers,
                     List<extrudeMode>& extrudeStatus
@@ -370,6 +422,14 @@ private:
                     const List<extrudeMode>& extrudeStatus
                 );
 
+                //- After adding to mesh get the new baffles
+                static List<labelPair> getBafflesOnAddedMesh
+                (
+                    const polyMesh& mesh,
+                    const labelList& newToOldFaces,
+                    const List<labelPair>& baffles
+                );
+
                 //- Collect layer faces and layer cells into bools
                 //  for ease of handling
                 static void getLayerCellsFaces
@@ -393,6 +453,15 @@ private:
                 ) const;
 
                 //- Write cellSet,faceSet for layers
+                bool writeLayerSets
+                (
+                    const fvMesh& mesh,
+                    const labelList& cellNLayers,
+                    const scalarField& faceRealThickness
+                ) const;
+
+                //- Write volFields,cellSet,faceSet for layers depending
+                //  on write level
                 bool writeLayerData
                 (
                     const fvMesh& mesh,
@@ -412,7 +481,7 @@ private:
                 static void averageNeighbours
                 (
                     const polyMesh& mesh,
-                    const PackedBoolList& isMasterEdge,
+                    const bitSet& isMasterEdge,
                     const labelList& meshEdges,
                     const labelList& meshPoints,
                     const edgeList& edges,
@@ -424,7 +493,7 @@ private:
                 //- Calculate inverse sum of edge weights (currently always 1.0)
                 void sumWeights
                 (
-                    const PackedBoolList& isMasterEdge,
+                    const bitSet& isMasterEdge,
                     const labelList& meshEdges,
                     const labelList& meshPoints,
                     const edgeList& edges,
@@ -435,8 +504,8 @@ private:
                 void smoothField
                 (
                     const motionSmoother& meshMover,
-                    const PackedBoolList& isMasterPoint,
-                    const PackedBoolList& isMasterEdge,
+                    const bitSet& isMasterPoint,
+                    const bitSet& isMasterEdge,
                     const labelList& meshEdges,
                     const scalarField& fieldMin,
                     const label nSmoothDisp,
@@ -447,8 +516,8 @@ private:
                 void smoothPatchNormals
                 (
                     const motionSmoother& meshMover,
-                    const PackedBoolList& isMasterPoint,
-                    const PackedBoolList& isMasterEdge,
+                    const bitSet& isMasterPoint,
+                    const bitSet& isMasterEdge,
                     const labelList& meshEdges,
                     const label nSmoothDisp,
                     pointField& normals
@@ -458,17 +527,10 @@ private:
                 void smoothNormals
                 (
                     const label nSmoothDisp,
-                    const PackedBoolList& isMasterPoint,
-                    const PackedBoolList& isMasterEdge,
+                    const bitSet& isMasterPoint,
+                    const bitSet& isMasterEdge,
                     const labelList& fixedPoints,
                     pointVectorField& normals
-                ) const;
-
-                bool isMaxEdge
-                (
-                    const List<pointData>&,
-                    const label edgeI,
-                    const scalar minCos
                 ) const;
 
                 //- Stop layer growth where mesh wraps around edge with a
@@ -476,7 +538,7 @@ private:
                 void handleFeatureAngleLayerTerminations
                 (
                     const scalar minCos,
-                    const PackedBoolList& isMasterPoint,
+                    const bitSet& isMasterPoint,
                     const indirectPrimitivePatch& pp,
                     const labelList& meshEdges,
 
@@ -492,8 +554,8 @@ private:
                 void findIsolatedRegions
                 (
                     const scalar minCosLayerTermination,
-                    const PackedBoolList& isMasterPoint,
-                    const PackedBoolList& isMasterEdge,
+                    const bitSet& isMasterPoint,
+                    const bitSet& isMasterEdge,
                     const indirectPrimitivePatch& pp,
                     const labelList& meshEdges,
                     const scalarField& minThickness,
@@ -503,54 +565,12 @@ private:
                     labelList& patchNLayers
                 ) const;
 
-                // Calculate medial axis fields
-                void medialAxisSmoothingInfo
-                (
-                    const motionSmoother& meshMover,
-                    const label nSmoothNormals,
-                    const label nSmoothSurfaceNormals,
-                    const scalar minMedialAxisAngleCos,
-                    const scalar featureAngle,
 
-                    pointVectorField& dispVec,
-                    pointScalarField& medialRatio,
-                    pointScalarField& medialDist,
-                    pointVectorField& medialVec
-                ) const;
+        //- No copy construct
+        snappyLayerDriver(const snappyLayerDriver&) = delete;
 
-                //- Main routine to shrink mesh
-                void shrinkMeshMedialDistance
-                (
-                    motionSmoother& meshMover,
-                    const dictionary& meshQualityDict,
-                    const List<labelPair>& baffles,
-                    const label nSmoothPatchThickness,
-                    const label nSmoothDisplacement,
-                    const scalar maxThicknessToMedialRatio,
-                    const label nAllowableErrors,
-                    const label nSnap,
-                    const scalar minCosLayerTermination,
-
-                    const scalarField& layerThickness,
-                    const scalarField& minThickness,
-
-                    const pointVectorField& dispVec,
-                    const pointScalarField& medialRatio,
-                    const pointScalarField& medialDist,
-                    const pointVectorField& medialVec,
-
-                    List<extrudeMode>& extrudeStatus,
-                    pointField& patchDisp,
-                    labelList& patchNLayers
-                ) const;
-
-
-
-        //- Disallow default bitwise copy construct
-        snappyLayerDriver(const snappyLayerDriver&);
-
-        //- Disallow default bitwise assignment
-        void operator=(const snappyLayerDriver&);
+        //- No copy assignment
+        void operator=(const snappyLayerDriver&) = delete;
 
 
 public:
@@ -565,7 +585,8 @@ public:
         (
             meshRefinement& meshRefiner,
             const labelList& globalToMasterPatch,
-            const labelList& globalToSlavePatch
+            const labelList& globalToSlavePatch,
+            const bool dryRun = false
         );
 
 
@@ -575,7 +596,8 @@ public:
             void mergePatchFacesUndo
             (
                 const layerParameters& layerParams,
-                const dictionary& motionDict
+                const dictionary& motionDict,
+                const meshRefinement::FaceMergeType mergeType
             );
 
             //- Add cell layers
@@ -595,11 +617,11 @@ public:
                 const dictionary& shrinkDict,
                 const dictionary& motionDict,
                 const layerParameters& layerParams,
+                const meshRefinement::FaceMergeType mergeType,
                 const bool preBalance,              // balance before adding?
                 decompositionMethod& decomposer,
                 fvMeshDistribute& distributor
             );
-
 };
 
 
@@ -610,7 +632,7 @@ public:
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 #ifdef NoRepository
-    #include "snappyLayerDriverTemplates.C"
+#   include "snappyLayerDriverTemplates.C"
 #endif
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //

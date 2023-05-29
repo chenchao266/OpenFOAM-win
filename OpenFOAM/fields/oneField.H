@@ -1,9 +1,12 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2019-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -48,34 +51,38 @@ namespace Foam
                            Class oneField Declaration
 \*---------------------------------------------------------------------------*/
 
-class oneField :    public one
+class oneField
+:
+    public one
 {
-
 public:
 
-    // Public typedefs
+    // Public Typedefs
 
         typedef oneField FieldType;
 
 
     // Constructors
 
-        //- Construct null
-        oneField()
-        {}
+        //- Default construct
+        oneField() noexcept = default;
+
+
+    // Member Functions
+
+        oneField field() const noexcept
+        {
+            return oneField{};
+        }
 
 
     // Member Operators
 
-        inline one operator[](const label) const;
-
-        inline oneField field() const;
+        one operator[](const label) const noexcept
+        {
+            return one{};
+        }
 };
-
-
-inline const oneField& operator*(const oneField&, const oneField&);
-
-inline const oneField& operator/(const oneField&, const oneField&);
 
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
@@ -83,6 +90,8 @@ inline const oneField& operator/(const oneField&, const oneField&);
 } // End namespace Foam
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+// Global Operators
 
 #include "oneFieldI.H"
 

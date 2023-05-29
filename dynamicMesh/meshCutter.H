@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -114,14 +117,15 @@ SourceFiles
 #include "edgeVertex.H"
 #include "labelList.H"
 #include "typeInfo.H"
-#include "Map.T.H"
+#include "Map.H"
+#include "edgeHashes.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 namespace Foam
 {
 
-// Forward declaration of classes
+// Forward Declarations
 class Time;
 class polyTopoChange;
 class cellCuts;
@@ -148,7 +152,7 @@ class meshCutter
 
         //- Points added in last setRefinement. Per split edge label of added
         //  point
-        HashTable<label, edge, Hash<edge>> addedPoints_;
+        EdgeMap<label> addedPoints_;
 
 
     // Private Static Functions
@@ -257,11 +261,11 @@ class meshCutter
 
 
 
-        //- Disallow default bitwise copy construct
-        meshCutter(const meshCutter&);
+        //- No copy construct
+        meshCutter(const meshCutter&) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const meshCutter&);
+        //- No copy assignment
+        void operator=(const meshCutter&) = delete;
 
 
 public:
@@ -273,11 +277,11 @@ public:
     // Constructors
 
         //- Construct from mesh
-        meshCutter(const polyMesh& mesh);
+        explicit meshCutter(const polyMesh& mesh);
 
 
     //- Destructor
-    ~meshCutter();
+    ~meshCutter() = default;
 
 
     // Member Functions
@@ -307,7 +311,7 @@ public:
             }
 
             //- Points added. Per split edge label of added point
-            const HashTable<label, edge, Hash<edge>>& addedPoints() const
+            const EdgeMap<label>& addedPoints() const
             {
                 return addedPoints_;
             }

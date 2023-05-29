@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2016 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -38,9 +41,9 @@ SourceFiles
 #define molecule_H
 
 #include "particle.H"
-#include "IOstream.H"
+#include "_IOstream.H"
 #include "autoPtr.H"
-#include "diagTensor.H"
+#include "diagTensor2.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -66,17 +69,15 @@ class molecule
 :
     public particle
 {
-    // Private data
-
-        //- Size in bytes of the fields
-        static const std::size_t sizeofFields_;
-
-
 public:
 
+    //- Size in bytes of the fields
+    static const std::size_t sizeofFields;
+
+
     // Values of special that are less than zero are for built-in functionality.
-    // Values greater than zero are user specifiable/expandable (i.e. test
-    // special_ >= SPECIAL_USER)
+    // Values greater than zero are user specifiable/expandable
+    // (i.e. test special_ >= SPECIAL_USER)
 
     enum specialTypes
     {
@@ -85,6 +86,7 @@ public:
         NOT_SPECIAL      = 0,
         SPECIAL_USER     = 1
     };
+
 
     //- Class to hold molecule constant properties
     class constantProperties
@@ -165,7 +167,7 @@ public:
     //- Class used to pass tracking data to the trackToFace function
     class trackingData
     :
-        public particle::TrackingData<moleculeCloud>
+        public particle::trackingData
     {
         // label specifying which part of the integration algorithm is taking
         label part_;
@@ -177,7 +179,7 @@ public:
 
             trackingData(moleculeCloud& cloud, label part)
             :
-                particle::TrackingData<moleculeCloud>(cloud),
+                particle::trackingData(cloud),
                 part_(part)
             {}
 
@@ -277,7 +279,8 @@ public:
         (
             const polyMesh& mesh,
             Istream& is,
-            bool readFields = true
+            bool readFields = true,
+            bool newFormat = true
         );
 
         //- Construct and return a clone
@@ -301,7 +304,7 @@ public:
 
             autoPtr<molecule> operator()(Istream& is) const
             {
-                return autoPtr<molecule>(new molecule(mesh_, is, true));
+                return autoPtr<molecule>::New(mesh_, is, true);
             }
         };
 
@@ -310,7 +313,7 @@ public:
 
         // Tracking
 
-            bool move(trackingData&, const scalar trackTime);
+            bool move(moleculeCloud&, trackingData&, const scalar trackTime);
 
             virtual void transformProperties(const tensor& T);
 
@@ -364,36 +367,13 @@ public:
 
         //- Overridable function to handle the particle hitting a patch
         //  Executed before other patch-hitting functions
-        bool hitPatch
-        (
-            const polyPatch&,
-            trackingData& td,
-            const label patchi,
-            const scalar trackFraction,
-            const tetIndices& tetIs
-        );
+        bool hitPatch(moleculeCloud& cloud, trackingData& td);
 
         //- Overridable function to handle the particle hitting a processorPatch
-        void hitProcessorPatch
-        (
-            const processorPolyPatch&,
-            trackingData& td
-        );
+        void hitProcessorPatch(moleculeCloud& cloud, trackingData& td);
 
         //- Overridable function to handle the particle hitting a wallPatch
-        void hitWallPatch
-        (
-            const wallPolyPatch&,
-            trackingData& td,
-            const tetIndices&
-        );
-
-        //- Overridable function to handle the particle hitting a polyPatch
-        void hitPatch
-        (
-            const polyPatch&,
-            trackingData& td
-        );
+        void hitWallPatch(moleculeCloud& cloud, trackingData& td);
 
 
     // I-O

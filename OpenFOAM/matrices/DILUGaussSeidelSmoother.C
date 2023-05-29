@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011 OpenFOAM Foundation
+    Copyright (C) 2019 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -24,9 +27,10 @@ License
 \*---------------------------------------------------------------------------*/
 
 #include "DILUGaussSeidelSmoother.H"
+#include "PrecisionAdaptor.H"
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
-using namespace Foam;
+
 namespace Foam
 {
     defineTypeNameAndDebug(DILUGaussSeidelSmoother, 0);
@@ -34,58 +38,78 @@ namespace Foam
     lduMatrix::smoother::
         addasymMatrixConstructorToTable<DILUGaussSeidelSmoother>
         addDILUGaussSeidelSmootherAsymMatrixConstructorToTable_;
-}
 
 
-// * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
-DILUGaussSeidelSmoother::DILUGaussSeidelSmoother
-(
-    const word& fieldName,
-    const lduMatrix& matrix,
-    const FieldField<Field, scalar>& interfaceBouCoeffs,
-    const FieldField<Field, scalar>& interfaceIntCoeffs,
-    const lduInterfaceFieldPtrsList& interfaces
-) :    lduMatrix::smoother
+    // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
+
+    DILUGaussSeidelSmoother::DILUGaussSeidelSmoother
     (
-        fieldName,
-        matrix,
-        interfaceBouCoeffs,
-        interfaceIntCoeffs,
-        interfaces
-    ),
-    diluSmoother_
-    (
-        fieldName,
-        matrix,
-        interfaceBouCoeffs,
-        interfaceIntCoeffs,
-        interfaces
-    ),
-    gsSmoother_
-    (
-        fieldName,
-        matrix,
-        interfaceBouCoeffs,
-        interfaceIntCoeffs,
-        interfaces
+        const word& fieldName,
+        const lduMatrix& matrix,
+        const FieldField<Field, scalar>& interfaceBouCoeffs,
+        const FieldField<Field, scalar>& interfaceIntCoeffs,
+        const lduInterfaceFieldPtrsList& interfaces
     )
-{}
+        :
+        lduMatrix::smoother
+        (
+            fieldName,
+            matrix,
+            interfaceBouCoeffs,
+            interfaceIntCoeffs,
+            interfaces
+        ),
+        diluSmoother_
+        (
+            fieldName,
+            matrix,
+            interfaceBouCoeffs,
+            interfaceIntCoeffs,
+            interfaces
+        ),
+        gsSmoother_
+        (
+            fieldName,
+            matrix,
+            interfaceBouCoeffs,
+            interfaceIntCoeffs,
+            interfaces
+        )
+    {}
 
 
-// * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
+    // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
 
-void DILUGaussSeidelSmoother::smooth
-(
-    scalarField& psi,
-    const scalarField& source,
-    const direction cmpt,
-    const label nSweeps
-) const
-{
-    diluSmoother_.smooth(psi, source, cmpt, nSweeps);
-    gsSmoother_.smooth(psi, source, cmpt, nSweeps);
+    void DILUGaussSeidelSmoother::scalarSmooth
+    (
+        solveScalarField& psi,
+        const solveScalarField& source,
+        const direction cmpt,
+        const label nSweeps
+    ) const
+    {
+        diluSmoother_.scalarSmooth(psi, source, cmpt, nSweeps);
+        gsSmoother_.scalarSmooth(psi, source, cmpt, nSweeps);
+    }
+
+
+    void DILUGaussSeidelSmoother::smooth
+    (
+        solveScalarField& psi,
+        const scalarField& source,
+        const direction cmpt,
+        const label nSweeps
+    ) const
+    {
+        scalarSmooth
+        (
+            psi,
+            ConstPrecisionAdaptor<solveScalar, scalar>(source),
+            cmpt,
+            nSweeps
+        );
+    }
+
 }
-
-
 // ************************************************************************* //

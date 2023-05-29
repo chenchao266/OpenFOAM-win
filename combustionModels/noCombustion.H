@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -24,6 +26,9 @@ License
 Class
     Foam::combustionModels::noCombustion
 
+Group
+    grpCombustionModels
+
 Description
     Dummy combustion model for 'no combustion'
 
@@ -34,6 +39,8 @@ SourceFiles
 
 #ifndef noCombustion_H
 #define noCombustion_H
+
+#include "ThermoCombustion.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -46,23 +53,23 @@ namespace combustionModels
                         Class noCombustion Declaration
 \*---------------------------------------------------------------------------*/
 
-template<class CombThermoType>
+template<class ReactionThermo>
 class noCombustion
 :
-    public CombThermoType
+    public ThermoCombustion<ReactionThermo>
 {
 
-    //- Disallow copy construct
-    noCombustion(const noCombustion&);
+    //- No copy construct
+    noCombustion(const noCombustion&) = delete;
 
-    //- Disallow default bitwise assignment
-    void operator=(const noCombustion&);
+    //- No copy assignment
+    void operator=(const noCombustion&) = delete;
 
 
 public:
 
     //- Runtime type information
-    TypeName("noCombustion");
+    TypeName("none");
 
 
     // Constructors
@@ -71,9 +78,9 @@ public:
         noCombustion
         (
             const word& modelType,
-            const fvMesh& mesh,
-            const word& combustionProperties,
-            const word& phaseName
+            ReactionThermo& thermo,
+            const compressibleTurbulenceModel& turb,
+            const word& combustionProperties
         );
 
 

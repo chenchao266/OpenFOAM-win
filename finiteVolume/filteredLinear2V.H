@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2015 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2015 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -43,7 +45,7 @@ SourceFiles
 #ifndef filteredLinear2V_H
 #define filteredLinear2V_H
 
-#include "vector.H"
+#include "vector2.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -61,7 +63,7 @@ class filteredLinear2VLimiter
 {
     // Private data
 
-        // Scaling corefficient for the gradient ratio,
+        // Scaling coefficient for the gradient ratio,
         // 0 = linear
         // 1 = fully limited
         scalar k_;

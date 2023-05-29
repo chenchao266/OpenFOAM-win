@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -28,9 +30,12 @@ Description
 \*---------------------------------------------------------------------------*/
 
 #include "primitiveMesh.H"
+#include "primitiveMeshTools.H"
 
 // * * * * * * * * * * * * * Private Member Functions  * * * * * * * * * * * //
-using namespace Foam;
+
+
+ namespace Foam{
 void primitiveMesh::calcCellCentresAndVols() const
 {
     if (debug)
@@ -58,7 +63,14 @@ void primitiveMesh::calcCellCentresAndVols() const
     scalarField& cellVols = *cellVolumesPtr_;
 
     // Make centres and volumes
-    makeCellCentresAndVols(faceCentres(), faceAreas(), cellCtrs, cellVols);
+    primitiveMeshTools::makeCellCentresAndVols
+    (
+        *this,
+        faceCentres(),
+        faceAreas(),
+        cellCtrs,
+        cellVols
+    );
 
     if (debug)
     {
@@ -69,99 +81,14 @@ void primitiveMesh::calcCellCentresAndVols() const
 }
 
 
-void primitiveMesh::makeCellCentresAndVols
-(
-    const vectorField& fCtrs,
-    const vectorField& fAreas,
-    vectorField& cellCtrs,
-    scalarField& cellVols
-) const
-{
-    // Clear the fields for accumulation
-    cellCtrs = Zero;
-    cellVols = 0.0;
-
-    const labelList& own = faceOwner();
-    const labelList& nei = faceNeighbour();
-
-    // first estimate the approximate cell centre as the average of
-    // face centres
-
-    vectorField cEst(nCells(), Zero);
-    labelField nCellFaces(nCells(), 0);
-
-    forAll(own, facei)
-    {
-        cEst[own[facei]] += fCtrs[facei];
-        nCellFaces[own[facei]] += 1;
-    }
-
-    forAll(nei, facei)
-    {
-        cEst[nei[facei]] += fCtrs[facei];
-        nCellFaces[nei[facei]] += 1;
-    }
-
-    forAll(cEst, celli)
-    {
-        cEst[celli] /= nCellFaces[celli];
-    }
-
-    forAll(own, facei)
-    {
-        // Calculate 3*face-pyramid volume
-        scalar pyr3Vol =
-            fAreas[facei] & (fCtrs[facei] - cEst[own[facei]]);
-
-        // Calculate face-pyramid centre
-        vector pc = (3.0/4.0)*fCtrs[facei] + (1.0/4.0)*cEst[own[facei]];
-
-        // Accumulate volume-weighted face-pyramid centre
-        cellCtrs[own[facei]] += pyr3Vol*pc;
-
-        // Accumulate face-pyramid volume
-        cellVols[own[facei]] += pyr3Vol;
-    }
-
-    forAll(nei, facei)
-    {
-        // Calculate 3*face-pyramid volume
-        scalar pyr3Vol =
-            fAreas[facei] & (cEst[nei[facei]] - fCtrs[facei]);
-
-        // Calculate face-pyramid centre
-        vector pc = (3.0/4.0)*fCtrs[facei] + (1.0/4.0)*cEst[nei[facei]];
-
-        // Accumulate volume-weighted face-pyramid centre
-        cellCtrs[nei[facei]] += pyr3Vol*pc;
-
-        // Accumulate face-pyramid volume
-        cellVols[nei[facei]] += pyr3Vol;
-    }
-
-    forAll(cellCtrs, celli)
-    {
-        if (mag(cellVols[celli]) > VSMALL)
-        {
-            cellCtrs[celli] /= cellVols[celli];
-        }
-        else
-        {
-            cellCtrs[celli] = cEst[celli];
-        }
-    }
-
-    cellVols *= (1.0/3.0);
-}
-
-
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
 
 const vectorField& primitiveMesh::cellCentres() const
 {
     if (!cellCentresPtr_)
     {
-        calcCellCentresAndVols();
+        //calcCellCentresAndVols();
+        const_cast<primitiveMesh&>(*this).updateGeom();
     }
 
     return *cellCentresPtr_;
@@ -172,7 +99,8 @@ const scalarField& primitiveMesh::cellVolumes() const
 {
     if (!cellVolumesPtr_)
     {
-        calcCellCentresAndVols();
+        //calcCellCentresAndVols();
+        const_cast<primitiveMesh&>(*this).updateGeom();
     }
 
     return *cellVolumesPtr_;
@@ -180,3 +108,5 @@ const scalarField& primitiveMesh::cellVolumes() const
 
 
 // ************************************************************************* //
+
+ } // End namespace Foam

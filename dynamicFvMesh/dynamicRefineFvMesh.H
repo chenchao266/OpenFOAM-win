@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2017-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -29,7 +32,8 @@ Description
 
     Determines which cells to refine/unrefine and does all in update().
 
-
+    \verbatim
+    {
         // How often to refine
         refineInterval  1;
         // Field to be refinement on
@@ -56,8 +60,11 @@ Description
             (rho*phi none)   //none)
             (ghf none)  //NaN)   //none)
         );
+
         // Write the refinement level as a volScalarField
         dumpLevel       true;
+    }
+    \endverbatim
 
 
 SourceFiles
@@ -70,8 +77,7 @@ SourceFiles
 
 #include "dynamicFvMesh.H"
 #include "hexRef8.H"
-#include "PackedBoolList.H"
-#include "Switch.H"
+#include "bitSet.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -91,37 +97,34 @@ protected:
         //- Mesh cutting engine
         hexRef8 meshCutter_;
 
-        //- Dump cellLevel for postprocessing
-        Switch dumpLevel_;
-
         //- Fluxes to map
         HashTable<word> correctFluxes_;
+
+        //- Protected cells (usually since not hexes)
+        bitSet protectedCell_;
 
         //- Number of refinement/unrefinement steps done so far.
         label nRefinementIterations_;
 
-        //- Protected cells (usually since not hexes)
-        PackedBoolList protectedCell_;
+        //- Dump cellLevel for post-processing
+        bool dumpLevel_;
 
 
     // Protected Member Functions
 
-        //- Count set/unset elements in packedlist.
-        static label count(const PackedBoolList&, const unsigned int);
-
         //- Calculate cells that cannot be refined since would trigger
         //  refinement of protectedCell_ (since 2:1 refinement cascade)
-        void calculateProtectedCells(PackedBoolList& unrefineableCell) const;
+        void calculateProtectedCells(bitSet& unrefineableCell) const;
 
         //- Read the projection parameters from dictionary
         void readDict();
 
 
         //- Refine cells. Update mesh and fields.
-        autoPtr<mapPolyMesh> refine(const labelList&);
+        virtual autoPtr<mapPolyMesh> refine(const labelList&);
 
         //- Unrefine cells. Gets passed in centre points of cells to combine.
-        autoPtr<mapPolyMesh> unrefine(const labelList&);
+        virtual autoPtr<mapPolyMesh> unrefine(const labelList&);
 
 
         // Selection of cells to un/refine
@@ -157,7 +160,7 @@ protected:
                 const scalar lowerRefineLevel,
                 const scalar upperRefineLevel,
                 const scalarField& vFld,
-                PackedBoolList& candidateCell
+                bitSet& candidateCell
             ) const;
 
             //- Subset candidate cells for refinement
@@ -165,34 +168,56 @@ protected:
             (
                 const label maxCells,
                 const label maxRefinement,
-                const PackedBoolList& candidateCell
+                const bitSet& candidateCell
             ) const;
 
             //- Select points that can be unrefined.
             virtual labelList selectUnrefinePoints
             (
                 const scalar unrefineLevel,
-                const PackedBoolList& markedCell,
+                const bitSet& markedCell,
                 const scalarField& pFld
             ) const;
 
             //- Extend markedCell with cell-face-cell.
-            void extendMarkedCells(PackedBoolList& markedCell) const;
+            void extendMarkedCells(bitSet& markedCell) const;
 
             //- Check all cells have 8 anchor points
-            void checkEightAnchorPoints
+            void checkEightAnchorPoints(bitSet& protectedCell) const;
+
+            //- Map single non-flux surface<Type>Field
+            //  for new internal faces (e.g. AMR refine). This currently
+            //  interpolates values from surrounding faces (faces on
+            //  neighbouring cells) that do have a value.
+            template <class T>
+            void mapNewInternalFaces
             (
-                PackedBoolList& protectedCell,
-                label& nProtected
-            ) const;
+                const labelList& faceMap,
+                GeometricField<T, fvsPatchField, surfaceMesh>&
+            );
+
+            //- Correct surface fields for new faces
+            template <class T>
+            void mapNewInternalFaces(const labelList& faceMap);
+
+            //- Correct surface fields for new faces. Converts any oriented
+            //  fields into non-oriented (i.e. phi -> Uf) before mapping
+            template <class T>
+            void mapNewInternalFaces
+            (
+                const surfaceVectorField& Sf,
+                const surfaceScalarField& magSf,
+                const labelList& faceMap
+            );
+
 
 private:
 
-        //- Disallow default bitwise copy construct
-        dynamicRefineFvMesh(const dynamicRefineFvMesh&);
+        //- No copy construct
+        dynamicRefineFvMesh(const dynamicRefineFvMesh&) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const dynamicRefineFvMesh&);
+        //- No copy assignment
+        void operator=(const dynamicRefineFvMesh&) = delete;
 
 public:
 
@@ -203,14 +228,21 @@ public:
     // Constructors
 
         //- Construct from IOobject
-        explicit dynamicRefineFvMesh(const IOobject& io);
+        explicit dynamicRefineFvMesh
+        (
+            const IOobject& io,
+            const bool doInit=true
+        );
 
 
     //- Destructor
-    virtual ~dynamicRefineFvMesh();
+    virtual ~dynamicRefineFvMesh() = default;
 
 
     // Member Functions
+
+        //- Initialise all non-demand-driven data
+        virtual bool init(const bool doInit);
 
         //- Direct access to the refinement engine
         const hexRef8& meshCutter() const
@@ -219,13 +251,13 @@ public:
         }
 
         //- Cells which should not be refined/unrefined
-        const PackedBoolList& protectedCell() const
+        const bitSet& protectedCell() const
         {
             return protectedCell_;
         }
 
         //- Cells which should not be refined/unrefined
-        PackedBoolList& protectedCell()
+        bitSet& protectedCell()
         {
             return protectedCell_;
         }
@@ -233,24 +265,29 @@ public:
         //- Update the mesh for both mesh motion and topology change
         virtual bool update();
 
+        //- Map all fields in time using given map.
+        virtual void mapFields(const mapPolyMesh& mpm);
+
 
     // Writing
 
-        //- Write using given format, version and compression
+        //- Write using stream options
         virtual bool writeObject
         (
-            IOstream::streamFormat fmt,
-            IOstream::versionNumber ver,
-            IOstream::compressionType cmp,
+            IOstreamOption streamOpt,
             const bool valid
         ) const;
-
 };
-
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 } // End namespace Foam
+
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+#ifdef NoRepository
+    #include "dynamicRefineFvMeshTemplates.C"
+#endif
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 

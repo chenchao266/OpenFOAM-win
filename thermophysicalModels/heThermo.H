@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2015-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -77,7 +80,12 @@ private:
 
 
         //- Initialize heThermo
-        void init();
+        void init
+        (
+            const volScalarField& p,
+            const volScalarField& T,
+            volScalarField& he
+        );
 
 
 public:
@@ -99,6 +107,14 @@ public:
             const word& phaseName
         );
 
+        //- Construct from mesh,dictionary,phase name with a single temperature
+        heThermo
+        (
+            const fvMesh&,
+            const word& phaseName,
+            const word& dictionaryName
+        );
+
 
     //- Destructor
     virtual ~heThermo();
@@ -106,18 +122,24 @@ public:
 
     // Member functions
 
-        //- Return the compostion of the mixture
+        //- Return the composition of the mixture
         virtual typename MixtureType::basicMixtureType&
         composition()
         {
             return *this;
         }
 
-        //- Return the compostion of the mixture
+        //- Return the composition of the mixture
         virtual const typename MixtureType::basicMixtureType&
         composition() const
         {
             return *this;
+        }
+
+        //- Return the name of the thermo physics
+        virtual word thermoName() const
+        {
+            return MixtureType::thermoType::typeName();
         }
 
         //- Return true if the equation of state is incompressible
@@ -206,6 +228,14 @@ public:
                 const label patchi
             ) const;
 
+            //- Heat capacity using pressure and temperature
+            virtual tmp<scalarField> Cp
+            (
+                const scalarField& p,
+                const scalarField& T,
+                const labelList& cells
+            ) const;
+
             //- Heat capacity at constant pressure [J/kg/K]
             virtual tmp<volScalarField> Cp() const;
 
@@ -215,6 +245,14 @@ public:
                 const scalarField& p,
                 const scalarField& T,
                 const label patchi
+            ) const;
+
+            //- Density from pressure and temperature
+            virtual tmp<scalarField> rhoEoS
+            (
+                const scalarField& p,
+                const scalarField& T,
+                const labelList& cells
             ) const;
 
             //- Heat capacity at constant volume [J/kg/K]
@@ -253,6 +291,9 @@ public:
                 const label patchi
             ) const;
 
+            //- Molecular weight [kg/kmol]
+            virtual tmp<volScalarField> W() const;
+
 
         // Fields derived from transport state variables
 
@@ -265,6 +306,12 @@ public:
             (
                 const label patchi
             ) const;
+
+             //- Thermal diffusivity for energy of mixture [kg/m/s]
+            virtual tmp<volScalarField> alphahe() const;
+
+            //- Thermal diffusivity for energy of mixture for patch [kg/m/s]
+            virtual tmp<scalarField> alphahe(const label patchi) const;
 
             //- Effective thermal diffusivity for temperature
             //  of mixture [J/m/s/K]

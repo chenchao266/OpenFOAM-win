@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -36,7 +39,7 @@ void Foam::CFCFaceToCellStencil::calcFaceBoundaryData
 ) const
 {
     const polyBoundaryMesh& patches = mesh().boundaryMesh();
-    const label nBnd = mesh().nFaces()-mesh().nInternalFaces();
+    const label nBnd = mesh().nBoundaryFaces();
     const labelList& own = mesh().faceOwner();
 
     neiGlobal.setSize(nBnd);
@@ -93,7 +96,7 @@ void Foam::CFCFaceToCellStencil::calcCellStencil
     labelListList& globalCellFaces
 ) const
 {
-    const label nBnd = mesh().nFaces()-mesh().nInternalFaces();
+    const label nBnd = mesh().nBoundaryFaces();
     const labelList& own = mesh().faceOwner();
     const labelList& nei = mesh().faceNeighbour();
 
@@ -107,7 +110,7 @@ void Foam::CFCFaceToCellStencil::calcCellStencil
 
 
     // Non-empty boundary faces
-    boolList validBFace(mesh().nFaces()-mesh().nInternalFaces(), true);
+    boolList validBFace(mesh().nBoundaryFaces(), true);
 
     const polyBoundaryMesh& patches = mesh().boundaryMesh();
     forAll(patches, patchi)
@@ -138,10 +141,8 @@ void Foam::CFCFaceToCellStencil::calcCellStencil
         allGlobalFaces.clear();
 
         // My faces first
-        forAll(cFaces, i)
+        for (const label facei : cFaces)
         {
-            label facei = cFaces[i];
-
             if
             (
                 mesh().isInternalFace(facei)
@@ -153,10 +154,8 @@ void Foam::CFCFaceToCellStencil::calcCellStencil
         }
 
         // faces of neighbouring cells second
-        forAll(cFaces, i)
+        for (const label facei : cFaces)
         {
-            label facei = cFaces[i];
-
             if (mesh().isInternalFace(facei))
             {
                 label nbrCelli = own[facei];
@@ -166,23 +165,18 @@ void Foam::CFCFaceToCellStencil::calcCellStencil
                 }
                 const cell& nbrFaces = mesh().cells()[nbrCelli];
 
-                forAll(nbrFaces, j)
+                for (const label nbrFacei : nbrFaces)
                 {
-                    label nbrFacei = nbrFaces[j];
-
                     if
                     (
                         mesh().isInternalFace(nbrFacei)
                      || validBFace[nbrFacei-mesh().nInternalFaces()]
                     )
                     {
-                        label nbrGlobalI = globalNumbering().toGlobal(nbrFacei);
+                        label nbrGlobali = globalNumbering().toGlobal(nbrFacei);
 
-                        // Check if already there. Note:should use hashset?
-                        if (findIndex(allGlobalFaces, nbrGlobalI) == -1)
-                        {
-                            allGlobalFaces.append(nbrGlobalI);
-                        }
+                        // Note:should use hashset?
+                        allGlobalFaces.appendUniq(nbrGlobali);
                     }
                 }
             }
@@ -191,15 +185,10 @@ void Foam::CFCFaceToCellStencil::calcCellStencil
                 const labelList& nbrGlobalFaces =
                     neiGlobal[facei-mesh().nInternalFaces()];
 
-                forAll(nbrGlobalFaces, j)
+                for (const label nbrGlobali : nbrGlobalFaces)
                 {
-                    label nbrGlobalI = nbrGlobalFaces[j];
-
-                    // Check if already there. Note:should use hashset?
-                    if (findIndex(allGlobalFaces, nbrGlobalI) == -1)
-                    {
-                        allGlobalFaces.append(nbrGlobalI);
-                    }
+                    // Note:should use hashset?
+                    allGlobalFaces.appendUniq(nbrGlobali);
                 }
             }
         }

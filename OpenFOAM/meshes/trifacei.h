@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2013 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2013 OpenFOAM Foundation
+    Copyright (C) 2017-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -24,12 +27,14 @@ License
 \*---------------------------------------------------------------------------*/
 
 #include "IOstreams.H"
-#include "face.T.H"
+#include "face.H"
 #include "triPointRef.H"
-#include "Swap.T.H"
+#include <algorithm>  // For std::swap
 
 // * * * * * * * * * * * * * Static Member Functions * * * * * * * * * * * * //
-namespace Foam {
+
+
+ namespace Foam{
 inline int triFace::compare(const triFace& a, const triFace& b)
 {
     if
@@ -52,16 +57,16 @@ inline int triFace::compare(const triFace& a, const triFace& b)
         // same face, but reversed orientation
         return -1;
     }
-    else
-    {
-        return 0;
-    }
+
+    return 0;
 }
 
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
 inline triFace::triFace()
+:
+    FixedList<label, 3>(-1)
 {}
 
 
@@ -78,11 +83,31 @@ inline triFace::triFace
 }
 
 
-inline triFace::triFace(const labelUList& lst) :    FixedList<label, 3>(lst)
+inline triFace::triFace(std::initializer_list<label> list)
+:
+    FixedList<label, 3>(list)
 {}
 
 
-inline triFace::triFace(Istream& is) :    FixedList<label, 3>(is)
+inline triFace::triFace(const labelUList& list)
+:
+    FixedList<label, 3>(list)
+{}
+
+
+inline triFace::triFace
+(
+    const labelUList& list,
+    const FixedList<label, 3>& indices
+)
+:
+    FixedList<label, 3>(list, indices)
+{}
+
+
+inline triFace::triFace(Istream& is)
+:
+    FixedList<label, 3>(is)
 {}
 
 
@@ -90,9 +115,9 @@ inline triFace::triFace(Istream& is) :    FixedList<label, 3>(is)
 
 inline label triFace::collapse()
 {
-    // we cannot resize a FixedList, so mark duplicates with '-1'
+    // Cannot resize FixedList, so mark duplicates with '-1'
     // (the lower vertex is retained)
-    // catch any '-1' (eg, if called twice)
+    // catch any '-1' (eg, if called multiple times)
 
     label n = 3;
     if (operator[](0) == operator[](1) || operator[](1) == -1)
@@ -117,17 +142,17 @@ inline label triFace::collapse()
 
 inline void triFace::flip()
 {
-    Swap(operator[](1), operator[](2));
+    std::swap(operator[](1), operator[](2));
 }
 
 
-inline pointField triFace::points(const pointField& points) const
+inline pointField triFace::points(const UList<point>& pts) const
 {
     pointField p(3);
 
-    p[0] = points[operator[](0)];
-    p[1] = points[operator[](1)];
-    p[2] = points[operator[](2)];
+    p[0] = pts[operator[](0)];
+    p[1] = pts[operator[](1)];
+    p[2] = pts[operator[](2)];
 
     return p;
 }
@@ -135,17 +160,11 @@ inline pointField triFace::points(const pointField& points) const
 
 inline face triFace::triFaceFace() const
 {
-    face f(3);
-
-    f[0] = operator[](0);
-    f[1] = operator[](1);
-    f[2] = operator[](2);
-
-    return f;
+    return face(*this);
 }
 
 
-inline triPointRef triFace::tri(const pointField& points) const
+inline triPointRef triFace::tri(const UList<point>& points) const
 {
     return triPointRef
     (
@@ -156,7 +175,7 @@ inline triPointRef triFace::tri(const pointField& points) const
 }
 
 
-inline point triFace::centre(const pointField& points) const
+inline point triFace::centre(const UList<point>& points) const
 {
     return (1.0/3.0)*
     (
@@ -167,15 +186,9 @@ inline point triFace::centre(const pointField& points) const
 }
 
 
-inline scalar triFace::mag(const pointField& points) const
+inline vector triFace::areaNormal(const UList<point>& points) const
 {
-    return ::Foam::mag(normal(points));
-}
-
-
-// could also delegate to triPointRef(...).normal()
-inline vector triFace::normal(const pointField& points) const
-{
+    // As per triPointRef(...).areaNormal()
     return 0.5*
     (
         (points[operator[](1)] - points[operator[](0)])
@@ -184,7 +197,21 @@ inline vector triFace::normal(const pointField& points) const
 }
 
 
-inline label triFace::nTriangles() const
+inline vector triFace::unitNormal(const UList<point>& points) const
+{
+    const vector n(areaNormal(points));
+    const scalar s(::Foam::mag(n));
+    return s < ROOTVSMALL ? Zero : n/s;
+}
+
+
+inline scalar triFace::mag(const UList<point>& points) const
+{
+    return ::Foam::mag(areaNormal(points));
+}
+
+
+inline label triFace::nTriangles() const noexcept
 {
     return 1;
 }
@@ -197,10 +224,34 @@ inline triFace triFace::reverseFace() const
 }
 
 
+inline label triFace::which(const label pointLabel) const
+{
+    return FixedList<label, 3>::find(pointLabel);
+}
+
+
+inline label triFace::thisLabel(const label i) const
+{
+    return operator[](i);
+}
+
+
+inline label triFace::nextLabel(const label i) const
+{
+    return operator[]((i == 2 ? 0 : i+1));
+}
+
+
+inline label triFace::prevLabel(const label i) const
+{
+    return operator[]((i ? i-1 : 2));
+}
+
+
 inline scalar triFace::sweptVol
 (
-    const pointField& opts,
-    const pointField& npts
+    const UList<point>& opts,
+    const UList<point>& npts
 ) const
 {
     return (1.0/6.0)*
@@ -232,7 +283,7 @@ inline scalar triFace::sweptVol
 
 tensor triFace::inertia
 (
-    const pointField& points,
+    const UList<point>& points,
     const point& refPt,
     scalar density
 ) const
@@ -246,7 +297,7 @@ inline pointHit triFace::ray
 (
     const point& p,
     const vector& q,
-    const pointField& points,
+    const UList<point>& points,
     const intersection::algorithm alg,
     const intersection::direction dir
 ) const
@@ -256,37 +307,37 @@ inline pointHit triFace::ray
 
 
 
-inline pointHit triFace::intersect
+inline pointHit triFace::intersection
 (
     const point& p,
     const vector& q,
-    const pointField& points,
+    const UList<point>& points,
     const intersection::algorithm alg,
     const scalar tol
 ) const
 {
-    return this->tri(points).intersect(p, q, alg, tol);
+    return this->tri(points).intersection(p, q, alg, tol);
 }
 
 
-inline pointHit triFace::intersect
+inline pointHit triFace::intersection
 (
     const point& p,
     const vector& q,
     const point& ctr,
-    const pointField& points,
+    const UList<point>& points,
     const intersection::algorithm alg,
     const scalar tol
 ) const
 {
-    return intersect(p, q, points, alg, tol);
+    return intersection(p, q, points, alg, tol);
 }
 
 
 inline pointHit triFace::nearestPoint
 (
     const point& p,
-    const pointField& points
+    const UList<point>& points
 ) const
 {
     return this->tri(points).nearestPoint(p);
@@ -296,7 +347,7 @@ inline pointHit triFace::nearestPoint
 inline pointHit triFace::nearestPointClassify
 (
     const point& p,
-    const pointField& points,
+    const UList<point>& points,
     label& nearType,
     label& nearLabel
 ) const
@@ -305,67 +356,118 @@ inline pointHit triFace::nearestPointClassify
 }
 
 
-inline label triFace::nEdges() const
+inline int triFace::sign
+(
+    const point& p,
+    const UList<point>& points,
+    const scalar tol
+) const
+{
+    return this->tri(points).sign(p, tol);
+}
+
+
+inline label triFace::nEdges() const noexcept
 {
     return 3;
 }
 
 
+inline ::Foam::edge triFace::edge(const label edgei) const
+{
+    return ::Foam::edge(thisLabel(edgei), nextLabel(edgei));
+}
+
+
+inline vector triFace::edge
+(
+    const label edgei,
+    const UList<point>& pts
+) const
+{
+    return vector(pts[nextLabel(edgei)] - pts[thisLabel(edgei)]);
+}
+
+
+inline ::Foam::edge triFace::rcEdge(const label edgei) const
+{
+    // Edge 0 (forward and reverse) always starts at [0]
+    // for consistency with face flipping
+    const label pointi = edgei ? (3 - edgei) : 0;
+    return ::Foam::edge(thisLabel(pointi), prevLabel(pointi));
+}
+
+
+inline vector triFace::rcEdge
+(
+    const label edgei,
+    const UList<point>& pts
+) const
+{
+    // Edge 0 (forward and reverse) always starts at [0]
+    // for consistency with face flipping
+    const label pointi = edgei ? (3 - edgei) : 0;
+    return vector(pts[prevLabel(pointi)] - pts[thisLabel(pointi)]);
+}
+
+
 inline edgeList triFace::edges() const
 {
-    edgeList e(3);
+    edgeList theEdges(3);
 
-    e[0].start() = operator[](0);
-    e[0].end()   = operator[](1);
+    theEdges[0].first()  = operator[](0);
+    theEdges[0].second() = operator[](1);
 
-    e[1].start() = operator[](1);
-    e[1].end()   = operator[](2);
+    theEdges[1].first()  = operator[](1);
+    theEdges[1].second() = operator[](2);
 
-    e[2].start() = operator[](2);
-    e[2].end()   = operator[](0);
+    theEdges[2].first()  = operator[](2);
+    theEdges[2].second() = operator[](0);
 
-    return e;
+    return theEdges;
 }
 
 
-inline edge triFace::faceEdge(const label n) const
+inline edgeList triFace::rcEdges() const
 {
-    return edge(operator[](n), operator[](fcIndex(n)));
+    edgeList theEdges(3);
+
+    theEdges[0].first()  = operator[](0);
+    theEdges[0].second() = operator[](2);
+
+    theEdges[1].first()  = operator[](2);
+    theEdges[1].second() = operator[](1);
+
+    theEdges[2].first()  = operator[](1);
+    theEdges[2].second() = operator[](0);
+
+    return theEdges;
 }
 
 
-// return
-//  - +1: forward (counter-clockwise) on the face
-//  - -1: reverse (clockwise) on the face
-//  -  0: edge not found on the face
-inline int triFace::edgeDirection(const edge& e) const
+inline int triFace::edgeDirection(const ::Foam::edge& e) const
 {
-    if
-    (
-        (operator[](0) == e.start() && operator[](1) == e.end())
-     || (operator[](1) == e.start() && operator[](2) == e.end())
-     || (operator[](2) == e.start() && operator[](0) == e.end())
-    )
+    if (e.first() == operator[](0))
     {
-        return 1;
+        if (e.second() == operator[](1)) return 1;  // Forward
+        if (e.second() == operator[](2)) return -1; // Reverse
     }
-    else if
-    (
-        (operator[](0) == e.end() && operator[](1) == e.start())
-     || (operator[](1) == e.end() && operator[](2) == e.start())
-     || (operator[](2) == e.end() && operator[](0) == e.start())
-    )
+    if (e.first() == operator[](1))
     {
-        return -1;
+        if (e.second() == operator[](2)) return 1;  // Forward
+        if (e.second() == operator[](0)) return -1; // Reverse
     }
-    else
+    if (e.first() == operator[](2))
     {
-        return 0;
+        if (e.second() == operator[](0)) return 1;  // Forward
+        if (e.second() == operator[](1)) return -1; // Reverse
     }
+
+    return 0;  // Not found
 }
 
 
-// * * * * * * * * * * * * * * * Friend Operators  * * * * * * * * * * * * * //
+// * * * * * * * * * * * * * * * Global Operators  * * * * * * * * * * * * * //
 
 inline bool operator==(const triFace& a, const triFace& b)
 {
@@ -378,5 +480,7 @@ inline bool operator!=(const triFace& a, const triFace& b)
     return triFace::compare(a,b) == 0;
 }
 
-}
+
 // ************************************************************************* //
+
+ } // End namespace Foam

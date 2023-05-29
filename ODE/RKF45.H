@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2013-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2013-2016 OpenFOAM Foundation
+    Copyright (C) 2019 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -24,6 +27,9 @@ License
 Class
     Foam::RKF45
 
+Group
+    grpODESolvers
+
 Description
     4/5th Order Runge-Kutta-Fehlberg ODE solver
 
@@ -40,8 +46,8 @@ Description
         Springer-Verlag, Berlin.
     \endverbatim
 
-    This method embedds the 4-th order integration step into the 5-th order step
-    and allows to perform an adapdive step-size control using these two order
+    This method embeds the 4-th order integration step into the 5-th order step
+    and allows to perform an adaptive step-size control using these two order
     without the need of re-evaluation.
 
 SourceFiles
@@ -105,8 +111,7 @@ public:
 
 
     //- Destructor
-    virtual ~RKF45()
-    {}
+    virtual ~RKF45() = default;
 
 
     // Member Functions

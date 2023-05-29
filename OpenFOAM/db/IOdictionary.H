@@ -1,9 +1,12 @@
-﻿/*---------------------------------------------------------------------------*\
+/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -27,12 +30,11 @@ Class
 Description
     IOdictionary is derived from dictionary and IOobject to give the dictionary
     automatic IO functionality via the objectRegistry.  To facilitate IO,
-    IOdictionary is provided with a constructor from IOobject and writeData and
-    write functions.
+    IOdictionary is provided with a constructor from IOobject and with
+    readData/writeData functions.
 
 SourceFiles
     IOdictionary.C
-    IOdictionaryIO.C
 
 \*---------------------------------------------------------------------------*/
 
@@ -47,31 +49,49 @@ namespace Foam
 {
 
 /*---------------------------------------------------------------------------*\
-                           Class IOdictionary Declaration
+                        Class IOdictionary Declaration
 \*---------------------------------------------------------------------------*/
 
-class IOdictionary :    public baseIOdictionary
+class IOdictionary
+:
+    public baseIOdictionary
 {
-
 public:
 
     // Constructors
 
         //- Construct given an IOobject
-        IOdictionary(const IOobject&);
+        //- and optional fallback dictionary content
+        //  A null dictionary pointer is treated like an empty dictionary.
+        explicit IOdictionary
+        (
+            const IOobject& io,
+            const dictionary* fallback = nullptr
+        );
 
-        //- Construct given an IOobject and dictionary
-        IOdictionary(const IOobject&, const dictionary&);
+        //- Construct given an IOobject
+        //- and fallback dictionary content
+        IOdictionary(const IOobject& io, const dictionary& dict);
+
+        //- Construct given an IOobject, wanted typeName
+        //- and optional fallback dictionary content
+        //  A null dictionary pointer is treated like an empty dictionary.
+        IOdictionary
+        (
+            const IOobject& io,
+            const word& wantedType,
+            const dictionary* fallback = nullptr
+        );
 
         //- Construct given an IOobject and Istream
-        IOdictionary(const IOobject&, Istream&);
+        IOdictionary(const IOobject& io, Istream& is);
 
 
     //- Destructor
-    virtual ~IOdictionary();
+    virtual ~IOdictionary() = default;
 
 
-    // Member functions
+    // Member Functions
 
         //- Is object global
         virtual bool global() const
@@ -85,10 +105,10 @@ public:
         {
             return globalFilePath(type());
         }
-        //virtual bool readData(Istream& is);
-        //virtual bool writeData(Ostream& os) const;
 };
 
+
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 //- Template function for obtaining global status
 template<>

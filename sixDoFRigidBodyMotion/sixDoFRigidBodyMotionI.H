@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2015 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2015 OpenFOAM Foundation
+    Copyright (C) 2016-2019 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -262,6 +265,10 @@ inline Foam::vector Foam::sixDoFRigidBodyMotion::omega() const
     return  Q() & (inv(momentOfInertia_) & pi());
 }
 
+inline const Foam::Time& Foam::sixDoFRigidBodyMotion::time() const
+{
+    return time_;
+}
 
 inline bool Foam::sixDoFRigidBodyMotion::report() const
 {

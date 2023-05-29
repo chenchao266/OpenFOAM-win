@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2017 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -38,18 +40,17 @@ void Foam::porosityModels::solidification::apply
     const volVectorField& U
 ) const
 {
-    const volScalarField& T = mesh_.lookupObject<volScalarField>
+    const auto& T = mesh_.lookupObject<volScalarField>
     (
         IOobject::groupName(TName_, U.group())
     );
 
-    forAll(cellZoneIDs_, zoneI)
+    for (const label zonei : cellZoneIDs_)
     {
-        const labelList& cells = mesh_.cellZones()[cellZoneIDs_[zoneI]];
+        const labelList& cells = mesh_.cellZones()[zonei];
 
-        forAll(cells, i)
+        for (const label celli : cells)
         {
-            const label celli = cells[i];
             Udiag[celli] +=
                 V[celli]*alpha[celli]*rho[celli]*D_->value(T[celli]);
         }
@@ -66,18 +67,17 @@ void Foam::porosityModels::solidification::apply
     const volVectorField& U
 ) const
 {
-    const volScalarField& T = mesh_.lookupObject<volScalarField>
+    const auto& T = mesh_.lookupObject<volScalarField>
     (
         IOobject::groupName(TName_, U.group())
     );
 
-    forAll(cellZoneIDs_, zoneI)
+    for (const label zonei : cellZoneIDs_)
     {
-        const labelList& cells = mesh_.cellZones()[cellZoneIDs_[zoneI]];
+        const labelList& cells = mesh_.cellZones()[zonei];
 
-        forAll(cells, i)
+        for (const label celli : cells)
         {
-            const label celli = cells[i];
             AU[celli] +=
                 tensor::I*alpha[celli]*rho[celli]*D_->value(T[celli]);
         }
@@ -100,7 +100,7 @@ void Foam::porosityModels::solidification::apply
     }
     else
     {
-        const volScalarField& alpha = mesh_.lookupObject<volScalarField>
+        const auto& alpha = mesh_.lookupObject<volScalarField>
         (
             IOobject::groupName(alphaName_, U.group())
         );
@@ -124,7 +124,7 @@ void Foam::porosityModels::solidification::apply
     }
     else
     {
-        const volScalarField& alpha = mesh_.lookupObject<volScalarField>
+        const auto& alpha = mesh_.lookupObject<volScalarField>
         (
             IOobject::groupName(alphaName_, U.group())
         );

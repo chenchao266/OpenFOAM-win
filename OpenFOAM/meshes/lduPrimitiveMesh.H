@@ -1,9 +1,12 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2016-2019 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -25,7 +28,7 @@ Class
     Foam::lduPrimitiveMesh
 
 Description
-    Simplest contrete lduMesh which stores the addressing needed by lduMatrix.
+    Simplest concrete lduMesh that stores the addressing needed by lduMatrix.
 
 SourceFiles
     lduPrimitiveMesh.C
@@ -47,7 +50,9 @@ namespace Foam
                        Class lduPrimitiveMesh Declaration
 \*---------------------------------------------------------------------------*/
 
-class lduPrimitiveMesh :    public lduMesh,
+class lduPrimitiveMesh
+:
+    public lduMesh,
     public lduAddressing
 {
     // Private data
@@ -71,31 +76,17 @@ class lduPrimitiveMesh :    public lduMesh,
         //- Communicator to use for any parallel communication
         const label comm_;
 
+
     // Private Member Functions
 
         //- Get size of all meshes
         static label totalSize(const PtrList<lduPrimitiveMesh>&);
 
-        static labelList upperTriOrder
-        (
-            const label nCells,
-            const labelUList& lower,
-            const labelUList& upper
-        );
+        //- No copy construct
+        lduPrimitiveMesh(const lduPrimitiveMesh&) = delete;
 
-        //- Check if in upper-triangular ordering
-        static void checkUpperTriangular
-        (
-            const label size,
-            const labelUList& l,
-            const labelUList& u
-        );
-
-        //- Disallow default bitwise copy construct
-        lduPrimitiveMesh(const lduPrimitiveMesh&);
-
-        //- Disallow default bitwise assignment
-        void operator=(const lduPrimitiveMesh&);
+        //- No copy assignment
+        void operator=(const lduPrimitiveMesh&) = delete;
 
 
 public:
@@ -105,7 +96,11 @@ public:
         // Declare name of the class and its debug switch
         ClassName("lduPrimitiveMesh");
 
+
     // Constructors
+
+        //- Construct from number of cells
+        explicit lduPrimitiveMesh(const label nCells);
 
         //- Construct from components but without interfaces. Add interfaces
         //  separately using addInterfaces
@@ -117,6 +112,7 @@ public:
             const label comm,
             bool reuse
         );
+
 
         //- Add interfaces to a mesh constructed without
         void addInterfaces
@@ -175,13 +171,18 @@ public:
 
 
     //- Destructor
-    virtual ~lduPrimitiveMesh()
-    {}
+    virtual ~lduPrimitiveMesh() = default;
 
 
     // Member Functions
 
         // Access
+
+            //- Return true if thisDb() is a valid DB
+            virtual bool hasDb() const
+            {
+                return false;
+            }
 
             //- Return ldu addressing
             virtual const lduAddressing& lduAddr() const
@@ -189,11 +190,30 @@ public:
                 return *this;
             }
 
+            //- Return non-const ldu addressing
+            virtual lduAddressing& lduAddr()
+            {
+                return *this;
+            }
+
             //- Return a list of pointers for each patch
-            //  with only those pointing to interfaces being set
+            //- with only those pointing to interfaces being set
             virtual lduInterfacePtrsList interfaces() const
             {
                 return interfaces_;
+            }
+
+            //- Return a non-const list of pointers for each patch
+            //- with only those pointing to interfaces being set
+            virtual lduInterfacePtrsList& interfaces()
+            {
+                return interfaces_;
+            }
+
+            //- Return a non-const list of primitive interfaces
+            PtrList<const lduInterface>& primitiveInterfaces()
+            {
+                return primitiveInterfaces_;
             }
 
             //- Return a list of pointers for each patch
@@ -218,6 +238,18 @@ public:
 
             //- Return Upper addressing
             virtual const labelUList& upperAddr() const
+            {
+                return upperAddr_;
+            }
+
+            //- Return non-const Lower addressing
+            virtual labelList& lowerAddr()
+            {
+                return lowerAddr_;
+            }
+
+            //- Return non-const Upper addressing
+            virtual labelList& upperAddr()
             {
                 return upperAddr_;
             }
@@ -259,6 +291,28 @@ public:
             template<class ProcPatch>
             static lduSchedule nonBlockingSchedule(const lduInterfacePtrsList&);
 
+            //- Calculate upper-triangular order
+            static labelList upperTriOrder
+            (
+                const label nCells,
+                const labelUList& lower,
+                const labelUList& upper
+            );
+
+            //- Check if in upper-triangular ordering
+            static void checkUpperTriangular
+            (
+                const label size,
+                const labelUList& l,
+                const labelUList& u
+            );
+
+            //- Calculate global cell-cells
+            static labelListList globalCellCells
+            (
+                const lduMesh& mesh,
+                const globalIndex& globalNumbering
+            );
 };
 
 

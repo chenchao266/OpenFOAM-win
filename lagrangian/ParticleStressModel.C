@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2013-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2013-2016 OpenFOAM Foundation
+    Copyright (C) 2019-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -41,9 +44,8 @@ Foam::ParticleStressModel::ParticleStressModel
     const dictionary& dict
 )
 :
-    alphaPacked_(readScalar(dict.lookup("alphaPacked")))
-{
-}
+    alphaPacked_(dict.get<scalar>("alphaPacked"))
+{}
 
 
 Foam::ParticleStressModel::ParticleStressModel
@@ -52,8 +54,7 @@ Foam::ParticleStressModel::ParticleStressModel
 )
 :
     alphaPacked_(cm.alphaPacked_)
-{
-}
+{}
 
 
 // * * * * * * * * * * * * * * * * Selectors * * * * * * * * * * * * * * * * //
@@ -63,24 +64,24 @@ Foam::autoPtr<Foam::ParticleStressModel> Foam::ParticleStressModel::New
     const dictionary& dict
 )
 {
-    word modelType(dict.lookup("type"));
+    const word modelType(dict.get<word>("type"));
 
     Info<< "Selecting particle stress model " << modelType << endl;
 
-    dictionaryConstructorTable::iterator cstrIter =
-        dictionaryConstructorTablePtr_->find(modelType);
+    auto* ctorPtr = dictionaryConstructorTable(modelType);
 
-    if (cstrIter == dictionaryConstructorTablePtr_->end())
+    if (!ctorPtr)
     {
-        FatalErrorInFunction
-            << "Unknown particle stress model type " << modelType
-            << ", constructor not in hash table" << nl << nl
-            << "    Valid particle stress model types are:" << nl
-            << dictionaryConstructorTablePtr_->sortedToc()
-            << abort(FatalError);
+        FatalIOErrorInLookup
+        (
+            dict,
+            "particle stress model",
+            modelType,
+            *dictionaryConstructorTablePtr_
+        ) << abort(FatalIOError);
     }
 
-    return autoPtr<ParticleStressModel>(cstrIter()(dict));
+    return autoPtr<ParticleStressModel>(ctorPtr(dict));
 }
 
 

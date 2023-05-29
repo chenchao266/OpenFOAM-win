@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2018-2020,2022 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -28,7 +31,6 @@ License
 #include "fvPatchFieldMapper.H"
 #include "volFields.H"
 #include "surfaceFields.H"
-#include "IOobjectList.T.H"
 #include "turbulentFluidThermoModel.H"
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
@@ -60,9 +62,9 @@ totalFlowRateAdvectiveDiffusiveFvPatchScalarField
 )
 :
     mixedFvPatchField<scalar>(p, iF),
-    phiName_(dict.lookupOrDefault<word>("phi", "phi")),
-    rhoName_(dict.lookupOrDefault<word>("rho", "none")),
-    massFluxFraction_(dict.lookupOrDefault<scalar>("massFluxFraction", 1.0))
+    phiName_(dict.getOrDefault<word>("phi", "phi")),
+    rhoName_(dict.getOrDefault<word>("rho", "none")),
+    massFluxFraction_(dict.getOrDefault<scalar>("massFluxFraction", 1))
 {
 
     refValue() = 1.0;
@@ -81,6 +83,7 @@ totalFlowRateAdvectiveDiffusiveFvPatchScalarField
         fvPatchField<scalar>::operator=(refValue());
     }
 }
+
 
 Foam::totalFlowRateAdvectiveDiffusiveFvPatchScalarField::
 totalFlowRateAdvectiveDiffusiveFvPatchScalarField
@@ -110,6 +113,7 @@ totalFlowRateAdvectiveDiffusiveFvPatchScalarField
     massFluxFraction_(tppsf.massFluxFraction_)
 {}
 
+
 Foam::totalFlowRateAdvectiveDiffusiveFvPatchScalarField::
 totalFlowRateAdvectiveDiffusiveFvPatchScalarField
 (
@@ -131,7 +135,7 @@ void Foam::totalFlowRateAdvectiveDiffusiveFvPatchScalarField::autoMap
     const fvPatchFieldMapper& m
 )
 {
-    scalarField::autoMap(m);
+    mixedFvPatchField<scalar>::autoMap(m);
 }
 
 
@@ -154,11 +158,8 @@ void Foam::totalFlowRateAdvectiveDiffusiveFvPatchScalarField::updateCoeffs()
 
     const label patchi = patch().index();
 
-    const LESModel<EddyDiffusivity<compressible::turbulenceModel>>& turbModel =
-        db().lookupObject
-        <
-            LESModel<EddyDiffusivity<compressible::turbulenceModel>>
-        >
+    const compressible::turbulenceModel& turbModel =
+        db().lookupObject<compressible::turbulenceModel>
         (
             IOobject::groupName
             (
@@ -177,10 +178,9 @@ void Foam::totalFlowRateAdvectiveDiffusiveFvPatchScalarField::updateCoeffs()
 
     valueFraction() =
         1.0
-        /
-        (
-            1.0 +
-            alphap*patch().deltaCoeffs()*patch().magSf()/max(mag(phip), SMALL)
+       /(
+            1.0
+          + alphap*patch().deltaCoeffs()*patch().magSf()/max(mag(phip), SMALL)
         );
 
     mixedFvPatchField<scalar>::updateCoeffs();
@@ -198,14 +198,15 @@ void Foam::totalFlowRateAdvectiveDiffusiveFvPatchScalarField::updateCoeffs()
 }
 
 
-void Foam::totalFlowRateAdvectiveDiffusiveFvPatchScalarField::
-write(Ostream& os) const
+void Foam::totalFlowRateAdvectiveDiffusiveFvPatchScalarField::write
+(
+    Ostream& os
+) const
 {
     fvPatchField<scalar>::write(os);
-    os.writeKeyword("phi") << phiName_ << token::END_STATEMENT << nl;
-    os.writeKeyword("rho") << rhoName_ << token::END_STATEMENT << nl;
-    os.writeKeyword("massFluxFraction") << massFluxFraction_
-        << token::END_STATEMENT << nl;
+    os.writeEntry("phi", phiName_);
+    os.writeEntry("rho", rhoName_);
+    os.writeEntry("massFluxFraction", massFluxFraction_);
     this->writeEntry("value", os);
 }
 

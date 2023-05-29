@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2015 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2015 OpenFOAM Foundation
+    Copyright (C) 2017-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -49,31 +52,39 @@ Foam::patchDistMethod::patchDistMethod
 
 // * * * * * * * * * * * * * * * * Selector  * * * * * * * * * * * * * * * * //
 
-Foam::autoPtr<Foam::patchDistMethod> Foam::patchDistMethod::New
+Foam::autoPtr<Foam::patchDistMethod>
+Foam::patchDistMethod::New
 (
     const dictionary& dict,
     const fvMesh& mesh,
-    const labelHashSet& patchIDs
+    const labelHashSet& patchIDs,
+    const word& defaultPatchDistMethod
 )
 {
-    word patchDistMethodType(dict.lookup("method"));
+    word modelType(defaultPatchDistMethod);
+    dict.readEntry
+    (
+        "method",
+        modelType,
+        keyType::REGEX,
+        modelType.empty()  // Mandatory if no default was provided
+    );
 
-    Info<< "Selecting patchDistMethod " << patchDistMethodType << endl;
+    Info<< "Selecting patchDistMethod " << modelType << endl;
+    auto* ctorPtr = dictionaryConstructorTable(modelType);
 
-    dictionaryConstructorTable::iterator cstrIter =
-        dictionaryConstructorTablePtr_->find(patchDistMethodType);
-
-    if (cstrIter == dictionaryConstructorTablePtr_->end())
+    if (!ctorPtr)
     {
-        FatalErrorInFunction
-            << "Unknown patchDistMethodType type "
-            << patchDistMethodType << endl << endl
-            << "Valid patchDistMethod types are : " << endl
-            << dictionaryConstructorTablePtr_->sortedToc()
-            << exit(FatalError);
+        FatalIOErrorInLookup
+        (
+            dict,
+            "patchDistMethod",
+            modelType,
+            *dictionaryConstructorTablePtr_
+        ) << exit(FatalIOError);
     }
 
-    return cstrIter()(dict, mesh, patchIDs);
+    return ctorPtr(dict, mesh, patchIDs);
 }
 
 

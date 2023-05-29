@@ -21,18 +21,18 @@
   <PropertyGroup Label="Globals">
     <VCProjectVersion>15.0</VCProjectVersion>
     <ProjectGuid>{446C874B-3060-4AEC-916F-96ACD6D9AEA1}</ProjectGuid>
-    <WindowsTargetPlatformVersion>8.1</WindowsTargetPlatformVersion>
+    <WindowsTargetPlatformVersion>10.0.17763.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>true</UseDebugLibraries>
-    <PlatformToolset>v141</PlatformToolset>
+    <PlatformToolset>v143</PlatformToolset>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
     <ConfigurationType>Application</ConfigurationType>
     <UseDebugLibraries>false</UseDebugLibraries>
-    <PlatformToolset>v141</PlatformToolset>
+    <PlatformToolset>v143</PlatformToolset>
   </PropertyGroup>
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
     <ConfigurationType>StaticLibrary</ConfigurationType>
@@ -65,11 +65,10 @@
   <PropertyGroup />
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
-      <AdditionalIncludeDirectories>..\OpenFOAM\algorithms;..\OpenFOAM\containers;..\OpenFOAM\db;..\OpenFOAM\dimensionedTypes;..\OpenFOAM\dimensionSet;..\OpenFOAM\fields;..\OpenFOAM\global;..\OpenFOAM\graph;..\OpenFOAM\include;..\OpenFOAM\interpolations;..\OpenFOAM\matrices;..\OpenFOAM\memory;..\OpenFOAM\meshes;..\OpenFOAM\primitives;..\OSspecific;..\meshTools;..\finiteVolume;..\triSurface;..\surfMesh;..\fileFormats;..\lagrangian;..\parallel;..\dynamicMesh;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..\OpenFOAM\algorithms;..\OpenFOAM\containers;..\OpenFOAM\db;..\OpenFOAM\dimensionedTypes;..\OpenFOAM\dimensionSet;..\OpenFOAM\fields;..\OpenFOAM\global;..\OpenFOAM\graph;..\OpenFOAM\include;..\OpenFOAM\interpolations;..\OpenFOAM\matrices;..\OpenFOAM\memory;..\OpenFOAM\meshes;..\OpenFOAM\primitives;..\OSspecific;..\meshTools;..\finiteVolume;..\triSurface;..\surfMesh;..\fileFormats;..\lagrangian;..\parallel;..\dynamicMesh;..\sampling;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>WM_LABEL_SIZE=64;WM_DP;NoRepository;WIN32;WIN64;_WINDOWS;NOMINMAX;_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <CompileAs>CompileAsCpp</CompileAs>
       <LanguageStandard>stdcpp17</LanguageStandard>
-      <WarningLevel>Level4</WarningLevel>
     </ClCompile>
   </ItemDefinitionGroup>
   <ItemGroup>
@@ -78,14 +77,11 @@
     <ClCompile Include="blockCreate.C" />
     <ClCompile Include="blockDescriptor.C" />
     <ClCompile Include="blockDescriptorEdges.C" />
-    <ClCompile Include="blockDescriptorTest.C" />
     <ClCompile Include="blockEdge.C" />
     <ClCompile Include="blockFace.C" />
     <ClCompile Include="blockMesh.C" />
     <ClCompile Include="blockMeshCheck.C" />
     <ClCompile Include="blockMeshCreate.C" />
-    <ClCompile Include="blockMeshMerge.C" />
-    <ClCompile Include="blockMeshMergeFast.C" />
     <ClCompile Include="blockMeshTools.C" />
     <ClCompile Include="blockVertex.C" />
     <ClCompile Include="BSpline.C" />
@@ -114,7 +110,6 @@
     <ClCompile Include="namedVertex.C" />
     <ClCompile Include="patchFaceOrientation.C" />
     <ClCompile Include="planeExtrusion.C" />
-    <ClCompile Include="pointData.C" />
     <ClCompile Include="pointVertex.C" />
     <ClCompile Include="polyLine.C" />
     <ClCompile Include="polyLineEdge.C" />
@@ -131,7 +126,6 @@
     <ClCompile Include="sigmaRadial.C" />
     <ClCompile Include="snapParameters.C" />
     <ClCompile Include="snappyLayerDriver.C" />
-    <ClCompile Include="snappyLayerDriverShrink.C" />
     <ClCompile Include="snappyRefineDriver.C" />
     <ClCompile Include="snappySnapDriver.C" />
     <ClCompile Include="snappySnapDriverFeature.C" />

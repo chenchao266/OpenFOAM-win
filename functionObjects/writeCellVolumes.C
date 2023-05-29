@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2016 OpenFOAM Foundation
+    Copyright (C) 2016-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -54,13 +57,13 @@ Foam::functionObjects::writeCellVolumes::writeCellVolumes
 }
 
 
-// * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
-
-Foam::functionObjects::writeCellVolumes::~writeCellVolumes()
-{}
-
-
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
+
+bool Foam::functionObjects::writeCellVolumes::read(const dictionary& dict)
+{
+    return fvMeshFunctionObject::read(dict);
+}
+
 
 bool Foam::functionObjects::writeCellVolumes::execute()
 {
@@ -82,13 +85,14 @@ bool Foam::functionObjects::writeCellVolumes::write()
             false
         ),
         mesh_,
-        dimensionedScalar(mesh_.V().name(), mesh_.V().dimensions(), 0),
+        dimensionedScalar(mesh_.V().dimensions(), Zero),
         calculatedFvPatchField<scalar>::typeName
     );
 
     V.ref() = mesh_.V();
 
-    Log << "    Writing cell-volumes field " << V.name()
+    Log << type() << " " << name() << " write:" << nl
+        << "    writing cell-volumes field " << V.name()
         << " to " << time_.timeName() << endl;
 
     V.write();

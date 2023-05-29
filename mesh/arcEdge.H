@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2017-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -25,7 +28,32 @@ Class
     Foam::blockEdges::arcEdge
 
 Description
-    Defines the arcEdge of a circle in terms of 3 points on its circumference
+    A blockEdge defined as an arc of a circle.
+
+    The arc is normally defined by its endpoints and a point on
+    its circumference, typically a midpoint. For example,
+    \verbatim
+    points ((1 0 0) (0 1 0));
+
+    arc 0 1 (0.707107 0.707107 0);
+    \endverbatim
+    The arc can enclose an angle greater than 0 and less than 360 degrees.
+
+    The arc will frequently enclose an angle less than 180 degrees.
+    For the case, it is possible to define the arc by its endpoints and its
+    centre (origin) point. For example,
+    \verbatim
+    arc 0 1 origin (0 0 0);
+    \endverbatim
+    When defined in the way, any discrepancy in the arc radius for the
+    endpoints is resolved by adjusting the origin to ensure that the average
+    radius is satisfied.
+
+    It is also possible to define a \em flatness factor as a multiplier of
+    the calculated radius. For example,
+    \verbatim
+    arc 0 1 origin 1.1 (0 0 0);
+    \endverbatim
 
 SourceFiles
     arcEdge.C
@@ -53,23 +81,47 @@ class arcEdge
 :
     public blockEdge
 {
-    // Private data
+    // Private Data
 
-        point p1_, p2_, p3_;
-        cylindricalCS cs_;
-        scalar angle_;
+        //- The arc radius
         scalar radius_;
+
+        //- The arc angle (radians)
+        scalar angle_;
+
+        //- The local cylindrical coordinate system
+        coordSystem::cylindrical cs_;
+
 
     // Private Member Functions
 
-        //- Calculate the coordinate system, angle and radius
-        cylindricalCS calcAngle();
+        //- Calculate angle, radius, cylindrical coordinate system
+        //- from end points and the given point on the circumference
+        void calcFromMidPoint
+        (
+            const point& p1,        //!< Start point
+            const point& p3,        //!< End point
+            const point& p2         //!< Point on circumference
+        );
 
-        //- Disallow default bitwise copy construct
-        arcEdge(const arcEdge&);
+        //- Calculate angle, radius, cylindrical coordinate system
+        //- from end points and the given origin.
+        //  Optionally adjust centre to accommodate deviations in the
+        //  effective radius to the end-points
+        void calcFromCentre
+        (
+            const point& p1,        //!< Start point
+            const point& p3,        //!< End point
+            const point& centre,    //!< Centre
+            bool adjustCentre = false,  //!< Adjust centre
+            scalar rMultiplier = 1      //!< Adjust radius by this factor
+        );
 
-        //- Disallow default bitwise assignment
-        void operator=(const arcEdge&);
+        //- No copy construct
+        arcEdge(const arcEdge&) = delete;
+
+        //- No copy assignment
+        void operator=(const arcEdge&) = delete;
 
 
 public:
@@ -80,44 +132,70 @@ public:
 
     // Constructors
 
-        //- Construct from components
+        //- Construct from components, given the origin of the circle
         arcEdge
         (
-            const pointField& points,
-            const label start, const label end,
-            const point& pMid
+            const pointField& points,   //!< Referenced point field
+            const point& origin,        //!< The origin of the circle
+            const edge& fromTo          //!< Start/end in point field
         );
 
-        //- Construct from Istream setting pointsList
+        //- Construct from components, using a point on the circumference
+        arcEdge
+        (
+            const pointField& points,   //!< Referenced point field
+            const edge& fromTo,         //!< Start/end in point field
+            const point& midPoint       //!< A point on the circumference
+        );
+
+        //- Construct from components, given the origin of the circle
+        arcEdge
+        (
+            const pointField& points,   //!< Referenced point field
+            const point& origin,        //!< The origin of the circle
+            const label from,           //!< Start point in point field
+            const label to              //!< End point in point field
+        );
+
+        //- Construct from components, using a point on the circumference
+        arcEdge
+        (
+            const pointField& points,   //!< Referenced point field
+            const label from,           //!< Start point in point field
+            const label to,             //!< End point in point field
+            const point& midPoint       //!< A point on the circumference
+        );
+
+        //- Construct from Istream and point field.
+        //  The Istream can specify either a point on the circumference,
+        //  or with a tag to specify the origin.
         arcEdge
         (
             const dictionary& dict,
             const label index,
-            const searchableSurfaces& geometry,
-            const pointField& points,
-            Istream&
+            const searchableSurfaces&  /*unused*/,
+            const pointField& points,  //!< Referenced point field
+            Istream& is
         );
 
 
     //- Destructor
-    virtual ~arcEdge()
-    {}
+    virtual ~arcEdge() = default;
 
 
     // Member Functions
 
-        //- Return the point position corresponding to the curve parameter
-        //  0 <= lambda <= 1
-        point position(const scalar) const;
+        //- The point corresponding to the curve parameter [0-1]
+        point position(const scalar lambda) const;
 
-        //- Return the length of the curve
-        scalar length() const;
+        //- The length of the curve
+        scalar length() const noexcept;
 };
 
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
-} // End of namespace blockEdges
+} // End namespace blockEdges
 } // End namespace Foam
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //

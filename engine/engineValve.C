@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2013 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2013 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -63,7 +66,6 @@ Foam::scalar Foam::engineValve::adjustCrankAngle(const scalar theta) const
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
-// Construct from components
 Foam::engineValve::engineValve
 (
     const word& name,
@@ -89,7 +91,7 @@ Foam::engineValve::engineValve
     name_(name),
     mesh_(mesh),
     engineDB_(refCast<const engineTime>(mesh.time())),
-    csPtr_(valveCS),
+    csysPtr_(valveCS.clone()),
     bottomPatch_(bottomPatchName, mesh.boundaryMesh()),
     poppetPatch_(poppetPatchName, mesh.boundaryMesh()),
     stemPatch_(stemPatchName, mesh.boundaryMesh()),
@@ -110,7 +112,6 @@ Foam::engineValve::engineValve
 {}
 
 
-// Construct from dictionary
 Foam::engineValve::engineValve
 (
     const word& name,
@@ -121,51 +122,56 @@ Foam::engineValve::engineValve
     name_(name),
     mesh_(mesh),
     engineDB_(refCast<const engineTime>(mesh_.time())),
-    csPtr_
+    csysPtr_
     (
-        coordinateSystem::New
-        (
-            mesh_,
-            dict.subDict("coordinateSystem")
-        )
+        coordinateSystem::New(mesh_, dict, coordinateSystem::typeName_())
     ),
-    bottomPatch_(dict.lookup("bottomPatch"), mesh.boundaryMesh()),
-    poppetPatch_(dict.lookup("poppetPatch"), mesh.boundaryMesh()),
-    stemPatch_(dict.lookup("stemPatch"), mesh.boundaryMesh()),
+    bottomPatch_
+    (
+        dict.get<keyType>("bottomPatch"),
+        mesh.boundaryMesh()
+    ),
+    poppetPatch_
+    (
+        dict.get<keyType>("poppetPatch"),
+        mesh.boundaryMesh()
+    ),
+    stemPatch_
+    (
+        dict.get<keyType>("stemPatch"),
+        mesh.boundaryMesh()
+    ),
     curtainInPortPatch_
     (
-        dict.lookup("curtainInPortPatch"),
+        dict.get<keyType>("curtainInPortPatch"),
         mesh.boundaryMesh()
     ),
     curtainInCylinderPatch_
     (
-        dict.lookup("curtainInCylinderPatch"),
+        dict.get<keyType>("curtainInCylinderPatch"),
         mesh.boundaryMesh()
     ),
     detachInCylinderPatch_
     (
-        dict.lookup("detachInCylinderPatch"),
+        dict.get<keyType>("detachInCylinderPatch"),
         mesh.boundaryMesh()
     ),
     detachInPortPatch_
     (
-        dict.lookup("detachInPortPatch"),
+        dict.get<keyType>("detachInPortPatch"),
         mesh.boundaryMesh()
     ),
-    detachFaces_(dict.lookup("detachFaces")),
+    detachFaces_(dict.get<labelList>("detachFaces")),
     liftProfile_("theta", "lift", name_, dict.lookup("liftProfile")),
     liftProfileStart_(min(liftProfile_.x())),
     liftProfileEnd_(max(liftProfile_.x())),
-    minLift_(readScalar(dict.lookup("minLift"))),
-    minTopLayer_(readScalar(dict.lookup("minTopLayer"))),
-    maxTopLayer_(readScalar(dict.lookup("maxTopLayer"))),
-    minBottomLayer_(readScalar(dict.lookup("minBottomLayer"))),
-    maxBottomLayer_(readScalar(dict.lookup("maxBottomLayer"))),
-    diameter_(readScalar(dict.lookup("diameter")))
+    minLift_(dict.get<scalar>("minLift")),
+    minTopLayer_(dict.get<scalar>("minTopLayer")),
+    maxTopLayer_(dict.get<scalar>("maxTopLayer")),
+    minBottomLayer_(dict.get<scalar>("minBottomLayer")),
+    maxBottomLayer_(dict.get<scalar>("maxBottomLayer")),
+    diameter_(dict.get<scalar>("diameter"))
 {}
-
-
-// * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
 
 
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
@@ -238,7 +244,7 @@ void Foam::engineValve::writeDict(Ostream& os) const
 {
     os  << nl << name() << nl << token::BEGIN_BLOCK;
 
-    cs().writeDict(os);
+    cs().writeEntry(coordinateSystem::typeName_(), os);
 
     os  << "bottomPatch " << bottomPatch_.name() << token::END_STATEMENT << nl
         << "poppetPatch " << poppetPatch_.name() << token::END_STATEMENT << nl

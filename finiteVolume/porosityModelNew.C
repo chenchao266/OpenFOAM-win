@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2012-2015 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2012-2015 OpenFOAM Foundation
+    Copyright (C) 2019-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -35,26 +38,27 @@ Foam::autoPtr<Foam::porosityModel> Foam::porosityModel::New
     const word& cellZoneName
 )
 {
-    const word modelType(dict.lookup("type"));
+    const word modelType(dict.get<word>("type"));
 
     Info<< "Porosity region " << name << ":" << nl
         << "    selecting model: " << modelType << endl;
 
-    meshConstructorTable::iterator cstrIter =
-        meshConstructorTablePtr_->find(modelType);
+    auto* ctorPtr = meshConstructorTable(modelType);
 
-    if (cstrIter == meshConstructorTablePtr_->end())
+    if (!ctorPtr)
     {
-        FatalErrorInFunction
-            << "Unknown " << typeName << " type " << modelType << nl << nl
-            << "Valid " << typeName << " types are:" << nl
-            << meshConstructorTablePtr_->sortedToc()
-            << exit(FatalError);
+        FatalIOErrorInLookup
+        (
+            dict,
+            typeName,
+            modelType,
+            *meshConstructorTablePtr_
+        ) << exit(FatalIOError);
     }
 
     return autoPtr<porosityModel>
     (
-        cstrIter()
+        ctorPtr
         (
             name,
             modelType,

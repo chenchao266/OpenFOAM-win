@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2019-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -24,40 +27,31 @@ License
 \*---------------------------------------------------------------------------*/
 
 #include "surfaceIntersection.H"
-#include "triSurfaceSearch.H"
-#include "labelPairLookup.H"
-#include "OFstream.H"
-#include "HashSet.T.H"
 #include "triSurface.H"
-#include "pointIndexHit.H"
-#include "meshTools.H"
+#include "triSurfaceSearch.H"
+#include "edgeHashes.H"
+#include "labelPairHashes.H"
+#include "OFstream.H"
+
+// * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
+
+namespace Foam
+{
+
+// file-scope
+// Write points in obj format
+static void writeObjPoints(const UList<point>& pts, Ostream& os)
+{
+    for (const point& pt : pts)
+    {
+        os << "v " << pt.x() << ' ' << pt.y() << ' ' << pt.z() << nl;
+    }
+}
+
+} // End namespace Foam
+
 
 // * * * * * * * * * * * * * Private Member Functions  * * * * * * * * * * * //
-
-void Foam::surfaceIntersection::writeOBJ(const point& pt, Ostream& os)
-{
-    os << "v " << pt.x() << ' ' << pt.y() << ' ' << pt.z() << endl;
-}
-
-
-void Foam::surfaceIntersection::writeOBJ
-(
-    const List<point>& pts,
-    const List<edge>& edges,
-    Ostream& os
-)
-{
-    forAll(pts, i)
-    {
-        writeOBJ(pts[i], os);
-    }
-    forAll(edges, i)
-    {
-        const edge& e = edges[i];
-
-        os << "l " << e.start()+1 << ' ' << e.end()+1 << endl;
-    }
-}
 
 
 // Get minimum length of all edges connected to point
@@ -90,7 +84,7 @@ Foam::label Foam::surfaceIntersection::getEdge
     const label fp
 )
 {
-    const edge faceEdge = surf.localFaces()[facei].faceEdge(fp);
+    const edge faceEdge = surf.localFaces()[facei].edge(fp);
 
     const labelList& eLabels = surf.faceEdges()[facei];
 
@@ -162,20 +156,6 @@ void Foam::surfaceIntersection::removeDuplicates
 }
 
 
-// Remap.
-void Foam::surfaceIntersection::inlineRemap
-(
-    const labelList& map,
-    labelList& elems
-)
-{
-    forAll(elems, elemI)
-    {
-        elems[elemI] = map[elems[elemI]];
-    }
-}
-
-
 // Remove all duplicate and degenerate elements. Return unique elements and
 // map from old to new.
 Foam::edgeList Foam::surfaceIntersection::filterEdges
@@ -184,7 +164,7 @@ Foam::edgeList Foam::surfaceIntersection::filterEdges
     labelList& map
 )
 {
-    HashSet<edge, Hash<edge>> uniqueEdges(10*edges.size());
+    edgeHashSet uniqueEdges(10*edges.size());
 
     edgeList newEdges(edges.size());
 
@@ -197,14 +177,9 @@ Foam::edgeList Foam::surfaceIntersection::filterEdges
     {
         const edge& e = edges[edgeI];
 
-        if
-        (
-            (e.start() != e.end())
-         && (uniqueEdges.find(e) == uniqueEdges.end())
-        )
+        if ((e.start() != e.end()) && uniqueEdges.insert(e))
         {
-            // Edge is -non degenerate and -not yet seen.
-            uniqueEdges.insert(e);
+            // Edge is non-degenerate and not yet seen.
 
             map[edgeI] = newEdgeI;
 
@@ -238,10 +213,9 @@ Foam::labelList Foam::surfaceIntersection::filterLabels
     {
         label elem = elems[elemI];
 
-        if (uniqueElems.find(elem) == uniqueElems.end())
+        if (uniqueElems.insert(elem))
         {
             // First time elem is seen
-            uniqueElems.insert(elem);
 
             map[elemI] = newElemI;
 
@@ -265,14 +239,8 @@ void Foam::surfaceIntersection::writeIntersectedEdges
     // Dump all points (surface followed by cutPoints)
     const pointField& pts = surf.localPoints();
 
-    forAll(pts, pointi)
-    {
-        writeOBJ(pts[pointi], os);
-    }
-    forAll(cutPoints(), cutPointi)
-    {
-        writeOBJ(cutPoints()[cutPointi], os);
-    }
+    writeObjPoints(pts, os);
+    writeObjPoints(cutPoints(), os);
 
     forAll(edgeCutVerts, edgeI)
     {
@@ -284,16 +252,16 @@ void Foam::surfaceIntersection::writeIntersectedEdges
 
             // Start of original edge to first extra point
             os  << "l " << e.start()+1 << ' '
-                << extraVerts[0] + surf.nPoints() + 1 << endl;
+                << extraVerts[0] + surf.nPoints() + 1 << nl;
 
             for (label i = 1; i < extraVerts.size(); i++)
             {
                 os  << "l " << extraVerts[i-1] + surf.nPoints() + 1  << ' '
-                    << extraVerts[i] + surf.nPoints() + 1 << endl;
+                    << extraVerts[i] + surf.nPoints() + 1 << nl;
             }
 
             os  << "l " << extraVerts.last() + surf.nPoints() + 1
-                << ' ' << e.end()+1 << endl;
+                << ' ' << e.end()+1 << nl;
         }
     }
 }
@@ -306,7 +274,7 @@ Foam::label Foam::surfaceIntersection::classify
     const scalar endTol,
     const point& p,
     const edge& e,
-    const pointField& points
+    const UList<point>& points
 )
 {
     if (mag(p - points[e.start()]) < startTol)
@@ -317,10 +285,8 @@ Foam::label Foam::surfaceIntersection::classify
     {
         return 1;
     }
-    else
-    {
-        return -1;
-    }
+
+    return -1;
 }
 
 

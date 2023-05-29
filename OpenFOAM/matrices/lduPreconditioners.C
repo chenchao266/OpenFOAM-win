@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -23,11 +25,11 @@ License
 
 \*---------------------------------------------------------------------------*/
 
-#include "NoPreconditioner.T.H"
-#include "DiagonalPreconditioner.T.H"
-#include "TDILUPreconditioner.T.H"
+#include "NoPreconditioner.H"
+#include "DiagonalPreconditioner.H"
+#include "TDILUPreconditioner.H"
 #include "fieldTypes.H"
-using namespace Foam;
+
 #define makeLduPreconditioners(Type, DType, LUType)                            \
                                                                                \
     makeLduPreconditioner(NoPreconditioner, Type, DType, LUType);              \

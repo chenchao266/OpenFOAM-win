@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -120,27 +123,27 @@ const Foam::basicSpecieMixture& Foam::SLGThermo::carrier() const
 
 const Foam::liquidMixtureProperties& Foam::SLGThermo::liquids() const
 {
-    if (!liquids_.valid())
+    if (!liquids_)
     {
         FatalErrorInFunction
             << "liquids requested, but object is not allocated"
             << abort(FatalError);
     }
 
-    return liquids_();
+    return *liquids_;
 }
 
 
 const Foam::solidMixtureProperties& Foam::SLGThermo::solids() const
 {
-    if (!solids_.valid())
+    if (!solids_)
     {
         FatalErrorInFunction
             << "solids requested, but object is not allocated"
             << abort(FatalError);
     }
 
-    return solids_();
+    return *solids_;
 }
 
 
@@ -228,13 +231,13 @@ bool Foam::SLGThermo::hasMultiComponentCarrier() const
 
 bool Foam::SLGThermo::hasLiquids() const
 {
-    return liquids_.valid();
+    return bool(liquids_);
 }
 
 
 bool Foam::SLGThermo::hasSolids() const
 {
-    return solids_.valid();
+    return bool(solids_);
 }
 
 

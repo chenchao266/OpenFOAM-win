@@ -1,9 +1,12 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2013-2015 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2013-2015 OpenFOAM Foundation
+    Copyright (C) 2019 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -35,7 +38,7 @@ SourceFiles
 #ifndef compressibleTurbulenceModel_H
 #define compressibleTurbulenceModel_H
 
-#include "turbulenceModel.H"
+#include "turbulenceModel2.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -73,11 +76,14 @@ private:
 
     // Private Member Functions
 
-        //- Disallow default bitwise copy construct
-        compressibleTurbulenceModel(const compressibleTurbulenceModel&);
+        //- No copy construct
+        compressibleTurbulenceModel
+        (
+            const compressibleTurbulenceModel&
+        ) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const compressibleTurbulenceModel&);
+        //- No copy assignment
+        void operator=(const compressibleTurbulenceModel&) = delete;
 
 
 public:
@@ -100,8 +106,7 @@ public:
 
 
     //- Destructor
-    virtual ~compressibleTurbulenceModel()
-    {}
+    virtual ~compressibleTurbulenceModel() = default;
 
 
     // Member functions
@@ -117,6 +122,13 @@ public:
 
         //- Return the effective stress tensor including the laminar stress
         virtual tmp<volSymmTensorField> devRhoReff() const = 0;
+
+        //- Return the effective stress tensor including
+        //- the laminar stress based on a given velocity field
+        virtual tmp<volSymmTensorField> devRhoReff
+        (
+            const volVectorField& U
+        ) const = 0;
 
         //- Return the source term for the momentum equation
         virtual tmp<fvVectorMatrix> divDevRhoReff(volVectorField& U) const = 0;

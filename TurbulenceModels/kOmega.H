@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2019-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -58,7 +61,7 @@ SourceFiles
 #ifndef kOmega_H
 #define kOmega_H
 
-#include "RASModel.T.H"
+#include "RASModel.H"
 #include "eddyViscosity.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
@@ -130,8 +133,7 @@ public:
 
 
     //- Destructor
-    virtual ~kOmega()
-    {}
+    virtual ~kOmega() = default;
 
 
     // Member Functions
@@ -175,25 +177,6 @@ public:
         virtual tmp<volScalarField> omega() const
         {
             return omega_;
-        }
-
-        //- Return the turbulence kinetic energy dissipation rate
-        virtual tmp<volScalarField> epsilon() const
-        {
-            return tmp<volScalarField>
-            (
-                new volScalarField
-                (
-                    IOobject
-                    (
-                        "epsilon",
-                        this->mesh_.time().timeName(),
-                        this->mesh_
-                    ),
-                    Cmu_*k_*omega_,
-                    omega_.boundaryField().types()
-                )
-            );
         }
 
         //- Solve the turbulence equations and correct the turbulence viscosity

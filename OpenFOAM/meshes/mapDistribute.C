@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2015-2019 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -28,10 +31,12 @@ License
 #include "transformField.H"
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
- 
+
 namespace Foam
 {
     defineTypeNameAndDebug(mapDistribute, 0);
+
+
 
     // * * * * * * * * * * * * * Private Member Functions  * * * * * * * * * * * //
 
@@ -41,29 +46,28 @@ namespace Foam
             const vectorTensorTransform&,
             const bool,
             List<label>&
-            ) const
-    {}
+            ) const {}
+
     template<>
     void mapDistribute::transform::operator()
         (
             const coupledPolyPatch&,
             UList<label>&
-            ) const
-    {}
+            ) const {}
+
     template<>
     void mapDistribute::transform::operator()
         (
             const coupledPolyPatch&,
             Map<label>&
-            ) const
-    {}
+            ) const {}
+
     template<>
     void mapDistribute::transform::operator()
         (
             const coupledPolyPatch&,
             EdgeMap<label>&
-            ) const
-    {}
+            ) const {}
 
 
     template<>
@@ -72,29 +76,28 @@ namespace Foam
             const vectorTensorTransform&,
             const bool,
             List<scalar>&
-            ) const
-    {}
+            ) const {}
+
     template<>
     void mapDistribute::transform::operator()
         (
             const coupledPolyPatch&,
             UList<scalar>&
-            ) const
-    {}
+            ) const {}
+
     template<>
     void mapDistribute::transform::operator()
         (
             const coupledPolyPatch&,
             Map<scalar>&
-            ) const
-    {}
+            ) const {}
+
     template<>
     void mapDistribute::transform::operator()
         (
             const coupledPolyPatch&,
             EdgeMap<scalar>&
-            ) const
-    {}
+            ) const {}
 
 
     template<>
@@ -103,29 +106,28 @@ namespace Foam
             const vectorTensorTransform&,
             const bool,
             List<bool>&
-            ) const
-    {}
+            ) const {}
+
     template<>
     void mapDistribute::transform::operator()
         (
             const coupledPolyPatch&,
             UList<bool>&
-            ) const
-    {}
+            ) const {}
+
     template<>
     void mapDistribute::transform::operator()
         (
             const coupledPolyPatch&,
             Map<bool>&
-            ) const
-    {}
+            ) const {}
+
     template<>
     void mapDistribute::transform::operator()
         (
             const coupledPolyPatch&,
             EdgeMap<bool>&
-            ) const
-    {}
+            ) const {}
 
 
     void mapDistribute::printLayout(Ostream& os) const
@@ -146,55 +148,84 @@ namespace Foam
 
     // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
-    mapDistribute::mapDistribute() : mapDistributeBase()
+    mapDistribute::mapDistribute(const label comm)
+        :
+        mapDistributeBase(comm)
     {}
+
+
+    mapDistribute::mapDistribute(const mapDistribute& map)
+        :
+        mapDistributeBase(map),
+        transformElements_(map.transformElements_),
+        transformStart_(map.transformStart_)
+    {}
+
+
+    mapDistribute::mapDistribute(mapDistribute&& map)
+        :
+        mapDistribute()
+    {
+        transfer(map);
+    }
 
 
     mapDistribute::mapDistribute
     (
         const label constructSize,
-        const Xfer<labelListList>& subMap,
-        const Xfer<labelListList>& constructMap,
+        labelListList&& subMap,
+        labelListList&& constructMap,
         const bool subHasFlip,
-        const bool constructHasFlip
-    ) : mapDistributeBase
-    (
-        constructSize,
-        subMap,
-        constructMap,
-        subHasFlip,
-        constructHasFlip
+        const bool constructHasFlip,
+        const label comm
     )
+        :
+        mapDistributeBase
+        (
+            constructSize,
+            std::move(subMap),
+            std::move(constructMap),
+            subHasFlip,
+            constructHasFlip,
+            comm
+        )
     {}
 
 
     mapDistribute::mapDistribute
     (
         const label constructSize,
-        const Xfer<labelListList>& subMap,
-        const Xfer<labelListList>& constructMap,
-        const Xfer<labelListList>& transformElements,
-        const Xfer<labelList>& transformStart,
+        labelListList&& subMap,
+        labelListList&& constructMap,
+        labelListList&& transformElements,
+        labelList&& transformStart,
         const bool subHasFlip,
-        const bool constructHasFlip
-    ) : mapDistributeBase
-    (
-        constructSize,
-        subMap,
-        constructMap,
-        subHasFlip,
-        constructHasFlip
-    ),
-        transformElements_(transformElements),
-        transformStart_(transformStart)
+        const bool constructHasFlip,
+        const label comm
+    )
+        :
+        mapDistributeBase
+        (
+            constructSize,
+            std::move(subMap),
+            std::move(constructMap),
+            subHasFlip,
+            constructHasFlip,
+            comm
+        ),
+        transformElements_(std::move(transformElements)),
+        transformStart_(std::move(transformStart))
     {}
 
 
     mapDistribute::mapDistribute
     (
-        const labelList& sendProcs,
-        const labelList& recvProcs
-    ) : mapDistributeBase(sendProcs, recvProcs)
+        const labelUList& sendProcs,
+        const labelUList& recvProcs,
+        const label comm
+    )
+        :
+        mapDistributeBase(sendProcs, recvProcs, comm)
     {}
 
 
@@ -203,14 +234,18 @@ namespace Foam
         const globalIndex& globalNumbering,
         labelList& elements,
         List<Map<label>>& compactMap,
-        const int tag
-    ) : mapDistributeBase
-    (
-        globalNumbering,
-        elements,
-        compactMap,
-        tag
+        const int tag,
+        const label comm
     )
+        :
+        mapDistributeBase
+        (
+            globalNumbering,
+            elements,
+            compactMap,
+            tag,
+            comm
+        )
     {}
 
 
@@ -219,14 +254,18 @@ namespace Foam
         const globalIndex& globalNumbering,
         labelListList& cellCells,
         List<Map<label>>& compactMap,
-        const int tag
-    ) : mapDistributeBase
-    (
-        globalNumbering,
-        cellCells,
-        compactMap,
-        tag
+        const int tag,
+        const label comm
     )
+        :
+        mapDistributeBase
+        (
+            globalNumbering,
+            cellCells,
+            compactMap,
+            tag,
+            comm
+        )
     {}
 
 
@@ -238,9 +277,14 @@ namespace Foam
         const labelPairList& transformedElements,
         labelList& transformedIndices,
         List<Map<label>>& compactMap,
-        const int tag
-    ) : mapDistributeBase()
+        const int tag,
+        const label comm
+    )
+        :
+        mapDistributeBase(comm)
     {
+        const label myRank = Pstream::myProcNo(comm);
+
         // Construct per processor compact addressing of the global elements
         // needed. The ones from the local processor are not included since
         // these are always all needed.
@@ -256,7 +300,7 @@ namespace Foam
         {
             labelPair elem = transformedElements[i];
             label proci = globalTransforms.processor(elem);
-            if (proci != Pstream::myProcNo())
+            if (proci != myRank)
             {
                 label index = globalTransforms.index(elem);
                 label nCompact = compactMap[proci].size();
@@ -282,7 +326,7 @@ namespace Foam
         // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         // Count per transformIndex
         label nTrafo = globalTransforms.transformPermutations().size();
-        labelList nPerTransform(nTrafo, 0);
+        labelList nPerTransform(nTrafo, Zero);
         forAll(transformedElements, i)
         {
             labelPair elem = transformedElements[i];
@@ -313,7 +357,7 @@ namespace Foam
             // Get compact index for untransformed element
             label rawElemI =
                 (
-                    proci == Pstream::myProcNo()
+                    proci == myRank
                     ? index
                     : compactMap[proci][index]
                     );
@@ -341,9 +385,14 @@ namespace Foam
         const List<labelPairList>& transformedElements,
         labelListList& transformedIndices,
         List<Map<label>>& compactMap,
-        const int tag
-    ) : mapDistributeBase()
+        const int tag,
+        const label comm
+    )
+        :
+        mapDistributeBase(comm)
     {
+        const label myRank = Pstream::myProcNo(comm_);
+
         // Construct per processor compact addressing of the global elements
         // needed. The ones from the local processor are not included since
         // these are always all needed.
@@ -362,7 +411,7 @@ namespace Foam
             forAll(elems, i)
             {
                 label proci = globalTransforms.processor(elems[i]);
-                if (proci != Pstream::myProcNo())
+                if (proci != myRank)
                 {
                     label index = globalTransforms.index(elems[i]);
                     label nCompact = compactMap[proci].size();
@@ -389,7 +438,7 @@ namespace Foam
         // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         // Count per transformIndex
         label nTrafo = globalTransforms.transformPermutations().size();
-        labelList nPerTransform(nTrafo, 0);
+        labelList nPerTransform(nTrafo, Zero);
         forAll(transformedElements, celli)
         {
             const labelPairList& elems = transformedElements[celli];
@@ -428,7 +477,7 @@ namespace Foam
                 // Get compact index for untransformed element
                 label rawElemI =
                     (
-                        proci == Pstream::myProcNo()
+                        proci == myRank
                         ? index
                         : compactMap[proci][index]
                         );
@@ -449,22 +498,15 @@ namespace Foam
     }
 
 
-    mapDistribute::mapDistribute(const mapDistribute& map) : mapDistributeBase(map),
-        transformElements_(map.transformElements_),
-        transformStart_(map.transformStart_)
-    {}
-
-
-    mapDistribute::mapDistribute(const Xfer<mapDistribute>& map) : mapDistributeBase
+    mapDistribute::mapDistribute
     (
-        map().constructSize_,
-        map().subMap_.xfer(),
-        map().constructMap_.xfer(),
-        map().subHasFlip(),
-        map().constructHasFlip()
-    ),
-        transformElements_(map().transformElements_.xfer()),
-        transformStart_(map().transformStart_.xfer())
+        labelListList&& subMap,
+        const bool subHasFlip,
+        const bool constructHasFlip,
+        const label comm
+    )
+        :
+        mapDistributeBase(std::move(subMap), subHasFlip, constructHasFlip, comm)
     {}
 
 
@@ -476,14 +518,13 @@ namespace Foam
 
     autoPtr<mapDistribute> mapDistribute::clone() const
     {
-        return autoPtr<mapDistribute>(new mapDistribute(*this));
+        return autoPtr<mapDistribute>::New(*this);
     }
 
 
     // * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * * //
 
-    label mapDistribute::whichTransform(const label index)
-        const
+    label mapDistribute::whichTransform(const label index) const
     {
         return findLower(transformStart_, index + 1);
     }
@@ -491,15 +532,14 @@ namespace Foam
 
     void mapDistribute::transfer(mapDistribute& rhs)
     {
+        if (this == &rhs)
+        {
+            // Self-assignment is a no-op
+        }
+
         mapDistributeBase::transfer(rhs);
         transformElements_.transfer(rhs.transformElements_);
         transformStart_.transfer(rhs.transformStart_);
-    }
-
-
-    Xfer<mapDistribute> mapDistribute::xfer()
-    {
-        return xferMove(*this);
     }
 
 
@@ -507,16 +547,24 @@ namespace Foam
 
     void mapDistribute::operator=(const mapDistribute& rhs)
     {
-        // Check for assignment to self
         if (this == &rhs)
         {
-            FatalErrorInFunction
-                << "Attempted assignment to self"
-                << abort(FatalError);
+            return;  // Self-assignment is a no-op
         }
+
         mapDistributeBase::operator=(rhs);
         transformElements_ = rhs.transformElements_;
         transformStart_ = rhs.transformStart_;
+    }
+
+
+    void mapDistribute::operator=(mapDistribute&& rhs)
+    {
+        if (this != &rhs)
+        {
+            // Avoid self-assignment
+            transfer(rhs);
+        }
     }
 
 
@@ -524,7 +572,7 @@ namespace Foam
 
     Istream& operator>>(Istream& is, mapDistribute& map)
     {
-        is.fatalCheck("operator>>(Istream&, mapDistribute&)");
+        is.fatalCheck(FUNCTION_NAME);
 
         is >> static_cast<mapDistributeBase&>(map)
             >> map.transformElements_ >> map.transformStart_;

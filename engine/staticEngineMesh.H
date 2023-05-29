@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -52,11 +54,11 @@ class staticEngineMesh
 {
     // Private Member Functions
 
-        //- Disallow default bitwise copy construct
-        staticEngineMesh(const staticEngineMesh&);
+        //- No copy construct
+        staticEngineMesh(const staticEngineMesh&) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const staticEngineMesh&);
+        //- No copy assignment
+        void operator=(const staticEngineMesh&) = delete;
 
 
 public:

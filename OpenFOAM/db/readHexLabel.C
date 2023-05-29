@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2013 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2013 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -27,10 +29,12 @@ Description
 \*---------------------------------------------------------------------------*/
 
 #include "readHexLabel.H"
-#include "ReadHex.T.H"
+#include "ReadHex.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
-using namespace Foam;
+
+
+ namespace Foam{
 label readHexLabel(ISstream& is)
 {
     return ReadHex<label>(is);
@@ -38,3 +42,5 @@ label readHexLabel(ISstream& is)
 
 
 // ************************************************************************* //
+
+ } // End namespace Foam

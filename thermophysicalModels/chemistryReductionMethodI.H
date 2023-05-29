@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -25,7 +27,7 @@ Class
     Foam::chemistryReductionMethod
 
 Description
-    An abstract class for reducing chemical mechanism
+    An abstract class for reducing chemical mechanisms
 
 SourceFiles
     chemistryReductionMethod.C
@@ -56,6 +58,7 @@ Foam::chemistryReductionMethod<CompType, ThermoType>::activeSpecies() const
 {
     return activeSpecies_;
 }
+
 
 template<class CompType, class ThermoType>
 inline Foam::label

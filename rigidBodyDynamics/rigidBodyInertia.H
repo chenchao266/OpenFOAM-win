@@ -1,9 +1,11 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -46,10 +48,10 @@ SourceFiles
 #ifndef RBD_rigidBodyInertia_H
 #define RBD_rigidBodyInertia_H
 
-#include "vector.H"
-#include "symmTensor.H"
-#include "spatialVector.H"
-#include "spatialTensor.H"
+#include "vector2.H"
+#include "symmTensor2.H"
+#include "spatialVector2.H"
+#include "spatialTensor2.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -150,7 +152,7 @@ public:
     // Member Operators
 
         //- Conversion to spatial tensor
-        inline operator spatialTensor() const;
+        inline operator ::Foam::spatialTensor() const;
 
         inline void operator+=(const rigidBodyInertia&);
 

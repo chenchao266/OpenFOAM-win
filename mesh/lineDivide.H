@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2020-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -44,6 +47,7 @@ SourceFiles
 namespace Foam
 {
 
+// Forward Declarations
 class blockEdge;
 
 /*---------------------------------------------------------------------------*\
@@ -52,7 +56,7 @@ class blockEdge;
 
 class lineDivide
 {
-    // Private data
+    // Private Data
 
         pointField points_;
 
@@ -65,19 +69,19 @@ public:
         //- Construct from components
         lineDivide
         (
-            const blockEdge&,
-            const label ndiv,
+            const blockEdge& cedge,
+            const label nDiv,
             const gradingDescriptors& gd = gradingDescriptors()
         );
 
 
     // Member Functions
 
-        //- Return the points
-        const pointField& points() const;
+        //- The points
+        const pointField& points() const noexcept;
 
-        //- Return the list of lambda values
-        const scalarList& lambdaDivisions() const;
+        //- The list of lambda values
+        const scalarList& lambdaDivisions() const noexcept;
 };
 
 

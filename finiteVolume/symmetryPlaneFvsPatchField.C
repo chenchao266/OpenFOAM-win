@@ -1,9 +1,11 @@
-﻿/*---------------------------------------------------------------------------*\
+/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2013-2015 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2013-2015 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -50,10 +52,8 @@ Foam::symmetryPlaneFvsPatchField<Type>::symmetryPlaneFvsPatchField
 {
     if (!isType<symmetryPlaneFvPatch>(p))
     {
-        FatalIOErrorInFunction
-        (
-            dict
-        )   << "patch " << this->patch().index() << " not symmetryPlane type. "
+        FatalIOErrorInFunction(dict)
+            << "patch " << this->patch().index() << " not symmetryPlane type. "
             << "Patch type = " << p.type()
             << exit(FatalIOError);
     }

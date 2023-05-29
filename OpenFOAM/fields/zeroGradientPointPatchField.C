@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2015 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2015 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -26,52 +28,56 @@ License
 #include "zeroGradientPointPatchField.H"
 
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
-namespace Foam
-{
-    template<class Type>
-    zeroGradientPointPatchField<Type>::zeroGradientPointPatchField
-    (
-        const pointPatch& p,
-        const DimensionedField<Type, pointMesh>& iF
-    )
-        :
-        pointPatchField<Type>(p, iF)
-    {}
 
 
-    template<class Type>
-    zeroGradientPointPatchField<Type>::zeroGradientPointPatchField
-    (
-        const pointPatch& p,
-        const DimensionedField<Type, pointMesh>& iF,
-        const dictionary& dict
-    )
-        :
-        pointPatchField<Type>(p, iF, dict)
-    {}
+ namespace Foam{
+template<class Type>
+zeroGradientPointPatchField<Type>::zeroGradientPointPatchField
+(
+    const pointPatch& p,
+    const DimensionedField<Type, pointMesh>& iF
+)
+:
+    pointPatchField<Type>(p, iF)
+{}
 
 
-    template<class Type>
-    zeroGradientPointPatchField<Type>::zeroGradientPointPatchField
-    (
-        const zeroGradientPointPatchField<Type>& ptf,
-        const pointPatch& p,
-        const DimensionedField<Type, pointMesh>& iF,
-        const pointPatchFieldMapper& mapper
-    )
-        :
-        pointPatchField<Type>(ptf, p, iF, mapper)
-    {}
+template<class Type>
+zeroGradientPointPatchField<Type>::zeroGradientPointPatchField
+(
+    const pointPatch& p,
+    const DimensionedField<Type, pointMesh>& iF,
+    const dictionary& dict
+)
+:
+    pointPatchField<Type>(p, iF, dict)
+{}
 
 
-    template<class Type>
-    zeroGradientPointPatchField<Type>::zeroGradientPointPatchField
-    (
-        const zeroGradientPointPatchField<Type>& ptf,
-        const DimensionedField<Type, pointMesh>& iF
-    )
-        :
-        pointPatchField<Type>(ptf, iF)
-    {}
-}
+template<class Type>
+zeroGradientPointPatchField<Type>::zeroGradientPointPatchField
+(
+    const zeroGradientPointPatchField<Type>& ptf,
+    const pointPatch& p,
+    const DimensionedField<Type, pointMesh>& iF,
+    const pointPatchFieldMapper& mapper
+)
+:
+    pointPatchField<Type>(ptf, p, iF, mapper)
+{}
+
+
+template<class Type>
+zeroGradientPointPatchField<Type>::zeroGradientPointPatchField
+(
+    const zeroGradientPointPatchField<Type>& ptf,
+    const DimensionedField<Type, pointMesh>& iF
+)
+:
+    pointPatchField<Type>(ptf, iF)
+{}
+
+
 // ************************************************************************* //
+
+ } // End namespace Foam

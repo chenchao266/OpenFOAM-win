@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2017 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -41,7 +43,7 @@ SourceFiles
 
 #include "contactAngleForce.H"
 #include "distributionModel.H"
-#include "cachedRandom.H"
+#include "Random.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -63,7 +65,7 @@ class distributionContactAngleForce
     // Private Data
 
         //- Random number generator
-        cachedRandom rndGen_;
+        Random rndGen_;
 
         //- Parcel size PDF model
         const autoPtr<distributionModel> distribution_;
@@ -71,11 +73,14 @@ class distributionContactAngleForce
 
     // Private member functions
 
-        //- Disallow default bitwise copy construct
-        distributionContactAngleForce(const distributionContactAngleForce&);
+        //- No copy construct
+        distributionContactAngleForce
+        (
+            const distributionContactAngleForce&
+        ) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const distributionContactAngleForce&);
+        //- No copy assignment
+        void operator=(const distributionContactAngleForce&) = delete;
 
 
 protected:
@@ -95,7 +100,7 @@ public:
         //- Construct from surface film model
         distributionContactAngleForce
         (
-            surfaceFilmModel& film,
+            surfaceFilmRegionModel& film,
             const dictionary& dict
         );
 

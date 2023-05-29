@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2015 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2015 OpenFOAM Foundation
+    Copyright (C) 2020-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -23,10 +26,16 @@ License
 
 \*---------------------------------------------------------------------------*/
 
-inline const Foam::mappedPatchBase::sampleMode&
-Foam::mappedPatchBase::mode() const
+inline Foam::mappedPatchBase::sampleMode
+Foam::mappedPatchBase::mode() const noexcept
 {
     return mode_;
+}
+
+
+inline const Foam::word& Foam::mappedPatchBase::sampleWorld() const noexcept
+{
+    return sampleWorld_;
 }
 
 
@@ -65,7 +74,7 @@ inline const Foam::word& Foam::mappedPatchBase::samplePatch() const
             FatalErrorInFunction
                 << "Supply either a patchName or a coupleGroup"
                 << " for patch " << patch_.name()
-                << " in region " << patch_.boundaryMesh().mesh().name()
+                << " in region " << patch_.boundaryMesh().mesh().name() << nl
                 << exit(FatalError);
         }
 
@@ -111,7 +120,7 @@ inline Foam::label Foam::mappedPatchBase::sampleSize() const
         case NEARESTFACE:
         {
             const polyMesh& mesh = sampleMesh();
-            return mesh.nFaces() - mesh.nInternalFaces();
+            return mesh.nBoundaryFaces();
         }
         default:
         {
@@ -123,19 +132,65 @@ inline Foam::label Foam::mappedPatchBase::sampleSize() const
 }
 
 
-inline const Foam::vector& Foam::mappedPatchBase::offset() const
+inline const Foam::vector& Foam::mappedPatchBase::offset() const noexcept
 {
     return offset_;
 }
 
 
-inline const Foam::vectorField& Foam::mappedPatchBase::offsets() const
+inline const Foam::vectorField& Foam::mappedPatchBase::offsets() const noexcept
 {
     return offsets_;
 }
 
 
-inline bool Foam::mappedPatchBase::sameRegion() const
+inline Foam::label Foam::mappedPatchBase::getCommunicator() const
+{
+    // Cached communicator, or a get a new one
+    if (communicator_ == -1)
+    {
+        const_cast<label&>(communicator_) = getWorldCommunicator();
+    }
+    return communicator_;
+}
+
+
+inline Foam::label Foam::mappedPatchBase::comm() const
+{
+    // Cached communicator, or a get a new one
+    if (communicator_ == -1)
+    {
+        const_cast<label&>(communicator_) = getWorldCommunicator();
+    }
+    return communicator_;
+}
+
+
+inline bool Foam::mappedPatchBase::sameWorld() const
+{
+    return
+    (
+        UPstream::allWorlds().size() == 1
+     || sampleWorld_.empty()
+     || UPstream::myWorld() == sampleWorld_
+    );
+}
+
+
+inline bool Foam::mappedPatchBase::masterWorld() const
+{
+    if (sameWorld())
+    {
+        return true;
+    }
+
+    // Use ordering in allWorlds
+    const label otherWorldId = UPstream::allWorlds().find(sampleWorld_);
+    return (otherWorldId < 0 || (UPstream::myWorldID() < otherWorldId));
+}
+
+
+inline bool Foam::mappedPatchBase::sameRegion() const noexcept
 {
     return sameRegion_;
 }
@@ -143,12 +198,22 @@ inline bool Foam::mappedPatchBase::sameRegion() const
 
 inline const Foam::mapDistribute& Foam::mappedPatchBase::map() const
 {
-    if (mapPtr_.empty())
+    const polyMesh& thisMesh = patch_.boundaryMesh().mesh();
+    bool topoChange =
+        (sameWorld() && sampleMesh().topoChanging())
+     || thisMesh.topoChanging();
+
+    if (topoChange)
+    {
+        mapPtr_.reset(nullptr);
+    }
+
+    if (!mapPtr_)
     {
         calcMapping();
     }
 
-    return mapPtr_();
+    return *mapPtr_;
 }
 
 
@@ -157,12 +222,25 @@ inline const Foam::AMIPatchToPatchInterpolation& Foam::mappedPatchBase::AMI
     bool forceUpdate
 ) const
 {
-    if (forceUpdate || AMIPtr_.empty())
+    const polyMesh& thisMesh = patch_.boundaryMesh().mesh();
+    bool topoChange =
+        (sameWorld() && sampleMesh().topoChanging())
+     || thisMesh.topoChanging();
+
+    if (topoChange || forceUpdate)
     {
-        calcAMI();
+        AMIPtr_->upToDate() = false;
     }
 
-    return AMIPtr_();
+    calcAMI();
+
+    return *AMIPtr_;
+}
+
+
+inline bool Foam::mappedPatchBase::owner() const
+{
+    return (patch_.boundaryMesh().mesh().name() < sampleRegion());
 }
 
 

@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2014 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -34,14 +36,14 @@ SourceFiles
 #ifndef reactingParcelInjectionDataIOList_H
 #define reactingParcelInjectionDataIOList_H
 
-#include "IOList.T.H"
+#include "GlobalIOList.H"
 #include "reactingParcelInjectionData.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 namespace Foam
 {
-    typedef IOList<reactingParcelInjectionData>
+    typedef GlobalIOList<reactingParcelInjectionData>
         reactingParcelInjectionDataIOList;
 }
 

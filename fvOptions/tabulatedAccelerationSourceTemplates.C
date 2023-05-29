@@ -1,9 +1,12 @@
-﻿/*---------------------------------------------------------------------------*\
+/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2015-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2015 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -23,7 +26,7 @@ License
 
 \*---------------------------------------------------------------------------*/
 
-//#include "tabulatedAccelerationSource.H"
+#include "tabulatedAccelerationSource.H"
 #include "fvMesh.H"
 #include "fvMatrices.H"
 #include "uniformDimensionedFields.H"
@@ -41,12 +44,12 @@ void Foam::fv::tabulatedAccelerationSource::addSup
     Vector<vector> acceleration(motion_.acceleration());
 
     // If gravitational force is present combine with the linear acceleration
-    if (mesh_.foundObject<uniformDimensionedVectorField>("g"))
+    if (mesh_.time().foundObject<uniformDimensionedVectorField>("g"))
     {
-        uniformDimensionedVectorField& g =
-            mesh_.lookupObjectRef<uniformDimensionedVectorField>("g");
+        auto& g =
+            mesh_.time().lookupObjectRef<uniformDimensionedVectorField>("g");
 
-        const uniformDimensionedScalarField& hRef =
+        const auto& hRef =
             mesh_.lookupObject<uniformDimensionedScalarField>("hRef");
 
         g = g0_ - dimensionedVector("a", dimAcceleration, acceleration.x());
@@ -58,10 +61,11 @@ void Foam::fv::tabulatedAccelerationSource::addSup
           : dimensionedScalar("ghRef", g.dimensions()*dimLength, 0)
         );
 
-        mesh_.lookupObjectRef<volScalarField>("gh") = (g & mesh_.C()) - ghRef;
+        mesh_.lookupObjectRef<volScalarField>("gh")
+            = (g & mesh_.C()) - ghRef;
 
-        mesh_.lookupObjectRef<surfaceScalarField>("ghf") =
-            (g & mesh_.Cf()) - ghRef;
+        mesh_.lookupObjectRef<surfaceScalarField>("ghf")
+            = (g & mesh_.Cf()) - ghRef;
     }
     // ... otherwise include explicitly in the momentum equation
     else

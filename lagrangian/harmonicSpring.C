@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -58,7 +60,7 @@ harmonicSpring::harmonicSpring
     (
         tetherPotentialProperties.subDict(typeName + "Coeffs")
     ),
-    springConstant_(readScalar(harmonicSpringCoeffs_.lookup("springConstant")))
+    springConstant_(harmonicSpringCoeffs_.get<scalar>("springConstant"))
 {}
 
 
@@ -83,7 +85,7 @@ bool harmonicSpring::read(const dictionary& tetherPotentialProperties)
     harmonicSpringCoeffs_ =
         tetherPotentialProperties.subDict(typeName + "Coeffs");
 
-    harmonicSpringCoeffs_.lookup("springConstant") >> springConstant_;
+    harmonicSpringCoeffs_.readEntry("springConstant", springConstant_);
 
     return true;
 }

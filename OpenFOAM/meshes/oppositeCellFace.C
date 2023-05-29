@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -29,13 +31,12 @@ Description
 
 #include "cell.H"
 #include "oppositeFace.H"
-#include "boolList.H"
-
-// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
-
+#include "bitSet.H"
 
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
-using namespace Foam;
+
+
+ namespace Foam{
 label cell::opposingFaceLabel
 (
     const label masterFaceLabel,
@@ -68,7 +69,7 @@ label cell::opposingFaceLabel
         {
             bool sharedPoint = false;
 
-            // Compare every vertex of the current face agains the
+            // Compare every vertex of the current face against the
             // vertices of the master face
             forAll(curFace, pointi)
             {
@@ -125,65 +126,64 @@ oppositeFace cell::opposingFace
     {
         return oppositeFace(face(0), masterFaceLabel, oppFaceLabel);
     }
-    else
+
+    // This is a prismatic cell.  Go through all the vertices of the master
+    // face and find an edge going from the master face vertex to a slave
+    // face vertex.  If all is OK, there should be only one such
+    // edge for every master vertex and will provide the
+    // master-to-slave vertex mapping.  Assemble the opposite face
+    // in the same manner as the master.
+
+    // Get reference to faces and prepare the return
+    const face& masterFace = meshFaces[masterFaceLabel];
+    const face& slaveFace = meshFaces[oppFaceLabel];
+
+    // Get cell edges
+    const edgeList e = edges(meshFaces);
+    bitSet usedEdges(e.size());
+
+    oppositeFace oppFace
+    (
+        face(masterFace.size()),
+        masterFaceLabel,
+        oppFaceLabel
+    );
+
+    forAll(masterFace, pointi)
     {
-        // This is a prismatic cell.  Go through all the vertices of the master
-        // face and find an edge going from the master face vertex to a slave
-        // face vertex.  If all is OK, there should be only one such
-        // edge for every master vertex and will provide te
-        // master-to-slave vertex mapping.  Assemble the opposite face
-        // in the same manner as the master.
-
-        // Get reference to faces and prepare the return
-        const face& masterFace = meshFaces[masterFaceLabel];
-        const face& slaveFace = meshFaces[oppFaceLabel];
-
-        // Get cell edges
-        const edgeList e = edges(meshFaces);
-        boolList usedEdges(e.size(), false);
-
-        oppositeFace oppFace
-        (
-            face(masterFace.size()),
-            masterFaceLabel,
-            oppFaceLabel
-        );
-
-        forAll(masterFace, pointi)
+        // Go through the list of edges and find the edge from this vertex
+        // to the slave face
+        forAll(e, edgeI)
         {
-            // Go through the list of edges and find the edge from this vertex
-            // to the slave face
-            forAll(e, edgeI)
+            if (!usedEdges.test(edgeI))
             {
-                if (!usedEdges[edgeI])
+                // Get the other vertex
+                label otherVertex = e[edgeI].otherVertex(masterFace[pointi]);
+
+                if (otherVertex != -1)
                 {
-                    // Get the other vertex
-                    label otherVertex =
-                        e[edgeI].otherVertex(masterFace[pointi]);
-
-                    if (otherVertex != -1)
+                    // Found an edge coming from this vertex.
+                    // Check all vertices of the slave to find out
+                    // if it exists.
+                    forAll(slaveFace, slavePointi)
                     {
-                        // Found an edge coming from this vertex.
-                        // Check all vertices of the slave to find out
-                        // if it exists.
-                        forAll(slaveFace, slavePointi)
+                        if (slaveFace[slavePointi] == otherVertex)
                         {
-                            if (slaveFace[slavePointi] == otherVertex)
-                            {
-                                usedEdges[edgeI] = true;
-                                oppFace[pointi] = otherVertex;
+                            usedEdges.set(edgeI);
+                            oppFace[pointi] = otherVertex;
 
-                                break;
-                            }
+                            break;
                         }
                     }
                 }
             }
         }
-
-        return oppFace;
     }
+
+    return oppFace;
 }
 
 
 // ************************************************************************* //
+
+ } // End namespace Foam

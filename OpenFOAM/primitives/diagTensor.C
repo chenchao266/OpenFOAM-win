@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -26,54 +28,58 @@ Description
 
 \*---------------------------------------------------------------------------*/
 
-#include "diagTensor.H"
+#include "diagTensor2.H"
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
-namespace Foam {
-    template<>
-    const char* const diagTensor::vsType::typeName = "diagTensor";
 
-    template<>
-    const char* const diagTensor::vsType::componentNames[] =
-    {
-        "xx", "yy", "zz"
-    };
 
-    template<>
-    const diagTensor diagTensor::vsType::vsType::_zero
-    (
-        diagTensor::uniform(0)
-    );
+ namespace Foam{
+template<>
+const char* const diagTensor::vsType::typeName = "diagTensor";
 
-    template<>
-    const diagTensor diagTensor::vsType::one
-    (
-        diagTensor::uniform(1)
-    );
+template<>
+const char* const diagTensor::vsType::componentNames[] =
+{
+    "xx", "yy", "zz"
+};
 
-    template<>
-    const diagTensor diagTensor::vsType::max
-    (
-        diagTensor::uniform(VGREAT)
-    );
+template<>
+const diagTensor diagTensor::vsType::vsType::zero_
+(
+    diagTensor::uniform(0)
+);
 
-    template<>
-    const diagTensor diagTensor::vsType::min
-    (
-        diagTensor::uniform(-VGREAT)
-    );
+template<>
+const diagTensor diagTensor::vsType::one_
+(
+    diagTensor::uniform(1)
+);
 
-    template<>
-    const diagTensor diagTensor::vsType::rootMax
-    (
-        diagTensor::uniform(ROOTVGREAT)
-    );
+template<>
+const diagTensor diagTensor::vsType::max_
+(
+    diagTensor::uniform(VGREAT)
+);
 
-    template<>
-    const diagTensor diagTensor::vsType::rootMin
-    (
-        diagTensor::uniform(-ROOTVGREAT)
-    );
+template<>
+const diagTensor diagTensor::vsType::min_
+(
+    diagTensor::uniform(-VGREAT)
+);
 
-}
+template<>
+const diagTensor diagTensor::vsType::rootMax_
+(
+    diagTensor::uniform(ROOTVGREAT)
+);
+
+template<>
+const diagTensor diagTensor::vsType::rootMin_
+(
+    diagTensor::uniform(-ROOTVGREAT)
+);
+
+
 // ************************************************************************* //
+
+ } // End namespace Foam

@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2018 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -23,81 +25,101 @@ License
 
 \*---------------------------------------------------------------------------*/
 
-#include "instantList.H"
-#include "Time.T.H"
+//#include "Instant.H"
 
-// * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
-namespace Foam {
-    const char* const instant::typeName = "instant";
-
-    // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
-
-    instant::instant()
-    {}
-
-    instant::instant(const scalar val, const word& tname) : value_(val),
-        name_(tname)
-    {}
-
-    instant::instant(const scalar val) : value_(val),
-        name_(Time::timeName(val))
-    {}
-
-    instant::instant(const word& tname) : value_(atof(tname.c_str())),
-        name_(tname)
-    {}
+// * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
 
-    // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
-
-    bool instant::equal(const scalar b) const
-    {
-        return (value_ < b + SMALL && value_ > b - SMALL);
-    }
-
-
-    // * * * * * * * * * * * * * * * Friend Operators  * * * * * * * * * * * * * //
-
-    bool operator==(const instant& a, const instant& b)
-    {
-        return a.equal(b.value_);
-    }
+ namespace Foam{
+template<class T>
+Instant<T>::Instant()
+:
+    val_(0),
+    key_()
+{}
 
 
-    bool operator!=(const instant& a, const instant& b)
-    {
-        return !operator==(a, b);
-    }
+template<class T>
+Instant<T>::Instant::Instant(scalar val, const T& key)
+:
+    val_(val),
+    key_(key)
+{}
 
 
-    bool operator<(const instant& a, const instant& b)
-    {
-        return a.value_ < b.value_;
-    }
+template<class T>
+Instant<T>::Instant::Instant(scalar val, T&& key)
+:
+    val_(val),
+    key_(std::move(key))
+{}
 
 
-    bool operator>(const instant& a, const instant& b)
-    {
-        return a.value_ > b.value_;
-    }
+// * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
 
-
-    // * * * * * * * * * * * * * * * IOstream Operators  * * * * * * * * * * * * //
-
-    Istream& operator>>(Istream& is, instant& I)
-    {
-        is >> I.value_ >> I.name_;
-
-        return is;
-    }
-
-
-    Ostream& operator<<(Ostream& os, const instant& I)
-    {
-        os << I.value_ << tab << I.name_;
-
-        return os;
-    }
-
+template<class T>
+bool Instant<T>::equal(scalar val) const
+{
+    return ((val_ > val - SMALL) && (val_ < val + SMALL));
 }
+
+
+template<class T>
+template<class T2>
+bool Instant<T>::equal(const Instant<T2>& other) const
+{
+    return this->equal(other.value());
+}
+
+
+// * * * * * * * * * * * * * * * Global Operators  * * * * * * * * * * * * * //
+
+template<class T1, class T2>
+bool operator==(const Instant<T1>& a, const Instant<T2>& b)
+{
+    return a.equal(b.value());
+}
+
+
+template<class T1, class T2>
+bool operator!=(const Instant<T1>& a, const Instant<T2>& b)
+{
+    return !a.equal(b.value());
+}
+
+
+template<class T1, class T2>
+bool operator<(const Instant<T1>& a, const Instant<T2>& b)
+{
+    return a.value() < b.value();
+}
+
+
+template<class T1, class T2>
+bool operator>(const Instant<T1>& a, const Instant<T2>& b)
+{
+    return a.value() > b.value();
+}
+
+
+// * * * * * * * * * * * * * * * IOstream Operators  * * * * * * * * * * * * //
+
+template<class T>
+Istream& operator>>(Istream& is, Instant<T>& inst)
+{
+    is >> inst.value() >> inst.name();
+    return is;
+}
+
+
+template<class T>
+Ostream& operator<<(Ostream& os, const Instant<T>& inst)
+{
+    os << inst.value() << '\t' << inst.name();
+    return os;
+}
+
+
 // ************************************************************************* //
+
+ } // End namespace Foam

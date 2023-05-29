@@ -1,0 +1,164 @@
+<?xml version="1.0" encoding="utf-8"?>
+<Project DefaultTargets="Build" ToolsVersion="15.0" xmlns="http://schemas.microsoft.com/developer/msbuild/2003">
+  <ItemGroup Label="ProjectConfigurations">
+    <ProjectConfiguration Include="Debug|Win32">
+      <Configuration>Debug</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|Win32">
+      <Configuration>Release</Configuration>
+      <Platform>Win32</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Debug|x64">
+      <Configuration>Debug</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+    <ProjectConfiguration Include="Release|x64">
+      <Configuration>Release</Configuration>
+      <Platform>x64</Platform>
+    </ProjectConfiguration>
+  </ItemGroup>
+  <ItemGroup>
+    <ClCompile Include="areaFields.C" />
+    <ClCompile Include="backwardFaDdtSchemes.C" />
+    <ClCompile Include="basicSymmetryFaPatchFields.C" />
+    <ClCompile Include="basicSymmetryFaPatchScalarField.C" />
+    <ClCompile Include="blendedEdgeInterpolationMake.C" />
+    <ClCompile Include="boundedBackwardFaDdtScheme.C" />
+    <ClCompile Include="calculatedFaePatchFields.C" />
+    <ClCompile Include="calculatedFaPatchFields.C" />
+    <ClCompile Include="correctedLnGrads.C" />
+    <ClCompile Include="coupledFaePatchFields.C" />
+    <ClCompile Include="coupledFaPatch.C" />
+    <ClCompile Include="coupledFaPatchFields.C" />
+    <ClCompile Include="cyclicFaePatchFields.C" />
+    <ClCompile Include="cyclicFaPatch.C" />
+    <ClCompile Include="cyclicFaPatchFields.C" />
+    <ClCompile Include="edgeFields.C" />
+    <ClCompile Include="edgeInterpolation.C" />
+    <ClCompile Include="edgeInterpolationSchemes.C" />
+    <ClCompile Include="edgeLimitedFaGrads.C" />
+    <ClCompile Include="edgeNormalFixedValueFaPatchVectorField.C" />
+    <ClCompile Include="emptyFaePatchFields.C" />
+    <ClCompile Include="emptyFaPatch.C" />
+    <ClCompile Include="emptyFaPatchFields.C" />
+    <ClCompile Include="EulerFaD2dt2Schemes.C" />
+    <ClCompile Include="EulerFaDdtSchemes.C" />
+    <ClCompile Include="fa.C" />
+    <ClCompile Include="faAreaMapper.C" />
+    <ClCompile Include="faBoundaryMesh.C" />
+    <ClCompile Include="faceLimitedFaGrads.C" />
+    <ClCompile Include="faConvectionSchemes.C" />
+    <ClCompile Include="faD2dt2Schemes.C" />
+    <ClCompile Include="faDdtSchemes.C" />
+    <ClCompile Include="faDivSchemes.C" />
+    <ClCompile Include="faEdgeMapper.C" />
+    <ClCompile Include="faePatchFields.C" />
+    <ClCompile Include="faGlobalMeshData.C" />
+    <ClCompile Include="faGradSchemes.C" />
+    <ClCompile Include="faLaplacianSchemes.C" />
+    <ClCompile Include="faMatrices.C" />
+    <ClCompile Include="faMesh.C" />
+    <ClCompile Include="faMeshDemandDrivenData.C" />
+    <ClCompile Include="faMeshMapper.C" />
+    <ClCompile Include="faMeshUpdate.C" />
+    <ClCompile Include="faPatch.C" />
+    <ClCompile Include="faPatchFields.C" />
+    <ClCompile Include="faPatchMapper.C" />
+    <ClCompile Include="faPatchNew.C" />
+    <ClCompile Include="faScalarMatrix.C" />
+    <ClCompile Include="fixedGradientFaPatchFields.C" />
+    <ClCompile Include="fixedValueFaePatchFields.C" />
+    <ClCompile Include="fixedValueFaPatchFields.C" />
+    <ClCompile Include="fixedValueOutflowFaPatchFields.C" />
+    <ClCompile Include="fourthLnGrads.C" />
+    <ClCompile Include="GammaEdgeInterpolationMake.C" />
+    <ClCompile Include="gaussFaConvectionSchemes.C" />
+    <ClCompile Include="gaussFaDivSchemes.C" />
+    <ClCompile Include="gaussFaGrads.C" />
+    <ClCompile Include="gaussFaLaplacianSchemes.C" />
+    <ClCompile Include="inletOutletFaPatchFields.C" />
+    <ClCompile Include="leastSquaresFaGrads.C" />
+    <ClCompile Include="leastSquaresFaVectors.C" />
+    <ClCompile Include="limitedLnGrads.C" />
+    <ClCompile Include="linearEdgeInterpolationMake.C" />
+    <ClCompile Include="linearUpwindEdgeInterpolationMake.C" />
+    <ClCompile Include="lnGradSchemes.C" />
+    <ClCompile Include="mixedFaPatchFields.C" />
+    <ClCompile Include="processorFaePatchFields.C" />
+    <ClCompile Include="processorFaPatch.C" />
+    <ClCompile Include="processorFaPatchFields.C" />
+    <ClCompile Include="processorFaPatchScalarField.C" />
+    <ClCompile Include="slipFaPatchFields.C" />
+    <ClCompile Include="steadyStateFaDdtSchemes.C" />
+    <ClCompile Include="symmetryFaePatchFields.C" />
+    <ClCompile Include="symmetryFaPatch.C" />
+    <ClCompile Include="symmetryFaPatchFields.C" />
+    <ClCompile Include="timeVaryingUniformFixedValueFaPatchFields.C" />
+    <ClCompile Include="transformFaPatchFields.C" />
+    <ClCompile Include="transformFaPatchScalarField.C" />
+    <ClCompile Include="upwindEdgeInterpolationMake.C" />
+    <ClCompile Include="vectorFamDiv.C" />
+    <ClCompile Include="wedgeFaePatchFields.C" />
+    <ClCompile Include="wedgeFaPatch.C" />
+    <ClCompile Include="wedgeFaPatchFields.C" />
+    <ClCompile Include="wedgeFaPatchScalarField.C" />
+    <ClCompile Include="zeroGradientFaPatchFields.C" />
+  </ItemGroup>
+  <PropertyGroup Label="Globals">
+    <VCProjectVersion>15.0</VCProjectVersion>
+    <ProjectGuid>{4465262B-3067-4265-926F-955526D533A7}</ProjectGuid>
+    <WindowsTargetPlatformVersion>10.0.17763.0</WindowsTargetPlatformVersion>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <PlatformToolset>v143</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|Win32'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v143</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'" Label="Configuration">
+    <ConfigurationType>StaticLibrary</ConfigurationType>
+    <UseDebugLibraries>true</UseDebugLibraries>
+    <PlatformToolset>v141</PlatformToolset>
+  </PropertyGroup>
+  <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Release|x64'" Label="Configuration">
+    <ConfigurationType>Application</ConfigurationType>
+    <UseDebugLibraries>false</UseDebugLibraries>
+    <PlatformToolset>v141</PlatformToolset>
+  </PropertyGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.props" />
+  <ImportGroup Label="ExtensionSettings">
+  </ImportGroup>
+  <ImportGroup Label="Shared">
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|Win32'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <ImportGroup Label="PropertySheets" Condition="'$(Configuration)|$(Platform)'=='Release|x64'">
+    <Import Project="$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props" Condition="exists('$(UserRootDir)\Microsoft.Cpp.$(Platform).user.props')" Label="LocalAppDataPlatform" />
+  </ImportGroup>
+  <PropertyGroup Label="UserMacros" />
+  <PropertyGroup />
+  <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
+    <ClCompile>
+      <AdditionalIncludeDirectories>..\OpenFOAM\algorithms;..\OpenFOAM\containers;..\OpenFOAM\db;..\OpenFOAM\dimensionedTypes;..\OpenFOAM\dimensionSet;..\OpenFOAM\fields;..\OpenFOAM\global;..\OpenFOAM\graph;..\OpenFOAM\include;..\OpenFOAM\interpolations;..\OpenFOAM\matrices;..\OpenFOAM\memory;..\OpenFOAM\meshes;..\OpenFOAM\primitives;..\OSspecific;..\meshTools;..\finiteVolume;..\TurbulenceModels;..\thermophysicalModels;..\transportModels;..\dynamicMesh;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <PreprocessorDefinitions>WM_LABEL_SIZE=64;WM_DP;NoRepository;WIN32;WIN64;_WINDOWS;NOMINMAX;_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
+      <CompileAs>CompileAsCpp</CompileAs>
+      <LanguageStandard>stdcpp17</LanguageStandard>
+    </ClCompile>
+  </ItemDefinitionGroup>
+  <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
+  <ImportGroup Label="ExtensionTargets">
+  </ImportGroup>
+</Project>

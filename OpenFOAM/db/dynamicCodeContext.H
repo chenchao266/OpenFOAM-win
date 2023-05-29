@@ -1,9 +1,12 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2019-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -35,8 +38,9 @@ SourceFiles
 #ifndef dynamicCodeContext_H
 #define dynamicCodeContext_H
 
-#include "dictionary.H"
-#include "SHA1Digest.H"
+#include "dictionary2.H"
+#include "SHA1.H"
+#include <functional>
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -49,89 +53,163 @@ namespace Foam
 
 class dynamicCodeContext
 {
-    // Private data
+    // Private Data
 
         //- The parent dictionary context
-        const dictionary& dict_;
+        std::reference_wrapper<const dictionary> dict_;
 
-        //- Optional "code" entry
-        string code_;
+        //- The SHA1 of the contents
+        SHA1 sha1_;
 
-        //- Optional "localCode" entry
+        //- The "codeOptions" entry (optional)
+        string codeOptions_;
+
+        //- The "codeLibs" entry (optional)
+        string codeLibs_;
+
+        //- The "codeInclude" entry (optional)
+        string codeInclude_;
+
+        //- The "localCode" entry (optional)
         string localCode_;
 
-        //- Optional "codeInclude" entry
-        string include_;
-
-        //- Optional "codeOptions" entry
-        string options_;
-
-        //- Optional "codeLib" entry
-        string libs_;
-
-        //- Calculated SHA1Digest
-        SHA1Digest sha1_;
+        //- The "code" entry (optional)
+        string code_;
 
 
 public:
 
     // Constructors
 
+        //- Default construct
+        dynamicCodeContext();
+
         //- Construct from a dictionary
-        dynamicCodeContext(const dictionary&);
+        explicit dynamicCodeContext(const dictionary& dict);
 
 
-    // Member functions
+    // Static Member Functions
+
+        //- Cleanup string and expand with dictionary parameters
+        static void inplaceExpand(string& str, const dictionary& dict);
+
+        //- Prefix a \#line directive to code.
+        //  The input lineNum is 0-based.
+        //  Is a no-op if any of the arguments are invalid
+        //  (lineNum is negative, code or file are empty)
+        //
+        //  \return The change in string length caused by the directive.
+        //  This can potentially be used to recover the substring portions.
+        static unsigned addLineDirective
+        (
+            string& code,
+            label lineNum,
+            const string& file
+        );
+
+        //- Prefix a \#line directive to code.
+        //  The name of the dictionary is used for the 'file' name.
+        static unsigned addLineDirective
+        (
+            string& code,
+            label lineNum,
+            const dictionary& dict
+        );
+
+
+    // Member Functions
+
+        //- Considered valid if not using dictionary::null as the context
+        bool valid() const noexcept;
+
+        //- Set code context from a dictionary
+        void setCodeContext(const dictionary& dict);
 
         //- Return the parent dictionary context
-        const dictionary& dict() const
+        const dictionary& dict() const noexcept
         {
-            return dict_;
+            return dict_.get();
         }
 
-        //- Return the code-includes
-        const string& include() const
+        //- The code options (Make/options)
+        const string& options() const noexcept
         {
-            return include_;
+            return codeOptions_;
         }
 
-        //- Return the code-options
-        const string& options() const
+        //- The code libs (LIB_LIBS)
+        const string& libs() const noexcept
         {
-            return options_;
+            return codeLibs_;
         }
 
-        //- Return the code-libs
-        const string& libs() const
+        //- The code includes
+        const string& include() const noexcept
         {
-            return libs_;
+            return codeInclude_;
         }
 
-        //- Return the code
-        const string& code() const
-        {
-            return code_;
-        }
-
-        //- Return the local (file-scope) code
-        const string& localCode() const
+        //- The local (file-scope) code
+        const string& localCode() const noexcept
         {
             return localCode_;
         }
 
-        //- Return SHA1 digest calculated from include, options, code
-        const SHA1Digest& sha1() const
+        //- The code
+        const string& code() const noexcept
+        {
+            return code_;
+        }
+
+        //- The SHA1 calculated from options, libs, include, code, etc.
+        const SHA1& sha1() const noexcept
         {
             return sha1_;
         }
 
-        //- Helper: add \#line directive
-        static void addLineDirective
+        //- Add content to SHA1 hashing
+        void append(const std::string& str)
+        {
+            sha1_.append(str);
+        }
+
+
+    // Reading
+
+        //- Locate literal dictionary entry, nullptr if not found
+        const entry* findEntry(const word& key) const;
+
+        //- Read string entry from context dictionary
+        //- append content to SHA1 hashing and add line number etc.
+        //
+        //  The string is cleared before reading.
+        bool readEntry
         (
-            string&,
-            const label lineNum,
-            const fileName& name
+            const word& key,
+            string& str,
+            bool mandatory = true,
+            bool withLineNum = true
         );
+
+        //- Read optional string entry from context dictionary,
+        //- append content to SHA1 hashing and add line number etc.
+        //
+        //  The string is cleared before reading.
+        bool readIfPresent
+        (
+            const word& key,
+            string& str,
+            bool withLineNum = true
+        );
+
+
+    // Member Operators
+
+        //- Cast to dictionary
+        operator const dictionary&() const noexcept
+        {
+            return dict_.get();
+        }
 };
 
 

@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -23,6 +25,9 @@ License
 
 Class
     Foam::fv::convectionScheme
+
+Group
+    grpFvConvectionSchemes
 
 Description
     Abstract base class for convection schemes.
@@ -64,7 +69,7 @@ namespace fv
 template<class Type>
 class convectionScheme
 :
-    public tmp<convectionScheme<Type>>::refCount
+    public refCount
 {
     // Private data
 
@@ -159,29 +164,29 @@ public:
             return mesh_;
         }
 
-        virtual tmp<surfaceFieldType<Type>>
+        virtual tmp<GeometricField<Type, fvsPatchField, surfaceMesh>>
         interpolate
         (
             const surfaceScalarField&,
-            const volFieldType<Type>&
+            const GeometricField<Type, fvPatchField, volMesh>&
         ) const = 0;
 
-        virtual tmp<surfaceFieldType<Type>> flux
+        virtual tmp<GeometricField<Type, fvsPatchField, surfaceMesh>> flux
         (
             const surfaceScalarField&,
-            const volFieldType<Type>&
+            const GeometricField<Type, fvPatchField, volMesh>&
         ) const = 0;
 
         virtual tmp<fvMatrix<Type>> fvmDiv
         (
             const surfaceScalarField&,
-            const volFieldType<Type>&
+            const GeometricField<Type, fvPatchField, volMesh>&
         ) const = 0;
 
-        virtual tmp<volFieldType<Type>> fvcDiv
+        virtual tmp<GeometricField<Type, fvPatchField, volMesh>> fvcDiv
         (
             const surfaceScalarField&,
-            const volFieldType<Type>&
+            const GeometricField<Type, fvPatchField, volMesh>&
         ) const = 0;
 
 

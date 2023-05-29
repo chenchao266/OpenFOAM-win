@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2018 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -39,23 +42,20 @@ bool Foam::setRefCell
 {
     if (fieldRef.needReference() || forceReference)
     {
-        word refCellName = field.name() + "RefCell";
-        word refPointName = field.name() + "RefPoint";
-
-        word refValueName = field.name() + "RefValue";
+        const word refCellName = field.name() + "RefCell";
+        const word refPointName = field.name() + "RefPoint";
+        const word refValueName = field.name() + "RefValue";
 
         if (dict.found(refCellName))
         {
             if (Pstream::master())
             {
-                refCelli = readLabel(dict.lookup(refCellName));
+                dict.readEntry(refCellName, refCelli);
 
                 if (refCelli < 0 || refCelli >= field.mesh().nCells())
                 {
-                    FatalIOErrorInFunction
-                    (
-                        dict
-                    )   << "Illegal master cellID " << refCelli
+                    FatalIOErrorInFunction(dict)
+                        << "Illegal master cellID " << refCelli
                         << ". Should be 0.." << field.mesh().nCells()
                         << exit(FatalIOError);
                 }
@@ -67,7 +67,7 @@ bool Foam::setRefCell
         }
         else if (dict.found(refPointName))
         {
-            point refPointi(dict.lookup(refPointName));
+            point refPointi(dict.get<point>(refPointName));
 
             // Try fast approximate search avoiding octree construction
             refCelli = field.mesh().findCell(refPointi, polyMesh::FACE_PLANES);
@@ -75,7 +75,7 @@ bool Foam::setRefCell
             label hasRef = (refCelli >= 0 ? 1 : 0);
             label sumHasRef = returnReduce<label>(hasRef, sumOp<label>());
 
-            // If reference cell no found use octree search
+            // If reference cell not found, use octree search
             // with cell tet-decompositoin
             if (sumHasRef != 1)
             {
@@ -87,10 +87,8 @@ bool Foam::setRefCell
 
             if (sumHasRef != 1)
             {
-                FatalIOErrorInFunction
-                (
-                    dict
-                )   << "Unable to set reference cell for field " << field.name()
+                FatalIOErrorInFunction(dict)
+                    << "Unable to set reference cell for field " << field.name()
                     << nl << "    Reference point " << refPointName
                     << " " << refPointi
                     << " found on " << sumHasRef << " domains (should be one)"
@@ -99,23 +97,23 @@ bool Foam::setRefCell
         }
         else
         {
-            FatalIOErrorInFunction
-            (
-                dict
-            )   << "Unable to set reference cell for field " << field.name()
+            FatalIOErrorInFunction(dict)
+                << "Unable to set reference cell for field " << field.name()
                 << nl
                 << "    Please supply either " << refCellName
                 << " or " << refPointName << nl << exit(FatalIOError);
         }
 
-        refValue = readScalar(dict.lookup(refValueName));
+        dict.readEntry(refValueName, refValue);
 
         return true;
     }
     else
     {
-        return false;
+        refCelli = -1;
     }
+
+    return false;
 }
 
 
@@ -138,7 +136,20 @@ Foam::scalar Foam::getRefCellValue
     const label refCelli
 )
 {
+    #ifdef FULLDEBUG
+    if (refCelli >= field.mesh().nCells())
+    {
+        FatalErrorInFunction
+            << "Illegal reference cellID " << refCelli
+            << ". Mesh has " << field.mesh().nCells() << ". cells."
+            << exit(FatalError);
+    }
+    #endif
     scalar refCellValue = (refCelli >= 0 ? field[refCelli] : 0.0);
+
+    // Currently distributing the value to all processors. This is generally
+    // not needed since only the processor holding the reference cell needs
+    // it. Tdb.
     return returnReduce(refCellValue, sumOp<scalar>());
 }
 

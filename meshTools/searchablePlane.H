@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -25,7 +28,18 @@ Class
     Foam::searchablePlane
 
 Description
-    Searching on (infinite) plane. See plane.H
+    Searching on (infinite) plane.
+    The dictionary specifications are identical to the Foam::plane
+    requirements.
+
+    \heading Dictionary parameters
+    \table
+        Property    | Description                       | Required  | Default
+        type        | plane                             | selector |
+    \endtable
+
+Note
+    Longer type name : \c searchablePlane
 
 SourceFiles
     searchablePlane.C
@@ -43,8 +57,6 @@ SourceFiles
 namespace Foam
 {
 
-// Forward declaration of classes
-
 /*---------------------------------------------------------------------------*\
                            Class searchablePlane Declaration
 \*---------------------------------------------------------------------------*/
@@ -58,6 +70,7 @@ private:
 
     // Private Member Data
 
+        //- Names of regions
         mutable wordList regions_;
 
 
@@ -72,11 +85,11 @@ private:
         //- Return the boundBox of the plane
         boundBox calcBounds() const;
 
-        //- Disallow default bitwise copy construct
-        searchablePlane(const searchablePlane&);
+        //- No copy construct
+        searchablePlane(const searchablePlane&) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const searchablePlane&);
+        //- No copy assignment
+        void operator=(const searchablePlane&) = delete;
 
 
 public:
@@ -102,18 +115,26 @@ public:
             const dictionary& dict
         );
 
+
     //- Destructor
-    virtual ~searchablePlane();
+    virtual ~searchablePlane() = default;
 
 
     // Member Functions
 
+        //- Names of regions
         virtual const wordList& regions() const;
 
         //- Whether supports volume type below
         virtual bool hasVolumeType() const
         {
             return false;
+        }
+
+        //- What is type of points outside bounds
+        virtual volumeType outsideVolumeType() const
+        {
+            return volumeType::UNKNOWN;
         }
 
         //- Range of local indices that can be returned.
@@ -126,8 +147,7 @@ public:
         //  Usually the element centres (should be of length size()).
         virtual tmp<pointField> coordinates() const
         {
-            tmp<pointField> tCtrs(new pointField(1, refPoint()));
-            return tCtrs;
+            return tmp<pointField>::New(1, origin());
         }
 
         //- Get bounding spheres (centre and radius squared), one per element.
@@ -149,7 +169,6 @@ public:
         virtual bool overlaps(const boundBox& bb) const
         {
             NotImplemented;
-
             return false;
         }
 
@@ -199,8 +218,8 @@ public:
                 vectorField& normal
             ) const;
 
-            //- Determine type (inside/outside/mixed) for point. unknown if
-            //  cannot be determined (e.g. non-manifold surface)
+            //- Determine type (inside/outside/mixed) for point.
+            //  Unknown if cannot be determined (e.g. non-manifold surface)
             virtual void getVolumeType
             (
                 const pointField&,

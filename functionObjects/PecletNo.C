@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2013-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2013-2016 OpenFOAM Foundation
+    Copyright (C) 2015-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -25,7 +28,6 @@ License
 
 #include "PecletNo.H"
 #include "turbulenceModel.H"
-#include "surfaceInterpolate.H"
 #include "..\finiteVolume\surfaceInterpolate.H"
 #include "addToRunTimeSelectionTable.H"
 
@@ -36,30 +38,68 @@ namespace Foam
 namespace functionObjects
 {
     defineTypeNameAndDebug(PecletNo, 0);
-
-    addToRunTimeSelectionTable
-    (
-        functionObject,
-        PecletNo,
-        dictionary
-    );
+    addToRunTimeSelectionTable(functionObject, PecletNo, dictionary);
 }
 }
 
 
 // * * * * * * * * * * * * * Private Member Functions  * * * * * * * * * * * //
 
+Foam::tmp<Foam::surfaceScalarField> Foam::functionObjects::PecletNo::rhoScale
+(
+    const surfaceScalarField& phi
+) const
+{
+    if (phi.dimensions() == dimMass/dimTime)
+    {
+        return phi/ ::Foam::fvc::interpolate(lookupObject<volScalarField>(rhoName_));
+    }
+
+    return phi;
+}
+
+
 bool Foam::functionObjects::PecletNo::calc()
 {
     if (foundObject<surfaceScalarField>(fieldName_))
     {
-        tmp<volScalarField> nuEff
-        (
-            mesh_.lookupObject<turbulenceModel>
+        tmp<volScalarField> nuEff;
+        if (mesh_.foundObject<turbulenceModel>(turbulenceModel::propertiesName))
+        {
+            const turbulenceModel& model =
+                lookupObject<turbulenceModel>
+                (
+                    turbulenceModel::propertiesName
+                );
+
+            nuEff = model.nuEff();
+        }
+        else if (mesh_.foundObject<dictionary>("transportProperties"))
+        {
+            const dictionary& model =
+                mesh_.lookupObject<dictionary>("transportProperties");
+
+            nuEff = tmp<volScalarField>::New
             (
-                turbulenceModel::propertiesName
-            ).nuEff()
-        );
+                IOobject
+                (
+                    "nuEff",
+                    mesh_.time().timeName(),
+                    mesh_,
+                    IOobject::NO_READ,
+                    IOobject::NO_WRITE
+                ),
+                mesh_,
+                dimensionedScalar("nu", dimViscosity, model)
+            );
+        }
+        else
+        {
+            FatalErrorInFunction
+                << "Unable to determine the viscosity"
+                << exit(FatalError);
+        }
+
 
         const surfaceScalarField& phi =
             mesh_.lookupObject<surfaceScalarField>(fieldName_);
@@ -67,18 +107,16 @@ bool Foam::functionObjects::PecletNo::calc()
         return store
         (
             resultName_,
-            Foam::mag(phi)
+            mag(rhoScale(phi))
            /(
                 mesh_.magSf()
                *mesh_.surfaceInterpolation::deltaCoeffs()
-               *Foam::fvc::interpolate(nuEff)
+               *::Foam::fvc::interpolate(nuEff)
             )
         );
     }
-    else
-    {
-        return false;
-    }
+
+    return false;
 }
 
 
@@ -91,16 +129,22 @@ Foam::functionObjects::PecletNo::PecletNo
     const dictionary& dict
 )
 :
-    fieldExpression(name, runTime, dict, "phi")
+    fieldExpression(name, runTime, dict, "phi"),
+    rhoName_("rho")
 {
     setResultName("Pe", "phi");
+    read(dict);
 }
 
 
-// * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
+// * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
 
-Foam::functionObjects::PecletNo::~PecletNo()
-{}
+bool Foam::functionObjects::PecletNo::read(const dictionary& dict)
+{
+    rhoName_ = dict.getOrDefault<word>("rho", "rho");
+
+    return true;
+}
 
 
 // ************************************************************************* //

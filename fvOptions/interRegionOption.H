@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2015 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2015 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -25,7 +28,41 @@ Class
     Foam::fv::interRegionOption
 
 Description
-    Base class for inter-region exchange.
+    Intermediate class for handling inter-region exchanges.
+
+Usage
+    Minimal example by using \c constant/fvOptions:
+    \verbatim
+    <userDefinedName1>
+    {
+        // Mandatory/Optional (inherited) entries
+        ...
+
+        // Mandatory entries (unmodifiable)
+        nbrRegion         <nbrRegionName>;
+
+        // Optional entries (unmodifiable)
+        master            true;
+
+        // Mandatory/Optional (derived) entries
+        ...
+    }
+    \endverbatim
+
+    where the entries mean:
+    \table
+      Property   | Description                         | Type  | Reqd | Dflt
+      nbrRegion  | Name of the neighbour region to map | word  | yes  | -
+      master     | Flag to determine whether master or <!--
+                 --> secondary region                  | bool  | no   | true
+    \endtable
+
+    The inherited entries are elaborated in:
+     - \link fvOption.H \endlink
+     - \link meshToMesh.H \endlink
+
+SourceFiles
+    interRegionOption.C
 
 \*---------------------------------------------------------------------------*/
 
@@ -36,7 +73,6 @@ Description
 #include "volFields.H"
 #include "autoPtr.H"
 #include "meshToMesh.H"
-
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -51,11 +87,11 @@ namespace fv
 
 class interRegionOption
 :
-    public option
+    public fv::option
 {
 protected:
 
-    // Protected data
+    // Protected Data
 
         //- Master or slave region
         bool master_;
@@ -67,7 +103,7 @@ protected:
         autoPtr<meshToMesh> meshInterpPtr_;
 
 
-    // Protected member functions
+    // Protected Member Functions
 
         //- Set the mesh to mesh interpolation object
         void setMapper();
@@ -90,9 +126,15 @@ public:
             const fvMesh& mesh
         );
 
+        //- No copy construct
+        interRegionOption(const interRegionOption&) = delete;
+
+        //- No copy assignment
+        void operator=(const interRegionOption&) = delete;
+
 
     //- Destructor
-    virtual ~interRegionOption();
+    virtual ~interRegionOption() = default;
 
 
     // Member Functions

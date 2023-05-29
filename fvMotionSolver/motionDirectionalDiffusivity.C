@@ -1,9 +1,11 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2012 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2012 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -82,7 +84,7 @@ void Foam::motionDirectionalDiffusivity::correct()
                 mesh().time().timeName(),
                 mesh()
             ),
-            diffusivityVector_.y()*vector::one
+            diffusivityVector_.y()*vector::one_
           + (diffusivityVector_.x() - diffusivityVector_.y())*cellMotionU
            /(mag(cellMotionU) + dimensionedScalar("small", dimVelocity, SMALL)),
             zeroGradientFvPatchVectorField::typeName

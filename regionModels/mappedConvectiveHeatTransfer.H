@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -22,7 +24,7 @@ License
     along with OpenFOAM.  If not, see <http://www.gnu.org/licenses/>.
 
 Class
-    Foam::mappedConvectiveHeatTransfer
+    Foam::regionModels::surfaceFilmModels::mappedConvectiveHeatTransfer
 
 Description
     Convective heat transfer model based on a re-working of a Nusselt number
@@ -64,18 +66,21 @@ private:
         volScalarField htcConvPrimary_;
 
         //- Heat transfer coefficient - film region [W/m2/K]
-        //  Assumes that the primary regtion to film region boundaries are
+        //  Assumes that the primary region to film region boundaries are
         //  described as mappedPushed types
         volScalarField htcConvFilm_;
 
 
     // Private member functions
 
-        //- Disallow default bitwise copy construct
-        mappedConvectiveHeatTransfer(const mappedConvectiveHeatTransfer&);
+        //- No copy construct
+        mappedConvectiveHeatTransfer
+        (
+            const mappedConvectiveHeatTransfer&
+        ) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const mappedConvectiveHeatTransfer&);
+        //- No copy assignment
+        void operator=(const mappedConvectiveHeatTransfer&) = delete;
 
 
 public:
@@ -89,7 +94,7 @@ public:
         //- Construct from surface film model and dictionary
         mappedConvectiveHeatTransfer
         (
-            surfaceFilmModel& film,
+            surfaceFilmRegionModel& film,
             const dictionary& dict
         );
 

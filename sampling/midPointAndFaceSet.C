@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -60,7 +62,7 @@ void Foam::midPointAndFaceSet::genSamples()
         mpfSampleFaces[mpfSamplei] = faces_[samplei];
         mpfSampleSegments[mpfSamplei] = segments_[samplei];
         mpfSampleCurveDist[mpfSamplei] = curveDist_[samplei];
-        mpfSamplei++;
+        ++mpfSamplei;
 
         while
         (
@@ -80,7 +82,7 @@ void Foam::midPointAndFaceSet::genSamples()
                 mpfSampleCurveDist[mpfSamplei] =
                     mag(mpfSamplePoints[mpfSamplei] - start());
 
-                mpfSamplei++;
+                ++mpfSamplei;
             }
 
             // Add second face
@@ -91,16 +93,16 @@ void Foam::midPointAndFaceSet::genSamples()
             mpfSampleCurveDist[mpfSamplei] =
                 mag(mpfSamplePoints[mpfSamplei] - start());
 
-            mpfSamplei++;
+            ++mpfSamplei;
 
-            samplei++;
+            ++samplei;
         }
 
         if (samplei == size() - 1)
         {
             break;
         }
-        samplei++;
+        ++samplei;
     }
 
     mpfSamplePoints.setSize(mpfSamplei);
@@ -109,15 +111,22 @@ void Foam::midPointAndFaceSet::genSamples()
     mpfSampleSegments.setSize(mpfSamplei);
     mpfSampleCurveDist.setSize(mpfSamplei);
 
+    // Move into *this
     setSamples
     (
-        mpfSamplePoints,
-        mpfSampleCells,
-        mpfSampleFaces,
-        mpfSampleSegments,
-        mpfSampleCurveDist
+        std::move(mpfSamplePoints),
+        std::move(mpfSampleCells),
+        std::move(mpfSampleFaces),
+        std::move(mpfSampleSegments),
+        std::move(mpfSampleCurveDist)
     );
+
+    if (debug)
+    {
+        write(Info);
+    }
 }
+
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
@@ -134,11 +143,6 @@ Foam::midPointAndFaceSet::midPointAndFaceSet
     faceOnlySet(name, mesh, searchEngine, axis, start, end)
 {
     genSamples();
-
-    if (debug)
-    {
-        write(Info);
-    }
 }
 
 
@@ -153,18 +157,7 @@ Foam::midPointAndFaceSet::midPointAndFaceSet
     faceOnlySet(name, mesh, searchEngine, dict)
 {
     genSamples();
-
-    if (debug)
-    {
-        write(Info);
-    }
 }
-
-
-// * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
-
-Foam::midPointAndFaceSet::~midPointAndFaceSet()
-{}
 
 
 // ************************************************************************* //

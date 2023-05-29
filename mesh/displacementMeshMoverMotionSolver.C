@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2013-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2013-2015 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -42,9 +45,6 @@ namespace Foam
 }
 
 
-// * * * * * * * * * * * * * Private Member Functions  * * * * * * * * * * * //
-
-
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
 Foam::displacementMeshMoverMotionSolver::displacementMeshMoverMotionSolver
@@ -70,9 +70,9 @@ Foam::displacementMeshMoverMotionSolver::
 Foam::externalDisplacementMeshMover&
 Foam::displacementMeshMoverMotionSolver::meshMover() const
 {
-    if (!meshMoverPtr_.valid())
+    if (!meshMoverPtr_)
     {
-        const word moverType(coeffDict().lookup("meshMover"));
+        const word moverType(coeffDict().get<word>("meshMover"));
 
         meshMoverPtr_ = externalDisplacementMeshMover::New
         (
@@ -82,7 +82,7 @@ Foam::displacementMeshMoverMotionSolver::meshMover() const
             pointDisplacement_
         );
     }
-    return meshMoverPtr_();
+    return *meshMoverPtr_;
 }
 
 
@@ -91,7 +91,7 @@ Foam::displacementMeshMoverMotionSolver::curPoints() const
 {
     // Return actual points. Cannot do a reference since complains about
     // assignment to self in polyMesh::movePoints
-    return tmp<pointField>(new pointField(mesh().points()));
+    return tmp<pointField>::New(mesh().points());
 }
 
 
@@ -123,7 +123,7 @@ void Foam::displacementMeshMoverMotionSolver::movePoints(const pointField& p)
     displacementMotionSolver::movePoints(p);
 
     // Update meshMover for new geometry
-    if (meshMoverPtr_.valid())
+    if (meshMoverPtr_)
     {
         meshMover().movePoints(p);
     }

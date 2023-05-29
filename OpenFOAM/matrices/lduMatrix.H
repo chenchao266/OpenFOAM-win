@@ -1,9 +1,12 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2019-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -22,110 +25,140 @@ License
     along with OpenFOAM.  If not, see <http://www.gnu.org/licenses/>.
 
 Class
-    Foam::lduMatrix
+    Foam::LduMatrix
 
 Description
-    lduMatrix is a general matrix class in which the coefficients are
+    LduMatrix is a general matrix class in which the coefficients are
     stored as three arrays, one for the upper triangle, one for the
     lower triangle and a third for the diagonal.
 
     Addressing arrays must be supplied for the upper and lower triangles.
 
-    It might be better if this class were organised as a hierachy starting
+Note
+    It might be better if this class were organised as a hierarchy starting
     from an empty matrix, then deriving diagonal, symmetric and asymmetric
     matrices.
 
 SourceFiles
-    lduMatrixATmul.C
-    lduMatrix.C
-    lduMatrixTemplates.C
-    lduMatrixOperations.C
-    lduMatrixSolver.C
-    lduMatrixPreconditioner.C
-    lduMatrixTests.C
-    lduMatrixUpdateMatrixInterfaces.C
+    LduMatrixATmul.C
+    LduMatrix.C
+    LduMatrixOperations.C
+    LduMatrixSolver.C
+    LduMatrixPreconditioner.C
+    LduMatrixTests.C
+    LduMatrixUpdateMatrixInterfaces.C
 
 \*---------------------------------------------------------------------------*/
 
-#ifndef lduMatrix_H
-#define lduMatrix_H
+#ifndef LduMatrix_H
+#define LduMatrix_H
 
 #include "lduMesh.H"
-#include "primitiveFieldsFwd.H"
-#include "FieldField.T.H"
-#include "lduInterfaceFieldPtrsList.H"
+#include "Field.H"
+#include "FieldField.H"
+#include "LduInterfaceFieldPtrsList.H"
+#include "SolverPerformance.H"
 #include "typeInfo.H"
 #include "autoPtr.H"
 #include "runTimeSelectionTables.H"
-#include "solverPerformance.H"
-#include "InfoProxy.T.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 namespace Foam
 {
 
-// Forward declaration of friend functions and operators
+// Forward Declarations
 
-class lduMatrix;
+template<class Type, class DType, class LUType>
+class LduMatrix;
 
-Ostream& operator<<(Ostream&, const lduMatrix&);
-Ostream& operator<<(Ostream&, const InfoProxy<lduMatrix>&);
+template<class Type, class DType, class LUType>
+Ostream& operator<<
+(
+    Ostream&,
+    const LduMatrix<Type, DType, LUType>&
+);
 
 
 /*---------------------------------------------------------------------------*\
-                           Class lduMatrix Declaration
+                           Class LduMatrix Declaration
 \*---------------------------------------------------------------------------*/
 
-class lduMatrix
+template<class Type, class DType, class LUType>
+class LduMatrix
 {
-    // private data
+    // Private Data
 
         //- LDU mesh reference
         const lduMesh& lduMesh_;
 
-        //- Coefficients (not including interfaces)
-        scalarField *lowerPtr_, *diagPtr_, *upperPtr_;
+        //- Diagonal coefficients
+        Field<DType> *diagPtr_;
+
+        //- Off-diagonal coefficients
+        Field<LUType> *upperPtr_, *lowerPtr_;
+
+        //- Source
+        Field<Type> *sourcePtr_;
+
+        //- Field interfaces (processor patches etc.)
+        LduInterfaceFieldPtrsList<Type> interfaces_;
+
+        //- Off-diagonal coefficients for interfaces
+        FieldField<Field, LUType> interfacesUpper_, interfacesLower_;
 
 
 public:
 
-    //- Abstract base-class for lduMatrix solvers
+    friend class SolverPerformance<Type>;
+
+    //- Abstract base-class for LduMatrix solvers
     class solver
     {
     protected:
 
-        // Protected data
+        // Protected Data
+
+            //- Default maximum number of iterations in the solver
+            static const label defaultMaxIter_ = 1000;
 
             word fieldName_;
-            const lduMatrix& matrix_;
-            const FieldField<Field, scalar>& interfaceBouCoeffs_;
-            const FieldField<Field, scalar>& interfaceIntCoeffs_;
-            lduInterfaceFieldPtrsList interfaces_;
+            const LduMatrix<Type, DType, LUType>& matrix_;
 
             //- Dictionary of controls
             dictionary controlDict_;
 
-            //- Default maximum number of iterations in the solver
-            static const label defaultMaxIter_;
-
-            //- Maximum number of iterations in the solver
-            label maxIter_;
+            //- Level of verbosity in the solver output statements
+            int log_;
 
             //- Minimum number of iterations in the solver
             label minIter_;
 
+            //- Maximum number of iterations in the solver
+            label maxIter_;
+
             //- Final convergence tolerance
-            scalar tolerance_;
+            Type tolerance_;
 
             //- Convergence tolerance relative to the initial
-            scalar relTol_;
+            Type relTol_;
 
 
         // Protected Member Functions
 
             //- Read the control parameters from the controlDict_
             virtual void readControls();
+
+
+        // Housekeeping
+
+            //- Deprecated(2021-09) Read control parameter from dictionary
+            //  \deprecated(2021-09) - use dictionary methods directly
+            template<class T>
+            void readControl(const dictionary& dict, T& val, const word& key)
+            {
+                dict.readIfPresent(key, val);
+            }
 
 
     public:
@@ -143,19 +176,13 @@ public:
                 symMatrix,
                 (
                     const word& fieldName,
-                    const lduMatrix& matrix,
-                    const FieldField<Field, scalar>& interfaceBouCoeffs,
-                    const FieldField<Field, scalar>& interfaceIntCoeffs,
-                    const lduInterfaceFieldPtrsList& interfaces,
-                    const dictionary& solverControls
+                    const LduMatrix<Type, DType, LUType>& matrix,
+                    const dictionary& solverDict
                 ),
                 (
                     fieldName,
                     matrix,
-                    interfaceBouCoeffs,
-                    interfaceIntCoeffs,
-                    interfaces,
-                    solverControls
+                    solverDict
                 )
             );
 
@@ -166,19 +193,13 @@ public:
                 asymMatrix,
                 (
                     const word& fieldName,
-                    const lduMatrix& matrix,
-                    const FieldField<Field, scalar>& interfaceBouCoeffs,
-                    const FieldField<Field, scalar>& interfaceIntCoeffs,
-                    const lduInterfaceFieldPtrsList& interfaces,
-                    const dictionary& solverControls
+                    const LduMatrix<Type, DType, LUType>& matrix,
+                    const dictionary& solverDict
                 ),
                 (
                     fieldName,
                     matrix,
-                    interfaceBouCoeffs,
-                    interfaceIntCoeffs,
-                    interfaces,
-                    solverControls
+                    solverDict
                 )
             );
 
@@ -188,12 +209,10 @@ public:
             solver
             (
                 const word& fieldName,
-                const lduMatrix& matrix,
-                const FieldField<Field, scalar>& interfaceBouCoeffs,
-                const FieldField<Field, scalar>& interfaceIntCoeffs,
-                const lduInterfaceFieldPtrsList& interfaces,
-                const dictionary& solverControls
+                const LduMatrix<Type, DType, LUType>& matrix,
+                const dictionary& solverDict
             );
+
 
         // Selectors
 
@@ -201,90 +220,60 @@ public:
             static autoPtr<solver> New
             (
                 const word& fieldName,
-                const lduMatrix& matrix,
-                const FieldField<Field, scalar>& interfaceBouCoeffs,
-                const FieldField<Field, scalar>& interfaceIntCoeffs,
-                const lduInterfaceFieldPtrsList& interfaces,
-                const dictionary& solverControls
+                const LduMatrix<Type, DType, LUType>& matrix,
+                const dictionary& solverDict
             );
 
 
+        // Destructor
 
-        //- Destructor
-        virtual ~solver()
-        {}
-
-
-        // Member functions
-
-            // Access
-
-                const word& fieldName() const
-                {
-                    return fieldName_;
-                }
-
-                const lduMatrix& matrix() const
-                {
-                    return matrix_;
-                }
-
-                 const FieldField<Field, scalar>& interfaceBouCoeffs() const
-                 {
-                     return interfaceBouCoeffs_;
-                 }
-
-                 const FieldField<Field, scalar>& interfaceIntCoeffs() const
-                 {
-                     return interfaceIntCoeffs_;
-                 }
-
-                 const lduInterfaceFieldPtrsList& interfaces() const
-                 {
-                     return interfaces_;
-                 }
+            virtual ~solver() = default;
 
 
-            //- Read and reset the solver parameters from the given stream
-            virtual void read(const dictionary&);
+        // Member Functions
 
-            virtual solverPerformance solve
+            const word& fieldName() const noexcept
+            {
+                return fieldName_;
+            }
+
+            const LduMatrix<Type, DType, LUType>& matrix() const noexcept
+            {
+                return matrix_;
+            }
+
+
+            //- Read and reset the solver parameters from the given dictionary
+            virtual void read(const dictionary& solverDict);
+
+            virtual SolverPerformance<Type> solve
             (
-                scalarField& psi,
-                const scalarField& source,
-                const direction cmpt=0
+                Field<Type>& psi
             ) const = 0;
 
             //- Return the matrix norm used to normalise the residual for the
             //  stopping criterion
-            scalar normFactor
+            Type normFactor
             (
-                const scalarField& psi,
-                const scalarField& source,
-                const scalarField& Apsi,
-                scalarField& tmpField
+                const Field<Type>& psi,
+                const Field<Type>& Apsi,
+                Field<Type>& tmpField
             ) const;
     };
 
 
-    //- Abstract base-class for lduMatrix smoothers
+    //- Abstract base-class for LduMatrix smoothers
     class smoother
     {
     protected:
 
-        // Protected data
+        // Protected Data
 
             word fieldName_;
-            const lduMatrix& matrix_;
-            const FieldField<Field, scalar>& interfaceBouCoeffs_;
-            const FieldField<Field, scalar>& interfaceIntCoeffs_;
-            const lduInterfaceFieldPtrsList& interfaces_;
+            const LduMatrix<Type, DType, LUType>& matrix_;
 
 
     public:
-
-        //- Find the smoother name (directly or from a sub-dictionary)
-        static word getName(const dictionary&);
 
         //- Runtime type information
         virtual const word& type() const = 0;
@@ -299,17 +288,11 @@ public:
                 symMatrix,
                 (
                     const word& fieldName,
-                    const lduMatrix& matrix,
-                    const FieldField<Field, scalar>& interfaceBouCoeffs,
-                    const FieldField<Field, scalar>& interfaceIntCoeffs,
-                    const lduInterfaceFieldPtrsList& interfaces
+                    const LduMatrix<Type, DType, LUType>& matrix
                 ),
                 (
                     fieldName,
-                    matrix,
-                    interfaceBouCoeffs,
-                    interfaceIntCoeffs,
-                    interfaces
+                    matrix
                 )
             );
 
@@ -320,17 +303,11 @@ public:
                 asymMatrix,
                 (
                     const word& fieldName,
-                    const lduMatrix& matrix,
-                    const FieldField<Field, scalar>& interfaceBouCoeffs,
-                    const FieldField<Field, scalar>& interfaceIntCoeffs,
-                    const lduInterfaceFieldPtrsList& interfaces
+                    const LduMatrix<Type, DType, LUType>& matrix
                 ),
                 (
                     fieldName,
-                    matrix,
-                    interfaceBouCoeffs,
-                    interfaceIntCoeffs,
-                    interfaces
+                    matrix
                 )
             );
 
@@ -340,10 +317,7 @@ public:
             smoother
             (
                 const word& fieldName,
-                const lduMatrix& matrix,
-                const FieldField<Field, scalar>& interfaceBouCoeffs,
-                const FieldField<Field, scalar>& interfaceIntCoeffs,
-                const lduInterfaceFieldPtrsList& interfaces
+                const LduMatrix<Type, DType, LUType>& matrix
             );
 
 
@@ -353,75 +327,50 @@ public:
             static autoPtr<smoother> New
             (
                 const word& fieldName,
-                const lduMatrix& matrix,
-                const FieldField<Field, scalar>& interfaceBouCoeffs,
-                const FieldField<Field, scalar>& interfaceIntCoeffs,
-                const lduInterfaceFieldPtrsList& interfaces,
-                const dictionary& solverControls
+                const LduMatrix<Type, DType, LUType>& matrix,
+                const dictionary& smootherDict
             );
 
 
-        //- Destructor
-        virtual ~smoother()
-        {}
+        // Destructor
+
+            virtual ~smoother() = default;
 
 
-        // Member functions
+        // Member Functions
 
-            // Access
+            const word& fieldName() const noexcept
+            {
+                return fieldName_;
+            }
 
-                const word& fieldName() const
-                {
-                    return fieldName_;
-                }
-
-                const lduMatrix& matrix() const
-                {
-                    return matrix_;
-                }
-
-                 const FieldField<Field, scalar>& interfaceBouCoeffs() const
-                 {
-                     return interfaceBouCoeffs_;
-                 }
-
-                 const FieldField<Field, scalar>& interfaceIntCoeffs() const
-                 {
-                     return interfaceIntCoeffs_;
-                 }
-
-                 const lduInterfaceFieldPtrsList& interfaces() const
-                 {
-                     return interfaces_;
-                 }
+            const LduMatrix<Type, DType, LUType>& matrix() const noexcept
+            {
+                return matrix_;
+            }
 
 
             //- Smooth the solution for a given number of sweeps
             virtual void smooth
             (
-                scalarField& psi,
-                const scalarField& source,
-                const direction cmpt,
+                Field<Type>& psi,
                 const label nSweeps
             ) const = 0;
     };
 
 
-    //- Abstract base-class for lduMatrix preconditioners
+    //- Abstract base-class for LduMatrix preconditioners
     class preconditioner
     {
     protected:
 
-        // Protected data
+        // Protected Data
 
             //- Reference to the base-solver this preconditioner is used with
             const solver& solver_;
 
 
     public:
-
-        //- Find the preconditioner name (directly or from a sub-dictionary)
-        static word getName(const dictionary&);
 
         //- Runtime type information
         virtual const word& type() const = 0;
@@ -436,9 +385,9 @@ public:
                 symMatrix,
                 (
                     const solver& sol,
-                    const dictionary& solverControls
+                    const dictionary& preconditionerDict
                 ),
-                (sol, solverControls)
+                (sol, preconditionerDict)
             );
 
             declareRunTimeSelectionTable
@@ -448,9 +397,9 @@ public:
                 asymMatrix,
                 (
                     const solver& sol,
-                    const dictionary& solverControls
+                    const dictionary& preconditionerDict
                 ),
-                (sol, solverControls)
+                (sol, preconditionerDict)
             );
 
 
@@ -471,28 +420,27 @@ public:
             static autoPtr<preconditioner> New
             (
                 const solver& sol,
-                const dictionary& solverControls
+                const dictionary& preconditionerDict
             );
 
 
-        //- Destructor
-        virtual ~preconditioner()
-        {}
+        // Destructor
+
+            virtual ~preconditioner() = default;
 
 
         // Member functions
 
             //- Read and reset the preconditioner parameters
-            //  from the given stream
-            virtual void read(const dictionary&)
+            //  from the given dictionary
+            virtual void read(const dictionary& preconditionerDict)
             {}
 
             //- Return wA the preconditioned form of residual rA
             virtual void precondition
             (
-                scalarField& wA,
-                const scalarField& rA,
-                const direction cmpt=0
+                Field<Type>& wA,
+                const Field<Type>& rA
             ) const = 0;
 
             //- Return wT the transpose-matrix preconditioned form of
@@ -500,9 +448,8 @@ public:
             //  This is only required for preconditioning asymmetric matrices.
             virtual void preconditionT
             (
-                scalarField& wT,
-                const scalarField& rT,
-                const direction cmpt=0
+                Field<Type>& wT,
+                const Field<Type>& rT
             ) const
             {
                 NotImplemented;
@@ -510,31 +457,32 @@ public:
     };
 
 
-    // Static data
+    // Static Data
 
         // Declare name of the class and its debug switch
-        ClassName("lduMatrix");
+        ClassName("LduMatrix");
 
 
     // Constructors
 
         //- Construct given an LDU addressed mesh.
         //  The coefficients are initially empty for subsequent setting.
-        lduMatrix(const lduMesh&);
+        LduMatrix(const lduMesh&);
 
         //- Construct as copy
-        lduMatrix(const lduMatrix&);
+        LduMatrix(const LduMatrix<Type, DType, LUType>&);
 
         //- Construct as copy or re-use as specified.
-        lduMatrix(lduMatrix&, bool reuse);
+        LduMatrix(LduMatrix<Type, DType, LUType>&, bool reuse);
 
         //- Construct given an LDU addressed mesh and an Istream
         //  from which the coefficients are read
-        lduMatrix(const lduMesh&, Istream&);
+        LduMatrix(const lduMesh&, Istream&);
 
 
-    //- Destructor
-    ~lduMatrix();
+    // Destructor
+
+        ~LduMatrix();
 
 
     // Member functions
@@ -559,24 +507,52 @@ public:
                 return lduAddr().patchSchedule();
             }
 
+            //- Return interfaces
+            const LduInterfaceFieldPtrsList<Type>& interfaces() const
+            {
+                return interfaces_;
+            }
+
+            //- Return interfaces
+            LduInterfaceFieldPtrsList<Type>& interfaces()
+            {
+                return interfaces_;
+            }
+
 
         // Access to coefficients
 
-            scalarField& lower();
-            scalarField& diag();
-            scalarField& upper();
+            Field<DType>& diag();
+            Field<LUType>& upper();
+            Field<LUType>& lower();
+            Field<Type>& source();
 
-            // Size with externally provided sizes (for constructing with 'fake'
-            // mesh in GAMG)
+            FieldField<Field, LUType>& interfacesUpper()
+            {
+                return interfacesUpper_;
+            }
 
-                scalarField& lower(const label size);
-                scalarField& diag(const label nCoeffs);
-                scalarField& upper(const label nCoeffs);
+            FieldField<Field, LUType>& interfacesLower()
+            {
+                return interfacesLower_;
+            }
 
 
-            const scalarField& lower() const;
-            const scalarField& diag() const;
-            const scalarField& upper() const;
+            const Field<DType>& diag() const;
+            const Field<LUType>& upper() const;
+            const Field<LUType>& lower() const;
+            const Field<Type>& source() const;
+
+            const FieldField<Field, LUType>& interfacesUpper() const
+            {
+                return interfacesUpper_;
+            }
+
+            const FieldField<Field, LUType>& interfacesLower() const
+            {
+                return interfacesLower_;
+            }
+
 
             bool hasDiag() const
             {
@@ -591,6 +567,11 @@ public:
             bool hasLower() const
             {
                 return (lowerPtr_);
+            }
+
+            bool hasSource() const
+            {
+                return (sourcePtr_);
             }
 
             bool diagonal() const
@@ -614,113 +595,59 @@ public:
             void sumDiag();
             void negSumDiag();
 
-            void sumMagOffDiag(scalarField& sumOff) const;
+            void sumMagOffDiag(Field<LUType>& sumOff) const;
 
-            //- Matrix multiplication with updated interfaces.
-            void Amul
-            (
-                scalarField&,
-                const tmp<scalarField>&,
-                const FieldField<Field, scalar>&,
-                const lduInterfaceFieldPtrsList&,
-                const direction cmpt
-            ) const;
+            //- Matrix multiplication
+            void Amul(Field<Type>&, const tmp<Field<Type>>&) const;
 
-            //- Matrix transpose multiplication with updated interfaces.
-            void Tmul
-            (
-                scalarField&,
-                const tmp<scalarField>&,
-                const FieldField<Field, scalar>&,
-                const lduInterfaceFieldPtrsList&,
-                const direction cmpt
-            ) const;
+            //- Matrix transpose multiplication
+            void Tmul(Field<Type>&, const tmp<Field<Type>>&) const;
 
 
             //- Sum the coefficients on each row of the matrix
-            void sumA
-            (
-                scalarField&,
-                const FieldField<Field, scalar>&,
-                const lduInterfaceFieldPtrsList&
-            ) const;
+            void sumA(Field<Type>&) const;
 
 
-            void residual
-            (
-                scalarField& rA,
-                const scalarField& psi,
-                const scalarField& source,
-                const FieldField<Field, scalar>& interfaceBouCoeffs,
-                const lduInterfaceFieldPtrsList& interfaces,
-                const direction cmpt
-            ) const;
+            void residual(Field<Type>& rA, const Field<Type>& psi) const;
 
-            tmp<scalarField> residual
-            (
-                const scalarField& psi,
-                const scalarField& source,
-                const FieldField<Field, scalar>& interfaceBouCoeffs,
-                const lduInterfaceFieldPtrsList& interfaces,
-                const direction cmpt
-            ) const;
+            tmp<Field<Type>> residual(const Field<Type>& psi) const;
 
 
             //- Initialise the update of interfaced interfaces
             //  for matrix operations
             void initMatrixInterfaces
             (
-                const FieldField<Field, scalar>& interfaceCoeffs,
-                const lduInterfaceFieldPtrsList& interfaces,
-                const scalarField& psiif,
-                scalarField& result,
-                const direction cmpt
+                const bool add,
+                const FieldField<Field, LUType>& interfaceCoeffs,
+                const Field<Type>& psiif,
+                Field<Type>& result
             ) const;
 
             //- Update interfaced interfaces for matrix operations
             void updateMatrixInterfaces
             (
-                const FieldField<Field, scalar>& interfaceCoeffs,
-                const lduInterfaceFieldPtrsList& interfaces,
-                const scalarField& psiif,
-                scalarField& result,
-                const direction cmpt
+                const bool add,
+                const FieldField<Field, LUType>& interfaceCoeffs,
+                const Field<Type>& psiif,
+                Field<Type>& result
             ) const;
 
 
-            template<class Type>
             tmp<Field<Type>> H(const Field<Type>&) const;
-
-            template<class Type>
             tmp<Field<Type>> H(const tmp<Field<Type>>&) const;
 
-            tmp<scalarField> H1() const;
-
-            template<class Type>
             tmp<Field<Type>> faceH(const Field<Type>&) const;
-
-            template<class Type>
             tmp<Field<Type>> faceH(const tmp<Field<Type>>&) const;
-
-
-        // Info
-
-            //- Return info proxy.
-            //  Used to print matrix information to a stream
-            InfoProxy<lduMatrix> info() const
-            {
-                return *this;
-            }
 
 
     // Member operators
 
-        void operator=(const lduMatrix&);
+        void operator=(const LduMatrix<Type, DType, LUType>&);
 
         void negate();
 
-        void operator+=(const lduMatrix&);
-        void operator-=(const lduMatrix&);
+        void operator+=(const LduMatrix<Type, DType, LUType>&);
+        void operator-=(const LduMatrix<Type, DType, LUType>&);
 
         void operator*=(const scalarField&);
         void operator*=(scalar);
@@ -728,8 +655,11 @@ public:
 
     // Ostream operator
 
-        friend Ostream& operator<<(Ostream&, const lduMatrix&);
-        friend Ostream& operator<<(Ostream&, const InfoProxy<lduMatrix>&);
+        friend Ostream& operator<< <Type, DType, LUType>
+        (
+            Ostream&,
+            const LduMatrix<Type, DType, LUType>&
+        );
 };
 
 
@@ -739,8 +669,137 @@ public:
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
+#define makeLduMatrix(Type, DType, LUType)                                     \
+                                                                               \
+typedef LduMatrix<Type, DType, LUType>                                   \
+    ldu##Type##DType##LUType##Matrix;                                          \
+                                                                               \
+defineNamedTemplateTypeNameAndDebug(ldu##Type##DType##LUType##Matrix, 0);      \
+                                                                               \
+                                                                               \
+typedef LduMatrix<Type, DType, LUType>::smoother                               \
+    ldu##Type##DType##LUType##Smoother;                                        \
+                                                                               \
+defineTemplateRunTimeSelectionTable                                            \
+(                                                                              \
+    ldu##Type##DType##LUType##Smoother,                                        \
+    symMatrix                                                                  \
+);                                                                             \
+                                                                               \
+defineTemplateRunTimeSelectionTable                                            \
+(                                                                              \
+    ldu##Type##DType##LUType##Smoother,                                        \
+    asymMatrix                                                                 \
+);                                                                             \
+                                                                               \
+                                                                               \
+typedef LduMatrix<Type, DType, LUType>::preconditioner                         \
+    ldu##Type##DType##LUType##Preconditioner;                                  \
+                                                                               \
+defineTemplateRunTimeSelectionTable                                            \
+(                                                                              \
+    ldu##Type##DType##LUType##Preconditioner,                                  \
+    symMatrix                                                                  \
+);                                                                             \
+                                                                               \
+defineTemplateRunTimeSelectionTable                                            \
+(                                                                              \
+    ldu##Type##DType##LUType##Preconditioner,                                  \
+    asymMatrix                                                                 \
+);                                                                             \
+                                                                               \
+                                                                               \
+typedef LduMatrix<Type, DType, LUType>::solver                                 \
+    ldu##Type##DType##LUType##Solver;                                          \
+                                                                               \
+defineTemplateRunTimeSelectionTable                                            \
+(                                                                              \
+    ldu##Type##DType##LUType##Solver,                                          \
+    symMatrix                                                                  \
+);                                                                             \
+                                                                               \
+defineTemplateRunTimeSelectionTable                                            \
+(                                                                              \
+    ldu##Type##DType##LUType##Solver,                                          \
+    asymMatrix                                                                 \
+);
+
+
+#define makeLduPreconditioner(Precon, Type, DType, LUType)                     \
+                                                                               \
+typedef Precon<Type, DType, LUType>                                            \
+    Precon##Type##DType##LUType##Preconditioner;                               \
+defineNamedTemplateTypeNameAndDebug                                            \
+(                                                                              \
+    Precon##Type##DType##LUType##Preconditioner,                               \
+    0                                                                          \
+);
+
+#define makeLduSymPreconditioner(Precon, Type, DType, LUType)                  \
+                                                                               \
+LduMatrix<Type, DType, LUType>::preconditioner::                               \
+addsymMatrixConstructorToTable<Precon##Type##DType##LUType##Preconditioner>    \
+add##Precon##Type##DType##LUType##PreconditionerSymMatrixConstructorToTable_;
+
+#define makeLduAsymPreconditioner(Precon, Type, DType, LUType)                 \
+                                                                               \
+LduMatrix<Type, DType, LUType>::preconditioner::                               \
+addasymMatrixConstructorToTable<Precon##Type##DType##LUType##Preconditioner>   \
+add##Precon##Type##DType##LUType##PreconditionerAsymMatrixConstructorToTable_;
+
+
+#define makeLduSmoother(Smoother, Type, DType, LUType)                         \
+                                                                               \
+typedef Smoother<Type, DType, LUType>                                          \
+    Smoother##Type##DType##LUType##Smoother;                                   \
+                                                                               \
+defineNamedTemplateTypeNameAndDebug                                            \
+(                                                                              \
+    Smoother##Type##DType##LUType##Smoother,                                   \
+    0                                                                          \
+);
+
+#define makeLduSymSmoother(Smoother, Type, DType, LUType)                      \
+                                                                               \
+LduMatrix<Type, DType, LUType>::smoother::                                     \
+    addsymMatrixConstructorToTable<Smoother##Type##DType##LUType##Smoother>    \
+    add##Smoother##Type##DType##LUType##SymMatrixConstructorToTable_;
+
+#define makeLduAsymSmoother(Smoother, Type, DType, LUType)                     \
+                                                                               \
+LduMatrix<Type, DType, LUType>::smoother::                                     \
+    addasymMatrixConstructorToTable<Smoother##Type##DType##LUType##Smoother>   \
+    add##Smoother##Type##DType##LUType##AsymMatrixConstructorToTable_;
+
+
+#define makeLduSolver(Solver, Type, DType, LUType)                             \
+                                                                               \
+typedef Solver<Type, DType, LUType>                                            \
+    Solver##Type##DType##LUType##Solver;                                       \
+                                                                               \
+defineNamedTemplateTypeNameAndDebug                                            \
+(                                                                              \
+    Solver##Type##DType##LUType##Solver,                                       \
+    0                                                                          \
+);
+
+#define makeLduSymSolver(Solver, Type, DType, LUType)                          \
+                                                                               \
+LduMatrix<Type, DType, LUType>::solver::                                       \
+    addsymMatrixConstructorToTable<Solver##Type##DType##LUType##Solver>        \
+    add##Solver##Type##DType##LUType##SymMatrixConstructorToTable_;
+
+#define makeLduAsymSolver(Solver, Type, DType, LUType)                         \
+                                                                               \
+LduMatrix<Type, DType, LUType>::solver::                                       \
+    addasymMatrixConstructorToTable<Solver##Type##DType##LUType##Solver>       \
+    add##Solver##Type##DType##LUType##AsymMatrixConstructorToTable_;
+
+
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
 #ifdef NoRepository
-    #include "lduMatrixTemplates.C"
+    #include "LduMatrix.C"
 #endif
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
@@ -748,3 +807,5 @@ public:
 #endif
 
 // ************************************************************************* //
+
+

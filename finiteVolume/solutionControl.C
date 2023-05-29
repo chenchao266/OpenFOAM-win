@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -35,17 +38,18 @@ namespace Foam
 
 // * * * * * * * * * * * * Protected Member Functions  * * * * * * * * * * * //
 
-void Foam::solutionControl::read(const bool absTolOnly)
+bool Foam::solutionControl::read(const bool absTolOnly)
 {
-    const dictionary& solutionDict = this->dict();
+    const dictionary solutionDict(this->dict());
 
     // Read solution controls
     nNonOrthCorr_ =
-        solutionDict.lookupOrDefault<label>("nNonOrthogonalCorrectors", 0);
+        solutionDict.getOrDefault<label>("nNonOrthogonalCorrectors", 0);
     momentumPredictor_ =
-        solutionDict.lookupOrDefault("momentumPredictor", true);
-    transonic_ = solutionDict.lookupOrDefault("transonic", false);
-    consistent_ = solutionDict.lookupOrDefault("consistent", false);
+        solutionDict.getOrDefault("momentumPredictor", true);
+    transonic_ = solutionDict.getOrDefault("transonic", false);
+    consistent_ = solutionDict.getOrDefault("consistent", false);
+    frozenFlow_ = solutionDict.getOrDefault("frozenFlow", false);
 
     // Read residual information
     const dictionary residualDict
@@ -55,9 +59,9 @@ void Foam::solutionControl::read(const bool absTolOnly)
 
     DynamicList<fieldData> data(residualControl_);
 
-    forAllConstIter(dictionary, residualDict, iter)
+    for (const entry& dEntry : residualDict)
     {
-        const word& fName = iter().keyword();
+        const word& fName = dEntry.keyword();
         const label fieldi = applyToField(fName, false);
         if (fieldi == -1)
         {
@@ -66,26 +70,23 @@ void Foam::solutionControl::read(const bool absTolOnly)
 
             if (absTolOnly)
             {
-                fd.absTol = readScalar(residualDict.lookup(fName));
+                fd.absTol = residualDict.get<scalar>(fName);
                 fd.relTol = -1;
                 fd.initialResidual = -1;
             }
+            else if (dEntry.isDict())
+            {
+                const dictionary& fieldDict = dEntry.dict();
+                fd.absTol = fieldDict.get<scalar>("tolerance");
+                fd.relTol = fieldDict.get<scalar>("relTol");
+                fd.initialResidual = 0.0;
+            }
             else
             {
-                if (iter().isDict())
-                {
-                    const dictionary& fieldDict(iter().dict());
-                    fd.absTol = readScalar(fieldDict.lookup("tolerance"));
-                    fd.relTol = readScalar(fieldDict.lookup("relTol"));
-                    fd.initialResidual = 0.0;
-                }
-                else
-                {
-                    FatalErrorInFunction
-                        << "Residual data for " << iter().keyword()
-                        << " must be specified as a dictionary"
-                        << exit(FatalError);
-                }
+                FatalErrorInFunction
+                    << "Residual data for " << dEntry.keyword()
+                    << " must be specified as a dictionary"
+                    << exit(FatalError);
             }
 
             data.append(fd);
@@ -95,23 +96,20 @@ void Foam::solutionControl::read(const bool absTolOnly)
             fieldData& fd = data[fieldi];
             if (absTolOnly)
             {
-                fd.absTol = readScalar(residualDict.lookup(fName));
+                fd.absTol = residualDict.get<scalar>(fName);
+            }
+            else if (dEntry.isDict())
+            {
+                const dictionary& fieldDict = dEntry.dict();
+                fd.absTol = fieldDict.get<scalar>("tolerance");
+                fd.relTol = fieldDict.get<scalar>("relTol");
             }
             else
             {
-                if (iter().isDict())
-                {
-                    const dictionary& fieldDict(iter().dict());
-                    fd.absTol = readScalar(fieldDict.lookup("tolerance"));
-                    fd.relTol = readScalar(fieldDict.lookup("relTol"));
-                }
-                else
-                {
-                    FatalErrorInFunction
-                        << "Residual data for " << iter().keyword()
-                        << " must be specified as a dictionary"
-                        << exit(FatalError);
-                }
+                FatalErrorInFunction
+                    << "Residual data for " << dEntry.keyword()
+                    << " must be specified as a dictionary"
+                    << exit(FatalError);
             }
         }
     }
@@ -130,12 +128,14 @@ void Foam::solutionControl::read(const bool absTolOnly)
                 << "    iniResid : " << fd.initialResidual << endl;
         }
     }
+
+    return true;
 }
 
 
-void Foam::solutionControl::read()
+bool Foam::solutionControl::read()
 {
-    read(false);
+    return read(false);
 }
 
 
@@ -147,11 +147,7 @@ Foam::label Foam::solutionControl::applyToField
 {
     forAll(residualControl_, i)
     {
-        if (useRegEx && residualControl_[i].name.match(fieldName))
-        {
-            return i;
-        }
-        else if (residualControl_[i].name == fieldName)
+        if (residualControl_[i].name.match(fieldName, !useRegEx))
         {
             return i;
         }
@@ -172,42 +168,102 @@ void Foam::solutionControl::storePrevIterFields() const
 }
 
 
-template<class Type>
-void Foam::solutionControl::maxTypeResidual
+Foam::Pair<Foam::scalar> Foam::solutionControl::maxResidual
 (
-    const word& fieldName,
-    ITstream& data,
-    scalar& firstRes,
-    scalar& lastRes
+    const entry& solverPerfDictEntry
 ) const
 {
-    typedef volFieldType<Type> fieldType;
+    return maxResidual(mesh_, solverPerfDictEntry);
+}
 
-    if (mesh_.foundObject<fieldType>(fieldName))
+
+void Foam::solutionControl::setFirstIterFlag
+(
+    const bool check,
+    const bool force
+)
+{
+    DebugInfo
+        << "solutionControl: force:" << force
+        << " check: " << check
+        << " corr: " << corr_
+        << " corrNonOrtho:" << corrNonOrtho_
+        << endl;
+
+    if (force || (check && corr_ <= 1 && corrNonOrtho_ == 0))
     {
-        const List<SolverPerformance<Type>> sp(data);
-        firstRes = cmptMax(sp.first().initialResidual());
-        lastRes = cmptMax(sp.last().initialResidual());
+        DebugInfo<< "solutionControl: set firstIteration flag" << endl;
+        mesh_.data::set("firstIteration", true);
+    }
+    else
+    {
+        DebugInfo<< "solutionControl: remove firstIteration flag" << endl;
+        mesh_.data::remove("firstIteration");
     }
 }
 
 
-Foam::scalar Foam::solutionControl::maxResidual
-(
-    const word& fieldName,
-    ITstream& data,
-    scalar& lastRes
-) const
+bool Foam::solutionControl::writeData(Ostream&) const
 {
-    scalar firstRes = 0;
+    NotImplemented;
+    return false;
+}
 
-    maxTypeResidual<scalar>(fieldName, data, firstRes, lastRes);
-    maxTypeResidual<vector>(fieldName, data, firstRes, lastRes);
-    maxTypeResidual<sphericalTensor>(fieldName, data, firstRes, lastRes);
-    maxTypeResidual<symmTensor>(fieldName, data, firstRes, lastRes);
-    maxTypeResidual<tensor>(fieldName, data, firstRes, lastRes);
 
-    return firstRes;
+
+// * * * * * * * * * * * * * Static Member Functions * * * * * * * * * * * * //
+
+template<class Type>
+bool Foam::solutionControl::maxTypeResidual
+(
+    const fvMesh& fvmesh,
+    const entry& solverPerfDictEntry,
+    Pair<scalar>& residuals
+)
+{
+    typedef GeometricField<Type, fvPatchField, volMesh> fieldType;
+
+    const word& fieldName = solverPerfDictEntry.keyword();
+
+    if (fvmesh.foundObject<fieldType>(fieldName))
+    {
+        const List<SolverPerformance<Type>> sp(solverPerfDictEntry.stream());
+
+        residuals.first() = cmptMax(sp.first().initialResidual());
+        residuals.last()  = cmptMax(sp.last().initialResidual());
+
+        return true;
+    }
+
+    return false;
+}
+
+
+Foam::Pair<Foam::scalar> Foam::solutionControl::maxResidual
+(
+    const fvMesh& fvmesh,
+    const entry& solverPerfDictEntry
+)
+{
+    Pair<scalar> residuals(0,0);
+
+    // Check with builtin short-circuit
+    const bool ok =
+    (
+        maxTypeResidual<scalar>(fvmesh, solverPerfDictEntry, residuals)
+     || maxTypeResidual<vector>(fvmesh, solverPerfDictEntry, residuals)
+     || maxTypeResidual<sphericalTensor>(fvmesh, solverPerfDictEntry, residuals)
+     || maxTypeResidual<symmTensor>(fvmesh, solverPerfDictEntry, residuals)
+     || maxTypeResidual<tensor>(fvmesh, solverPerfDictEntry, residuals)
+    );
+
+    if (!ok && solutionControl::debug)
+    {
+        Info<<"no residual for " << solverPerfDictEntry.keyword()
+            << " on mesh " << fvmesh.name() << nl;
+    }
+
+    return residuals;
 }
 
 
@@ -215,11 +271,16 @@ Foam::scalar Foam::solutionControl::maxResidual
 
 Foam::solutionControl::solutionControl(fvMesh& mesh, const word& algorithmName)
 :
-    IOobject
+    regIOobject
     (
-        "solutionControl",
-        mesh.time().timeName(),
-        mesh
+        IOobject
+        (
+            typeName,
+            mesh.time().timeName(),
+            mesh,
+            IOobject::NO_READ,
+            IOobject::NO_WRITE
+        )
     ),
     mesh_(mesh),
     residualControl_(),
@@ -228,15 +289,18 @@ Foam::solutionControl::solutionControl(fvMesh& mesh, const word& algorithmName)
     momentumPredictor_(true),
     transonic_(false),
     consistent_(false),
+    frozenFlow_(false),
     corr_(0),
     corrNonOrtho_(0)
 {}
 
 
-// * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
+// * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
 
-Foam::solutionControl::~solutionControl()
-{}
+const Foam::dictionary Foam::solutionControl::dict() const
+{
+    return mesh_.solutionDict().subOrEmptyDict(algorithmName_);
+}
 
 
 // ************************************************************************* //

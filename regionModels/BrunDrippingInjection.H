@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2016-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2016-2017 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -22,7 +24,7 @@ License
     along with OpenFOAM.  If not, see <http://www.gnu.org/licenses/>.
 
 Class
-    Foam::BrunDrippingInjection
+    Foam::regionModels::surfaceFilmModels::BrunDrippingInjection
 
 Description
     Film Dripping mass transfer model.
@@ -78,11 +80,11 @@ class BrunDrippingInjection
 {
     // Private member functions
 
-        //- Disallow default bitwise copy construct
-        BrunDrippingInjection(const BrunDrippingInjection&);
+        //- No copy construct
+        BrunDrippingInjection(const BrunDrippingInjection&) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const BrunDrippingInjection&);
+        //- No copy assignment
+        void operator=(const BrunDrippingInjection&) = delete;
 
 
 protected:
@@ -100,7 +102,7 @@ protected:
         scalar dCoeff_;
 
         //- Stable film thickness - drips only formed if thickness
-        //  execeeds this threhold value
+        //  exceeds this threshold value
         scalar deltaStable_;
 
         //- Diameters of particles to inject into the dripping
@@ -118,7 +120,7 @@ public:
         //- Construct from surface film model
         BrunDrippingInjection
         (
-            surfaceFilmModel& film,
+            surfaceFilmRegionModel& film,
             const dictionary& dict
         );
 

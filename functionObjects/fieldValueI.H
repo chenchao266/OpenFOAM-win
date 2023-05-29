@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2020-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -23,40 +26,32 @@ License
 
 \*---------------------------------------------------------------------------*/
 
-#include "fieldValue.H"
-#include "fvMesh.H"
-
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
 
-inline const Foam::dictionary& Foam::functionObjects::fieldValue::dict() const
+inline const Foam::dictionary& Foam::functionObjects::fieldValue::dict()
+const noexcept
 {
     return dict_;
 }
 
 
-inline const Foam::word& Foam::functionObjects::fieldValue::regionName() const
+inline const Foam::word& Foam::functionObjects::fieldValue::regionName()
+const noexcept
 {
     return regionName_;
 }
 
 
-inline const Foam::wordList& Foam::functionObjects::fieldValue::fields() const
+inline const Foam::wordList& Foam::functionObjects::fieldValue::fields()
+const noexcept
 {
     return fields_;
 }
 
 
-inline const Foam::Switch&
-Foam::functionObjects::fieldValue::writeFields() const
+inline bool Foam::functionObjects::fieldValue::writeFields() const noexcept
 {
     return writeFields_;
-}
-
-
-inline const Foam::dictionary&
-Foam::functionObjects::fieldValue::resultDict() const
-{
-    return resultDict_;
 }
 
 

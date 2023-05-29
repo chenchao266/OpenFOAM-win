@@ -1,9 +1,11 @@
-﻿/*---------------------------------------------------------------------------*\
+/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -23,7 +25,7 @@ License
 
 \*---------------------------------------------------------------------------*/
 
-//#include "multivariateGaussConvectionScheme.H"
+#include "multivariateGaussConvectionScheme.H"
 #include "gaussConvectionScheme.H"
 #include "fvMatrices.H"
 
@@ -40,11 +42,11 @@ namespace fv
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 template<class Type>
-tmp<surfaceFieldType<Type>>
+tmp<GeometricField<Type, fvsPatchField, surfaceMesh>>
 multivariateGaussConvectionScheme<Type>::interpolate
 (
     const surfaceScalarField& faceFlux,
-    const volFieldType<Type>& vf
+    const GeometricField<Type, fvPatchField, volMesh>& vf
 ) const
 {
     return gaussConvectionScheme<Type>
@@ -57,11 +59,11 @@ multivariateGaussConvectionScheme<Type>::interpolate
 
 
 template<class Type>
-tmp<surfaceFieldType<Type>>
+tmp<GeometricField<Type, fvsPatchField, surfaceMesh>>
 multivariateGaussConvectionScheme<Type>::flux
 (
     const surfaceScalarField& faceFlux,
-    const volFieldType<Type>& vf
+    const GeometricField<Type, fvPatchField, volMesh>& vf
 ) const
 {
     return gaussConvectionScheme<Type>
@@ -78,7 +80,7 @@ tmp<fvMatrix<Type>>
 multivariateGaussConvectionScheme<Type>::fvmDiv
 (
     const surfaceScalarField& faceFlux,
-    const volFieldType<Type>& vf
+    const GeometricField<Type, fvPatchField, volMesh>& vf
 ) const
 {
     return gaussConvectionScheme<Type>
@@ -91,11 +93,11 @@ multivariateGaussConvectionScheme<Type>::fvmDiv
 
 
 template<class Type>
-tmp<volFieldType<Type>>
+tmp<GeometricField<Type, fvPatchField, volMesh>>
 multivariateGaussConvectionScheme<Type>::fvcDiv
 (
     const surfaceScalarField& faceFlux,
-    const volFieldType<Type>& vf
+    const GeometricField<Type, fvPatchField, volMesh>& vf
 ) const
 {
     return gaussConvectionScheme<Type>

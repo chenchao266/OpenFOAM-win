@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2013-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2013-2016 OpenFOAM Foundation
+    Copyright (C) 2019-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -66,7 +69,7 @@ SourceFiles
 #ifndef mixtureKEpsilon_H
 #define mixtureKEpsilon_H
 
-#include "RASModel.T.H"
+#include "RASModel.H"
 #include "eddyViscosity.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
@@ -92,9 +95,11 @@ class mixtureKEpsilon
 
     // Private Member Functions
 
-        // Disallow default bitwise copy construct and assignment
-        mixtureKEpsilon(const mixtureKEpsilon&);
-        void operator=(const mixtureKEpsilon&);
+        //- No copy construct
+        mixtureKEpsilon(const mixtureKEpsilon&) = delete;
+
+        //- No copy assignment
+        void operator=(const mixtureKEpsilon&) = delete;
 
         //- Return the turbulence model for the other phase
         mixtureKEpsilon<BasicTurbulenceModel>& liquidTurbulence() const;
@@ -223,8 +228,7 @@ public:
 
 
     //- Destructor
-    virtual ~mixtureKEpsilon()
-    {}
+    virtual ~mixtureKEpsilon() = default;
 
 
     // Member Functions

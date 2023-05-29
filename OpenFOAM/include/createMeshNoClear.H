@@ -1,16 +1,48 @@
-// Currently identical to createMesh.H
+﻿/*---------------------------------------------------------------------------*\
+  =========                 |
+  \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
+   \\    /   O peration     |
+    \\  /    A nd           | www.openfoam.com
+     \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011 OpenFOAM Foundation
+    Copyright (C) 2021 OpenCFD Ltd.
+-------------------------------------------------------------------------------
+License
+    This file is part of OpenFOAM, distributed under GPL-3.0-or-later.
 
-Foam::Info
+Description
+    Create a fvMesh (defaultRegion)
+
+Required Variables
+    - runTime [Time]
+
+Provided Variables
+    - mesh [fvMesh]
+
+Notes
+    Currently identical to non-dry-run version of createMesh.H
+
+\*---------------------------------------------------------------------------*/
+
+
+ namespace Foam{
+Info
     << "Create mesh, no clear-out for time = "
-    << runTime.timeName() << Foam::nl << Foam::endl;
+    << runTime.timeName() << nl << endl;
 
-Foam::fvMesh mesh
+fvMesh mesh
 (
-    Foam::IOobject
+    IOobject
     (
-        Foam::fvMesh::defaultRegion,
+        polyMesh::defaultRegion,
         runTime.timeName(),
         runTime,
-        Foam::IOobject::MUST_READ
+        IOobject::MUST_READ
     )
 );
+
+
+// ************************************************************************* //
+
+ } // End namespace Foam

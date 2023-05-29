@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2013-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2013-2016 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -69,7 +72,7 @@ interstitialInletVelocityFvPatchVectorField
 :
     fixedValueFvPatchVectorField(p, iF, dict),
     inletVelocity_("inletVelocity", dict, p.size()),
-    alphaName_(dict.lookupOrDefault<word>("alpha", "alpha"))
+    alphaName_(dict.getOrDefault<word>("alpha", "alpha"))
 {}
 
 
@@ -143,7 +146,7 @@ void Foam::interstitialInletVelocityFvPatchVectorField::updateCoeffs()
 void Foam::interstitialInletVelocityFvPatchVectorField::write(Ostream& os) const
 {
     fvPatchField<vector>::write(os);
-    writeEntryIfDifferent<word>(os, "alpha", "alpha", alphaName_);
+    os.writeEntryIfDifferent<word>("alpha", "alpha", alphaName_);
     inletVelocity_.writeEntry("inletVelocity", os);
     writeEntry("value", os);
 }

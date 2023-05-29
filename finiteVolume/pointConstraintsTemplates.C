@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2013-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2013-2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -88,10 +90,10 @@ void Foam::pointConstraints::syncUntransformedData
 template<class Type>
 void Foam::pointConstraints::setPatchFields
 (
-    pointFieldType<Type>& pf
+    GeometricField<Type, pointPatchField, pointMesh>& pf
 )
 {
-    typename pointFieldType<Type>::
+    typename GeometricField<Type, pointPatchField, pointMesh>::
         Boundary& pfbf = pf.boundaryFieldRef();
 
     forAll(pfbf, patchi)
@@ -110,7 +112,7 @@ void Foam::pointConstraints::setPatchFields
 template<class Type>
 void Foam::pointConstraints::constrainCorners
 (
-    pointFieldType<Type>& pf
+    GeometricField<Type, pointPatchField, pointMesh>& pf
 ) const
 {
     forAll(patchPatchPointConstraintPoints_, pointi)
@@ -127,7 +129,7 @@ void Foam::pointConstraints::constrainCorners
 template<class Type>
 void Foam::pointConstraints::constrain
 (
-    pointFieldType<Type>& pf,
+    GeometricField<Type, pointPatchField, pointMesh>& pf,
     const bool overrideFixedValue
 ) const
 {

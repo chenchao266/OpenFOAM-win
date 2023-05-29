@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2018-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -24,7 +27,7 @@ License
 \*---------------------------------------------------------------------------*/
 
 #include "movingConeTopoFvMesh.H"
-#include "Time.T.H"
+#include "Time1.H"
 #include "mapPolyMesh.H"
 #include "layerAdditionRemoval.H"
 #include "addToRunTimeSelectionTable.H"
@@ -45,6 +48,12 @@ namespace Foam
         topoChangerFvMesh,
         movingConeTopoFvMesh,
         IOobject
+    );
+    addToRunTimeSelectionTable
+    (
+        topoChangerFvMesh,
+        movingConeTopoFvMesh,
+        doInit
     );
 }
 
@@ -133,7 +142,7 @@ void Foam::movingConeTopoFvMesh::addZonesAndModifiers()
             zone1[nZoneFaces1] = facei;
             Info<< "face " << facei << " for zone 1.  Flip: "
                 << flipZone1[nZoneFaces1] << endl;
-            nZoneFaces1++;
+            ++nZoneFaces1;
         }
         else if
         (
@@ -150,7 +159,7 @@ void Foam::movingConeTopoFvMesh::addZonesAndModifiers()
 
             Info<< "face " << facei << " for zone 2.  Flip: "
                 << flipZone2[nZoneFaces2] << endl;
-            nZoneFaces2++;
+            ++nZoneFaces2;
         }
     }
 
@@ -173,23 +182,23 @@ void Foam::movingConeTopoFvMesh::addZonesAndModifiers()
         new faceZone
         (
             "rightExtrusionFaces",
-            zone1,
-            flipZone1,
+            std::move(zone1),
+            std::move(flipZone1),
             nFz,
             faceZones()
         );
-    nFz++;
+    ++nFz;
 
     fz[nFz] =
         new faceZone
         (
             "leftExtrusionFaces",
-            zone2,
-            flipZone2,
+            std::move(zone2),
+            std::move(flipZone2),
             nFz,
             faceZones()
         );
-    nFz++;
+    ++nFz;
 
     fz.setSize(nFz);
 
@@ -209,16 +218,10 @@ void Foam::movingConeTopoFvMesh::addZonesAndModifiers()
             nMods,
             topoChanger_,
             "rightExtrusionFaces",
-            readScalar
-            (
-                motionDict_.subDict("right").lookup("minThickness")
-            ),
-            readScalar
-            (
-                motionDict_.subDict("right").lookup("maxThickness")
-            )
+            motionDict_.subDict("right").get<scalar>("minThickness"),
+            motionDict_.subDict("right").get<scalar>("maxThickness")
         );
-    nMods++;
+    ++nMods;
 
     tm[nMods] = new layerAdditionRemoval
     (
@@ -226,16 +229,10 @@ void Foam::movingConeTopoFvMesh::addZonesAndModifiers()
         nMods,
         topoChanger_,
         "leftExtrusionFaces",
-        readScalar
-        (
-            motionDict_.subDict("left").lookup("minThickness")
-        ),
-        readScalar
-        (
-            motionDict_.subDict("left").lookup("maxThickness")
-        )
+        motionDict_.subDict("left").get<scalar>("minThickness"),
+        motionDict_.subDict("left").get<scalar>("maxThickness")
     );
-    nMods++;
+    ++nMods;
     tm.setSize(nMods);
 
     Info<< "Adding " << nMods << " mesh modifiers" << endl;
@@ -247,9 +244,13 @@ void Foam::movingConeTopoFvMesh::addZonesAndModifiers()
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
-Foam::movingConeTopoFvMesh::movingConeTopoFvMesh(const IOobject& io)
+Foam::movingConeTopoFvMesh::movingConeTopoFvMesh
+(
+    const IOobject& io,
+    const bool doInit
+)
 :
-    topoChangerFvMesh(io),
+    topoChangerFvMesh(io, doInit),
     motionDict_
     (
         IOdictionary
@@ -264,17 +265,30 @@ Foam::movingConeTopoFvMesh::movingConeTopoFvMesh(const IOobject& io)
                 false
             )
         ).optionalSubDict(typeName + "Coeffs")
-    ),
-    motionVelAmplitude_(motionDict_.lookup("motionVelAmplitude")),
-    motionVelPeriod_(readScalar(motionDict_.lookup("motionVelPeriod"))),
-    curMotionVel_
-    (
-        motionVelAmplitude_*sin(time().value()*pi/motionVelPeriod_)
-    ),
-    leftEdge_(readScalar(motionDict_.lookup("leftEdge"))),
-    curLeft_(readScalar(motionDict_.lookup("leftObstacleEdge"))),
-    curRight_(readScalar(motionDict_.lookup("rightObstacleEdge")))
+    )
 {
+    if (doInit)
+    {
+        init(false);    // do not initialise lower levels
+    }
+}
+
+
+bool Foam::movingConeTopoFvMesh::init(const bool doInit)
+{
+    if (doInit)
+    {
+        topoChangerFvMesh::init(doInit);
+    }
+
+    motionVelAmplitude_ = motionDict_.get<vector>("motionVelAmplitude");
+    motionVelPeriod_ = motionDict_.get<scalar>("motionVelPeriod");
+    curMotionVel_ =
+        motionVelAmplitude_*sin(time().value()*pi/motionVelPeriod_);
+    leftEdge_ = motionDict_.get<scalar>("leftEdge");
+    curLeft_ = motionDict_.get<scalar>("leftObstacleEdge");
+    curRight_ = motionDict_.get<scalar>("rightObstacleEdge");
+
     Pout<< "Initial time:" << time().value()
         << " Initial curMotionVel_:" << curMotionVel_
         << endl;
@@ -303,6 +317,9 @@ Foam::movingConeTopoFvMesh::movingConeTopoFvMesh(const IOobject& io)
         curLeft_,
         curRight_
     );
+
+    // Assume something changed
+    return true;
 }
 
 
@@ -330,7 +347,7 @@ bool Foam::movingConeTopoFvMesh::update()
         << " curLeft:" << curLeft_ << " curRight:" << curRight_
         << endl;
 
-    if (topoChangeMap.valid())
+    if (topoChangeMap)
     {
         Info<< "Topology change. Calculating motion points" << endl;
 

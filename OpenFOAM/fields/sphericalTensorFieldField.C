@@ -1,9 +1,12 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011 OpenFOAM Foundation
+    Copyright (C) 2019 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -26,17 +29,51 @@ Description
 
 \*---------------------------------------------------------------------------*/
 
-#include "sphericalTensorFieldField.H"
+//#include "sphericalTensorFieldField.H"
 
-#define TEMPLATE template<template<class > class Field>
-#include "FieldFieldFunctionsM.T.C"
+#define TEMPLATE template<template<class> class Field>
+#include "FieldFieldFunctionsM.C"
+
+// * * * * * * * * * * * * * * * Global Functions  * * * * * * * * * * * * * //
+
+
+ namespace Foam{
+template<template<class> class Field, class Cmpt>
+void zip
+(
+    FieldField<Field, SphericalTensor<Cmpt>>& result,
+    const FieldField<Field, Cmpt>& ii
+)
+{
+    forAll(result, i)
+    {
+        zip(result[i], ii[i]);
+    }
+}
+
+
+template<template<class> class Field, class Cmpt>
+void unzip
+(
+    const FieldField<Field, SphericalTensor<Cmpt>>& input,
+    FieldField<Field, Cmpt>& ii
+)
+{
+    forAll(input, i)
+    {
+        unzip(input[i], ii[i]);
+    }
+}
+
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
+
+ } // End namespace Foam
 namespace Foam
 {
 
-// * * * * * * * * * * * * * * * global functions  * * * * * * * * * * * * * //
+// * * * * * * * * * * * * * * * Global Functions  * * * * * * * * * * * * * //
 
 UNARY_FUNCTION(scalar, sphericalTensor, tr)
 UNARY_FUNCTION(sphericalTensor, sphericalTensor, sph)

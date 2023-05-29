@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -24,18 +26,42 @@ License
 Typedef
     Foam::edgeList
 
+Description
+    A List of edges.
+
+Typedef
+    Foam::edgeUList
+
+Description
+    A UList of edges.
+
+Typedef
+    Foam::edgeSubList
+
+Description
+    A SubList of edges.
+
+Typedef
+    Foam::edgeListList
+
+Description
+    A List of edgeList.
+
 \*---------------------------------------------------------------------------*/
 
 #ifndef edgeList_H
 #define edgeList_H
 
 #include "edge.H"
-#include "List.T.H"
+#include "SubList.H"
+
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 namespace Foam
 {
+    typedef UList<edge> edgeUList;
     typedef List<edge> edgeList;
+    typedef SubList<edge> edgeSubList;
     typedef List<edgeList> edgeListList;
 }
 

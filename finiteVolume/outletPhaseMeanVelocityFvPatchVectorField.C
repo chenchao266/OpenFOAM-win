@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2013-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2013-2016 OpenFOAM Foundation
+    Copyright (C) 2017-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -72,9 +75,11 @@ Foam::outletPhaseMeanVelocityFvPatchVectorField
 )
 :
     mixedFvPatchField<vector>(p, iF),
-    Umean_(readScalar(dict.lookup("Umean"))),
+    Umean_(dict.get<scalar>("Umean")),
     alphaName_(dict.lookup("alpha"))
 {
+    patchType() = dict.getOrDefault<word>("patchType", word::null);
+
     refValue() = Zero;
     refGrad() = Zero;
     valueFraction() = 0.0;
@@ -165,10 +170,8 @@ void Foam::outletPhaseMeanVelocityFvPatchVectorField::write
 {
     fvPatchField<vector>::write(os);
 
-    os.writeKeyword("Umean") << Umean_
-        << token::END_STATEMENT << nl;
-    os.writeKeyword("alpha") << alphaName_
-        << token::END_STATEMENT << nl;
+    os.writeEntry("Umean", Umean_);
+    os.writeEntry("alpha", alphaName_);
     writeEntry("value", os);
 }
 

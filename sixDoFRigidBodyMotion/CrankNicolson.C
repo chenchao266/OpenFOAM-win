@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2015 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2015 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -46,9 +49,9 @@ Foam::sixDoFSolvers::CrankNicolson::CrankNicolson
     sixDoFRigidBodyMotion& body
 )
 :
-    sixDoFSolver(body),
-    aoc_(dict.lookupOrDefault<scalar>("aoc", 0.5)),
-    voc_(dict.lookupOrDefault<scalar>("voc", 0.5))
+    sixDoFSolver(dict, body),
+    aoc_(dict.getOrDefault<scalar>("aoc", 0.5)),
+    voc_(dict.getOrDefault<scalar>("voc", 0.5))
 {}
 
 
@@ -89,6 +92,5 @@ void Foam::sixDoFSolvers::CrankNicolson::solve
         rotate(Q0(), (voc_*pi() + (1 - voc_)*pi0()), deltaT);
     Q() = Qpi.first();
 }
-
 
 // ************************************************************************* //

@@ -1,9 +1,12 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2012 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2012 OpenFOAM Foundation
+    Copyright (C) 2016-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -25,24 +28,36 @@ Namespace
     Foam::stringOps
 
 Description
-    Collection of static functions to do various simple string-related
-    operations
+    Collection of static functions for various string-related operations
 
 SourceFiles
     stringOps.C
+    stringOpsTemplates.C
 
 \*---------------------------------------------------------------------------*/
+
 #ifndef stringOps_H
 #define stringOps_H
 
-#include "string.T.H"
-#include "dictionary.H"
-#include "HashTable.T.H"
+#include "scalar.H"
+#include "_string.H"
+#include "SubStrings.H"
+#include "word.H"
+#include "dictionary2.H"
+#include "HashTable.H"
+#include "stringOpsSort.H"
+#include "stringOpsEvaluate.H"
+#include "wordRes.H"
+#include <utility>
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 namespace Foam
 {
+
+// Forward Declarations
+class OSstream;
+template<class T1, class T2> class Tuple2;
 
 /*---------------------------------------------------------------------------*\
                         Namespace stringOps Declaration
@@ -50,254 +65,390 @@ namespace Foam
 
 namespace stringOps
 {
-    //- Expand occurences of variables according to the mapping
-    //  Expansion includes:
-    //  -# variables
-    //    - "$VAR", "${VAR}"
+    //- Count the number of occurrences of the specified character
+    std::string::size_type count(const std::string& s, const char c);
+
+    //- Count the number of occurrences of the specified character
+    //  Correctly handles nullptr.
+    std::string::size_type count(const char* s, const char c);
+
+    //- Return true if text matches one of the regular expressions.
+    inline bool match(const UList<wordRe>& patterns, const std::string& text)
+    {
+        return wordRes::matcher(patterns)(text);
+    }
+
+    //- Quote any meta-characters in given string
+    template<class StringType, class UnaryPredicate>
+    StringType quotemeta
+    (
+        const StringType& str,
+        const UnaryPredicate& meta,
+        const char quote = '\\'
+    );
+
+    //- Expand occurrences of variables according to the mapping
+    //- and return the expanded string.
     //
-    //  Supports default values as per the Bourne/Korn shell.
-    //  \code
-    //      "${parameter:-defValue}"
-    //  \endcode
-    //  If parameter is unset or null, the \c defValue is substituted.
-    //  Otherwise, the value of parameter is substituted.
-    //
-    //  Supports alternative values as per the Bourne/Korn shell.
-    //  \code
-    //      "${parameter:+altValue}"
-    //  \endcode
-    //  If parameter is unset or null, nothing is substituted.
-    //  Otherwise the \c altValue is substituted.
-    //
-    //  Any unknown entries are removed silently.
-    //
-    //  Malformed entries (eg, brace mismatch, sigil followed by bad character)
-    //  are left as is.
-    //
-    //  \note the leading sigil can be changed to avoid conflicts with other
-    //  string expansions
+    //  \sa stringOps::inplaceExpand() for details
     string expand
     (
-        const string&,
-        const HashTable<string, word, string::hash>& mapping,
+        const std::string& s,
+        const HashTable<string>& mapping,
+        const char sigil = '$'
+    );
+
+    //- Inplace expand occurrences of variables according to the mapping.
+    //- Does \b not use environment values.
+    //
+    //  Expansion includes:
+    //  -# Variables
+    //    - \c $VAR
+    //    - \c ${VAR}
+    //
+    //  -# Default and alternative values as per the POSIX shell:
+    //     - \c ${parameter:-defValue}
+    //       If parameter is unset or null, the \c defValue is substituted.
+    //       Otherwise, the value of parameter is substituted.
+    //     - \c ${parameter:+altValue}
+    //       If parameter is unset or null, nothing is substituted.
+    //       Otherwise the \c altValue is substituted.
+    //  .
+    //
+    // General behaviour:
+    //  - Unknown entries are removed silently.
+    //  - Malformed entries (eg, brace mismatch, sigil followed by unknown
+    //    characters) are left as is.
+    //
+    //  \param[in,out] s The string to modify inplace.
+    //  \param mapping The lookup table
+    //  \param sigil The leading sigil. Can be changed to avoid conflict
+    //      with other string expansions. (default: '$')
+    //
+    // \par Expansion behaviour
+    // - alternatives = True
+    // - environment = False
+    // - allow empty = True
+    // - subDict = Not applicable
+    // .
+    //
+    // \note Currently only used by Foam::dynamicCode.
+    void inplaceExpand
+    (
+        std::string& s,
+        const HashTable<string>& mapping,
         const char sigil = '$'
     );
 
 
-    //- Inplace expand occurences of variables according to the mapping
+    //- Inplace expand occurrences of variables according to the dictionary
+    //- and (optionally) environment variables.
+    //
     //  Expansion includes:
-    //  -# variables
-    //    - "$VAR", "${VAR}"
+    //  -# Dictionary variables and (optionally) environment variables
+    //    - \c $VAR
+    //    - \c ${VAR}
+    //    - \c ${VAR:-defValue}
+    //    - \c ${VAR:+altValue}
+    //  -# Mathematical evaluation using stringOps::evaluate
+    //    - \c ${{EXPR}}
+    //  -# Current directory
+    //    - leading "./"
+    //          : the current directory - Foam::cwd()
+    //  -# Leading tag expansion for commonly used directories
+    //    - <b> \<etc\>/ </b>
+    //          : user/group/other OpenFOAM etc directory
+    //    - <b> \<etc:</b><em>[ugoa]+</em>)<b>\>/ </b>
+    //          : user/group/other etc with specified location mode
+    //    - <b> \<case\>/ </b>
+    //          : The \c $FOAM_CASE directory
+    //    - <b> \<constant\>/ </b>
+    //          : The \c $FOAM_CASE/constant directory
+    //    - <b> \<system\>/ </b>
+    //          : The \c $FOAM_CASE/system directory
+    //  -# Tilde expansion
+    //    - leading "~/" : home directory
+    //    - leading "~user" : home directory for specified user
+    //  -# Default and alternative values as per the POSIX shell:
+    //     - \c ${parameter:-defValue}
+    //       If parameter is unset or null, the \c defValue is substituted.
+    //       Otherwise, the value of parameter is substituted.
+    //     - \c ${parameter:+altValue}
+    //       If parameter is unset or null, nothing is substituted.
+    //       Otherwise the \c altValue is substituted.
+    //  .
     //
-    //  Supports default values as per the Bourne/Korn shell.
-    //  \code
-    //      "${parameter:-defValue}"
-    //  \endcode
-    //  If parameter is unset or null, the \c defValue is substituted.
-    //  Otherwise, the value of parameter is substituted.
+    // General behaviour:
+    //  - Malformed entries (eg, brace mismatch, sigil followed by unknown
+    //    characters) are left as is.
+    //  - Supports recursive variable expansions.
+    //    For example, "${var${num}}" and "${{100 + ${var}}}"
     //
-    //  Supports alternative values as per the Bourne/Korn shell.
-    //  \code
-    //      "${parameter:+altValue}"
-    //  \endcode
-    //  If parameter is unset or null, nothing is substituted.
-    //  Otherwise the \c altValue is substituted.
+    //  \param[in,out] s The string to modify inplace
+    //  \param dict The dictionary context for the expansion
+    //  \param allowEnv Allow use of environment values as fallback
+    //  \param allowEmpty Allow empty expansions, or treat as Fatal
+    //  \param allowSubDict Allow expansion of subDict entries as well as
+    //      primitive entries (default: false)
+    //  \param sigil The leading sigil. Can be changed to avoid conflict
+    //      with other string expansions. (default: '$')
     //
-    //  Any unknown entries are removed silently.
+    //  \sa Foam::findEtcEntry(), Foam::findEtcEntries(), stringOps::evaluate()
     //
-    //  Malformed entries (eg, brace mismatch, sigil followed by bad character)
-    //  are left as is.
+    // \par Expansion behaviour
+    // - alternatives = True
+    // - environment = Given by parameter
+    // - allow empty = Given by parameter
+    // - subDict = Given by parameter (default: False)
+    // .
     //
-    //  \note the leading sigil can be changed to avoid conflicts with other
-    //  string expansions
-    string& inplaceExpand
+    //  \note This function has too many parameters and should generally
+    //      be avoided in user coding.
+    void inplaceExpand
     (
-        string&,
-        const HashTable<string, word, string::hash>& mapping,
-        const char sigil = '$'
-    );
-
-    //- Expand occurences of variables according to the dictionary
-    //  Expansion includes:
-    //  -# variables
-    //    - "$VAR", "${VAR}"
-    //
-    //  Any unknown entries are left as-is
-    //
-    //  \note the leading sigil can be changed to avoid conflicts with other
-    //  string expansions
-    string expand
-    (
-        const string&,
+        std::string& s,
         const dictionary& dict,
-        const char sigil = '$'
-    );
-
-
-    //- Get dictionary or (optionally) environment variable
-    string getVariable
-    (
-        const word& name,
-        const dictionary& dict,
-        const bool allowEnvVars,
-        const bool allowEmpty
-    );
-
-
-    //- Recursively expands (dictionary or environment) variable
-    //  starting at index in string. Updates index.
-    string expand
-    (
-        const string& s,
-        string::size_type& index,
-        const dictionary& dict,
-        const bool allowEnvVars,
-        const bool allowEmpty
-    );
-
-
-    //- Inplace expand occurences of variables according to the dictionary
-    //  and optionally environment variables
-    //  Expansion includes:
-    //  -# variables
-    //    - "$VAR", "${VAR}"
-    //
-    //  with the "${}" syntax doing a recursive substitution.
-    //  Any unknown entries are left as-is
-    //
-    //  \note the leading sigil can be changed to avoid conflicts with other
-    //  string expansions
-    string& inplaceExpand
-    (
-        string& s,
-        const dictionary& dict,
-        const bool allowEnvVars,
+        const bool allowEnv,
         const bool allowEmpty,
+        const bool allowSubDict = false,
         const char sigil = '$'
     );
 
 
-    //- Inplace expand occurences of variables according to the dictionary
-    //  Expansion includes:
-    //  -# variables
-    //    - "$VAR", "${VAR}"
+    //- Expand occurrences of dictionary or environment variables.
     //
-    //  Any unknown entries are left as-is
+    //  Empty expansions are allowed.
+    //  Serialization of subDict entries is permitted.
     //
-    //  \note the leading sigil can be changed to avoid conflicts with other
-    //  string expansions
-    string& inplaceExpand
+    //  \sa stringOps::inplaceExpand(std::string&, const dictionary&, char)
+    string expand
     (
-        string&,
+        const std::string& s,
+        const dictionary& dict,
+        const char sigil = '$'
+    );
+
+    //- Inplace expand occurrences of dictionary or environment variables.
+    //
+    //  Empty expansions are allowed.
+    //  Serialization of subDict entries is permitted.
+    //
+    //  \sa
+    //  stringOps::inplaceExpand
+    //  (std::string&, const dictionary&, bool, bool, bool, char)
+    //
+    // \par Expansion behaviour
+    // - alternatives = True
+    // - environment = True
+    // - allow empty = True
+    // - subDict = True
+    // .
+    void inplaceExpand
+    (
+        std::string& s,
         const dictionary& dict,
         const char sigil = '$'
     );
 
 
-    //- Expand initial tildes and all occurences of environment variables
-    //  Expansion includes:
-    //  -# environment variables
-    //    - "$VAR", "${VAR}"
-    //  -# current directory
-    //    - leading "./" : the current directory
-    //  -# tilde expansion
-    //    - leading "~/" : home directory
-    //    - leading "~user" : home directory for specified user
-    //    - leading "~OpenFOAM" : site/user OpenFOAM configuration directory
-    //
-    //  Supports default values as per the Bourne/Korn shell.
-    //  \code
-    //      "${parameter:-defValue}"
-    //  \endcode
-    //  If parameter is unset or null, the \c defValue is substituted.
-    //  Otherwise, the value of parameter is substituted.
-    //
-    //  Supports alternative values as per the Bourne/Korn shell.
-    //  \code
-    //      "${parameter:+altValue}"
-    //  \endcode
-    //  If parameter is unset or null, nothing is substituted.
-    //  Otherwise the \c altValue is substituted.
-    //
-    //  Any unknown entries are removed silently, if allowEmpty is true.
-    //
-    //  Malformed entries (eg, brace mismatch, sigil followed by bad character)
-    //  are left as is.
+    //- Expand initial tags, tildes, and all occurrences of environment
+    //- variables.
     //
     //  \sa
-    //  Foam::findEtcFile
-    string expand
+    //  stringOps::inplaceExpand(std::string&, bool);
+    string expand(const std::string& s, const bool allowEmpty = false);
+
+
+    //- Expand initial tags, tildes, and all occurrences of environment
+    //- variables
+    //
+    //  The expansion behaviour is identical to
+    //  stringOps::inplaceExpand
+    //  (std::string&, const dictionary&, bool, bool, bool, char)
+    //  except that there is no dictionary and the environment variables
+    //  are always enabled.
+    //
+    // \par Expansion behaviour
+    // - alternatives = True
+    // - environment = True
+    // - allow empty = Given by parameter (default: False)
+    // - subDict = Not applicable
+    // .
+    void inplaceExpand(std::string& s, const bool allowEmpty = false);
+
+
+    //- Replace environment variable contents with its name.
+    //  This is essentially the inverse operation for inplaceExpand
+    //  for a single element.
+    //  Return true if a replacement was successful.
+    bool inplaceReplaceVar(std::string& s, const word& varName);
+
+    //- Return a copy of the input string with validated characters
+    template<class StringType, class UnaryPredicate>
+    StringType validate
     (
-        const string&,
-        const bool allowEmpty = false
+        const std::string& str,
+        const UnaryPredicate& accept,
+        const bool invert=false   //!< Invert the test logic
     );
 
-
-    //- Expand initial tildes and all occurences of environment variables
-    //  Expansion includes:
-    //  -# environment variables
-    //    - "$VAR", "${VAR}"
-    //  -# current directory
-    //    - leading "./" : the current directory
-    //  -# tilde expansion
-    //    - leading "~/" : home directory
-    //    - leading "~user" : home directory for specified user
-    //    - leading "~OpenFOAM" : site/user OpenFOAM configuration directory
-    //
-    //  Supports default values as per the Bourne/Korn shell.
-    //  \code
-    //      "${parameter:-defValue}"
-    //  \endcode
-    //  If parameter is unset or null, the \c defValue is substituted.
-    //  Otherwise, the value of parameter is substituted.
-    //
-    //  Supports alternative values as per the Bourne/Korn shell.
-    //  \code
-    //      "${parameter:+altValue}"
-    //  \endcode
-    //  If parameter is unset or null, nothing is substituted.
-    //  Otherwise the \c altValue is substituted.
-    //
-    //  Any unknown entries are removed silently, if allowEmpty is true.
-    //
-    //  Malformed entries (eg, brace mismatch, sigil followed by bad character)
-    //  are left as is.
-    //
-    //  Any unknown entries are removed silently if allowEmpty is true.
-    //  \sa
-    //  Foam::findEtcFile
-    string& inplaceExpand
+    //- Find (first, last) non-space locations in string or sub-string.
+    //  This may change to std::string_view in the future.
+    std::pair<size_t, size_t>
+    findTrim
     (
-        string&,
-        const bool allowEmpty = false
+        const std::string& s,
+        size_t pos = 0,
+        size_t len = std::string::npos
     );
-
 
     //- Return string trimmed of leading whitespace
-    string trimLeft(const string&);
+    string trimLeft(const std::string& s);
 
     //- Trim leading whitespace inplace
-    string& inplaceTrimLeft(string&);
+    void inplaceTrimLeft(std::string& s);
 
     //- Return string trimmed of trailing whitespace
-    string trimRight(const string&);
+    string trimRight(const std::string& s);
 
     //- Trim trailing whitespace inplace
-    string& inplaceTrimRight(string&);
+    void inplaceTrimRight(std::string& s);
 
     //- Return string trimmed of leading and trailing whitespace
-    string trim(const string&);
+    string trim(const std::string& s);
 
     //- Trim leading and trailing whitespace inplace
-    string& inplaceTrim(string&);
+    void inplaceTrim(std::string& s);
 
+    //- Eliminate whitespace inplace
+    void inplaceRemoveSpace(std::string& s);
+
+
+    //- Return string with C/C++ comments removed
+    string removeComments(const std::string& s);
+
+    //- Remove C/C++ comments inplace
+    void inplaceRemoveComments(std::string& s);
+
+
+    //- Return string copy transformed with std::tolower on each character
+    string lower(const std::string& s);
+
+    //- Inplace transform string with std::tolower on each character
+    void inplaceLower(std::string& s);
+
+    //- Return string copy transformed with std::toupper on each character
+    string upper(const std::string& s);
+
+    //- Inplace transform string with std::toupper on each character
+    void inplaceUpper(std::string& s);
+
+    //- Split out arguments (named or unnamed) from an input string.
+    //
+    //  For example,
+    //  \verbatim
+    //  (U)
+    //      -> named = ()
+    //      -> unnamed = (U)
+    //
+    //  (patch=inlet, p)
+    //      -> named = ((patch inlet))
+    //      -> unnamed = (p)
+    //
+    //  testing, start=100, stop=200
+    //      -> named = ((start 100)(stop 200))
+    //      -> unnamed = (testing)
+    //  \endverbatim
+    //
+    //  \return total number of arguments
+    label splitFunctionArgs
+    (
+        const std::string& str,
+        wordRes& args,
+        List<Tuple2<word, string>>& namedArgs
+    );
+
+    //- Split string into sub-strings at the delimiter character.
+    //  Empty sub-strings are normally suppressed.
+    //  Behaviour is ill-defined if delim is a NUL character.
+    template<class StringType>
+    SubStrings<StringType> split
+    (
+        const StringType& str,
+        const char delim,
+        const bool keepEmpty = false
+    );
+
+    //- Split string into sub-strings using delimiter string.
+    //  Empty sub-strings are normally suppressed.
+    template<class StringType>
+    SubStrings<StringType> split
+    (
+        const StringType& str,
+        const std::string& delim,
+        const bool keepEmpty = false
+    );
+
+    //- Split string into sub-strings using any characters in delimiter.
+    //  Empty sub-strings are normally suppressed.
+    //  Behaviour is ill-defined if delim is an empty string.
+    template<class StringType>
+    SubStrings<StringType> splitAny
+    (
+        const StringType& str,
+        const std::string& delim
+    );
+
+    //- Split string into sub-strings using a fixed field width.
+    //  Behaviour is ill-defined if width is zero.
+    //  \param str the string to be split
+    //  \param width the fixed field width for each sub-string
+    //  \param start the optional offset of where to start the splitting.
+    //      Any text prior to start is ignored in the operation.
+    template<class StringType>
+    SubStrings<StringType> splitFixed
+    (
+        const StringType& str,
+        const std::string::size_type width,
+        const std::string::size_type start = 0
+    );
+
+    //- Split string into sub-strings at whitespace (TAB, NL, VT, FF, CR, SPC)
+    //  Empty sub-strings are suppressed.
+    template<class StringType>
+    SubStrings<StringType> splitSpace
+    (
+        const StringType& str
+    );
+
+    //- Output string with text wrapping.
+    //  Always includes a trailing newline, unless the string itself is empty.
+    //
+    //  \param os the output stream
+    //  \param str the text to be output
+    //  \param width the max-width before wrapping
+    //  \param indent indentation for continued lines
+    //  \param escape escape any backslashes on output
+    void writeWrapped
+    (
+        OSstream& os,
+        const std::string& str,
+        const std::string::size_type width,
+        const std::string::size_type indent = 0,
+        const bool escape = false
+    );
 
 } // End namespace stringOps
-
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 } // End namespace Foam
+
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+#ifdef NoRepository
+    #include "stringOpsTemplates.C"
+#endif
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 

@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2013 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2013 OpenFOAM Foundation
+    Copyright (C) 2016 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -24,59 +27,32 @@ License
 \*---------------------------------------------------------------------------*/
 
 #include "meshWriter.H"
-#include "cellModeller.H"
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
 
 Foam::string Foam::meshWriter::defaultMeshName = "meshExport";
 
 
-const Foam::cellModel* Foam::meshWriter::unknownModel = Foam::cellModeller::
-lookup
-(
-    "unknown"
-);
-
-
-const Foam::cellModel* Foam::meshWriter::tetModel = Foam::cellModeller::
-lookup
-(
-    "tet"
-);
-
-
-const Foam::cellModel* Foam::meshWriter::pyrModel = Foam::cellModeller::
-lookup
-(
-    "pyr"
-);
-
-
-const Foam::cellModel* Foam::meshWriter::prismModel = Foam::cellModeller::
-lookup
-(
-    "prism"
-);
-
-
-const Foam::cellModel* Foam::meshWriter::hexModel = Foam::cellModeller::
-lookup
-(
-    "hex"
-);
-
-
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
-Foam::meshWriter::meshWriter(const polyMesh& mesh, const scalar scaleFactor)
+Foam::meshWriter::meshWriter
+(
+    const polyMesh& mesh,
+    const scalar scaling
+)
 :
     mesh_(mesh),
-    scaleFactor_(scaleFactor),
-    writeBoundary_(true),
+    scaleFactor_(scaling),
     boundaryRegion_(),
     cellTable_(),
     cellTableId_()
-{}
+{
+    // Sanity
+    if (scaleFactor_ <= VSMALL)
+    {
+        scaleFactor_ = 1;
+    }
+}
 
 
 // * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //

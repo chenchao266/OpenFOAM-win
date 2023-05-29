@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -45,7 +47,7 @@ addToRunTimeSelectionTable(force, thermocapillaryForce, dictionary);
 
 thermocapillaryForce::thermocapillaryForce
 (
-    surfaceFilmModel& film,
+    surfaceFilmRegionModel& film,
     const dictionary& dict
 )
 :
@@ -63,12 +65,13 @@ thermocapillaryForce::~thermocapillaryForce()
 
 tmp<fvVectorMatrix> thermocapillaryForce::correct(volVectorField& U)
 {
+    const volScalarField& alpha = filmModel_.alpha();
     const volScalarField& sigma = filmModel_.sigma();
 
     tmp<fvVectorMatrix>
         tfvm(new fvVectorMatrix(U, dimForce/dimArea*dimVolume));
 
-    tfvm.ref() += fvc::grad(sigma);
+    tfvm.ref() += alpha*fvc::grad(sigma);
 
     return tfvm;
 }

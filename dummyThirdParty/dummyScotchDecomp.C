@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2015 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2015 OpenFOAM Foundation
+    Copyright (C) 2018-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -25,24 +28,23 @@ License
 
 #include "scotchDecomp.H"
 #include "addToRunTimeSelectionTable.H"
-#include "Time.T.H"
+#include "Time1.H"
 
 static const char* notImplementedMessage =
-"You are trying to use scotch but do not have the scotchDecomp library loaded."
-"\nThis message is from the dummy scotchDecomp stub library instead.\n"
-"\n"
-"Please install scotch and make sure that libscotch.so is in your "
-"LD_LIBRARY_PATH.\n"
-"The scotchDecomp library can then be built in "
-"$FOAM_SRC/parallel/decompose/decompositionMethods/scotchDecomp\n";
+"Attempted to use <scotch> without the scotchDecomp library loaded.\n"
+"This message is from the dummy scotchDecomp stub library instead.\n\n"
+"Please install <scotch> and ensure libscotch.so is in LD_LIBRARY_PATH.\n"
+"The scotchDecomp library can then be built from "
+"src/parallel/decompose/scotchDecomp.\n"
+"Dynamically loading or linking this library will add "
+"<scotch> as a decomposition method.\n";
 
 
-// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+// * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
 
 namespace Foam
 {
     defineTypeNameAndDebug(scotchDecomp, 0);
-
     addToRunTimeSelectionTable
     (
         decompositionMethod,
@@ -51,24 +53,20 @@ namespace Foam
     );
 }
 
-// * * * * * * * * * * * * * Private Member Functions  * * * * * * * * * * * //
 
-void Foam::scotchDecomp::check(const int retVal, const char* str)
-{}
+// * * * * * * * * * * * * Protected Member Functions  * * * * * * * * * * * //
 
-
-Foam::label Foam::scotchDecomp::decompose
+Foam::label Foam::scotchDecomp::decomposeSerial
 (
-    const fileName& meshPath,
-    const List<label>& adjncy,
-    const List<label>& xadj,
-    const scalarField& cWeights,
-
-    List<label>& finalDecomp
-)
+    const labelList& adjncy,
+    const labelList& xadj,
+    const List<scalar>& cWeights,
+    labelList& decomp
+) const
 {
     FatalErrorInFunction
-        << notImplementedMessage << exit(FatalError);
+        << notImplementedMessage << nl
+        << exit(FatalError);
 
     return -1;
 }
@@ -78,10 +76,11 @@ Foam::label Foam::scotchDecomp::decompose
 
 Foam::scotchDecomp::scotchDecomp
 (
-    const dictionary& decompositionDict
+    const dictionary& decompDict,
+    const word& regionName
 )
 :
-    decompositionMethod(decompositionDict)
+    metisLikeDecomp("scotch", decompDict, regionName)
 {}
 
 
@@ -92,12 +91,12 @@ Foam::labelList Foam::scotchDecomp::decompose
     const polyMesh& mesh,
     const pointField& points,
     const scalarField& pointWeights
-)
+) const
 {
     FatalErrorInFunction
         << notImplementedMessage << exit(FatalError);
 
-    return labelList::null();
+    return labelList();
 }
 
 
@@ -107,12 +106,12 @@ Foam::labelList Foam::scotchDecomp::decompose
     const labelList& agglom,
     const pointField& agglomPoints,
     const scalarField& pointWeights
-)
+) const
 {
     FatalErrorInFunction
         << notImplementedMessage << exit(FatalError);
 
-    return labelList::null();
+    return labelList();
 }
 
 
@@ -121,12 +120,12 @@ Foam::labelList Foam::scotchDecomp::decompose
     const labelListList& globalCellCells,
     const pointField& cellCentres,
     const scalarField& cWeights
-)
+) const
 {
     FatalErrorInFunction
         << notImplementedMessage << exit(FatalError);
 
-    return labelList::null();
+    return labelList();
 }
 
 

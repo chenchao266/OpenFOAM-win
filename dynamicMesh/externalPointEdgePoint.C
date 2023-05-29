@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2013-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2013-2016 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -25,25 +28,25 @@ License
 
 #include "externalPointEdgePoint.H"
 
-// * * * * * * * * * * * * * * * Friend Operators  * * * * * * * * * * * * * //
+// * * * * * * * * * * * * * * * IOstream Operators  * * * * * * * * * * * * //
 
 Foam::Ostream& Foam::operator<<
 (
-    Foam::Ostream& os,
-    const Foam::externalPointEdgePoint& wDist
+    Ostream& os,
+    const externalPointEdgePoint& rhs
 )
 {
-    return os << wDist.origin() << wDist.distSqr();
+    return os << rhs.origin() << rhs.distSqr();
 }
 
 
 Foam::Istream& Foam::operator>>
 (
-    Foam::Istream& is,
-    Foam::externalPointEdgePoint& wDist
+    Istream& is,
+    externalPointEdgePoint& rhs
 )
 {
-    return is >> wDist.origin_ >> wDist.distSqr_;
+    return is >> rhs.origin_ >> rhs.distSqr_;
 }
 
 

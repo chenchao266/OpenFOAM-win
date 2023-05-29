@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -26,145 +29,256 @@ License
 //#include "fixedJumpFvPatchField.H"
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
-namespace Foam {
-    template<class Type>
-    fixedJumpFvPatchField<Type>::fixedJumpFvPatchField
-    (
-        const fvPatch& p,
-        const DimensionedField<Type, volMesh>& iF
-    )
-        :
-        jumpCyclicFvPatchField<Type>(p, iF),
-        jump_(this->size(), Zero)
-    {}
+
+template<class Type>
+Foam::fixedJumpFvPatchField<Type>::fixedJumpFvPatchField
+(
+    const fvPatch& p,
+    const DimensionedField<Type, volMesh>& iF
+)
+:
+    jumpCyclicFvPatchField<Type>(p, iF),
+    jump_(this->size(), Zero),
+    jump0_(this->size(), Zero),
+    minJump_(pTraits<Type>::min_),
+    relaxFactor_(-1),
+    timeIndex_(-1)
+{}
 
 
-    template<class Type>
-    fixedJumpFvPatchField<Type>::fixedJumpFvPatchField
-    (
-        const fixedJumpFvPatchField<Type>& ptf,
-        const fvPatch& p,
-        const DimensionedField<Type, volMesh>& iF,
-        const fvPatchFieldMapper& mapper
-    )
-        :
-        jumpCyclicFvPatchField<Type>(ptf, p, iF, mapper),
-        jump_(ptf.jump_, mapper)
-    {}
+template<class Type>
+Foam::fixedJumpFvPatchField<Type>::fixedJumpFvPatchField
+(
+    const fixedJumpFvPatchField<Type>& ptf,
+    const fvPatch& p,
+    const DimensionedField<Type, volMesh>& iF,
+    const fvPatchFieldMapper& mapper
+)
+:
+    jumpCyclicFvPatchField<Type>(ptf, p, iF, mapper),
+    jump_(ptf.jump_, mapper),
+    jump0_(ptf.jump0_, mapper),
+    minJump_(ptf.minJump_),
+    relaxFactor_(ptf.relaxFactor_),
+    timeIndex_(ptf.timeIndex_)
+{}
 
 
-    template<class Type>
-    fixedJumpFvPatchField<Type>::fixedJumpFvPatchField
-    (
-        const fvPatch& p,
-        const DimensionedField<Type, volMesh>& iF,
-        const dictionary& dict
-    )
-        :
-        jumpCyclicFvPatchField<Type>(p, iF),
-        jump_(p.size(), Zero)
+template<class Type>
+Foam::fixedJumpFvPatchField<Type>::fixedJumpFvPatchField
+(
+    const fvPatch& p,
+    const DimensionedField<Type, volMesh>& iF,
+    const dictionary& dict,
+    const bool valueRequired
+)
+:
+    jumpCyclicFvPatchField<Type>(p, iF, dict, false), // Pass no valueRequired
+    jump_(p.size(), Zero),
+    jump0_(p.size(), Zero),
+    minJump_(dict.getOrDefault<Type>("minJump", pTraits<Type>::min_)),
+    relaxFactor_(dict.getOrDefault<scalar>("relax", -1)),
+    timeIndex_(this->db().time().timeIndex())
+{
+    if (this->cyclicPatch().owner())
     {
-        if (this->cyclicPatch().owner())
+        if (valueRequired)
         {
             jump_ = Field<Type>("jump", dict, p.size());
         }
 
+        if (dict.found("jump0"))
+        {
+            jump0_ = Field<Type>("jump0", dict, p.size());
+        }
+    }
+
+    if (valueRequired)
+    {
         if (dict.found("value"))
         {
             fvPatchField<Type>::operator=
-                (
-                    Field<Type>("value", dict, p.size())
-                    );
+            (
+                Field<Type>("value", dict, p.size())
+            );
         }
         else
         {
             this->evaluate(Pstream::commsTypes::blocking);
         }
     }
-
-
-    template<class Type>
-    fixedJumpFvPatchField<Type>::fixedJumpFvPatchField
-    (
-        const fixedJumpFvPatchField<Type>& ptf
-    )
-        :
-        jumpCyclicFvPatchField<Type>(ptf),
-        jump_(ptf.jump_)
-    {}
-
-
-    template<class Type>
-    fixedJumpFvPatchField<Type>::fixedJumpFvPatchField
-    (
-        const fixedJumpFvPatchField<Type>& ptf,
-        const DimensionedField<Type, volMesh>& iF
-    )
-        :
-        jumpCyclicFvPatchField<Type>(ptf, iF),
-        jump_(ptf.jump_)
-    {}
-
-
-    // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
-
-    template<class Type>
-    tmp<Field<Type>> fixedJumpFvPatchField<Type>::jump() const
-    {
-        if (this->cyclicPatch().owner())
-        {
-            return jump_;
-        }
-        else
-        {
-            return refCast<const fixedJumpFvPatchField<Type>>
-                (
-                    this->neighbourPatchField()
-                    ).jump();
-        }
-    }
-
-
-    template<class Type>
-    void fixedJumpFvPatchField<Type>::autoMap
-    (
-        const fvPatchFieldMapper& m
-    )
-    {
-        jumpCyclicFvPatchField<Type>::autoMap(m);
-        jump_.autoMap(m);
-    }
-
-
-    template<class Type>
-    void fixedJumpFvPatchField<Type>::rmap
-    (
-        const fvPatchField<Type>& ptf,
-        const labelList& addr
-    )
-    {
-        jumpCyclicFvPatchField<Type>::rmap(ptf, addr);
-
-        const fixedJumpFvPatchField<Type>& tiptf =
-            refCast<const fixedJumpFvPatchField<Type>>(ptf);
-        jump_.rmap(tiptf.jump_, addr);
-    }
-
-
-    template<class Type>
-    void fixedJumpFvPatchField<Type>::write(Ostream& os) const
-    {
-        fvPatchField<Type>::write(os);
-        os.writeKeyword("patchType") << this->interfaceFieldType()
-            << token::END_STATEMENT << nl;
-
-        if (this->cyclicPatch().owner())
-        {
-            jump_.writeEntry("jump", os);
-        }
-
-        this->writeEntry("value", os);
-    }
-
 }
+
+
+template<class Type>
+Foam::fixedJumpFvPatchField<Type>::fixedJumpFvPatchField
+(
+    const fixedJumpFvPatchField<Type>& ptf
+)
+:
+    jumpCyclicFvPatchField<Type>(ptf),
+    jump_(ptf.jump_),
+    jump0_(ptf.jump0_),
+    minJump_(ptf.minJump_),
+    relaxFactor_(ptf.relaxFactor_),
+    timeIndex_(ptf.timeIndex_)
+{}
+
+
+template<class Type>
+Foam::fixedJumpFvPatchField<Type>::fixedJumpFvPatchField
+(
+    const fixedJumpFvPatchField<Type>& ptf,
+    const DimensionedField<Type, volMesh>& iF
+)
+:
+    jumpCyclicFvPatchField<Type>(ptf, iF),
+    jump_(ptf.jump_),
+    jump0_(ptf.jump0_),
+    minJump_(ptf.minJump_),
+    relaxFactor_(ptf.relaxFactor_),
+    timeIndex_(ptf.timeIndex_)
+{}
+
+
+// * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
+
+template<class Type>
+void Foam::fixedJumpFvPatchField<Type>::setJump(const Field<Type>& jump)
+{
+    if (this->cyclicPatch().owner())
+    {
+        jump_ = max(jump, minJump_);
+    }
+}
+
+
+template<class Type>
+void Foam::fixedJumpFvPatchField<Type>::setJump(const Type& jump)
+{
+    if (this->cyclicPatch().owner())
+    {
+        jump_ = max(jump, minJump_);
+    }
+}
+
+
+template<class Type>
+Foam::tmp<Foam::Field<Type>> Foam::fixedJumpFvPatchField<Type>::jump() const
+{
+    if (this->cyclicPatch().owner())
+    {
+        return jump_;
+    }
+    else
+    {
+        return refCast<const fixedJumpFvPatchField<Type>>
+        (
+            this->neighbourPatchField()
+        ).jump();
+    }
+}
+
+
+template<class Type>
+Foam::tmp<Foam::Field<Type>> Foam::fixedJumpFvPatchField<Type>::jump0() const
+{
+    if (this->cyclicPatch().owner())
+    {
+        return jump0_;
+    }
+    else
+    {
+        return refCast<const fixedJumpFvPatchField<Type>>
+        (
+            this->neighbourPatchField()
+        ).jump0();
+    }
+}
+
+
+template<class Type>
+Foam::scalar Foam::fixedJumpFvPatchField<Type>::relaxFactor() const
+{
+    return relaxFactor_;
+}
+
+
+template<class Type>
+void Foam::fixedJumpFvPatchField<Type>::relax()
+{
+    if (!this->cyclicPatch().owner() || relaxFactor_ < 0)
+    {
+        return;
+    }
+
+    jump_ = relaxFactor_*jump_ + (1 - relaxFactor_)*jump0_;
+
+    if (timeIndex_ != this->db().time().timeIndex())
+    {
+        jump0_ = jump_;
+
+        timeIndex_ = this->db().time().timeIndex();
+    }
+}
+
+
+template<class Type>
+void Foam::fixedJumpFvPatchField<Type>::autoMap
+(
+    const fvPatchFieldMapper& m
+)
+{
+    jumpCyclicFvPatchField<Type>::autoMap(m);
+    jump_.autoMap(m);
+    jump0_.autoMap(m);
+}
+
+
+template<class Type>
+void Foam::fixedJumpFvPatchField<Type>::rmap
+(
+    const fvPatchField<Type>& ptf,
+    const labelList& addr
+)
+{
+    jumpCyclicFvPatchField<Type>::rmap(ptf, addr);
+
+    const auto& fjptf = refCast<const fixedJumpFvPatchField<Type>>(ptf);
+    jump_.rmap(fjptf.jump_, addr);
+    jump0_.rmap(fjptf.jump0_, addr);
+}
+
+
+template<class Type>
+void Foam::fixedJumpFvPatchField<Type>::write(Ostream& os) const
+{
+    fvPatchField<Type>::write(os);
+
+    // Write patchType if not done already by fvPatchField
+    if (!this->patchType().size())
+    {
+        os.writeEntry("patchType", this->interfaceFieldType());
+    }
+
+    if (this->cyclicPatch().owner())
+    {
+        jump_.writeEntry("jump", os);
+
+        if (relaxFactor_ > 0)
+        {
+            os.writeEntry("relax", relaxFactor_);
+            jump0_.writeEntry("jump0", os);
+        }
+    }
+
+    if (minJump_ != pTraits<Type>::min_)
+    {
+        os.writeEntry("minJump", minJump_);
+    }
+
+    this->writeEntry("value", os);
+}
+
+
 // ************************************************************************* //

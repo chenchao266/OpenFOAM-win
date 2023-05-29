@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -26,6 +28,28 @@ Class
 
 Description
     Container for searchableSurfaces.
+    The collection is specified as a dictionary. For example,
+
+    \verbatim
+    geometry
+    {
+        surface1
+        {
+            type  ...;
+        }
+        surface2
+        {
+            type  ...;
+        }
+    }
+    \endverbatim
+
+    \heading The Sub-dictionary parameters
+    \table
+        Property    | Description                       | Required  | Default
+        name        | alternative name for surface      | no    | dict name
+        regions     | Region names sub-dictionary       | no    |
+    \endtable
 
 SourceFiles
     searchableSurfaces.C
@@ -44,7 +68,7 @@ SourceFiles
 namespace Foam
 {
 
-// Forward declaration of classes
+// Forward declarations
 class triSurface;
 
 /*---------------------------------------------------------------------------*\
@@ -63,9 +87,6 @@ class searchableSurfaces
         //- Region names per surface
         List<wordList> regionNames_;
 
-        ////- From global region name to surface and region on surface
-        //HashTable<labelPair> regionNames_;
-
         //- Indices of all surfaces. Precalculated and stored.
         labelList allSurfaces_;
 
@@ -81,11 +102,11 @@ class searchableSurfaces
         );
 
 
-        //- Disallow default bitwise copy construct
-        searchableSurfaces(const searchableSurfaces&);
+        //- No copy construct
+        searchableSurfaces(const searchableSurfaces&) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const searchableSurfaces&);
+        //- No copy assignment
+        void operator=(const searchableSurfaces&) = delete;
 
 
 public:
@@ -102,10 +123,11 @@ public:
         ////- Construct from list of dictionaries
         //searchableSurfaces(const IOobject&, const PtrList<dictionary>&);
 
-        //- Construct from dictionary and whether to construct names always
-        //  as surfaceName "_" regionName (singleRegionName false) or
-        //  for single region surfaces as surfaceName only (singleRegionName
-        //  true)
+        //- Construct from dictionary.
+        //  \param singleRegionName controls if names are constructed as
+        //      surfaceName "_" regionName (singleRegionName false) or for
+        //      single region surfaces as surfaceName only (singleRegionName
+        //      true)
         searchableSurfaces
         (
             const IOobject&,
@@ -116,21 +138,25 @@ public:
 
     // Member Functions
 
+        //- Surface names, not region names
         const wordList& names() const
         {
             return names_;
         }
 
+        //- Surface names, not region names
         wordList& names()
         {
             return names_;
         }
 
+        //- Region names per surface
         const List<wordList>& regionNames() const
         {
             return regionNames_;
         }
 
+        //- Region names per surface
         List<wordList>& regionNames()
         {
             return regionNames_;
@@ -203,9 +229,9 @@ public:
 
             void findNearest
             (
+                const labelListList& regionIndices,
                 const pointField& samples,
                 const scalarField& nearestDistSqr,
-                const labelList& regionIndices,
                 labelList& nearestSurfaces,
                 List<pointIndexHit>& nearestInfo
             ) const;

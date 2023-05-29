@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2018 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -38,11 +41,11 @@ SourceFiles
 
 #include "polyPatch.H"
 #include "labelList.H"
-#include "SubList.T.H"
+#include "SubList.H"
 #include "typeInfo.H"
 #include "tmp.H"
 #include "primitiveFields.H"
-#include "SubField.T.H"
+#include "SubField.H"
 #include "fvPatchFieldsFwd.H"
 #include "autoPtr.H"
 #include "runTimeSelectionTables.H"
@@ -52,6 +55,7 @@ SourceFiles
 namespace Foam
 {
 
+// Forward Declarations
 class fvBoundaryMesh;
 class surfaceInterpolation;
 
@@ -61,7 +65,7 @@ class surfaceInterpolation;
 
 class fvPatch
 {
-    // Private data
+    // Private Data
 
         //- Reference to the underlying polyPatch
         const polyPatch& polyPatch_;
@@ -72,19 +76,28 @@ class fvPatch
 
     // Private Member Functions
 
-        //- Disallow construct as copy
-        fvPatch(const fvPatch&);
+        //- No copy construct
+        fvPatch(const fvPatch&) = delete;
 
-        //- Disallow assignment
-        void operator=(const fvPatch&);
+        //- No copy assignment
+        void operator=(const fvPatch&) = delete;
 
 
-protected:
+public:
 
     // Protected Member Functions
 
         //- Make patch weighting factors
         virtual void makeWeights(scalarField&) const;
+
+        //- Correct patch deltaCoeffs
+        virtual void makeDeltaCoeffs(scalarField&) const;
+
+        //- Correct patch non-ortho deltaCoeffs
+        virtual void makeNonOrthoDeltaCoeffs(scalarField&) const;
+
+        //- Correct patch non-ortho correction vectors
+        virtual void makeNonOrthoCorrVectors(vectorField&) const;
 
         //- Initialise the patches for moving points
         virtual void initMovePoints();
@@ -138,6 +151,11 @@ public:
 
     // Member Functions
 
+        //- Lookup the polyPatch index on corresponding fvMesh
+        //  \note Fatal if the polyPatch is not associated with a fvMesh
+        static const fvPatch& lookupPatch(const polyPatch& p);
+
+
     // Access
 
             //- Return the polyPatch
@@ -147,13 +165,13 @@ public:
             }
 
             //- Return name
-            const word& name() const
+            virtual const word& name() const
             {
                 return polyPatch_.name();
             }
 
             //- Return start label of this patch in the polyMesh face list
-            label start() const
+            virtual label start() const
             {
                 return polyPatch_.start();
             }
@@ -217,8 +235,8 @@ public:
             tmp<vectorField> nf() const;
 
             //- Return cell-centre to face-centre vector
-            //  except for coupled patches for which the cell-centre
-            //  to coupled-cell-centre vector is returned
+            //- except for coupled patches for which the cell-centre
+            //- to coupled-cell-centre vector is returned
             virtual tmp<vectorField> delta() const;
 
 
@@ -227,9 +245,9 @@ public:
             //- Return patch weighting factors
             const scalarField& weights() const;
 
-            //- Return the face - cell distance coeffient
-            //  except for coupled patches for which the cell-centre
-            //  to coupled-cell-centre distance coeffient is returned
+            //- Return the face - cell distance coefficient
+            //- except for coupled patches for which the cell-centre
+            //- to coupled-cell-centre distance coefficient is returned
             const scalarField& deltaCoeffs() const;
 
 
@@ -238,6 +256,15 @@ public:
             //- Return given internal field next to patch as patch field
             template<class Type>
             tmp<Field<Type>> patchInternalField(const UList<Type>&) const;
+
+            //- Return given internal field next to patch as patch field
+            //- using faceCells mapping
+            template<class Type>
+            tmp<Field<Type>> patchInternalField
+            (
+                const UList<Type>&,
+                const labelUList& faceCells
+            ) const;
 
             //- Return given internal field next to patch as patch field
             template<class Type>
@@ -250,15 +277,8 @@ public:
                 const GeometricField&
             ) const;
 
-            //- Return the corresponding patchField reference of the named field
-            template<class GeometricField, class Type>
-            typename GeometricField::Patch& patchField
-            (
-                GeometricField&
-            ) const;
-
             //- Lookup and return the patchField of the named field from the
-            //  local objectRegistry.
+            //- local objectRegistry.
             //  N.B.  The dummy pointer arguments are used if this function is
             //  instantiated within a templated function to avoid a bug in gcc.
             //  See inletOutletFvPatchField.C and outletInletFvPatchField.C

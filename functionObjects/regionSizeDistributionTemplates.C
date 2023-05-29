@@ -1,9 +1,12 @@
-﻿/*---------------------------------------------------------------------------*\
+/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2012-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2012-2016 OpenFOAM Foundation
+    Copyright (C) 2019 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -23,7 +26,7 @@ License
 
 \*---------------------------------------------------------------------------*/
 
-//#include "regionSizeDistribution.H"
+#include "regionSizeDistribution.H"
 #include "regionSplit.H"
 #include "volFields.H"
 
@@ -41,18 +44,10 @@ Foam::Map<Type> Foam::functionObjects::regionSizeDistribution::regionSum
 
     forAll(fld, celli)
     {
-        label regionI = regions[celli];
-
-        typename Map<Type>::iterator fnd = regionToSum.find(regionI);
-        if (fnd == regionToSum.end())
-        {
-            regionToSum.insert(regionI, fld[celli]);
-        }
-        else
-        {
-            fnd() += fld[celli];
-        }
+        const label regioni = regions[celli];
+        regionToSum(regioni, Type(Zero)) += fld[celli];
     }
+
     Pstream::mapCombineGather(regionToSum, plusEqOp<Type>());
     Pstream::mapCombineScatter(regionToSum);
 
@@ -63,7 +58,7 @@ Foam::Map<Type> Foam::functionObjects::regionSizeDistribution::regionSum
 template<class Type>
 Foam::List<Type> Foam::functionObjects::regionSizeDistribution::extractData
 (
-    const UList<label>& keys,
+    const labelUList& keys,
     const Map<Type>& regionData
 ) const
 {

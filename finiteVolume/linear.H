@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -23,6 +25,9 @@ License
 
 Class
     Foam::linear
+
+Group
+    grpFvSurfaceInterpolationSchemes
 
 Description
     Central-differencing interpolation scheme class
@@ -54,8 +59,8 @@ class linear
 {
     // Private Member Functions
 
-        //- Disallow default bitwise assignment
-        void operator=(const linear&);
+        //- No copy assignment
+        void operator=(const linear&) = delete;
 
 
 public:
@@ -95,7 +100,7 @@ public:
         //- Return the interpolation weighting factors
         tmp<surfaceScalarField> weights
         (
-            const volFieldType<Type>&
+            const GeometricField<Type, fvPatchField, volMesh>&
         ) const
         {
             return this->mesh().surfaceInterpolation::weights();
@@ -104,8 +109,8 @@ public:
 
 
 template<class Type>
-tmp<surfaceFieldType<Type>>
-linearInterpolate(const volFieldType<Type>& vf)
+tmp<GeometricField<Type, fvsPatchField, surfaceMesh>>
+linearInterpolate(const GeometricField<Type, fvPatchField, volMesh>& vf)
 {
     return surfaceInterpolationScheme<Type>::interpolate
     (
@@ -116,10 +121,10 @@ linearInterpolate(const volFieldType<Type>& vf)
 
 
 template<class Type>
-tmp<surfaceFieldType<Type>>
-linearInterpolate(const tmp<volFieldType<Type>>& tvf)
+tmp<GeometricField<Type, fvsPatchField, surfaceMesh>>
+linearInterpolate(const tmp<GeometricField<Type, fvPatchField, volMesh>>& tvf)
 {
-    tmp<surfaceFieldType<Type>> tinterp =
+    tmp<GeometricField<Type, fvsPatchField, surfaceMesh>> tinterp =
         linearInterpolate(tvf());
     tvf.clear();
     return tinterp;

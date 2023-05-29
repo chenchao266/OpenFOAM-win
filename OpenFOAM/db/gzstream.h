@@ -1,4 +1,4 @@
-// ============================================================================
+﻿// ============================================================================
 // gzstream, C++ iostream classes wrapping the zlib compression library.
 // Copyright (C) 2001  Deepak Bandyopadhyay, Lutz Kettner
 //
@@ -24,6 +24,12 @@
 //
 // Standard streambuf implementation following Nicolai Josuttis,
 // "The Standard C++ Library".
+// ============================================================================
+//
+// Modifications:
+// 2020-08-07 OpenCFD Ltd.
+// - construct/open with std::string as per C++11
+// - constexpr
 // ============================================================================
 
 #ifndef GZSTREAM_H
@@ -55,7 +61,7 @@ private:
 
    //------------------------------------
 
-   static const int bufferSize = 47+256;
+   static constexpr const int bufferSize = 47+256;
    // totals 512 bytes under g++ for igzstream at the end.
 
    //------------------------------------
@@ -155,10 +161,15 @@ public:
    igzstream()
       : std::istream( &buf)
    {}
+   explicit
    igzstream( const char*  _name,
               int          _open_mode = std::ios::in )
       : std::istream( &buf )
       , gzstreambase( _name, _open_mode )
+   {}
+   explicit
+   igzstream(const std::string& _name, int _open_mode = std::ios::in)
+      : igzstream(_name.c_str(), _open_mode)
    {}
 
    //------------------------------------
@@ -171,6 +182,10 @@ public:
               int          _open_mode = std::ios::in )
    {
        gzstreambase::open( _name, _open_mode );
+   }
+   void open(const std::string& _name, int _open_mode = std::ios::in)
+   {
+       gzstreambase::open(_name.c_str(), _open_mode);
    }
 };
 
@@ -195,6 +210,10 @@ public:
       : gzstreambase( _name, _open_mode )
       , std::ostream( &buf)
    {}
+   explicit
+   ogzstream(const std::string& _name, int _open_mode = std::ios::out)
+      : ogzstream(_name.c_str(), _open_mode)
+   {}
 
    //------------------------------------
 
@@ -206,6 +225,10 @@ public:
               int          _open_mode = std::ios::out )
    {
       gzstreambase::open( _name, _open_mode );
+   }
+   void open(const std::string& _name, int _open_mode = std::ios::out)
+   {
+       gzstreambase::open(_name.c_str(), _open_mode);
    }
 };
 

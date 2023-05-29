@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -46,16 +48,10 @@ Foam::solidBodyMotionFunction::solidBodyMotionFunction
     (
         SBMFCoeffs.optionalSubDict
         (
-            word(SBMFCoeffs.lookup("solidBodyMotionFunction")) + "Coeffs"
+            SBMFCoeffs.get<word>("solidBodyMotionFunction") + "Coeffs"
         )
     ),
     time_(runTime)
-{}
-
-
-// * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
-
-Foam::solidBodyMotionFunction::~solidBodyMotionFunction()
 {}
 
 

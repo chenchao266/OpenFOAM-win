@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -60,11 +62,11 @@ class cyclicAMIPointPatch
 
     // Private Member Functions
 
-        //- Disallow default construct as copy
-        cyclicAMIPointPatch(const cyclicAMIPointPatch&);
+        //- No copy construct
+        cyclicAMIPointPatch(const cyclicAMIPointPatch&) = delete;
 
-        //- Disallow default assignment
-        void operator=(const cyclicAMIPointPatch&);
+        //- No copy assignment
+        void operator=(const cyclicAMIPointPatch&) = delete;
 
 
 protected:
@@ -111,6 +113,9 @@ public:
 
 
     // Member Functions
+
+        //- Return true if this patch field is coupled
+        virtual bool coupled() const;
 
         //- Return the constraint type this pointPatch implements.
         virtual const word& constraintType() const

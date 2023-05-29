@@ -1,16 +1,15 @@
-﻿/*---------------------------------------------------------------------------*\
+/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2015 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
 -------------------------------------------------------------------------------
+    Copyright (C) 2011-2015 OpenFOAM Foundation
+    Copyright (C) 2019 OpenCFD Ltd.
+-------------------------------------------------------------------------------
 License
-    This file is part of blueCAPE's unofficial mingw patches for OpenFOAM.
-    For more information about these patches, visit:
-         http://bluecfd.com/Core
-
-    This file is a derivative work of OpenFOAM.
+    This file is part of OpenFOAM.
 
     OpenFOAM is free software: you can redistribute it and/or modify it
     under the terms of the GNU General Public License as published by
@@ -24,22 +23,6 @@ License
 
     You should have received a copy of the GNU General Public License
     along with OpenFOAM.  If not, see <http://www.gnu.org/licenses/>.
-
-Modifications
-    This file is based on the original version for POSIX:
-        OpenFOAM/src/OSspecific/POSIX/
-
-    This file was developed for Windows by:
-        Copyright            : (C) 2011 Symscape
-        Website              : www.symscape.com
-
-    This copy of this file has been created by blueCAPE's unofficial mingw
-    patches for OpenFOAM.
-    For more information about these patches, visit:
-        http://bluecfd.com/Core
-
-    Modifications made:
-      - Derived from the patches for blueCFD 2.1 and 2.2.
 
 Class
     Foam::timer
@@ -64,13 +47,14 @@ Description
     Constructor set signal handler on sigalarm and alarm(). Destructor
     clears these.
 
-    timedOut is macro because setjmp can't be in member function of timer.
-    ?something to do with stack frames.
-
 Warning
     The setjmp restores complete register state so including local vars
     held in regs. So if in blocking part something gets calced in a stack
     based variable make sure it is declared 'volatile'.
+
+Note
+    timedOut is macro because setjmp can't be in member function of timer.
+    ?something to do with stack frames.
 
 SourceFiles
     timer.C
@@ -80,18 +64,15 @@ SourceFiles
 #ifndef timer_H
 #define timer_H
 
-#include "OSspecific.H"
 #include "className.H"
-
-#include <signal.h>
-#include <setjmp.h>
+#include <csetjmp>
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
-//- Check it a timeout has occured
+//- Check if timeout has occurred
 //  keep setjmp in same stack frame so no function calls
 #define timedOut(x) \
-    (((x).newTimeOut_ > 0) ? setjmp(Foam::timer::envAlarm) : false)
+    ((x).timeOut_ ? setjmp(Foam::timer::envAlarm) : false)
 
 namespace Foam
 {
@@ -102,30 +83,27 @@ namespace Foam
 
 class timer
 {
-    // Private data
+    // Private Data
 
-        //- old signal
-        static __p_sig_fn_t oldAction_;
-
-        //- old alarm() value
+        //- Old alarm() value
         static unsigned int oldTimeOut_;
 
 
     // Private Member Functions
 
-        //- alarm handler
-        static void signalHandler(int);
+        //- Alarm handler
+        static void sigHandler(int);
 
 
 public:
 
-    // Public data
+    // Public Data
 
         //- Declare name of the class and its debug switch
         ClassName("timer");
 
-        //- Current time out value. Needed by macro timedOut
-        unsigned int newTimeOut_;
+        //- The time-out value (seconds). Needed by macro timedOut
+        unsigned int timeOut_;
 
         //- State for setjmp. Needed by macro timedOut
         static jmp_buf envAlarm;
@@ -133,12 +111,11 @@ public:
 
     // Constructors
 
-        //- Construct from components.
-        //  newTimeOut=0 makes it do nothing.
-        timer(const unsigned int newTimeOut);
+        //- Construct with specified time-out, a value of 0 makes it a no-op.
+        timer(unsigned int seconds);
 
 
-    //- Destructor
+    //- Destructor. Restores the alarm and signal handler as required.
     ~timer();
 };
 

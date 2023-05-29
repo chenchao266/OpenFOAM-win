@@ -1,9 +1,11 @@
-﻿/*---------------------------------------------------------------------------*\
+/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -27,123 +29,119 @@ License
 #include "volFields.H"
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
-namespace Foam {
-    template<class Type>
-    mappedFixedValueFvPatchField<Type>::mappedFixedValueFvPatchField
+
+template<class Type>
+Foam::mappedFixedValueFvPatchField<Type>::mappedFixedValueFvPatchField
+(
+    const fvPatch& p,
+    const DimensionedField<Type, volMesh>& iF
+)
+:
+    fixedValueFvPatchField<Type>(p, iF),
+    mappedPatchFieldBase<Type>(mappedPatchFieldBase<Type>::mapper(p, iF), *this)
+{}
+
+
+template<class Type>
+Foam::mappedFixedValueFvPatchField<Type>::mappedFixedValueFvPatchField
+(
+    const fvPatch& p,
+    const DimensionedField<Type, volMesh>& iF,
+    const dictionary& dict
+)
+:
+    fixedValueFvPatchField<Type>(p, iF, dict),
+    mappedPatchFieldBase<Type>
     (
-        const fvPatch& p,
-        const DimensionedField<Type, volMesh>& iF
+        mappedPatchFieldBase<Type>::mapper(p, iF),
+        *this,
+        dict,
+        *this   // initial value for database operation
     )
-        :
-        fixedValueFvPatchField<Type>(p, iF),
-        mappedPatchFieldBase<Type>(this->mapper(p, iF), *this)
-    {}
+{}
 
 
-    template<class Type>
-    mappedFixedValueFvPatchField<Type>::mappedFixedValueFvPatchField
+template<class Type>
+Foam::mappedFixedValueFvPatchField<Type>::mappedFixedValueFvPatchField
+(
+    const mappedFixedValueFvPatchField<Type>& ptf,
+    const fvPatch& p,
+    const DimensionedField<Type, volMesh>& iF,
+    const fvPatchFieldMapper& mapper
+)
+:
+    fixedValueFvPatchField<Type>(ptf, p, iF, mapper),
+    mappedPatchFieldBase<Type>
     (
-        const fvPatch& p,
-        const DimensionedField<Type, volMesh>& iF,
-        const dictionary& dict
+        mappedPatchFieldBase<Type>::mapper(p, iF),
+        *this,
+        ptf
     )
-        :
-        fixedValueFvPatchField<Type>(p, iF, dict),
-        mappedPatchFieldBase<Type>(this->mapper(p, iF), *this, dict)
-    {}
+{}
 
 
-    template<class Type>
-    mappedFixedValueFvPatchField<Type>::mappedFixedValueFvPatchField
+template<class Type>
+Foam::mappedFixedValueFvPatchField<Type>::mappedFixedValueFvPatchField
+(
+    const mappedFixedValueFvPatchField<Type>& ptf
+)
+:
+    fixedValueFvPatchField<Type>(ptf),
+    mappedPatchFieldBase<Type>(ptf)
+{}
+
+
+template<class Type>
+Foam::mappedFixedValueFvPatchField<Type>::mappedFixedValueFvPatchField
+(
+    const mappedFixedValueFvPatchField<Type>& ptf,
+    const DimensionedField<Type, volMesh>& iF
+)
+:
+    fixedValueFvPatchField<Type>(ptf, iF),
+    mappedPatchFieldBase<Type>
     (
-        const mappedFixedValueFvPatchField<Type>& ptf,
-        const fvPatch& p,
-        const DimensionedField<Type, volMesh>& iF,
-        const fvPatchFieldMapper& mapper
+        mappedPatchFieldBase<Type>::mapper(this->patch(), iF),
+        *this,
+        ptf
     )
-        :
-        fixedValueFvPatchField<Type>(ptf, p, iF, mapper),
-        mappedPatchFieldBase<Type>(this->mapper(p, iF), *this, ptf)
-    {}
+{}
 
 
-    template<class Type>
-    mappedFixedValueFvPatchField<Type>::mappedFixedValueFvPatchField
-    (
-        const mappedFixedValueFvPatchField<Type>& ptf
-    )
-        :
-        fixedValueFvPatchField<Type>(ptf),
-        mappedPatchFieldBase<Type>(ptf)
-    {}
+// * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
 
-
-    template<class Type>
-    mappedFixedValueFvPatchField<Type>::mappedFixedValueFvPatchField
-    (
-        const mappedFixedValueFvPatchField<Type>& ptf,
-        const DimensionedField<Type, volMesh>& iF
-    )
-        :
-        fixedValueFvPatchField<Type>(ptf, iF),
-        mappedPatchFieldBase<Type>(this->mapper(this->patch(), iF), *this, ptf)
-    {}
-
-
-    // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
-
-    template<class Type>
-    const mappedPatchBase& mappedFixedValueFvPatchField<Type>::mapper
-    (
-        const fvPatch& p,
-        const DimensionedField<Type, volMesh>& iF
-    )
+template<class Type>
+void Foam::mappedFixedValueFvPatchField<Type>::updateCoeffs()
+{
+    if (this->updated())
     {
-        if (!isA<mappedPatchBase>(p.patch()))
-        {
-            FatalErrorInFunction
-                << "' not type '" << mappedPatchBase::typeName << "'"
-                << "\n    for patch " << p.patch().name()
-                << " of field " << iF.name()
-                << " in file " << iF.objectPath()
-                << exit(FatalError);
-        }
-        return refCast<const mappedPatchBase>(p.patch());
+        return;
     }
 
+    this->operator==(this->mappedField());
 
-    template<class Type>
-    void mappedFixedValueFvPatchField<Type>::updateCoeffs()
+    if (debug)
     {
-        if (this->updated())
-        {
-            return;
-        }
-
-        this->operator==(this->mappedField());
-
-        if (debug)
-        {
-            Info << "mapped on field:"
-                << this->internalField().name()
-                << " patch:" << this->patch().name()
-                << "  avg:" << gAverage(*this)
-                << "  min:" << gMin(*this)
-                << "  max:" << gMax(*this)
-                << endl;
-        }
-
-        fixedValueFvPatchField<Type>::updateCoeffs();
+        Info<< "mapped on field:"
+            << this->internalField().name()
+            << " patch:" << this->patch().name()
+            << "  avg:" << gAverage(*this)
+            << "  min:" << gMin(*this)
+            << "  max:" << gMax(*this)
+            << endl;
     }
 
-
-    template<class Type>
-    void mappedFixedValueFvPatchField<Type>::write(Ostream& os) const
-    {
-        fvPatchField<Type>::write(os);
-        mappedPatchFieldBase<Type>::write(os);
-        this->writeEntry("value", os);
-    }
+    fixedValueFvPatchField<Type>::updateCoeffs();
 }
+
+
+template<class Type>
+void Foam::mappedFixedValueFvPatchField<Type>::write(Ostream& os) const
+{
+    fvPatchField<Type>::write(os);
+    mappedPatchFieldBase<Type>::write(os);
+    this->writeEntry("value", os);
+}
+
 
 // ************************************************************************* //

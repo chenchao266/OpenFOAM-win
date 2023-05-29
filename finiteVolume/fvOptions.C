@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2019-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -25,7 +28,7 @@ License
 
 #include "fvOptions.H"
 #include "fvMesh.H"
-#include "Time.T.H"
+#include "Time1.H"
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
 
@@ -60,8 +63,7 @@ Foam::IOobject Foam::fv::options::createIOobject
             << io.instance()/io.name() << nl
             << endl;
 
-        io.readOpt() = IOobject::MUST_READ_IF_MODIFIED;
-        return io;
+        io.readOpt(IOobject::MUST_READ_IF_MODIFIED);
     }
     else
     {
@@ -74,17 +76,15 @@ Foam::IOobject Foam::fv::options::createIOobject
                 << io.instance()/io.name() << nl
                 << endl;
 
-            io.readOpt() = IOobject::MUST_READ_IF_MODIFIED;
-            return io;
+            io.readOpt(IOobject::MUST_READ_IF_MODIFIED);
         }
         else
         {
-            Info<< "No finite volume options present" << nl << endl;
-
-            io.readOpt() = IOobject::NO_READ;
-            return io;
+            io.readOpt(IOobject::NO_READ);
         }
     }
+
+    return io;
 }
 
 
@@ -111,12 +111,9 @@ Foam::fv::options& Foam::fv::options::New(const fvMesh& mesh)
     }
     else
     {
-        if (debug)
-        {
-            InfoInFunction
-                << "Constructing " << typeName
-                << " for region " << mesh.name() << endl;
-        }
+        DebugInFunction
+            << "Constructing " << typeName
+            << " for region " << mesh.name() << nl;
 
         options* objectPtr = new options(mesh);
         regIOobject::store(objectPtr);
@@ -132,10 +129,8 @@ bool Foam::fv::options::read()
         optionList::read(*this);
         return true;
     }
-    else
-    {
-        return false;
-    }
+
+    return false;
 }
 
 

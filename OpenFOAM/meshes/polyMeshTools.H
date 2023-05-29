@@ -1,9 +1,12 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2012-2013 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2012-2013 OpenFOAM Foundation
+    Copyright (C) 2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -32,6 +35,7 @@ SourceFiles
     polyMeshTools.C
 
 \*---------------------------------------------------------------------------*/
+
 #ifndef polyMeshTools_H
 #define polyMeshTools_H
 
@@ -47,7 +51,9 @@ namespace Foam
                         Namespace polyMeshTools Declaration
 \*---------------------------------------------------------------------------*/
 
-class polyMeshTools :    public primitiveMeshTools
+class polyMeshTools
+:
+    public primitiveMeshTools
 {
 
 public:
@@ -87,6 +93,13 @@ public:
         const scalarField& vol
     );
 
+    //- Combine readUpdateState. topo change trumps geom-only
+    //  change etc.
+    static polyMesh::readUpdateState combine
+    (
+        const polyMesh::readUpdateState& state0,
+        const polyMesh::readUpdateState& state1
+    );
 };
 
 

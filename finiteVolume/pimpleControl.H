@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2017-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -56,11 +59,11 @@ class pimpleControl
 {
     // Private member functions
 
-        //- Disallow default bitwise copy construct
-        pimpleControl(const pimpleControl&);
+        //- No copy construct
+        pimpleControl(const pimpleControl&) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const pimpleControl&);
+        //- No copy assignment
+        void operator=(const pimpleControl&) = delete;
 
 
 protected:
@@ -82,11 +85,18 @@ protected:
             label corrPISO_;
 
             //- Flag to indicate whether to update density in SIMPLE
-            //  rather than PISO mode
+            //- rather than PISO mode
             bool SIMPLErho_;
 
             //- Flag to indicate whether to only solve turbulence on final iter
             bool turbOnFinalIterOnly_;
+
+            //- Flag to indicate wheter the final solver is used only on the
+            //- final pimple iter
+            bool finalOnLastPimpleIterOnly_;
+
+            //- Flag to indicate that ddtCorr should be applied; default = yes
+            bool ddtCorr_;
 
             //- Converged flag
             bool converged_;
@@ -95,10 +105,17 @@ protected:
     // Protected Member Functions
 
         //- Read controls from fvSolution dictionary
-        virtual void read();
+        virtual bool read();
 
         //- Return true if all convergence checks are satisfied
         virtual bool criteriaSatisfied();
+
+        //- Set the firstIteration flag on the mesh data dictionary
+        virtual void setFirstIterFlag
+        (
+            const bool check = true,
+            const bool force = false
+        );
 
 
 public:
@@ -112,11 +129,16 @@ public:
     // Constructors
 
         //- Construct from mesh and the name of control sub-dictionary
-        pimpleControl(fvMesh& mesh, const word& dictName="PIMPLE");
+        pimpleControl
+        (
+            fvMesh& mesh,
+            const word& dictName = "PIMPLE",
+            const bool verbose = true
+        );
 
 
     //- Destructor
-    virtual ~pimpleControl();
+    virtual ~pimpleControl() = default;
 
 
     // Member Functions
@@ -145,13 +167,13 @@ public:
             //- Pressure corrector loop control
             inline bool correct();
 
-            //- Return true to store the intial residuals
+            //- Return true to store the initial residuals
             inline bool storeInitialResiduals() const;
 
             //- Return true for first PIMPLE (outer) iteration
             inline bool firstIter() const;
 
-            //- Return true fore final PIMPLE (outer) iteration
+            //- Return true for final PIMPLE (outer) iteration
             inline bool finalIter() const;
 
             //- Return true for final inner iteration
@@ -161,7 +183,10 @@ public:
             inline bool solveFlow() const;
 
             //- Return true to solve for turbulence
-            inline bool turbCorr() const;
+            inline bool turbCorr();
+
+            //- Return true to apply ddtCorr
+            inline bool ddtCorr() const;
 };
 
 

@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2015 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2015 OpenFOAM Foundation
+    Copyright (C) 2019 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -50,12 +53,10 @@ inline bool Foam::LESModels::smoothDelta::deltaData::update
         // Something changed. Let caller know.
         return true;
     }
-    else
-    {
-        // Neighbour is not too big for me or change is too small
-        // Nothing changed.
-        return false;
-    }
+
+    // Neighbour is not too big for me or change is too small
+    // Nothing changed.
+    return false;
 }
 
 
@@ -197,7 +198,7 @@ inline bool Foam::LESModels::smoothDelta::deltaData::operator==
     const deltaData& rhs
 ) const
 {
-    return delta_ == rhs.delta();
+    return delta_ == rhs.delta_;
 }
 
 

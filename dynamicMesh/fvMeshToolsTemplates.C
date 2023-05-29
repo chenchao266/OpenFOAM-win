@@ -1,9 +1,12 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2012-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2012-2016 OpenFOAM Foundation
+    Copyright (C) 2019 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -23,7 +26,7 @@ License
 
 \*---------------------------------------------------------------------------*/
 
-#include "fvMeshTools.H"
+//#include "fvMeshTools.H"
 #include "volFields.H"
 #include "surfaceFields.H"
 
@@ -43,12 +46,11 @@ void Foam::fvMeshTools::addPatchFields
         mesh.objectRegistry::lookupClass<GeoField>()
     );
 
-    forAllIter(typename HashTable<GeoField*>, flds, iter)
+    forAllIters(flds, iter)
     {
         GeoField& fld = *iter();
 
-        typename GeoField::Boundary& bfld =
-            fld.boundaryFieldRef();
+        auto& bfld = fld.boundaryFieldRef();
 
         label sz = bfld.size();
         bfld.setSize(sz+1);
@@ -97,12 +99,11 @@ void Foam::fvMeshTools::setPatchFields
         mesh.objectRegistry::lookupClass<GeoField>()
     );
 
-    forAllIter(typename HashTable<GeoField*>, flds, iter)
+    forAllIters(flds, iter)
     {
         GeoField& fld = *iter();
 
-        typename GeoField::Boundary& bfld =
-            fld.boundaryFieldRef();
+        auto& bfld = fld.boundaryFieldRef();
 
         if (patchFieldDict.found(fld.name()))
         {
@@ -136,12 +137,11 @@ void Foam::fvMeshTools::setPatchFields
         mesh.objectRegistry::lookupClass<GeoField>()
     );
 
-    forAllIter(typename HashTable<GeoField*>, flds, iter)
+    forAllIters(flds, iter)
     {
         GeoField& fld = *iter();
 
-        typename GeoField::Boundary& bfld =
-            fld.boundaryFieldRef();
+        auto& bfld = fld.boundaryFieldRef();
 
         bfld[patchi] == value;
     }
@@ -157,7 +157,7 @@ void Foam::fvMeshTools::trimPatchFields(fvMesh& mesh, const label nPatches)
         mesh.objectRegistry::lookupClass<GeoField>()
     );
 
-    forAllIter(typename HashTable<GeoField*>, flds, iter)
+    forAllIters(flds, iter)
     {
         GeoField& fld = *iter();
         fld.boundaryFieldRef().setSize(nPatches);
@@ -178,12 +178,11 @@ void Foam::fvMeshTools::reorderPatchFields
         mesh.objectRegistry::lookupClass<GeoField>()
     );
 
-    forAllIter(typename HashTable<GeoField*>, flds, iter)
+    forAllIters(flds, iter)
     {
         GeoField& fld = *iter();
 
-        typename GeoField::Boundary& bfld =
-            fld.boundaryFieldRef();
+        auto& bfld = fld.boundaryFieldRef();
 
         bfld.reorder(oldToNew);
     }

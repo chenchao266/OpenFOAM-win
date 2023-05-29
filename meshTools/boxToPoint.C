@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2018-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -25,20 +28,31 @@ License
 
 #include "boxToPoint.H"
 #include "polyMesh.H"
-
 #include "addToRunTimeSelectionTable.H"
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
 
 namespace Foam
 {
-
-defineTypeNameAndDebug(boxToPoint, 0);
-
-addToRunTimeSelectionTable(topoSetSource, boxToPoint, word);
-
-addToRunTimeSelectionTable(topoSetSource, boxToPoint, istream);
-
+    defineTypeNameAndDebug(boxToPoint, 0);
+    addToRunTimeSelectionTable(topoSetSource, boxToPoint, word);
+    addToRunTimeSelectionTable(topoSetSource, boxToPoint, istream);
+    addToRunTimeSelectionTable(topoSetPointSource, boxToPoint, word);
+    addToRunTimeSelectionTable(topoSetPointSource, boxToPoint, istream);
+    addNamedToRunTimeSelectionTable
+    (
+        topoSetPointSource,
+        boxToPoint,
+        word,
+        box
+    );
+    addNamedToRunTimeSelectionTable
+    (
+        topoSetPointSource,
+        boxToPoint,
+        istream,
+        box
+    );
 }
 
 
@@ -50,19 +64,40 @@ Foam::topoSetSource::addToUsageTable Foam::boxToPoint::usage_
 );
 
 
+// * * * * * * * * * * * * * * * Local Functions * * * * * * * * * * * * * * //
+
+namespace Foam
+{
+
+// Read min/max or min/span
+static void readBoxDim(const dictionary& dict, treeBoundBox& bb)
+{
+    dict.readEntry<point>("min", bb.min());
+
+    const bool hasSpan = dict.found("span");
+    if (!dict.readEntry<point>("max", bb.max(), keyType::REGEX, !hasSpan))
+    {
+        bb.max() = bb.min() + dict.get<vector>("span");
+    }
+}
+
+} // End namespace Foam
+
+
 // * * * * * * * * * * * * * Private Member Functions  * * * * * * * * * * * //
 
 void Foam::boxToPoint::combine(topoSet& set, const bool add) const
 {
-    const pointField& pts = mesh_.points();
+    const pointField& ctrs = mesh_.points();
 
-    forAll(pts, pointi)
+    forAll(ctrs, elemi)
     {
-        forAll(bbs_, i)
+        for (const auto& bb : bbs_)
         {
-            if (bbs_[i].contains(pts[pointi]))
+            if (bb.contains(ctrs[elemi]))
             {
-                addOrDelete(set, pointi, add);
+                addOrDelete(set, elemi, add);
+                break;
             }
         }
     }
@@ -71,50 +106,57 @@ void Foam::boxToPoint::combine(topoSet& set, const bool add) const
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
-// Construct from components
 Foam::boxToPoint::boxToPoint
 (
     const polyMesh& mesh,
     const treeBoundBoxList& bbs
 )
 :
-    topoSetSource(mesh),
+    topoSetPointSource(mesh),
     bbs_(bbs)
 {}
 
 
-// Construct from dictionary
+Foam::boxToPoint::boxToPoint
+(
+    const polyMesh& mesh,
+    treeBoundBoxList&& bbs
+)
+:
+    topoSetPointSource(mesh),
+    bbs_(std::move(bbs))
+{}
+
+
 Foam::boxToPoint::boxToPoint
 (
     const polyMesh& mesh,
     const dictionary& dict
 )
 :
-    topoSetSource(mesh),
-    bbs_
-    (
-        dict.found("box")
-      ? treeBoundBoxList(1, treeBoundBox(dict.lookup("box")))
-      : dict.lookup("boxes")
-    )
-{}
+    topoSetPointSource(mesh),
+    bbs_()
+{
+    // Accept 'boxes', 'box' or 'min/max'
+    if (!dict.readIfPresent("boxes", bbs_))
+    {
+        bbs_.resize(1);
+        if (!dict.readIfPresent("box", bbs_.first()))
+        {
+            readBoxDim(dict, bbs_.first());
+        }
+    }
+}
 
 
-// Construct from Istream
 Foam::boxToPoint::boxToPoint
 (
     const polyMesh& mesh,
     Istream& is
 )
 :
-    topoSetSource(mesh),
-    bbs_(1, treeBoundBox(checkIs(is)))
-{}
-
-
-// * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
-
-Foam::boxToPoint::~boxToPoint()
+    topoSetPointSource(mesh),
+    bbs_(one{}, treeBoundBox(checkIs(is)))
 {}
 
 
@@ -126,17 +168,23 @@ void Foam::boxToPoint::applyToSet
     topoSet& set
 ) const
 {
-    if ((action == topoSetSource::NEW) || (action == topoSetSource::ADD))
+    if (action == topoSetSource::ADD || action == topoSetSource::NEW)
     {
-        Info<< "    Adding points that are within boxes " << bbs_ << " ..."
-            << endl;
+        if (verbose_)
+        {
+            Info<< "    Adding points that are within boxes " << bbs_
+                << " ..." << endl;
+        }
 
         combine(set, true);
     }
-    else if (action == topoSetSource::DELETE)
+    else if (action == topoSetSource::SUBTRACT)
     {
-        Info<< "    Removing points that are within boxes " << bbs_ << " ..."
-            << endl;
+        if (verbose_)
+        {
+            Info<< "    Removing points that are within boxes " << bbs_
+                << " ..." << endl;
+        }
 
         combine(set, false);
     }

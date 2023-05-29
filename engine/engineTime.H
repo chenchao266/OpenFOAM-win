@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2019 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -25,25 +28,7 @@ Class
     Foam::engineTime
 
 Description
-    Manage time in terms of engine RPM and crank-angle.
-
-    When engineTime is in effect, the userTime is reported in degrees
-    crank-angle instead of in seconds. The RPM to be used is specified in
-    \c constant/engineGeometry. If only a time conversion is required,
-    the geometric engine parameters can be dropped or set to zero.
-
-    For example,
-    \verbatim
-        rpm             rpm  [0 0 -1 0 0]  2000;
-
-        conRodLength    conRodLength  [0 1 0 0 0] 0.0;
-        bore            bore          [0 1 0 0 0] 0.0;
-        stroke          stroke        [0 1 0 0 0] 0.0;
-        clearance       clearance     [0 1 0 0 0] 0.0;
-    \endverbatim
-
-Note
-   The engineTime can currently only be selected at compile-time.
+    An abstract class for the time description of the piston motion
 
 SourceFiles
     engineTime.C
@@ -53,9 +38,10 @@ SourceFiles
 #ifndef engineTime_H
 #define engineTime_H
 
-#include "Time.T.H"
+#include "Time1.H"
 #include "IOdictionary.H"
 #include "dimensionedScalar.H"
+#include "runTimeSelectionTables.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -70,32 +56,35 @@ class engineTime
 :
     public Time
 {
-    // Private data
 
-        IOdictionary dict_;
+protected:
 
-        //- RPM is required
-        dimensionedScalar rpm_;
+    const IOdictionary dict_;
 
-        //- Optional engine geometry parameters
-        dimensionedScalar conRodLength_;
-        dimensionedScalar bore_;
-        dimensionedScalar stroke_;
-        dimensionedScalar clearance_;
-
-
-    // Private Member Functions
-
-        //- Disallow default bitwise copy construct
-        engineTime(const engineTime&);
-
-        //- Disallow default bitwise assignment
-        void operator=(const engineTime&);
-
-        //- Adjust read time values
-        void timeAdjustment();
 
 public:
+
+    //- Runtime type information
+    TypeName("engineTime");
+
+
+    //- Declare runtime constructor selection table
+    declareRunTimeSelectionTable
+    (
+        autoPtr,
+        engineTime,
+        dictionary,
+        (
+            const word& name,
+            const fileName& rootPath,
+            const fileName& caseName,
+            const fileName& systemName,
+            const fileName& constantName,
+            const fileName& dictName
+        ),
+        (name, rootPath, caseName, systemName, constantName, dictName)
+    );
+
 
     // Constructors
 
@@ -110,74 +99,50 @@ public:
             const fileName& dictName = "engineGeometry"
         );
 
+
+    // Selector
+
+        static autoPtr<engineTime> New
+        (
+            const word& name,
+            const fileName& rootPath,
+            const fileName& caseName,
+            const fileName& systemName = "system",
+            const fileName& constantName = "constant",
+            const fileName& dictName = "engineGeometry"
+        );
+
+
     //- Destructor
-    virtual ~engineTime()
-    {}
+    virtual ~engineTime() = default;
 
 
     // Member Functions
-
         // Conversion
 
-            //- Convert degrees to seconds (for given engine speed in RPM)
-            scalar degToTime(const scalar theta) const;
-
-            //- Convert seconds to degrees (for given engine speed in RPM)
-            scalar timeToDeg(const scalar t) const;
-
             //- Calculate the piston position from the engine geometry
-            //  and given crank angle.
-            scalar pistonPosition(const scalar theta) const;
+            //  and given timr (CA or s)
+            virtual scalar pistonPosition(const scalar theta) const = 0;
 
 
         // Access
 
             //- Return the engine geometry dictionary
-            const IOdictionary& engineDict() const
+            inline const IOdictionary& engineDict() const
             {
                 return dict_;
             }
 
-            //- Return the engines current operating RPM
-            const dimensionedScalar& rpm() const
-            {
-                return rpm_;
-            }
+            //- Return current engine time
+            //  (value might be expressed in CA or s depending on the model)
+            virtual scalar theta() const = 0;
 
-            //- Return the engines connecting-rod length
-            const dimensionedScalar& conRodLength() const
-            {
-                return conRodLength_;
-            }
+            //- Return time unit
+            virtual word unit() const = 0;
 
-            //- Return the engines bore
-            const dimensionedScalar& bore() const
-            {
-                return bore_;
-            }
-
-            //- Return the engines stroke
-            const dimensionedScalar& stroke() const
-            {
-                return stroke_;
-            }
-
-            //- Return the engines clearance-gap
-            const dimensionedScalar& clearance() const
-            {
-                return clearance_;
-            }
-
-
-            //- Return current crank-angle
-            scalar theta() const;
-
-            //- Return current crank-angle translated to a single revolution
-            //  (value between -180 and 180 with 0 = top dead centre)
-            scalar thetaRevolution() const;
-
-            //- Return crank-angle increment
-            scalar deltaTheta() const;
+            //- Return engine time increment
+            //  (value might be expressed in CA or s depending on the model)
+            virtual scalar deltaTheta() const = 0;
 
             //- Return current piston position
             dimensionedScalar pistonPosition() const;
@@ -190,12 +155,6 @@ public:
 
 
         // Member functions overriding the virtual functions in time
-
-            //- Convert the user-time (CA deg) to real-time (s).
-            virtual scalar userTimeToTime(const scalar theta) const;
-
-            //- Convert the real-time (s) into user-time (CA deg)
-            virtual scalar timeToUserTime(const scalar t) const;
 
             //- Read the control dictionary and set the write controls etc.
             virtual void readDict();

@@ -1,9 +1,12 @@
-﻿/*---------------------------------------------------------------------------*\
+/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2015-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -23,7 +26,7 @@ License
 
 \*---------------------------------------------------------------------------*/
 
-//#include "volFieldValue.H"
+#include "volFieldValue.H"
 #include "volFields.H"
 
 // * * * * * * * * * * * * Protected Member Functions  * * * * * * * * * * * //
@@ -34,40 +37,45 @@ bool Foam::functionObjects::fieldValues::volFieldValue::validField
     const word& fieldName
 ) const
 {
-    typedef volFieldType<Type> vf;
+    typedef GeometricField<Type, fvPatchField, volMesh> VolFieldType;
+    typedef typename VolFieldType::Internal IntVolFieldType;
 
-    if (obr_.foundObject<vf>(fieldName))
-    {
-        return true;
-    }
-
-    return false;
+    return
+    (
+        obr_.foundObject<VolFieldType>(fieldName)
+     || obr_.foundObject<IntVolFieldType>(fieldName)
+    );
 }
 
 
 template<class Type>
 Foam::tmp<Foam::Field<Type>>
-Foam::functionObjects::fieldValues::volFieldValue::setFieldValues
+Foam::functionObjects::fieldValues::volFieldValue::getFieldValues
 (
     const word& fieldName,
-    const bool mustGet
+    const bool mandatory
 ) const
 {
-    typedef volFieldType<Type> vf;
+    typedef GeometricField<Type, fvPatchField, volMesh> VolFieldType;
+    typedef typename VolFieldType::Internal IntVolFieldType;
 
-    if (obr_.foundObject<vf>(fieldName))
+    if (obr_.foundObject<VolFieldType>(fieldName))
     {
-        return filterField(obr_.lookupObject<vf>(fieldName));
+        return filterField(obr_.lookupObject<VolFieldType>(fieldName));
+    }
+    else if (obr_.foundObject<IntVolFieldType>(fieldName))
+    {
+        return filterField(obr_.lookupObject<IntVolFieldType>(fieldName));
     }
 
-    if (mustGet)
+    if (mandatory)
     {
         FatalErrorInFunction
-            << "Field " << fieldName << " not found in database"
+            << "Field " << fieldName << " not found in database" << nl
             << abort(FatalError);
     }
 
-    return tmp<Field<Type>>(new Field<Type>(0.0));
+    return tmp<Field<Type>>::New();
 }
 
 
@@ -82,49 +90,8 @@ Type Foam::functionObjects::fieldValues::volFieldValue::processValues
     Type result = Zero;
     switch (operation_)
     {
-        case opSum:
+        case opNone:
         {
-            result = gSum(values);
-            break;
-        }
-        case opWeightedSum:
-        {
-            result = gSum(weightField*values);
-            break;
-        }
-        case opSumMag:
-        {
-            result = gSum(cmptMag(values));
-            break;
-        }
-        case opAverage:
-        {
-            result = gSum(values)/nCells();
-            break;
-        }
-        case opWeightedAverage:
-        {
-            result = gSum(weightField*values)/gSum(weightField);
-            break;
-        }
-        case opVolAverage:
-        {
-            result = gSum(V*values)/this->V();
-            break;
-        }
-        case opWeightedVolAverage:
-        {
-            result = gSum(weightField*V*values)/gSum(weightField*V);
-            break;
-        }
-        case opVolIntegrate:
-        {
-            result = gSum(V*values);
-            break;
-        }
-        case opWeightedVolIntegrate:
-        {
-            result = gSum(weightField*V*values);
             break;
         }
         case opMin:
@@ -137,25 +104,87 @@ Type Foam::functionObjects::fieldValues::volFieldValue::processValues
             result = gMax(values);
             break;
         }
+        case opSumMag:
+        {
+            result = gSum(cmptMag(values));
+            break;
+        }
+        case opSum:
+        case opWeightedSum:
+        {
+            if (is_weightedOp() && canWeight(weightField))
+            {
+                result = gSum(weightField*values);
+            }
+            else
+            {
+                // Unweighted form
+                result = gSum(values);
+            }
+            break;
+        }
+        case opAverage:
+        case opWeightedAverage:
+        {
+            if (is_weightedOp() && canWeight(weightField))
+            {
+                result =
+                    gSum(weightField*values)/(gSum(weightField) + ROOTVSMALL);
+            }
+            else
+            {
+                // Unweighted form
+                const label n = returnReduce(values.size(), sumOp<label>());
+                result = gSum(values)/(scalar(n) + ROOTVSMALL);
+            }
+            break;
+        }
+        case opVolAverage:
+        case opWeightedVolAverage:
+        {
+            if (is_weightedOp() && canWeight(weightField))
+            {
+                result = gSum(weightField*V*values)
+                    /(gSum(weightField*V) + ROOTVSMALL);
+            }
+            else
+            {
+                // Unweighted form
+                result = gSum(V*values)/(gSum(V) + ROOTVSMALL);
+            }
+            break;
+        }
+        case opVolIntegrate:
+        case opWeightedVolIntegrate:
+        {
+            if (is_weightedOp() && canWeight(weightField))
+            {
+                result = gSum(weightField*V*values);
+            }
+            else
+            {
+                // Unweighted form
+                result = gSum(V*values);
+            }
+            break;
+        }
         case opCoV:
         {
-            Type meanValue = gSum(values*V)/this->V();
+            const scalar sumV = gSum(V);
 
-            const label nComp = pTraits<Type>::nComponents;
+            Type meanValue = gSum(V*values)/sumV;
 
-            for (direction d=0; d<nComp; ++d)
+            for (direction d=0; d < pTraits<Type>::nComponents; ++d)
             {
-                scalarField vals(values.component(d));
-                scalar mean = component(meanValue, d);
+                tmp<scalarField> vals(values.component(d));
+                const scalar mean = component(meanValue, d);
                 scalar& res = setComponent(result, d);
 
-                res = sqrt(gSum(V*sqr(vals - mean))/this->V())/mean;
+                res = sqrt(gSum(V*sqr(vals - mean))/sumV)/(mean + ROOTVSMALL);
             }
 
             break;
         }
-        case opNone:
-        {}
     }
 
     return result;
@@ -167,52 +196,132 @@ Type Foam::functionObjects::fieldValues::volFieldValue::processValues
 template<class Type>
 bool Foam::functionObjects::fieldValues::volFieldValue::writeValues
 (
-    const word& fieldName
+    const word& fieldName,
+    const scalarField& V,
+    const scalarField& weightField
 )
 {
     const bool ok = validField<Type>(fieldName);
 
     if (ok)
     {
-        Field<Type> values(setFieldValues<Type>(fieldName));
-        scalarField V(filterField(fieldValue::mesh_.V()));
-        scalarField weightField(values.size(), 1.0);
+        Field<Type> values(getFieldValues<Type>(fieldName));
 
-        if (weightFieldName_ != "none")
+        if (writeFields_)
         {
-            weightField = setFieldValues<scalar>(weightFieldName_, true);
+            word outName = fieldName + '_' + regionTypeNames_[regionType_];
+            if (this->volRegion::regionName_ != polyMesh::defaultRegion)
+            {
+                outName = outName + '-' + this->volRegion::regionName_;
+            }
+
+            IOField<Type>
+            (
+                IOobject
+                (
+                    outName,
+                    obr_.time().timeName(),
+                    obr_,
+                    IOobject::NO_READ,
+                    IOobject::NO_WRITE
+                ),
+                weightField.empty()
+              ? scaleFactor_*values
+              : scaleFactor_*weightField*values
+            ).write();
         }
 
-        Type result = processValues(values, V, weightField);
-
-        if (Pstream::master())
+        if (operation_ != opNone)
         {
-            // Add to result dictionary, over-writing any previous entry
-            resultDict_.add(fieldName, result, true);
+            // Apply scale factor
+            values *= scaleFactor_;
 
-            if (writeFields_)
+            Type result = processValues(values, V, weightField);
+
+            switch (postOperation_)
             {
-                IOField<Type>
-                (
-                    IOobject
-                    (
-                        fieldName + '_' + regionTypeNames_[regionType_]
-                      + '-' + volRegion::regionName_,
-                        obr_.time().timeName(),
-                        obr_,
-                        IOobject::NO_READ,
-                        IOobject::NO_WRITE
-                    ),
-                    weightField*values
-                ).write();
+                case postOpSqrt:
+                {
+                    // sqrt: component-wise - does not change the type
+                    for (direction d=0; d < pTraits<Type>::nComponents; ++d)
+                    {
+                        setComponent(result, d)
+                            = sqrt(mag(component(result, d)));
+                    }
+                    break;
+                }
+                default:
+                {
+                    break;
+                }
+            }
+
+            // Write state/results information
+            word prefix, suffix;
+            {
+                if (postOperation_ != postOpNone)
+                {
+                    // Adjust result name to include post-operation
+                    prefix += postOperationTypeNames_[postOperation_];
+                    prefix += '(';
+                    suffix += ')';
+                }
+
+                prefix += operationTypeNames_[operation_];
+                prefix += '(';
+                suffix += ')';
+            }
+
+            word regionPrefix;
+            if (this->volRegion::regionName_ != polyMesh::defaultRegion)
+            {
+                regionPrefix = this->volRegion::regionName_ + ',';
+            }
+
+            word resultName = prefix + regionPrefix + fieldName + suffix;
+
+            Log << "    " << prefix << this->volRegion::regionName_ << suffix
+                << " of " << fieldName << " = ";
+
+
+            // Operation or post-operation returns scalar?
+
+            scalar sresult{0};
+
+            bool alwaysScalar(operation_ & typeScalar);
+
+            if (alwaysScalar)
+            {
+                sresult = component(result, 0);
+
+                if (postOperation_ == postOpMag)
+                {
+                    sresult = mag(sresult);
+                }
+            }
+            else if (postOperation_ == postOpMag)
+            {
+                sresult = mag(result);
+                alwaysScalar = true;
             }
 
 
-            file()<< tab << result;
+            if (alwaysScalar)
+            {
+                file()<< tab << sresult;
 
-            Log << "    " << operationTypeNames_[operation_]
-                << "(" << volRegion::regionName_ << ") of " << fieldName
-                <<  " = " << result << endl;
+                Log << sresult << endl;
+
+                this->setResult(resultName, sresult);
+            }
+            else
+            {
+                file()<< tab << result;
+
+                Log << result << endl;
+
+                this->setResult(resultName, result);
+            }
         }
     }
 
@@ -227,14 +336,12 @@ Foam::functionObjects::fieldValues::volFieldValue::filterField
     const Field<Type>& field
 ) const
 {
-    if (isNull(cellIDs()))
+    if (this->volRegion::useAllCells())
     {
         return field;
     }
-    else
-    {
-        return tmp<Field<Type>>(new Field<Type>(field, cellIDs()));
-    }
+
+    return tmp<Field<Type>>::New(field, cellIDs());
 }
 
 

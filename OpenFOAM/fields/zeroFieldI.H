@@ -1,9 +1,11 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -23,38 +25,10 @@ License
 
 \*---------------------------------------------------------------------------*/
 
-#include "zeroField.H"
-
-// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
-namespace Foam {
-inline scalar zeroField::operator[](const label) const
+namespace Foam
 {
-    return scalar(0);
-}
 
-
-inline zeroField zeroField::field() const
-{
-    return zeroField();
-}
-
-
-inline zeroField zeroField::operator()() const
-{
-    return zeroField();
-}
-
-
-inline zeroField zeroField::operator-() const
-{
-    return zeroField();
-}
-
-
-// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
- 
-
-// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+// * * * * * * * * * * * * * * * Global Operators  * * * * * * * * * * * * * //
 
 inline const zeroField operator+(const zeroField&, const zeroField&)
 {

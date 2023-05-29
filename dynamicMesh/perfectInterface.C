@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2018-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -79,7 +82,6 @@ Foam::pointField Foam::perfectInterface::calcFaceCentres
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
-// Construct from components
 Foam::perfectInterface::perfectInterface
 (
     const word& name,
@@ -97,7 +99,6 @@ Foam::perfectInterface::perfectInterface
 {}
 
 
-// Construct from dictionary
 Foam::perfectInterface::perfectInterface
 (
     const word& name,
@@ -106,28 +107,22 @@ Foam::perfectInterface::perfectInterface
     const polyTopoChanger& mme
 )
 :
-    polyMeshModifier(name, index, mme, readBool(dict.lookup("active"))),
+    polyMeshModifier(name, index, mme, dict.get<bool>("active")),
     faceZoneID_
     (
-        dict.lookup("faceZoneName"),
+        dict.get<keyType>("faceZoneName"),
         mme.mesh().faceZones()
     ),
     masterPatchID_
     (
-        dict.lookup("masterPatchName"),
+        dict.get<keyType>("masterPatchName"),
         mme.mesh().boundaryMesh()
     ),
     slavePatchID_
     (
-        dict.lookup("slavePatchName"),
+        dict.get<keyType>("slavePatchName"),
         mme.mesh().boundaryMesh()
     )
-{}
-
-
-// * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
-
-Foam::perfectInterface::~perfectInterface()
 {}
 
 
@@ -264,10 +259,7 @@ void Foam::perfectInterface::setRefinement
         {
             const labelList& pFaces = mesh.pointFaces()[meshPointi];
 
-            forAll(pFaces, pFacei)
-            {
-                affectedFaces.insert(pFaces[pFacei]);
-            }
+            affectedFaces.insert(pFaces);
         }
     }
     forAll(pp1, i)
@@ -293,9 +285,8 @@ void Foam::perfectInterface::setRefinement
 
 
     // 2. Renumber (non patch0/1) faces.
-    forAllConstIter(labelHashSet, affectedFaces, iter)
+    for (const label facei : affectedFaces)
     {
-        const label facei = iter.key();
         const face& f = mesh.faces()[facei];
 
         face newFace(f.size());
@@ -456,18 +447,15 @@ void Foam::perfectInterface::setRefinement(polyTopoChange& ref) const
         const polyPatch& patch0 = patches[masterPatchID_.index()];
         const polyPatch& patch1 = patches[slavePatchID_.index()];
 
-
-        labelList pp0Labels(identity(patch0.size())+patch0.start());
         indirectPrimitivePatch pp0
         (
-            IndirectList<face>(mesh.faces(), pp0Labels),
+            IndirectList<face>(mesh.faces(), identity(patch0.range())),
             mesh.points()
         );
 
-        labelList pp1Labels(identity(patch1.size())+patch1.start());
         indirectPrimitivePatch pp1
         (
-            IndirectList<face>(mesh.faces(), pp1Labels),
+            IndirectList<face>(mesh.faces(), identity(patch1.range())),
             mesh.points()
         );
 
@@ -506,34 +494,16 @@ void Foam::perfectInterface::write(Ostream& os) const
 
 void Foam::perfectInterface::writeDict(Ostream& os) const
 {
-    os  << nl << name() << nl << token::BEGIN_BLOCK << nl
+    os  << nl;
 
-        << "    type " << type()
-        << token::END_STATEMENT << nl
-
-        << "    active " << active()
-        << token::END_STATEMENT << nl
-
-        << "    faceZoneName " << faceZoneID_.name()
-        << token::END_STATEMENT << nl
-
-        << "    masterPatchName " << masterPatchID_.name()
-        << token::END_STATEMENT << nl
-
-        << "    slavePatchName " << slavePatchID_.name()
-        << token::END_STATEMENT << nl
-
-        << token::END_BLOCK << endl;
+    os.beginBlock(name());
+    os.writeEntry("type", type());
+    os.writeEntry("active", active());
+    os.writeEntry("faceZoneName", faceZoneID_.name());
+    os.writeEntry("masterPatchName", masterPatchID_.name());
+    os.writeEntry("slavePatchName", slavePatchID_.name());
+    os.endBlock();
 }
-
-
-// * * * * * * * * * * * * * * * Member Operators  * * * * * * * * * * * * * //
-
-
-// * * * * * * * * * * * * * * * Friend Functions  * * * * * * * * * * * * * //
-
-
-// * * * * * * * * * * * * * * * Friend Operators  * * * * * * * * * * * * * //
 
 
 // ************************************************************************* //

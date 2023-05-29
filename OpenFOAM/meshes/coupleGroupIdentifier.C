@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2013-2015 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2013-2015 OpenFOAM Foundation
+    Copyright (C) 2019 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -25,10 +28,12 @@ License
 
 #include "coupleGroupIdentifier.H"
 #include "polyMesh.H"
-#include "Time.T.H"
+#include "Time1.h"
 
 // * * * * * * * * * * * * * Private Member Functions  * * * * * * * * * * * //
-using namespace Foam;
+
+
+ namespace Foam{
 label coupleGroupIdentifier::findOtherPatchID
 (
     const polyMesh& mesh,
@@ -46,10 +51,9 @@ label coupleGroupIdentifier::findOtherPatchID
             << exit(FatalError);
     }
 
-    HashTable<labelList, word>::const_iterator fnd =
-        pbm.groupPatchIDs().find(name());
+    const auto fnd = pbm.groupPatchIDs().cfind(name());
 
-    if (fnd == pbm.groupPatchIDs().end())
+    if (!fnd.found())
     {
         if (&mesh == &thisPatch.boundaryMesh().mesh())
         {
@@ -65,7 +69,7 @@ label coupleGroupIdentifier::findOtherPatchID
     }
 
     // Mesh has patch group
-    const labelList& patchIDs = fnd();
+    const labelList& patchIDs = fnd.val();
 
     if (&mesh == &thisPatch.boundaryMesh().mesh())
     {
@@ -82,7 +86,7 @@ label coupleGroupIdentifier::findOtherPatchID
             return -1;
         }
 
-        label index = findIndex(patchIDs, thisPatch.index());
+        label index = patchIDs.find(thisPatch.index());
 
         if (index == -1)
         {
@@ -128,16 +132,10 @@ label coupleGroupIdentifier::findOtherPatchID
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
-coupleGroupIdentifier::coupleGroupIdentifier() :    name_()
-{}
-
-
-coupleGroupIdentifier::coupleGroupIdentifier(const word& name) :    name_(name)
-{}
-
-
-coupleGroupIdentifier::coupleGroupIdentifier(const dictionary& dict) :    name_(dict.lookupOrDefault<word>("coupleGroup", ""))
-{}
+coupleGroupIdentifier::coupleGroupIdentifier(const dictionary& dict)
+{
+    dict.readIfPresent("coupleGroup", name_);
+}
 
 
 // * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * * //
@@ -169,11 +167,11 @@ label coupleGroupIdentifier::findOtherPatchID
 
     label otherPatchID = -1;
 
-    forAllConstIter(HashTable<const polyMesh*>, meshSet, iter)
+    forAllConstIters(meshSet, iter)
     {
         const polyMesh& mesh = *iter();
 
-        label patchID = findOtherPatchID(mesh, thisPatch);
+        const label patchID = findOtherPatchID(mesh, thisPatch);
 
         if (patchID != -1)
         {
@@ -214,21 +212,23 @@ label coupleGroupIdentifier::findOtherPatchID
 
 void coupleGroupIdentifier::write(Ostream& os) const
 {
-    if (valid())
+    if (!name_.empty())
     {
-        os.writeKeyword("coupleGroup") << name() << token::END_STATEMENT << nl;
+        os.writeEntry("coupleGroup", name_);
     }
 }
 
 
-// * * * * * * * * * * * * * * Friend Operators * * * * * * * * * * * * * * //
+// * * * * * * * * * * * * * * * IOstream Operators  * * * * * * * * * * * * //
 
-Ostream& operator<<(Ostream& os, const coupleGroupIdentifier& p)
+Ostream& operator<<(Ostream& os, const coupleGroupIdentifier& ident)
 {
-    p.write(os);
-    os.check("Ostream& operator<<(Ostream& os, const coupleGroupIdentifier& p");
+    ident.write(os);
+    os.check(FUNCTION_NAME);
     return os;
 }
 
 
 // ************************************************************************* //
+
+ } // End namespace Foam

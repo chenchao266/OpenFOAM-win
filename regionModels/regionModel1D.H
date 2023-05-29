@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -22,7 +24,7 @@ License
     along with OpenFOAM.  If not, see <http://www.gnu.org/licenses/>.
 
 Class
-    Foam::regionModel1D
+    Foam::regionModels::regionModel1D
 
 Description
     Base class for 1-D region models
@@ -56,11 +58,11 @@ class regionModel1D
 {
     // Private Member Functions
 
-        //- Disallow default bitwise copy construct
-        regionModel1D(const regionModel1D&);
+        //- No copy construct
+        regionModel1D(const regionModel1D&) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const regionModel1D&);
+        //- No copy assignment
+        void operator=(const regionModel1D&) = delete;
 
         //- Construct region mesh and fields
         void constructMeshObjects();
@@ -81,7 +83,7 @@ protected:
             //- Global cell IDs
             labelListList boundaryFaceCells_;
 
-            //- Global boundary face IDs oppossite coupled patch
+            //- Global boundary face IDs oppositte coupled patch
             labelList boundaryFaceOppositeFace_;
 
             //- Number of layers in the region
@@ -166,7 +168,7 @@ public:
                 //- Return the global cell IDs
                 inline const labelListList& boundaryFaceCells() const;
 
-                //- Return the global boundary face IDs oppossite coupled patch
+                //- Return the global boundary face IDs oppositte coupled patch
                 inline const labelList& boundaryFaceOppositeFace() const;
 
 

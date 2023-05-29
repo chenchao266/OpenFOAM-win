@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2017 OpenFOAM Foundation
+    Copyright (C) 2019-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -44,7 +47,7 @@ Foam::thermophysicalProperties::thermophysicalProperties(scalar W)
 
 Foam::thermophysicalProperties::thermophysicalProperties(const dictionary& dict)
 :
-    W_(readScalar(dict.lookup("W")))
+    W_(dict.get<scalar>("W"))
 {}
 
 
@@ -56,24 +59,21 @@ Foam::thermophysicalProperties::New
     const word& name
 )
 {
-    if (debug)
+    DebugInFunction << "Constructing thermophysicalProperties" << endl;
+
+    auto* ctorPtr = ConstructorTable(name);
+
+    if (!ctorPtr)
     {
-        InfoInFunction << "Constructing thermophysicalProperties" << endl;
+        FatalErrorInLookup
+        (
+            "thermophysicalProperties",
+            name,
+            *ConstructorTablePtr_
+        ) << exit(FatalError);
     }
 
-    ConstructorTable::iterator cstrIter = ConstructorTablePtr_->find(name);
-
-    if (cstrIter == ConstructorTablePtr_->end())
-    {
-        FatalErrorInFunction
-            << "Unknown thermophysicalProperties type "
-            << name << nl << nl
-            << "Valid thermophysicalProperties types are:" << nl
-            << ConstructorTablePtr_->sortedToc()
-            << exit(FatalError);
-    }
-
-    return autoPtr<thermophysicalProperties>(cstrIter()());
+    return autoPtr<thermophysicalProperties>(ctorPtr());
 }
 
 
@@ -83,27 +83,24 @@ Foam::thermophysicalProperties::New
     const dictionary& dict
 )
 {
-    if (debug)
+    DebugInFunction << "Constructing thermophysicalProperties" << endl;
+
+    const word& modelType = dict.dictName();
+
+    auto* ctorPtr = dictionaryConstructorTable(modelType);
+
+    if (!ctorPtr)
     {
-        InfoInFunction << "Constructing thermophysicalProperties" << endl;
+        FatalIOErrorInLookup
+        (
+            dict,
+            "thermophysicalProperties",
+            modelType,
+            *dictionaryConstructorTablePtr_
+        ) << exit(FatalIOError);
     }
 
-    const word& thermophysicalPropertiesTypeName = dict.dictName();
-
-    dictionaryConstructorTable::iterator cstrIter =
-        dictionaryConstructorTablePtr_->find(thermophysicalPropertiesTypeName);
-
-    if (cstrIter == dictionaryConstructorTablePtr_->end())
-    {
-        FatalErrorInFunction
-            << "Unknown thermophysicalProperties type "
-            << thermophysicalPropertiesTypeName << nl << nl
-            << "Valid thermophysicalProperties types are:" << nl
-            << dictionaryConstructorTablePtr_->sortedToc()
-            << exit(FatalError);
-    }
-
-    return autoPtr<thermophysicalProperties>(cstrIter()(dict));
+    return autoPtr<thermophysicalProperties>(ctorPtr(dict));
 }
 
 

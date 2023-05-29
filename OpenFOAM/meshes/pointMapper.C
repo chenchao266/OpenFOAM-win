@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -29,7 +31,9 @@ License
 #include "mapPolyMesh.H"
 
 // * * * * * * * * * * * * * Private Member Functions  * * * * * * * * * * * //
-using namespace Foam;
+
+
+ namespace Foam{
 void pointMapper::calcAddressing() const
 {
     if
@@ -118,7 +122,7 @@ void pointMapper::calcAddressing() const
             {
                 // Mapped from a single point
                 addr[pointi] = labelList(1, cm[pointi]);
-                w[pointi] = scalarList(1, 1.0);
+                w[pointi] = scalarList(1, scalar(1));
             }
         }
 
@@ -134,8 +138,8 @@ void pointMapper::calcAddressing() const
             if (addr[pointi].empty())
             {
                 // Mapped from a dummy point. Take point 0 with weight 1.
-                addr[pointi] = labelList(1, label(0));
-                w[pointi] = scalarList(1, 1.0);
+                addr[pointi] = labelList(1, Zero);
+                w[pointi] = scalarList(1, scalar(1));
 
                 insertedPoints[nInsertedPoints] = pointi;
                 nInsertedPoints++;
@@ -158,7 +162,9 @@ void pointMapper::clearOut()
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
-pointMapper::pointMapper(const pointMesh& pMesh, const mapPolyMesh& mpm) :    pMesh_(pMesh),
+pointMapper::pointMapper(const pointMesh& pMesh, const mapPolyMesh& mpm)
+:
+    pMesh_(pMesh),
     mpm_(mpm),
     insertedPoints_(true),
     direct_(false),
@@ -318,3 +324,5 @@ const labelList& pointMapper::insertedObjectLabels() const
 
 
 // ************************************************************************* //
+
+ } // End namespace Foam

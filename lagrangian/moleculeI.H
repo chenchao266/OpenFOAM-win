@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -27,13 +30,13 @@ License
 
 inline Foam::molecule::constantProperties::constantProperties()
 :
-    siteReferencePositions_(Field<vector>(0)),
-    siteMasses_(List<scalar>(0)),
-    siteCharges_(List<scalar>(0)),
-    siteIds_(List<label>(0)),
-    pairPotentialSites_(List<bool>(false)),
-    electrostaticSites_(List<bool>(false)),
-    momentOfInertia_(diagTensor(0, 0, 0)),
+    siteReferencePositions_(),
+    siteMasses_(),
+    siteCharges_(),
+    siteIds_(),
+    pairPotentialSites_(),
+    electrostaticSites_(),
+    momentOfInertia_(Zero),
     mass_(0)
 {}
 
@@ -90,9 +93,11 @@ inline Foam::molecule::constantProperties::constantProperties
 
         Info<< nl << "Linear molecule." << endl;
 
-        vector dir = siteReferencePositions_[1] - siteReferencePositions_[0];
-
-        dir /= mag(dir);
+        const vector dir =
+            normalised
+            (
+                siteReferencePositions_[1] - siteReferencePositions_[0]
+            );
 
         tensor Q = rotationTensor(dir, vector(1,0,0));
 
@@ -135,17 +140,17 @@ inline Foam::molecule::constantProperties::constantProperties
 
         // Calculate the inertia tensor in the current orientation
 
-        tensor momOfInertia(Zero);
+        symmTensor momOfInertia(Zero);
 
         forAll(siteReferencePositions_, i)
         {
             const vector& p(siteReferencePositions_[i]);
 
-            momOfInertia += siteMasses_[i]*tensor
+            momOfInertia += siteMasses_[i]*symmTensor
             (
                 p.y()*p.y() + p.z()*p.z(), -p.x()*p.y(), -p.x()*p.z(),
-                -p.y()*p.x(), p.x()*p.x() + p.z()*p.z(), -p.y()*p.z(),
-                -p.z()*p.x(), -p.z()*p.y(), p.x()*p.x() + p.y()*p.y()
+                              p.x()*p.x() + p.z()*p.z(), -p.y()*p.z(),
+                                            p.x()*p.x() + p.y()*p.y()
             );
         }
 
@@ -162,7 +167,7 @@ inline Foam::molecule::constantProperties::constantProperties
 
         momOfInertia /= eigenValues(momOfInertia).x();
 
-        tensor e = eigenVectors(momOfInertia);
+        tensor e(eigenVectors(momOfInertia));
 
         // Calculate the transformation between the principle axes to the
         // global axes
@@ -199,11 +204,11 @@ inline Foam::molecule::constantProperties::constantProperties
         {
             const vector& p(siteReferencePositions_[i]);
 
-            momOfInertia += siteMasses_[i]*tensor
+            momOfInertia += siteMasses_[i]*symmTensor
             (
                 p.y()*p.y() + p.z()*p.z(), -p.x()*p.y(), -p.x()*p.z(),
-                -p.y()*p.x(), p.x()*p.x() + p.z()*p.z(), -p.y()*p.z(),
-                -p.z()*p.x(), -p.z()*p.y(), p.x()*p.x() + p.y()*p.y()
+                              p.x()*p.x() + p.z()*p.z(), -p.y()*p.z(),
+                                            p.x()*p.x() + p.y()*p.y()
             );
         }
 
@@ -319,10 +324,9 @@ inline void Foam::molecule::constantProperties::setInteracionSiteBools
 
     forAll(siteIds_, i)
     {
-        const word& id(siteIds[i]);
+        const word& id = siteIds[i];
 
-        pairPotentialSites_[i] = (findIndex(pairPotSiteIds, id) > -1);
-
+        pairPotentialSites_[i] = pairPotSiteIds.found(id);
         electrostaticSites_[i] = (mag(siteCharges_[i]) > VSMALL);
     }
 }
@@ -335,9 +339,11 @@ inline bool Foam::molecule::constantProperties::linearMoleculeTest() const
         return true;
     }
 
-    vector refDir = siteReferencePositions_[1] - siteReferencePositions_[0];
-
-    refDir /= mag(refDir);
+    const vector refDir =
+        normalised
+        (
+            siteReferencePositions_[1] - siteReferencePositions_[0]
+        );
 
     for
     (
@@ -346,9 +352,11 @@ inline bool Foam::molecule::constantProperties::linearMoleculeTest() const
         i++
     )
     {
-        vector dir = siteReferencePositions_[i] - siteReferencePositions_[i-1];
-
-        dir /= mag(dir);
+        const vector dir =
+            normalised
+            (
+                siteReferencePositions_[i] - siteReferencePositions_[i-1]
+            );
 
         if (mag(refDir & dir) < 1 - SMALL)
         {
@@ -409,7 +417,7 @@ inline bool Foam::molecule::constantProperties::pairPotentialSite
     label sId
 ) const
 {
-    label s = findIndex(siteIds_, sId);
+    label s = siteIds_.find(sId);
 
     if (s == -1)
     {
@@ -434,7 +442,7 @@ inline bool Foam::molecule::constantProperties::electrostaticSite
     label sId
 ) const
 {
-    label s = findIndex(siteIds_, sId);
+    label s = siteIds_.find(sId);
 
     if (s == -1)
     {

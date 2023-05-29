@@ -1,9 +1,11 @@
-﻿/*---------------------------------------------------------------------------*\
+/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -26,23 +28,23 @@ License
 #include "pointFields.H"
 
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
-namespace Foam {
-    template<class Type>
-    inline Type pointMVCWeight::interpolate
-    (
-        const pointFieldType<Type>& psip
-    ) const
+
+template<class Type>
+inline Type Foam::pointMVCWeight::interpolate
+(
+    const GeometricField<Type, pointPatchField, pointMesh>& psip
+) const
+{
+    const labelList& vertices = psip.mesh()().cellPoints()[cellIndex_];
+
+    Type t = Zero;
+    forAll(vertices, i)
     {
-        const labelList& vertices = psip.mesh()().cellPoints()[cellIndex_];
-
-        Type t = Zero;
-        forAll(vertices, i)
-        {
-            t += psip[vertices[i]] * weights_[i];
-        }
-
-        return t;
+        t += psip[vertices[i]]*weights_[i];
     }
+
+    return t;
 }
+
 
 // ************************************************************************* //

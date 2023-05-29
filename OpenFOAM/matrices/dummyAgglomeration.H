@@ -1,9 +1,11 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2013 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2013 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -35,7 +37,7 @@ SourceFiles
 #ifndef dummyAgglomeration_H
 #define dummyAgglomeration_H
 
-#include "GAMGAgglomeration.T.H"
+#include "GAMGAgglomeration.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -46,7 +48,9 @@ namespace Foam
                            Class dummyAgglomeration Declaration
 \*---------------------------------------------------------------------------*/
 
-class dummyAgglomeration :    public GAMGAgglomeration
+class dummyAgglomeration
+:
+    public GAMGAgglomeration
 {
     // Private data
 
@@ -56,11 +60,11 @@ class dummyAgglomeration :    public GAMGAgglomeration
 
     // Private Member Functions
 
-        //- Disallow default bitwise copy construct
-        dummyAgglomeration(const dummyAgglomeration&);
+        //- No copy construct
+        dummyAgglomeration(const dummyAgglomeration&) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const dummyAgglomeration&);
+        //- No copy assignment
+        void operator=(const dummyAgglomeration&) = delete;
 
 
 public:

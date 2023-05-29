@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2020-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -25,9 +28,6 @@ License
 
 #include "rotatingMotion.H"
 #include "addToRunTimeSelectionTable.H"
-#include "mathematicalConstants.H"
-
-using namespace Foam::constant::mathematical;
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
 
@@ -55,15 +55,9 @@ Foam::solidBodyMotionFunctions::rotatingMotion::rotatingMotion
 )
 :
     solidBodyMotionFunction(SBMFCoeffs, runTime),
-    origin_(SBMFCoeffs_.lookup("origin")),
-    axis_(SBMFCoeffs_.lookup("axis")),
-    omega_(Function1<scalar>::New("omega", SBMFCoeffs_))
-{}
-
-
-// * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
-
-Foam::solidBodyMotionFunctions::rotatingMotion::~rotatingMotion()
+    origin_(SBMFCoeffs_.get<vector>("origin")),
+    axis_(SBMFCoeffs_.get<vector>("axis")),
+    omega_(Function1<scalar>::New("omega", SBMFCoeffs_, &runTime))
 {}
 
 
@@ -95,7 +89,7 @@ bool Foam::solidBodyMotionFunctions::rotatingMotion::read
 
     omega_.reset
     (
-        Function1<scalar>::New("omega", SBMFCoeffs_).ptr()
+        Function1<scalar>::New("omega", SBMFCoeffs_, &time_)
     );
 
     return true;

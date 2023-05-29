@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2012 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2012 OpenFOAM Foundation
+    Copyright (C) 2019 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -27,39 +30,32 @@ License
 #include "diagTensorField.H"
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
-using namespace Foam;
+
 namespace Foam
 {
-defineTypeNameAndDebug(processorLduInterfaceField, 0);
-}
+    defineTypeNameAndDebug(processorLduInterfaceField, 0);
 
 
-// * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
+    // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
 
-processorLduInterfaceField::~processorLduInterfaceField()
-{}
-
-
-// * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
-
-void processorLduInterfaceField::transformCoupleField
-(
-    scalarField& f,
-    const direction cmpt
-) const
-{
-    if (doTransform())
+    void processorLduInterfaceField::transformCoupleField
+    (
+        solveScalarField& f,
+        const direction cmpt
+    ) const
     {
-        if (forwardT().size() == 1)
+        if (doTransform())
         {
-            f *= pow(diag(forwardT()[0]).component(cmpt), rank());
-        }
-        else
-        {
-            f *= pow(diag(forwardT())().component(cmpt), rank());
+            if (forwardT().size() == 1)
+            {
+                f *= pow(diag(forwardT()[0]).component(cmpt), rank());
+            }
+            else
+            {
+                f *= pow(diag(forwardT())().component(cmpt), rank());
+            }
         }
     }
+
 }
-
-
 // ************************************************************************* //

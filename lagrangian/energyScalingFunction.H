@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011 OpenFOAM Foundation
+    Copyright (C) 2019 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -66,11 +69,11 @@ protected:
 
     // Private Member Functions
 
-        //- Disallow copy construct
-        energyScalingFunction(const energyScalingFunction&);
+        //- No copy construct
+        energyScalingFunction(const energyScalingFunction&) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const energyScalingFunction&);
+        //- No copy assignment
+        void operator=(const energyScalingFunction&) = delete;
 
 
 public:
@@ -118,8 +121,7 @@ public:
 
 
     //- Destructor
-    virtual ~energyScalingFunction()
-    {}
+    virtual ~energyScalingFunction() = default;
 
 
     // Member Functions

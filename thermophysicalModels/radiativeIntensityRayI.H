@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -75,6 +77,18 @@ inline const Foam::vector& Foam::radiation::radiativeIntensityRay::d() const
 
 
 inline const Foam::vector& Foam::radiation::radiativeIntensityRay::dAve() const
+{
+    return dAve_;
+}
+
+
+inline Foam::vector& Foam::radiation::radiativeIntensityRay::d()
+{
+    return d_;
+}
+
+
+inline Foam::vector& Foam::radiation::radiativeIntensityRay::dAve()
 {
     return dAve_;
 }

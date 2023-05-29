@@ -1,9 +1,12 @@
-﻿/*---------------------------------------------------------------------------*\
+/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2015-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -23,74 +26,43 @@ License
 
 \*---------------------------------------------------------------------------*/
 
-//#include "readFields.H"
+#include "readFields.H"
 #include "volFields.H"
 #include "surfaceFields.H"
-#include "Time.T.H"
+#include "Time1.H"
 
-// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+// * * * * * * * * * * * * Protected Member Functions  * * * * * * * * * * * //
+
+template<class FieldType>
+bool Foam::functionObjects::readFields::loadAndStore(const IOobject& io)
+{
+    if (FieldType::typeName == io.headerClassName())
+    {
+        // Store field on mesh database
+        Log << "    Reading " << io.name()
+            << " (" << FieldType::typeName << ')' << endl;
+
+        mesh_.objectRegistry::store(new FieldType(io, mesh_));
+        return true;
+    }
+
+    return false;
+}
+
 
 template<class Type>
-void Foam::functionObjects::readFields::loadField
-(
-    const word& fieldName,
-    PtrList<GeometricField<Type, fvPatchField, volMesh>>& vflds,
-    PtrList<GeometricField<Type, fvsPatchField, surfaceMesh>>& sflds
-) const
+bool Foam::functionObjects::readFields::loadField(const IOobject& io)
 {
     typedef GeometricField<Type, fvPatchField, volMesh> VolFieldType;
+    typedef typename VolFieldType::Internal IntVolFieldType;
     typedef GeometricField<Type, fvsPatchField, surfaceMesh> SurfaceFieldType;
 
-    if (obr_.foundObject<VolFieldType>(fieldName))
-    {
-        Foam_DebugInfo
-            << "readFields : Field " << fieldName << " already in database"
-            << endl;
-    }
-    else if (obr_.foundObject<SurfaceFieldType>(fieldName))
-    {
-        Foam_DebugInfo
-            << "readFields : Field " << fieldName
-            << " already in database" << endl;
-    }
-    else
-    {
-        IOobject fieldHeader
-        (
-            fieldName,
-            mesh_.time().timeName(),
-            mesh_,
-            IOobject::MUST_READ,
-            IOobject::NO_WRITE
-        );
-
-        if
-        (
-            fieldHeader.typeHeaderOk<VolFieldType>(false)
-         && fieldHeader.headerClassName() == VolFieldType::typeName
-        )
-        {
-            // Store field locally
-            Log << "    Reading " << fieldName << endl;
-
-            label sz = vflds.size();
-            vflds.setSize(sz+1);
-            vflds.set(sz, new VolFieldType(fieldHeader, mesh_));
-        }
-        else if
-        (
-            fieldHeader.typeHeaderOk<SurfaceFieldType>(false)
-         && fieldHeader.headerClassName() == SurfaceFieldType::typeName
-        )
-        {
-            // Store field locally
-            Log << "    Reading " << fieldName << endl;
-
-            label sz = sflds.size();
-            sflds.setSize(sz+1);
-            sflds.set(sz, new SurfaceFieldType(fieldHeader, mesh_));
-        }
-    }
+    return
+    (
+        loadAndStore<VolFieldType>(io)
+     || loadAndStore<IntVolFieldType>(io)
+     || loadAndStore<SurfaceFieldType>(io)
+    );
 }
 
 

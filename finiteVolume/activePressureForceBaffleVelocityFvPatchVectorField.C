@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2016-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -42,7 +45,6 @@ activePressureForceBaffleVelocityFvPatchVectorField
     pName_("p"),
     cyclicPatchName_(),
     cyclicPatchLabel_(-1),
-    orientation_(1),
     initWallSf_(0),
     initCyclicSf_(0),
     nbrCyclicSf_(0),
@@ -52,7 +54,8 @@ activePressureForceBaffleVelocityFvPatchVectorField
     curTimeIndex_(-1),
     minThresholdValue_(0),
     fBased_(1),
-    baffleActivated_(0)
+    baffleActivated_(0),
+    opening_(1)
 {}
 
 
@@ -69,7 +72,6 @@ activePressureForceBaffleVelocityFvPatchVectorField
     pName_(ptf.pName_),
     cyclicPatchName_(ptf.cyclicPatchName_),
     cyclicPatchLabel_(ptf.cyclicPatchLabel_),
-    orientation_(ptf.orientation_),
     initWallSf_(ptf.initWallSf_),
     initCyclicSf_(ptf.initCyclicSf_),
     nbrCyclicSf_(ptf.nbrCyclicSf_),
@@ -79,7 +81,8 @@ activePressureForceBaffleVelocityFvPatchVectorField
     curTimeIndex_(-1),
     minThresholdValue_(ptf.minThresholdValue_),
     fBased_(ptf.fBased_),
-    baffleActivated_(ptf.baffleActivated_)
+    baffleActivated_(ptf.baffleActivated_),
+    opening_(ptf.opening_)
 {}
 
 
@@ -92,20 +95,20 @@ activePressureForceBaffleVelocityFvPatchVectorField
 )
 :
     fixedValueFvPatchVectorField(p, iF, dict, false),
-    pName_(dict.lookupOrDefault<word>("p", "p")),
+    pName_(dict.getOrDefault<word>("p", "p")),
     cyclicPatchName_(dict.lookup("cyclicPatch")),
     cyclicPatchLabel_(p.patch().boundaryMesh().findPatchID(cyclicPatchName_)),
-    orientation_(readLabel(dict.lookup("orientation"))),
     initWallSf_(0),
     initCyclicSf_(0),
     nbrCyclicSf_(0),
-    openFraction_(readScalar(dict.lookup("openFraction"))),
-    openingTime_(readScalar(dict.lookup("openingTime"))),
-    maxOpenFractionDelta_(readScalar(dict.lookup("maxOpenFractionDelta"))),
+    openFraction_(dict.get<scalar>("openFraction")),
+    openingTime_(dict.get<scalar>("openingTime")),
+    maxOpenFractionDelta_(dict.get<scalar>("maxOpenFractionDelta")),
     curTimeIndex_(-1),
-    minThresholdValue_(readScalar(dict.lookup("minThresholdValue"))),
-    fBased_(readBool(dict.lookup("forceBased"))),
-    baffleActivated_(0)
+    minThresholdValue_(dict.get<scalar>("minThresholdValue")),
+    fBased_(dict.get<bool>("forceBased")),
+    baffleActivated_(0),
+    opening_(dict.get<bool>("opening"))
 {
     fvPatchVectorField::operator=(Zero);
 
@@ -115,14 +118,12 @@ activePressureForceBaffleVelocityFvPatchVectorField
         initCyclicSf_ = p.boundaryMesh()[cyclicPatchLabel_].Sf();
         nbrCyclicSf_ =  refCast<const cyclicFvPatch>
         (
-            p.boundaryMesh()[cyclicPatchLabel_]
+            p.boundaryMesh()[cyclicPatchLabel_],
+            dict
         ).neighbFvPatch().Sf();
     }
 
-    if (dict.found("p"))
-    {
-        dict.lookup("p") >> pName_;
-    }
+    dict.readIfPresent("p", pName_);
 }
 
 
@@ -136,7 +137,6 @@ activePressureForceBaffleVelocityFvPatchVectorField
     pName_(ptf.pName_),
     cyclicPatchName_(ptf.cyclicPatchName_),
     cyclicPatchLabel_(ptf.cyclicPatchLabel_),
-    orientation_(ptf.orientation_),
     initWallSf_(ptf.initWallSf_),
     initCyclicSf_(ptf.initCyclicSf_),
     nbrCyclicSf_(ptf.nbrCyclicSf_),
@@ -146,7 +146,8 @@ activePressureForceBaffleVelocityFvPatchVectorField
     curTimeIndex_(-1),
     minThresholdValue_(ptf.minThresholdValue_),
     fBased_(ptf.fBased_),
-    baffleActivated_(ptf.baffleActivated_)
+    baffleActivated_(ptf.baffleActivated_),
+    opening_(ptf.opening_)
 {}
 
 
@@ -161,7 +162,6 @@ activePressureForceBaffleVelocityFvPatchVectorField
     pName_(ptf.pName_),
     cyclicPatchName_(ptf.cyclicPatchName_),
     cyclicPatchLabel_(ptf.cyclicPatchLabel_),
-    orientation_(ptf.orientation_),
     initWallSf_(ptf.initWallSf_),
     initCyclicSf_(ptf.initCyclicSf_),
     nbrCyclicSf_(ptf.nbrCyclicSf_),
@@ -171,7 +171,8 @@ activePressureForceBaffleVelocityFvPatchVectorField
     curTimeIndex_(-1),
     minThresholdValue_(ptf.minThresholdValue_),
     fBased_(ptf.fBased_),
-    baffleActivated_(ptf.baffleActivated_)
+    baffleActivated_(ptf.baffleActivated_),
+    opening_(ptf.opening_)
 {}
 
 
@@ -197,14 +198,13 @@ void Foam::activePressureForceBaffleVelocityFvPatchVectorField::autoMap
             Info << "faceArea[active] "<< i << endl;
         }
     }
+
     if (patch().size() > 0)
     {
         const vectorField& areas = patch().boundaryMesh().mesh().faceAreas();
         initWallSf_ = patch().patchSlice(areas);
-        initCyclicSf_ = patch().boundaryMesh()
-        [
-            cyclicPatchLabel_
-        ].patchSlice(areas);
+        initCyclicSf_ =
+            patch().boundaryMesh()[cyclicPatchLabel_].patchSlice(areas);
         nbrCyclicSf_ = refCast<const cyclicFvPatch>
         (
             patch().boundaryMesh()
@@ -214,6 +214,7 @@ void Foam::activePressureForceBaffleVelocityFvPatchVectorField::autoMap
         ).neighbFvPatch().patch().patchSlice(areas);
     }
 }
+
 
 void Foam::activePressureForceBaffleVelocityFvPatchVectorField::rmap
 (
@@ -226,10 +227,8 @@ void Foam::activePressureForceBaffleVelocityFvPatchVectorField::rmap
     // See autoMap.
     const vectorField& areas = patch().boundaryMesh().mesh().faceAreas();
     initWallSf_ = patch().patchSlice(areas);
-    initCyclicSf_ = patch().boundaryMesh()
-    [
-        cyclicPatchLabel_
-    ].patchSlice(areas);
+    initCyclicSf_ =
+        patch().boundaryMesh()[cyclicPatchLabel_].patchSlice(areas);
     nbrCyclicSf_ = refCast<const cyclicFvPatch>
     (
         patch().boundaryMesh()
@@ -246,71 +245,71 @@ void Foam::activePressureForceBaffleVelocityFvPatchVectorField::updateCoeffs()
     {
         return;
     }
+
     // Execute the change to the openFraction only once per time-step
     if (curTimeIndex_ != this->db().time().timeIndex())
     {
-        const volScalarField& p = db().lookupObject<volScalarField>
-        (
-            pName_
-        );
+        const volScalarField& p =
+            db().lookupObject<volScalarField>(pName_);
 
         const fvPatch& cyclicPatch = patch().boundaryMesh()[cyclicPatchLabel_];
         const labelList& cyclicFaceCells = cyclicPatch.patch().faceCells();
-        const fvPatch& nbrPatch = refCast<const cyclicFvPatch>
-        (
-            cyclicPatch
-        ).neighbFvPatch();
+        const fvPatch& nbrPatch =
+            refCast<const cyclicFvPatch>(cyclicPatch).neighbFvPatch();
 
         const labelList& nbrFaceCells = nbrPatch.patch().faceCells();
 
         scalar valueDiff = 0;
 
-        if (fBased_)
+        // Add this side (p*area)
+        forAll(cyclicFaceCells, facei)
         {
-             // Add this side
-            forAll(cyclicFaceCells, facei)
-            {
-                valueDiff +=p[cyclicFaceCells[facei]]*mag(initCyclicSf_[facei]);
-            }
-
-            // Remove other side
-            forAll(nbrFaceCells, facei)
-            {
-                valueDiff -=p[nbrFaceCells[facei]]*mag(initCyclicSf_[facei]);
-            }
-
-            Info<< "Force difference = " << valueDiff << endl;
-        }
-        else //pressure based
-        {
-            forAll(cyclicFaceCells, facei)
-            {
-                valueDiff += p[cyclicFaceCells[facei]];
-            }
-
-            forAll(nbrFaceCells, facei)
-            {
-                valueDiff -= p[nbrFaceCells[facei]];
-            }
-
-            Info<< "Pressure difference = " << valueDiff << endl;
+            valueDiff +=p[cyclicFaceCells[facei]]*mag(initCyclicSf_[facei]);
         }
 
-        if ((mag(valueDiff) > mag(minThresholdValue_)) || baffleActivated_)
+        // Remove other side
+        forAll(nbrFaceCells, facei)
+        {
+            valueDiff -=p[nbrFaceCells[facei]]*mag(initCyclicSf_[facei]);
+        }
+
+        if (!fBased_) //pressure based then weighted by area
+        {
+            valueDiff = valueDiff/gSum(patch().magSf());
+        }
+
+        reduce(valueDiff, sumOp<scalar>());
+
+        if (Pstream::master())
+        {
+            if (fBased_)
+            {
+                Info<< "Force difference = " << valueDiff << endl;
+            }
+            else
+            {
+                Info<< "Area-averaged pressure difference = "
+                    << valueDiff << endl;
+            }
+        }
+
+        if (mag(valueDiff) > mag(minThresholdValue_) || baffleActivated_)
         {
             openFraction_ =
-                max(
-                    min(
+                max
+                (
+                    min
+                    (
                         openFraction_
                       + min
                         (
                           this->db().time().deltaT().value()/openingTime_,
                           maxOpenFractionDelta_
-                        )*(orientation_),
-                        1 - 1e-6
                         ),
+                        1 - 1e-6
+                    ),
                     1e-6
-                    );
+                );
 
              baffleActivated_ = true;
         }
@@ -319,10 +318,39 @@ void Foam::activePressureForceBaffleVelocityFvPatchVectorField::updateCoeffs()
             openFraction_ = max(min(1 - 1e-6, openFraction_), 1e-6);
         }
 
-        Info<< "Open fraction = " << openFraction_ << endl;
+        if (Pstream::master())
+        {
+            Info<< "Open fraction = " << openFraction_ << endl;
+        }
 
+        scalar areaFraction = 0.0;
+
+        if (opening_)
+        {
+            areaFraction = openFraction_;
+        }
+        else
+        {
+            areaFraction = 1 - openFraction_;
+        }
+
+        if (patch().boundaryMesh().mesh().moving())
+        {
+            // All areas have been recalculated already so are consistent
+            // with the new points. Note we already only do this routine
+            // once per timestep. The alternative is to use the upToDate
+            // mechanism for regIOobject + polyMesh::upToDatePoints
+            initWallSf_ = patch().Sf();
+            initCyclicSf_ = patch().boundaryMesh()[cyclicPatchLabel_].Sf();
+            nbrCyclicSf_ =  refCast<const cyclicFvPatch>
+            (
+                patch().boundaryMesh()[cyclicPatchLabel_]
+            ).neighbFvPatch().Sf();
+        }
+
+        // Update this wall patch
         vectorField::subField Sfw = patch().patch().faceAreas();
-        vectorField newSfw((1 - openFraction_)*initWallSf_);
+        vectorField newSfw((1 - areaFraction)*initWallSf_);
         forAll(Sfw, facei)
         {
             Sfw[facei] = newSfw[facei];
@@ -330,18 +358,14 @@ void Foam::activePressureForceBaffleVelocityFvPatchVectorField::updateCoeffs()
         const_cast<scalarField&>(patch().magSf()) = mag(patch().Sf());
 
         // Update owner side of cyclic
-        const_cast<vectorField&>(cyclicPatch.Sf()) =
-            openFraction_*initCyclicSf_;
+        const_cast<vectorField&>(cyclicPatch.Sf()) = areaFraction*initCyclicSf_;
 
-        const_cast<scalarField&>(cyclicPatch.magSf()) =
-            mag(cyclicPatch.Sf());
+        const_cast<scalarField&>(cyclicPatch.magSf()) = mag(cyclicPatch.Sf());
 
         // Update neighbour side of cyclic
-        const_cast<vectorField&>(nbrPatch.Sf()) =
-            openFraction_*nbrCyclicSf_;
+        const_cast<vectorField&>(nbrPatch.Sf()) = areaFraction*nbrCyclicSf_;
 
-        const_cast<scalarField&>(nbrPatch.magSf()) =
-            mag(nbrPatch.Sf());
+        const_cast<scalarField&>(nbrPatch.magSf()) = mag(nbrPatch.Sf());
 
         curTimeIndex_ = this->db().time().timeIndex();
     }
@@ -354,21 +378,14 @@ void Foam::activePressureForceBaffleVelocityFvPatchVectorField::
 write(Ostream& os) const
 {
     fvPatchVectorField::write(os);
-    writeEntryIfDifferent<word>(os, "p", "p", pName_);
-    os.writeKeyword("cyclicPatch")
-        << cyclicPatchName_ << token::END_STATEMENT << nl;
-    os.writeKeyword("orientation")
-        << orientation_ << token::END_STATEMENT << nl;
-    os.writeKeyword("openingTime")
-        << openingTime_ << token::END_STATEMENT << nl;
-    os.writeKeyword("maxOpenFractionDelta")
-        << maxOpenFractionDelta_ << token::END_STATEMENT << nl;
-    os.writeKeyword("openFraction")
-        << openFraction_ << token::END_STATEMENT << nl;
-    os.writeKeyword("minThresholdValue")
-        << minThresholdValue_ << token::END_STATEMENT << nl;
-    os.writeKeyword("forceBased")
-        << fBased_ << token::END_STATEMENT << nl;
+    os.writeEntryIfDifferent<word>("p", "p", pName_);
+    os.writeEntry("cyclicPatch", cyclicPatchName_);
+    os.writeEntry("openingTime", openingTime_);
+    os.writeEntry("maxOpenFractionDelta", maxOpenFractionDelta_);
+    os.writeEntry("openFraction", openFraction_);
+    os.writeEntry("minThresholdValue", minThresholdValue_);
+    os.writeEntry("forceBased", fBased_);
+    os.writeEntry("opening", opening_);
     writeEntry("value", os);
 }
 
@@ -383,5 +400,6 @@ namespace Foam
         activePressureForceBaffleVelocityFvPatchVectorField
     );
 }
+
 
 // ************************************************************************* //

@@ -2,15 +2,14 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
 -------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2018-2021 OpenCFD Ltd.
+-------------------------------------------------------------------------------
 License
-    This file is part of blueCAPE's unofficial mingw patches for OpenFOAM.
-    For more information about these patches, visit:
-         http://bluecfd.com/Core
-
-    This file is a derivative work of OpenFOAM.
+    This file is part of OpenFOAM.
 
     OpenFOAM is free software: you can redistribute it and/or modify it
     under the terms of the GNU General Public License as published by
@@ -25,52 +24,47 @@ License
     You should have received a copy of the GNU General Public License
     along with OpenFOAM.  If not, see <http://www.gnu.org/licenses/>.
 
-Modifications
-    This file is based on the original version for POSIX:
-        OpenFOAM/src/OSspecific/POSIX/
-
-    This file has been created by blueCAPE's unofficial mingw patches for
-    OpenFOAM.
-    For more information about these patches, visit:
-        http://bluecfd.com/Core
-
-    Modifications made:
-      - Derived from the patches for blueCFD 2.1 and 2.2.
-      - Adjusted the code to OpenFOAM 2.2.
-
-Class
-    fileMonitor
-
-\*----------------------------------------------------------------------------*/
+\*---------------------------------------------------------------------------*/
 
 #include "fileMonitor.H"
 #include "IOstreams.H"
-#include "Pstream.T.H"
-#include "PackedList.T.H"
-#include "PstreamReduceOps.T.H"
+#include "Pstream.H"
+#include "PackedList.H"
+#include "PstreamReduceOps.H"
 #include "OSspecific.H"
-#include "regIOobject.H"     // for fileModificationSkew symbol
+#include "IOobject.H"     // for fileModificationSkew symbol
+
+#ifdef _WIN32
+#undef FOAM_USE_INOTIFY
+#endif
+
+#ifdef FOAM_USE_INOTIFY
+    #include <unistd.h>
+    #include <sys/inotify.h>
+    #include <sys/ioctl.h>
+    #include <errno.h>
+    #define EVENT_SIZE  ( sizeof (struct inotify_event) )
+    #define EVENT_LEN   (EVENT_SIZE + 16)
+    #define EVENT_BUF_LEN     ( 1024 * EVENT_LEN )
+#endif
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
 
-const Foam::NamedEnum<Foam::fileMonitor::fileState, 3>
-    Foam::fileMonitor::fileStateNames_;
+const Foam::Enum
+<
+    Foam::fileMonitor::fileState
+>
+Foam::fileMonitor::fileStateNames_
+({
+    { fileState::UNMODIFIED, "unmodified" },
+    { fileState::MODIFIED, "modified" },
+    { fileState::DELETED, "deleted" },
+});
+
 
 namespace Foam
 {
     defineTypeNameAndDebug(fileMonitor, 0);
-
-    template<>
-    const char* Foam::NamedEnum
-    <
-        Foam::fileMonitor::fileState,
-        3
-    >::names[] =
-    {
-        "unmodified",
-        "modified",
-        "deleted"
-    };
 
     //- Reduction operator for PackedList of fileState
     class reduceFileStates
@@ -138,18 +132,48 @@ namespace Foam
 
 
 
-        //- initialise inotify
+        //- Initialise inotify
         inline fileMonitorWatcher(const bool useInotify, const label sz = 20)
         :
-            useInotify_(useInotify)
+            useInotify_(useInotify),
+            inotifyFd_(-1)
         {
             if (useInotify_)
             {
-                FatalErrorInFunction
-                    << "You selected inotify, but there isn't such an"
-                    << " option in Windows."
-                    << "Please select another fileModification test method"
-                    << exit(FatalError);
+                #ifdef FOAM_USE_INOTIFY
+                inotifyFd_ = inotify_init();
+                dirWatches_.setCapacity(sz);
+                dirFiles_.setCapacity(sz);
+
+                if (inotifyFd_ < 0)
+                {
+                    static bool hasWarned = false;
+                    if (!hasWarned)
+                    {
+                        hasWarned = true;
+                        WarningInFunction
+                            << "Failed allocating an inotify descriptor : "
+                            << string(strerror(errno)) << endl
+                            << "    Please increase the number of allowable "
+                            << "inotify instances" << endl
+                            << "    (/proc/sys/fs/inotify/max_user_instances"
+                            << " on Linux)" << endl
+                            << "    , switch off runTimeModifiable." << endl
+                            << "    or compile this file without "
+                            << "FOAM_USE_INOTIFY"
+                            << " to use time stamps instead of inotify." << endl
+                            << "    Continuing without additional file"
+                            << " monitoring."
+                            << endl;
+                    }
+                }
+                #else
+                    FatalErrorInFunction
+                        << "You selected inotify but this file was compiled"
+                        << " without FOAM_USE_INOTIFY"
+                        << " Please select another fileModification test method"
+                        << exit(FatalError);
+                #endif
             }
             else
             {
@@ -157,9 +181,26 @@ namespace Foam
             }
         }
 
-        //- remove all watches
+        //- Remove all watches
         inline ~fileMonitorWatcher()
         {
+            #ifdef FOAM_USE_INOTIFY
+            if (useInotify_ && inotifyFd_ >= 0)
+            {
+                forAll(dirWatches_, i)
+                {
+                    if (dirWatches_[i] >= 0)
+                    {
+                        if (inotify_rm_watch(inotifyFd_, int(dirWatches_[i])))
+                        {
+                            WarningInFunction
+                                << "Failed deleting directory watch "
+                                << dirWatches_[i] << endl;
+                        }
+                    }
+                }
+            }
+            #endif
         }
 
         inline bool addWatch(const label watchFd, const fileName& fName)
@@ -170,6 +211,46 @@ namespace Foam
                 {
                     return false;
                 }
+
+                #ifdef FOAM_USE_INOTIFY
+                // Add/retrieve watch on directory containing file.
+                // Note that fName might be non-existing in special situations
+                // (master-only reading for IODictionaries)
+
+                const fileName dir = fName.path();
+
+                label dirWatchID = -1;
+                if (isDir(dir))
+                {
+                    dirWatchID = inotify_add_watch
+                    (
+                        inotifyFd_,
+                        dir.c_str(),
+                        IN_CLOSE_WRITE
+                    );
+
+                    if (dirWatchID < 0)
+                    {
+                        FatalErrorInFunction
+                            << "Failed adding watch " << watchFd
+                            << " to directory " << fName << " due to "
+                            << string(strerror(errno))
+                            << exit(FatalError);
+                    }
+                }
+
+                if (watchFd < dirWatches_.size() && dirWatches_[watchFd] != -1)
+                {
+                    // Reuse of watchFd : should have dir watchID set to -1.
+                    FatalErrorInFunction
+                        << "Problem adding watch " << watchFd
+                        << " to file " << fName
+                        << abort(FatalError);
+                }
+
+                dirWatches_(watchFd) = dirWatchID;
+                dirFiles_(watchFd) = fName.name();
+                #endif
             }
             else
             {
@@ -214,7 +295,105 @@ namespace Foam
 
 void Foam::fileMonitor::checkFiles() const
 {
-    if (!useInotify_)
+    if (useInotify_)
+    {
+        #ifdef FOAM_USE_INOTIFY
+        // Large buffer for lots of events
+        char buffer[EVENT_BUF_LEN];
+
+        while (true)
+        {
+            struct timeval zeroTimeout = {0, 0};
+
+            //- Pre-allocated structure containing file descriptors
+            fd_set fdSet;
+            // Add notify descriptor to select fd_set
+            FD_ZERO(&fdSet);
+            FD_SET(watcher_->inotifyFd_, &fdSet);
+
+            int ready = select
+            (
+                watcher_->inotifyFd_+1,     // num filedescriptors in fdSet
+                &fdSet,             // fdSet with only inotifyFd
+                nullptr,               // No writefds
+                nullptr,               // No errorfds
+                &zeroTimeout        // eNo timeout
+            );
+
+            if (ready < 0)
+            {
+                FatalErrorInFunction
+                    << "Problem in issuing select."
+                    << abort(FatalError);
+            }
+            else if (FD_ISSET(watcher_->inotifyFd_, &fdSet))
+            {
+                // Read events
+                ssize_t nBytes = ::read
+                (
+                    watcher_->inotifyFd_,
+                    buffer,
+                    EVENT_BUF_LEN
+                );
+
+                if (nBytes < 0)
+                {
+                    FatalErrorInFunction
+                        << "read of " << watcher_->inotifyFd_
+                        << " failed with " << label(nBytes)
+                        << abort(FatalError);
+                }
+
+                // Go through buffer, consuming events
+                int i = 0;
+                while (i < nBytes)
+                {
+                    const struct inotify_event* inotifyEvent =
+                        reinterpret_cast<const struct inotify_event*>
+                        (
+                            &buffer[i]
+                        );
+
+                    //Pout<< "watchFd:" << inotifyEvent->wd << nl
+                    //    << "mask:" << inotifyEvent->mask << nl
+                    //  << endl;
+                    //Pout<< "file:" << fileName(inotifyEvent->name) << endl;
+                    //Pout<< "len:" << inotifyEvent->len << endl;
+
+                    if
+                    (
+                        (inotifyEvent->mask & IN_CLOSE_WRITE)
+                     && inotifyEvent->len
+                    )
+                    {
+                        // Search for file
+                        forAll(watcher_->dirWatches_, i)
+                        {
+                            label id = watcher_->dirWatches_[i];
+                            if
+                            (
+                                id == inotifyEvent->wd
+                             && inotifyEvent->name == watcher_->dirFiles_[i]
+                            )
+                            {
+                                // Correct directory and name
+                                localState_[i] = MODIFIED;
+                            }
+                        }
+                    }
+
+                    i += EVENT_SIZE + inotifyEvent->len;
+                }
+            }
+            else
+            {
+                // No data
+                return;
+            }
+        }
+        #endif
+    }
+    else
     {
         forAll(watcher_->lastMod_, watchFd)
         {
@@ -231,7 +410,7 @@ void Foam::fileMonitor::checkFiles() const
                 }
                 else
                 {
-                    if (newTime > (oldTime + regIOobject::fileModificationSkew))
+                    if (newTime > (oldTime + IOobject::fileModificationSkew))
                     {
                         localState_[watchFd] = MODIFIED;
                     }
@@ -272,14 +451,16 @@ Foam::fileMonitor::~fileMonitor()
 // regIOobject)
 Foam::label Foam::fileMonitor::addWatch(const fileName& fName)
 {
+    if (debug)
+    {
+        Pout<< "fileMonitor : adding watch on file " << fName << endl;
+    }
+
     label watchFd;
 
-    label sz = freeWatchFds_.size();
-
-    if (sz)
+    if (freeWatchFds_.size())
     {
-        watchFd = freeWatchFds_[sz-1];
-        freeWatchFds_.setSize(sz-1);
+        watchFd = freeWatchFds_.remove();
     }
     else
     {
@@ -317,7 +498,8 @@ bool Foam::fileMonitor::removeWatch(const label watchFd)
             << watchFile_[watchFd] << endl;
     }
 
-    freeWatchFds_.append(watchFd);
+    freeWatchFds_.appendUniq(watchFd);
+
     return watcher_->removeWatch(watchFd);
 }
 
@@ -355,9 +537,10 @@ void Foam::fileMonitor::updateStates
         {
             forAll(state_, watchFd)
             {
-                stats[watchFd] = static_cast<unsigned int>
+                stats.set
                 (
-                    localState_[watchFd]
+                    watchFd,
+                    static_cast<unsigned int>(localState_[watchFd])
                 );
             }
         }

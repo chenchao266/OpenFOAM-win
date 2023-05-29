@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -61,7 +64,7 @@ class attachDetach
 :
     public polyMeshModifier
 {
-    // Data types
+    // Data Types
 
         //- State of the modifier
         enum modifierState
@@ -72,7 +75,7 @@ class attachDetach
         };
 
 
-    // Private data
+    // Private Data
 
         //- Master face zone ID
         faceZoneID faceZoneID_;
@@ -86,14 +89,14 @@ class attachDetach
         //- List of trigger times
         scalarField triggerTimes_;
 
-        //- Use manual trigger
-        Switch manualTrigger_;
-
         //- Trigger time index
         mutable label triggerIndex_;
 
         //- State of the modifier
         mutable modifierState state_;
+
+        //- Use manual trigger
+        bool manualTrigger_;
 
         //- Attach/detach trigger
         mutable bool trigger_;
@@ -101,17 +104,17 @@ class attachDetach
 
         // Private addressing data.  Created on topology change
 
-            //- Map of matching points
-            mutable Map<label>* pointMatchMapPtr_;
+        //- Map of matching points
+        mutable unique_ptr<Map<label>> pointMatchMapPtr_;
 
 
     // Private Member Functions
 
-        //- Disallow default bitwise copy construct
-        attachDetach(const attachDetach&);
+        //- No copy construct
+        attachDetach(const attachDetach&) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const attachDetach&);
+        //- No copy assignment
+        void operator=(const attachDetach&) = delete;
 
         //- Check validity of construction data
         void checkDefinition();
@@ -172,7 +175,7 @@ public:
 
 
     //- Destructor
-    virtual ~attachDetach();
+    virtual ~attachDetach() = default;
 
 
     // Member Functions
@@ -195,7 +198,8 @@ public:
             return state_ == ATTACHED;
         }
 
-        const Switch& manualTrigger() const
+        //- Is manually triggered?
+        bool manualTrigger() const
         {
             return manualTrigger_;
         }

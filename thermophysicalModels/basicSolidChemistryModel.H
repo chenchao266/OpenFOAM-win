@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2013-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2013-2017 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -30,7 +32,7 @@ Description
 SourceFiles
     basicSolidChemistryModelI.H
     basicSolidChemistryModel.C
-    newChemistrySolidModel.C
+    basicSolidChemistryModelNew.C
 
 \*---------------------------------------------------------------------------*/
 
@@ -48,11 +50,11 @@ SourceFiles
 namespace Foam
 {
 
-// Forward declaration of classes
+// Forward Declarations
 class fvMesh;
 
 /*---------------------------------------------------------------------------*\
-                     class basicSolidChemistryModel Declaration
+                     Class basicSolidChemistryModel Declaration
 \*---------------------------------------------------------------------------*/
 
 class basicSolidChemistryModel
@@ -64,16 +66,16 @@ class basicSolidChemistryModel
         //- Construct as copy (not implemented)
         basicSolidChemistryModel(const basicSolidChemistryModel&);
 
-        //- Disallow default bitwise assignment
-        void operator=(const basicSolidChemistryModel&);
+        //- No copy assignment
+        void operator=(const basicSolidChemistryModel&) = delete;
 
 
 protected:
 
-    // Protected data
+    // Protected Data
 
-        //- Solid thermo package
-        autoPtr<solidReactionThermo> solidThermo_;
+        //- Solid thermo
+        solidReactionThermo& solidThermo_;
 
 
 public:
@@ -82,29 +84,29 @@ public:
     TypeName("basicSolidChemistryModel");
 
 
+    //- Thermo type
+    typedef solidReactionThermo reactionThermo;
+
+
     //- Declare run-time constructor selection tables
     declareRunTimeSelectionTable
     (
         autoPtr,
         basicSolidChemistryModel,
-        fvMesh,
-        (const fvMesh& mesh, const word& phaseName),
-        (mesh, phaseName)
+        thermo,
+        (solidReactionThermo& thermo),
+        (thermo)
     );
 
 
     // Constructors
 
-        //- Construct from mesh
-        basicSolidChemistryModel(const fvMesh& mesh, const word& phaseName);
+        //- Construct from thermo
+        basicSolidChemistryModel(solidReactionThermo& thermo);
 
 
     //- Selector
-    static autoPtr<basicSolidChemistryModel> New
-    (
-        const fvMesh& mesh,
-        const word& phaseName=word::null
-    );
+    static autoPtr<basicSolidChemistryModel> New(solidReactionThermo& thermo);
 
 
     //- Destructor
@@ -151,6 +153,9 @@ public:
             const volScalarField& T,
             const label i
         ) const = 0;
+
+        //- Return net solid sensible enthalpy [J/Kg]
+        virtual tmp<DimensionedField<scalar, volMesh>> RRsHs() const = 0;
 
         //- Return specie Table for gases
         virtual const speciesTable& gasTable() const = 0;

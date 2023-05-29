@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2013-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2013-2016 OpenFOAM Foundation
+    Copyright (C) 2019-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -34,13 +37,7 @@ namespace Foam
 namespace functionObjects
 {
     defineTypeNameAndDebug(Lambda2, 0);
-
-    addToRunTimeSelectionTable
-    (
-        functionObject,
-        Lambda2,
-        dictionary
-    );
+    addToRunTimeSelectionTable(functionObject, Lambda2, dictionary);
 }
 }
 
@@ -55,10 +52,13 @@ bool Foam::functionObjects::Lambda2::calc()
         const tmp<volTensorField> tgradU(fvc::grad(U));
         const volTensorField& gradU = tgradU();
 
-        const volTensorField SSplusWW
+        const volSymmTensorField SSplusWW
         (
-            (symm(gradU) & symm(gradU))
-          + (skew(gradU) & skew(gradU))
+            symm
+            (
+                (symm(gradU) & symm(gradU))
+              + (skew(gradU) & skew(gradU))
+            )
         );
 
         return store
@@ -67,10 +67,8 @@ bool Foam::functionObjects::Lambda2::calc()
            -eigenValues(SSplusWW)().component(vector::Y)
         );
     }
-    else
-    {
-        return false;
-    }
+
+    return false;
 }
 
 
@@ -87,12 +85,6 @@ Foam::functionObjects::Lambda2::Lambda2
 {
     setResultName(typeName, "U");
 }
-
-
-// * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
-
-Foam::functionObjects::Lambda2::~Lambda2()
-{}
 
 
 // ************************************************************************* //

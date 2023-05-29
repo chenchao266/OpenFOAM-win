@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2019-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -27,110 +30,156 @@ License
 #include "stringOps.H"
 #include "OSHA1stream.H"
 
-// * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
-using namespace Foam;
-dynamicCodeContext::dynamicCodeContext(const dictionary& dict) :    dict_(dict),
-    code_(),
-    localCode_(),
-    include_(),
-    options_(),
-    libs_()
+// * * * * * * * * * * * * * Static Member Functions * * * * * * * * * * * * //
+
+
+ namespace Foam{
+void dynamicCodeContext::inplaceExpand
+(
+    string& str,
+    const dictionary& dict
+)
 {
-    // Expand dictionary entries
+    stringOps::inplaceTrim(str);
+    stringOps::inplaceExpand(str, dict);
+}
 
-    // Note: removes any leading/trailing whitespace
-    // - necessary for compilation options, convenient for includes
-    // and body.
 
-    const entry* codePtr = dict.lookupEntryPtr
-    (
-        "code",
-        false,
-        false
-    );
-    if (codePtr)
+unsigned dynamicCodeContext::addLineDirective
+(
+    string& code,
+    label lineNum,
+    const string& file
+)
+{
+    ++lineNum;  // Change from 0-based to 1-based
+
+    const auto len = code.length();
+
+    if (lineNum > 0 && len && !file.empty())
     {
-        code_ = stringOps::trim(codePtr->stream());
-        stringOps::inplaceExpand(code_, dict);
+        code = "#line " + name(lineNum) + " \"" + file + "\"\n" + code;
+
+        return (code.length() - len);
     }
 
-    const entry* includePtr = dict.lookupEntryPtr
-    (
-        "codeInclude",
-        false,
-        false
-    );
-    if (includePtr)
-    {
-        include_ = stringOps::trim(includePtr->stream());
-        stringOps::inplaceExpand(include_, dict);
-    }
-
-    const entry* optionsPtr = dict.lookupEntryPtr
-    (
-        "codeOptions",
-        false,
-        false
-    );
-    if (optionsPtr)
-    {
-        options_ = stringOps::trim(optionsPtr->stream());
-        stringOps::inplaceExpand(options_, dict);
-    }
-
-    const entry* libsPtr = dict.lookupEntryPtr("codeLibs", false, false);
-    if (libsPtr)
-    {
-        libs_ = stringOps::trim(libsPtr->stream());
-        stringOps::inplaceExpand(libs_, dict);
-    }
-
-    const entry* localPtr = dict.lookupEntryPtr("localCode", false, false);
-    if (localPtr)
-    {
-        localCode_ = stringOps::trim(localPtr->stream());
-        stringOps::inplaceExpand(localCode_, dict);
-    }
-
-    // Calculate SHA1 digest from include, options, localCode, code
-    OSHA1stream os;
-    os  << include_ << options_ << libs_ << localCode_ << code_;
-    sha1_ = os.digest();
+    return 0;
+}
 
 
-    // Add line number after calculating sha1 since includes processorDDD
-    // in path which differs between processors.
+unsigned dynamicCodeContext::addLineDirective
+(
+    string& code,
+    label lineNum,
+    const dictionary& dict
+)
+{
+    return addLineDirective(code, lineNum, dict.name());
+}
 
-    if (codePtr)
-    {
-        addLineDirective(code_, codePtr->startLineNumber(), dict.name());
-    }
 
-    if (includePtr)
-    {
-        addLineDirective(include_, includePtr->startLineNumber(), dict.name());
-    }
+// * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
-    // Do not add line directive to options_ (Make/options) and libs since
-    // they are preprocessed as a single line at this point. Can be fixed.
-    if (localPtr)
-    {
-        addLineDirective(localCode_, localPtr->startLineNumber(), dict.name());
-    }
+dynamicCodeContext::dynamicCodeContext()
+:
+    dict_(std::cref<dictionary>(dictionary::null))
+{}
+
+
+dynamicCodeContext::dynamicCodeContext(const dictionary& dict)
+:
+    dynamicCodeContext()
+{
+    setCodeContext(dict);
 }
 
 
 // * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * * //
 
-void dynamicCodeContext::addLineDirective
+bool dynamicCodeContext::valid() const noexcept
+{
+    return &(dict_.get()) != &(dictionary::null);
+}
+
+
+const entry* dynamicCodeContext::findEntry(const word& key) const
+{
+    return this->dict().findEntry(key, keyType::LITERAL);
+}
+
+
+bool dynamicCodeContext::readEntry
 (
-    string& code,
-    const label lineNum,
-    const fileName& name
+    const word& key,
+    string& str,
+    bool mandatory,
+    bool withLineNum
 )
 {
-    code = "#line " + name(lineNum + 1) + " \"" + name + "\"\n" + code;
+    str.clear();
+    sha1_.append("<" + key + ">");
+
+    const dictionary& dict = this->dict();
+    const entry* eptr = dict.findEntry(key, keyType::LITERAL);
+
+    if (!eptr)
+    {
+        if (mandatory)
+        {
+            FatalIOErrorInFunction(dict)
+                << "Entry '" << key << "' not found in dictionary "
+                << dict.name() << nl
+                << exit(FatalIOError);
+        }
+
+        return false;
+    }
+
+    // Expand dictionary entries.
+    // Removing any leading/trailing whitespace is necessary for compilation
+    // options, but is also convenient for includes and code body.
+
+    eptr->readEntry(str);
+    dynamicCodeContext::inplaceExpand(str, dict);
+    sha1_.append(str);
+
+    if (withLineNum)
+    {
+        addLineDirective(str, eptr->startLineNumber(), dict);
+    }
+
+    return true;
+}
+
+
+bool dynamicCodeContext::readIfPresent
+(
+    const word& key,
+    string& str,
+    bool withLineNum
+)
+{
+    return readEntry(key, str, false, withLineNum);
+}
+
+
+void dynamicCodeContext::setCodeContext(const dictionary& dict)
+{
+    dict_ = std::cref<dictionary>(dict);
+    sha1_.clear();
+
+    // No #line for options (Make/options)
+    readIfPresent("codeOptions", codeOptions_, false);
+
+    // No #line for libs (LIB_LIBS)
+    readIfPresent("codeLibs", codeLibs_, false);
+
+    readIfPresent("codeInclude", codeInclude_);
+    readIfPresent("localCode", localCode_);
+    readIfPresent("code", code_);
 }
 
 
 // ************************************************************************* //
+
+ } // End namespace Foam

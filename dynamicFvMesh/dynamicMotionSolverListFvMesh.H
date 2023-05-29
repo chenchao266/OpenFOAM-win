@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2016 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -25,7 +28,9 @@ Class
     Foam::dynamicMotionSolverListFvMesh
 
 Description
-    Foam::dynamicMotionSolverListFvMesh
+    Dynamic mesh able to handle multiple motion solvers.
+    NOTE: If the word entry "solvers" is not found it falls back to a single
+    motion solver behavior.
 
 SourceFiles
     dynamicMotionSolverListFvMesh.C
@@ -59,11 +64,14 @@ class dynamicMotionSolverListFvMesh
 
     // Private Member Functions
 
-        //- Disallow default bitwise copy construct
-        dynamicMotionSolverListFvMesh(const dynamicMotionSolverListFvMesh&);
+        //- No copy construct
+        dynamicMotionSolverListFvMesh
+        (
+            const dynamicMotionSolverListFvMesh&
+        ) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const dynamicMotionSolverListFvMesh&);
+        //- No copy assignment
+        void operator=(const dynamicMotionSolverListFvMesh&) = delete;
 
 
 public:
@@ -75,7 +83,11 @@ public:
     // Constructors
 
         //- Construct from IOobject
-        dynamicMotionSolverListFvMesh(const IOobject& io);
+        dynamicMotionSolverListFvMesh
+        (
+            const IOobject& io,
+            const bool doInit=true
+        );
 
 
     //- Destructor
@@ -83,6 +95,9 @@ public:
 
 
     // Member Functions
+
+        //- Initialise all non-demand-driven data
+        virtual bool init(const bool doInit);
 
         //- Dummy update function which does not change the mesh
         virtual bool update();

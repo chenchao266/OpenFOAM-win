@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011 OpenFOAM Foundation
+    Copyright (C) 2019-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -24,9 +27,8 @@ License
 \*---------------------------------------------------------------------------*/
 
 #include "boundaryRegion.H"
-#include "IOMap.T.H"
+#include "IOMap.H"
 #include "OFstream.H"
-#include "stringListOps.H"
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
@@ -49,18 +51,12 @@ Foam::boundaryRegion::boundaryRegion
 }
 
 
-// * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
-
-Foam::boundaryRegion::~boundaryRegion()
-{}
-
-
 // * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * * //
 
 Foam::label Foam::boundaryRegion::append(const dictionary& dict)
 {
     label maxId = -1;
-    forAllConstIter(Map<dictionary>, *this, iter)
+    forAllConstIters(*this, iter)
     {
         if (maxId < iter.key())
         {
@@ -77,12 +73,12 @@ Foam::Map<Foam::word> Foam::boundaryRegion::names() const
 {
     Map<word> lookup;
 
-    forAllConstIter(Map<dictionary>, *this, iter)
+    forAllConstIters(*this, iter)
     {
         lookup.insert
         (
             iter.key(),
-            iter().lookupOrDefault<word>
+            iter().getOrDefault<word>
             (
                 "Label",
                 "boundaryRegion_" + Foam::name(iter.key())
@@ -96,20 +92,20 @@ Foam::Map<Foam::word> Foam::boundaryRegion::names() const
 
 Foam::Map<Foam::word> Foam::boundaryRegion::names
 (
-    const UList<wordRe>& patterns
+    const wordRes& patterns
 ) const
 {
     Map<word> lookup;
 
-    forAllConstIter(Map<dictionary>, *this, iter)
+    forAllConstIters(*this, iter)
     {
-        word lookupName = iter().lookupOrDefault<word>
+        const word lookupName = iter().getOrDefault<word>
         (
             "Label",
             "boundaryRegion_" + Foam::name(iter.key())
         );
 
-        if (findStrings(patterns, lookupName))
+        if (patterns.match(lookupName))
         {
             lookup.insert(iter.key(), lookupName);
         }
@@ -123,12 +119,12 @@ Foam::Map<Foam::word> Foam::boundaryRegion::boundaryTypes() const
 {
     Map<word> lookup;
 
-    forAllConstIter(Map<dictionary>, *this, iter)
+    forAllConstIters(*this, iter)
     {
         lookup.insert
         (
             iter.key(),
-            iter().lookupOrDefault<word>("BoundaryType", "patch")
+            iter().getOrDefault<word>("BoundaryType", "patch")
         );
     }
 
@@ -143,9 +139,9 @@ Foam::label Foam::boundaryRegion::findIndex(const word& name) const
         return -1;
     }
 
-    forAllConstIter(Map<dictionary>, *this, iter)
+    forAllConstIters(*this, iter)
     {
-        if (iter().lookupOrDefault<word>("Label", word::null) == name)
+        if (iter().getOrDefault<word>("Label", word::null) == name)
         {
             return iter.key();
         }
@@ -263,23 +259,23 @@ void Foam::boundaryRegion::rename(const dictionary& mapDict)
     // This avoid re-matching any renamed regions
 
     Map<word> mapping;
-    forAllConstIter(dictionary, mapDict, iter)
+    for (const entry& dEntry : mapDict)
     {
-        word oldName(iter().stream());
+        const word oldName(dEntry.stream());
 
-        label id = this->findIndex(oldName);
+        const label id = this->findIndex(oldName);
         if (id >= 0)
         {
-            mapping.insert(id, iter().keyword());
+            mapping.insert(id, dEntry.keyword());
         }
     }
 
-    forAllConstIter(Map<word>, mapping, iter)
+    forAllConstIters(mapping, iter)
     {
         dictionary& dict = operator[](iter.key());
 
         Info<< "rename patch: " << iter()
-            << " <- " << word(dict.lookup("Label")) << nl;
+            << " <- " << dict.get<word>("Label") << nl;
 
         dict.set("Label", iter());
     }

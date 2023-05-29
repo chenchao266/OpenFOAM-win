@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -41,7 +44,7 @@ SourceFiles
 
 #include "solidBodyMotionFunction.H"
 #include "primitiveFields.H"
-#include "Vector2D.T.H"
+#include "Vector2D.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -78,11 +81,11 @@ class tabulated6DoFMotion
 
     // Private Member Functions
 
-        //- Disallow copy construct
-        tabulated6DoFMotion(const tabulated6DoFMotion&);
+        //- No copy construct
+        tabulated6DoFMotion(const tabulated6DoFMotion&) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const tabulated6DoFMotion&);
+        //- No copy assignment
+        void operator=(const tabulated6DoFMotion&) = delete;
 
 
 public:
@@ -115,7 +118,7 @@ public:
 
 
     //- Destructor
-    virtual ~tabulated6DoFMotion();
+    virtual ~tabulated6DoFMotion() = default;
 
 
     // Member Functions

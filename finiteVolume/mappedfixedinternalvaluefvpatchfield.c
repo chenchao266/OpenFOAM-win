@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -24,12 +26,12 @@ License
 \*---------------------------------------------------------------------------*/
 
 //#include "mappedFixedInternalValueFvPatchField.H"
-#include "UIndirectList.T.H"
+#include "UIndirectList.H"
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
-namespace Foam{
+
 template<class Type>
-mappedFixedInternalValueFvPatchField<Type>::
+Foam::mappedFixedInternalValueFvPatchField<Type>::
 mappedFixedInternalValueFvPatchField
 (
     const fvPatch& p,
@@ -41,7 +43,7 @@ mappedFixedInternalValueFvPatchField
 
 
 template<class Type>
-mappedFixedInternalValueFvPatchField<Type>::
+Foam::mappedFixedInternalValueFvPatchField<Type>::
 mappedFixedInternalValueFvPatchField
 (
     const mappedFixedInternalValueFvPatchField<Type>& ptf,
@@ -55,7 +57,7 @@ mappedFixedInternalValueFvPatchField
 
 
 template<class Type>
-mappedFixedInternalValueFvPatchField<Type>::
+Foam::mappedFixedInternalValueFvPatchField<Type>::
 mappedFixedInternalValueFvPatchField
 (
     const fvPatch& p,
@@ -68,7 +70,7 @@ mappedFixedInternalValueFvPatchField
 
 
 template<class Type>
-mappedFixedInternalValueFvPatchField<Type>::
+Foam::mappedFixedInternalValueFvPatchField<Type>::
 mappedFixedInternalValueFvPatchField
 (
     const mappedFixedInternalValueFvPatchField<Type>& ptf
@@ -79,7 +81,7 @@ mappedFixedInternalValueFvPatchField
 
 
 template<class Type>
-mappedFixedInternalValueFvPatchField<Type>::
+Foam::mappedFixedInternalValueFvPatchField<Type>::
 mappedFixedInternalValueFvPatchField
 (
     const mappedFixedInternalValueFvPatchField<Type>& ptf,
@@ -93,9 +95,9 @@ mappedFixedInternalValueFvPatchField
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
 
 template<class Type>
-void mappedFixedInternalValueFvPatchField<Type>::updateCoeffs()
+void Foam::mappedFixedInternalValueFvPatchField<Type>::updateCoeffs()
 {
-    typedef volFieldType<Type> FieldType;
+    typedef GeometricField<Type, Foam::fvPatchField, volMesh> FieldType;
 
     if (this->updated())
     {
@@ -185,7 +187,7 @@ void mappedFixedInternalValueFvPatchField<Type>::updateCoeffs()
 
 
 template<class Type>
-void mappedFixedInternalValueFvPatchField<Type>::write
+void Foam::mappedFixedInternalValueFvPatchField<Type>::write
 (
     Ostream& os
 ) const
@@ -193,5 +195,5 @@ void mappedFixedInternalValueFvPatchField<Type>::write
     mappedFixedValueFvPatchField<Type>::write(os);
 }
 
-}
+
 // ************************************************************************* //

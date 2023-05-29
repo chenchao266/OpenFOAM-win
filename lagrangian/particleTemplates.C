@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017, 2020 OpenFOAM Foundation
+    Copyright (C) 2016-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -23,10 +26,11 @@ License
 
 \*---------------------------------------------------------------------------*/
 
-#include "IOPosition.T.H"
+#include "IOPosition.H"
 
 #include "cyclicPolyPatch.H"
 #include "cyclicAMIPolyPatch.H"
+#include "cyclicACMIPolyPatch.H"
 #include "processorPolyPatch.H"
 #include "symmetryPlanePolyPatch.H"
 #include "symmetryPolyPatch.H"
@@ -34,83 +38,116 @@ License
 #include "wedgePolyPatch.H"
 #include "meshTools.H"
 
-// * * * * * * * * * * * * * Private Member Functions  * * * * * * * * * * * //
-
-template<class TrackData>
-void Foam::particle::prepareForParallelTransfer
-(
-    const label patchi,
-    TrackData& td
-)
-{
-    // Convert the face index to be local to the processor patch
-    facei_ = mesh_.boundaryMesh()[patchi].whichFace(facei_);
-}
-
-
-template<class TrackData>
-void Foam::particle::correctAfterParallelTransfer
-(
-    const label patchi,
-    TrackData& td
-)
-{
-    const coupledPolyPatch& ppp =
-        refCast<const coupledPolyPatch>(mesh_.boundaryMesh()[patchi]);
-
-    if (!ppp.parallel())
-    {
-        const tensor& T =
-        (
-            ppp.forwardT().size() == 1
-          ? ppp.forwardT()[0]
-          : ppp.forwardT()[facei_]
-        );
-        transformProperties(T);
-    }
-    else if (ppp.separated())
-    {
-        const vector& s =
-        (
-            (ppp.separation().size() == 1)
-          ? ppp.separation()[0]
-          : ppp.separation()[facei_]
-        );
-        transformProperties(-s);
-    }
-
-    // Set the topology
-    celli_ = ppp.faceCells()[facei_];
-    facei_ += ppp.start();
-    tetFacei_ = facei_;
-    // Faces either side of a coupled patch are numbered in opposite directions
-    // as their normals both point away from their connected cells. The tet
-    // point therefore counts in the opposite direction from the base point.
-    tetPti_ = mesh_.faces()[tetFacei_].size() - 1 - tetPti_;
-
-    // Reflect to account for the change of triangle orientation in the new cell
-    reflect();
-
-    // Note that the position does not need transforming explicitly. The face-
-    // triangle on the receive patch is the transformation of the one on the
-    // send patch, so whilst the barycentric coordinates remain the same, the
-    // change of triangle implicitly transforms the position.
-}
-
-
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
 
-template<class CloudType>
-void Foam::particle::readFields(CloudType& c)
+template<class Type>
+void Foam::particle::writePropertyName
+(
+    Ostream& os,
+    const word& name,
+    const word& delim
+)
 {
-    bool valid = c.size();
+    if (pTraits<Type>::nComponents == 1)
+    {
+        os  << name;
+    }
+    else
+    {
+        os  << '(';
+        for (int i = 0; i < pTraits<Type>::nComponents; ++i)
+        {
+            if (i) os  << delim;
+
+            os   << name << Foam::name(i);
+        }
+        os  << ')';
+    }
+}
+
+
+template<class Type>
+void Foam::particle::writeProperty
+(
+    Ostream& os,
+    const word& name,
+    const Type& value,
+    const bool nameOnly,
+    const word& delim,
+    const wordRes& filters
+)
+{
+    if (!filters.empty() && !filters.match(name))
+    {
+        return;
+    }
+
+    os  << delim;
+    if (nameOnly)
+    {
+        writePropertyName<Type>(os, name, delim);
+    }
+    else
+    {
+        os  << value;
+    }
+}
+
+
+template<class Type>
+void Foam::particle::writeProperty
+(
+    Ostream& os,
+    const word& name,
+    const Field<Type>& values,
+    const bool nameOnly,
+    const word& delim,
+    const wordRes& filters
+)
+{
+    if (!filters.empty() && !filters.match(name))
+    {
+        return;
+    }
+
+    if (nameOnly)
+    {
+        os  << delim;
+        os  << "N(";
+        if (values.size())
+        {
+            forAll(values, i)
+            {
+                if (i) os  << delim;
+                const word tag(name + Foam::name(i));
+                writePropertyName<Type>(os, tag, delim);
+            }
+        }
+        else
+        {
+            os  << name;
+        }
+        os << ')';
+    }
+    else
+    {
+        os  << delim << values;
+    }
+}
+
+
+template<class TrackCloudType>
+void Foam::particle::readFields(TrackCloudType& c)
+{
+    const bool valid = c.size();
 
     IOobject procIO(c.fieldIOobject("origProcId", IOobject::MUST_READ));
 
-    bool haveFile = procIO.typeHeaderOk<IOField<label>>(true);
+    const bool haveFile = procIO.typeHeaderOk<IOField<label>>(true);
 
     IOField<label> origProcId(procIO, valid && haveFile);
     c.checkFieldIOobject(c, origProcId);
+
     IOField<label> origId
     (
         c.fieldIOobject("origId", IOobject::MUST_READ),
@@ -119,24 +156,44 @@ void Foam::particle::readFields(CloudType& c)
     c.checkFieldIOobject(c, origId);
 
     label i = 0;
-    forAllIter(typename CloudType, c, iter)
+    for (particle& p : c)
     {
-        particle& p = iter();
-
         p.origProc_ = origProcId[i];
         p.origId_ = origId[i];
-        i++;
+
+        ++i;
     }
 }
 
 
-template<class CloudType>
-void Foam::particle::writeFields(const CloudType& c)
+template<class TrackCloudType>
+void Foam::particle::writeFields(const TrackCloudType& c)
 {
-    label np = c.size();
+    const label np = c.size();
+    const bool valid = np;
 
-    IOPosition<CloudType> ioP(c);
-    ioP.write(np > 0);
+    if (writeLagrangianCoordinates)
+    {
+        IOPosition<TrackCloudType> ioP(c);
+        ioP.write(valid);
+    }
+    else if (!writeLagrangianPositions)
+    {
+        FatalErrorInFunction
+            << "Must select coordinates and/or positions" << nl
+            << exit(FatalError);
+    }
+
+    // Optionally write positions file in v1706 format and earlier
+    if (writeLagrangianPositions)
+    {
+        IOPosition<TrackCloudType> ioP
+        (
+            c,
+            cloud::geometryType::POSITIONS
+        );
+        ioP.write(valid);
+    }
 
     IOField<label> origProc
     (
@@ -150,205 +207,217 @@ void Foam::particle::writeFields(const CloudType& c)
     );
 
     label i = 0;
-    forAllConstIter(typename CloudType, c, iter)
+    for (const particle& p : c)
     {
-        origProc[i] = iter().origProc_;
-        origId[i] = iter().origId_;
-        i++;
+        origProc[i] = p.origProc_;
+        origId[i] = p.origId_;
+
+        ++i;
     }
 
-    origProc.write(np > 0);
-    origId.write(np > 0);
+    origProc.write(valid);
+    origId.write(valid);
 }
 
 
-template<class TrackData>
-void Foam::particle::trackToFace
+template<class CloudType>
+void Foam::particle::readObjects(CloudType& c, const objectRegistry& obr)
+{
+    typedef typename CloudType::parcelType parcelType;
+
+    const auto* positionPtr = cloud::findIOPosition(obr);
+
+    const label np = c.size();
+    const label newNp = (positionPtr ? positionPtr->size() : 0);
+
+    // Remove excess parcels
+    for (label i = newNp; i < np; ++i)
+    {
+        parcelType* p = c.last();
+
+        c.deleteParticle(*p);
+    }
+
+    if (newNp)
+    {
+        const auto& position = *positionPtr;
+
+        const auto& origProcId = cloud::lookupIOField<label>("origProc", obr);
+        const auto& origId = cloud::lookupIOField<label>("origId", obr);
+
+        // Create new parcels
+        for (label i = np; i < newNp; ++i)
+        {
+            c.addParticle(new parcelType(c.pMesh(), position[i], -1));
+        }
+
+        label i = 0;
+        for (particle& p : c)
+        {
+            p.origProc_ = origProcId[i];
+            p.origId_ = origId[i];
+
+            if (i < np)
+            {
+                // Use relocate for old particles, not new ones
+                p.relocate(position[i]);
+            }
+
+            ++i;
+        }
+    }
+}
+
+
+template<class CloudType>
+void Foam::particle::writeObjects(const CloudType& c, objectRegistry& obr)
+{
+    const label np = c.size();
+
+    auto& origProc = cloud::createIOField<label>("origProc", np, obr);
+    auto& origId = cloud::createIOField<label>("origId", np, obr);
+    auto& position = cloud::createIOField<point>("position", np, obr);
+
+    label i = 0;
+    for (const particle& p : c)
+    {
+        origProc[i] = p.origProc_;
+        origId[i] = p.origId_;
+        position[i] = p.position();
+
+        ++i;
+    }
+}
+
+
+template<class TrackCloudType>
+void Foam::particle::hitFace
 (
     const vector& displacement,
-    const scalar fraction,
-    TrackData& td
+    TrackCloudType& cloud,
+    trackingData& td
 )
 {
-    // Track
-    trackToFace(displacement, fraction);
+    typename TrackCloudType::particleType& p =
+        static_cast<typename TrackCloudType::particleType&>(*this);
+    typename TrackCloudType::particleType::trackingData& ttd =
+        static_cast<typename TrackCloudType::particleType::trackingData&>(td);
 
-    // If the track is complete, return
     if (!onFace())
     {
         return;
     }
-
-    // Hit face/patch processing
-    typedef typename TrackData::cloudType::particleType particleType;
-    particleType& p = static_cast<particleType&>(*this);
-    p.hitFace(td);
-    if (onInternalFace())
+    else if (onInternalFace())
     {
         changeCell();
     }
-    else
+    else if (onBoundaryFace())
     {
-        label origFacei = facei_;
-        label patchi = mesh_.boundaryMesh().whichPatch(facei_);
+        changeToMasterPatch();
 
-        // No action is taken for tetPti_ for tetFacei_ here. These are handled
-        // by the patch interaction call or later during processor transfer.
-
-        const tetIndices faceHitTetIs(celli_, tetFacei_, tetPti_);
-
-        if
-        (
-           !p.hitPatch
-            (
-                mesh_.boundaryMesh()[patchi],
-                td,
-                patchi,
-                stepFraction(),
-                faceHitTetIs
-            )
-        )
+        if (!p.hitPatch(cloud, ttd))
         {
-            // Did patch interaction model switch patches?
-            if (facei_ != origFacei)
-            {
-                patchi = mesh_.boundaryMesh().whichPatch(facei_);
-            }
-
-            const polyPatch& patch = mesh_.boundaryMesh()[patchi];
+            const polyPatch& patch = mesh_.boundaryMesh()[p.patch()];
 
             if (isA<wedgePolyPatch>(patch))
             {
-                p.hitWedgePatch
-                (
-                    static_cast<const wedgePolyPatch&>(patch), td
-                );
+                p.hitWedgePatch(cloud, ttd);
             }
             else if (isA<symmetryPlanePolyPatch>(patch))
             {
-                p.hitSymmetryPlanePatch
-                (
-                    static_cast<const symmetryPlanePolyPatch&>(patch), td
-                );
+                p.hitSymmetryPlanePatch(cloud, ttd);
             }
             else if (isA<symmetryPolyPatch>(patch))
             {
-                p.hitSymmetryPatch
-                (
-                    static_cast<const symmetryPolyPatch&>(patch), td
-                );
+                p.hitSymmetryPatch(cloud, ttd);
             }
             else if (isA<cyclicPolyPatch>(patch))
             {
-                p.hitCyclicPatch
-                (
-                    static_cast<const cyclicPolyPatch&>(patch), td
-                );
+                p.hitCyclicPatch(cloud, ttd);
+            }
+            else if (isA<cyclicACMIPolyPatch>(patch))
+            {
+                p.hitCyclicACMIPatch(cloud, ttd, displacement);
             }
             else if (isA<cyclicAMIPolyPatch>(patch))
             {
-                p.hitCyclicAMIPatch
-                (
-                    static_cast<const cyclicAMIPolyPatch&>(patch),
-                    td,
-                    displacement
-                );
+                p.hitCyclicAMIPatch(cloud, ttd, displacement);
             }
             else if (isA<processorPolyPatch>(patch))
             {
-                p.hitProcessorPatch
-                (
-                    static_cast<const processorPolyPatch&>(patch), td
-                );
+                p.hitProcessorPatch(cloud, ttd);
             }
             else if (isA<wallPolyPatch>(patch))
             {
-                p.hitWallPatch
-                (
-                    static_cast<const wallPolyPatch&>(patch), td, faceHitTetIs
-                );
+                p.hitWallPatch(cloud, ttd);
             }
             else
             {
-                p.hitPatch(patch, td);
+                td.keepParticle = false;
             }
         }
     }
 }
 
 
-template<class TrackData>
-void Foam::particle::hitFace(TrackData&)
-{}
-
-
-template<class TrackData>
-bool Foam::particle::hitPatch
+template<class TrackCloudType>
+void Foam::particle::trackToAndHitFace
 (
-    const polyPatch&,
-    TrackData&,
-    const label,
-    const scalar,
-    const tetIndices&
+    const vector& direction,
+    const scalar fraction,
+    TrackCloudType& cloud,
+    trackingData& td
 )
+{
+    trackToFace(direction, fraction);
+
+    hitFace(direction, cloud, td);
+}
+
+
+template<class TrackCloudType>
+bool Foam::particle::hitPatch(TrackCloudType&, trackingData&)
 {
     return false;
 }
 
 
-template<class TrackData>
-void Foam::particle::hitWedgePatch
-(
-    const wedgePolyPatch& wpp,
-    TrackData&
-)
+template<class TrackCloudType>
+void Foam::particle::hitWedgePatch(TrackCloudType& cloud, trackingData& td)
 {
     FatalErrorInFunction
         << "Hitting a wedge patch should not be possible."
         << abort(FatalError);
 
-    vector nf = normal();
-    nf /= mag(nf);
-
-    transformProperties(I - 2.0*nf*nf);
+    hitSymmetryPatch(cloud, td);
 }
 
 
-template<class TrackData>
+template<class TrackCloudType>
 void Foam::particle::hitSymmetryPlanePatch
 (
-    const symmetryPlanePolyPatch& spp,
-    TrackData&
+    TrackCloudType& cloud,
+    trackingData& td
 )
 {
-    vector nf = normal();
-    nf /= mag(nf);
+    hitSymmetryPatch(cloud, td);
+}
+
+
+template<class TrackCloudType>
+void Foam::particle::hitSymmetryPatch(TrackCloudType&, trackingData&)
+{
+    const vector nf = normal();
 
     transformProperties(I - 2.0*nf*nf);
 }
 
 
-template<class TrackData>
-void Foam::particle::hitSymmetryPatch
-(
-    const symmetryPolyPatch& spp,
-    TrackData&
-)
+template<class TrackCloudType>
+void Foam::particle::hitCyclicPatch(TrackCloudType&, trackingData&)
 {
-    vector nf = normal();
-    nf /= mag(nf);
-
-    transformProperties(I - 2.0*nf*nf);
-}
-
-
-template<class TrackData>
-void Foam::particle::hitCyclicPatch
-(
-    const cyclicPolyPatch& cpp,
-    TrackData& td
-)
-{
+    const cyclicPolyPatch& cpp =
+        static_cast<const cyclicPolyPatch&>(mesh_.boundaryMesh()[patch()]);
     const cyclicPolyPatch& receiveCpp = cpp.neighbPatch();
     const label receiveFacei = receiveCpp.whichFace(facei_);
 
@@ -385,19 +454,21 @@ void Foam::particle::hitCyclicPatch
 }
 
 
-template<class TrackData>
+template<class TrackCloudType>
 void Foam::particle::hitCyclicAMIPatch
 (
-    const cyclicAMIPolyPatch& cpp,
-    TrackData& td,
-    const vector& direction
+    TrackCloudType&,
+    trackingData& td,
+    const vector& displacement
 )
 {
     vector pos = position();
 
+    const cyclicAMIPolyPatch& cpp =
+        static_cast<const cyclicAMIPolyPatch&>(mesh_.boundaryMesh()[patch()]);
     const cyclicAMIPolyPatch& receiveCpp = cpp.neighbPatch();
     const label sendFacei = cpp.whichFace(facei_);
-    const label receiveFacei = cpp.pointFace(sendFacei, direction, pos);
+    const label receiveFacei = cpp.pointFace(sendFacei, displacement, pos);
 
     if (receiveFacei < 0)
     {
@@ -413,13 +484,20 @@ void Foam::particle::hitCyclicAMIPatch
     // Set the topology
     facei_ = tetFacei_ = receiveFacei + receiveCpp.start();
 
-    // Locate the particle on the recieving side
-    vector directionT = direction;
-    cpp.reverseTransformDirection(directionT, sendFacei);
+    // Locate the particle on the receiving side
+    vector displacementT = displacement;
+    cpp.reverseTransformDirection(displacementT, sendFacei);
+
+    // NOTE: The ray used to find the hit location accross the AMI might not
+    // be consistent in the displacement direction. Therefore a particle can
+    // be looping accross AMI patches indefinitely. Advancing the particle
+    // trajectory inside the cell is a possible solution.
+    const vector dispDir = cpp.fraction()*displacementT;
+    stepFraction_ += cpp.fraction();
     locate
     (
-        pos,
-        &directionT,
+        pos + dispDir,
+        &displacementT,
         mesh_.faceOwner()[facei_],
         false,
         "Particle crossed between " + cyclicAMIPolyPatch::typeName +
@@ -452,26 +530,79 @@ void Foam::particle::hitCyclicAMIPatch
         );
         transformProperties(-s);
     }
+
+    //if (onBoundaryFace())
+    {
+//         vector receiveNormal, receiveDisplacement;
+//         patchData(receiveNormal, receiveDisplacement);
+//
+//         if (((displacementT - fraction*receiveDisplacement)&receiveNormal) > 0)
+//         {
+//             td.keepParticle = false;
+//             WarningInFunction
+//                 << "Particle transfer from " << cyclicAMIPolyPatch::typeName
+//                 << " patches " << cpp.name() << " to " << receiveCpp.name()
+//                 << " failed at position " << pos << " and with displacement "
+//                 << (displacementT - fraction*receiveDisplacement) << nl
+//                 << "    The displacement points into both the source and "
+//                 << "receiving faces, so the tracking cannot proceed" << nl
+//                 << "    The particle has been removed" << nl << endl;
+//             return;
+//         }
+    }
 }
 
 
-template<class TrackData>
-void Foam::particle::hitProcessorPatch(const processorPolyPatch&, TrackData&)
-{}
-
-
-template<class TrackData>
-void Foam::particle::hitWallPatch
+template<class TrackCloudType>
+void Foam::particle::hitCyclicACMIPatch
 (
-    const wallPolyPatch&,
-    TrackData&,
-    const tetIndices&
+    TrackCloudType& cloud,
+    trackingData& td,
+    const vector& displacement
 )
+{
+    const cyclicACMIPolyPatch& cpp =
+        static_cast<const cyclicACMIPolyPatch&>(mesh_.boundaryMesh()[patch()]);
+
+    const label localFacei = cpp.whichFace(facei_);
+
+    // If the mask is within the patch tolerance at either end, then we can
+    // assume an interaction with the appropriate part of the ACMI pair.
+    const scalar mask = cpp.mask()[localFacei];
+    bool couple = mask >= 1 - cpp.tolerance();
+    bool nonOverlap = mask <= cpp.tolerance();
+
+    // If the mask is an intermediate value, then we search for a location on
+    // the other side of the AMI. If we can't find a location, then we assume
+    // that we have hit the non-overlap patch.
+    if (!couple && !nonOverlap)
+    {
+        vector pos = position();
+        couple = cpp.pointFace(localFacei, displacement, pos) >= 0;
+        nonOverlap = !couple;
+    }
+
+    if (couple)
+    {
+        hitCyclicAMIPatch(cloud, td, displacement);
+    }
+    else
+    {
+        // Move to the face associated with the non-overlap patch and redo the
+        // face interaction.
+        tetFacei_ = facei_ = cpp.nonOverlapPatch().start() + localFacei;
+        hitFace(displacement, cloud, td);
+    }
+}
+
+
+template<class TrackCloudType>
+void Foam::particle::hitProcessorPatch(TrackCloudType&, trackingData&)
 {}
 
 
-template<class TrackData>
-void Foam::particle::hitPatch(const polyPatch&, TrackData&)
+template<class TrackCloudType>
+void Foam::particle::hitWallPatch(TrackCloudType&, trackingData&)
 {}
 
 

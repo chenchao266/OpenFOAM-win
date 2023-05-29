@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -75,7 +78,9 @@ class meshWave
 :
     public patchDistMethod
 {
-    // Private Member Data
+protected:
+
+    // Protected Member Data
 
         //- Do accurate distance calculation for near-wall cells.
         const bool correctWalls_;
@@ -84,13 +89,15 @@ class meshWave
         mutable label nUnset_;
 
 
+private:
+
     // Private Member Functions
 
-        //- Disallow default bitwise copy construct
-        meshWave(const meshWave&);
+        //- No copy construct
+        meshWave(const meshWave&) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const meshWave&);
+        //- No copy assignment
+        void operator=(const meshWave&) = delete;
 
 
 public:
@@ -123,11 +130,6 @@ public:
 
 
     // Member Functions
-
-        label nUnset() const
-        {
-            return nUnset_;
-        }
 
         //- Correct the given distance-to-patch field
         virtual bool correct(volScalarField& y);

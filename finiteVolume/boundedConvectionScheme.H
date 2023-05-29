@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2012-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2012-2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -23,6 +25,9 @@ License
 
 Class
     Foam::fv::boundedConvectionScheme
+
+Group
+    grpFvConvectionSchemes
 
 Description
     Bounded form of the selected convection scheme.
@@ -70,11 +75,11 @@ class boundedConvectionScheme
 
     // Private Member Functions
 
-        //- Disallow default bitwise copy construct
-        boundedConvectionScheme(const boundedConvectionScheme&);
+        //- No copy construct
+        boundedConvectionScheme(const boundedConvectionScheme&) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const boundedConvectionScheme&);
+        //- No copy assignment
+        void operator=(const boundedConvectionScheme&) = delete;
 
 
 public:
@@ -103,28 +108,30 @@ public:
 
     // Member Functions
 
-        tmp<surfaceFieldType<Type>> interpolate
+        const convectionScheme<Type>& scheme() const;
+
+        tmp<GeometricField<Type, fvsPatchField, surfaceMesh>> interpolate
         (
             const surfaceScalarField&,
-            const volFieldType<Type>&
+            const GeometricField<Type, fvPatchField, volMesh>&
         ) const;
 
-        tmp<surfaceFieldType<Type>> flux
+        tmp<GeometricField<Type, fvsPatchField, surfaceMesh>> flux
         (
             const surfaceScalarField&,
-            const volFieldType<Type>&
+            const GeometricField<Type, fvPatchField, volMesh>&
         ) const;
 
         tmp<fvMatrix<Type>> fvmDiv
         (
             const surfaceScalarField&,
-            const volFieldType<Type>&
+            const GeometricField<Type, fvPatchField, volMesh>&
         ) const;
 
-        tmp<volFieldType<Type>> fvcDiv
+        tmp<GeometricField<Type, fvPatchField, volMesh>> fvcDiv
         (
             const surfaceScalarField&,
-            const volFieldType<Type>&
+            const GeometricField<Type, fvPatchField, volMesh>&
         ) const;
 };
 

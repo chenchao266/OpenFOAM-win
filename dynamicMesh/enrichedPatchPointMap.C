@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -40,8 +42,8 @@ void Foam::enrichedPatch::completePointMap() const
 
     const Map<label>& pmm = pointMergeMap();
 
-    // Get the mesh points for both patches.  If the point has not been
-    // merged away, add it to the map
+    // Get the mesh points for both patches.
+    // If the point has not been merged away, add it to the map
 
     // Do master patch
     const labelList& masterMeshPoints = masterPatch_.meshPoints();
@@ -74,31 +76,6 @@ void Foam::enrichedPatch::completePointMap() const
             );
         }
     }
-}
-
-
-// * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
-
-
-Foam::Map<Foam::point>& Foam::enrichedPatch::pointMap()
-{
-    if (!pointMapComplete_)
-    {
-        completePointMap();
-    }
-
-    return pointMap_;
-}
-
-
-const Foam::Map<Foam::point>& Foam::enrichedPatch::pointMap() const
-{
-    if (!pointMapComplete_)
-    {
-        completePointMap();
-    }
-
-    return pointMap_;
 }
 
 

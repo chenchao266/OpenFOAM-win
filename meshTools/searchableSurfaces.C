@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2015-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -25,10 +28,10 @@ License
 
 #include "searchableSurfaces.H"
 #include "searchableSurfacesQueries.H"
-#include "ListOps.T.H"
-#include "Time.T.H"
-#include "DynamicField.T.H"
-#include "PatchTools.T.H"
+#include "ListOps.H"
+#include "Time1.H"
+#include "DynamicField.H"
+#include "PatchTools.H"
 #include "triSurfaceMesh.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
@@ -48,24 +51,50 @@ bool Foam::searchableSurfaces::connected
     const pointIndexHit& hit
 )
 {
-    const triFace& localFace = s.localFaces()[hit.index()];
     const edge& e = s.edges()[edgeI];
+    const labelList& mp = s.meshPoints();
+    const edge meshE(mp[e[0]], mp[e[1]]);
 
-    forAll(localFace, i)
+    const triFace& f = s[hit.index()];
+
+    forAll(f, i)
     {
-        if (e.otherVertex(localFace[i]) != -1)
+        if (meshE.otherVertex(f[i]) != -1)
         {
             return true;
         }
     }
 
-    return false;
+    // Account for triangle intersection routine going wrong for
+    // lines in same plane as triangle. Tbd!
+
+    vector eVec(meshE.vec(s.points()));
+    scalar magEVec(mag(eVec));
+    if (magEVec > ROOTVSMALL)
+    {
+        vector n(f.areaNormal(s.points()));
+        scalar magArea(mag(n));
+        if (magArea > ROOTVSMALL)
+        {
+            n /= magArea;
+            if (mag(n&(eVec/magEVec)) < SMALL)
+            {
+                // Bad intersection
+                return true;
+            }
+            else
+            {
+                return false;
+            }
+        }
+    }
+
+    return true;
 }
 
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
-// Construct with length.
 Foam::searchableSurfaces::searchableSurfaces(const label size)
 :
     PtrList<searchableSurface>(size),
@@ -90,7 +119,7 @@ Foam::searchableSurfaces::searchableSurfaces(const label size)
 //
 //        // Make IOobject with correct name
 //        autoPtr<IOobject> namedIO(io.clone());
-//        namedIO().rename(dict.lookup("name"));
+//        namedIO().rename(dict.get<word>("name"));
 //
 //        // Create and hook surface
 //        set
@@ -98,7 +127,7 @@ Foam::searchableSurfaces::searchableSurfaces(const label size)
 //            surfI,
 //            searchableSurface::New
 //            (
-//                dict.lookup("type"),
+//                dict.get<word>("type"),
 //                namedIO(),
 //                dict
 //            )
@@ -120,16 +149,14 @@ Foam::searchableSurfaces::searchableSurfaces(const label size)
 //        {
 //            const dictionary& regionsDict = dict.subDict("regions");
 //
-//            forAllConstIter(dictionary, regionsDict, iter)
+//            for (const entry& dEntry : regionsDict)
 //            {
-//                const word& key = iter().keyword();
-//
-//                if (regionsDict.isDict(key))
+//                if (dEntry.isDict())
 //                {
-//                    // Get the dictionary for region iter.key()
-//                    const dictionary& regionDict = regionsDict.subDict(key);
+//                    const word& key = dEntry.keyword();
+//                    const dictionary& regionDict = dEntry.dict();
 //
-//                    label index = findIndex(localNames, key);
+//                    label index = localNames.find(key);
 //
 //                    if (index == -1)
 //                    {
@@ -140,7 +167,7 @@ Foam::searchableSurfaces::searchableSurfaces(const label size)
 //                            << exit(FatalError);
 //                    }
 //
-//                    globalNames[index] = word(regionDict.lookup("name"));
+//                    globalNames[index] = regionDict.get<word>("name");
 //                }
 //            }
 //        }
@@ -179,22 +206,21 @@ Foam::searchableSurfaces::searchableSurfaces
     allSurfaces_(identity(topDict.size()))
 {
     label surfI = 0;
-    forAllConstIter(dictionary, topDict, iter)
-    {
-        const word& key = iter().keyword();
 
-        if (!topDict.isDict(key))
+    for (const entry& dEntry : topDict)
+    {
+        if (!dEntry.isDict())
         {
             FatalErrorInFunction
-                << "Found non-dictionary entry " << iter()
+                << "Found non-dictionary entry " << dEntry
                 << " in top-level dictionary " << topDict
                 << exit(FatalError);
         }
 
+        const word& key = dEntry.keyword();
         const dictionary& dict = topDict.subDict(key);
 
-        names_[surfI] = key;
-        dict.readIfPresent("name", names_[surfI]);
+        names_[surfI] = dict.getOrDefault<word>("name", key);
 
         // Make IOobject with correct name
         autoPtr<IOobject> namedIO(io.clone());
@@ -211,7 +237,7 @@ Foam::searchableSurfaces::searchableSurfaces
             surfI,
             searchableSurface::New
             (
-                dict.lookup("type"),
+                dict.get<word>("type"),
                 namedIO(),
                 dict
             )
@@ -242,27 +268,26 @@ Foam::searchableSurfaces::searchableSurfaces
         {
             const dictionary& regionsDict = dict.subDict("regions");
 
-            forAllConstIter(dictionary, regionsDict, iter)
+            for (const entry& dEntry : regionsDict)
             {
-                const word& key = iter().keyword();
-
-                if (regionsDict.isDict(key))
+                if (dEntry.isDict())
                 {
-                    // Get the dictionary for region iter.keyword()
-                    const dictionary& regionDict = regionsDict.subDict(key);
+                    const word& key = dEntry.keyword();
+                    const dictionary& regionDict = dEntry.dict();
 
-                    label index = findIndex(localNames, key);
+                    label index = localNames.find(key);
 
                     if (index == -1)
                     {
                         FatalErrorInFunction
                             << "Unknown region name " << key
-                            << " for surface " << s.name() << endl
+                            << " for surface " << s.name() << nl
                             << "Valid region names are " << localNames
+                            << endl
                             << exit(FatalError);
                     }
 
-                    rNames[index] = word(regionDict.lookup("name"));
+                    rNames[index] = regionDict.get<word>("name");
                 }
             }
         }
@@ -285,7 +310,7 @@ Foam::label Foam::searchableSurfaces::findSurfaceID
     const word& wantedName
 ) const
 {
-    return findIndex(names_, wantedName);
+    return names_.find(wantedName);
 }
 
 
@@ -295,9 +320,9 @@ Foam::label Foam::searchableSurfaces::findSurfaceRegionID
     const word& regionName
 ) const
 {
-    label surfaceIndex = findSurfaceID(surfaceName);
+    const label surfaceIndex = findSurfaceID(surfaceName);
 
-    return findIndex(this->operator[](surfaceIndex).regions(), regionName);
+    return this->operator[](surfaceIndex).regions().find(regionName);
 }
 
 
@@ -389,9 +414,9 @@ void Foam::searchableSurfaces::findNearest
 
 void Foam::searchableSurfaces::findNearest
 (
+    const labelListList& regionIndices,
     const pointField& samples,
     const scalarField& nearestDistSqr,
-    const labelList& regionIndices,
     labelList& nearestSurfaces,
     List<pointIndexHit>& nearestInfo
 ) const
@@ -400,9 +425,11 @@ void Foam::searchableSurfaces::findNearest
     (
         *this,
         allSurfaces_,
+        regionIndices,
+
         samples,
         nearestDistSqr,
-        regionIndices,
+
         nearestSurfaces,
         nearestInfo
     );
@@ -622,20 +649,20 @@ bool Foam::searchableSurfaces::checkIntersection
             {
                 List<pointIndexHit> hits;
 
-                if (i == j)
-                {
-                    // Slightly shorten the edges to prevent finding lots of
-                    // intersections. The fast triangle intersection routine
-                    // has problems with rays passing through a point of the
-                    // triangle.
-                    vectorField d
-                    (
-                        max(tolerance, 10*s0.tolerance())
-                       *(end-start)
-                    );
-                    start += d;
-                    end -= d;
-                }
+                //if (i == j)
+                //{
+                //    // Slightly shorten the edges to prevent finding lots of
+                //    // intersections. The fast triangle intersection routine
+                //    // has problems with rays passing through a point of the
+                //    // triangle. Now done in 'connected' routine. Tbd.
+                //    vectorField d
+                //    (
+                //        max(tolerance, 10*s0.tolerance())
+                //       *(end-start)
+                //    );
+                //    start += d;
+                //    end -= d;
+                //}
 
                 operator[](j).findLineAny(start, end, hits);
 
@@ -657,6 +684,9 @@ bool Foam::searchableSurfaces::checkIntersection
                     }
                 }
 
+                // tdb. What about distributedTriSurfaceMesh?
+                //reduce(nHits, sumOp<label>());
+
                 if (nHits > 0)
                 {
                     if (report)
@@ -667,16 +697,15 @@ bool Foam::searchableSurfaces::checkIntersection
                             << " locations."
                             << endl;
 
-                        //vtkSetWriter<scalar> setWriter;
-                        if (setWriter.valid())
+                        if (setWriter)
                         {
                             scalarField dist(mag(intersections));
                             coordSet track
                             (
                                 names()[i] + '_' + names()[j],
                                 "xyz",
-                                intersections.xfer(),
-                                dist
+                                std::move(intersections),
+                                std::move(dist)
                             );
                             wordList valueSetNames(1, "edgeIndex");
                             List<const scalarField*> valueSets
@@ -863,7 +892,7 @@ void Foam::searchableSurfaces::writeStats
 
         if (patchTypes.size() && patchTypes[surfI].size() >= 1)
         {
-            wordList unique(HashSet<word>(patchTypes[surfI]).sortedToc());
+            wordList unique(wordHashSet(patchTypes[surfI]).sortedToc());
             Info<< "        patches   : ";
             forAll(unique, i)
             {

@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -23,13 +25,13 @@ License
 
 \*---------------------------------------------------------------------------*/
 
-#ifndef makeParcelTurbulenceDispersionModels_h
-#define makeParcelTurbulenceDispersionModels_h
+#ifndef makeParcelTurbulenceDispersionModels_H
+#define makeParcelTurbulenceDispersionModels_H
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
-#include "GradientDispersionRAS.T.H"
-#include "StochasticDispersionRAS.T.H"
+#include "GradientDispersionRAS.H"
+#include "StochasticDispersionRAS.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 

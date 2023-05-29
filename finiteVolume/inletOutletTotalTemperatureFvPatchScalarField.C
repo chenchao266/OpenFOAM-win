@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2017-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -42,7 +45,7 @@ inletOutletTotalTemperatureFvPatchScalarField
     UName_("U"),
     psiName_("psi"),
     gamma_(0.0),
-    T0_(p.size(), 0.0)
+    T0_(p.size(), Zero)
 {
     this->refValue() = Zero;
     this->refGrad() = Zero;
@@ -76,12 +79,14 @@ inletOutletTotalTemperatureFvPatchScalarField
 )
 :
     inletOutletFvPatchScalarField(p, iF),
-    UName_(dict.lookupOrDefault<word>("U", "U")),
-    psiName_(dict.lookupOrDefault<word>("psi", "thermo:psi")),
-    gamma_(readScalar(dict.lookup("gamma"))),
+    UName_(dict.getOrDefault<word>("U", "U")),
+    psiName_(dict.getOrDefault<word>("psi", "thermo:psi")),
+    gamma_(dict.get<scalar>("gamma")),
     T0_("T0", dict, p.size())
 {
-    this->phiName_ = dict.lookupOrDefault<word>("phi", "phi");
+    this->patchType() = dict.getOrDefault<word>("patchType", word::null);
+
+    this->phiName_ = dict.getOrDefault<word>("phi", "phi");
 
     this->refValue() = Zero;
     if (dict.found("value"))
@@ -187,10 +192,10 @@ void Foam::inletOutletTotalTemperatureFvPatchScalarField::write(Ostream& os)
 const
 {
     fvPatchScalarField::write(os);
-    writeEntryIfDifferent<word>(os, "U", "U", UName_);
-    writeEntryIfDifferent<word>(os, "phi", "phi", this->phiName_);
-    writeEntryIfDifferent<word>(os, "psi", "psi", psiName_);
-    os.writeKeyword("gamma") << gamma_ << token::END_STATEMENT << nl;
+    os.writeEntryIfDifferent<word>("U", "U", UName_);
+    os.writeEntryIfDifferent<word>("phi", "phi", this->phiName_);
+    os.writeEntryIfDifferent<word>("psi", "psi", psiName_);
+    os.writeEntry("gamma", gamma_);
     T0_.writeEntry("T0", os);
     writeEntry("value", os);
 }

@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -22,7 +24,7 @@ License
     along with OpenFOAM.  If not, see <http://www.gnu.org/licenses/>.
 
 Class
-    Foam::forceList
+    Foam::regionModels::surfaceFilmModels::forceList
 
 Description
     List container for film sources
@@ -35,7 +37,7 @@ SourceFiles
 #ifndef forceList_H
 #define forceList_H
 
-#include "PtrList.T.H"
+#include "PtrList.H"
 #include "force.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
@@ -60,12 +62,12 @@ public:
     // Constructors
 
         //- Construct null
-        forceList(surfaceFilmModel& film);
+        forceList(surfaceFilmRegionModel& film);
 
         //- Construct from type name, dictionary and surface film model
         forceList
         (
-            surfaceFilmModel& film,
+            surfaceFilmRegionModel& film,
             const dictionary& dict
         );
 

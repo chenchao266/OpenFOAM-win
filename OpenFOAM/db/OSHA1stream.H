@@ -1,9 +1,12 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011 OpenFOAM Foundation
+    Copyright (C) 2019-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -27,13 +30,10 @@ Class
 Description
     An output stream for calculating SHA1 digests.
 
-SourceFiles
-    OSHA1stream.C
-
 \*---------------------------------------------------------------------------*/
 
-#ifndef OSHA1stream_H
-#define OSHA1stream_H
+#ifndef Foam_OSHA1stream_H
+#define Foam_OSHA1stream_H
 
 #include "OSstream.H"
 #include "SHA1.H"
@@ -43,83 +43,137 @@ SourceFiles
 namespace Foam
 {
 
-class osha1stream;
-class OSHA1stream;
-
-/*---------------------------------------------------------------------------*\
-                        Class sha1streambuf Declaration
-\*---------------------------------------------------------------------------*/
-
-//- A streambuf class for calculating SHA1 digests
-class sha1streambuf :    public std::streambuf
-{
-    // Private data
-
-    //- This does all the work and has its own buffering
-    SHA1 sha1_;
-
-    friend class osha1stream;
-
-public:
-
-    // Constructors
-
-        //- Construct null
-        sha1streambuf()
-        {}
-
-    // Member Functions
-
-    // Write
-
-        //- Process unbuffered
-        virtual std::streamsize xsputn(const char* str, std::streamsize n)
-        {
-            sha1_.append(str, n);
-            return n;
-        }
-};
-
-
 /*---------------------------------------------------------------------------*\
                          Class osha1stream Declaration
 \*---------------------------------------------------------------------------*/
 
 //- A basic output stream for calculating SHA1 digests
-class osha1stream :    virtual public std::ios,
+class osha1stream
+:
+    virtual public std::ios,
     public std::ostream
 {
-    // Private data
+    //- A streambuf class for calculating SHA1 digests
+    class sha1buf
+    :
+        public std::streambuf
+    {
+        //- This does all the work and has its own buffering
+        SHA1 sha1_;
 
-    sha1streambuf sbuf_;
+    protected:
+
+        //- Handle overflow
+        virtual int overflow(int c = EOF)
+        {
+            if (c != EOF) sha1_.append(c);
+            return c;
+        }
+
+        //- Put sequence of characters
+        virtual std::streamsize xsputn(const char* s, std::streamsize n)
+        {
+            if (n) sha1_.append(s, n);
+            return n;
+        }
+
+    public:
+
+        //- Default construct
+        sha1buf() = default;
+
+        //- Full access to the sha1
+        inline SHA1& sha1()
+        {
+            return sha1_;
+        }
+    };
+
+
+    // Private Data
+
+        //- Reference to the underlying buffer
+        sha1buf buf_;
 
 public:
 
     // Constructors
 
-        //- Construct null
+        //- Default construct
         osha1stream()
         :
-            std::ostream(&sbuf_)
+            std::ostream(&buf_)
         {}
+
 
     // Member Functions
 
-    // Access
-
         //- This hides both signatures of std::basic_ios::rdbuf()
-        sha1streambuf* rdbuf()
+        sha1buf* rdbuf()
         {
-            return &sbuf_;
+            return &buf_;
         }
 
         //- Full access to the sha1
         SHA1& sha1()
         {
-            return sbuf_.sha1_;
+            return buf_.sha1();
+        }
+};
+
+
+namespace Detail
+{
+
+/*---------------------------------------------------------------------------*\
+                Class Detail::OSHA1streamAllocator Declaration
+\*---------------------------------------------------------------------------*/
+
+//- Allocator for an osha1stream
+class OSHA1streamAllocator
+{
+protected:
+
+    // Protected Data
+
+        typedef osha1stream stream_type;
+
+        //- The output stream
+        stream_type stream_;
+
+
+    // Constructors
+
+        //- Default construct
+        OSHA1streamAllocator() = default;
+
+
+public:
+
+    // Member Functions
+
+        //- Full access to the sha1
+        SHA1& sha1()
+        {
+            return stream_.sha1();
         }
 
+
+        //- Return SHA1::Digest for the data processed until now
+        SHA1Digest digest()
+        {
+            return stream_.sha1().digest();
+        }
+
+
+        //- Clear the SHA1 calculation
+        void reset()
+        {
+            return stream_.sha1().clear();
+        }
 };
+
+} // End namespace Detail
 
 
 /*---------------------------------------------------------------------------*\
@@ -127,69 +181,70 @@ public:
 \*---------------------------------------------------------------------------*/
 
 //- The output stream for calculating SHA1 digests
-class OSHA1stream :    public OSstream
+class OSHA1stream
+:
+    public Detail::OSHA1streamAllocator,
+    public OSstream
 {
+    typedef Detail::OSHA1streamAllocator allocator_type;
 
     // Private Member Functions
 
-        //- Disallow default bitwise copy construct
-        OSHA1stream(const OSHA1stream&);
+        //- No copy construct
+        OSHA1stream(const OSHA1stream&) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const OSHA1stream&);
+        //- No copy assignment
+        void operator=(const OSHA1stream&) = delete;
 
 public:
 
     // Constructors
 
-        //- Construct and set stream status
-        OSHA1stream
+        //- Construct with an empty digest
+        explicit OSHA1stream
         (
-            streamFormat format=ASCII,
-            versionNumber version=currentVersion
+            IOstreamOption streamOpt = IOstreamOption()
         )
         :
-            OSstream
-            (
-                *(new osha1stream),
-                "OSHA1stream.sinkFile_",
-                format,
-                version
-            )
+            allocator_type(),
+            OSstream(stream_, "sha1", streamOpt.format(), streamOpt.version())
         {}
 
 
-    //- Destructor
-    ~OSHA1stream()
-    {
-        delete &dynamic_cast<osha1stream&>(stdStream());
-    }
+    // Write Functions
 
-
-    // Member functions
-
-    // Access
-
-        //- Full access to the sha1
-        Foam::SHA1& sha1()
+        //- Add (unquoted) string contents.
+        //  Ensures that SHA1 of C-string or C++-string content are identical.
+        virtual Ostream& write(const string& str)
         {
-            return dynamic_cast<osha1stream&>(stdStream()).sha1();
+            return writeQuoted(str, false); // Unquoted!
         }
 
-        //- Return SHA1::Digest for the data processed until now
-        Foam::SHA1Digest digest()
-        {
-            return sha1().digest();
-        }
 
-    // Edit
+    // Housekeeping
 
-        //- Clear the SHA1 calculation
+        //- Deprecated(2017-07) clear the SHA1 calculation
+        //  \deprecated(2017-07) - use reset() method
         void rewind()
         {
             sha1().clear();
         }
 
+
+    // Additional constructors and methods (as per v2012 and earlier)
+    #ifdef Foam_IOstream_extras
+
+        //- Construct empty
+        explicit OSHA1stream
+        (
+            IOstreamOption::streamFormat fmt,
+            IOstreamOption::versionNumber ver = IOstreamOption::currentVersion
+        )
+        :
+            OSHA1stream(IOstreamOption(fmt, ver))
+        {}
+
+    #endif /* Foam_IOstream_extras */
 };
 
 

@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2015-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2015-2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -34,13 +36,7 @@ namespace Foam
 namespace fv
 {
     defineTypeNameAndDebug(patchMeanVelocityForce, 0);
-
-    addToRunTimeSelectionTable
-    (
-        option,
-        patchMeanVelocityForce,
-        dictionary
-    );
+    addToRunTimeSelectionTable(option, patchMeanVelocityForce, dictionary);
 }
 }
 
@@ -56,14 +52,14 @@ Foam::fv::patchMeanVelocityForce::patchMeanVelocityForce
 )
 :
     meanVelocityForce(sourceName, modelType, dict, mesh),
-    patch_(coeffs_.lookup("patch")),
+    patch_(coeffs_.get<word>("patch")),
     patchi_(mesh.boundaryMesh().findPatchID(patch_))
 {
     if (patchi_ < 0)
     {
-        FatalErrorInFunction
+        FatalIOErrorInFunction(dict)
             << "Cannot find patch " << patch_
-            << exit(FatalError);
+            << exit(FatalIOError);
     }
 }
 

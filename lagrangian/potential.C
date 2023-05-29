@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -45,32 +48,38 @@ void Foam::potential::setSiteIdList(const dictionary& moleculePropertiesDict)
 
         const dictionary& molDict(moleculePropertiesDict.subDict(id));
 
-        List<word> siteIdNames = molDict.lookup("siteIds");
+        List<word> siteIdNames
+        (
+            molDict.lookup("siteIds")
+        );
 
         forAll(siteIdNames, sI)
         {
             const word& siteId = siteIdNames[sI];
 
-            if (findIndex(siteIdList, siteId) == -1)
+            if (!siteIdList.found(siteId))
             {
                 siteIdList.append(siteId);
             }
         }
 
-        List<word> pairPotSiteIds = molDict.lookup("pairPotentialSiteIds");
+        List<word> pairPotSiteIds
+        (
+            molDict.lookup("pairPotentialSiteIds")
+        );
 
         forAll(pairPotSiteIds, sI)
         {
             const word& siteId = pairPotSiteIds[sI];
 
-            if (findIndex(siteIdNames, siteId) == -1)
+            if (!siteIdNames.found(siteId))
             {
                 FatalErrorInFunction
                     << siteId << " in pairPotentialSiteIds is not in siteIds: "
                     << siteIdNames << nl << abort(FatalError);
             }
 
-            if (findIndex(pairPotentialSiteIdList, siteId) == -1)
+            if (!pairPotentialSiteIdList.found(siteId))
             {
                 pairPotentialSiteIdList.append(siteId);
             }
@@ -83,13 +92,13 @@ void Foam::potential::setSiteIdList(const dictionary& moleculePropertiesDict)
     {
         const word& siteId = siteIdList[aSIN];
 
-        if (findIndex(pairPotentialSiteIdList, siteId) == -1)
+        if (!pairPotentialSiteIdList.found(siteId))
         {
             pairPotentialSiteIdList.append(siteId);
         }
     }
 
-    siteIdList_.transfer(pairPotentialSiteIdList.shrink());
+    siteIdList_.transfer(pairPotentialSiteIdList);
 }
 
 
@@ -109,7 +118,7 @@ void Foam::potential::potential::readPotentialDict()
         )
     );
 
-    idList_ = List<word>(idListDict.lookup("idList"));
+    idListDict.readEntry("idList", idList_);
 
     setSiteIdList
     (
@@ -137,12 +146,8 @@ void Foam::potential::potential::readPotentialDict()
         << pairPotentialSiteIdList
         << endl;
 
-    List<word> tetherSiteIdList(0);
-
-    if (idListDict.found("tetherSiteIdList"))
-    {
-        tetherSiteIdList = List<word>(idListDict.lookup("tetherSiteIdList"));
-    }
+    List<word> tetherSiteIdList;
+    idListDict.readIfPresent("tetherSiteIdList", tetherSiteIdList);
 
     IOdictionary potentialDict
     (
@@ -156,20 +161,17 @@ void Foam::potential::potential::readPotentialDict()
         )
     );
 
-    potentialEnergyLimit_ = readScalar
-    (
-        potentialDict.lookup("potentialEnergyLimit")
-    );
+    potentialDict.readEntry("potentialEnergyLimit", potentialEnergyLimit_);
 
-    if (potentialDict.found("removalOrder"))
+    List<word> remOrd;
+
+    if (potentialDict.readIfPresent("removalOrder", remOrd))
     {
-        List<word> remOrd = potentialDict.lookup("removalOrder");
-
         removalOrder_.setSize(remOrd.size());
 
         forAll(removalOrder_, rO)
         {
-            removalOrder_[rO] = findIndex(idList_, remOrd[rO]);
+            removalOrder_[rO] = idList_.find(remOrd[rO]);
 
             if (removalOrder_[rO] == -1)
             {
@@ -288,7 +290,7 @@ void Foam::potential::potential::readMdInitialiseDict
                     << abort(FatalError);
             }
 
-            if (findIndex(idList,id) == -1)
+            if (!idList.found(id))
             {
                 idList.append(id);
             }
@@ -319,7 +321,7 @@ void Foam::potential::potential::readMdInitialiseDict
                     moleculePropertiesDict.subDict(id).lookup("siteIds")
                 );
 
-                if (findIndex(siteIds, tetherSiteId) != -1)
+                if (siteIds.found(tetherSiteId))
                 {
                     idFound = true;
                 }

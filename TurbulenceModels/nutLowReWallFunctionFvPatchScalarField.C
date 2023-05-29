@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2019-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -24,27 +27,25 @@ License
 \*---------------------------------------------------------------------------*/
 
 #include "nutLowReWallFunctionFvPatchScalarField.H"
-#include "turbulenceModel.H"
+#include "turbulenceModel2.H"
 #include "fvPatchFieldMapper.H"
 #include "volFields.H"
 #include "addToRunTimeSelectionTable.H"
 
-// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
-
-namespace Foam
-{
 
 // * * * * * * * * * * * * Protected Member Functions  * * * * * * * * * * * //
 
-tmp<scalarField> nutLowReWallFunctionFvPatchScalarField::calcNut() const
+Foam::tmp<Foam::scalarField> Foam::nutLowReWallFunctionFvPatchScalarField::
+calcNut() const
 {
-    return tmp<scalarField>(new scalarField(patch().size(), 0.0));
+    return tmp<scalarField>::New(patch().size(), Zero);
 }
 
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
-nutLowReWallFunctionFvPatchScalarField::nutLowReWallFunctionFvPatchScalarField
+Foam::nutLowReWallFunctionFvPatchScalarField::
+nutLowReWallFunctionFvPatchScalarField
 (
     const fvPatch& p,
     const DimensionedField<scalar, volMesh>& iF
@@ -54,7 +55,8 @@ nutLowReWallFunctionFvPatchScalarField::nutLowReWallFunctionFvPatchScalarField
 {}
 
 
-nutLowReWallFunctionFvPatchScalarField::nutLowReWallFunctionFvPatchScalarField
+Foam::nutLowReWallFunctionFvPatchScalarField::
+nutLowReWallFunctionFvPatchScalarField
 (
     const nutLowReWallFunctionFvPatchScalarField& ptf,
     const fvPatch& p,
@@ -66,7 +68,8 @@ nutLowReWallFunctionFvPatchScalarField::nutLowReWallFunctionFvPatchScalarField
 {}
 
 
-nutLowReWallFunctionFvPatchScalarField::nutLowReWallFunctionFvPatchScalarField
+Foam::nutLowReWallFunctionFvPatchScalarField::
+nutLowReWallFunctionFvPatchScalarField
 (
     const fvPatch& p,
     const DimensionedField<scalar, volMesh>& iF,
@@ -77,7 +80,8 @@ nutLowReWallFunctionFvPatchScalarField::nutLowReWallFunctionFvPatchScalarField
 {}
 
 
-nutLowReWallFunctionFvPatchScalarField::nutLowReWallFunctionFvPatchScalarField
+Foam::nutLowReWallFunctionFvPatchScalarField::
+nutLowReWallFunctionFvPatchScalarField
 (
     const nutLowReWallFunctionFvPatchScalarField& nlrwfpsf
 )
@@ -86,7 +90,8 @@ nutLowReWallFunctionFvPatchScalarField::nutLowReWallFunctionFvPatchScalarField
 {}
 
 
-nutLowReWallFunctionFvPatchScalarField::nutLowReWallFunctionFvPatchScalarField
+Foam::nutLowReWallFunctionFvPatchScalarField::
+nutLowReWallFunctionFvPatchScalarField
 (
     const nutLowReWallFunctionFvPatchScalarField& nlrwfpsf,
     const DimensionedField<scalar, volMesh>& iF
@@ -98,7 +103,8 @@ nutLowReWallFunctionFvPatchScalarField::nutLowReWallFunctionFvPatchScalarField
 
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
 
-tmp<scalarField> nutLowReWallFunctionFvPatchScalarField::yPlus() const
+Foam::tmp<Foam::scalarField> Foam::nutLowReWallFunctionFvPatchScalarField::
+yPlus() const
 {
     const label patchi = patch().index();
     const turbulenceModel& turbModel = db().lookupObject<turbulenceModel>
@@ -110,24 +116,28 @@ tmp<scalarField> nutLowReWallFunctionFvPatchScalarField::yPlus() const
         )
     );
     const scalarField& y = turbModel.y()[patchi];
+
     const tmp<scalarField> tnuw = turbModel.nu(patchi);
     const scalarField& nuw = tnuw();
-    const fvPatchVectorField& Uw = turbModel.U().boundaryField()[patchi];
 
-    return y*sqrt(nuw*mag(Uw.snGrad()))/nuw;
+    const fvPatchVectorField& Uw = U(turbModel).boundaryField()[patchi];
+
+    tmp<scalarField> tnuEff = turbModel.nuEff(patchi);
+    const scalarField& nuEff = tnuEff();
+
+    return y*sqrt(nuEff*mag(Uw.snGrad()))/nuw;
 }
 
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
-makePatchTypeField
-(
-    fvPatchScalarField,
-    nutLowReWallFunctionFvPatchScalarField
-);
-
-// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
-
-} // End namespace Foam
+namespace Foam
+{
+    makePatchTypeField
+    (
+        fvPatchScalarField,
+        nutLowReWallFunctionFvPatchScalarField
+    );
+}
 
 // ************************************************************************* //

@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011 OpenFOAM Foundation
+    Copyright (C) 2019-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -51,25 +54,25 @@ namespace Foam
 
 class repatchPolyTopoChanger
 {
-    // Private data
+    // Private Data
 
         //- The polyMesh to be repatched
         polyMesh& mesh_;
 
         //- Topological change to accumulated all mesh changes
-        autoPtr<polyTopoChange> meshModPtr_;
+        unique_ptr<polyTopoChange> meshModPtr_;
 
 
     // Private Member Functions
 
-        //- Demand driven access to polyTopoChange
+        //- Demand-driven access to polyTopoChange
         polyTopoChange& meshMod();
 
-        //- Disallow default bitwise copy construct
-        repatchPolyTopoChanger(const repatchPolyTopoChanger&);
+        //- No copy construct
+        repatchPolyTopoChanger(const repatchPolyTopoChanger&) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const repatchPolyTopoChanger&);
+        //- No copy assignment
+        void operator=(const repatchPolyTopoChanger&) = delete;
 
 
 public:
@@ -81,8 +84,7 @@ public:
 
 
     //- Destructor
-    virtual ~repatchPolyTopoChanger()
-    {}
+    virtual ~repatchPolyTopoChanger() = default;
 
 
     // Member Functions

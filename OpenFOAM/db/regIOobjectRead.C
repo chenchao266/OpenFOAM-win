@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2018 OpenFOAM Foundation
+    Copyright (C) 2015-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -25,16 +28,18 @@ License
 
 #include "regIOobject.H"
 #include "IFstream.H"
-#include "Time.T.H"
-#include "Pstream.T.H"
-#include "HashSet.T.H"
+#include "Time1.h"
+#include "Pstream.H"
+#include "HashSet.H"
 #include "fileOperation.H"
 
 // * * * * * * * * * * * * Protected Member Functions  * * * * * * * * * * * //
-using namespace Foam;
+
+
+ namespace Foam{
 bool regIOobject::readHeaderOk
 (
-    const IOstream::streamFormat format,
+    const IOstreamOption::streamFormat fmt,
     const word& typeName
 )
 {
@@ -42,8 +47,8 @@ bool regIOobject::readHeaderOk
     bool masterOnly =
         global()
      && (
-            regIOobject::fileModificationChecking == timeStampMaster
-         || regIOobject::fileModificationChecking == inotifyMaster
+            IOobject::fileModificationChecking == IOobject::timeStampMaster
+         || IOobject::fileModificationChecking == IOobject::inotifyMaster
         );
 
 
@@ -74,27 +79,17 @@ bool regIOobject::readHeaderOk
      || isHeaderOk
     )
     {
-        return fileHandler().read(*this, masterOnly, format, typeName);
+        return fileHandler().read(*this, masterOnly, fmt, typeName);
     }
-    else
-    {
-        return false;
-    }
+
+    return false;
 }
 
 
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
 
-Istream& regIOobject::readStream(const bool valid)
+void regIOobject::readStream(const bool valid)
 {
-    if (IFstream::debug)
-    {
-        InfoInFunction
-            << "Reading object " << name()
-            << " from file " << objectPath()
-            << endl;
-    }
-
     if (readOpt() == NO_READ)
     {
         FatalErrorInFunction
@@ -104,7 +99,7 @@ Istream& regIOobject::readStream(const bool valid)
     }
 
     // Construct object stream and read header if not already constructed
-    if (!isPtr_.valid())
+    if (!isPtr_)
     {
         fileName objPath;
         if (watchIndices_.size())
@@ -129,8 +124,6 @@ Istream& regIOobject::readStream(const bool valid)
 
         isPtr_ = fileHandler().readStream(*this, objPath, type(), valid);
     }
-
-    return isPtr_();
 }
 
 
@@ -144,11 +137,13 @@ Istream& regIOobject::readStream
     {
         Pout<< "regIOobject::readStream(const word&) : "
             << "reading object " << name()
+            << " of type " << type()
+            << " from file " << filePath()
             << endl;
     }
 
     // Construct IFstream if not already constructed
-    if (!isPtr_.valid())
+    if (!isPtr_)
     {
         readStream(valid);
 
@@ -171,7 +166,7 @@ Istream& regIOobject::readStream
         }
     }
 
-    return isPtr_();
+    return *isPtr_;
 }
 
 
@@ -180,11 +175,12 @@ void regIOobject::close()
     if (IFstream::debug)
     {
         Pout<< "regIOobject::close() : "
-            << "finished reading " << isPtr_().name()
+            << "finished reading "
+            << (isPtr_ ? isPtr_->name() : "dummy")
             << endl;
     }
 
-    isPtr_.clear();
+    isPtr_.reset(nullptr);
 }
 
 
@@ -222,8 +218,8 @@ bool regIOobject::read()
     bool masterOnly =
         global()
      && (
-            regIOobject::fileModificationChecking == timeStampMaster
-         || regIOobject::fileModificationChecking == inotifyMaster
+            IOobject::fileModificationChecking == IOobject::timeStampMaster
+         || IOobject::fileModificationChecking == IOobject::inotifyMaster
         );
 
     // Note: IOstream::binary flag is for all the processor comms. (Only for
@@ -274,13 +270,13 @@ bool regIOobject::readIfModified()
 
         if (modified == watchIndices_.last())
         {
-            Info<< "regIOobject::readIfModified() : " << nl
+            InfoInFunction
                 << "    Re-reading object " << name()
                 << " from file " << fName << endl;
         }
         else
         {
-            Info<< "regIOobject::readIfModified() : " << nl
+            InfoInFunction
                 << "    Re-reading object " << name()
                 << " from file " << fName
                 << " because of modified file "
@@ -290,11 +286,11 @@ bool regIOobject::readIfModified()
 
         return read();
     }
-    else
-    {
-        return false;
-    }
+
+    return false;
 }
 
 
 // ************************************************************************* //
+
+ } // End namespace Foam

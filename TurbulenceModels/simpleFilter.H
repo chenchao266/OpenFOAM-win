@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -55,9 +57,11 @@ class simpleFilter
 {
     // Private Member Functions
 
-        //- Disallow default bitwise copy construct and assignment
-        simpleFilter(const simpleFilter&);
-        void operator=(const simpleFilter&);
+        //- No copy construct
+        simpleFilter(const simpleFilter&) = delete;
+
+        //- No copy assignment
+        void operator=(const simpleFilter&) = delete;
 
 
 public:
@@ -76,8 +80,7 @@ public:
 
 
     //- Destructor
-    virtual ~simpleFilter()
-    {}
+    virtual ~simpleFilter() = default;
 
 
     // Member Functions

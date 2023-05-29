@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -23,6 +25,9 @@ License
 
 Class
     Foam::velocityComponentLaplacianFvMotionSolver
+
+Group
+    grpMeshMotionSolvers
 
 Description
     Mesh motion solver for an fvMesh.  Based on solving the cell-centre
@@ -45,6 +50,7 @@ namespace Foam
 {
 
 // Forward class declarations
+class motionInterpolation;
 class motionDiffusivity;
 
 /*---------------------------------------------------------------------------*\
@@ -61,20 +67,26 @@ class velocityComponentLaplacianFvMotionSolver
         //- Cell-centre motion field
         mutable volScalarField cellMotionU_;
 
+        //- Interpolation used to transfer cell displacement to the points
+        autoPtr<motionInterpolation> interpolationPtr_;
+
         //- Diffusivity used to control the motion
         autoPtr<motionDiffusivity> diffusivityPtr_;
 
 
     // Private Member Functions
 
-        //- Disallow default bitwise copy construct
+        //- No copy construct
         velocityComponentLaplacianFvMotionSolver
         (
             const velocityComponentLaplacianFvMotionSolver&
-        );
+        ) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const velocityComponentLaplacianFvMotionSolver&);
+        //- No copy assignment
+        void operator=
+        (
+            const velocityComponentLaplacianFvMotionSolver&
+        ) = delete;
 
 
 public:

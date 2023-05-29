@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2012 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2012 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -59,11 +61,11 @@ class exponentialDiffusivity
 
     // Private Member Functions
 
-        //- Disallow default bitwise copy construct
-        exponentialDiffusivity(const exponentialDiffusivity&);
+        //- No copy construct
+        exponentialDiffusivity(const exponentialDiffusivity&) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const exponentialDiffusivity&);
+        //- No copy assignment
+        void operator=(const exponentialDiffusivity&) = delete;
 
 
 public:

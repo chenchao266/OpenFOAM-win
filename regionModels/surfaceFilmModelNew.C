@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2015 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2019-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -24,16 +27,13 @@ License
 \*---------------------------------------------------------------------------*/
 
 #include "surfaceFilmModel.H"
-#include "fvMesh.H"
-#include "Time.T.H"
+#include "noFilm.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 namespace Foam
 {
 namespace regionModels
-{
-namespace surfaceFilmModels
 {
 
 // * * * * * * * * * * * * * * * * Selectors * * * * * * * * * * * * * * * * //
@@ -45,42 +45,47 @@ autoPtr<surfaceFilmModel> surfaceFilmModel::New
     const word& regionType
 )
 {
-    word modelType;
+    word modelType(surfaceFilmModels::noFilm::typeName);
 
+    dictionary dict;
+
+    IOobject io
+    (
+        regionType + "Properties",
+        mesh.time().constant(),
+        mesh,
+        IOobject::MUST_READ,
+        IOobject::NO_WRITE,
+        false // Do not register
+    );
+
+    if (io.typeHeaderOk<IOdictionary>())
     {
-        IOdictionary surfaceFilmPropertiesDict
-        (
-            IOobject
-            (
-                regionType + "Properties",
-                mesh.time().constant(),
-                mesh,
-                IOobject::MUST_READ,
-                IOobject::NO_WRITE,
-                false
-            )
-        );
+        IOdictionary propDict(io);
 
-        surfaceFilmPropertiesDict.lookup("surfaceFilmModel") >> modelType;
+        dict = std::move(propDict);
+
+        dict.readEntry("surfaceFilmModel", modelType);
     }
 
     Info<< "Selecting surfaceFilmModel " << modelType << endl;
 
-    meshConstructorTable::iterator cstrIter =
-        meshConstructorTablePtr_->find(modelType);
+    auto* ctorPtr = meshConstructorTable(modelType);
 
-    if (cstrIter == meshConstructorTablePtr_->end())
+    if (!ctorPtr)
     {
-        FatalErrorInFunction
-            << "Unknown surfaceFilmModel type " << modelType
-            << nl << nl << "Valid surfaceFilmModel types are:" << nl
-            << meshConstructorTablePtr_->toc()
-            << exit(FatalError);
+        FatalIOErrorInLookup
+        (
+            dict,
+            "surfaceFilmModel",
+            modelType,
+            *meshConstructorTablePtr_
+        ) << exit(FatalIOError);
     }
 
     return autoPtr<surfaceFilmModel>
     (
-        cstrIter()
+        ctorPtr
         (
             modelType,
             mesh,
@@ -93,7 +98,6 @@ autoPtr<surfaceFilmModel> surfaceFilmModel::New
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
-} // End namespace surfaceFilmModels
 } // End namespace regionModels
 } // End namespace Foam
 

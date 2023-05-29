@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2012-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2012-2016 OpenFOAM Foundation
+    Copyright (C) 2018-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -25,8 +28,53 @@ Class
     Foam::regionToFace
 
 Description
-    A topoSetSource to select faces belonging to topological connected region
-    (that contains given point)
+    A \c topoSetFaceSource to select cells belonging to a topologically
+    connected region (that contains given points).
+
+    Operands:
+    \table
+      Operand   | Type     | Location
+      input     | region   | $FOAM_CASE/constant/\{\<region\>, polyMesh\}
+      output    | faceSet  | $FOAM_CASE/constant/polyMesh/sets/\<set\>
+    \endtable
+
+Usage
+    Minimal example by using \c system/topoSetDict.actions:
+    \verbatim
+    {
+        // Mandatory (inherited) entries
+        name        <name>;
+        type        faceSet;
+        action      <action>;
+
+        // Mandatory entries
+        source      regionToFace;
+        set         <faceSetName>;
+        nearPoint   <point>;
+    }
+    \endverbatim
+
+    where the entries mean:
+    \table
+      Property   | Description                         | Type | Req'd | Dflt
+      name       | Name of faceSet                     | word |  yes  | -
+      type       | Type name: faceSet                  | word |  yes  | -
+      action     | Action applied on faces - see below | word |  yes  | -
+      source     | Source name: regionToFace           | word |  yes  | -
+      set        | Name of faceSet restricting search  | word |  yes  | -
+      nearPoint  | The point on/near to the region     | vector | yes | -
+    \endtable
+
+    Options for the \c action entry:
+    \verbatim
+      new      | Create a new faceSet from selected faces
+      add      | Add selected faces into this faceSet
+      subtract | Remove selected faces from this faceSet
+    \endverbatim
+
+See also
+    - Foam::topoSetSource
+    - Foam::topoSetFaceSource
 
 SourceFiles
     regionToFace.C
@@ -36,8 +84,7 @@ SourceFiles
 #ifndef regionToFace_H
 #define regionToFace_H
 
-#include "topoSetSource.H"
-#include "PackedBoolList.H"
+#include "topoSetFaceSource.H"
 #include "indirectPrimitivePatch.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
@@ -51,9 +98,9 @@ namespace Foam
 
 class regionToFace
 :
-    public topoSetSource
+    public topoSetFaceSource
 {
-    // Private data
+    // Private Data
 
         //- Add usage string
         static addToUsageTable usage_;
@@ -63,6 +110,7 @@ class regionToFace
 
         //- Coordinate that is nearest/on connected region
         point nearPoint_;
+
 
     // Private Member Functions
 
@@ -78,10 +126,12 @@ class regionToFace
 
         void combine(topoSet& set, const bool add) const;
 
+
 public:
 
     //- Runtime type information
     TypeName("regionToFace");
+
 
     // Constructors
 
@@ -94,37 +144,23 @@ public:
         );
 
         //- Construct from dictionary
-        regionToFace
-        (
-            const polyMesh& mesh,
-            const dictionary& dict
-        );
+        regionToFace(const polyMesh& mesh, const dictionary& dict);
 
         //- Construct from Istream
-        regionToFace
-        (
-            const polyMesh& mesh,
-            Istream&
-        );
+        regionToFace(const polyMesh& mesh, Istream& is);
 
 
     //- Destructor
-    virtual ~regionToFace();
+    virtual ~regionToFace() = default;
 
 
     // Member Functions
-
-        virtual sourceType setType() const
-        {
-            return FACESETSOURCE;
-        }
 
         virtual void applyToSet
         (
             const topoSetSource::setAction action,
             topoSet&
         ) const;
-
 };
 
 

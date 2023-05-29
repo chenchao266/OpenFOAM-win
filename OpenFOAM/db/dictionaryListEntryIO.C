@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2016 OpenFOAM Foundation
+    Copyright (C) 2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -24,12 +27,14 @@ License
 \*---------------------------------------------------------------------------*/
 
 #include "dictionaryListEntry.H"
-#include "keyType.H"
 #include "IOstreams.H"
 
-// * * * * * * * * * * * * * Private Member Functions  * * * * * * * * * * * //
-namespace Foam {
-label dictionaryListEntry::realSize(const dictionary& dict)
+// * * * * * * * * * * * * * * * Local Functions * * * * * * * * * * * * * * //
+
+// File-scope: The dictionary size without the "FoamFile" entry
+
+ namespace Foam{
+static label realSize(const dictionary& dict)
 {
     if (dict.size() < 1 || dict.first()->keyword() != "FoamFile")
     {
@@ -47,45 +52,55 @@ label dictionaryListEntry::realSize(const dictionary& dict)
 dictionaryListEntry::dictionaryListEntry
 (
     const dictionary& parentDict,
+    const dictionaryListEntry& dictEnt
+)
+:
+    dictionaryEntry(parentDict, dictEnt)
+{}
+
+
+dictionaryListEntry::dictionaryListEntry
+(
+    const dictionary& parentDict,
     Istream& is
-) :    dictionaryEntry
+)
+:
+    dictionaryEntry
     (
         word("entry" + ::Foam::name(realSize(parentDict))),
         parentDict,
         dictionary::null
     )
 {
-    token firstToken(is);
-    if (firstToken.isLabel())
+    token tok(is);
+    if (tok.isLabel())
     {
-        label s = firstToken.labelToken();
+        const label len = tok.labelToken();
 
         is.readBeginList("List");
 
-        for (label i=0; i<s; i++)
+        for (label i=0; i<len; ++i)
         {
             entry::New(*this, is);
         }
         is.readEndList("List");
     }
-    else if
-    (
-        firstToken.isPunctuation()
-     && firstToken.pToken() == token::BEGIN_LIST
-    )
+    else if (tok.isPunctuation(token::BEGIN_LIST))
     {
         while (true)
         {
-            token nextToken(is);
-            if
-            (
-                nextToken.isPunctuation()
-             && nextToken.pToken() == token::END_LIST
-            )
+            is >> tok;
+            if (tok.error())
+            {
+                FatalIOErrorInFunction(is)
+                    << "parsing error " << tok.info() << nl
+                    << exit(FatalIOError);
+            }
+            else if (tok.isPunctuation(token::END_LIST))
             {
                 break;
             }
-            is.putBack(nextToken);
+            is.putBack(tok);
             entry::New(*this, is);
         }
     }
@@ -93,7 +108,7 @@ dictionaryListEntry::dictionaryListEntry
     {
         FatalIOErrorInFunction(is)
             << "incorrect first token, expected <int> or '(', found "
-            << firstToken.info()
+            << tok.info() << nl
             << exit(FatalIOError);
     }
 }
@@ -113,33 +128,34 @@ void dictionaryListEntry::write(Ostream& os) const
     // Write end delimiter
     os << decrIndent << indent << token::END_LIST << nl;
 
-    // Check state of IOstream
-    os.check("Ostream& operator<<(Ostream&, const dictionaryListEntry&)");
+    os.check(FUNCTION_NAME);
 }
 
 
 // * * * * * * * * * * * * * * Ostream operator  * * * * * * * * * * * * * * //
- 
-    Ostream& operator<<(Ostream& os, const dictionaryListEntry& de)
-    {
-        de.write(os);
-        return os;
-    }
 
-
-    template<>
-    Ostream& operator<<
-        (
-            Ostream& os,
-            const InfoProxy<dictionaryListEntry>& ip
-            )
-    {
-        const dictionaryListEntry& e = ip.t_;
-
-        os << "    dictionaryListEntry '" << e.keyword() << "'" << endl;
-
-        return os;
-    }
+Ostream& operator<<(Ostream& os, const dictionaryListEntry& e)
+{
+    e.write(os);
+    return os;
 }
 
+
+template<>
+Ostream& operator<<
+(
+    Ostream& os,
+    const InfoProxy<dictionaryListEntry>& ip
+)
+{
+    const dictionaryListEntry& e = ip.t_;
+
+    os  << "    dictionaryListEntry '" << e.keyword() << "'" << endl;
+
+    return os;
+}
+
+
 // ************************************************************************* //
+
+ } // End namespace Foam

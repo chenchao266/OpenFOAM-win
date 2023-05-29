@@ -1,9 +1,11 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -33,21 +35,35 @@ Typedef
 Description
     A List of vectors.
 
+Typedef
+    Foam::vectorSubList
+
+Description
+    A SubList of vectors.
+
+Typedef
+    Foam::vectorListList
+
+Description
+    A List of vectorList.
+
 \*---------------------------------------------------------------------------*/
 
 #ifndef vectorList_H
 #define vectorList_H
 
-#include "vector.H"
-#include "List.T.H"
+#include "vector2.H"
+#include "List.H"
+#include "SubList.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 namespace Foam
 {
     typedef UList<vector> vectorUList;
-
     typedef List<vector> vectorList;
+    typedef SubList<vector> vectorSubList;
+    typedef List<vectorList> vectorListList;
 }
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //

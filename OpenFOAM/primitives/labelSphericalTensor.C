@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -26,58 +28,62 @@ License
 #include "labelSphericalTensor.H"
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
-namespace Foam {
-    template<>
-    const char* const labelSphericalTensor::vsType::typeName
-    (
-        "labelSphericalTensor"
-    );
 
-    template<>
-    const char* const labelSphericalTensor::vsType::componentNames[] =
-    {
-        "ii"
-    };
 
-    template<>
-    const labelSphericalTensor
-        labelSphericalTensor::vsType::vsType::_zero
-        (
-            labelSphericalTensor::uniform(0)
-        );
+ namespace Foam{
+template<>
+const char* const labelSphericalTensor::vsType::typeName
+(
+    "labelSphericalTensor"
+);
 
-    template<>
-    const labelSphericalTensor labelSphericalTensor::vsType::one
-    (
-        labelSphericalTensor::uniform(1)
-    );
+template<>
+const char* const labelSphericalTensor::vsType::componentNames[] =
+{
+    "ii"
+};
 
-    template<>
-    const labelSphericalTensor labelSphericalTensor::vsType::max
-    (
-        labelSphericalTensor::uniform(labelMax)
-    );
+template<>
+const labelSphericalTensor
+labelSphericalTensor::vsType::vsType::zero_
+(
+    labelSphericalTensor::uniform(0)
+);
 
-    template<>
-    const labelSphericalTensor labelSphericalTensor::vsType::min
-    (
-        labelSphericalTensor::uniform(-labelMax)
-    );
+template<>
+const labelSphericalTensor labelSphericalTensor::vsType::one_
+(
+    labelSphericalTensor::uniform(1)
+);
 
-    template<>
-    const labelSphericalTensor labelSphericalTensor::vsType::rootMax
-    (
-        labelSphericalTensor::uniform(sqrt(scalar(labelMax)))
-    );
+template<>
+const labelSphericalTensor labelSphericalTensor::vsType::max_
+(
+    labelSphericalTensor::uniform(labelMax)
+);
 
-    template<>
-    const labelSphericalTensor labelSphericalTensor::vsType::rootMin
-    (
-        labelSphericalTensor::uniform(-sqrt(scalar(labelMax)))
-    );
+template<>
+const labelSphericalTensor labelSphericalTensor::vsType::min_
+(
+    labelSphericalTensor::uniform(-labelMax)
+);
 
-    template<>
-    const labelSphericalTensor labelSphericalTensor::I(1);
+template<>
+const labelSphericalTensor labelSphericalTensor::vsType::rootMax_
+(
+    labelSphericalTensor::uniform(sqrt(scalar(labelMax)))
+);
 
-}
+template<>
+const labelSphericalTensor labelSphericalTensor::vsType::rootMin_
+(
+    labelSphericalTensor::uniform(-sqrt(scalar(labelMax)))
+);
+
+template<>
+const labelSphericalTensor labelSphericalTensor::I(1);
+
+
 // ************************************************************************* //
+
+ } // End namespace Foam

@@ -1,9 +1,12 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2019 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -35,16 +38,35 @@ SourceFiles
 #ifndef sphericalTensorFieldField_H
 #define sphericalTensorFieldField_H
 
-#include "FieldField.T.H"
-#include "sphericalTensor.H"
+#include "FieldField.H"
+#include "sphericalTensor2.H"
 
-#define TEMPLATE template<template<class > class Field>
-#include "FieldFieldFunctionsM.T.H"
+#define TEMPLATE template<template<class> class Field>
+#include "FieldFieldFunctionsM.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 namespace Foam
 {
+
+// * * * * * * * * * * * * * * * Global Functions  * * * * * * * * * * * * * //
+
+//- Zip together sphericalTensor field field from components
+template<template<class> class Field, class Cmpt>
+void zip
+(
+    FieldField<Field, SphericalTensor<Cmpt>>& result,
+    const FieldField<Field, Cmpt>& ii
+);
+
+//- Unzip sphericalTensor field field into components
+template<template<class> class Field, class Cmpt>
+void unzip
+(
+    const FieldField<Field, SphericalTensor<Cmpt>>& input,
+    FieldField<Field, Cmpt>& ii
+);
+
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 

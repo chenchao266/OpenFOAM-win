@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -21,15 +23,14 @@ License
     You should have received a copy of the GNU General Public License
     along with OpenFOAM.  If not, see <http://www.gnu.org/licenses/>.
 
-Description
-    Equality operator for cellShape class
-
 \*---------------------------------------------------------------------------*/
 
 #include "cellShape.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
-using namespace Foam;
+
+
+ namespace Foam{
 bool operator==(const cellShape& a, const cellShape& b)
 {
     // Basic rule: we assume that the sequence of labels in each list
@@ -175,3 +176,5 @@ bool operator==(const cellShape& a, const cellShape& b)
 
 
 // ************************************************************************* //
+
+ } // End namespace Foam

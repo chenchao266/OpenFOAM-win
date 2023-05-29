@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -31,25 +34,22 @@ License
 #include "emptyPolyPatch.H"
 #include "wedgePolyPatch.H"
 
-
-// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+// * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
 
 namespace Foam
 {
+    defineTypeNameAndDebug(extrudePatchMesh, 0);
+}
 
-// * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
-
-defineTypeNameAndDebug(extrudePatchMesh, 0);
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
-extrudePatchMesh::extrudePatchMesh
+Foam::extrudePatchMesh::extrudePatchMesh
 (
+    const word& regionName,
     const fvMesh& mesh,
-    const fvPatch& patch,
-    const dictionary& dict,
-    const word regionName,
-    const List<polyPatch*>& regionPatches
+    const fvPatch& p,
+    const dictionary& dict
 )
 :
     fvMesh
@@ -63,48 +63,39 @@ extrudePatchMesh::extrudePatchMesh
             IOobject::NO_WRITE,
             true
         ),
-        xferCopy(pointField()),
-        xferCopy(faceList()),
-        xferCopy(labelList()),
-        xferCopy(labelList()),
+        Zero,
         false
     ),
-    extrudedPatch_(patch.patch()),
+    extrudedPatch_(p.patch()),
     dict_(dict)
+{}
+
+
+Foam::extrudePatchMesh::extrudePatchMesh
+(
+    const fvMesh& mesh,
+    const fvPatch& p,
+    const dictionary& dict,
+    const word& regionName,
+    const List<polyPatch*>& regionPatches
+)
+:
+    extrudePatchMesh(regionName, mesh, p, dict)
 {
     extrudeMesh(regionPatches);
 }
 
 
-extrudePatchMesh::extrudePatchMesh
+Foam::extrudePatchMesh::extrudePatchMesh
 (
     const fvMesh& mesh,
-    const fvPatch& patch,
+    const fvPatch& p,
     const dictionary& dict,
-    const word regionName
+    const word& regionName
 )
 :
-    fvMesh
-    (
-        IOobject
-        (
-            regionName,
-            mesh.facesInstance(),
-            mesh,
-            IOobject::READ_IF_PRESENT,
-            IOobject::NO_WRITE,
-            true
-        ),
-        xferCopy(pointField()),
-        xferCopy(faceList()),
-        xferCopy(labelList()),
-        xferCopy(labelList()),
-        false
-    ),
-    extrudedPatch_(patch.patch()),
-    dict_(dict)
+    extrudePatchMesh(regionName, mesh, p, dict)
 {
-
     List<polyPatch*> regionPatches(3);
     List<word> patchNames(regionPatches.size());
     List<word> patchTypes(regionPatches.size());
@@ -124,13 +115,13 @@ extrudePatchMesh::extrudePatchMesh
 
     forAll(dicts, patchi)
     {
-        dicts[patchi].lookup("name") >> patchNames[patchi];
-        dicts[patchi].lookup("type") >> patchTypes[patchi];
+        dicts[patchi].readEntry("name", patchNames[patchi]);
+        dicts[patchi].readEntry("type", patchTypes[patchi]);
     }
 
     forAll(regionPatches, patchi)
     {
-        dictionary&  patchDict = dicts[patchi];
+        dictionary& patchDict = dicts[patchi];
         patchDict.set("nFaces", 0);
         patchDict.set("startFace", 0);
 
@@ -141,26 +132,24 @@ extrudePatchMesh::extrudePatchMesh
                 patchi,
                 mesh.boundaryMesh()
             ).ptr();
-
     }
 
     extrudeMesh(regionPatches);
-
 }
 
 
-void extrudePatchMesh::extrudeMesh(const List<polyPatch*>& regionPatches)
+void Foam::extrudePatchMesh::extrudeMesh(const List<polyPatch*>& regionPatches)
 {
     if (this->boundaryMesh().size() == 0)
     {
-        bool columnCells = readBool(dict_.lookup("columnCells"));
+        const bool columnCells = dict_.get<bool>("columnCells");
 
-        PackedBoolList nonManifoldEdge(extrudedPatch_.nEdges());
+        bitSet nonManifoldEdge(extrudedPatch_.nEdges());
         for (label edgeI = 0; edgeI < extrudedPatch_.nInternalEdges(); edgeI++)
         {
             if (columnCells)
             {
-                nonManifoldEdge[edgeI] = true;
+                nonManifoldEdge.set(edgeI);
             }
         }
 
@@ -253,6 +242,7 @@ void extrudePatchMesh::extrudeMesh(const List<polyPatch*>& regionPatches)
             firstDisp[regionI] = model_()(regionPt, n, 1) - regionPt;
         }
 
+        const label nNewPatches = regionPatches.size();
 
         // Extrude engine
         createShellMesh extruder
@@ -261,46 +251,6 @@ void extrudePatchMesh::extrudeMesh(const List<polyPatch*>& regionPatches)
             pointLocalRegions,
             localRegionPoints
         );
-/*
-        List<polyPatch*> regionPatches(3);
-        List<word> patchNames(regionPatches.size());
-        List<word> patchTypes(regionPatches.size());
-        PtrList<dictionary> dicts(regionPatches.size());
-
-        forAll(dicts, patchi)
-        {
-            if (!dicts.set(patchi))
-            {
-                dicts.set(patchi, new dictionary());
-            }
-        }
-
-        dicts[bottomPatchID] = dict_.subDict("bottomCoeffs");
-        dicts[sidePatchID] = dict_.subDict("sideCoeffs");
-        dicts[topPatchID] = dict_.subDict("topCoeffs");
-
-        forAll(dicts, patchi)
-        {
-            dicts[patchi].lookup("name") >> patchNames[patchi];
-            dicts[patchi].lookup("type") >> patchTypes[patchi];
-        }
-
-        forAll(regionPatches, patchi)
-        {
-            dictionary&  patchDict = dicts[patchi];
-            patchDict.set("nFaces", 0);
-            patchDict.set("startFace", 0);
-
-            regionPatches[patchi] = polyPatch::New
-                (
-                    patchNames[patchi],
-                    patchDict,
-                    patchi,
-                    mesh.boundaryMesh()
-                ).ptr();
-
-        }
-*/
         this->clearOut();
         this->removeFvBoundary();
         this->addFvPatches(regionPatches, true);
@@ -315,13 +265,13 @@ void extrudePatchMesh::extrudeMesh(const List<polyPatch*>& regionPatches)
         {
             const labelList& eFaces = extrudedPatch_.edgeFaces()[edgeI];
 
-            if (eFaces.size() != 2 || nonManifoldEdge[edgeI])
+            if (eFaces.size() != 2 || nonManifoldEdge.test(edgeI))
             {
                 edgePatches[edgeI].setSize(eFaces.size(), sidePatchID);
             }
         }
 
-        polyTopoChange meshMod(regionPatches.size());
+        polyTopoChange meshMod(nNewPatches);
 
         extruder.setRefinement
         (
@@ -341,25 +291,12 @@ void extrudePatchMesh::extrudeMesh(const List<polyPatch*>& regionPatches)
         );
 
         // Update numbering on extruder.
-        extruder.updateMesh(map);
+        extruder.updateMesh(map());
 
         this->setInstance(this->thisDb().time().constant());
         this->write();
     }
 }
 
-
-// * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
-
-extrudePatchMesh::~extrudePatchMesh()
-{}
-
-
-// * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
-
-
-// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
-
-} // End namespace Foam
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //

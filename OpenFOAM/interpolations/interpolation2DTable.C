@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2016-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -23,435 +26,302 @@ License
 
 \*---------------------------------------------------------------------------*/
 
-//#include "IFstream.H"
 #include "openFoamTableReader.H"
 
 // * * * * * * * * * * * * Private Member Functions  * * * * * * * * * * * * //
-namespace Foam {
-    template<class Type>
-    void interpolation2DTable<Type>::readTable()
+
+
+ namespace Foam{
+template<class Type>
+void interpolation2DTable<Type>::readTable()
+{
+    fileName fName(fileName_);
+    fName.expand();
+
+    // Read data from file
+    reader_()(fName, *this);
+
+    if (this->empty())
     {
-        fileName fName(fileName_);
-        fName.expand();
+        FatalErrorInFunction
+            << "table read from " << fName << " is empty" << nl
+            << exit(FatalError);
+    }
 
-        // Read data from file
-        reader_()(fName, *this);
+    // Check that the data are in ascending order
+    check();
+}
 
-        if (this->empty())
+
+// * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
+
+template<class Type>
+interpolation2DTable<Type>::interpolation2DTable()
+:
+    List<value_type>(),
+    bounding_(bounds::normalBounding::WARN),
+    fileName_("fileNameIsUndefined"),
+    reader_(nullptr)
+{}
+
+
+template<class Type>
+interpolation2DTable<Type>::interpolation2DTable
+(
+    const List<Tuple2<scalar, List<Tuple2<scalar, Type>>>>& values,
+    const bounds::normalBounding bounding,
+    const fileName& fName
+)
+:
+    List<value_type>(values),
+    bounding_(bounding),
+    fileName_(fName),
+    reader_(nullptr)
+{}
+
+
+template<class Type>
+interpolation2DTable<Type>::interpolation2DTable(const fileName& fName)
+:
+    List<value_type>(),
+    bounding_(bounds::normalBounding::WARN),
+    fileName_(fName),
+    reader_(new openFoamTableReader<Type>())
+{
+    readTable();
+}
+
+
+template<class Type>
+interpolation2DTable<Type>::interpolation2DTable(const dictionary& dict)
+:
+    List<value_type>(),
+    bounding_
+    (
+        bounds::normalBoundingNames.getOrDefault
+        (
+            "outOfBounds",
+            dict,
+            bounds::normalBounding::WARN,
+            true  // Failsafe behaviour
+        )
+    ),
+    fileName_(dict.get<fileName>("file")),
+    reader_(tableReader<Type>::New(dict))
+{
+    readTable();
+}
+
+
+template<class Type>
+interpolation2DTable<Type>::interpolation2DTable
+(
+     const interpolation2DTable& tbl
+)
+:
+    List<value_type>(tbl),
+    bounding_(tbl.bounding_),
+    fileName_(tbl.fileName_),
+    reader_(tbl.reader_.clone())
+{}
+
+
+// * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
+
+template<class Type>
+Type interpolation2DTable<Type>::interpolateValue
+(
+    const List<Tuple2<scalar, Type>>& list,
+    scalar lookupValue
+) const
+{
+    return interpolationTable<Type>::interpolateValue
+    (
+        list,
+        lookupValue,
+        bounds::repeatableBounding(bounding_)
+    );
+}
+
+
+template<class Type>
+template<class BinaryOp>
+label interpolation2DTable<Type>::Xi
+(
+    const BinaryOp& bop,
+    const scalar valueX,
+    const bool reverse
+) const
+{
+    const List<value_type>& t = *this;
+
+    label limitI = 0;
+    if (reverse)
+    {
+        limitI = t.size() - 1;
+    }
+
+    if (bop(valueX, t[limitI].first()))
+    {
+        switch (bounding_)
         {
-            FatalErrorInFunction
-                << "table read from " << fName << " is empty" << nl
-                << exit(FatalError);
-        }
-
-        // Check that the data are in ascending order
-        checkOrder();
-    }
-
-
-    // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
-
-    template<class Type>
-    interpolation2DTable<Type>::interpolation2DTable()
-        :
-        List<Tuple2<scalar, List<Tuple2<scalar, Type>>>>(),
-        boundsHandling_(interpolation2DTable::WARN),
-        fileName_("fileNameIsUndefined"),
-        reader_(nullptr)
-    {}
-
-
-    template<class Type>
-    interpolation2DTable<Type>::interpolation2DTable
-    (
-        const List<Tuple2<scalar, List<Tuple2<scalar, Type>>>>& values,
-        const boundsHandling bounds,
-        const fileName& fName
-    )
-        :
-        List<Tuple2<scalar, List<Tuple2<scalar, Type>>>>(values),
-        boundsHandling_(bounds),
-        fileName_(fName),
-        reader_(nullptr)
-    {}
-
-
-    template<class Type>
-    interpolation2DTable<Type>::interpolation2DTable(const fileName& fName)
-        :
-        List<Tuple2<scalar, List<Tuple2<scalar, Type>>>>(),
-        boundsHandling_(interpolation2DTable::WARN),
-        fileName_(fName),
-        reader_(new openFoamTableReader<Type>(dictionary()))
-    {
-        readTable();
-    }
-
-
-    template<class Type>
-    interpolation2DTable<Type>::interpolation2DTable(const dictionary& dict)
-        :
-        List<Tuple2<scalar, List<Tuple2<scalar, Type>>>>(),
-        boundsHandling_(wordToBoundsHandling(dict.lookup("outOfBounds"))),
-        fileName_(dict.lookup("file")),
-        reader_(tableReader<Type>::New(dict))
-    {
-        readTable();
-    }
-
-
-    template<class Type>
-    interpolation2DTable<Type>::interpolation2DTable
-    (
-        const interpolation2DTable& interpTable
-    )
-        :
-        List<Tuple2<scalar, List<Tuple2<scalar, Type>>>>(interpTable),
-        boundsHandling_(interpTable.boundsHandling_),
-        fileName_(interpTable.fileName_),
-        reader_(interpTable.reader_)    // note: steals reader. Used in write().
-    {}
-
-
-
-    // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
-
-    template<class Type>
-    Type interpolation2DTable<Type>::interpolateValue
-    (
-        const List<Tuple2<scalar, Type>>& data,
-        const scalar lookupValue
-    ) const
-    {
-        label n = data.size();
-
-        scalar minLimit = data.first().first();
-        scalar maxLimit = data.last().first();
-
-        if (lookupValue < minLimit)
-        {
-            switch (boundsHandling_)
-            {
-            case interpolation2DTable::ERROR:
+            case bounds::normalBounding::ERROR:
             {
                 FatalErrorInFunction
-                    << "value (" << lookupValue << ") less than lower "
-                    << "bound (" << minLimit << ")" << nl
+                    << "value (" << valueX << ") out of bounds" << nl
                     << exit(FatalError);
                 break;
             }
-            case interpolation2DTable::WARN:
+            case bounds::normalBounding::WARN:
             {
                 WarningInFunction
-                    << "value (" << lookupValue << ") less than lower "
-                    << "bound (" << minLimit << ")" << nl
-                    << "    Continuing with the first entry"
-                    << endl;
-                // fall-through to 'CLAMP'
-            }
-            case interpolation2DTable::CLAMP:
-            {
-                return data.first().second();
+                    << "value (" << valueX << ") out of bounds" << nl;
+
+                // Behaviour as per CLAMP
+                return limitI;
                 break;
             }
-            }
-        }
-        else if (lookupValue >= maxLimit)
-        {
-            switch (boundsHandling_)
-            {
-            case interpolation2DTable::ERROR:
-            {
-                FatalErrorInFunction
-                    << "value (" << lookupValue << ") greater than upper "
-                    << "bound (" << maxLimit << ")" << nl
-                    << exit(FatalError);
-                break;
-            }
-            case interpolation2DTable::WARN:
-            {
-                WarningInFunction
-                    << "value (" << lookupValue << ") greater than upper "
-                    << "bound (" << maxLimit << ")" << nl
-                    << "    Continuing with the last entry"
-                    << endl;
-                // fall-through to 'CLAMP'
-            }
-            case interpolation2DTable::CLAMP:
-            {
-                return data.last().second();
-                break;
-            }
-            }
-        }
-
-        // look for the correct range in X
-        label lo = 0;
-        label hi = 0;
-
-        for (label i = 0; i < n; ++i)
-        {
-            if (lookupValue >= data[i].first())
-            {
-                lo = hi = i;
-            }
-            else
-            {
-                hi = i;
-                break;
-            }
-        }
-
-        if (lo == hi)
-        {
-            return data[lo].second();
-        }
-        else
-        {
-            Type m =
-                (data[hi].second() - data[lo].second())
-                / (data[hi].first() - data[lo].first());
-
-            // normal interpolation
-            return data[lo].second() + m * (lookupValue - data[lo].first());
-        }
-    }
-
-
-    template<class Type>
-    template<class BinaryOp>
-    label interpolation2DTable<Type>::Xi
-    (
-        const BinaryOp& bop,
-        const scalar valueX,
-        const bool reverse
-    ) const
-    {
-        const table& t = *this;
-
-        label limitI = 0;
-        if (reverse)
-        {
-            limitI = t.size() - 1;
-        }
-
-        if (bop(valueX, t[limitI].first()))
-        {
-            switch (boundsHandling_)
-            {
-            case interpolation2DTable::ERROR:
-            {
-                FatalErrorInFunction
-                    << "value (" << valueX << ") out of bounds"
-                    << exit(FatalError);
-                break;
-            }
-            case interpolation2DTable::WARN:
-            {
-                WarningInFunction
-                    << "value (" << valueX << ") out of bounds"
-                    << endl;
-                // fall-through to 'CLAMP'
-            }
-            case interpolation2DTable::CLAMP:
+            case bounds::normalBounding::CLAMP:
             {
                 return limitI;
+                break;
             }
             default:
             {
                 FatalErrorInFunction
-                    << "Un-handled enumeration " << boundsHandling_
+                    << "Unhandled bounding type " << int(bounding_)
                     << abort(FatalError);
             }
-            }
-        }
-
-        label i = 0;
-        if (reverse)
-        {
-            label nX = t.size();
-            i = 0;
-            while ((i < nX) && (valueX > t[i].first()))
-            {
-                i++;
-            }
-        }
-        else
-        {
-            i = t.size() - 1;
-            while ((i > 0) && (valueX < t[i].first()))
-            {
-                i--;
-            }
-        }
-
-        return i;
-    }
-
-
-    // * * * * * * * * * * * * * * * Member Operators  * * * * * * * * * * * * * //
-
-    template<class Type>
-    Type interpolation2DTable<Type>::operator()
-        (
-            const scalar valueX,
-            const scalar valueY
-            ) const
-    {
-        // Considers all of the list in Y being equal
-        label nX = this->size();
-
-        const table& t = *this;
-
-        if (nX == 0)
-        {
-            WarningInFunction
-                << "cannot interpolate a zero-sized table - returning zero" << endl;
-
-            return Zero;
-        }
-        else if (nX == 1)
-        {
-            // only 1 column (in X) - interpolate to find Y value
-            return interpolateValue(t.first().second(), valueY);
-        }
-        else
-        {
-            // have 2-D data, interpolate
-
-            // find low and high indices in the X range that bound valueX
-            label x0i = Xi(lessOp<scalar>(), valueX, false);
-            label x1i = Xi(greaterOp<scalar>(), valueX, true);
-
-            if (x0i == x1i)
-            {
-                return interpolateValue(t[x0i].second(), valueY);
-            }
-            else
-            {
-                Type y0(interpolateValue(t[x0i].second(), valueY));
-                Type y1(interpolateValue(t[x1i].second(), valueY));
-
-                // gradient in X
-                scalar x0 = t[x0i].first();
-                scalar x1 = t[x1i].first();
-                Type mX = (y1 - y0) / (x1 - x0);
-
-                // interpolate
-                return y0 + mX * (valueX - x0);
-            }
         }
     }
 
-
-    template<class Type>
-    word interpolation2DTable<Type>::boundsHandlingToWord
-    (
-        const boundsHandling& bound
-    ) const
+    label i = 0;
+    if (reverse)
     {
-        word enumName("warn");
-
-        switch (bound)
+        const label nX = t.size();
+        i = 0;
+        while ((i < nX) && (valueX > t[i].first()))
         {
-        case interpolation2DTable::ERROR:
-        {
-            enumName = "error";
-            break;
+            ++i;
         }
-        case interpolation2DTable::WARN:
-        {
-            enumName = "warn";
-            break;
-        }
-        case interpolation2DTable::CLAMP:
-        {
-            enumName = "clamp";
-            break;
-        }
-        }
-
-        return enumName;
     }
-
-
-    template<class Type>
-    typename interpolation2DTable<Type>::boundsHandling
-        interpolation2DTable<Type>::wordToBoundsHandling
-        (
-            const word& bound
-        ) const
+    else
     {
-        if (bound == "error")
+        i = t.size() - 1;
+        while ((i > 0) && (valueX < t[i].first()))
         {
-            return interpolation2DTable::ERROR;
-        }
-        else if (bound == "warn")
-        {
-            return interpolation2DTable::WARN;
-        }
-        else if (bound == "clamp")
-        {
-            return interpolation2DTable::CLAMP;
-        }
-        else
-        {
-            WarningInFunction
-                << "bad outOfBounds specifier " << bound << " using 'warn'" << endl;
-
-            return interpolation2DTable::WARN;
+            --i;
         }
     }
 
+    return i;
+}
 
-    template<class Type>
-    typename interpolation2DTable<Type>::boundsHandling
-        interpolation2DTable<Type>::outOfBounds
-        (
-            const boundsHandling& bound
-        )
+
+// * * * * * * * * * * * * * * * Member Operators  * * * * * * * * * * * * * //
+
+template<class Type>
+void interpolation2DTable<Type>::operator=
+(
+    const interpolation2DTable<Type>& rhs
+)
+{
+    if (this == &rhs)
     {
-        boundsHandling prev = boundsHandling_;
-        boundsHandling_ = bound;
-        return prev;
+        return;
+    }
+
+    static_cast<List<value_type>&>(*this) = rhs;
+    bounding_ = rhs.bounding_;
+    fileName_ = rhs.fileName_;
+    reader_.reset(rhs.reader_.clone());
+}
+
+
+template<class Type>
+Type interpolation2DTable<Type>::operator()
+(
+    const scalar valueX,
+    const scalar valueY
+) const
+{
+    const List<value_type>& t = *this;
+
+    // Assumes all of the list in Y being equal length
+    const label nX = t.size();
+
+    if (nX == 0)
+    {
+        WarningInFunction
+            << "Cannot interpolate zero-sized table - returning zero" << nl;
+
+        return Zero;
+    }
+    else if (nX == 1)
+    {
+        // Only 1 column (in X) - simply interpolate to find Y value
+        return interpolateValue(t.first().second(), valueY);
     }
 
 
-    template<class Type>
-    void interpolation2DTable<Type>::checkOrder() const
+    // Find low and high indices in the X range that bound valueX
+    const label lo = Xi(lessOp<scalar>(), valueX, false);
+    const label hi = Xi(greaterOp<scalar>(), valueX, true);
+
+    if (lo == hi)
     {
-        label n = this->size();
-        const table& t = *this;
+        return interpolateValue(t[lo].second(), valueY);
+    }
 
-        scalar prevValue = t[0].first();
 
-        for (label i = 1; i < n; ++i)
+    // Normal interpolation
+
+    const Type y0(interpolateValue(t[lo].second(), valueY));
+    const Type y1(interpolateValue(t[hi].second(), valueY));
+
+    const scalar& x0 = t[lo].first();
+    const scalar& x1 = t[hi].first();
+
+    return (y0 + (y1 - y0)*(valueX - x0)/(x1 - x0));
+}
+
+
+template<class Type>
+void interpolation2DTable<Type>::check() const
+{
+    const List<value_type>& list = *this;
+
+    scalar prevValue(0);
+
+    label i = 0;
+    for (const auto& item : list)
+    {
+        const scalar& currValue = item.first();
+
+        // Avoid duplicate values (divide-by-zero error)
+        if (i && currValue <= prevValue)
         {
-            const scalar currValue = t[i].first();
-
-            // avoid duplicate values (divide-by-zero error)
-            if (currValue <= prevValue)
-            {
-                FatalErrorInFunction
-                    << "out-of-order value: "
-                    << currValue << " at index " << i << nl
-                    << exit(FatalError);
-            }
-            prevValue = currValue;
+            FatalErrorInFunction
+                << "out-of-order value: "
+                << currValue << " at index " << i << nl
+                << exit(FatalError);
         }
-    }
-
-
-    template<class Type>
-    void interpolation2DTable<Type>::write(Ostream& os) const
-    {
-        os.writeKeyword("file")
-            << fileName_ << token::END_STATEMENT << nl;
-        os.writeKeyword("outOfBounds")
-            << boundsHandlingToWord(boundsHandling_) << token::END_STATEMENT << nl;
-
-        *this >> os;
+        prevValue = currValue;
+        ++i;
     }
 }
 
+
+template<class Type>
+void interpolation2DTable<Type>::write(Ostream& os) const
+{
+    os.writeEntry("file", fileName_);
+    os.writeEntry("outOfBounds", bounds::normalBoundingNames[bounding_]);
+
+    os  << *this;
+}
+
+
 // ************************************************************************* //
+
+ } // End namespace Foam

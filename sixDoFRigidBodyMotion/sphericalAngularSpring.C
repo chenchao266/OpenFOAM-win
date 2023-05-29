@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2018-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -122,9 +125,9 @@ bool Foam::sixDoFRigidBodyMotionRestraints::sphericalAngularSpring::read
 {
     sixDoFRigidBodyMotionRestraint::read(sDoFRBMRDict);
 
-    refQ_ = sDoFRBMRCoeffs_.lookupOrDefault<tensor>("referenceOrientation", I);
+    refQ_ = sDoFRBMRCoeffs_.getOrDefault<tensor>("referenceOrientation", I);
 
-    if (mag(mag(refQ_) - sqrt(3.0)) > 1e-9)
+    if (mag(mag(refQ_) - sqrt(3.0)) > ROOTSMALL)
     {
         FatalErrorInFunction
             << "referenceOrientation " << refQ_ << " is not a rotation tensor. "
@@ -133,8 +136,8 @@ bool Foam::sixDoFRigidBodyMotionRestraints::sphericalAngularSpring::read
             << exit(FatalError);
     }
 
-    sDoFRBMRCoeffs_.lookup("stiffness") >> stiffness_;
-    sDoFRBMRCoeffs_.lookup("damping") >> damping_;
+    sDoFRBMRCoeffs_.readEntry("stiffness", stiffness_);
+    sDoFRBMRCoeffs_.readEntry("damping", damping_);
 
     return true;
 }
@@ -145,12 +148,9 @@ void Foam::sixDoFRigidBodyMotionRestraints::sphericalAngularSpring::write
     Ostream& os
 ) const
 {
-    os.writeKeyword("referenceOrientation")
-        << refQ_ << token::END_STATEMENT << nl;
-
-    os.writeKeyword("stiffness") << stiffness_ << token::END_STATEMENT << nl;
-
-    os.writeKeyword("damping") << damping_ << token::END_STATEMENT << nl;
+    os.writeEntry("referenceOrientation", refQ_);
+    os.writeEntry("stiffness", stiffness_);
+    os.writeEntry("damping", damping_);
 }
 
 

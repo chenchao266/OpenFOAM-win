@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -23,12 +25,12 @@ License
 
 \*---------------------------------------------------------------------------*/
 
-#include "PCICG.T.H"
-#include "PBiCCCG.T.H"
-#include "PBiCICG.T.H"
-#include "SmoothSolver.T.H"
+#include "PCICG.H"
+#include "PBiCCCG.H"
+#include "PBiCICG.H"
+#include "SmoothSolver.H"
 #include "fieldTypes.H"
-using namespace Foam;
+
 #define makeLduSolvers(Type, DType, LUType)                                    \
                                                                                \
     makeLduSolver(DiagonalSolver, Type, DType, LUType);                        \

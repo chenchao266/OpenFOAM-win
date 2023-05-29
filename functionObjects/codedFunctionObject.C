@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2019-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -25,31 +28,66 @@ License
 
 #include "codedFunctionObject.H"
 #include "volFields.H"
-#include "dictionary.H"
-#include "Time.T.H"
-#include "SHA1Digest.H"
+#include "dictionary2.H"
+#include "Time1.H"
 #include "dynamicCode.H"
 #include "dynamicCodeContext.H"
-#include "stringOps.H"
+#include "dictionaryContent.H"
 #include "addToRunTimeSelectionTable.H"
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
 
 namespace Foam
 {
+namespace functionObjects
+{
     defineTypeNameAndDebug(codedFunctionObject, 0);
-
     addToRunTimeSelectionTable
     (
         functionObject,
         codedFunctionObject,
         dictionary
     );
-}
+} // End namespace functionObjects
+} // End namespace Foam
+
 
 // * * * * * * * * * * * * Protected Member Functions  * * * * * * * * * * * //
 
-void Foam::codedFunctionObject::prepare
+Foam::dlLibraryTable& Foam::functionObjects::codedFunctionObject::libs() const
+{
+    return time_.libs();
+}
+
+
+Foam::string Foam::functionObjects::codedFunctionObject::description() const
+{
+    return "functionObject " + name();
+}
+
+
+void Foam::functionObjects::codedFunctionObject::clearRedirect() const
+{
+    redirectFunctionObjectPtr_.reset(nullptr);
+}
+
+
+const Foam::dictionary&
+Foam::functionObjects::codedFunctionObject::codeContext() const
+{
+    const dictionary* ptr = dict_.findDict("codeContext", keyType::LITERAL);
+    return (ptr ? *ptr : dictionary::null);
+}
+
+
+const Foam::dictionary&
+Foam::functionObjects::codedFunctionObject::codeDict() const
+{
+    return dict_;
+}
+
+
+void Foam::functionObjects::codedFunctionObject::prepare
 (
     dynamicCode& dynCode,
     const dynamicCodeContext& context
@@ -64,15 +102,16 @@ void Foam::codedFunctionObject::prepare
     dynCode.setFilterVariable("codeEnd", codeEnd_);
 
     // Compile filtered C template
-    dynCode.addCompileFile("functionObjectTemplate.C");
+    dynCode.addCompileFile(codeTemplateC);
 
     // Copy filtered H template
-    dynCode.addCopyFile("functionObjectTemplate.H");
+    dynCode.addCopyFile(codeTemplateH);
 
-    // Debugging: make BC verbose
-    // dynCode.setFilterVariable("verbose", "true");
-    // Info<<"compile " << name_ << " sha1: "
-    //     << context.sha1() << endl;
+    #ifdef FULLDEBUG
+    dynCode.setFilterVariable("verbose", "true");
+    DetailInfo
+        <<"compile " << name_ << " sha1: " << context.sha1() << endl;
+    #endif
 
     // Define Make/options
     dynCode.setMakeOptions
@@ -82,50 +121,25 @@ void Foam::codedFunctionObject::prepare
         "-I$(LIB_SRC)/meshTools/lnInclude \\\n"
       + context.options()
       + "\n\nLIB_LIBS = \\\n"
-      + "    -lOpenFOAM \\\n"
-      + "    -lfiniteVolume \\\n"
-      + "    -lmeshTools \\\n"
+        "    -lOpenFOAM \\\n"
+        "    -lfiniteVolume \\\n"
+        "    -lmeshTools \\\n"
       + context.libs()
     );
 }
 
 
-Foam::dlLibraryTable& Foam::codedFunctionObject::libs() const
-{
-    return const_cast<Time&>(time_).libs();
-}
-
-
-Foam::string Foam::codedFunctionObject::description() const
-{
-    return "functionObject " + name();
-}
-
-
-void Foam::codedFunctionObject::clearRedirect() const
-{
-    redirectFunctionObjectPtr_.clear();
-}
-
-
-const Foam::dictionary& Foam::codedFunctionObject::codeDict() const
-{
-    return dict_;
-}
-
-
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
-Foam::codedFunctionObject::codedFunctionObject
+Foam::functionObjects::codedFunctionObject::codedFunctionObject
 (
     const word& name,
-    const Time& time,
+    const Time& runTime,
     const dictionary& dict
 )
 :
-    functionObject(name),
+    timeFunctionObject(name, runTime),
     codedBase(),
-    time_(time),
     dict_(dict)
 {
     read(dict_);
@@ -135,17 +149,12 @@ Foam::codedFunctionObject::codedFunctionObject
 }
 
 
-// * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
-
-Foam::codedFunctionObject::~codedFunctionObject()
-{}
-
-
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
 
-Foam::functionObject& Foam::codedFunctionObject::redirectFunctionObject() const
+Foam::functionObject&
+Foam::functionObjects::codedFunctionObject::redirectFunctionObject() const
 {
-    if (!redirectFunctionObjectPtr_.valid())
+    if (!redirectFunctionObjectPtr_)
     {
         dictionary constructDict(dict_);
         constructDict.set("type", name_);
@@ -156,142 +165,72 @@ Foam::functionObject& Foam::codedFunctionObject::redirectFunctionObject() const
             time_,
             constructDict
         );
+
+
+        // Forward copy of codeContext to the code template
+        auto* contentPtr =
+            dynamic_cast<dictionaryContent*>(redirectFunctionObjectPtr_.get());
+
+        if (contentPtr)
+        {
+            contentPtr->dict(this->codeContext());
+        }
+        else
+        {
+            WarningInFunction
+                << name_ << " Did not derive from dictionaryContent"
+                << nl << nl;
+        }
     }
-    return redirectFunctionObjectPtr_();
+    return *redirectFunctionObjectPtr_;
 }
 
 
-bool Foam::codedFunctionObject::execute()
+bool Foam::functionObjects::codedFunctionObject::execute()
 {
     updateLibrary(name_);
     return redirectFunctionObject().execute();
 }
 
 
-bool Foam::codedFunctionObject::write()
+bool Foam::functionObjects::codedFunctionObject::write()
 {
     updateLibrary(name_);
     return redirectFunctionObject().write();
 }
 
 
-bool Foam::codedFunctionObject::end()
+bool Foam::functionObjects::codedFunctionObject::end()
 {
     updateLibrary(name_);
     return redirectFunctionObject().end();
 }
 
 
-bool Foam::codedFunctionObject::read(const dictionary& dict)
+bool Foam::functionObjects::codedFunctionObject::read(const dictionary& dict)
 {
-    // Backward compatibility
-    if (dict.found("redirectType"))
-    {
-        dict.lookup("redirectType") >> name_;
-    }
-    else
-    {
-        dict.lookup("name") >> name_;
-    }
+    timeFunctionObject::read(dict);
 
-    const entry* dataPtr = dict.lookupEntryPtr
-    (
-        "codeData",
-        false,
-        false
-    );
-    if (dataPtr)
-    {
-        codeData_ = stringOps::trim(dataPtr->stream());
-        stringOps::inplaceExpand(codeData_, dict);
-        dynamicCodeContext::addLineDirective
-        (
-            codeData_,
-            dataPtr->startLineNumber(),
-            dict.name()
-        );
-    }
+    codedBase::setCodeContext(dict);
 
-    const entry* readPtr = dict.lookupEntryPtr
-    (
-        "codeRead",
-        false,
-        false
-    );
-    if (readPtr)
-    {
-        codeRead_ = stringOps::trim(readPtr->stream());
-        stringOps::inplaceExpand(codeRead_, dict);
-        dynamicCodeContext::addLineDirective
-        (
-            codeRead_,
-            readPtr->startLineNumber(),
-            dict.name()
-        );
-    }
+    dict.readCompat<word>("name", {{"redirectType", 1706}}, name_);
 
-    const entry* execPtr = dict.lookupEntryPtr
-    (
-        "codeExecute",
-        false,
-        false
-    );
-    if (execPtr)
-    {
-        codeExecute_ = stringOps::trim(execPtr->stream());
-        stringOps::inplaceExpand(codeExecute_, dict);
-        dynamicCodeContext::addLineDirective
-        (
-            codeExecute_,
-            execPtr->startLineNumber(),
-            dict.name()
-        );
-    }
+    auto& ctx = codedBase::codeContext();
 
-    const entry* writePtr = dict.lookupEntryPtr
-    (
-        "codeWrite",
-        false,
-        false
-    );
-    if (writePtr)
-    {
-        codeWrite_ = stringOps::trim(writePtr->stream());
-        stringOps::inplaceExpand(codeWrite_, dict);
-        dynamicCodeContext::addLineDirective
-        (
-            codeWrite_,
-            writePtr->startLineNumber(),
-            dict.name()
-        );
-    }
+    // Get code chunks, no short-circuiting
+    int nKeywords = 0;
+    nKeywords += ctx.readIfPresent("codeData", codeData_);
+    nKeywords += ctx.readIfPresent("codeRead", codeRead_);
+    nKeywords += ctx.readIfPresent("codeExecute", codeExecute_);
+    nKeywords += ctx.readIfPresent("codeWrite", codeWrite_);
+    nKeywords += ctx.readIfPresent("codeEnd", codeEnd_);
 
-    const entry* endPtr = dict.lookupEntryPtr
-    (
-        "codeEnd",
-        false,
-        false
-    );
-    if (endPtr)
+    if (!nKeywords)
     {
-        codeEnd_ = stringOps::trim(endPtr->stream());
-        stringOps::inplaceExpand(codeEnd_, dict);
-        dynamicCodeContext::addLineDirective
-        (
-            codeEnd_,
-            endPtr->startLineNumber(),
-            dict.name()
-        );
-    }
-
-    if(!dataPtr && !readPtr && !execPtr && !writePtr && !endPtr)
-    {
-        IOWarningInFunction
-        (
-            dict
-        )   << "No critical \"code\" prefixed keywords were found."
-            << " Please check the code documentation for more details."
-            << nl << endl;
+        IOWarningInFunction(dict)
+            << "No critical \"code\" prefixed keywords found." << nl
+            << "Please check the code documentation for more details." << nl
+            << endl;
     }
 
     updateLibrary(name_);

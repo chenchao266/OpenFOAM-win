@@ -1,9 +1,12 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -58,39 +61,24 @@ inline bool Foam::wallNormalInfo::update
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
-// Null constructor
 inline Foam::wallNormalInfo::wallNormalInfo()
 :
-    normal_(point::max)
+    normal_(point::max_)
 {}
 
 
-// Construct from normal
 inline Foam::wallNormalInfo::wallNormalInfo(const vector& normal)
 :
     normal_(normal)
 {}
 
 
-// Construct as copy
-inline Foam::wallNormalInfo::wallNormalInfo(const wallNormalInfo& wpt)
-:
-    normal_(wpt.normal())
-{}
-
-
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
-
-inline const Foam::vector& Foam::wallNormalInfo::normal() const
-{
-    return normal_;
-}
-
 
 template<class TrackingData>
 inline bool Foam::wallNormalInfo::valid(TrackingData& td) const
 {
-    return normal_ != point::max;
+    return normal_ != point::max_;
 }
 
 
@@ -205,15 +193,19 @@ inline bool Foam::wallNormalInfo::equal
 
 // * * * * * * * * * * * * * * * Member Operators  * * * * * * * * * * * * * //
 
-inline bool Foam::wallNormalInfo::operator==(const Foam::wallNormalInfo& rhs)
- const
+inline bool Foam::wallNormalInfo::operator==
+(
+    const wallNormalInfo& rhs
+) const
 {
-    return normal() == rhs.normal();
+    return normal_ == rhs.normal_;
 }
 
 
-inline bool Foam::wallNormalInfo::operator!=(const Foam::wallNormalInfo& rhs)
- const
+inline bool Foam::wallNormalInfo::operator!=
+(
+    const wallNormalInfo& rhs
+) const
 {
     return !(*this == rhs);
 }

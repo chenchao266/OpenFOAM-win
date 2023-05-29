@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -24,22 +26,26 @@ License
 \*---------------------------------------------------------------------------*/
 
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
-namespace Foam {
-    template<class Type>
-    tmp<Field<Type>> vectorTensorTransform::transform
-    (
-        const Field<Type>& fld
-    ) const
-    {
-        if (hasR_)
-        {
-            return R() & fld;
-        }
-        else
-        {
-            return fld;
-        }
-    }
 
+
+ namespace Foam{
+template<class Type>
+tmp<Field<Type>> vectorTensorTransform::transform
+(
+    const Field<Type>& fld
+) const
+{
+    if (hasR_)
+    {
+        return R() & fld;
+    }
+    else
+    {
+        return fld;
+    }
 }
+
+
 // ************************************************************************* //
+
+ } // End namespace Foam

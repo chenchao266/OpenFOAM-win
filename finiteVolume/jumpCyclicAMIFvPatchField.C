@@ -1,9 +1,12 @@
-﻿/*---------------------------------------------------------------------------*\
+/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2012-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2012-2017 OpenFOAM Foundation
+    Copyright (C) 2019 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -27,174 +30,181 @@ License
 #include "transformField.H"
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
-namespace Foam {
-    template<class Type>
-    jumpCyclicAMIFvPatchField<Type>::jumpCyclicAMIFvPatchField
-    (
-        const fvPatch& p,
-        const DimensionedField<Type, volMesh>& iF
-    )
-        :
-        cyclicAMIFvPatchField<Type>(p, iF)
-    {}
+
+template<class Type>
+Foam::jumpCyclicAMIFvPatchField<Type>::jumpCyclicAMIFvPatchField
+(
+    const fvPatch& p,
+    const DimensionedField<Type, volMesh>& iF
+)
+:
+    cyclicAMIFvPatchField<Type>(p, iF)
+{}
 
 
-    template<class Type>
-    jumpCyclicAMIFvPatchField<Type>::jumpCyclicAMIFvPatchField
-    (
-        const jumpCyclicAMIFvPatchField<Type>& ptf,
-        const fvPatch& p,
-        const DimensionedField<Type, volMesh>& iF,
-        const fvPatchFieldMapper& mapper
-    )
-        :
-        cyclicAMIFvPatchField<Type>(ptf, p, iF, mapper)
-    {}
+template<class Type>
+Foam::jumpCyclicAMIFvPatchField<Type>::jumpCyclicAMIFvPatchField
+(
+    const jumpCyclicAMIFvPatchField<Type>& ptf,
+    const fvPatch& p,
+    const DimensionedField<Type, volMesh>& iF,
+    const fvPatchFieldMapper& mapper
+)
+:
+    cyclicAMIFvPatchField<Type>(ptf, p, iF, mapper)
+{}
 
 
-    template<class Type>
-    jumpCyclicAMIFvPatchField<Type>::jumpCyclicAMIFvPatchField
-    (
-        const fvPatch& p,
-        const DimensionedField<Type, volMesh>& iF,
-        const dictionary& dict
-    )
-        :
-        cyclicAMIFvPatchField<Type>(p, iF, dict)
+template<class Type>
+Foam::jumpCyclicAMIFvPatchField<Type>::jumpCyclicAMIFvPatchField
+(
+    const fvPatch& p,
+    const DimensionedField<Type, volMesh>& iF,
+    const dictionary& dict
+)
+:
+    cyclicAMIFvPatchField<Type>(p, iF, dict)
+{
+    // Call this evaluation in derived classes
+    //this->evaluate(Pstream::commsTypes::blocking);
+}
+
+
+template<class Type>
+Foam::jumpCyclicAMIFvPatchField<Type>::jumpCyclicAMIFvPatchField
+(
+    const jumpCyclicAMIFvPatchField<Type>& ptf
+)
+:
+    cyclicAMIFvPatchField<Type>(ptf)
+{}
+
+
+template<class Type>
+Foam::jumpCyclicAMIFvPatchField<Type>::jumpCyclicAMIFvPatchField
+(
+    const jumpCyclicAMIFvPatchField<Type>& ptf,
+    const DimensionedField<Type, volMesh>& iF
+)
+:
+    cyclicAMIFvPatchField<Type>(ptf, iF)
+{}
+
+
+// * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
+
+template<class Type>
+Foam::tmp<Foam::Field<Type>>
+Foam::jumpCyclicAMIFvPatchField<Type>::patchNeighbourField() const
+{
+    const Field<Type>& iField = this->primitiveField();
+    const labelUList& nbrFaceCells =
+        this->cyclicAMIPatch().cyclicAMIPatch().neighbPatch().faceCells();
+
+    Field<Type> pnf(iField, nbrFaceCells);
+    tmp<Field<Type>> tpnf;
+
+    if (this->cyclicAMIPatch().applyLowWeightCorrection())
     {
-        // Call this evaluation in derived classes
-        //this->evaluate(Pstream::commsTypes::blocking);
+        tpnf =
+            this->cyclicAMIPatch().interpolate
+            (
+                pnf,
+                this->patchInternalField()()
+            );
+    }
+    else
+    {
+        tpnf = this->cyclicAMIPatch().interpolate(pnf);
     }
 
-
-    template<class Type>
-    jumpCyclicAMIFvPatchField<Type>::jumpCyclicAMIFvPatchField
-    (
-        const jumpCyclicAMIFvPatchField<Type>& ptf
-    )
-        :
-        cyclicAMIFvPatchField<Type>(ptf)
-    {}
-
-
-    template<class Type>
-    jumpCyclicAMIFvPatchField<Type>::jumpCyclicAMIFvPatchField
-    (
-        const jumpCyclicAMIFvPatchField<Type>& ptf,
-        const DimensionedField<Type, volMesh>& iF
-    )
-        :
-        cyclicAMIFvPatchField<Type>(ptf, iF)
-    {}
-
-
-    // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
-
-    template<class Type>
-    tmp<Field<Type>>
-        jumpCyclicAMIFvPatchField<Type>::patchNeighbourField() const
+    if (this->doTransform())
     {
-        const Field<Type>& iField = this->primitiveField();
-        const labelUList& nbrFaceCells =
-            this->cyclicAMIPatch().cyclicAMIPatch().neighbPatch().faceCells();
+        tpnf = transform(this->forwardT(), tpnf);
+    }
 
-        Field<Type> pnf(iField, nbrFaceCells);
-        tmp<Field<Type>> tpnf;
+    tmp<Field<Type>> tjf = jump();
+    if (!this->cyclicAMIPatch().owner())
+    {
+        tjf = -tjf;
+    }
 
-        if (this->cyclicAMIPatch().applyLowWeightCorrection())
-        {
-            tpnf =
-                this->cyclicAMIPatch().interpolate
-                (
-                    pnf,
-                    this->patchInternalField()()
-                );
-        }
-        else
-        {
-            tpnf = this->cyclicAMIPatch().interpolate(pnf);
-        }
+    return tpnf - tjf;
+}
 
-        if (this->doTransform())
-        {
-            tpnf = transform(this->forwardT(), tpnf);
-        }
 
-        tmp<Field<Type>> tjf = jump();
+template<class Type>
+void Foam::jumpCyclicAMIFvPatchField<Type>::updateInterfaceMatrix
+(
+    solveScalarField& result,
+    const bool add,
+    const lduAddressing& lduAddr,
+    const label patchId,
+    const solveScalarField& psiInternal,
+    const scalarField& coeffs,
+    const direction cmpt,
+    const Pstream::commsTypes
+) const
+{
+    NotImplemented;
+}
+
+
+template<class Type>
+void Foam::jumpCyclicAMIFvPatchField<Type>::updateInterfaceMatrix
+(
+    Field<Type>& result,
+    const bool add,
+    const lduAddressing& lduAddr,
+    const label patchId,
+    const Field<Type>& psiInternal,
+    const scalarField& coeffs,
+    const Pstream::commsTypes
+) const
+{
+    const labelUList& nbrFaceCells =
+        lduAddr.patchAddr
+        (
+            this->cyclicAMIPatch().neighbPatchID()
+        );
+
+    Field<Type> pnf(psiInternal, nbrFaceCells);
+
+    if (this->cyclicAMIPatch().applyLowWeightCorrection())
+    {
+        pnf =
+            this->cyclicAMIPatch().interpolate
+            (
+                pnf,
+                this->patchInternalField()()
+            );
+
+    }
+    else
+    {
+        pnf = this->cyclicAMIPatch().interpolate(pnf);
+    }
+
+    // only apply jump to original field
+    if (&psiInternal == &this->primitiveField())
+    {
+        Field<Type> jf(this->jump());
         if (!this->cyclicAMIPatch().owner())
         {
-            tjf = -tjf;
+            jf *= -1.0;
         }
 
-        return tpnf - tjf;
+        pnf -= jf;
     }
 
+    // Transform according to the transformation tensors
+    this->transformCoupleField(pnf);
 
-    template<class Type>
-    void jumpCyclicAMIFvPatchField<Type>::updateInterfaceMatrix
-    (
-        scalarField& result,
-        const scalarField& psiInternal,
-        const scalarField& coeffs,
-        const direction cmpt,
-        const Pstream::commsTypes
-    ) const
-    {
-        NotImplemented;
-    }
+    const labelUList& faceCells = lduAddr.patchAddr(patchId);
 
-
-    template<class Type>
-    void jumpCyclicAMIFvPatchField<Type>::updateInterfaceMatrix
-    (
-        Field<Type>& result,
-        const Field<Type>& psiInternal,
-        const scalarField& coeffs,
-        const Pstream::commsTypes
-    ) const
-    {
-        const labelUList& nbrFaceCells =
-            this->cyclicAMIPatch().cyclicAMIPatch().neighbPatch().faceCells();
-
-        Field<Type> pnf(psiInternal, nbrFaceCells);
-
-        if (this->cyclicAMIPatch().applyLowWeightCorrection())
-        {
-            pnf =
-                this->cyclicAMIPatch().interpolate
-                (
-                    pnf,
-                    this->patchInternalField()()
-                );
-
-        }
-        else
-        {
-            pnf = this->cyclicAMIPatch().interpolate(pnf);
-        }
-
-        // only apply jump to original field
-        if (&psiInternal == &this->primitiveField())
-        {
-            Field<Type> jf(this->jump());
-            if (!this->cyclicAMIPatch().owner())
-            {
-                jf *= -1.0;
-            }
-
-            pnf -= jf;
-        }
-
-        // Transform according to the transformation tensors
-        this->transformCoupleField(pnf);
-
-        // Multiply the field by coefficients and add into the result
-        const labelUList& faceCells = this->cyclicAMIPatch().faceCells();
-        forAll(faceCells, elemI)
-        {
-            result[faceCells[elemI]] -= coeffs[elemI] * pnf[elemI];
-        }
-    }
-
+    // Multiply the field by coefficients and add into the result
+    this->addToInternalField(result, !add,faceCells, coeffs, pnf);
 }
+
+
 // ************************************************************************* //

@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2016-2019 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -26,10 +29,12 @@ License
 #include "indexedOctree.H"
 #include "linePointRef.H"
 #include "OFstream.H"
-#include "ListOps.T.H"
+#include "ListOps.H"
 #include "memInfo.H"
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
+
+
  namespace Foam{
 template<class Type>
 scalar indexedOctree<Type>::perturbTol_ = 10*SMALL;
@@ -376,7 +381,7 @@ volumeType indexedOctree<Type>::calcVolumeType
             // of its bounding box.
             const treeBoundBox subBb = nod.bb_.subBbox(octant);
 
-            subType = shapes_.getVolumeType(*this, subBb.midpoint());
+            subType = shapes_.getVolumeType(*this, subBb.centre());
         }
 
         // Store octant type
@@ -439,30 +444,26 @@ volumeType indexedOctree<Type>::getVolumeType
             // Content. Defer to shapes.
             return volumeType(shapes_.getVolumeType(*this, sample));
         }
-        else
-        {
-            // Empty node. Cannot have 'mixed' as its type since not divided
-            // up and has no items inside it.
-            FatalErrorInFunction
-                << "Sample:" << sample << " node:" << nodeI
-                << " with bb:" << nodes_[nodeI].bb_ << nl
-                << "Empty subnode has invalid volume type MIXED."
-                << abort(FatalError);
 
-            return volumeType::UNKNOWN;
-        }
-    }
-    else
-    {
+        // Empty node. Cannot have 'mixed' as its type since not divided
+        // up and has no items inside it.
         FatalErrorInFunction
-            << "Sample:" << sample << " at node:" << nodeI
-            << " octant:" << octant
-            << " with bb:" << nod.bb_.subBbox(octant) << nl
-            << "Node has invalid volume type " << octantType
+            << "Sample:" << sample << " node:" << nodeI
+            << " with bb:" << nodes_[nodeI].bb_ << nl
+            << "Empty subnode has invalid volume type MIXED."
             << abort(FatalError);
 
         return volumeType::UNKNOWN;
     }
+
+    FatalErrorInFunction
+        << "Sample:" << sample << " at node:" << nodeI
+        << " octant:" << octant
+        << " with bb:" << nod.bb_.subBbox(octant) << nl
+        << "Node has invalid volume type " << octantType
+        << abort(FatalError);
+
+    return volumeType::UNKNOWN;
 }
 
 
@@ -710,13 +711,19 @@ point indexedOctree<Type>::pushPoint
     {
         if (pushInside != bb.contains(perturbedPt))
         {
-            FatalErrorInFunction
+            auto fatal = FatalErrorInFunction;
+
+            fatal
                 << "pushed point:" << pt
                 << " to:" << perturbedPt
                 << " wanted side:" << pushInside
                 << " obtained side:" << bb.contains(perturbedPt)
-                << " of bb:" << bb
-                << abort(FatalError);
+                << " of bb:" << bb << nl;
+
+            if (debug > 1)
+            {
+                fatal << abort(FatalError);
+            }
         }
     }
 
@@ -820,13 +827,19 @@ point indexedOctree<Type>::pushPoint
     {
         if (pushInside != bb.contains(perturbedPt))
         {
-            FatalErrorInFunction
+            auto fatal = FatalErrorInFunction;
+
+            fatal
                 << "pushed point:" << pt << " on face:" << faceString(faceID)
                 << " to:" << perturbedPt
                 << " wanted side:" << pushInside
                 << " obtained side:" << bb.contains(perturbedPt)
-                << " of bb:" << bb
-                << abort(FatalError);
+                << " of bb:" << bb << nl;
+
+            if (debug > 1)
+            {
+                fatal << abort(FatalError);
+            }
         }
     }
 
@@ -846,9 +859,16 @@ point indexedOctree<Type>::pushPointIntoFace
     {
         if (bb.posBits(pt) != 0)
         {
-            FatalErrorInFunction
+            auto fatal = FatalErrorInFunction;
+
+            fatal
                 << " bb:" << bb << endl
-                << "does not contain point " << pt << abort(FatalError);
+                << "does not contain point " << pt << nl;
+
+            if (debug > 1)
+            {
+                fatal << abort(FatalError);
+            }
         }
     }
 
@@ -968,21 +988,34 @@ point indexedOctree<Type>::pushPointIntoFace
     {
         if (faceID != bb.faceBits(facePoint))
         {
-            FatalErrorInFunction
+            auto fatal = FatalErrorInFunction;
+
+            fatal
                 << "Pushed point from " << pt
-                << " on face:" << ptFaceID << " of bb:" << bb << endl
+                << " on face:" << ptFaceID << " of bb:" << bb << nl
                 << "onto " << facePoint
                 << " on face:" << faceID
                 << " which is not consistent with geometric face "
-                << bb.faceBits(facePoint)
-                << abort(FatalError);
+                << bb.faceBits(facePoint) << nl;
+
+            if (debug > 1)
+            {
+                fatal << abort(FatalError);
+            }
         }
         if (bb.posBits(facePoint) != 0)
         {
-            FatalErrorInFunction
-                << " bb:" << bb << endl
+            auto fatal = FatalErrorInFunction;
+
+            fatal
+                << " bb:" << bb << nl
                 << "does not contain perturbed point "
-                << facePoint << abort(FatalError);
+                << facePoint << nl;
+
+            if (debug > 1)
+            {
+                fatal << abort(FatalError);
+            }
         }
     }
 
@@ -1224,12 +1257,18 @@ bool indexedOctree<Type>::walkToNeighbour
 
         if (!subBb.contains(facePoint))
         {
-            FatalErrorInFunction
+            auto fatal = FatalErrorInFunction;
+
+            fatal
                 << "When searching for " << facePoint
                 << " ended up in node:" << nodeI
                 << " octant:" << octant
-                << " with bb:" << subBb
-                << abort(FatalError);
+                << " with bb:" << subBb << nl;
+
+            if (debug > 1)
+            {
+                fatal << abort(FatalError);
+            }
         }
     }
 
@@ -1253,24 +1292,36 @@ bool indexedOctree<Type>::walkToNeighbour
 
         if (nodeI == oldNodeI && octant == oldOctant)
         {
-            FatalErrorInFunction
+            auto fatal = FatalErrorInFunction;
+
+            fatal
                 << "Did not go to neighbour when searching for " << facePoint
-                << endl
+                << nl
                 << "    starting from face:" << faceString(faceID)
                 << " node:" << nodeI
                 << " octant:" << octant
-                << " bb:" << subBb
-                << abort(FatalError);
+                << " bb:" << subBb << nl;
+
+            if (debug > 1)
+            {
+                fatal << abort(FatalError);
+            }
         }
 
         if (!subBb.contains(facePoint))
         {
-            FatalErrorInFunction
+            auto fatal = FatalErrorInFunction;
+
+            fatal
                 << "When searching for " << facePoint
                 << " ended up in node:" << nodeI
                 << " octant:" << octant
-                << " bb:" << subBb
-                << abort(FatalError);
+                << " bb:" << subBb << nl;
+
+            if (debug > 1)
+            {
+                fatal << abort(FatalError);
+            }
         }
     }
 
@@ -1358,10 +1409,17 @@ void indexedOctree<Type>::traverseNode
 
         if (octantBb.posBits(start) != 0)
         {
-            FatalErrorInFunction
+            auto fatal = FatalErrorInFunction;
+
+            fatal
                 << "Node:" << nodeI << " octant:" << octant
-                << " bb:" << octantBb << endl
-                << "does not contain point " << start << abort(FatalError);
+                << " bb:" << octantBb << nl
+                << "does not contain point " << start << nl;
+
+            if (debug > 1)
+            {
+                fatal << abort(FatalError);
+            }
         }
     }
 
@@ -2111,7 +2169,9 @@ void indexedOctree<Type>::writeOBJ
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
 template<class Type>
-indexedOctree<Type>::indexedOctree(const Type& shapes) :    shapes_(shapes),
+indexedOctree<Type>::indexedOctree(const Type& shapes)
+:
+    shapes_(shapes),
     nodes_(0),
     contents_(0),
     nodeTypes_(0)
@@ -2124,7 +2184,9 @@ indexedOctree<Type>::indexedOctree
     const Type& shapes,
     const List<node>& nodes,
     const labelListList& contents
-) :    shapes_(shapes),
+)
+:
+    shapes_(shapes),
     nodes_(nodes),
     contents_(contents),
     nodeTypes_(0)
@@ -2139,7 +2201,9 @@ indexedOctree<Type>::indexedOctree
     const label maxLevels,          // maximum number of levels
     const scalar maxLeafRatio,
     const scalar maxDuplicity
-) :    shapes_(shapes),
+)
+:
+    shapes_(shapes),
     nodes_(0),
     contents_(0),
     nodeTypes_(0)
@@ -2178,8 +2242,10 @@ indexedOctree<Type>::indexedOctree
     {
         // Count number of references into shapes (i.e. contents)
         label nEntries = 0;
+        label maxEntries = 0;
         forAll(contents, i)
         {
+            maxEntries = max(maxEntries, contents[i].size());
             nEntries += contents[i].size();
         }
 
@@ -2191,6 +2257,8 @@ indexedOctree<Type>::indexedOctree
                 << nl
                 << "    nEntries per shape (duplicity):"
                 << nEntries/shapes.size()
+                << nl
+                << "    max nEntries:" << maxEntries
                 << nl
                 << endl;
         }
@@ -2267,8 +2335,10 @@ indexedOctree<Type>::indexedOctree
     if (debug)
     {
         label nEntries = 0;
+        label maxEntries = 0;
         forAll(contents_, i)
         {
+            maxEntries = max(maxEntries, contents_[i].size());
             nEntries += contents_[i].size();
         }
 
@@ -2287,6 +2357,8 @@ indexedOctree<Type>::indexedOctree
             << scalar(nEntries)/contents.size() << nl
             << "        per shape (duplicity):"
             << scalar(nEntries)/shapes.size() << nl
+            << "    max nEntries:" << maxEntries
+            << nl
             << "    total memory:" << memSize-oldMemSize
             << endl;
     }
@@ -2298,7 +2370,9 @@ indexedOctree<Type>::indexedOctree
 (
     const Type& shapes,
     Istream& is
-) :    shapes_(shapes),
+)
+:
+    shapes_(shapes),
     nodes_(is),
     contents_(is),
     nodeTypes_(0)
@@ -2481,13 +2555,15 @@ labelList indexedOctree<Type>::findBox
     const treeBoundBox& searchBox
 ) const
 {
+    if (nodes_.empty())
+    {
+        return labelList();
+    }
+
     // Storage for labels of shapes inside bb. Size estimate.
     labelHashSet elements(shapes_.size() / 100);
 
-    if (nodes_.size())
-    {
-        findBox(0, searchBox, elements);
-    }
+    findBox(0, searchBox, elements);
 
     return elements.toc();
 }
@@ -2500,13 +2576,15 @@ labelList indexedOctree<Type>::findSphere
     const scalar radiusSqr
 ) const
 {
+    if (nodes_.empty())
+    {
+        return labelList();
+    }
+
     // Storage for labels of shapes inside bb. Size estimate.
     labelHashSet elements(shapes_.size() / 100);
 
-    if (nodes_.size())
-    {
-        findSphere(0, centre, radiusSqr, elements);
-    }
+    findSphere(0, centre, radiusSqr, elements);
 
     return elements.toc();
 }
@@ -2526,16 +2604,6 @@ labelBits indexedOctree<Type>::findNode
     }
 
     const node& nod = nodes_[nodeI];
-
-    if (debug)
-    {
-        if (!nod.bb_.contains(sample))
-        {
-            FatalErrorInFunction
-                << "Cannot find " << sample << " in node " << nodeI
-                << abort(FatalError);
-        }
-    }
 
     direction octant = nod.bb_.subOctant(sample);
 
@@ -2562,6 +2630,11 @@ labelBits indexedOctree<Type>::findNode
 template<class Type>
 label indexedOctree<Type>::findInside(const point& sample) const
 {
+    if (nodes_.empty())
+    {
+        return -1;
+    }
+
     labelBits index = findNode(0, sample);
 
     const node& nod = nodes_[getNode(index)];
@@ -2594,6 +2667,11 @@ const labelList& indexedOctree<Type>::findIndices
     const point& sample
 ) const
 {
+    if (nodes_.empty())
+    {
+        return labelList::null();
+    }
+
     labelBits index = findNode(0, sample);
 
     const node& nod = nodes_[getNode(index)];
@@ -2605,10 +2683,8 @@ const labelList& indexedOctree<Type>::findIndices
     {
         return contents_[getContent(contentIndex)];
     }
-    else
-    {
-        return emptyList<label>();
-    }
+
+    return labelList::null();
 }
 
 
@@ -2690,18 +2766,21 @@ void indexedOctree<Type>::findNear
     CompareOp& cop
 ) const
 {
-    findNear
-    (
-        nearDist,
-        true,
-        *this,
-        nodePlusOctant(0, 0),
-        bb(),
-        tree2,
-        nodePlusOctant(0, 0),
-        tree2.bb(),
-        cop
-    );
+    if (!nodes_.empty())
+    {
+        findNear
+        (
+            nearDist,
+            true,
+            *this,
+            nodePlusOctant(0, 0),
+            bb(),
+            tree2,
+            nodePlusOctant(0, 0),
+            tree2.bb(),
+            cop
+        );
+    }
 }
 
 
@@ -2713,6 +2792,11 @@ void indexedOctree<Type>::print
     const label nodeI
 ) const
 {
+    if (nodes_.empty())
+    {
+        return;
+    }
+
     const node& nod = nodes_[nodeI];
     const treeBoundBox& bb = nod.bb_;
 
@@ -2795,5 +2879,7 @@ Ostream& operator<<(Ostream& os, const indexedOctree<Type>& t)
             << token::SPACE << t.contents();
 }
 
-}
+
 // ************************************************************************* //
+
+ } // End namespace Foam

@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2016 OpenFOAM Foundation
+    Copyright (C) 2016-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -30,6 +33,11 @@ Group
 Description
     Volume (cell) region selection class.
 
+    The adjustments for mesh changes have been implemented with a lazy
+    evaluation, to avoid unnecessary recalculation until the values are
+    actually required. The update() method is used to ensure the cache
+    values are up-to-date.
+
     Examples of function object specification:
     \verbatim
     volRegion0
@@ -54,9 +62,9 @@ Description
 
 Usage
     \table
-        Property     | Description                | Required     | Default value
-        regionType   | cellZone or all              | no | all
-        name         | Name of cellZone if required | no |
+        Property     | Description                          | Required | Default
+        regionType   | Selection type: all/cellSet/cellZone | no | all
+        name         | Name of cellSet/cellZone if required | conditional |
     \endtable
 
 See also
@@ -71,32 +79,48 @@ SourceFiles
 #define functionObjects_volRegion_H
 
 #include "writeFile.H"
-#include "NamedEnum.T.H"
+#include "Enum.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 namespace Foam
 {
 
-// Forward declaration of classes
+// Forward Declarations
 class fvMesh;
+class polyMesh;
+class mapPolyMesh;
 
 namespace functionObjects
 {
 
 /*---------------------------------------------------------------------------*\
-                         Class volRegion Declaration
+                          Class volRegion Declaration
 \*---------------------------------------------------------------------------*/
 
 class volRegion
 {
-    // Private member data
+    // Private Member Data
 
-        const fvMesh& mesh_;
+        const fvMesh& volMesh_;
 
-        // Cache integral properties of the region for writeFileHeader
+        //- Flag to indicate whether the volRegion requires updating
+        bool requireUpdate_;
+
+        //- The cell ids, from cellSet
+        labelList cellIds_;
+
+        //- Cached total number of cells selected
         label nCells_;
+
+        //- Cached total selection volume
         scalar V_;
+
+
+    // Private Member Functions
+
+        //- Update cellIds, nCells, volume
+        void calculateCache();
 
 
 public:
@@ -106,32 +130,36 @@ public:
         //- Region type enumeration
         enum regionTypes
         {
-            vrtCellZone,
-            vrtAll
+            vrtAll = 0,         //!< All cells
+            vrtCellSet,         //!< A cellSet
+            vrtCellZone         //!< A cellZone
         };
 
         //- Region type names
-        static const NamedEnum<regionTypes, 2> regionTypeNames_;
+        static const Enum<regionTypes> regionTypeNames_;
 
 
 protected:
 
-    // Protected data
+    // Protected Data
 
         //- Region type
         regionTypes regionType_;
 
-        //- Region name (patch, zone, etc.)
+        //- Region name (cellSet, cellZone, ...)
         word regionName_;
 
-        //- Region ID (patch ID, zone ID, etc.)
+        //- Region ID (zone ID, ...)
         label regionID_;
 
 
     // Protected Member Functions
 
+        //- Use all cells, not the cellIDs
+        inline bool useAllCells() const noexcept;
+
         //- Output file header information
-        void writeFileHeader(const writeFile& wf, Ostream& file);
+        void writeFileHeader(const writeFile& wf, Ostream& file) const;
 
 
 public:
@@ -143,33 +171,41 @@ public:
     // Constructors
 
         //- Construct from fvMesh and dictionary
-        volRegion
-        (
-            const fvMesh& mesh,
-            const dictionary& dict
-        );
+        volRegion(const fvMesh& mesh, const dictionary& dict);
 
 
     //- Destructor
-    virtual ~volRegion();
+    virtual ~volRegion() = default;
 
 
-    // Public Member Functions
+    // Member Functions
 
-        //- Read from dictionary
-        bool read(const dictionary&);
+        //- The region type
+        inline regionTypes regionType() const noexcept;
 
-        //- Return the region type
-        inline const regionTypes& regionType() const;
-
-        //- Return the local list of cell IDs
+        //- Return the local list of cell IDs.
+        //  Empty or invalid for 'all'
         const labelList& cellIDs() const;
 
-        //- Return the number of cells in the region
-        label nCells() const;
+        //- Return the total number of cells selected in the region
+        inline label nCells() const;
 
-        //- Return total volume of the region
-        scalar V() const;
+        //- Return total volume of the selected region
+        inline scalar V() const;
+
+        //- Update the cached values as required
+        //  \return False if the values were already up to date
+        bool update();
+
+
+        //- Read from dictionary
+        virtual bool read(const dictionary& dict);
+
+        //- Update for changes of mesh
+        virtual void updateMesh(const mapPolyMesh&);
+
+        //- Update for mesh point-motion
+        virtual void movePoints(const polyMesh&);
 };
 
 

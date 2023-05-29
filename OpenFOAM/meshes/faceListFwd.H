@@ -1,9 +1,11 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -21,30 +23,30 @@ License
     You should have received a copy of the GNU General Public License
     along with OpenFOAM.  If not, see <http://www.gnu.org/licenses/>.
 
-Typedef
-    Foam::faceListFwd
+Header
+    faceListFwd.H
 
 Description
+    Forwards for various types of face lists
 
 \*---------------------------------------------------------------------------*/
 
 #ifndef faceListFwd_H
 #define faceListFwd_H
 
-#include "List.T.H"
-#include "SubList.T.H"
+#include "List.H"
+#include "SubList.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 namespace Foam
 {
     class face;
+
     typedef UList<face> faceUList;
     typedef List<face> faceList;
     typedef SubList<face> faceSubList;
     typedef List<faceList> faceListList;
-    // same as faceUList:
-    typedef UList<face> unallocFaceList;
 }
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //

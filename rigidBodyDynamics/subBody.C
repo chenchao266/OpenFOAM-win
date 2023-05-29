@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -29,11 +31,8 @@ License
 
 void Foam::RBD::subBody::write(Ostream& os) const
 {
-    os.writeKeyword("master")
-        << masterName_ << token::END_STATEMENT << nl;
-
-    os.writeKeyword("transform")
-        << masterXT_ << token::END_STATEMENT << nl;
+    os.writeEntry("master", masterName_);
+    os.writeEntry("transform", masterXT_);
 }
 
 

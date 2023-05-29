@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2014-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2014-2017 OpenFOAM Foundation
+    Copyright (C) 2020-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -24,6 +27,9 @@ License
 Class
     Foam::basicSpecieMixture
 
+Group
+    grpReactionThermophysicalMixtures
+
 Description
     Specialization of basicMultiComponentMixture for a mixture consisting
     of a number for molecular species.
@@ -37,11 +43,14 @@ SourceFiles
 #define basicSpecieMixture_H
 
 #include "basicMultiComponentMixture.H"
+#include "specieElement.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 namespace Foam
 {
+
+typedef HashTable<List<specieElement>> speciesCompositionTable;
 
 /*---------------------------------------------------------------------------*\
                  Class basicSpecieMixture Declaration
@@ -66,27 +75,26 @@ public:
         //- Construct from dictionary, species names, mesh and phase name
         basicSpecieMixture
         (
-            const dictionary&,
+            const dictionary& thermoDict,
             const wordList& specieNames,
-            const fvMesh&,
-            const word&
+            const fvMesh& mesh,
+            const word& phaseName
         );
 
 
     //- Destructor
-    virtual ~basicSpecieMixture()
-    {}
+    virtual ~basicSpecieMixture() = default;
 
 
-    // Member functions
+    // Member Functions
 
         // Per specie properties
 
             //- Molecular weight of the given specie [kg/kmol]
             virtual scalar W(const label speciei) const = 0;
 
-            //- Molecular weight of the mixture [kg/kmol]
-            tmp<volScalarField> W() const;
+            //- Chemical enthalpy [J/kg]
+            virtual scalar Hc(const label speciei) const = 0;
 
 
         // Per specie thermo properties
@@ -101,6 +109,14 @@ public:
 
             //- Heat capacity at constant volume [J/(kg K)]
             virtual scalar Cv
+            (
+                const label speciei,
+                const scalar p,
+                const scalar T
+            ) const = 0;
+
+            //- Enthalpy/Internal energy [J/kg]
+            virtual scalar HE
             (
                 const label speciei,
                 const scalar p,
@@ -123,8 +139,6 @@ public:
                 const scalar T
             ) const = 0;
 
-            //- Chemical enthalpy [J/kg]
-            virtual scalar Hc(const label speciei) const = 0;
 
             //- Entropy [J/(kg K)]
             virtual scalar S
@@ -192,6 +206,12 @@ public:
                 const scalar p,
                 const scalar T
             ) const = 0;
+
+            //- Species composition
+            virtual autoPtr<speciesCompositionTable> specieComposition() const
+            {
+                return autoPtr<speciesCompositionTable>::New();
+            }
 };
 
 

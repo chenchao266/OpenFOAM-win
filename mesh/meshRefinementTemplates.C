@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2015 OpenFOAM Foundation
+    Copyright (C) 2019-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -23,15 +26,15 @@ License
 
 \*---------------------------------------------------------------------------*/
 
-//#include "meshRefinement.H"
+#include "meshRefinement.H"
 #include "fvMesh.H"
 #include "globalIndex.H"
 #include "syncTools.H"
 
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
 
-// Add a T entry
-template<class T> void Foam::meshRefinement::updateList
+template<class T>
+void Foam::meshRefinement::updateList
 (
     const labelList& newToOld,
     const T& nullValue,
@@ -42,7 +45,7 @@ template<class T> void Foam::meshRefinement::updateList
 
     forAll(newElems, i)
     {
-        label oldI = newToOld[i];
+        const label oldI = newToOld[i];
 
         if (oldI >= 0)
         {
@@ -57,7 +60,7 @@ template<class T> void Foam::meshRefinement::updateList
 template<class T>
 T Foam::meshRefinement::gAverage
 (
-    const PackedBoolList& isMasterElem,
+    const bitSet& isMasterElem,
     const UList<T>& values
 )
 {
@@ -70,12 +73,12 @@ T Foam::meshRefinement::gAverage
             << exit(FatalError);
     }
 
-    T sum = Zero;
+    T sum = T(Zero);
     label n = 0;
 
     forAll(values, i)
     {
-        if (isMasterElem[i])
+        if (isMasterElem.test(i))
         {
             sum += values[i];
             n++;
@@ -91,7 +94,7 @@ T Foam::meshRefinement::gAverage
     }
     else
     {
-        return pTraits<T>::max;
+        return pTraits<T>::max_;
     }
 }
 
@@ -106,7 +109,7 @@ void Foam::meshRefinement::testSyncBoundaryFaceList
     const UList<T>& syncedFaceData
 ) const
 {
-    label nBFaces = mesh_.nFaces() - mesh_.nInternalFaces();
+    const label nBFaces = mesh_.nBoundaryFaces();
 
     if (faceData.size() != nBFaces || syncedFaceData.size() != nBFaces)
     {
@@ -161,13 +164,11 @@ void Foam::meshRefinement::collectAndPrint
     const UList<T>& data
 )
 {
-    globalIndex globalPoints(points.size());
+    const globalIndex globalPoints(points.size());
 
     pointField allPoints;
     globalPoints.gather
     (
-        Pstream::worldComm,
-        identity(Pstream::nProcs()),
         points,
         allPoints,
         UPstream::msgType(),
@@ -177,8 +178,6 @@ void Foam::meshRefinement::collectAndPrint
     List<T> allData;
     globalPoints.gather
     (
-        Pstream::worldComm,
-        identity(Pstream::nProcs()),
         data,
         allData,
         UPstream::msgType(),
@@ -188,11 +187,9 @@ void Foam::meshRefinement::collectAndPrint
 
     scalarField magAllPoints(mag(allPoints-point(-0.317, 0.117, 0.501)));
 
-    labelList visitOrder;
-    sortedOrder(magAllPoints, visitOrder);
-    forAll(visitOrder, i)
+    labelList visitOrder(sortedOrder(magAllPoints));
+    for (const label allPointi : visitOrder)
     {
-        label allPointi = visitOrder[i];
         Info<< allPoints[allPointi] << " : " << allData[allPointi]
             << endl;
     }
@@ -211,11 +208,10 @@ void Foam::meshRefinement::addPatchFields
         mesh.objectRegistry::lookupClass<GeoField>()
     );
 
-    forAllIter(typename HashTable<GeoField*>, flds, iter)
+    forAllIters(flds, iter)
     {
         GeoField& fld = *iter();
-        typename GeoField::Boundary& fldBf =
-            fld.boundaryFieldRef();
+        auto& fldBf = fld.boundaryFieldRef();
 
         label sz = fldBf.size();
         fldBf.setSize(sz+1);
@@ -245,28 +241,27 @@ void Foam::meshRefinement::reorderPatchFields
         mesh.objectRegistry::lookupClass<GeoField>()
     );
 
-    forAllIter(typename HashTable<GeoField*>, flds, iter)
+    forAllIters(flds, iter)
     {
         iter()->boundaryFieldRef().reorder(oldToNew);
     }
 }
 
 
-template<class Enum>
+template<class EnumContainer>
 int Foam::meshRefinement::readFlags
 (
-    const Enum& namedEnum,
+    const EnumContainer& namedEnum,
     const wordList& words
 )
 {
     int flags = 0;
 
-    forAll(words, i)
+    for (const word& w : words)
     {
-        int index = namedEnum[words[i]];
-        int val = 1<<index;
-        flags |= val;
+        flags |= namedEnum[w];
     }
+
     return flags;
 }
 
@@ -275,7 +270,7 @@ template<class Type>
 void Foam::meshRefinement::weightedSum
 (
     const polyMesh& mesh,
-    const PackedBoolList& isMasterEdge,
+    const bitSet& isMasterEdge,
     const labelList& meshPoints,
     const edgeList& edges,
     const scalarField& edgeWeights,
@@ -301,11 +296,11 @@ void Foam::meshRefinement::weightedSum
     }
 
     sum.setSize(meshPoints.size());
-    sum = Zero;
+    sum = Type(Zero);
 
     forAll(edges, edgeI)
     {
-        if (isMasterEdge[edgeI])
+        if (isMasterEdge.test(edgeI))
         {
             const edge& e = edges[edgeI];
 
@@ -325,8 +320,31 @@ void Foam::meshRefinement::weightedSum
         meshPoints,
         sum,
         plusEqOp<Type>(),
-        Type(Zero)     // null value
+        Type(Zero)          // null value
     );
+}
+
+
+template<class Type>
+Type Foam::meshRefinement::get
+(
+    const dictionary& dict,
+    const word& keyword,
+    const bool noExit,
+    enum keyType::option matchOpt,
+    const Type& deflt
+)
+{
+    Type val(deflt);
+
+    if (!dict.readEntry(keyword, val, matchOpt, !noExit))
+    {
+        FatalIOErrorInFunction(dict)
+            << "Entry '" << keyword << "' not found in dictionary "
+            << dict.name() << nl;
+    }
+
+    return val;
 }
 
 

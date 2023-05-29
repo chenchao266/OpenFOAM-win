@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2016-2019 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -24,79 +27,73 @@ License
 \*---------------------------------------------------------------------------*/
 
 #include "boundBox.H"
-#include "PstreamReduceOps.T.H"
+#include "PstreamReduceOps.H"
 #include "tmp.H"
+#include "plane.H"
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
-using namespace Foam;
-const scalar boundBox::great(VGREAT);
 
+
+ namespace Foam{
 const boundBox boundBox::greatBox
 (
-    point(-VGREAT, -VGREAT, -VGREAT),
-    point(VGREAT, VGREAT, VGREAT)
+    point::uniform(-ROOTVGREAT),
+    point::uniform(ROOTVGREAT)
 );
-
 
 const boundBox boundBox::invertedBox
 (
-    point(VGREAT, VGREAT, VGREAT),
-    point(-VGREAT, -VGREAT, -VGREAT)
+    point::uniform(ROOTVGREAT),
+    point::uniform(-ROOTVGREAT)
 );
 
+const faceList boundBox::faces
+({
+    // Point and face order as per hex cellmodel
+    face({0, 4, 7, 3}),  // 0: x-min, left
+    face({1, 2, 6, 5}),  // 1: x-max, right
+    face({0, 1, 5, 4}),  // 2: y-min, bottom
+    face({3, 7, 6, 2}),  // 3: y-max, top
+    face({0, 3, 2, 1}),  // 4: z-min, back
+    face({4, 5, 6, 7})   // 5: z-max, front
+});
 
-// * * * * * * * * * * * * * Private Member Functions  * * * * * * * * * * * //
-
-void boundBox::calculate(const UList<point>& points, const bool doReduce)
-{
-    if (points.empty())
-    {
-        min_ = Zero;
-        max_ = Zero;
-
-        if (doReduce && Pstream::parRun())
-        {
-            // Use values that get overwritten by reduce minOp, maxOp below
-            min_ = point(VGREAT, VGREAT, VGREAT);
-            max_ = point(-VGREAT, -VGREAT, -VGREAT);
-        }
-    }
-    else
-    {
-        min_ = points[0];
-        max_ = points[0];
-
-
-        for (label i = 1; i < points.size(); i++)
-        {
-            min_ = std::min(min_, points[i]);
-            max_ = std::max(max_, points[i]);
-        }
-    }
-
-    // Reduce parallel information
-    if (doReduce)
-    {
-        reduce(min_, minOp<point>());
-        reduce(max_, maxOp<point>());
-    }
-}
+const FixedList<vector, 6> boundBox::faceNormals
+({
+    vector(-1,  0,  0), // 0: x-min, left
+    vector( 1,  0,  0), // 1: x-max, right
+    vector( 0, -1,  0), // 2: y-min, bottom
+    vector( 0,  1,  0), // 3: y-max, top
+    vector( 0,  0, -1), // 4: z-min, back
+    vector( 0,  0,  1)  // 5: z-max, front
+});
 
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
-boundBox::boundBox(const UList<point>& points, const bool doReduce) :    min_(Zero),
-    max_(Zero)
+boundBox::boundBox(const UList<point>& points, bool doReduce)
+:
+    boundBox()
 {
-    calculate(points, doReduce);
+    add(points);
+
+    if (doReduce)
+    {
+        reduce();
+    }
 }
 
 
-boundBox::boundBox(const tmp<pointField>& points, const bool doReduce) :    min_(Zero),
-    max_(Zero)
+boundBox::boundBox(const tmp<pointField>& tpoints, bool doReduce)
+:
+    boundBox()
 {
-    calculate(points(), doReduce);
-    points.clear();
+    add(tpoints);
+
+    if (doReduce)
+    {
+        reduce();
+    }
 }
 
 
@@ -104,36 +101,16 @@ boundBox::boundBox
 (
     const UList<point>& points,
     const labelUList& indices,
-    const bool doReduce
-) :    min_(Zero),
-    max_(Zero)
+    bool doReduce
+)
+:
+    boundBox()
 {
-    if (points.empty() || indices.empty())
-    {
-        if (doReduce && Pstream::parRun())
-        {
-            // Use values that get overwritten by reduce minOp, maxOp below
-            min_ = point(VGREAT, VGREAT, VGREAT);
-            max_ = point(-VGREAT, -VGREAT, -VGREAT);
-        }
-    }
-    else
-    {
-        min_ = points[indices[0]];
-        max_ = points[indices[0]];
+    add(points, indices);
 
-        for (label i=1; i < indices.size(); ++i)
-        {
-            min_ = std::min(min_, points[indices[i]]);
-            max_ = std::max(max_, points[indices[i]]);
-        }
-    }
-
-    // Reduce parallel information
     if (doReduce)
     {
-        reduce(min_, minOp<point>());
-        reduce(max_, maxOp<point>());
+        reduce();
     }
 }
 
@@ -142,8 +119,8 @@ boundBox::boundBox
 
 tmp<pointField> boundBox::points() const
 {
-    tmp<pointField> tPts = tmp<pointField>(new pointField(8));
-    pointField& pt = tPts.ref();
+    auto tpt = tmp<pointField>::New(8);
+    auto& pt = tpt.ref();
 
     pt[0] = min_;                                   // min-x, min-y, min-z
     pt[1] = point(max_.x(), min_.y(), min_.z());    // max-x, min-y, min-z
@@ -154,59 +131,101 @@ tmp<pointField> boundBox::points() const
     pt[6] = max_;                                   // max-x, max-y, max-z
     pt[7] = point(min_.x(), max_.y(), max_.z());    // min-x, max-y, max-z
 
-    return tPts;
+    return tpt;
 }
 
 
-faceList boundBox::faces()
+tmp<pointField> boundBox::faceCentres() const
 {
-    faceList faces(6);
+    auto tpts = tmp<pointField>::New(6);
+    auto& pts = tpts.ref();
 
-    forAll(faces, fI)
+    forAll(pts, facei)
     {
-        faces[fI].setSize(4);
+        pts[facei] = faceCentre(facei);
     }
 
-    faces[0][0] = 0;
-    faces[0][1] = 1;
-    faces[0][2] = 2;
-    faces[0][3] = 3;
+    return tpts;
+}
 
-    faces[1][0] = 2;
-    faces[1][1] = 6;
-    faces[1][2] = 7;
-    faces[1][3] = 3;
 
-    faces[2][0] = 0;
-    faces[2][1] = 4;
-    faces[2][2] = 5;
-    faces[2][3] = 1;
+point boundBox::faceCentre(const direction facei) const
+{
+    point pt = boundBox::centre();
 
-    faces[3][0] = 4;
-    faces[3][1] = 7;
-    faces[3][2] = 6;
-    faces[3][3] = 5;
+    if (facei > 5)
+    {
+        FatalErrorInFunction
+            << "face should be [0..5]"
+            << abort(FatalError);
+    }
 
-    faces[4][0] = 3;
-    faces[4][1] = 7;
-    faces[4][2] = 4;
-    faces[4][3] = 0;
+    switch (facei)
+    {
+        case 0: pt.x() = min().x(); break;  // 0: x-min, left
+        case 1: pt.x() = max().x(); break;  // 1: x-max, right
+        case 2: pt.y() = min().y(); break;  // 2: y-min, bottom
+        case 3: pt.y() = max().y(); break;  // 3: y-max, top
+        case 4: pt.z() = min().z(); break;  // 4: z-min, back
+        case 5: pt.z() = max().z(); break;  // 5: z-max, front
+    }
 
-    faces[5][0] = 1;
-    faces[5][1] = 5;
-    faces[5][2] = 6;
-    faces[5][3] = 2;
-
-    return faces;
+    return pt;
 }
 
 
 void boundBox::inflate(const scalar s)
 {
-    vector ext = vector::one*s*mag();
+    const vector ext = vector::one_*s*mag();
 
     min_ -= ext;
     max_ += ext;
+}
+
+
+void boundBox::reduce()
+{
+    ::Foam::reduce(min_, minOp<point>());
+    ::Foam::reduce(max_, maxOp<point>());
+}
+
+
+bool boundBox::intersect(const boundBox& bb)
+{
+    min_ = ::Foam::max(min_, bb.min_);
+    max_ = ::Foam::min(max_, bb.max_);
+
+    return valid();
+}
+
+
+bool boundBox::intersects(const plane& pln) const
+{
+    // Require a full 3D box
+    if (nDim() != 3)
+    {
+        return false;
+    }
+
+    bool above = false;
+    bool below = false;
+
+    tmp<pointField> tpts(points());
+    const auto& pts = tpts();
+
+    for (const point& p : pts)
+    {
+        if (pln.sideOfPlane(p) == plane::FRONT)
+        {
+            above = true;
+        }
+        else
+        {
+            below = true;
+        }
+    }
+
+    return (above && below);
 }
 
 
@@ -217,32 +236,9 @@ bool boundBox::contains(const UList<point>& points) const
         return true;
     }
 
-    forAll(points, i)
+    for (const point& p : points)
     {
-        if (!contains(points[i]))
-        {
-            return false;
-        }
-    }
-
-    return true;
-}
-
-
-bool boundBox::contains
-(
-    const UList<point>& points,
-    const labelUList& indices
-) const
-{
-    if (points.empty() || indices.empty())
-    {
-        return true;
-    }
-
-    forAll(indices, i)
-    {
-        if (!contains(points[indices[i]]))
+        if (!contains(p))
         {
             return false;
         }
@@ -259,32 +255,9 @@ bool boundBox::containsAny(const UList<point>& points) const
         return true;
     }
 
-    forAll(points, i)
+    for (const point& p : points)
     {
-        if (contains(points[i]))
-        {
-            return true;
-        }
-    }
-
-    return false;
-}
-
-
-bool boundBox::containsAny
-(
-    const UList<point>& points,
-    const labelUList& indices
-) const
-{
-    if (points.empty() || indices.empty())
-    {
-        return true;
-    }
-
-    forAll(indices, i)
-    {
-        if (contains(points[indices[i]]))
+        if (contains(p))
         {
             return true;
         }
@@ -297,56 +270,57 @@ bool boundBox::containsAny
 point boundBox::nearest(const point& pt) const
 {
     // Clip the point to the range of the bounding box
-    const scalar surfPtx = std::max(std::min(pt.x(), max_.x()), min_.x());
-    const scalar surfPty = std::max(std::min(pt.y(), max_.y()), min_.y());
-    const scalar surfPtz = std::max(std::min(pt.z(), max_.z()), min_.z());
+    const scalar surfPtx = ::Foam::max(::Foam::min(pt.x(), max_.x()), min_.x());
+    const scalar surfPty = ::Foam::max(::Foam::min(pt.y(), max_.y()), min_.y());
+    const scalar surfPtz = ::Foam::max(::Foam::min(pt.z(), max_.z()), min_.z());
 
     return point(surfPtx, surfPty, surfPtz);
 }
 
 
 // * * * * * * * * * * * * * * * Ostream Operator  * * * * * * * * * * * * * //
-namespace Foam {
-    Ostream& operator<<(Ostream& os, const boundBox& bb)
-    {
-        if (os.format() == IOstream::ASCII)
-        {
-            os << bb.min_ << token::SPACE << bb.max_;
-        }
-        else
-        {
-            os.write
-            (
-                reinterpret_cast<const char*>(&bb.min_),
-                sizeof(boundBox)
-            );
-        }
 
-        // Check state of Ostream
-        os.check("Ostream& operator<<(Ostream&, const boundBox&)");
-        return os;
+Ostream& operator<<(Ostream& os, const boundBox& bb)
+{
+    if (os.format() == IOstream::ASCII)
+    {
+        os << bb.min_ << token::SPACE << bb.max_;
+    }
+    else
+    {
+        os.write
+        (
+            reinterpret_cast<const char*>(&bb.min_),
+            sizeof(boundBox)
+        );
     }
 
-
-    Istream& operator>>(Istream& is, boundBox& bb)
-    {
-        if (is.format() == IOstream::ASCII)
-        {
-            is >> bb.min_ >> bb.max_;
-        }
-        else
-        {
-            is.read
-            (
-                reinterpret_cast<char*>(&bb.min_),
-                sizeof(boundBox)
-            );
-        }
-
-        // Check state of Istream
-        is.check("Istream& operator>>(Istream&, boundBox&)");
-        return is;
-    }
-
+    os.check(FUNCTION_NAME);
+    return os;
 }
+
+
+Istream& operator>>(Istream& is, boundBox& bb)
+{
+    if (is.format() == IOstream::ASCII)
+    {
+        is >> bb.min_ >> bb.max_;
+    }
+    else
+    {
+        Detail::readContiguous<boundBox>
+        (
+            is,
+            reinterpret_cast<char*>(&bb.min_),
+            sizeof(boundBox)
+        );
+    }
+
+    is.check(FUNCTION_NAME);
+    return is;
+}
+
+
 // ************************************************************************* //
+
+ } // End namespace Foam

@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011 OpenFOAM Foundation
+    Copyright (C) 2019 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -39,7 +42,7 @@ SourceFiles
 #include "typeInfo.H"
 #include "runTimeSelectionTables.H"
 #include "autoPtr.H"
-#include "vector.H"
+#include "vector2.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -63,11 +66,11 @@ protected:
 
     // Private Member Functions
 
-        //- Disallow copy construct
-        tetherPotential(const tetherPotential&);
+        //- No copy construct
+        tetherPotential(const tetherPotential&) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const tetherPotential&);
+        //- No copy assignment
+        void operator=(const tetherPotential&) = delete;
 
 
 public:
@@ -112,8 +115,7 @@ public:
 
 
     //- Destructor
-    virtual ~tetherPotential()
-    {}
+    virtual ~tetherPotential() = default;
 
 
     // Member Functions

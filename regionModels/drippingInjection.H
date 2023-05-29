@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -22,10 +24,10 @@ License
     along with OpenFOAM.  If not, see <http://www.gnu.org/licenses/>.
 
 Class
-    Foam::drippingInjection
+    Foam::regionModels::surfaceFilmModels::drippingInjection
 
 Description
-    Film Dripping mass transfer model.
+    Film dripping mass transfer model.
 
     If the film mass exceeds that needed to generate a valid parcel, the
     equivalent mass is removed from the film.
@@ -42,7 +44,7 @@ SourceFiles
 
 #include "injectionModel.H"
 #include "distributionModel.H"
-#include "cachedRandom.H"
+#include "Random.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -65,11 +67,11 @@ private:
 
     // Private member functions
 
-        //- Disallow default bitwise copy construct
-        drippingInjection(const drippingInjection&);
+        //- No copy construct
+        drippingInjection(const drippingInjection&) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const drippingInjection&);
+        //- No copy assignment
+        void operator=(const drippingInjection&) = delete;
 
 
 protected:
@@ -77,14 +79,14 @@ protected:
     // Protected data
 
         //- Stable film thickness - drips only formed if thickness
-        //  execeeds this threhold value
+        //  exceeds this threshold value
         scalar deltaStable_;
 
         //- Number of particles per parcel
         scalar particlesPerParcel_;
 
         //- Random number generator
-        cachedRandom rndGen_;
+        Random rndGen_;
 
         //- Parcel size PDF model
         const autoPtr<distributionModel>
@@ -105,7 +107,7 @@ public:
         //- Construct from surface film model
         drippingInjection
         (
-            surfaceFilmModel& film,
+            surfaceFilmRegionModel& film,
             const dictionary& dict
         );
 

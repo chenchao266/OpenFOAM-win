@@ -1,9 +1,12 @@
-﻿/*---------------------------------------------------------------------------*\
+/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2016-2017 OpenFOAM Foundation
+    Copyright (C) 2019-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -23,8 +26,8 @@ License
 
 \*---------------------------------------------------------------------------*/
 
-//#include "chemistryReductionMethod.H"
-#include "Time.T.H"
+#include "chemistryReductionMethod.H"
+#include "Time1.H"
 
 // * * * * * * * * * * * * * * * * Selectors * * * * * * * * * * * * * * * * //
 
@@ -36,62 +39,91 @@ Foam::chemistryReductionMethod<CompType, ThermoType>::New
     TDACChemistryModel<CompType, ThermoType>& chemistry
 )
 {
-    IOdictionary thermoDict
+    const dictionary& reductionDict = dict.subDict("reduction");
+
+    const word methodName(reductionDict.get<word>("method"));
+
+    Info<< "Selecting chemistry reduction method " << methodName << endl;
+
+    const word methodTypeName
     (
-        IOobject
-        (
-            "thermophysicalProperties",
-            dict.db().time().constant(),
-            dict.db(),
-            IOobject::MUST_READ_IF_MODIFIED,
-            IOobject::NO_WRITE,
-            false
-        )
+        methodName
+      + '<' + CompType::typeName + ',' + ThermoType::typeName() + '>'
     );
 
-    word thermoTypeName;
+    const auto& cnstrTable = *(dictionaryConstructorTablePtr_);
 
-    if (thermoDict.isDict("thermoType"))
+    auto* ctorPtr = cnstrTable.lookup(methodTypeName, nullptr);
+
+    if (!ctorPtr)
     {
-        const dictionary& thermoTypeDict(thermoDict.subDict("thermoType"));
-        thermoTypeName =
-            word(thermoTypeDict.lookup("transport")) + '<'
-          + word(thermoTypeDict.lookup("thermo")) + '<'
-          + word(thermoTypeDict.lookup("equationOfState")) + '<'
-          + word(thermoTypeDict.lookup("specie")) + ">>,"
-          + word(thermoTypeDict.lookup("energy")) + ">";
-    }
-    else
-    {
-        FatalIOErrorInFunction(thermoDict)
-            << "thermoType is in the old format and must be upgraded"
-            << exit(FatalIOError);
-    }
+        const wordList names(cnstrTable.sortedToc());
 
-    dictionary MRdict(dict.subDict("reduction"));
+        constexpr const int nCmpt = 7;
 
-    word chemistryReductionMethodTypeName =
-        word(MRdict.lookup("method")) + '<'
-      + word(dict.subDict("chemistryType").lookup("chemistryThermo")) + ','
-      + thermoTypeName + '>';
+        /// DynamicList<word> thisCmpts(6);
+        /// thisCmpts.append(CompType::typeName);
+        /// thisCmpts.append
+        /// (
+        ///     basicThermo::splitThermoName(ThermoType::typeName(), 5)
+        /// );
+        ///
+        /// DynamicList<word> validNames;
 
-    typename dictionaryConstructorTable::iterator cstrIter =
-        dictionaryConstructorTablePtr_->find(chemistryReductionMethodTypeName);
+        DynamicList<wordList> validCmpts;
+        validCmpts.append
+        (
+            // Header
+            wordList
+            ({
+                typeName_(),
+                "reactionThermo",
+                "transport",
+                "thermo",
+                "equationOfState",
+                "specie",
+                "energy"
+            })
+        );
 
-    if (cstrIter == dictionaryConstructorTablePtr_->end())
-    {
-        FatalErrorInFunction
-            << "Unknown chemistryReductionMethodType type "
-            << chemistryReductionMethodTypeName
-            << endl << endl
-            << "Valid chemistryReductionMethodType types are :" << endl
-            << dictionaryConstructorTablePtr_->toc()
+        for (const word& validName : names)
+        {
+            wordList cmpts(basicThermo::splitThermoName(validName, nCmpt));
+
+            if (!cmpts.empty())
+            {
+                /// if (thisCmpts == SubList<word>(cmpts, 6, 1))
+                /// {
+                ///     validNames.append(cmpts[0]);
+                /// }
+                validCmpts.append(std::move(cmpts));
+            }
+        }
+
+        FatalErrorInLookup
+        (
+            typeName_(),
+            methodName,
+            cnstrTable
+        );
+
+        if (validCmpts.size() > 1)
+        {
+            FatalError
+                << "All " << validCmpts[0][0] << '/' << validCmpts[0][1]
+                << "/thermoPhysics combinations:" << nl << nl;
+
+            // Table of available packages (as constituent parts)
+            printTable(validCmpts, FatalError) << nl;
+        }
+
+        FatalError
             << exit(FatalError);
     }
 
     return autoPtr<chemistryReductionMethod<CompType, ThermoType>>
     (
-        cstrIter()(dict, chemistry)
+        ctorPtr(dict, chemistry)
     );
 }
 

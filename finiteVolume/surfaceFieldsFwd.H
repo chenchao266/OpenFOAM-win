@@ -1,9 +1,11 @@
-﻿/*---------------------------------------------------------------------------*\
+/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -43,13 +45,15 @@ namespace Foam
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
+// Forward Declarations
 class surfaceMesh;
 
-template<class Type>
-class fvsPatchField;
+template<class Type> class fvsPatchField;
 
-template<class Type, template<class Type> class PatchField, class GeoMesh>
+template<class Type, template<class> class PatchField, class GeoMesh>
 class GeometricField;
+
+// Typedefs
 
 typedef GeometricField<scalar, fvsPatchField, surfaceMesh> surfaceScalarField;
 typedef GeometricField<vector, fvsPatchField, surfaceMesh> surfaceVectorField;
@@ -59,7 +63,6 @@ typedef GeometricField<symmTensor, fvsPatchField, surfaceMesh>
     surfaceSymmTensorField;
 typedef GeometricField<tensor, fvsPatchField, surfaceMesh> surfaceTensorField;
 
-template <typename Type> using  surfaceFieldType = GeometricField<Type, fvsPatchField, surfaceMesh>;
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 } // End namespace Foam

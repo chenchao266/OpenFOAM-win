@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -58,8 +60,8 @@ exponentialRepulsion::exponentialRepulsion
     (
         exponentialRepulsion.subDict(typeName + "Coeffs")
     ),
-    rm_(readScalar(exponentialRepulsionCoeffs_.lookup("rm"))),
-    epsilon_(readScalar(exponentialRepulsionCoeffs_.lookup("epsilon")))
+    rm_(exponentialRepulsionCoeffs_.get<scalar>("rm")),
+    epsilon_(exponentialRepulsionCoeffs_.get<scalar>("epsilon"))
 {
     setLookupTables();
 }
@@ -80,8 +82,8 @@ bool exponentialRepulsion::read(const dictionary& exponentialRepulsion)
     exponentialRepulsionCoeffs_ =
         exponentialRepulsion.subDict(typeName + "Coeffs");
 
-    exponentialRepulsionCoeffs_.lookup("rm") >> rm_;
-    exponentialRepulsionCoeffs_.lookup("epsilon") >> epsilon_;
+    exponentialRepulsionCoeffs_.readEntry("rm", rm_);
+    exponentialRepulsionCoeffs_.readEntry("epsilon", epsilon_);
 
     return true;
 }

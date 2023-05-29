@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2015 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2015 OpenFOAM Foundation
+    Copyright (C) 2019-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -31,30 +34,30 @@ License
 Foam::autoPtr<Foam::energyScalingFunction> Foam::energyScalingFunction::New
 (
     const word& name,
-    const dictionary& propDict,
+    const dictionary& dict,
     const pairPotential& pairPot
 )
 {
-    const word scalingType(propDict.lookup("energyScalingFunction"));
+    const word modelType(dict.get<word>("energyScalingFunction"));
 
     Info<< "Selecting energy scaling function "
-        << scalingType << " for "
+        << modelType << " for "
         << name << " potential energy." << endl;
 
-    dictionaryConstructorTable::iterator cstrIter =
-        dictionaryConstructorTablePtr_->find(scalingType);
+    auto* ctorPtr = dictionaryConstructorTable(modelType);
 
-    if (cstrIter == dictionaryConstructorTablePtr_->end())
+    if (!ctorPtr)
     {
-        FatalErrorInFunction
-            << "Unknown energyScalingFunction type "
-            << scalingType << nl << nl
-            << "Valid energyScalingFunctions are:" << nl
-            << dictionaryConstructorTablePtr_->sortedToc()
-            << exit(FatalError);
+        FatalIOErrorInLookup
+        (
+            dict,
+            "energyScalingFunction",
+            modelType,
+            *dictionaryConstructorTablePtr_
+        ) << exit(FatalIOError);
     }
 
-    return autoPtr<energyScalingFunction>(cstrIter()(name, propDict, pairPot));
+    return autoPtr<energyScalingFunction>(ctorPtr(name, dict, pairPot));
 }
 
 

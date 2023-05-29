@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2016-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -25,12 +28,105 @@ Class
     Foam::distanceSurface
 
 Description
-    A sampledSurface defined by a distance to a surface.
+    A surface defined by a distance from an input searchable surface.
+    Uses an iso-surface algorithm (cell, topo, point) for constructing the
+    distance surface.
 
-    Uses either isoSurfaceCell or isoSurface.
+    For a zero-distance surface, it performs additional checks and supports
+    filtering to handle the surface boundaries.
+
+Usage
+    Example of function object partial specification:
+    \verbatim
+    surfaces
+    {
+        surface1
+        {
+            type        distanceSurface;
+            surfaceType triSurfaceMesh;
+            surfaceName something.obj;
+            topology    proximityFaces;
+        }
+
+        surface2
+        {
+            type        distanceSurface;
+            surfaceType triSurfaceMesh;
+            surfaceName other.obj;
+
+            topology    nearestPoints;
+            nearestPoints
+            (
+                (0 0 0)
+                (10 10 0)
+            );
+
+            // Max search distance for nearestPoints
+            maxDistance 0.005;
+        }
+    }
+    \endverbatim
+
+    Dictionary controls:
+    \table
+        Property | Description                              | Required | Default
+        distance | distance from surface                    | no  | 0
+        signed   | Use sign when distance is positive       | no  | true
+        isoMethod | Iso-algorithm (cell/topo/point)         | no  | default
+        regularise | Face simplification (enum or bool)     | no  | true
+        bounds   | Limit with bounding box                  | no  |
+        surfaceType | Type of surface                       | yes |
+        surfaceName | Name of surface in \c triSurface/     | no  | dict name
+        topology    | Topology filter name                  | no  | none
+        nearestPoints | Points for point-based segmentation | no  |
+        maxDistance | Max search distance for nearestPoints | no  | GREAT
+        absProximity | Max proximity of face centres        | no  | 1e-5
+    \endtable
+
+    Topology/Filtering (for zero-distance only).
+    These represent different ways to tackle the "ragged edge" problem.
+
+    - \c none :
+        No filtering
+
+    - \c proximityFaces or \c proximity (post-filter):
+        Checks the resulting faces against the original search surface
+        and rejects faces with a distance greater than \c absProximity.
+
+    - \c proximityRegions (post-filter):
+        Checks the distance of the resulting faces against the original
+        search surface. Filters based on the area-weighted distance
+        of each topologically connected region.
+        If the area-weighted distance of a region is greater than
+        \c absProximity, the entire region is rejected.
+
+    - \c largestRegion (pre-filter):
+        The cut cells are checked for topological connectivity and the
+        region with the most number of cut cells is retained.
+
+    - \c nearestPoints (pre-filter):
+        The cut cells split into regions, the regions closest to the
+        user-defined points are retained.
+        Uses \c maxDistance for additional control.
+    .
+
+Note
+    For distance = 0, some special adjustments.
+    - Always signed (ignoring the input value).
+    - Use normal distance from surface (for better treatment of open edges).
+    - Additional checks for open surfaces edges are used to limit the extend
+      of resulting distance surface.
+      The resulting surface elements will, however, contain partial cell
+      coverage. NB: Not applicable if the \c point isoMethod is used.
+
+The keyword \c cell (bool value) which was use in 1906 and earlier to switch
+between point/cell algorithms is now ignored (2020-12).
+
+Changed default algorithm from cell to topo (2020-12).
 
 SourceFiles
     distanceSurface.C
+    distanceSurfaceFilter.C
 
 \*---------------------------------------------------------------------------*/
 
@@ -39,8 +135,8 @@ SourceFiles
 
 #include "sampledSurface.H"
 #include "searchableSurface.H"
-#include "isoSurfaceCell.H"
-#include "isoSurface.H"
+#include "isoSurfaceBase.H"
+#include "pointIndexHit2.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -52,35 +148,55 @@ namespace Foam
 \*---------------------------------------------------------------------------*/
 
 class distanceSurface
-:
-    public sampledSurface
 {
-    // Private data
+    // Data Types
 
-        //- Surface
-        const autoPtr<searchableSurface> surfPtr_;
+        //- The type of pre/post face-filtering
+        enum class topologyFilterType : uint8_t
+        {
+            NONE,               //!< No additional filtering
+            LARGEST_REGION,     //!< Retain largest region
+            NEAREST_POINTS,     //!< Retain regions nearest to the points
+            PROXIMITY_REGIONS,  //!< Retain regions with good surface proximity
+            PROXIMITY_FACES,    //!< Retain faces with good surface proximity
+            PROXIMITY = PROXIMITY_FACES
+        };
+
+        //- Names for the topology filter
+        static const Enum<topologyFilterType> topoFilterNames_;
+
+
+    // Private Data
+
+        //- Reference to mesh
+        const polyMesh& mesh_;
+
+        //- Searchable surface
+        const autoPtr<searchableSurface> geometryPtr_;
 
         //- Distance value
         const scalar distance_;
 
-        //- Signed distance
-        const bool signed_;
+        //- Distance is zero. Implies signed and additional optimizations
+        const bool withZeroDistance_;
 
-        //- Whether to use isoSurfaceCell or isoSurface
-        const bool cell_;
+        //- Use signed distance
+        const bool withSignDistance_;
 
-        //- Whether to coarsen
-        const Switch regularise_;
+        //- Parameters for iso-surface (algorithm, filter, mergeTol, etc)
+        isoSurfaceParams isoParams_;
 
-        //- Whether to recalculate cell values as average of point values
-        const Switch average_;
+        //- Optional topology face-filtering
+        topologyFilterType topoFilter_;
 
-        //- If restricted to zones, name of this zone or a regular expression
-        keyType zoneKey_;
+        //- Points for nearest-points segmentation
+        pointField nearestPoints_;
 
-        //- Track if the surface needs an update
-        mutable bool needsUpdate_;
+        //- Max search distance squared (for nearestPoints)
+        scalar maxDistanceSqr_;
 
+        //- Max distance for proximity check (post-filtering)
+        scalar absProximity_;
 
         //- Distance to cell centres
         autoPtr<volScalarField> cellDistancePtr_;
@@ -88,32 +204,88 @@ class distanceSurface
         //- Distance to points
         scalarField pointDistance_;
 
-        //- Constructed iso surface
-        autoPtr<isoSurfaceCell> isoSurfCellPtr_;
 
-        //- Constructed iso surface
-        autoPtr<isoSurface> isoSurfPtr_;
+    // Sampling geometry. Directly stored or via an iso-surface (ALGO_POINT)
 
-        //- Triangles converted to faceList
-        mutable autoPtr<faceList> facesPtr_;
+        //- The extracted surface (direct storage)
+        mutable meshedSurface surface_;
+
+        //- For every face the original cell in mesh (direct storage)
+        mutable labelList meshCells_;
+
+        //- Extracted iso-surface, for interpolators
+        mutable autoPtr<isoSurfaceBase> isoSurfacePtr_;
 
 
     // Private Member Functions
 
-        //- Create iso surface
-        void createGeometry();
-
-        //- Sample field on faces
-        template<class Type>
-        tmp<Field<Type>> sampleField
+        //- Absolute distances from hit points
+        //  Hit/miss checks have been done elsewhere.
+        static inline void calcAbsoluteDistance
         (
-            const GeometricField<Type, fvPatchField, volMesh>& vField
+            scalarField& distance,
+            const pointField& points,
+            const List<pointIndexHit>& nearest
+        )
+        {
+            forAll(nearest, i)
+            {
+                distance[i] = Foam::mag(points[i] - nearest[i].point());
+            }
+        }
+
+
+protected:
+
+    // Protected Member Functions
+
+        //- Is currently backed by an isoSurfacePtr_
+        bool hasIsoSurface() const
+        {
+            return bool(isoSurfacePtr_);
+        }
+
+        //- Interpolate volume field onto surface points
+        template<class Type>
+        tmp<Field<Type>> isoSurfaceInterpolate
+        (
+            const GeometricField<Type, fvPatchField, volMesh>& cellValues,
+            const Field<Type>& pointValues
+        ) const
+        {
+            if (isoSurfacePtr_)
+            {
+                return isoSurfacePtr_->interpolate(cellValues, pointValues);
+            }
+
+            return nullptr;
+        }
+
+
+    // Private Member Functions
+
+        //- Re-filter the blocked cells based on the anticipated cuts
+        //  Uses a lightweight variant of cutting.
+        bool refineBlockedCells
+        (
+            bitSet& ignoreCells,
+            const isoSurfaceBase& isoContext
         ) const;
 
+        //- Prepare blockedFaces for region split
+        bitSet filterPrepareRegionSplit(const bitSet& ignoreCells) const;
 
-        template<class Type>
-        tmp<Field<Type>>
-        interpolateField(const interpolation<Type>&) const;
+        //- Keep region with the most cuts (after region split)
+        void filterKeepLargestRegion(bitSet& ignoreCells) const;
+
+        //- Keep region(s) closest to the nearest points
+        void filterKeepNearestRegions(bitSet& ignoreCells) const;
+
+        //- Remove region(s) that have far faces
+        void filterRegionProximity(bitSet& ignoreCells) const;
+
+        //- Adjust extracted iso-surface to remove far faces
+        void filterFaceProximity();
 
 
 public:
@@ -127,155 +299,116 @@ public:
         //- Construct from dictionary
         distanceSurface
         (
-            const word& name,
+            const word& defaultSurfaceName,
             const polyMesh& mesh,
             const dictionary& dict
+        );
+
+        //- Construct from components with zero-distanced
+        distanceSurface
+        (
+            const polyMesh& mesh,
+            const word& surfaceType,
+            const word& surfaceName,
+            const isoSurfaceParams& params = isoSurfaceParams(),
+            const bool interpolate = false
         );
 
         //- Construct from components
         distanceSurface
         (
-            const word& name,
             const polyMesh& mesh,
             const bool interpolate,
             const word& surfaceType,
             const word& surfaceName,
             const scalar distance,
-            const bool signedDistance,
-            const bool cell,
-            const Switch regularise,
-            const Switch average
+            const bool useSignedDistance,
+            const isoSurfaceParams& params = isoSurfaceParams()
+        );
+
+        distanceSurface
+        (
+            const polyMesh& mesh,
+            const bool interpolate,
+            autoPtr<searchableSurface>&& surface,
+            const scalar distance,
+            const bool useSignedDistance,
+            const isoSurfaceParams& params = isoSurfaceParams()
         );
 
 
     //- Destructor
-    virtual ~distanceSurface();
+    virtual ~distanceSurface() = default;
 
 
     // Member Functions
 
-        //- Does the surface need an update?
-        virtual bool needsUpdate() const;
+        //- Create/recreate the distance surface
+        void createGeometry();
 
-        //- Mark the surface as needing an update.
-        //  May also free up unneeded data.
-        //  Return false if surface was already marked as expired.
-        virtual bool expire();
-
-        //- Update the surface as required.
-        //  Do nothing (and return false) if no update was needed
-        virtual bool update();
-
-        //- Points of surface
-        virtual const pointField& points() const
+        //- The name of the underlying searchableSurface
+        const word& surfaceName() const
         {
-            return surface().points();
+            return geometryPtr_->name();
         }
 
-        //- Faces of surface
-        virtual const faceList& faces() const
+        //- The distance to the underlying searchableSurface
+        scalar distance() const noexcept
         {
-            if (facesPtr_.empty())
-            {
-                const triSurface& s = surface();
-
-                facesPtr_.reset(new faceList(s.size()));
-
-                forAll(s, i)
-                {
-                    facesPtr_()[i] = s[i].triFaceFace();
-                }
-            }
-            return facesPtr_;
+            return distance_;
         }
 
-        const triSurface& surface() const
+        //- The underlying surface
+        const meshedSurface& surface() const
         {
-            if (cell_)
+            if (isoSurfacePtr_)
             {
-                return isoSurfCellPtr_();
+                return *isoSurfacePtr_;
             }
-            else
-            {
-                return isoSurfPtr_();
-            }
+            return surface_;
         }
 
-        //- Sample field on surface
-        virtual tmp<scalarField> sample
-        (
-            const volScalarField&
-        ) const;
+        //- The underlying surface
+        meshedSurface& surface()
+        {
+            if (isoSurfacePtr_)
+            {
+                return *isoSurfacePtr_;
+            }
+            return surface_;
+        }
 
-        //- Sample field on surface
-        virtual tmp<vectorField> sample
-        (
-            const volVectorField&
-        ) const;
+        //- For each face, the original cell in mesh
+        const labelList& meshCells() const
+        {
+            if (isoSurfacePtr_)
+            {
+                return isoSurfacePtr_->meshCells();
+            }
+            return meshCells_;
+        }
 
-        //- Sample field on surface
-        virtual tmp<sphericalTensorField> sample
-        (
-            const volSphericalTensorField&
-        ) const;
-
-        //- Sample field on surface
-        virtual tmp<symmTensorField> sample
-        (
-            const volSymmTensorField&
-        ) const;
-
-        //- Sample field on surface
-        virtual tmp<tensorField> sample
-        (
-            const volTensorField&
-        ) const;
+        //- For each face, the original cell in mesh
+        labelList& meshCells()
+        {
+            if (isoSurfacePtr_)
+            {
+                return isoSurfacePtr_->meshCells();
+            }
+            return meshCells_;
+        }
 
 
-        //- Interpolate field on surface
-        virtual tmp<scalarField> interpolate
-        (
-            const interpolation<scalar>&
-        ) const;
+    // Output
 
-        //- Interpolate field on surface
-        virtual tmp<vectorField> interpolate
-        (
-            const interpolation<vector>&
-        ) const;
-
-        //- Interpolate field on surface
-        virtual tmp<sphericalTensorField> interpolate
-        (
-            const interpolation<sphericalTensor>&
-        ) const;
-
-        //- Interpolate field on surface
-        virtual tmp<symmTensorField> interpolate
-        (
-            const interpolation<symmTensor>&
-        ) const;
-
-        //- Interpolate field on surface
-        virtual tmp<tensorField> interpolate
-        (
-            const interpolation<tensor>&
-        ) const;
-
-        //- Write
-        virtual void print(Ostream&) const;
+        //- Print information
+        void print(Ostream& os, int level=0) const;
 };
 
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 } // End namespace Foam
-
-// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
-
-#ifdef NoRepository
-    #include "distanceSurfaceTemplates.C"
-#endif
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 

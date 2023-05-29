@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2015 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2015 OpenFOAM Foundation
+    Copyright (C) 2019-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -33,23 +36,23 @@ Foam::autoPtr<Foam::ODESolver> Foam::ODESolver::New
     const dictionary& dict
 )
 {
-    word ODESolverTypeName(dict.lookup("solver"));
-    Info<< "Selecting ODE solver " << ODESolverTypeName << endl;
+    const word solverType(dict.get<word>("solver"));
+    Info<< "Selecting ODE solver " << solverType << endl;
 
-    dictionaryConstructorTable::iterator cstrIter =
-        dictionaryConstructorTablePtr_->find(ODESolverTypeName);
+    auto* ctorPtr = dictionaryConstructorTable(solverType);
 
-    if (cstrIter == dictionaryConstructorTablePtr_->end())
+    if (!ctorPtr)
     {
-        FatalErrorInFunction
-            << "Unknown ODESolver type "
-            << ODESolverTypeName << nl << nl
-            << "Valid ODESolvers are : " << endl
-            << dictionaryConstructorTablePtr_->sortedToc()
-            << exit(FatalError);
+        FatalIOErrorInLookup
+        (
+            dict,
+            "ODESolver",
+            solverType,
+            *dictionaryConstructorTablePtr_
+        ) << exit(FatalIOError);
     }
 
-    return autoPtr<ODESolver>(cstrIter()(odes, dict));
+    return autoPtr<ODESolver>(ctorPtr(odes, dict));
 }
 
 

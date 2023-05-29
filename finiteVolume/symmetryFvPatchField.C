@@ -1,9 +1,11 @@
-﻿/*---------------------------------------------------------------------------*\
+/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -26,85 +28,83 @@ License
 //#include "symmetryFvPatchField.H"
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
-namespace Foam {
-    template<class Type>
-    symmetryFvPatchField<Type>::symmetryFvPatchField
-    (
-        const fvPatch& p,
-        const DimensionedField<Type, volMesh>& iF
-    )
-        :
-        basicSymmetryFvPatchField<Type>(p, iF)
-    {}
+
+template<class Type>
+Foam::symmetryFvPatchField<Type>::symmetryFvPatchField
+(
+    const fvPatch& p,
+    const DimensionedField<Type, volMesh>& iF
+)
+:
+    basicSymmetryFvPatchField<Type>(p, iF)
+{}
 
 
-    template<class Type>
-    symmetryFvPatchField<Type>::symmetryFvPatchField
-    (
-        const fvPatch& p,
-        const DimensionedField<Type, volMesh>& iF,
-        const dictionary& dict
-    )
-        :
-        basicSymmetryFvPatchField<Type>(p, iF, dict)
+template<class Type>
+Foam::symmetryFvPatchField<Type>::symmetryFvPatchField
+(
+    const fvPatch& p,
+    const DimensionedField<Type, volMesh>& iF,
+    const dictionary& dict
+)
+:
+    basicSymmetryFvPatchField<Type>(p, iF, dict)
+{
+    if (!isType<symmetryFvPatch>(p))
     {
-        if (!isType<symmetryFvPatch>(p))
-        {
-            FatalIOErrorInFunction
-            (
-                dict
-            ) << "\n    patch type '" << p.type()
-                << "' not constraint type '" << typeName << "'"
-                << "\n    for patch " << p.name()
-                << " of field " << this->internalField().name()
-                << " in file " << this->internalField().objectPath()
-                << exit(FatalIOError);
-        }
+        FatalIOErrorInFunction(dict)
+            << "\n    patch type '" << p.type()
+            << "' not constraint type '" << typeName << "'"
+            << "\n    for patch " << p.name()
+            << " of field " << this->internalField().name()
+            << " in file " << this->internalField().objectPath()
+            << exit(FatalIOError);
     }
-
-
-    template<class Type>
-    symmetryFvPatchField<Type>::symmetryFvPatchField
-    (
-        const symmetryFvPatchField<Type>& ptf,
-        const fvPatch& p,
-        const DimensionedField<Type, volMesh>& iF,
-        const fvPatchFieldMapper& mapper
-    )
-        :
-        basicSymmetryFvPatchField<Type>(ptf, p, iF, mapper)
-    {
-        if (!isType<symmetryFvPatch>(this->patch()))
-        {
-            FatalErrorInFunction
-                << "' not constraint type '" << typeName << "'"
-                << "\n    for patch " << p.name()
-                << " of field " << this->internalField().name()
-                << " in file " << this->internalField().objectPath()
-                << exit(FatalIOError);
-        }
-    }
-
-
-    template<class Type>
-    symmetryFvPatchField<Type>::symmetryFvPatchField
-    (
-        const symmetryFvPatchField<Type>& ptf
-    )
-        :
-        basicSymmetryFvPatchField<Type>(ptf)
-    {}
-
-
-    template<class Type>
-    symmetryFvPatchField<Type>::symmetryFvPatchField
-    (
-        const symmetryFvPatchField<Type>& ptf,
-        const DimensionedField<Type, volMesh>& iF
-    )
-        :
-        basicSymmetryFvPatchField<Type>(ptf, iF)
-    {}
-
 }
+
+
+template<class Type>
+Foam::symmetryFvPatchField<Type>::symmetryFvPatchField
+(
+    const symmetryFvPatchField<Type>& ptf,
+    const fvPatch& p,
+    const DimensionedField<Type, volMesh>& iF,
+    const fvPatchFieldMapper& mapper
+)
+:
+    basicSymmetryFvPatchField<Type>(ptf, p, iF, mapper)
+{
+    if (!isType<symmetryFvPatch>(this->patch()))
+    {
+        FatalErrorInFunction
+            << "' not constraint type '" << typeName << "'"
+            << "\n    for patch " << p.name()
+            << " of field " << this->internalField().name()
+            << " in file " << this->internalField().objectPath()
+            << exit(FatalError);
+    }
+}
+
+
+template<class Type>
+Foam::symmetryFvPatchField<Type>::symmetryFvPatchField
+(
+    const symmetryFvPatchField<Type>& ptf
+)
+:
+    basicSymmetryFvPatchField<Type>(ptf)
+{}
+
+
+template<class Type>
+Foam::symmetryFvPatchField<Type>::symmetryFvPatchField
+(
+    const symmetryFvPatchField<Type>& ptf,
+    const DimensionedField<Type, volMesh>& iF
+)
+:
+    basicSymmetryFvPatchField<Type>(ptf, iF)
+{}
+
+
 // ************************************************************************* //

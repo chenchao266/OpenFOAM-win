@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -36,9 +39,9 @@ SourceFiles
 #ifndef phaseProperties_H
 #define phaseProperties_H
 
-#include "NamedEnum.T.H"
-#include "Tuple2.T.H"
-#include "PtrList.T.H"
+#include "Enum.H"
+#include "Tuple2.H"
+#include "PtrList.H"
 #include "volFields.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
@@ -46,13 +49,10 @@ SourceFiles
 namespace Foam
 {
 
-// Forward declaration of friend functions and operators
-
+// Forward Declarations
 class phaseProperties;
-
 Istream& operator>>(Istream&, phaseProperties&);
 Ostream& operator<<(Ostream&, const phaseProperties&);
-
 
 /*---------------------------------------------------------------------------*\
                       Class phaseProperties Declaration
@@ -62,7 +62,7 @@ class phaseProperties
 {
 public:
 
-    // Public data
+    // Public Data
 
         //- Phase type enumeration
         enum phaseType
@@ -74,12 +74,12 @@ public:
         };
 
         //- Corresponding word representations for phase type enumerations
-        static const NamedEnum<phaseType, 4> phaseTypeNames;
+        static const Enum<phaseType> phaseTypeNames;
 
 
 private:
 
-   // Private data
+   // Private Data
 
         //- Phase type
         phaseType phase_;
@@ -116,21 +116,14 @@ public:
 
     // Constructors
 
-        //- Null constructor
+        //- Default construct, as 'UNKNOWN' state
         phaseProperties();
 
         //- Construct from Istream
-        phaseProperties(Istream&);
-
-        //- Construct as copy
-        phaseProperties(const phaseProperties&);
+        explicit phaseProperties(Istream& is);
 
 
-    //- Destructor
-    ~phaseProperties();
-
-
-    // Public Member Functions
+    // Member Functions
 
         //- Reorder species to be consistent with the corresponding
         //  phase specie name list

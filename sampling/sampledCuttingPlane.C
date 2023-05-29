@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2016-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -24,11 +27,12 @@ License
 \*---------------------------------------------------------------------------*/
 
 #include "sampledCuttingPlane.H"
-#include "dictionary.H"
+#include "dictionary2.H"
+#include "fvMesh.H"
 #include "volFields.H"
 #include "volPointInterpolation.H"
 #include "addToRunTimeSelectionTable.H"
-#include "fvMesh.H"
+#include "PtrList.H"
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
 
@@ -44,99 +48,84 @@ namespace Foam
     );
 }
 
+
 // * * * * * * * * * * * * * Private Member Functions  * * * * * * * * * * * //
 
-void Foam::sampledCuttingPlane::createGeometry()
+void Foam::sampledCuttingPlane::checkBoundsIntersection
+(
+    const plane& pln,
+    const boundBox& meshBb
+) const
 {
-    if (debug)
+    // Verify specified bounding box
+    const boundBox& clipBb = isoParams_.getClipBounds();
+
+    if (clipBb.valid())
     {
-        Pout<< "sampledCuttingPlane::createGeometry :updating geometry."
-            << endl;
+        // Bounding box does not overlap with (global) mesh!
+        if (!clipBb.overlaps(meshBb))
+        {
+            WarningInFunction
+                << nl
+                << name() << " : "
+                << "Bounds " << clipBb
+                << " do not overlap the mesh bounding box " << meshBb
+                << nl << endl;
+        }
+
+        // Plane does not intersect the bounding box
+        if (!clipBb.intersects(pln))
+        {
+            WarningInFunction
+                << nl
+                << name() << " : "
+                << "Plane "<< pln << " does not intersect the bounds "
+                << clipBb
+                << nl << endl;
+        }
     }
 
-    // Clear any stored topologies
-    facesPtr_.clear();
-    isoSurfPtr_.ptr();
-    pointDistance_.clear();
-    cellDistancePtr_.clear();
-
-    // Clear derived data
-    clearGeom();
-
-    // Get any subMesh
-    if (zoneID_.index() != -1 && !subMeshPtr_.valid())
+    // Plane does not intersect the (global) mesh!
+    if (!meshBb.intersects(pln))
     {
-        const polyBoundaryMesh& patches = mesh().boundaryMesh();
-
-        // Patch to put exposed internal faces into
-        const label exposedPatchi = patches.findPatchID(exposedPatchName_);
-
-        Foam_DebugInfo
-            << "Allocating subset of size "
-            << mesh().cellZones()[zoneID_.index()].size()
-            << " with exposed faces into patch "
-            << patches[exposedPatchi].name() << endl;
-
-        subMeshPtr_.reset
-        (
-            new fvMeshSubset(static_cast<const fvMesh&>(mesh()))
-        );
-        subMeshPtr_().setLargeCellSubset
-        (
-            labelHashSet(mesh().cellZones()[zoneID_.index()]),
-            exposedPatchi
-        );
+        WarningInFunction
+            << nl
+            << name() << " : "
+            << "Plane "<< pln << " does not intersect the mesh bounds "
+            << meshBb
+            << nl << endl;
     }
+}
 
 
-    // Select either the submesh or the underlying mesh
-    const fvMesh& mesh =
-    (
-        subMeshPtr_.valid()
-      ? subMeshPtr_().subMesh()
-      : static_cast<const fvMesh&>(this->mesh())
-    );
+void Foam::sampledCuttingPlane::setDistanceFields(const plane& pln)
+{
+    volScalarField& cellDistance = cellDistancePtr_();
 
+    // Get mesh from volField,
+    // so automatically submesh or baseMesh
+
+    const fvMesh& mesh = cellDistance.mesh();
 
     // Distance to cell centres
     // ~~~~~~~~~~~~~~~~~~~~~~~~
 
-    cellDistancePtr_.reset
-    (
-        new volScalarField
-        (
-            IOobject
-            (
-                "cellDistance",
-                mesh.time().timeName(),
-                mesh.time(),
-                IOobject::NO_READ,
-                IOobject::NO_WRITE,
-                false
-            ),
-            mesh,
-            dimensionedScalar("zero", dimLength, 0)
-        )
-    );
-    volScalarField& cellDistance = cellDistancePtr_();
-
     // Internal field
     {
-        const pointField& cc = mesh.cellCentres();
+        const auto& cc = mesh.cellCentres();
         scalarField& fld = cellDistance.primitiveFieldRef();
 
         forAll(cc, i)
         {
-            // Signed distance
-            fld[i] = (cc[i] - plane_.refPoint()) & plane_.normal();
+            fld[i] = pln.signedDistance(cc[i]);
         }
     }
 
-    volScalarField::Boundary& cellDistanceBf =
-        cellDistance.boundaryFieldRef();
-
     // Patch fields
     {
+        volScalarField::Boundary& cellDistanceBf =
+            cellDistance.boundaryFieldRef();
+
         forAll(cellDistanceBf, patchi)
         {
             if
@@ -164,17 +153,18 @@ void Foam::sampledCuttingPlane::createGeometry()
                 fld.setSize(pp.size());
                 forAll(fld, i)
                 {
-                    fld[i] = (cc[i] - plane_.refPoint()) & plane_.normal();
+                    fld[i] = pln.signedDistance(cc[i]);
                 }
             }
             else
             {
+                // Other side cell centres?
                 const pointField& cc = mesh.C().boundaryField()[patchi];
                 fvPatchScalarField& fld = cellDistanceBf[patchi];
 
                 forAll(fld, i)
                 {
-                    fld[i] = (cc[i] - plane_.refPoint()) & plane_.normal();
+                    fld[i] = pln.signedDistance(cc[i]);
                 }
             }
         }
@@ -184,24 +174,275 @@ void Foam::sampledCuttingPlane::createGeometry()
     // On processor patches the mesh.C() will already be the cell centre
     // on the opposite side so no need to swap cellDistance.
 
-
     // Distance to points
-    pointDistance_.setSize(mesh.nPoints());
+    pointDistance_.resize(mesh.nPoints());
     {
         const pointField& pts = mesh.points();
 
         forAll(pointDistance_, i)
         {
-            pointDistance_[i] = (pts[i] - plane_.refPoint()) & plane_.normal();
+            pointDistance_[i] = pln.signedDistance(pts[i]);
+        }
+    }
+}
+
+
+void Foam::sampledCuttingPlane::combineSurfaces
+(
+    PtrList<isoSurfaceBase>& isoSurfPtrs
+)
+{
+    isoSurfacePtr_.reset(nullptr);
+
+    // Already checked previously for ALGO_POINT, but do it again
+    // - ALGO_POINT still needs fields (for interpolate)
+    // The others can do straight transfer
+    if
+    (
+        isoParams_.algorithm() == isoSurfaceParams::ALGO_POINT
+     && isoSurfPtrs.size() == 1
+    )
+    {
+        // Shift ownership from list to autoPtr
+        isoSurfacePtr_.reset(isoSurfPtrs.release(0));
+    }
+    else if (isoSurfPtrs.size() == 1)
+    {
+        autoPtr<isoSurfaceBase> ptr(isoSurfPtrs.release(0));
+        auto& surf = *ptr;
+
+        surface_.transfer(static_cast<meshedSurface&>(surf));
+        meshCells_.transfer(surf.meshCells());
+    }
+    else
+    {
+        // Combine faces with point offsets
+        //
+        // Note: use points().size() from surface, not nPoints()
+        // since there may be uncompacted dangling nodes
+
+        label nFaces = 0, nPoints = 0;
+
+        for (const auto& surf : isoSurfPtrs)
+        {
+            nFaces += surf.size();
+            nPoints += surf.points().size();
+        }
+
+        faceList newFaces(nFaces);
+        pointField newPoints(nPoints);
+        meshCells_.resize(nFaces);
+
+        surfZoneList newZones(isoSurfPtrs.size());
+
+        nFaces = 0;
+        nPoints = 0;
+        forAll(isoSurfPtrs, surfi)
+        {
+            autoPtr<isoSurfaceBase> ptr(isoSurfPtrs.release(surfi));
+            auto& surf = *ptr;
+
+            SubList<face> subFaces(newFaces, surf.size(), nFaces);
+            SubList<point> subPoints(newPoints, surf.points().size(), nPoints);
+            SubList<label> subCells(meshCells_, surf.size(), nFaces);
+
+            newZones[surfi] = surfZone
+            (
+                surfZoneIdentifier::defaultName(surfi),
+                subFaces.size(),    // size
+                nFaces,             // start
+                surfi               // index
+            );
+
+            subFaces = surf.surfFaces();
+            subPoints = surf.points();
+            subCells = surf.meshCells();
+
+            if (nPoints)
+            {
+                for (face& f : subFaces)
+                {
+                    for (label& pointi : f)
+                    {
+                        pointi += nPoints;
+                    }
+                }
+            }
+
+            nFaces += subFaces.size();
+            nPoints += subPoints.size();
+        }
+
+        meshedSurface combined
+        (
+            std::move(newPoints),
+            std::move(newFaces),
+            newZones
+        );
+
+        surface_.transfer(combined);
+    }
+
+    // Addressing into the full mesh
+    if (subMeshPtr_ && meshCells_.size())
+    {
+        meshCells_ =
+            UIndirectList<label>(subMeshPtr_->cellMap(), meshCells_);
+    }
+}
+
+
+void Foam::sampledCuttingPlane::createGeometry()
+{
+    if (debug)
+    {
+        Pout<< "sampledCuttingPlane::createGeometry :updating geometry."
+            << endl;
+    }
+
+    // Clear any previously stored topologies
+    surface_.clear();
+    meshCells_.clear();
+    isoSurfacePtr_.reset(nullptr);
+
+    // Clear derived data
+    sampledSurface::clearGeom();
+
+    // Clear any stored fields
+    pointDistance_.clear();
+    cellDistancePtr_.clear();
+
+    const bool hasCellZones =
+        (-1 != mesh().cellZones().findIndex(zoneNames_));
+
+    const fvMesh& fvm = static_cast<const fvMesh&>(this->mesh());
+
+    // Geometry
+    if
+    (
+        simpleSubMesh_
+     && isoParams_.algorithm() != isoSurfaceParams::ALGO_POINT
+    )
+    {
+        subMeshPtr_.reset(nullptr);
+
+        // Handle cell zones as inverse (blocked) selection
+        if (!ignoreCellsPtr_)
+        {
+            ignoreCellsPtr_.reset(new bitSet);
+
+            if (hasCellZones)
+            {
+                bitSet select(mesh().cellZones().selection(zoneNames_));
+
+                if (select.any() && !select.all())
+                {
+                    // From selection to blocking
+                    select.flip();
+
+                    *ignoreCellsPtr_ = std::move(select);
+                }
+            }
+        }
+    }
+    else
+    {
+        // A standard subMesh treatment
+
+        if (ignoreCellsPtr_)
+        {
+            ignoreCellsPtr_->clearStorage();
+        }
+        else
+        {
+            ignoreCellsPtr_.reset(new bitSet);
+        }
+
+        // Get sub-mesh if any
+        if (!subMeshPtr_ && hasCellZones)
+        {
+            const label exposedPatchi =
+                mesh().boundaryMesh().findPatchID(exposedPatchName_);
+
+            bitSet cellsToSelect(mesh().cellZones().selection(zoneNames_));
+
+            DebugInfo
+                << "Allocating subset of size "
+                << cellsToSelect.count() << " with exposed faces into patch "
+                << exposedPatchi << endl;
+
+
+            // If we will use a fvMeshSubset so can apply bounds as well to make
+            // the initial selection smaller.
+
+            const boundBox& clipBb = isoParams_.getClipBounds();
+            if (clipBb.valid() && cellsToSelect.any())
+            {
+                const auto& cellCentres = fvm.C();
+
+                for (const label celli : cellsToSelect)
+                {
+                    const point& cc = cellCentres[celli];
+
+                    if (!clipBb.contains(cc))
+                    {
+                        cellsToSelect.unset(celli);
+                    }
+                }
+
+                DebugInfo
+                    << "Bounded subset of size "
+                    << cellsToSelect.count() << endl;
+            }
+
+            subMeshPtr_.reset
+            (
+                new fvMeshSubset(fvm, cellsToSelect, exposedPatchi)
+            );
         }
     }
 
+
+    // Select either the submesh or the underlying mesh
+    const fvMesh& mesh =
+    (
+        subMeshPtr_
+      ? subMeshPtr_->subMesh()
+      : fvm
+    );
+
+    checkBoundsIntersection(plane_, mesh.bounds());
+
+
+    // Distance to cell centres
+    // ~~~~~~~~~~~~~~~~~~~~~~~~
+
+    cellDistancePtr_.reset
+    (
+        new volScalarField
+        (
+            IOobject
+            (
+                "cellDistance",
+                mesh.time().timeName(),
+                mesh.time(),
+                IOobject::NO_READ,
+                IOobject::NO_WRITE,
+                false
+            ),
+            mesh,
+            dimensionedScalar(dimLength, Zero)
+        )
+    );
+    const volScalarField& cellDistance = cellDistancePtr_();
+
+    setDistanceFields(plane_);
 
     if (debug)
     {
         Pout<< "Writing cell distance:" << cellDistance.objectPath() << endl;
         cellDistance.write();
-        pointScalarField pDist
+        pointScalarField pointDist
         (
             IOobject
             (
@@ -213,40 +454,49 @@ void Foam::sampledCuttingPlane::createGeometry()
                 false
             ),
             pointMesh::New(mesh),
-            dimensionedScalar("zero", dimLength, 0)
+            dimensionedScalar(dimLength, Zero)
         );
-        pDist.primitiveFieldRef() = pointDistance_;
+        pointDist.primitiveFieldRef() = pointDistance_;
 
-        Pout<< "Writing point distance:" << pDist.objectPath() << endl;
-        pDist.write();
+        Pout<< "Writing point distance:" << pointDist.objectPath() << endl;
+        pointDist.write();
     }
 
 
-    //- Direct from cell field and point field.
-    isoSurfPtr_.reset
-    (
-        new isoSurface
+    // Create surfaces for each offset
+
+    PtrList<isoSurfaceBase> isoSurfPtrs(offsets_.size());
+
+    forAll(offsets_, surfi)
+    {
+        isoSurfPtrs.set
         (
-            cellDistance,
-            pointDistance_,
-            0.0,
-            regularise_,
-            mergeTol_
-        )
-        //new isoSurfaceCell
-        //(
-        //    mesh,
-        //    cellDistance,
-        //    pointDistance_,
-        //    0.0,
-        //    regularise_,
-        //    mergeTol_
-        //)
-    );
+            surfi,
+            isoSurfaceBase::New
+            (
+                isoParams_,
+                cellDistance,
+                pointDistance_,
+                offsets_[surfi],
+                *ignoreCellsPtr_
+            )
+        );
+    }
+
+    // And flatten
+    combineSurfaces(isoSurfPtrs);
+
+
+    // Discard fields if not required by an iso-surface
+    if (!isoSurfacePtr_)
+    {
+        cellDistancePtr_.reset(nullptr);
+        pointDistance_.clear();
+    }
 
     if (debug)
     {
-        print(Pout);
+        print(Pout, debug);
         Pout<< endl;
     }
 }
@@ -263,44 +513,83 @@ Foam::sampledCuttingPlane::sampledCuttingPlane
 :
     sampledSurface(name, mesh, dict),
     plane_(dict),
-    mergeTol_(dict.lookupOrDefault("mergeTol", 1e-6)),
-    regularise_(dict.lookupOrDefault("regularise", true)),
-    average_(dict.lookupOrDefault("average", false)),
-    zoneID_(dict.lookupOrDefault("zone", word::null), mesh.cellZones()),
-    exposedPatchName_(word::null),
+    offsets_(),
+    isoParams_
+    (
+        dict,
+        isoSurfaceParams::ALGO_TOPO,
+        isoSurfaceParams::filterType::DIAGCELL
+    ),
+    average_(dict.getOrDefault("average", false)),
+    simpleSubMesh_(dict.getOrDefault("simpleSubMesh", false)),
+    zoneNames_(),
+    exposedPatchName_(),
     needsUpdate_(true),
+
+    surface_(),
+    meshCells_(),
+    isoSurfacePtr_(nullptr),
+
     subMeshPtr_(nullptr),
+    ignoreCellsPtr_(nullptr),
     cellDistancePtr_(nullptr),
-    isoSurfPtr_(nullptr),
-    facesPtr_(nullptr)
+    pointDistance_()
 {
-    if (zoneID_.index() != -1)
+    dict.readIfPresent("offsets", offsets_);
+
+    if (offsets_.empty())
     {
-        dict.lookup("exposedPatchName") >> exposedPatchName_;
+        offsets_.resize(1);
+        offsets_.first() = Zero;
+    }
 
-        if (mesh.boundaryMesh().findPatchID(exposedPatchName_) == -1)
-        {
-            FatalErrorInFunction
-                << "Cannot find patch " << exposedPatchName_
-                << " in which to put exposed faces." << endl
-                << "Valid patches are " << mesh.boundaryMesh().names()
-                << exit(FatalError);
-        }
+    if (offsets_.size() > 1)
+    {
+        const label nOrig = offsets_.size();
 
-        if (debug && zoneID_.index() != -1)
+        inplaceUniqueSort(offsets_);
+
+        if (nOrig != offsets_.size())
         {
-            Info<< "Restricting to cellZone " << zoneID_.name()
-                << " with exposed internal faces into patch "
-                << exposedPatchName_ << endl;
+            IOWarningInFunction(dict)
+                << "Removed non-unique offsets" << nl;
         }
     }
+
+    if (isoParams_.algorithm() == isoSurfaceParams::ALGO_POINT)
+    {
+        // Not possible for ALGO_POINT
+        simpleSubMesh_ = false;
+
+        // Not possible for ALGO_POINT
+        if (offsets_.size() > 1)
+        {
+            FatalIOErrorInFunction(dict)
+                << "Multiple offsets with iso-surface (point) not supported"
+                << " since needs original interpolators." << nl
+                << exit(FatalIOError);
+        }
+    }
+
+
+    // Zones
+
+    if (!dict.readIfPresent("zones", zoneNames_) && dict.found("zone"))
+    {
+        zoneNames_.resize(1);
+        dict.readEntry("zone", zoneNames_.first());
+    }
+
+    if (-1 != mesh.cellZones().findIndex(zoneNames_))
+    {
+        dict.readIfPresent("exposedPatchName", exposedPatchName_);
+
+        DebugInfo
+            << "Restricting to cellZone(s) " << flatOutput(zoneNames_)
+            << " with exposed internal faces into patch "
+            << mesh.boundaryMesh().findPatchID(exposedPatchName_) << endl;
+    }
 }
-
-
-// * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
-
-Foam::sampledCuttingPlane::~sampledCuttingPlane()
-{}
 
 
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
@@ -316,15 +605,15 @@ bool Foam::sampledCuttingPlane::expire()
     if (debug)
     {
         Pout<< "sampledCuttingPlane::expire :"
-            << " have-facesPtr_:" << facesPtr_.valid()
-            << " needsUpdate_:" << needsUpdate_ << endl;
+            << " needsUpdate:" << needsUpdate_ << endl;
     }
 
-    // Clear any stored topologies
-    facesPtr_.clear();
+    surface_.clear();
+    meshCells_.clear();
+    isoSurfacePtr_.reset(nullptr);
 
     // Clear derived data
-    clearGeom();
+    sampledSurface::clearGeom();
 
     // Already marked as expired
     if (needsUpdate_)
@@ -342,8 +631,7 @@ bool Foam::sampledCuttingPlane::update()
     if (debug)
     {
         Pout<< "sampledCuttingPlane::update :"
-            << " have-facesPtr_:" << facesPtr_.valid()
-            << " needsUpdate_:" << needsUpdate_ << endl;
+            << " needsUpdate:" << needsUpdate_ << endl;
     }
 
     if (!needsUpdate_)
@@ -361,50 +649,50 @@ bool Foam::sampledCuttingPlane::update()
 Foam::tmp<Foam::scalarField>
 Foam::sampledCuttingPlane::sample
 (
-    const volScalarField& vField
+    const interpolation<scalar>& sampler
 ) const
 {
-    return sampleField(vField);
+    return sampleOnFaces(sampler);
 }
 
 
 Foam::tmp<Foam::vectorField>
 Foam::sampledCuttingPlane::sample
 (
-    const volVectorField& vField
+    const interpolation<vector>& sampler
 ) const
 {
-    return sampleField(vField);
+    return sampleOnFaces(sampler);
 }
 
 
 Foam::tmp<Foam::sphericalTensorField>
 Foam::sampledCuttingPlane::sample
 (
-    const volSphericalTensorField& vField
+    const interpolation<sphericalTensor>& sampler
 ) const
 {
-    return sampleField(vField);
+    return sampleOnFaces(sampler);
 }
 
 
 Foam::tmp<Foam::symmTensorField>
 Foam::sampledCuttingPlane::sample
 (
-    const volSymmTensorField& vField
+    const interpolation<symmTensor>& sampler
 ) const
 {
-    return sampleField(vField);
+    return sampleOnFaces(sampler);
 }
 
 
 Foam::tmp<Foam::tensorField>
 Foam::sampledCuttingPlane::sample
 (
-    const volTensorField& vField
+    const interpolation<tensor>& sampler
 ) const
 {
-    return sampleField(vField);
+    return sampleOnFaces(sampler);
 }
 
 
@@ -414,7 +702,7 @@ Foam::sampledCuttingPlane::interpolate
     const interpolation<scalar>& interpolator
 ) const
 {
-    return interpolateField(interpolator);
+    return sampleOnPoints(interpolator);
 }
 
 
@@ -424,8 +712,9 @@ Foam::sampledCuttingPlane::interpolate
     const interpolation<vector>& interpolator
 ) const
 {
-    return interpolateField(interpolator);
+    return sampleOnPoints(interpolator);
 }
+
 
 Foam::tmp<Foam::sphericalTensorField>
 Foam::sampledCuttingPlane::interpolate
@@ -433,7 +722,7 @@ Foam::sampledCuttingPlane::interpolate
     const interpolation<sphericalTensor>& interpolator
 ) const
 {
-    return interpolateField(interpolator);
+    return sampleOnPoints(interpolator);
 }
 
 
@@ -443,7 +732,7 @@ Foam::sampledCuttingPlane::interpolate
     const interpolation<symmTensor>& interpolator
 ) const
 {
-    return interpolateField(interpolator);
+    return sampleOnPoints(interpolator);
 }
 
 
@@ -453,16 +742,21 @@ Foam::sampledCuttingPlane::interpolate
     const interpolation<tensor>& interpolator
 ) const
 {
-    return interpolateField(interpolator);
+    return sampleOnPoints(interpolator);
 }
 
 
-void Foam::sampledCuttingPlane::print(Ostream& os) const
+void Foam::sampledCuttingPlane::print(Ostream& os, int level) const
 {
     os  << "sampledCuttingPlane: " << name() << " :"
-        << "  plane:" << plane_
-        << "  faces:" << faces().size()
-        << "  points:" << points().size();
+        << " plane:" << plane_
+        << " offsets:" << flatOutput(offsets_);
+
+    if (level)
+    {
+        os  << "  faces:" << faces().size()
+            << "  points:" << points().size();
+    }
 }
 
 

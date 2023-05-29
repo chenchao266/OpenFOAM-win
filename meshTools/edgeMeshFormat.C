@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2017-2019 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -24,10 +27,10 @@ License
 \*---------------------------------------------------------------------------*/
 
 #include "edgeMeshFormat.H"
-#include "IOobject.T.H"
+#include "IOobject.H"
 #include "IFstream.H"
 #include "clock.H"
-#include "Time.T.H"
+#include "Time1.H"
 #include "featureEdgeMesh.H"
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
@@ -50,26 +53,15 @@ bool Foam::fileFormats::edgeMeshFormat::read
 {
     clear();
 
-    fileName dir = filename.path();
-    fileName caseName = dir.name();
-    fileName rootPath = dir.path();
-
-    // Construct dummy time to use as an objectRegistry
-    Time dummyTime
-    (
-        ".",        //rootPath,
-        ".",        //caseName,
-        "system",   //systemName,
-        "constant", //constantName,
-        false       //enableFunctionObjects
-    );
+    // Use dummy Time for objectRegistry
+    autoPtr<Time> dummyTimePtr(Time::New());
 
     // Construct IOobject to re-use the headerOk & readHeader
     // (so we can read ascii and binary)
     IOobject io
     (
         filename,
-        dummyTime,
+        *dummyTimePtr,
         IOobject::NO_READ,
         IOobject::NO_WRITE,
         false
@@ -115,10 +107,7 @@ bool Foam::fileFormats::edgeMeshFormat::read
             << exit(FatalError);
     }
 
-    // read points:
     is  >> pointLst;
-
-    // read edges:
     is  >> edgeLst;
 
     return true;
@@ -144,13 +133,7 @@ Foam::Ostream& Foam::fileFormats::edgeMeshFormat::write
 
     IOobject::writeDivider(os);
 
-    // Check state of Ostream
-    os.check
-    (
-        "edgeMeshFormat::write"
-        "(Ostream&, const pointField&, const edgeList&)"
-    );
-
+    os.check(FUNCTION_NAME);
     return os;
 }
 
@@ -158,39 +141,32 @@ Foam::Ostream& Foam::fileFormats::edgeMeshFormat::write
 void Foam::fileFormats::edgeMeshFormat::write
 (
     const fileName& filename,
-    const edgeMesh& mesh
+    const edgeMesh& mesh,
+    IOstreamOption streamOpt,
+    const dictionary& options
 )
 {
-    // Construct dummy time to use as an objectRegistry
-    Time dummyTime
-    (
-        ".",        //rootPath,
-        ".",        //caseName,
-        "system",   //systemName,
-        "constant", //constantName,
-        false       //enableFunctionObjects
-    );
+    // Use dummy Time for objectRegistry
+    autoPtr<Time> dummyTimePtr(Time::New());
 
     // Construct IOobject to re-use the writeHeader
     IOobject io
     (
         filename,
-        dummyTime,
+        *dummyTimePtr,
         IOobject::NO_READ,
         IOobject::NO_WRITE,
         false
     );
     io.note() = "written " + clock::dateTime();
 
-    // Note: always write ascii
-    autoPtr<OFstream> osPtr(new OFstream(filename));
+    // Write in serial only
+    autoPtr<OFstream> osPtr(new OFstream(filename, streamOpt));
 
     if (!osPtr().good())
     {
-        FatalIOErrorInFunction
-        (
-            osPtr()
-        )   << "Cannot open file for writing " << filename
+        FatalIOErrorInFunction(osPtr())
+            << "Cannot open file for writing " << filename
             << exit(FatalIOError);
     }
 
@@ -199,17 +175,14 @@ void Foam::fileFormats::edgeMeshFormat::write
 
     if (!ok)
     {
-        FatalIOErrorInFunction
-        (
-            os
-        )   << "Cannot write header"
+        FatalIOErrorInFunction(os)
+            << "Cannot write header"
             << exit(FatalIOError);
     }
 
     write(os, mesh.points(), mesh.edges());
 
-    // Check state of Ostream
-    os.check("edgeMeshFormat::write(Ostream&)");
+    os.check(FUNCTION_NAME);
 }
 
 

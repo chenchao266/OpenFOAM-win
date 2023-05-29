@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2018 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -26,6 +29,7 @@ License
 #include "standardPhaseChange.H"
 #include "addToRunTimeSelectionTable.H"
 #include "thermoSingleLayer.H"
+#include "zeroField.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -70,43 +74,39 @@ scalar standardPhaseChange::Sh
 
 standardPhaseChange::standardPhaseChange
 (
-    surfaceFilmModel& film,
+    surfaceFilmRegionModel& film,
     const dictionary& dict
 )
 :
     phaseChangeModel(typeName, film, dict),
-    deltaMin_(readScalar(coeffDict_.lookup("deltaMin"))),
-    L_(readScalar(coeffDict_.lookup("L"))),
-    TbFactor_(coeffDict_.lookupOrDefault<scalar>("TbFactor", 1.1))
-{}
-
-
-// * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
-
-standardPhaseChange::~standardPhaseChange()
+    deltaMin_(coeffDict_.get<scalar>("deltaMin")),
+    L_(coeffDict_.get<scalar>("L")),
+    TbFactor_(coeffDict_.getOrDefault<scalar>("TbFactor", 1.1)),
+    YInfZero_(coeffDict_.getOrDefault<Switch>("YInfZero", false))
 {}
 
 
 // * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * * //
 
+template<class YInfType>
 void standardPhaseChange::correctModel
 (
     const scalar dt,
     scalarField& availableMass,
     scalarField& dMass,
-    scalarField& dEnergy
+    scalarField& dEnergy,
+    YInfType YInf
 )
 {
     const thermoSingleLayer& film = filmType<thermoSingleLayer>();
 
-    // set local thermo properties
+    // Set local thermo properties
     const SLGThermo& thermo = film.thermo();
     const filmThermoModel& filmThermo = film.filmThermo();
     const label vapId = thermo.carrierId(filmThermo.name());
 
-    // retrieve fields from film model
+    // Retrieve fields from film model
     const scalarField& delta = film.delta();
-    const scalarField& YInf = film.YPrimary()[vapId];
     const scalarField& pInf = film.pPrimary();
     const scalarField& T = film.T();
     const scalarField& hs = film.hs();
@@ -120,31 +120,37 @@ void standardPhaseChange::correctModel
         max(scalar(0), availableMass - deltaMin_*rho*magSf)
     );
 
+    // Molecular weight of vapour [kg/kmol]
+    const scalar Wvap = thermo.carrier().W(vapId);
+
+    // Molecular weight of liquid [kg/kmol]
+    const scalar Wliq = filmThermo.W();
+
     forAll(dMass, celli)
     {
         scalar dm = 0;
 
         if (delta[celli] > deltaMin_)
         {
-            // cell pressure [Pa]
+            // Cell pressure [Pa]
             const scalar pc = pInf[celli];
 
-            // calculate the boiling temperature
+            // Calculate the boiling temperature
             const scalar Tb = filmThermo.Tb(pc);
 
-            // local temperature - impose lower limit of 200 K for stability
+            // Local temperature - impose lower limit of 200 K for stability
             const scalar Tloc = min(TbFactor_*Tb, max(200.0, T[celli]));
 
-            // saturation pressure [Pa]
+            // Saturation pressure [Pa]
             const scalar pSat = filmThermo.pv(pc, Tloc);
 
-            // latent heat [J/kg]
+            // Latent heat [J/kg]
             const scalar hVap = filmThermo.hl(pc, Tloc);
 
-            // calculate mass transfer
+            // Calculate mass transfer
             if (pSat >= 0.95*pc)
             {
-                // boiling
+                // Boiling
                 const scalar Cp = filmThermo.Cp(pc, Tloc);
                 const scalar Tcorr = max(0.0, T[celli] - Tb);
                 const scalar qCorr = limMass[celli]*Cp*(Tcorr);
@@ -161,16 +167,10 @@ void standardPhaseChange::correctModel
                 // Reynolds number
                 const scalar Re = rhoInfc*mag(dU[celli])*L_/muInfc;
 
-                // molecular weight of vapour [kg/kmol]
-                const scalar Wvap = thermo.carrier().W(vapId);
-
-                // molecular weight of liquid [kg/kmol]
-                const scalar Wliq = filmThermo.W();
-
-                // vapour mass fraction at interface
+                // Vapour mass fraction at interface
                 const scalar Ys = Wliq*pSat/(Wliq*pSat + Wvap*(pc - pSat));
 
-                // vapour diffusivity [m2/s]
+                // Vapour diffusivity [m2/s]
                 const scalar Dab = filmThermo.D(pc, Tloc);
 
                 // Schmidt number
@@ -179,10 +179,10 @@ void standardPhaseChange::correctModel
                 // Sherwood number
                 const scalar Sh = this->Sh(Re, Sc);
 
-                // mass transfer coefficient [m/s]
+                // Mass transfer coefficient [m/s]
                 const scalar hm = Sh*Dab/(L_ + ROOTVSMALL);
 
-                // add mass contribution to source
+                // Add mass contribution to source
                 dm = dt*magSf[celli]*rhoInfc*hm*(Ys - YInf[celli])/(1.0 - Ys);
             }
 
@@ -193,6 +193,29 @@ void standardPhaseChange::correctModel
             dEnergy[celli] += dm*hs[celli];
             // dEnergy[celli] += dm*(hs[celli] + hVap);
         }
+    }
+}
+
+
+void standardPhaseChange::correctModel
+(
+    const scalar dt,
+    scalarField& availableMass,
+    scalarField& dMass,
+    scalarField& dEnergy
+)
+{
+    if (YInfZero_)
+    {
+        correctModel(dt, availableMass, dMass, dEnergy, zeroField());
+    }
+    else
+    {
+        const thermoSingleLayer& film = filmType<thermoSingleLayer>();
+        const label vapId = film.thermo().carrierId(film.filmThermo().name());
+        const scalarField& YInf = film.YPrimary()[vapId];
+
+        correctModel(dt, availableMass, dMass, dEnergy, YInf);
     }
 }
 

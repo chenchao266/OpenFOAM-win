@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -22,7 +25,7 @@ License
     along with OpenFOAM.  If not, see <http://www.gnu.org/licenses/>.
 
 Class
-    Foam::regionModel
+    Foam::regionModels::regionModel
 
 Description
     Base class for region models
@@ -64,11 +67,11 @@ private:
 
     // Private Member Functions
 
-        //- Disallow default bitwise copy construct
-        regionModel(const regionModel&);
+        //- No copy construct
+        regionModel(const regionModel&) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const regionModel&);
+        //- No copy assignment
+        void operator=(const regionModel&) = delete;
 
         //- Construct region mesh and fields
         void constructMeshObjects();
@@ -95,9 +98,6 @@ protected:
 
         //- Model name
         const word modelName_;
-
-        //- Pointer to the region mesh database
-        autoPtr<fvMesh> regionMeshPtr_;
 
         //- Model coefficients dictionary
         dictionary coeffs_;
@@ -182,7 +182,7 @@ public:
 
 
     //- Destructor
-    virtual ~regionModel();
+    virtual ~regionModel() = default;
 
 
     // Member Functions
@@ -196,10 +196,10 @@ public:
             inline const Time& time() const;
 
             //- Return the active flag
-            inline const Switch& active() const;
+            inline Switch active() const;
 
             //- Return the information flag
-            inline const Switch& infoOutput() const;
+            inline Switch infoOutput() const;
 
             //- Return the model name
             inline const word& modelName() const;

@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2012-2014 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2012-2014 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -25,7 +28,47 @@ Class
     Foam::trimModel
 
 Description
-    Trim model base class
+    Base class for trim models for handling
+    blade characteristics and thrust-torque relations.
+
+Usage
+    Minimal example by using \c constant/fvOptions:
+    rotorDiskSource1
+    {
+        // Mandatory/Optional (inherited) entries
+        ...
+
+        // Mandatory entries (runtime modifiable)
+        trimModel    <trimModel>;
+
+        <trimModel>Coeffs
+        {
+            // Conditional mandatory entries (runtime modifiable)
+
+                // when trimModel=fixedTrim
+                theta0   5.0;
+                theta1c  1.0;
+                theta1s  4.0;
+        }
+    }
+
+    where the entries mean:
+    \table
+      Property   | Description                          | Type  | Reqd | Dflt
+      trimModel  | Trim model specification             | word  | yes  | -
+      file  | Name of file containing profile characteristics | word   | no  | -
+    \endtable
+
+    Options for the \c trimModel entry:
+    \verbatim
+      fixed       | Fixed blade/angle characteristics
+      targetForce | Target thrust/torque by using time-variant blade characs.
+    \endverbatim
+
+See also
+  - Foam::fv::rotorDiskSource
+  - Foam::fixedTrim
+  - Foam::targetCoeffTrim
 
 SourceFiles
     trimModel.C
@@ -36,7 +79,7 @@ SourceFiles
 #define trimModel_H
 
 #include "rotorDiskSource.H"
-#include "dictionary.H"
+#include "dictionary2.H"
 #include "runTimeSelectionTables.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
@@ -50,10 +93,9 @@ namespace Foam
 
 class trimModel
 {
-
 protected:
 
-    // Protected data
+    // Protected Data
 
         //- Reference to the rotor source model
         const fv::rotorDiskSource& rotor_;
@@ -108,10 +150,10 @@ public:
 
 
     //- Destructor
-    virtual ~trimModel();
+    virtual ~trimModel() = default;
 
 
-    // Member functions
+    // Member Functions
 
         //- Read
         virtual void read(const dictionary& dict);

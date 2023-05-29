@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -21,15 +24,21 @@ License
     You should have received a copy of the GNU General Public License
     along with OpenFOAM.  If not, see <http://www.gnu.org/licenses/>.
 
+Namespace
+    Foam::distributionModels
+
+Description
+    A namespace for various probability distribution model implementations.
+
 Class
     Foam::distributionModel
 
 Description
-    A library of runtime-selectable distribution models.
+    A library of runtime-selectable doubly-truncated probability distribution
+    models. Returns random samples based on given distribution parameters.
 
-    Returns a sampled value given the expectation (nu) and variance (sigma^2)
-
-    Current distribution models include:
+    Available distribution models include:
+    - binned
     - exponential
     - fixedValue
     - general
@@ -38,11 +47,6 @@ Description
     - Rosin-Rammler
     - Mass-based Rosin-Rammler
     - uniform
-
-    The distributionModel is tabulated in equidistant nPoints, in an interval.
-    These values are integrated to obtain the cumulated distribution model,
-    which is then used to change the distribution from unifrom to
-    the actual distributionModel.
 
 SourceFiles
     distributionModel.C
@@ -55,7 +59,7 @@ SourceFiles
 
 #include "IOdictionary.H"
 #include "autoPtr.H"
-#include "cachedRandom.H"
+#include "Random.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -68,16 +72,21 @@ namespace Foam
 
 class distributionModel
 {
-
 protected:
 
-    // Protected data
+    // Protected Data
 
         //- Coefficients dictionary
         const dictionary distributionModelDict_;
 
         //- Reference to the random number generator
-        cachedRandom& rndGen_;
+        Random& rndGen_;
+
+        //- Minimum of the distribution
+        scalar minValue_;
+
+        //- Maximum of the distribution
+        scalar maxValue_;
 
 
     // Protected Member Functions
@@ -100,7 +109,7 @@ public:
         dictionary,
         (
             const dictionary& dict,
-            cachedRandom& rndGen
+            Random& rndGen
         ),
         (dict, rndGen)
     );
@@ -113,10 +122,10 @@ public:
         (
             const word& name,
             const dictionary& dict,
-            cachedRandom& rndGen
+            Random& rndGen
         );
 
-        //- Construct copy
+        //- Copy construct
         distributionModel(const distributionModel& p);
 
         //- Construct and return a clone
@@ -127,26 +136,27 @@ public:
     static autoPtr<distributionModel> New
     (
         const dictionary& dict,
-        cachedRandom& rndGen
+        Random& rndGen
     );
 
 
     //- Destructor
-    virtual ~distributionModel();
+    virtual ~distributionModel() = default;
 
 
     // Member Functions
 
-        //- Sample the distributionModel
+        //- Sample the distribution
         virtual scalar sample() const = 0;
 
-        //- Return the minimum value
-        virtual scalar minValue() const = 0;
+        //- Return the minimum of the distribution
+        virtual scalar minValue() const;
 
-        //- Return the maximum value
-        virtual scalar maxValue() const = 0;
+        //- Return the maximum of the distribution
+        virtual scalar maxValue() const;
 
-        //- Return the maximum value
+        //- Return the theoretical mean of the distribution, or
+        //- the arithmetic mean of the distribution data
         virtual scalar meanValue() const = 0;
 };
 

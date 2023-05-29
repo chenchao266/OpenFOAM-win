@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2017-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -27,161 +30,191 @@ License
 #include "symmTransformField.H"
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
-namespace Foam {
-    template<class Type>
-    partialSlipFvPatchField<Type>::partialSlipFvPatchField
-    (
-        const fvPatch& p,
-        const DimensionedField<Type, volMesh>& iF
-    )
-        :
-        transformFvPatchField<Type>(p, iF),
-        valueFraction_(p.size(), 1.0)
-    {}
+
+template<class Type>
+Foam::partialSlipFvPatchField<Type>::partialSlipFvPatchField
+(
+    const fvPatch& p,
+    const DimensionedField<Type, volMesh>& iF
+)
+:
+    parent_bctype(p, iF),
+    refValue_(p.size(), Zero),
+    valueFraction_(p.size(), 1.0),
+    writeValue_(false)
+{}
 
 
-    template<class Type>
-    partialSlipFvPatchField<Type>::partialSlipFvPatchField
-    (
-        const partialSlipFvPatchField<Type>& ptf,
-        const fvPatch& p,
-        const DimensionedField<Type, volMesh>& iF,
-        const fvPatchFieldMapper& mapper
-    )
-        :
-        transformFvPatchField<Type>(ptf, p, iF, mapper),
-        valueFraction_(ptf.valueFraction_, mapper)
-    {}
+template<class Type>
+Foam::partialSlipFvPatchField<Type>::partialSlipFvPatchField
+(
+    const partialSlipFvPatchField<Type>& ptf,
+    const fvPatch& p,
+    const DimensionedField<Type, volMesh>& iF,
+    const fvPatchFieldMapper& mapper
+)
+:
+    parent_bctype(ptf, p, iF, mapper),
+    refValue_(ptf.refValue_, mapper),
+    valueFraction_(ptf.valueFraction_, mapper),
+    writeValue_(ptf.writeValue_)
+{}
 
 
-    template<class Type>
-    partialSlipFvPatchField<Type>::partialSlipFvPatchField
-    (
-        const fvPatch& p,
-        const DimensionedField<Type, volMesh>& iF,
-        const dictionary& dict
-    )
-        :
-        transformFvPatchField<Type>(p, iF),
-        valueFraction_("valueFraction", dict, p.size())
+template<class Type>
+Foam::partialSlipFvPatchField<Type>::partialSlipFvPatchField
+(
+    const fvPatch& p,
+    const DimensionedField<Type, volMesh>& iF,
+    const dictionary& dict
+)
+:
+    parent_bctype(p, iF),
+    refValue_(p.size(), Zero),
+    valueFraction_("valueFraction", dict, p.size()),
+    writeValue_(dict.getOrDefault("writeValue", false))
+{
+    this->patchType() = dict.getOrDefault<word>("patchType", word::null);
+
+    // Backwards compatibility - leave refValue as zero unless specified
+    if (dict.found("refValue"))
     {
-        evaluate();
+        refValue_ = Field<Type>("refValue", dict, p.size());
     }
 
-
-    template<class Type>
-    partialSlipFvPatchField<Type>::partialSlipFvPatchField
-    (
-        const partialSlipFvPatchField<Type>& ptf
-    )
-        :
-        transformFvPatchField<Type>(ptf),
-        valueFraction_(ptf.valueFraction_)
-    {}
-
-
-    template<class Type>
-    partialSlipFvPatchField<Type>::partialSlipFvPatchField
-    (
-        const partialSlipFvPatchField<Type>& ptf,
-        const DimensionedField<Type, volMesh>& iF
-    )
-        :
-        transformFvPatchField<Type>(ptf, iF),
-        valueFraction_(ptf.valueFraction_)
-    {}
-
-
-    // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
-
-    template<class Type>
-    void partialSlipFvPatchField<Type>::autoMap
-    (
-        const fvPatchFieldMapper& m
-    )
-    {
-        transformFvPatchField<Type>::autoMap(m);
-        valueFraction_.autoMap(m);
-    }
-
-
-    template<class Type>
-    void partialSlipFvPatchField<Type>::rmap
-    (
-        const fvPatchField<Type>& ptf,
-        const labelList& addr
-    )
-    {
-        transformFvPatchField<Type>::rmap(ptf, addr);
-
-        const partialSlipFvPatchField<Type>& dmptf =
-            refCast<const partialSlipFvPatchField<Type>>(ptf);
-
-        valueFraction_.rmap(dmptf.valueFraction_, addr);
-    }
-
-
-    template<class Type>
-    tmp<Field<Type>>
-        partialSlipFvPatchField<Type>::snGrad() const
-    {
-        tmp<vectorField> nHat = this->patch().nf();
-        const Field<Type> pif(this->patchInternalField());
-
-        return
-            (
-            (1.0 - valueFraction_)*transform(I - sqr(nHat), pif) - pif
-                )*this->patch().deltaCoeffs();
-    }
-
-
-    template<class Type>
-    void partialSlipFvPatchField<Type>::evaluate
-    (
-        const Pstream::commsTypes
-    )
-    {
-        if (!this->updated())
-        {
-            this->updateCoeffs();
-        }
-
-        tmp<vectorField> nHat = this->patch().nf();
-
-        Field<Type>::operator=
-            (
-            (1.0 - valueFraction_)
-                *transform(I - sqr(nHat), this->patchInternalField())
-                );
-
-        transformFvPatchField<Type>::evaluate();
-    }
-
-
-    template<class Type>
-    tmp<Field<Type>>
-        partialSlipFvPatchField<Type>::snGradTransformDiag() const
-    {
-        const vectorField nHat(this->patch().nf());
-        vectorField diag(nHat.size());
-
-        diag.replace(vector::X, mag(nHat.component(vector::X)));
-        diag.replace(vector::Y, mag(nHat.component(vector::Y)));
-        diag.replace(vector::Z, mag(nHat.component(vector::Z)));
-
-        return
-            valueFraction_ * pTraits<Type>::one
-            + (1.0 - valueFraction_)
-            *transformFieldMask<Type>(pow<vector, pTraits<Type>::rank>(diag));
-    }
-
-
-    template<class Type>
-    void partialSlipFvPatchField<Type>::write(Ostream& os) const
-    {
-        transformFvPatchField<Type>::write(os);
-        valueFraction_.writeEntry("valueFraction", os);
-    }
-
+    evaluate();
 }
+
+
+template<class Type>
+Foam::partialSlipFvPatchField<Type>::partialSlipFvPatchField
+(
+    const partialSlipFvPatchField<Type>& ptf
+)
+:
+    parent_bctype(ptf),
+    refValue_(ptf.refValue_),
+    valueFraction_(ptf.valueFraction_),
+    writeValue_(ptf.writeValue_)
+{}
+
+
+template<class Type>
+Foam::partialSlipFvPatchField<Type>::partialSlipFvPatchField
+(
+    const partialSlipFvPatchField<Type>& ptf,
+    const DimensionedField<Type, volMesh>& iF
+)
+:
+    parent_bctype(ptf, iF),
+    refValue_(ptf.refValue_),
+    valueFraction_(ptf.valueFraction_),
+    writeValue_(ptf.writeValue_)
+{}
+
+
+// * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
+
+template<class Type>
+void Foam::partialSlipFvPatchField<Type>::autoMap
+(
+    const fvPatchFieldMapper& m
+)
+{
+    parent_bctype::autoMap(m);
+    refValue_.autoMap(m);
+    valueFraction_.autoMap(m);
+}
+
+
+template<class Type>
+void Foam::partialSlipFvPatchField<Type>::rmap
+(
+    const fvPatchField<Type>& ptf,
+    const labelList& addr
+)
+{
+    parent_bctype::rmap(ptf, addr);
+
+    const auto& dmptf =
+        refCast<const partialSlipFvPatchField<Type>>(ptf);
+
+    refValue_.rmap(dmptf.refValue_, addr);
+    valueFraction_.rmap(dmptf.valueFraction_, addr);
+}
+
+
+template<class Type>
+Foam::tmp<Foam::Field<Type>>
+Foam::partialSlipFvPatchField<Type>::snGrad() const
+{
+    tmp<vectorField> nHat = this->patch().nf();
+    const Field<Type> pif(this->patchInternalField());
+
+    return
+    (
+        valueFraction_*refValue_
+      + (1.0 - valueFraction_)*transform(I - sqr(nHat), pif) - pif
+    )*this->patch().deltaCoeffs();
+}
+
+
+template<class Type>
+void Foam::partialSlipFvPatchField<Type>::evaluate
+(
+    const Pstream::commsTypes
+)
+{
+    if (!this->updated())
+    {
+        this->updateCoeffs();
+    }
+
+    tmp<vectorField> nHat = this->patch().nf();
+
+    Field<Type>::operator=
+    (
+        valueFraction_*refValue_
+      +
+        (1.0 - valueFraction_)
+       *transform(I - sqr(nHat), this->patchInternalField())
+    );
+
+    parent_bctype::evaluate();
+}
+
+
+template<class Type>
+Foam::tmp<Foam::Field<Type>>
+Foam::partialSlipFvPatchField<Type>::snGradTransformDiag() const
+{
+    const vectorField nHat(this->patch().nf());
+    vectorField diag(nHat.size());
+
+    diag.replace(vector::X, mag(nHat.component(vector::X)));
+    diag.replace(vector::Y, mag(nHat.component(vector::Y)));
+    diag.replace(vector::Z, mag(nHat.component(vector::Z)));
+
+    return
+        valueFraction_*pTraits<Type>::one_
+      + (1.0 - valueFraction_)
+       *transformFieldMask<Type>(pow<vector, pTraits<Type>::rank>(diag));
+}
+
+
+template<class Type>
+void Foam::partialSlipFvPatchField<Type>::write(Ostream& os) const
+{
+    this->parent_bctype::write(os);
+    refValue_.writeEntry("refValue", os);
+    valueFraction_.writeEntry("valueFraction", os);
+
+    if (writeValue_)
+    {
+        os.writeEntry("writeValue", "true");
+        this->writeEntry("value", os);
+    }
+}
+
+
 // ************************************************************************* //

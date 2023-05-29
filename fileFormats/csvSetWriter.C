@@ -1,9 +1,12 @@
-﻿/*---------------------------------------------------------------------------*\
+/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -23,7 +26,7 @@ License
 
 \*---------------------------------------------------------------------------*/
 
-//#include "csvSetWriter.H"
+#include "csvSetWriter.H"
 #include "coordSet.H"
 #include "fileName.H"
 #include "OFstream.H"
@@ -37,10 +40,10 @@ Foam::csvSetWriter<Type>::csvSetWriter()
 {}
 
 
-// * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
-
 template<class Type>
-Foam::csvSetWriter<Type>::~csvSetWriter()
+Foam::csvSetWriter<Type>::csvSetWriter(const dictionary& dict)
+:
+    writer<Type>(dict)
 {}
 
 
@@ -84,13 +87,14 @@ template<class Type>
 void Foam::csvSetWriter<Type>::write
 (
     const bool writeTracks,
-    const PtrList<coordSet>& points,
+    const List<scalarField>& times,
+    const PtrList<coordSet>& tracks,
     const wordList& valueSetNames,
     const List<List<Field<Type>>>& valueSets,
     Ostream& os
 ) const
 {
-    writeHeader(points[0],valueSetNames,os);
+    writeHeader(tracks[0],valueSetNames,os);
 
     if (valueSets.size() != valueSetNames.size())
     {
@@ -102,7 +106,7 @@ void Foam::csvSetWriter<Type>::write
 
     List<const List<Type>*> columns(valueSets.size());
 
-    forAll(points, trackI)
+    forAll(tracks, trackI)
     {
         // Collect sets into columns
         forAll(valueSets, i)
@@ -110,7 +114,7 @@ void Foam::csvSetWriter<Type>::write
             columns[i] = &valueSets[i][trackI];
         }
 
-        this->writeTable(points[trackI], columns, os);
+        this->writeTable(tracks[trackI], columns, os);
         os  << nl << nl;
     }
 }
@@ -138,7 +142,7 @@ namespace Foam
 
         forAll(valueSetNames, i)
         {
-            if (i > 0)
+            if (i)
             {
                 writeSeparator(os);
             }
@@ -164,7 +168,7 @@ void Foam::csvSetWriter<Type>::writeHeader
     {
         for (label j=0; j<Type::nComponents; j++)
         {
-            if (i>0 || j>0)
+            if (i || j)
             {
                 writeSeparator(os);
             }
@@ -187,12 +191,7 @@ void Foam::csvSetWriter<Type>::writeCoordHeader
 
     if (points.hasVectorAxis())
     {
-        for
-        (
-            word::const_iterator iter = axisName.begin();
-            iter != axisName.end();
-            ++iter
-        )
+        for (auto iter = axisName.cbegin(); iter != axisName.cend(); ++iter)
         {
             os << *iter;
             writeSeparator(os);

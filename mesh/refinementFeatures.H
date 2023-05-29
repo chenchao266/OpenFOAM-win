@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2014 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -67,6 +69,9 @@ class refinementFeatures
         //- Features points
         PtrList<indexedOctree<treeDataPoint>> pointTrees_;
 
+        //- Dry-run mode?
+        const bool dryRun_;
+
         //- Region edge trees (demand driven)
         mutable autoPtr<PtrList<indexedOctree<treeDataEdge>>>
             regionEdgeTreesPtr_;
@@ -112,7 +117,8 @@ public:
         refinementFeatures
         (
             const objectRegistry& io,
-            const PtrList<dictionary>& featDicts
+            const PtrList<dictionary>& featDicts,
+            const bool dryRun = false
         );
 
 
@@ -138,13 +144,12 @@ public:
             //- Highest distance of all features
             scalar maxDistance() const;
 
-            //- Find nearest point on nearest feature edge. Sets:
-            //
-            //    - nearFeature: index of feature mesh
-            //    - nearInfo   : location on feature edge and edge index
-            //        (note: not feature edge index but index into edges()
-            //        directly)
-            //    - nearNormal : local feature edge normal
+            //- Find nearest point on nearest feature edge. Sets
+            //  - nearFeature: index of feature mesh
+            //  - nearInfo   : location on feature edge and edge index
+            //                 (note: not feature edge index but index into
+            //                  edges() directly)
+            //  - nearNormal : local feature edge normal
             void findNearestEdge
             (
                 const pointField& samples,
@@ -154,13 +159,12 @@ public:
                 vectorField& nearNormal
             ) const;
 
-            //- Find nearest point on nearest region edge. Sets:
-            //
-            //    - nearFeature: index of feature mesh
-            //    - nearInfo   : location on feature edge and edge index
-            //        (note: not feature edge index but index into edges()
-            //        directly)
-            //    - nearNormal : local feature edge normal
+            //- Find nearest point on nearest region edge. Sets
+            //  - nearFeature: index of feature mesh
+            //  - nearInfo   : location on feature edge and edge index
+            //                 (note: not feature edge index but index into
+            //                  edges() directly)
+            //  - nearNormal : local feature edge normal
             void findNearestRegionEdge
             (
                 const pointField& samples,
@@ -170,12 +174,11 @@ public:
                 vectorField& nearNormal
             ) const;
 
-            //- Find nearest feature point. Sets:
-            //
-            //    - nearFeature: index of feature mesh
-            //    - nearInfo   : location on feature point and point index.
-            //        (note: not index into shapes().pointLabels() but index
-            //        into points() directly)
+            //- Find nearest feature point. Sets
+            //  - nearFeature: index of feature mesh
+            //  - nearInfo   : location on feature point and point index.
+            //                 (note: not index into shapes().pointLabels() but
+            //                  index into points() directly)
             void findNearestPoint
             (
                 const pointField& samples,
@@ -192,6 +195,16 @@ public:
                 labelList& maxLevel
             ) const;
 
+        // Other
+
+            //- Check sizes - return true if error and stream to os
+            bool checkSizes
+            (
+                const scalar maxRatio,
+                const boundBox& meshBb,
+                const bool report,
+                Ostream& os
+            ) const;
 };
 
 

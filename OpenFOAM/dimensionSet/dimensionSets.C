@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2019 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -29,7 +32,7 @@ License
 #include "demandDrivenData.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
-using namespace Foam;
+
 namespace Foam
 {
 
@@ -42,23 +45,32 @@ dictionary* dimensionSystemsPtr_(nullptr);
 HashTable<dimensionedScalar>* unitSetPtr_(nullptr);
 dimensionSets* writeUnitSetPtr_(nullptr);
 
+//! \cond file-scope
+
 // Helper class to
 //   register re-reader
 //   deallocate demand-driven data
-class addDimensionSetsToDebug :    public ::simpleRegIOobject
+class addDimensionSetsToDebug
+:
+    public ::Foam::simpleRegIOobject
 {
 public:
-    addDimensionSetsToDebug(const char* name)
+
+    addDimensionSetsToDebug(const addDimensionSetsToDebug&) = delete;
+    void operator=(const addDimensionSetsToDebug&) = delete;
+
+    explicit addDimensionSetsToDebug(const char* name)
     :
-        ::simpleRegIOobject(debug::addDimensionSetObject, name)
+        ::Foam::simpleRegIOobject(debug::addDimensionSetObject, name)
     {}
+
     virtual ~addDimensionSetsToDebug()
     {
         deleteDemandDrivenData(dimensionSystemsPtr_);
         deleteDemandDrivenData(unitSetPtr_);
         deleteDemandDrivenData(writeUnitSetPtr_);
-
     }
+
     virtual void readData(Istream& is)
     {
         deleteDemandDrivenData(dimensionSystemsPtr_);
@@ -66,19 +78,23 @@ public:
         deleteDemandDrivenData(writeUnitSetPtr_);
         dimensionSystemsPtr_ = new dictionary(is);
     }
+
     virtual void writeData(Ostream& os) const
     {
         os << dimensionSystems();
     }
 };
+
 addDimensionSetsToDebug addDimensionSetsToDebug_("DimensionSets");
+
+//! \endcond
 
 
 dictionary& dimensionSystems()
 {
     if (!dimensionSystemsPtr_)
     {
-        dictionary* cachedPtr = nullptr;
+        dictionary* cachedPtr(nullptr);
         dimensionSystemsPtr_ = new dictionary
         (
             debug::switchSet
@@ -105,46 +121,45 @@ const HashTable<dimensionedScalar>& unitSet()
                 << exit(FatalIOError);
         }
 
-        const word unitSetCoeffs(word(dict.lookup("unitSet")) + "Coeffs");
+        const word unitSetCoeffs(dict.get<word>("unitSet") + "Coeffs");
 
-        if (!dict.found(unitSetCoeffs))
+        const dictionary* unitDictPtr = dict.findDict(unitSetCoeffs);
+
+        if (!unitDictPtr)
         {
             FatalIOErrorInFunction(dict)
                 << "Cannot find " << unitSetCoeffs << " in dictionary "
-                << dict.name() << exit(FatalIOError);
+                << dict.name() << nl
+                << exit(FatalIOError);
         }
 
-        const dictionary& unitDict = dict.subDict(unitSetCoeffs);
+        const dictionary& unitDict = *unitDictPtr;
 
-        unitSetPtr_ = new HashTable<dimensionedScalar>(unitDict.size());
+        unitSetPtr_ = new HashTable<dimensionedScalar>(2*unitDict.size());
 
-        forAllConstIter(dictionary, unitDict, iter)
+        wordList writeUnitNames;
+
+        for (const entry& dEntry : unitDict)
         {
-            if (iter().keyword() != "writeUnits")
+            if ("writeUnits" == dEntry.keyword())
+            {
+                dEntry.readEntry(writeUnitNames);
+            }
+            else
             {
                 dimensionedScalar dt;
-                dt.read(iter().stream(), unitDict);
-                bool ok = unitSetPtr_->insert(iter().keyword(), dt);
+                dt.read(dEntry.stream(), unitDict);
+
+                bool ok = unitSetPtr_->insert(dEntry.keyword(), dt);
                 if (!ok)
                 {
                     FatalIOErrorInFunction(dict)
-                        << "Duplicate unit " << iter().keyword()
+                        << "Duplicate unit " << dEntry.keyword()
                         << " in DimensionSets dictionary"
                         << exit(FatalIOError);
                 }
             }
         }
-
-        wordList writeUnitNames
-        (
-            unitDict.lookupOrDefault<wordList>
-            (
-                "writeUnits",
-                wordList(0)
-            )
-        );
-
-        writeUnitSetPtr_ = new dimensionSets(*unitSetPtr_, writeUnitNames);
 
         if (writeUnitNames.size() != 0 && writeUnitNames.size() != 7)
         {
@@ -153,7 +168,10 @@ const HashTable<dimensionedScalar>& unitSet()
                 << " or it is not a wordList of size 7"
                 << exit(FatalIOError);
         }
+
+        writeUnitSetPtr_ = new dimensionSets(*unitSetPtr_, writeUnitNames);
     }
+
     return *unitSetPtr_;
 }
 
@@ -168,7 +186,7 @@ const dimensionSets& writeUnitSet()
 }
 
 
-const dimensionSet dimless(0, 0, 0, 0, 0, 0, 0);
+const dimensionSet dimless;
 
 const dimensionSet dimMass(1, 0, 0, 0, 0, 0, 0);
 const dimensionSet dimLength(0, 1, 0, 0, 0, 0, 0);
@@ -202,13 +220,18 @@ const dimensionSet dimDynamicViscosity(dimDensity*dimViscosity);
 
 } // End namespace Foam
 
+
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
+
+ namespace Foam{
 dimensionSets::dimensionSets
 (
     const HashTable<dimensionedScalar>& units,
     const wordList& unitNames
-) :    units_(unitNames.size()),
+)
+:
+    units_(unitNames.size()),
     conversion_(unitNames.size()),
     conversionPivots_(unitNames.size()),
     valid_(false)
@@ -253,3 +276,5 @@ void dimensionSets::coefficients(scalarField& exponents) const
 
 
 // ************************************************************************* //
+
+ } // End namespace Foam

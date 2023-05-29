@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2015 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2015 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -45,11 +47,9 @@ addToRunTimeSelectionTable(extrudeModel, linearDirection, dictionary);
 linearDirection::linearDirection(const dictionary& dict)
 :
     extrudeModel(typeName, dict),
-    direction_(coeffDict_.lookup("direction")),
-    thickness_(readScalar(coeffDict_.lookup("thickness")))
+    direction_(coeffDict_.get<vector>("direction").normalise()),
+    thickness_(coeffDict_.get<scalar>("thickness"))
 {
-    direction_ /= mag(direction_);
-
     if (thickness_ <= 0)
     {
         FatalErrorInFunction
@@ -57,12 +57,6 @@ linearDirection::linearDirection(const dictionary& dict)
             << exit(FatalError);
     }
 }
-
-
-// * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
-
-linearDirection::~linearDirection()
-{}
 
 
 // * * * * * * * * * * * * * * * * Operators * * * * * * * * * * * * * * * * //
@@ -74,9 +68,7 @@ point linearDirection::operator()
     const label layer
 ) const
 {
-    //scalar d = thickness_*layer/nLayers_;
-    scalar d = thickness_*sumThickness(layer);
-    return surfacePoint + d*direction_;
+    return surfacePoint + (thickness_*sumThickness(layer)) * direction_;
 }
 
 

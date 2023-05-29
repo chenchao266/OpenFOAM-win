@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2015-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2015-2017 OpenFOAM Foundation
+    Copyright (C) 2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -26,68 +29,67 @@ License
 #include "localIOdictionary.H"
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
-namespace Foam
+
+
+ namespace Foam{
+localIOdictionary::localIOdictionary
+(
+    const IOobject& io,
+    const dictionary* fallback
+)
+:
+    localIOdictionary(io, typeName, fallback)
+{}
+
+
+localIOdictionary::localIOdictionary
+(
+    const IOobject& io,
+    const dictionary& dict
+)
+:
+    localIOdictionary(io, typeName, &dict)
+{}
+
+
+localIOdictionary::localIOdictionary
+(
+    const IOobject& io,
+    const word& wantedType,
+    const dictionary* fallback
+)
+:
+    baseIOdictionary(io, fallback)
 {
-    localIOdictionary::localIOdictionary(const IOobject& io) : baseIOdictionary(io)
+    if (!readHeaderOk(IOstream::ASCII, wantedType) && fallback)
     {
-        readHeaderOk(IOstream::ASCII, typeName);
-
-        // For if MUST_READ_IF_MODIFIED
-        addWatch();
+        dictionary::operator=(*fallback);
     }
 
-
-    localIOdictionary::localIOdictionary
-    (
-        const IOobject& io,
-        const word& wantedType
-    ) : baseIOdictionary(io)
-    {
-        readHeaderOk(IOstream::ASCII, wantedType);
-
-        // For if MUST_READ_IF_MODIFIED
-        addWatch();
-    }
-
-
-    localIOdictionary::localIOdictionary
-    (
-        const IOobject& io,
-        const dictionary& dict
-    ) : baseIOdictionary(io, dict)
-    {
-        if (!readHeaderOk(IOstream::ASCII, typeName))
-        {
-            dictionary::operator=(dict);
-        }
-
-        // For if MUST_READ_IF_MODIFIED
-        addWatch();
-    }
-
-
-    localIOdictionary::localIOdictionary
-    (
-        const IOobject& io,
-        Istream& is
-    ) : baseIOdictionary(io, is)
-    {
-        // Note that we do construct the dictionary null and read in
-        // afterwards
-        // so that if there is some fancy massaging due to a
-        // functionEntry in
-        // the dictionary at least the type information is already complete.
-        is >> *this;
-
-        // For if MUST_READ_IF_MODIFIED
-        addWatch();
-    }
-
-
-    // * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * * //
-
-    localIOdictionary::~localIOdictionary()
-    {}
-
+    // For if MUST_READ_IF_MODIFIED
+    addWatch();
 }
+
+
+localIOdictionary::localIOdictionary
+(
+    const IOobject& io,
+    Istream& is
+)
+:
+    baseIOdictionary(io, is)
+{
+    // Default construct dictionary and read in afterwards
+    // so that if there is some fancy massaging due to a
+    // functionEntry in
+    // the dictionary at least the type information is already complete.
+    is  >> *this;
+
+    // For if MUST_READ_IF_MODIFIED
+    addWatch();
+}
+
+
 // ************************************************************************* //
+
+ } // End namespace Foam

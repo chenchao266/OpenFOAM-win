@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2015 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2015 OpenFOAM Foundation
+    Copyright (C) 2019-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -24,49 +27,43 @@ License
 \*---------------------------------------------------------------------------*/
 
 #include "engineMesh.H"
-#include "Time.T.H"
+#include "Time1.H"
 
 // * * * * * * * * * * * * * * * * Selectors * * * * * * * * * * * * * * * * //
 
-Foam::autoPtr<Foam::engineMesh> Foam::engineMesh::New
-(
-    const Foam::IOobject& io
-)
+Foam::autoPtr<Foam::engineMesh> Foam::engineMesh::New(const IOobject& io)
 {
-    // get model name, but do not register the dictionary
-    // otherwise it is registered in the database twice
-    const word modelType
+    const IOdictionary dict
     (
-        IOdictionary
+        IOobject
         (
-            IOobject
-            (
-                "engineGeometry",
-                io.time().constant(),
-                io.db(),
-                IOobject::MUST_READ_IF_MODIFIED,
-                IOobject::NO_WRITE,
-                false
-            )
-        ).lookup("engineMesh")
+            "engineGeometry",
+            io.time().constant(),
+            io.db(),
+            IOobject::MUST_READ_IF_MODIFIED,
+            IOobject::NO_WRITE,
+            false // Do not register
+        )
     );
+
+    const word modelType(dict.get<word>("engineMesh"));
 
     Info<< "Selecting engineMesh " << modelType << endl;
 
-    IOobjectConstructorTable::iterator cstrIter =
-        IOobjectConstructorTablePtr_->find(modelType);
+    auto* ctorPtr = IOobjectConstructorTable(modelType);
 
-    if (cstrIter == IOobjectConstructorTablePtr_->end())
+    if (!ctorPtr)
     {
-        FatalErrorInFunction
-            << "Unknown engineMesh type "
-            << modelType << nl << nl
-            << "Valid engineMesh types are :" << endl
-            << IOobjectConstructorTablePtr_->sortedToc()
-            << exit(FatalError);
+        FatalIOErrorInLookup
+        (
+            dict,
+            "engineMesh",
+            modelType,
+            *IOobjectConstructorTablePtr_
+        ) << exit(FatalIOError);
     }
 
-    return autoPtr<engineMesh>(cstrIter()(io));
+    return autoPtr<engineMesh>(ctorPtr(io));
 }
 
 

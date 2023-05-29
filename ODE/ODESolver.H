@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2019 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -23,6 +26,9 @@ License
 
 Class
     Foam::ODESolver
+
+Group
+    grpODESolvers
 
 Description
     Abstract base-class for ODE system solvers
@@ -84,11 +90,11 @@ protected:
             const scalarField& err
         ) const;
 
-        //- Disallow default bitwise copy construct
-        ODESolver(const ODESolver&);
+        //- No copy construct
+        ODESolver(const ODESolver&) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const ODESolver&);
+        //- No copy assignment
+        void operator=(const ODESolver&) = delete;
 
 
 public:
@@ -160,8 +166,7 @@ public:
 
 
     //- Destructor
-    virtual ~ODESolver()
-    {}
+    virtual ~ODESolver() = default;
 
 
     // Member Functions
@@ -186,7 +191,7 @@ public:
 
         inline void resizeMatrix(scalarSquareMatrix& m) const;
 
-        //- Solve the ODE system as far as possible upto dxTry
+        //- Solve the ODE system as far as possible up to dxTry
         //  adjusting the step as necessary to provide a solution within
         //  the specified tolerance.
         //  Update the state and return an estimate for the next step in dxTry
@@ -197,7 +202,7 @@ public:
             scalar& dxTry
         ) const;
 
-        //- Solve the ODE system as far as possible upto dxTry
+        //- Solve the ODE system as far as possible up to dxTry
         //  adjusting the step as necessary to provide a solution within
         //  the specified tolerance.
         //  Update the state and return an estimate for the next step in dxTry

@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2013 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2013 OpenFOAM Foundation
+    Copyright (C) 2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -59,10 +62,7 @@ Foam::mappedWallPolyPatch::mappedWallPolyPatch
     mappedPatchBase(static_cast<const polyPatch&>(*this))
 {
     //  mapped is not constraint type so add mapped group explicitly
-    if (findIndex(inGroups(), mappedPolyPatch::typeName) == -1)
-    {
-        inGroups().append(mappedPolyPatch::typeName);
-    }
+    inGroups().appendUniq(mappedPolyPatch::typeName);
 }
 
 
@@ -129,10 +129,7 @@ Foam::mappedWallPolyPatch::mappedWallPolyPatch
     mappedPatchBase(*this, dict)
 {
     //  mapped is not constraint type so add mapped group explicitly
-    if (findIndex(inGroups(), mappedPolyPatch::typeName) == -1)
-    {
-        inGroups().append(mappedPolyPatch::typeName);
-    }
+    inGroups().appendUniq(mappedPolyPatch::typeName);
 }
 
 

@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -23,6 +25,9 @@ License
 
 Class
     Foam::radiation::noRadiation
+
+Group
+    grpRadiationModels
 
 Description
     No radiation - does nothing to energy equation source terms
@@ -55,11 +60,11 @@ class noRadiation
 {
     // Private Member Functions
 
-        //- Disallow default bitwise copy construct
-        noRadiation(const noRadiation&);
+        //- No copy construct
+        noRadiation(const noRadiation&) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const noRadiation&);
+        //- No copy assignment
+        void operator=(const noRadiation&) = delete;
 
 
 public:
@@ -96,6 +101,12 @@ public:
 
             //- Source term component (constant)
             tmp<volScalarField::Internal> Ru() const;
+
+            //- Number of bands
+            label nBands() const
+            {
+                return 0;
+            }
 };
 
 

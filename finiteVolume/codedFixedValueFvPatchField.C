@@ -1,9 +1,12 @@
-﻿/*---------------------------------------------------------------------------*\
+/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2016-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -28,362 +31,286 @@ License
 #include "fvPatchFieldMapper.H"
 #include "volFields.H"
 #include "dynamicCode.H"
-#include "dynamicCodeContext.H"
-#include "stringOps.H"
+#include "dictionaryContent.H"
 
-// * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
-namespace Foam {
-    template<class Type>
-    const word codedFixedValueFvPatchField<Type>::codeTemplateC
-        = "fixedValueFvPatchFieldTemplate.C";
+// * * * * * * * * * * * * * Private Member Functions  * * * * * * * * * * * //
 
-    template<class Type>
-    const word codedFixedValueFvPatchField<Type>::codeTemplateH
-        = "fixedValueFvPatchFieldTemplate.H";
+template<class Type>
+Foam::dlLibraryTable& Foam::codedFixedValueFvPatchField<Type>::libs() const
+{
+    return this->db().time().libs();
+}
 
 
-    // * * * * * * * * * * * * * Static Member Functions * * * * * * * * * * * * //
+template<class Type>
+Foam::string Foam::codedFixedValueFvPatchField<Type>::description() const
+{
+    return
+        "patch "
+      + this->patch().name()
+      + " on field "
+      + this->internalField().name();
+}
 
-    template<class Type>
-    void codedFixedValueFvPatchField<Type>::setFieldTemplates
+
+template<class Type>
+void Foam::codedFixedValueFvPatchField<Type>::clearRedirect() const
+{
+    redirectPatchFieldPtr_.reset(nullptr);
+}
+
+
+template<class Type>
+const Foam::dictionary&
+Foam::codedFixedValueFvPatchField<Type>::codeContext() const
+{
+    const dictionary* ptr = dict_.findDict("codeContext", keyType::LITERAL);
+    return (ptr ? *ptr : dictionary::null);
+}
+
+
+template<class Type>
+const Foam::dictionary&
+Foam::codedFixedValueFvPatchField<Type>::codeDict() const
+{
+    // Inline "code" or from system/codeDict
+    return
     (
-        dynamicCode& dynCode
-    )
+        dict_.found("code")
+      ? dict_
+      : codedBase::codeDict(this->db()).subDict(name_)
+    );
+}
+
+
+template<class Type>
+void Foam::codedFixedValueFvPatchField<Type>::prepare
+(
+    dynamicCode& dynCode,
+    const dynamicCodeContext& context
+) const
+{
+    // Take no chances - typeName must be identical to name_
+    dynCode.setFilterVariable("typeName", name_);
+
+    // Set TemplateType and FieldType filter variables
+    dynCode.setFieldTemplates<Type>();
+
+    // Compile filtered C template
+    dynCode.addCompileFile(codeTemplateC);
+
+    // Copy filtered H template
+    dynCode.addCopyFile(codeTemplateH);
+
+    #ifdef FULLDEBUG
+    dynCode.setFilterVariable("verbose", "true");
+    DetailInfo
+        <<"compile " << name_ << " sha1: " << context.sha1() << endl;
+    #endif
+
+    // Define Make/options
+    dynCode.setMakeOptions
+    (
+        "EXE_INC = -g \\\n"
+        "-I$(LIB_SRC)/finiteVolume/lnInclude \\\n"
+        "-I$(LIB_SRC)/meshTools/lnInclude \\\n"
+      + context.options()
+      + "\n\nLIB_LIBS = \\\n"
+        "    -lOpenFOAM \\\n"
+        "    -lfiniteVolume \\\n"
+        "    -lmeshTools \\\n"
+      + context.libs()
+    );
+}
+
+
+// * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
+
+template<class Type>
+Foam::codedFixedValueFvPatchField<Type>::codedFixedValueFvPatchField
+(
+    const fvPatch& p,
+    const DimensionedField<Type, volMesh>& iF
+)
+:
+    parent_bctype(p, iF),
+    codedBase(),
+    redirectPatchFieldPtr_(nullptr)
+{}
+
+
+template<class Type>
+Foam::codedFixedValueFvPatchField<Type>::codedFixedValueFvPatchField
+(
+    const codedFixedValueFvPatchField<Type>& rhs,
+    const fvPatch& p,
+    const DimensionedField<Type, volMesh>& iF,
+    const fvPatchFieldMapper& mapper
+)
+:
+    parent_bctype(rhs, p, iF, mapper),
+    codedBase(),
+    dict_(rhs.dict_),  // Deep copy
+    name_(rhs.name_),
+    redirectPatchFieldPtr_(nullptr)
+{}
+
+
+template<class Type>
+Foam::codedFixedValueFvPatchField<Type>::codedFixedValueFvPatchField
+(
+    const fvPatch& p,
+    const DimensionedField<Type, volMesh>& iF,
+    const dictionary& dict
+)
+:
+    parent_bctype(p, iF, dict),
+    codedBase(),
+    dict_
+    (
+        // Copy dictionary without "heavy" data chunks
+        dictionaryContent::copyDict
+        (
+            dict,
+            wordList(),  // allow
+            wordList     // deny
+            ({
+                "type",  // redundant
+                "value"
+            })
+        )
+    ),
+    name_(dict.getCompat<word>("name", {{"redirectType", 1706}})),
+    redirectPatchFieldPtr_(nullptr)
+{
+    updateLibrary(name_);
+}
+
+
+template<class Type>
+Foam::codedFixedValueFvPatchField<Type>::codedFixedValueFvPatchField
+(
+    const codedFixedValueFvPatchField<Type>& rhs
+)
+:
+    parent_bctype(rhs),
+    codedBase(),
+    dict_(rhs.dict_),  // Deep copy
+    name_(rhs.name_),
+    redirectPatchFieldPtr_(nullptr)
+{}
+
+
+template<class Type>
+Foam::codedFixedValueFvPatchField<Type>::codedFixedValueFvPatchField
+(
+    const codedFixedValueFvPatchField<Type>& rhs,
+    const DimensionedField<Type, volMesh>& iF
+)
+:
+    parent_bctype(rhs, iF),
+    codedBase(),
+    dict_(rhs.dict_),  // Deep copy
+    name_(rhs.name_),
+    redirectPatchFieldPtr_(nullptr)
+{}
+
+
+// * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
+
+template<class Type>
+const Foam::fvPatchField<Type>&
+Foam::codedFixedValueFvPatchField<Type>::redirectPatchField() const
+{
+    if (!redirectPatchFieldPtr_)
     {
-        word fieldType(pTraits<Type>::typeName);
+        // Construct a patch
+        // Make sure to construct the patchfield with up-to-date value
 
-        // template type for fvPatchField
-        dynCode.setFilterVariable("TemplateType", fieldType);
+        OStringStream os;
+        static_cast<const Field<Type>&>(*this).writeEntry("value", os);
+        IStringStream is(os.str());
+        dictionary constructDict(is);
 
-        // Name for fvPatchField - eg, ScalarField, VectorField, ...
-        fieldType[0] = toupper(fieldType[0]);
-        dynCode.setFilterVariable("FieldType", fieldType + "Field");
-    }
+        constructDict.set("type", name_);
+
+        redirectPatchFieldPtr_.reset
+        (
+            fvPatchField<Type>::New
+            (
+                this->patch(),
+                this->internalField(),
+                constructDict
+            ).ptr()
+        );
 
 
-    // * * * * * * * * * * * * * Private Member Functions  * * * * * * * * * * * //
+        // Forward copy of codeContext to the code template
+        auto* contentPtr =
+            dynamic_cast<dictionaryContent*>(redirectPatchFieldPtr_.get());
 
-    template<class Type>
-    const IOdictionary& codedFixedValueFvPatchField<Type>::dict() const
-    {
-        const objectRegistry& obr = this->db();
-
-        if (obr.foundObject<IOdictionary>("codeDict"))
+        if (contentPtr)
         {
-            return obr.lookupObject<IOdictionary>("codeDict");
+            contentPtr->dict(this->codeContext());
         }
         else
         {
-            return obr.store
-            (
-                new IOdictionary
-                (
-                    IOobject
-                    (
-                        "codeDict",
-                        this->db().time().system(),
-                        this->db(),
-                        IOobject::MUST_READ_IF_MODIFIED,
-                        IOobject::NO_WRITE
-                    )
-                )
-            );
+            WarningInFunction
+                << name_ << " Did not derive from dictionaryContent"
+                << nl << nl;
         }
     }
-
-
-    template<class Type>
-    dlLibraryTable& codedFixedValueFvPatchField<Type>::libs() const
-    {
-        return const_cast<dlLibraryTable&>(this->db().time().libs());
-    }
-
-
-    template<class Type>
-    void codedFixedValueFvPatchField<Type>::prepare
-    (
-        dynamicCode& dynCode,
-        const dynamicCodeContext& context
-    ) const
-    {
-        // take no chances - typeName must be identical to name_
-        dynCode.setFilterVariable("typeName", name_);
-
-        // set TemplateType and FieldType filter variables
-        // (for fvPatchField)
-        setFieldTemplates(dynCode);
-
-        // compile filtered C template
-        dynCode.addCompileFile(codeTemplateC);
-
-        // copy filtered H template
-        dynCode.addCopyFile(codeTemplateH);
-
-
-        // debugging: make BC verbose
-        //  dynCode.setFilterVariable("verbose", "true");
-        //  Info<<"compile " << name_ << " sha1: "
-        //      << context.sha1() << endl;
-
-        // define Make/options
-        dynCode.setMakeOptions
-        (
-            "EXE_INC = -g \\\n"
-            "-I$(LIB_SRC)/finiteVolume/lnInclude \\\n"
-            + context.options()
-            + "\n\nLIB_LIBS = \\\n"
-            + "    -lOpenFOAM \\\n"
-            + "    -lfiniteVolume \\\n"
-            + context.libs()
-        );
-    }
-
-
-    template<class Type>
-    const dictionary& codedFixedValueFvPatchField<Type>::codeDict()
-        const
-    {
-        // use system/codeDict or in-line
-        return
-            (
-                dict_.found("code")
-                ? dict_
-                : this->dict().subDict(name_)
-                );
-    }
-
-
-    template<class Type>
-    string codedFixedValueFvPatchField<Type>::description() const
-    {
-        return
-            "patch "
-            + this->patch().name()
-            + " on field "
-            + this->internalField().name();
-    }
-
-
-    template<class Type>
-    void codedFixedValueFvPatchField<Type>::clearRedirect() const
-    {
-        // remove instantiation of fvPatchField provided by library
-        redirectPatchFieldPtr_.clear();
-    }
-
-
-    // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
-
-    template<class Type>
-    codedFixedValueFvPatchField<Type>::codedFixedValueFvPatchField
-    (
-        const fvPatch& p,
-        const DimensionedField<Type, volMesh>& iF
-    )
-        :
-        fixedValueFvPatchField<Type>(p, iF),
-        codedBase(),
-        redirectPatchFieldPtr_()
-    {}
-
-
-    template<class Type>
-    codedFixedValueFvPatchField<Type>::codedFixedValueFvPatchField
-    (
-        const codedFixedValueFvPatchField<Type>& ptf,
-        const fvPatch& p,
-        const DimensionedField<Type, volMesh>& iF,
-        const fvPatchFieldMapper& mapper
-    )
-        :
-        fixedValueFvPatchField<Type>(ptf, p, iF, mapper),
-        codedBase(),
-        dict_(ptf.dict_),
-        name_(ptf.name_),
-        redirectPatchFieldPtr_()
-    {}
-
-
-    template<class Type>
-    codedFixedValueFvPatchField<Type>::codedFixedValueFvPatchField
-    (
-        const fvPatch& p,
-        const DimensionedField<Type, volMesh>& iF,
-        const dictionary& dict
-    )
-        :
-        fixedValueFvPatchField<Type>(p, iF, dict),
-        codedBase(),
-        dict_(dict),
-        name_
-        (
-            dict.found("redirectType")
-            ? dict.lookup("redirectType")
-            : dict.lookup("name")
-        ),
-        redirectPatchFieldPtr_()
-    {
-        updateLibrary(name_);
-    }
-
-
-    template<class Type>
-    codedFixedValueFvPatchField<Type>::codedFixedValueFvPatchField
-    (
-        const codedFixedValueFvPatchField<Type>& ptf
-    )
-        :
-        fixedValueFvPatchField<Type>(ptf),
-        codedBase(),
-        dict_(ptf.dict_),
-        name_(ptf.name_),
-        redirectPatchFieldPtr_()
-    {}
-
-
-    template<class Type>
-    codedFixedValueFvPatchField<Type>::codedFixedValueFvPatchField
-    (
-        const codedFixedValueFvPatchField<Type>& ptf,
-        const DimensionedField<Type, volMesh>& iF
-    )
-        :
-        fixedValueFvPatchField<Type>(ptf, iF),
-        codedBase(),
-        dict_(ptf.dict_),
-        name_(ptf.name_),
-        redirectPatchFieldPtr_()
-    {}
-
-
-    // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
-
-    template<class Type>
-    const fvPatchField<Type>&
-        codedFixedValueFvPatchField<Type>::redirectPatchField() const
-    {
-        if (!redirectPatchFieldPtr_.valid())
-        {
-            // Construct a patch
-            // Make sure to construct the patchfield with up-to-date value
-
-            OStringStream os;
-            os.writeKeyword("type") << name_ << token::END_STATEMENT
-                << nl;
-            static_cast<const Field<Type>&>(*this).writeEntry("value", os);
-            IStringStream is(os.str());
-            dictionary dict(is);
-
-            redirectPatchFieldPtr_.set
-            (
-                fvPatchField<Type>::New
-                (
-                    this->patch(),
-                    this->internalField(),
-                    dict
-                ).ptr()
-            );
-        }
-        return redirectPatchFieldPtr_();
-    }
-
-
-    template<class Type>
-    void codedFixedValueFvPatchField<Type>::updateCoeffs()
-    {
-        if (this->updated())
-        {
-            return;
-        }
-
-        // Make sure library containing user-defined fvPatchField is up-to-date
-        updateLibrary(name_);
-
-        const fvPatchField<Type>& fvp = redirectPatchField();
-
-        const_cast<fvPatchField<Type>&>(fvp).updateCoeffs();
-
-        // Copy through value
-        this->operator==(fvp);
-
-        fixedValueFvPatchField<Type>::updateCoeffs();
-    }
-
-
-    template<class Type>
-    void codedFixedValueFvPatchField<Type>::evaluate
-    (
-        const Pstream::commsTypes commsType
-    )
-    {
-        // Make sure library containing user-defined fvPatchField is up-to-date
-        updateLibrary(name_);
-
-        const fvPatchField<Type>& fvp = redirectPatchField();
-
-        const_cast<fvPatchField<Type>&>(fvp).evaluate(commsType);
-
-        fixedValueFvPatchField<Type>::evaluate(commsType);
-    }
-
-
-    template<class Type>
-    void codedFixedValueFvPatchField<Type>::write(Ostream& os) const
-    {
-        fixedValueFvPatchField<Type>::write(os);
-        os.writeKeyword("name") << name_
-            << token::END_STATEMENT << nl;
-
-        if (dict_.found("codeInclude"))
-        {
-            os.writeKeyword("codeInclude")
-                << token::HASH << token::BEGIN_BLOCK;
-
-            os.writeQuoted(string(dict_["codeInclude"]), false)
-                << token::HASH << token::END_BLOCK
-                << token::END_STATEMENT << nl;
-        }
-
-        if (dict_.found("localCode"))
-        {
-            os.writeKeyword("localCode")
-                << token::HASH << token::BEGIN_BLOCK;
-
-            os.writeQuoted(string(dict_["localCode"]), false)
-                << token::HASH << token::END_BLOCK
-                << token::END_STATEMENT << nl;
-        }
-
-        if (dict_.found("code"))
-        {
-            os.writeKeyword("code")
-                << token::HASH << token::BEGIN_BLOCK;
-
-            os.writeQuoted(string(dict_["code"]), false)
-                << token::HASH << token::END_BLOCK
-                << token::END_STATEMENT << nl;
-        }
-
-        if (dict_.found("codeOptions"))
-        {
-            os.writeKeyword("codeOptions")
-                << token::HASH << token::BEGIN_BLOCK;
-
-            os.writeQuoted(string(dict_["codeOptions"]), false)
-                << token::HASH << token::END_BLOCK
-                << token::END_STATEMENT << nl;
-        }
-
-        if (dict_.found("codeLibs"))
-        {
-            os.writeKeyword("codeLibs")
-                << token::HASH << token::BEGIN_BLOCK;
-
-            os.writeQuoted(string(dict_["codeLibs"]), false)
-                << token::HASH << token::END_BLOCK
-                << token::END_STATEMENT << nl;
-        }
-    }
-
+    return *redirectPatchFieldPtr_;
 }
+
+
+template<class Type>
+void Foam::codedFixedValueFvPatchField<Type>::updateCoeffs()
+{
+    if (this->updated())
+    {
+        return;
+    }
+
+    // Make sure library containing user-defined fvPatchField is up-to-date
+    updateLibrary(name_);
+
+    const fvPatchField<Type>& fvp = redirectPatchField();
+
+    const_cast<fvPatchField<Type>&>(fvp).updateCoeffs();
+
+    // Copy through value
+    this->operator==(fvp);
+
+    parent_bctype::updateCoeffs();
+}
+
+
+template<class Type>
+void Foam::codedFixedValueFvPatchField<Type>::evaluate
+(
+    const Pstream::commsTypes commsType
+)
+{
+    // Make sure library containing user-defined fvPatchField is up-to-date
+    updateLibrary(name_);
+
+    const fvPatchField<Type>& fvp = redirectPatchField();
+
+    const_cast<fvPatchField<Type>&>(fvp).evaluate(commsType);
+
+    parent_bctype::evaluate(commsType);
+}
+
+
+template<class Type>
+void Foam::codedFixedValueFvPatchField<Type>::write(Ostream& os) const
+{
+    this->parent_bctype::write(os);
+    os.writeEntry("name", name_);
+
+    codedBase::writeCodeDict(os, dict_);
+}
+
+
 // ************************************************************************* //

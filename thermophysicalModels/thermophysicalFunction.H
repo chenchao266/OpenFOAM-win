@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011 OpenFOAM Foundation
+    Copyright (C) 2019 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -37,7 +40,7 @@ Description
 #include "typeInfo.H"
 #include "autoPtr.H"
 #include "runTimeSelectionTables.H"
-#include "dictionary.H"
+#include "dictionary2.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -63,6 +66,15 @@ public:
         (
             autoPtr,
             thermophysicalFunction,
+            Istream,
+            (Istream& is),
+            (is)
+        );
+
+        declareRunTimeSelectionTable
+        (
+            autoPtr,
+            thermophysicalFunction,
             dictionary,
             (const dictionary& dict),
             (dict)
@@ -75,13 +87,15 @@ public:
         thermophysicalFunction()
         {}
 
+        //- Return pointer to new thermophysicalFunction created from input
+        static autoPtr<thermophysicalFunction> New(Istream& is);
+
         //- Return pointer to new thermophysicalFunction created from dict
         static autoPtr<thermophysicalFunction> New(const dictionary& dict);
 
 
     //- Destructor
-    virtual ~thermophysicalFunction()
-    {}
+    virtual ~thermophysicalFunction() = default;
 
 
     // Member Functions

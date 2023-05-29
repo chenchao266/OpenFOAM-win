@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -28,7 +30,7 @@ License
 #include "dynamicIndexedOctree.H"
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
-using namespace Foam;
+
 namespace Foam
 {
 defineTypeNameAndDebug(dynamicTreeDataPoint, 0);
@@ -40,7 +42,9 @@ defineTypeNameAndDebug(dynamicTreeDataPoint, 0);
 dynamicTreeDataPoint::dynamicTreeDataPoint
 (
     const DynamicList<point>& points
-) :    points_(points)
+)
+:
+    points_(points)
 {}
 
 

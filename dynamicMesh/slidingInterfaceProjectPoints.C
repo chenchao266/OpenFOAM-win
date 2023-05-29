@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2017-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -58,15 +61,15 @@ bool Foam::slidingInterface::projectPoints() const
 {
     if (debug)
     {
-        Pout<< "bool slidingInterface::projectPoints() : "
-            << " for object " << name() << " : "
+        Pout<< FUNCTION_NAME << nl
+            << ": for object " << name() << " : "
             << "Projecting slave points onto master surface." << endl;
     }
 
     // Algorithm:
     // 1) Go through all the points of the master and slave patch and calculate
     //    minimum edge length coming from the point.  Calculate the point
-    //    merge tolerance as the fraction of mimimum edge length.
+    //    merge tolerance as the fraction of minimum edge length.
     // 2) Project all the slave points onto the master patch
     //    in the normal direction.
     // 3) If some points have missed and the match is integral, the
@@ -126,12 +129,11 @@ bool Foam::slidingInterface::projectPoints() const
     scalarField minMasterPointLength(masterLocalPoints.size(), GREAT);
     scalarField minMasterFaceLength(masterPatch.size(), GREAT);
 
-    forAll(masterEdges, edgeI)
+    forAll(masterEdges, edgei)
     {
-        const edge& curEdge = masterEdges[edgeI];
+        const edge& curEdge = masterEdges[edgei];
 
-        const scalar curLength =
-            masterEdges[edgeI].mag(masterLocalPoints);
+        const scalar curLength = curEdge.mag(masterLocalPoints);
 
         // Do points
         minMasterPointLength[curEdge.start()] =
@@ -149,14 +151,14 @@ bool Foam::slidingInterface::projectPoints() const
             );
 
         // Do faces
-        const labelList& curFaces = masterEdgeFaces[edgeI];
+        const labelList& curFaces = masterEdgeFaces[edgei];
 
-        forAll(curFaces, facei)
+        for (const label facei : curFaces)
         {
-            minMasterFaceLength[curFaces[facei]] =
+            minMasterFaceLength[facei] =
                 min
                 (
-                    minMasterFaceLength[curFaces[facei]],
+                    minMasterFaceLength[facei],
                     curLength
                 );
         }
@@ -169,12 +171,11 @@ bool Foam::slidingInterface::projectPoints() const
     scalarField minSlavePointLength(slaveLocalPoints.size(), GREAT);
     scalarField minSlaveFaceLength(slavePatch.size(), GREAT);
 
-    forAll(slaveEdges, edgeI)
+    forAll(slaveEdges, edgei)
     {
-        const edge& curEdge = slaveEdges[edgeI];
+        const edge& curEdge = slaveEdges[edgei];
 
-        const scalar curLength =
-            slaveEdges[edgeI].mag(slaveLocalPoints);
+        const scalar curLength = curEdge.mag(slaveLocalPoints);
 
         // Do points
         minSlavePointLength[curEdge.start()] =
@@ -192,14 +193,14 @@ bool Foam::slidingInterface::projectPoints() const
             );
 
         // Do faces
-        const labelList& curFaces = slaveEdgeFaces[edgeI];
+        const labelList& curFaces = slaveEdgeFaces[edgei];
 
-        forAll(curFaces, facei)
+        for (const label facei : curFaces)
         {
-            minSlaveFaceLength[curFaces[facei]] =
+            minSlaveFaceLength[facei] =
                 min
                 (
-                    minSlaveFaceLength[curFaces[facei]],
+                    minSlaveFaceLength[facei],
                     curLength
                 );
         }
@@ -219,25 +220,15 @@ bool Foam::slidingInterface::projectPoints() const
             projectionAlgo_
         );
 
-//     Pout<< "USING N-SQAURED!!!" << endl;
-//     List<objectHit> slavePointFaceHits =
-//         projectPointsNSquared<face, List, const pointField&>
-//         (
-//             slavePatch,
-//             masterPatch,
-//             slavePointNormals,
-//             projectionAlgo_
-//         );
-
     if (debug)
     {
         label nHits = 0;
 
-        forAll(slavePointFaceHits, pointi)
+        for (const auto& hit : slavePointFaceHits)
         {
-            if (slavePointFaceHits[pointi].hit())
+            if (hit.hit())
             {
-                nHits++;
+                ++nHits;
             }
         }
 
@@ -247,11 +238,11 @@ bool Foam::slidingInterface::projectPoints() const
     }
 
     // Projected slave points are stored for mesh motion correction
-    if (projectedSlavePointsPtr_) delete projectedSlavePointsPtr_;
-
-    projectedSlavePointsPtr_ =
-        new pointField(slavePointFaceHits.size(), Zero);
-    pointField& projectedSlavePoints = *projectedSlavePointsPtr_;
+    projectedSlavePointsPtr_.reset
+    (
+        new pointField(slavePointFaceHits.size(), Zero)
+    );
+    auto& projectedSlavePoints = *projectedSlavePointsPtr_;
 
     // Adjust projection to type of match
 
@@ -380,29 +371,27 @@ bool Foam::slidingInterface::projectPoints() const
 
         // Check for zero-length edges in slave projection
         scalar minEdgeLength = GREAT;
-        scalar el = 0;
         label nShortEdges = 0;
 
-        forAll(slaveEdges, edgeI)
+        for (const edge& e : slaveEdges)
         {
-            el = slaveEdges[edgeI].mag(projectedSlavePoints);
+            const scalar len = e.mag(projectedSlavePoints);
+            minEdgeLength = min(minEdgeLength, len);
 
-            if (el < SMALL)
+            if (len < SMALL)
             {
                 Pout<< "Point projection problems for edge: "
-                    << slaveEdges[edgeI] << ". Length = " << el
+                    << e << ". Length = " << len
                     << endl;
 
                 nShortEdges++;
             }
-
-            minEdgeLength = min(minEdgeLength, el);
         }
 
         if (nShortEdges > 0)
         {
             FatalErrorInFunction
-                << " short projected edges "
+                << nShortEdges << " short projected edges "
                 << "after adjustment for object " << name()
                 << abort(FatalError);
         }
@@ -439,10 +428,10 @@ bool Foam::slidingInterface::projectPoints() const
     {
         if (slavePointFaceHits[pointi].hit())
         {
-            // Taking a non-const reference so the point can be adjusted
+            // Use non-const reference so the point can be adjusted
             point& curPoint = projectedSlavePoints[pointi];
 
-            // Get the hit face
+            // Get the hit face (on master)
             const face& hitFace =
                 masterLocalFaces[slavePointFaceHits[pointi].hitObject()];
 
@@ -450,10 +439,10 @@ bool Foam::slidingInterface::projectPoints() const
             scalar mergeDist = GREAT;
 
             // Try all point before deciding on best fit.
-            forAll(hitFace, hitPointi)
+            for (const label hitPointi : hitFace)
             {
-                scalar dist =
-                    mag(masterLocalPoints[hitFace[hitPointi]] - curPoint);
+                const scalar dist =
+                    mag(masterLocalPoints[hitPointi] - curPoint);
 
                 // Calculate the tolerance
                 const scalar mergeTol =
@@ -461,12 +450,12 @@ bool Foam::slidingInterface::projectPoints() const
                     min
                     (
                         minSlavePointLength[pointi],
-                        minMasterPointLength[hitFace[hitPointi]]
+                        minMasterPointLength[hitPointi]
                     );
 
                 if (dist < mergeTol && dist < mergeDist)
                 {
-                    mergePoint = hitFace[hitPointi];
+                    mergePoint = hitPointi;
                     mergeDist = dist;
 
 //                     Pout<< "Merging slave point "
@@ -481,12 +470,17 @@ bool Foam::slidingInterface::projectPoints() const
 
             if (mergePoint > -1)
             {
-                // Point is to be merged with master point
+                // Slave point is to be merged with master point.
+                // This may also include a false positive when the two points
+                // already point to the same global point, but this will need
+                // to be addressed by the caller.
                 nMergedPoints++;
 
                 slavePointPointHits[pointi] = mergePoint;
-                curPoint = masterLocalPoints[mergePoint];
                 masterPointPointHits[mergePoint] = pointi;
+
+                // Adjust (snap) slave point
+                curPoint = masterLocalPoints[mergePoint];
             }
         }
     }
@@ -498,20 +492,18 @@ bool Foam::slidingInterface::projectPoints() const
     {
         // Check for zero-length edges in slave projection
         scalar minEdgeLength = GREAT;
-        scalar el = 0;
 
-        forAll(slaveEdges, edgeI)
+        for (const edge& e : slaveEdges)
         {
-            el = slaveEdges[edgeI].mag(projectedSlavePoints);
+            const scalar len = e.mag(projectedSlavePoints);
+            minEdgeLength = min(minEdgeLength, len);
 
-            if (el < SMALL)
+            if (len < SMALL)
             {
                 Pout<< "Point projection problems for edge: "
-                    << slaveEdges[edgeI] << ". Length = " << el
+                    << e << ". Length = " << len
                     << endl;
             }
-
-            minEdgeLength = min(minEdgeLength, el);
         }
 
         if (minEdgeLength < SMALL)
@@ -556,16 +548,16 @@ bool Foam::slidingInterface::projectPoints() const
 
             scalar minDistance = GREAT;
 
-            forAll(hitFaceEdges, edgeI)
+            for (const label edgei : hitFaceEdges)
             {
-                const edge& curEdge = masterEdges[hitFaceEdges[edgeI]];
+                const edge& curEdge = masterEdges[edgei];
 
                 pointHit edgeHit =
                     curEdge.line(masterLocalPoints).nearestDist(curPoint);
 
                 if (edgeHit.hit())
                 {
-                    scalar dist =
+                    const scalar dist =
                         mag(edgeHit.hitPoint() - projectedSlavePoints[pointi]);
 
                     if (dist < mergeTol && dist < minDistance)
@@ -573,7 +565,7 @@ bool Foam::slidingInterface::projectPoints() const
                         // Point is to be moved onto master edge
                         nMovedPoints++;
 
-                        slavePointEdgeHits[pointi] = hitFaceEdges[edgeI];
+                        slavePointEdgeHits[pointi] = edgei;
                         projectedSlavePoints[pointi] = edgeHit.hitPoint();
 
                         minDistance = dist;
@@ -582,7 +574,7 @@ bool Foam::slidingInterface::projectPoints() const
 //                             << slavePatch.meshPoints()[pointi]
 //                             << " (" << pointi
 //                             << ") at " << slaveLocalPoints[pointi]
-//                             << " onto master edge " << hitFaceEdges[edgeI]
+//                             << " onto master edge " << edgei
 //                             << " or ("
 //                             << masterLocalPoints[curEdge.start()]
 //                             << masterLocalPoints[curEdge.end()]
@@ -607,7 +599,7 @@ bool Foam::slidingInterface::projectPoints() const
 
                 forAll(hitMasterEdge, hmeI)
                 {
-                    scalar hmeDist =
+                    const scalar hmeDist =
                         mag(masterLocalPoints[hitMasterEdge[hmeI]] - curPoint);
 
                     // Calculate the tolerance
@@ -660,27 +652,25 @@ bool Foam::slidingInterface::projectPoints() const
 
         // Check for zero-length edges in slave projection
         scalar minEdgeLength = GREAT;
-        scalar el = 0;
 
-        forAll(slaveEdges, edgeI)
+        for (const edge& e : slaveEdges)
         {
-            el = slaveEdges[edgeI].mag(projectedSlavePoints);
+            const scalar len = e.mag(projectedSlavePoints);
+            minEdgeLength = min(minEdgeLength, len);
 
-            if (el < SMALL)
+            if (len < SMALL)
             {
                 Pout<< "Point projection problems for edge: "
-                    << slaveEdges[edgeI] << ". Length = " << el
+                    << e << ". Length = " << len
                     << endl;
             }
-
-            minEdgeLength = min(minEdgeLength, el);
         }
 
         if (minEdgeLength < SMALL)
         {
             FatalErrorInFunction
-            << " after correction for object " << name()
-            << abort(FatalError);
+                << " after correction for object " << name()
+                << abort(FatalError);
         }
     }
 
@@ -747,25 +737,19 @@ bool Foam::slidingInterface::projectPoints() const
 
     labelHashSet addedFaces(2*primitiveMesh::edgesPerFace_);
 
-    forAll(slaveEdges, edgeI)
+    forAll(slaveEdges, edgei)
     {
-        const edge& curEdge = slaveEdges[edgeI];
+        const edge& curEdge = slaveEdges[edgei];
 
         {
-            // Clear the maps
-            curFaceMap.clear();
-            addedFaces.clear();
-
             // Grab the faces for start and end points
             const label startFace =
                 slavePointFaceHits[curEdge.start()].hitObject();
-            const label endFace = slavePointFaceHits[curEdge.end()].hitObject();
 
-            // Insert the start face into the list
-            curFaceMap.insert(startFace);
-            addedFaces.insert(startFace);
+            const label endFace =
+                slavePointFaceHits[curEdge.end()].hitObject();
 
-            // Pout<< "Doing edge " << edgeI
+            // Pout<< "Doing edge " << edgei
             //     << " or " << curEdge
             //     << " start: "
             //     << slavePointFaceHits[curEdge.start()].hitObject()
@@ -774,46 +758,59 @@ bool Foam::slidingInterface::projectPoints() const
             //     << endl;
 
             // If the end face is on the list, the face collection is finished
-            label nSweeps = 0;
             bool completed = false;
 
-            while (nSweeps < edgeFaceEscapeLimit_)
+            if (!completed)
             {
-                nSweeps++;
+                // Forward sweep
 
-                if (addedFaces.found(endFace))
-                {
-                    completed = true;
-                }
-
-                // Add all face neighbours of face in the map
-                const labelList cf = addedFaces.toc();
+                // Clear the maps
+                curFaceMap.clear();
                 addedFaces.clear();
 
-                forAll(cf, cfI)
-                {
-                    const labelList& curNbrs = masterFaceFaces[cf[cfI]];
+                // Insert the start face into the list
+                curFaceMap.insert(startFace);
+                addedFaces.insert(startFace);
 
-                    forAll(curNbrs, nbrI)
+                for
+                (
+                    label nSweeps = 0;
+                    nSweeps < edgeFaceEscapeLimit_;
+                    ++nSweeps
+                )
+                {
+                    completed = addedFaces.found(endFace);
+
+                    // Add all face neighbours of face in the map
+                    const labelList cf(addedFaces.toc());
+                    addedFaces.clear();
+
+                    for (const label cfi : cf)
                     {
-                        if (!curFaceMap.found(curNbrs[nbrI]))
+                        const labelList& curNbrs = masterFaceFaces[cfi];
+
+                        for (const label nbri : curNbrs)
                         {
-                            curFaceMap.insert(curNbrs[nbrI]);
-                            addedFaces.insert(curNbrs[nbrI]);
+                            if (curFaceMap.insert(nbri))
+                            {
+                                addedFaces.insert(nbri);
+                            }
                         }
                     }
-                }
 
-                if (completed) break;
+                    if (completed) break;
 
-                if (debug)
-                {
-                    Pout<< ".";
+                    if (debug)
+                    {
+                        Pout<< ".";
+                    }
                 }
             }
 
             if (!completed)
             {
+                // Reverse sweep
+
                 if (debug)
                 {
                     Pout<< "x";
@@ -822,35 +819,32 @@ bool Foam::slidingInterface::projectPoints() const
                 // It is impossible to reach the end from the start, probably
                 // due to disconnected domain.  Do search in opposite direction
 
-                label nReverseSweeps = 0;
-
                 addedFaces.clear();
                 curFaceMap.insert(endFace);
                 addedFaces.insert(endFace);
 
-                while (nReverseSweeps < edgeFaceEscapeLimit_)
+                for
+                (
+                    label nSweeps = 0;
+                    nSweeps < edgeFaceEscapeLimit_;
+                    ++nSweeps
+                )
                 {
-                    nReverseSweeps++;
-
-                    if (addedFaces.found(startFace))
-                    {
-                        completed = true;
-                    }
+                    completed = addedFaces.found(startFace);
 
                     // Add all face neighbours of face in the map
-                    const labelList cf = addedFaces.toc();
+                    const labelList cf(addedFaces.toc());
                     addedFaces.clear();
 
-                    forAll(cf, cfI)
+                    for (const label cfi : cf)
                     {
-                        const labelList& curNbrs = masterFaceFaces[cf[cfI]];
+                        const labelList& curNbrs = masterFaceFaces[cfi];
 
-                        forAll(curNbrs, nbrI)
+                        for (const label nbri : curNbrs)
                         {
-                            if (!curFaceMap.found(curNbrs[nbrI]))
+                            if (curFaceMap.insert(nbri))
                             {
-                                curFaceMap.insert(curNbrs[nbrI]);
-                                addedFaces.insert(curNbrs[nbrI]);
+                                addedFaces.insert(nbri);
                             }
                         }
                     }
@@ -887,16 +881,10 @@ bool Foam::slidingInterface::projectPoints() const
                 nFacesPerSlaveEdge_*primitiveMesh::pointsPerFace_
             );
 
-            const labelList curFaces = curFaceMap.toc();
-//             Pout<< "curFaces: " << curFaces << endl;
-            forAll(curFaces, facei)
+            for (const label facei : curFaceMap)
             {
-                const face& f = masterLocalFaces[curFaces[facei]];
-
-                forAll(f, pointi)
-                {
-                    curPointMap.insert(f[pointi]);
-                }
+                const face& f = masterLocalFaces[facei];
+                curPointMap.insert(f);  // Insert all face points
             }
 
             const labelList curMasterPoints = curPointMap.toc();
@@ -912,7 +900,7 @@ bool Foam::slidingInterface::projectPoints() const
             // is used to reject master points out of reach.
             // Calculated as a combination of travel distance in projection and
             // edge length
-            scalar slaveCatchDist =
+            const scalar slaveCatchDist =
                 edgeMasterCatchFraction_*edgeMag
               + 0.5*
                 (
@@ -936,19 +924,18 @@ bool Foam::slidingInterface::projectPoints() const
             // projected-master-to-edge distance is used, to avoid
             // problems with badly defined master planes.  HJ,
             // 17/Oct/2004
-            vector edgeNormalInPlane =
-                edgeVec
-              ^ (
-                    slavePointNormals[curEdge.start()]
-                  + slavePointNormals[curEdge.end()]
+            const vector edgeNormalInPlane =
+                normalised
+                (
+                    edgeVec
+                  ^ (
+                        slavePointNormals[curEdge.start()]
+                      + slavePointNormals[curEdge.end()]
+                    )
                 );
 
-            edgeNormalInPlane /= mag(edgeNormalInPlane);
-
-            forAll(curMasterPoints, pointi)
+            for (const label cmp : curMasterPoints)
             {
-                const label cmp = curMasterPoints[pointi];
-
                 // Skip the current point if the edge start or end has
                 // been adjusted onto in
                 if
@@ -974,11 +961,11 @@ bool Foam::slidingInterface::projectPoints() const
 
                     // Strict checking of slave cut to avoid capturing
                     // end points.
-                    scalar cutOnSlave =
+                    const scalar cutOnSlave =
                         ((edgeLineHit.hitPoint() - edgeLine.start()) & edgeVec)
                         /sqr(edgeMag);
 
-                    scalar distInEdgePlane =
+                    const scalar distInEdgePlane =
                         min
                         (
                             edgeLineHit.distance(),
@@ -1032,14 +1019,14 @@ bool Foam::slidingInterface::projectPoints() const
                         }
 
                         // Snap to point onto edge
-                        masterPointEdgeHits[cmp] = edgeI;
+                        masterPointEdgeHits[cmp] = edgei;
                         masterPointEdgeDist[cmp] = edgeLineHit.distance();
 
 //                         Pout<< "Inserting master point "
 //                             << masterPatch.meshPoints()[cmp]
 //                             << " (" << cmp
 //                             << ") at " << masterLocalPoints[cmp]
-//                             << " into slave edge " << edgeI
+//                             << " into slave edge " << edgei
 //                             << " " << curEdge
 //                             << " cutOnSlave: " << cutOnSlave
 //                             << " distInEdgePlane: " << distInEdgePlane
@@ -1095,17 +1082,22 @@ bool Foam::slidingInterface::projectPoints() const
         trigger_ = true;
 
         // Store the addressing arrays and projected points
-        deleteDemandDrivenData(slavePointPointHitsPtr_);
-        slavePointPointHitsPtr_ = new labelList(slavePointPointHits);
-
-        deleteDemandDrivenData(slavePointEdgeHitsPtr_);
-        slavePointEdgeHitsPtr_ = new labelList(slavePointEdgeHits);
-
-        deleteDemandDrivenData(slavePointFaceHitsPtr_);
-        slavePointFaceHitsPtr_ = new List<objectHit>(slavePointFaceHits);
-
-        deleteDemandDrivenData(masterPointEdgeHitsPtr_);
-        masterPointEdgeHitsPtr_ = new labelList(masterPointEdgeHits);
+        slavePointPointHitsPtr_.reset
+        (
+            new labelList(std::move(slavePointPointHits))
+        );
+        slavePointEdgeHitsPtr_.reset
+        (
+            new labelList(std::move(slavePointEdgeHits))
+        );
+        slavePointFaceHitsPtr_.reset
+        (
+            new List<objectHit>(std::move(slavePointFaceHits))
+        );
+        masterPointEdgeHitsPtr_.reset
+        (
+            new labelList(std::move(masterPointEdgeHits))
+        );
 
         if (debug)
         {
@@ -1127,17 +1119,22 @@ bool Foam::slidingInterface::projectPoints() const
         )
         {
             // Must be restart.  Force topological change.
-            deleteDemandDrivenData(slavePointPointHitsPtr_);
-            slavePointPointHitsPtr_ = new labelList(slavePointPointHits);
-
-            deleteDemandDrivenData(slavePointEdgeHitsPtr_);
-            slavePointEdgeHitsPtr_ = new labelList(slavePointEdgeHits);
-
-            deleteDemandDrivenData(slavePointFaceHitsPtr_);
-            slavePointFaceHitsPtr_ = new List<objectHit>(slavePointFaceHits);
-
-            deleteDemandDrivenData(masterPointEdgeHitsPtr_);
-            masterPointEdgeHitsPtr_ = new labelList(masterPointEdgeHits);
+            slavePointPointHitsPtr_.reset
+            (
+                new labelList(slavePointPointHits)
+            );
+            slavePointEdgeHitsPtr_.reset
+            (
+                new labelList(std::move(slavePointEdgeHits))
+            );
+            slavePointFaceHitsPtr_.reset
+            (
+                new List<objectHit>(std::move(slavePointFaceHits))
+            );
+            masterPointEdgeHitsPtr_.reset
+            (
+                new labelList(std::move(masterPointEdgeHits))
+            );
 
             if (debug)
             {
@@ -1148,7 +1145,7 @@ bool Foam::slidingInterface::projectPoints() const
             return trigger_;
         }
 
-        if (slavePointPointHits != (*slavePointPointHitsPtr_))
+        if (slavePointPointHits != *slavePointPointHitsPtr_)
         {
             if (debug)
             {
@@ -1158,7 +1155,7 @@ bool Foam::slidingInterface::projectPoints() const
             trigger_ = true;
         }
 
-        if (slavePointEdgeHits != (*slavePointEdgeHitsPtr_))
+        if (slavePointEdgeHits != *slavePointEdgeHitsPtr_)
         {
             if (debug)
             {
@@ -1203,7 +1200,7 @@ bool Foam::slidingInterface::projectPoints() const
 
         }
 
-        if (masterPointEdgeHits != (*masterPointEdgeHitsPtr_))
+        if (masterPointEdgeHits != *masterPointEdgeHitsPtr_)
         {
             if (debug)
             {
@@ -1217,17 +1214,22 @@ bool Foam::slidingInterface::projectPoints() const
         if (trigger_)
         {
             // Grab new data
-            deleteDemandDrivenData(slavePointPointHitsPtr_);
-            slavePointPointHitsPtr_ = new labelList(slavePointPointHits);
-
-            deleteDemandDrivenData(slavePointEdgeHitsPtr_);
-            slavePointEdgeHitsPtr_ = new labelList(slavePointEdgeHits);
-
-            deleteDemandDrivenData(slavePointFaceHitsPtr_);
-            slavePointFaceHitsPtr_ = new List<objectHit>(slavePointFaceHits);
-
-            deleteDemandDrivenData(masterPointEdgeHitsPtr_);
-            masterPointEdgeHitsPtr_ = new labelList(masterPointEdgeHits);
+            slavePointPointHitsPtr_.reset
+            (
+                new labelList(std::move(slavePointPointHits))
+            );
+            slavePointEdgeHitsPtr_.reset
+            (
+                new labelList(std::move(slavePointEdgeHits))
+            );
+            slavePointFaceHitsPtr_.reset
+            (
+                new List<objectHit>(std::move(slavePointFaceHits))
+            );
+            masterPointEdgeHitsPtr_.reset
+            (
+                new labelList(std::move(masterPointEdgeHits))
+            );
 
             if (debug)
             {
@@ -1249,12 +1251,12 @@ bool Foam::slidingInterface::projectPoints() const
 
 void Foam::slidingInterface::clearPointProjection() const
 {
-    deleteDemandDrivenData(slavePointPointHitsPtr_);
-    deleteDemandDrivenData(slavePointEdgeHitsPtr_);
-    deleteDemandDrivenData(slavePointFaceHitsPtr_);
-    deleteDemandDrivenData(masterPointEdgeHitsPtr_);
+    slavePointPointHitsPtr_.reset(nullptr);
+    slavePointEdgeHitsPtr_.reset(nullptr);
+    slavePointFaceHitsPtr_.reset(nullptr);
+    masterPointEdgeHitsPtr_.reset(nullptr);
 
-    deleteDemandDrivenData(projectedSlavePointsPtr_);
+    projectedSlavePointsPtr_.reset(nullptr);
 }
 
 

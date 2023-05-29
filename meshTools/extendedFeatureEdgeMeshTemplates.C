@@ -1,9 +1,12 @@
-﻿/*---------------------------------------------------------------------------*\
+/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2018 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -23,11 +26,11 @@ License
 
 \*---------------------------------------------------------------------------*/
 
-//#include "extendedFeatureEdgeMesh.H"
-#include "ListListOps.T.H"
+#include "extendedFeatureEdgeMesh.H"
+#include "ListListOps.H"
 #include "unitConversion.H"
-#include "PackedBoolList.H"
-#include "PatchTools.T.H"
+#include "bitSet.H"
+#include "PatchTools.H"
 #include "searchableBox.H"
 
 // * * * * * * * * * * * * * Private Member Functions  * * * * * * * * * * * //
@@ -98,7 +101,7 @@ void Foam::extendedFeatureEdgeMesh::sortPointsAndEdges
     // All feature points have been added
     nonFeatureStart_ = tmpPts.size();
 
-    PackedBoolList isRegionFeatureEdge(regionFeatureEdges);
+    bitSet isRegionFeatureEdge(regionFeatureEdges);
 
     forAll(featureEdges, i)
     {
@@ -177,7 +180,7 @@ void Foam::extendedFeatureEdgeMesh::sortPointsAndEdges
 
         edStatus[i] = classifyEdge(norms, edgeNormals[i], fC0tofC1);
 
-        if (isRegionFeatureEdge[i])
+        if (isRegionFeatureEdge.test(i))
         {
             regionEdges.append(i);
         }
@@ -361,7 +364,10 @@ void Foam::extendedFeatureEdgeMesh::sortPointsAndEdges
 
     // Reinitialise the edgeMesh with sorted feature points and
     // renumbered edges
-    reset(xferMove(pts), xferMove(eds));
+    {
+        edgeMesh newmesh(std::move(pts), std::move(eds));
+        edgeMesh::transfer(newmesh);
+    }
 
     // Generate the featurePointNormals
 
@@ -379,7 +385,7 @@ void Foam::extendedFeatureEdgeMesh::sortPointsAndEdges
 
             forAll(ptEdNorms, k)
             {
-                if (findIndex(tmpFtPtNorms, ptEdNorms[k]) == -1)
+                if (!tmpFtPtNorms.found(ptEdNorms[k]))
                 {
                     bool addNormal = true;
 

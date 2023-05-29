@@ -1,9 +1,11 @@
-﻿/*---------------------------------------------------------------------------*\
+/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2013-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2013-2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -23,7 +25,7 @@ License
 
 \*---------------------------------------------------------------------------*/
 
-//#include "fvcReconstruct.H"
+#include "fvcReconstruct.H"
 #include "fvMesh.H"
 #include "extrapolatedCalculatedFvPatchFields.H"
 
@@ -49,7 +51,7 @@ tmp
 >
 reconstruct
 (
-    const surfaceFieldType<Type>& ssf
+    const GeometricField<Type, fvsPatchField, surfaceMesh>& ssf
 )
 {
     typedef typename outerProduct<vector, Type>::type GradType;
@@ -75,12 +77,7 @@ reconstruct
                 IOobject::NO_WRITE
             ),
             mesh,
-            dimensioned<GradType>
-            (
-                "0",
-                ssf.dimensions()/dimArea,
-                Zero
-            ),
+            dimensioned<GradType>(ssf.dimensions()/dimArea, Zero),
             extrapolatedCalculatedFvPatchField<GradType>::typeName
         )
     );
@@ -96,7 +93,7 @@ reconstruct
         rf[nei] -= (Cf[facei] - C[nei])*ssf[facei];
     }
 
-    const typename surfaceFieldType<Type>::
+    const typename GeometricField<Type, fvsPatchField, surfaceMesh>::
     Boundary& bsf = ssf.boundaryField();
 
     forAll(bsf, patchi)
@@ -131,7 +128,7 @@ tmp
 >
 reconstruct
 (
-    const tmp<surfaceFieldType<Type>>& tssf
+    const tmp<GeometricField<Type, fvsPatchField, surfaceMesh>>& tssf
 )
 {
     typedef typename outerProduct<vector, Type>::type GradType;

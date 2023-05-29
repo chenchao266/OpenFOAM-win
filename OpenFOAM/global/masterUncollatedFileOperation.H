@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2017 OpenFOAM Foundation
+    Copyright (C) 2019-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -22,11 +25,37 @@ License
     along with OpenFOAM.  If not, see <http://www.gnu.org/licenses/>.
 
 Class
-    ::Foam::fileOperations::masterUncollatedFileOperation
+    Foam::fileOperations::masterUncollatedFileOperation
 
 Description
     fileOperations that performs all file operations on the master processor.
     Requires the calls to be parallel synchronised!
+
+    Limitations
+    - no /processor in filename
+    - no /uniform/ in the filename
+
+    The main logic is in ::filePath which returns a
+    - same path on all processors. This can either be a global file
+      (system/controlDict, processorXXX/0/uniform/) or a collated file
+      (processors/0/p)
+    - same path on all processors of the local communicator
+      (processors4_0-1/0/p)
+    - different path on all processors (processor0/0/p)
+
+    system/controlDict:
+    filePath worldmaster: \<globalRoot\>/system/controlDict
+             localmaster:           ,,
+             slave      :           ,,
+
+    processor0/uniform/time
+    filePath worldmaster: \<globalRoot\>/processorXXX/uniform/time
+             localmaster:           ,,
+             slave      :           ,,
+
+    processors0/0/p
+    processors10/0/p
+    processors10_2-4/0/p
 
 \*---------------------------------------------------------------------------*/
 
@@ -35,7 +64,9 @@ Description
 
 #include "fileOperation.H"
 #include "OSspecific.H"
-#include "HashPtrTable.T.H"
+#include "HashPtrTable.H"
+#include "List.H"
+#include "unthreadedInitialise.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -51,17 +82,22 @@ namespace fileOperations
                      Class masterUncollatedFileOperation Declaration
 \*---------------------------------------------------------------------------*/
 
-class masterUncollatedFileOperation :    public fileOperation
+class masterUncollatedFileOperation
+:
+    public fileOperation
 {
 protected:
 
-    // Protected data
+    // Protected Data
+
+        //- Any communicator allocated by me
+        const label myComm_;
 
         //- Cached times for a given directory
         mutable HashPtrTable<instantList> times_;
 
 
-    // Protected classes
+    // Protected Classes
 
         class mkDirOp
         {
@@ -183,7 +219,7 @@ protected:
             {}
 
         public:
-            offset_t operator()(const fileName& fName) const
+            off_t operator()(const fileName& fName) const
             {
                 return ::Foam::fileSize(fName, followLink_);
             }
@@ -247,10 +283,19 @@ protected:
 
         class rmDirOp
         {
+            bool silent_;
         public:
+            rmDirOp()
+            :
+                silent_(false)
+            {}
+            rmDirOp(const bool silent)
+            :
+                silent_(silent)
+            {}
             bool operator()(const fileName& fName) const
             {
-                return ::Foam::rmDir(fName);
+                return ::Foam::rmDir(fName, silent_);
             }
         };
 
@@ -343,18 +388,29 @@ protected:
 
     // Private Member Functions
 
+        //- Get the list of processors that are part of this communicator
+        static labelList subRanks(const label n);
+
         template<class Type>
-        Type scatterList(const UList<Type>&) const;
+        Type scatterList(const UList<Type>&, const int, const label comm) const;
 
         template<class Type, class fileOp>
-        Type masterOp(const fileName&, const fileOp& fop) const;
+        Type masterOp
+        (
+            const fileName&,
+            const fileOp& fop,
+            const int tag,
+            const label comm
+        ) const;
 
         template<class Type, class fileOp>
         Type masterOp
         (
             const fileName&,
             const fileName&,
-            const fileOp& fop
+            const fileOp& fop,
+            const int tag,
+            const label comm
         ) const;
 
         //- Equivalent of Time::findInstance
@@ -364,34 +420,55 @@ protected:
             const instant& t
         );
 
-        //- Search for object; return info on how it was found
+        //- Search (locally!) for object; return info on how it was found.
+        //  Does not do any parallel communication.
         //    checkGlobal : also check undecomposed case
         //    isFile      : true:check for file  false:check for directory
-        fileName filePathInfo
+        // searchType    : how was found
+        // processorsDir : name of processor directory
+        // instance      : instance
+        virtual fileName filePathInfo
         (
             const bool checkGlobal,
             const bool isFile,
             const IOobject&,
-            pathType&,
-            word&
+            const bool search,
+            pathType& searchType,
+            word& processorsDir,
+            word& instance
         ) const;
 
         //- Construct filePath
-        static fileName objectPath
+        fileName localObjectPath
         (
             const IOobject&,
-            const pathType&,
-            const word&
-        );
+            const pathType& searchType,
+            const word& processorsDir,
+            const word& instancePath
+        ) const;
 
-        //- Read file contents and send to processors
+        //- Read file contents and send to processors.
+        //  Handles compressed or uncompressed files
         static void readAndSend
         (
             const fileName& filePath,
-            const IOstream::compressionType cmp,
             const labelUList& procs,
             PstreamBuffers& pBufs
         );
+
+        //- Read files on comms master
+        static autoPtr<ISstream> read
+        (
+            IOobject& io,
+            const label comm,
+            const bool uniform,             // on comms master only
+            const fileNameList& filePaths,  // on comms master only
+            const boolList& procValid       // on comms master only
+        );
+
+        //- Helper: check IO for local existence. Like filePathInfo but
+        //  without parent searchign and instance searching
+        bool exists(const dirIndexList&, IOobject& io) const;
 
 
 public:
@@ -400,18 +477,21 @@ public:
         TypeName("masterUncollated");
 
 
-    // Static data
+    // Static Data
 
         //- Max size of parallel communications. Switches from non-blocking
         //  to scheduled when reading/writing files. Read as float to enable
-        //  easy specificiation of large sizes.
+        //  easy specification of large sizes.
         static float maxMasterFileBufferSize;
 
 
     // Constructors
 
-        //- Construct null
-        masterUncollatedFileOperation(const bool verbose);
+        //- Default construct
+        explicit masterUncollatedFileOperation(bool verbose);
+
+        //- Construct from communicator
+        masterUncollatedFileOperation(const label comm, bool verbose);
 
 
     //- Destructor
@@ -468,7 +548,7 @@ public:
             ) const;
 
             //- Return size of file
-            virtual offset_t fileSize
+            virtual off_t fileSize
             (
                 const fileName&,
                 const bool followLink = true
@@ -529,8 +609,13 @@ public:
             //- Remove a file, returning true if successful otherwise false
             virtual bool rm(const fileName&) const;
 
-            //- Remove a dirctory and its contents
-            virtual bool rmDir(const fileName&) const;
+            //- Remove a directory and its contents
+            //  \param silent do not report missing directory
+            virtual bool rmDir
+            (
+                const fileName& dir,
+                const bool silent = false
+            ) const;
 
 //            //- Open a shared library. Return handle to library. Print error
 //            //  message if library cannot be loaded (check = true)
@@ -547,8 +632,9 @@ public:
             virtual fileName filePath
             (
                 const bool checkGlobal,
-                const IOobject&,
-                const word& typeName
+                const IOobject& io,
+                const word& typeName,
+                const bool search
             ) const;
 
             //- Search for a directory. checkGlobal : also check undecomposed
@@ -556,7 +642,8 @@ public:
             virtual fileName dirPath
             (
                 const bool checkGlobal,
-                const IOobject&
+                const IOobject& io,
+                const bool search
             ) const;
 
             //- Search directory for objects. Used in IOobjectList.
@@ -591,7 +678,7 @@ public:
             (
                 regIOobject&,
                 const bool masterOnly,
-                const IOstream::streamFormat format,
+                const IOstreamOption::streamFormat format,
                 const word& typeName
             ) const;
 
@@ -599,23 +686,19 @@ public:
             //  Returns success state.
             virtual bool writeObject
             (
-                const regIOobject&,
-                IOstream::streamFormat format=IOstream::ASCII,
-                IOstream::versionNumber version=IOstream::currentVersion,
-                IOstream::compressionType compression=IOstream::UNCOMPRESSED,
+                const regIOobject& io,
+                IOstreamOption streamOpt = IOstreamOption(),
                 const bool valid = true
             ) const;
 
             //- Generate an ISstream that reads a file
             virtual autoPtr<ISstream> NewIFstream(const fileName&) const;
 
-            //- Generate an Ostream that writes a file
-            virtual autoPtr<Ostream> NewOFstream
+            //- Generate an OSstream that writes a file
+            virtual autoPtr<OSstream> NewOFstream
             (
                 const fileName& pathname,
-                IOstream::streamFormat format=IOstream::ASCII,
-                IOstream::versionNumber version=IOstream::currentVersion,
-                IOstream::compressionType compression=IOstream::UNCOMPRESSED,
+                IOstreamOption streamOpt = IOstreamOption(),
                 const bool valid = true
             ) const;
 
@@ -663,35 +746,51 @@ public:
             //- Get sorted list of times
             virtual instantList findTimes(const fileName&, const word&) const;
 
+            //- Find instance where IOobject is. Fails if cannot be found
+            //  and readOpt() is MUST_READ/MUST_READ_IF_MODIFIED. Otherwise
+            //  returns stopInstance.
+            virtual IOobject findInstance
+            (
+                const IOobject& io,
+                const scalar startValue,
+                const word& stopInstance
+            ) const;
+
             //- Callback for time change
             virtual void setTime(const Time&) const;
 
-            //- root+casename with any 'processorXXX' replaced by 'processsors'
-            static fileName processorsCasePath(const IOobject&);
-
-            //- Like io.path with provided instance and any 'processorXXX'
-            //  replaced by 'processsors'
-            static fileName processorsPath(const IOobject&, const word&);
-
-            //- Operating on fileName: replace processorXXX with processors
-            static fileName processorsPath(const fileName&);
-
-            //- Split fileName into part before processor and part after.
-            //  Returns -1 or processor number. Use with care.
-            //  - path/"processor" + ::Foam::name(proci)/local reconstructs input
-            //  - path/"processors"/local reconstructs processors equivalence
-            static label splitProcessorPath
-            (
-                const fileName&,
-                fileName& path,
-                fileName& local
-            );
+            //- Forcibly wait until all output done. Flush any cached data
+            virtual void flush() const;
 
             //- Return cached times
             const HashPtrTable<instantList>& times() const
             {
                 return times_;
             }
+};
+
+
+/*---------------------------------------------------------------------------*\
+           Class masterUncollatedFileOperationInitialise Declaration
+\*---------------------------------------------------------------------------*/
+
+class masterUncollatedFileOperationInitialise
+:
+    public unthreadedInitialise
+{
+public:
+
+    // Constructors
+
+        //- Construct from components
+        masterUncollatedFileOperationInitialise(int& argc, char**& argv)
+        :
+            unthreadedInitialise(argc, argv)
+        {}
+
+
+    //- Destructor
+    virtual ~masterUncollatedFileOperationInitialise() = default;
 };
 
 

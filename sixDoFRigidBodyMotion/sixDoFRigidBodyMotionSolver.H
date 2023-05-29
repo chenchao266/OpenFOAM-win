@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2013-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2013-2017 OpenFOAM Foundation
+    Copyright (C) 2019-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -23,6 +26,9 @@ License
 
 Class
     Foam::sixDoFRigidBodyMotionSolver
+
+Group
+   grpMeshMotionSolvers
 
 Description
     6-DoF solid-body mesh motion solver for an fvMesh.
@@ -47,7 +53,7 @@ namespace Foam
 {
 
 /*---------------------------------------------------------------------------*\
-        Class sixDoFRigidBodyMotionSolver Declaration
+                 Class sixDoFRigidBodyMotionSolver Declaration
 \*---------------------------------------------------------------------------*/
 
 class sixDoFRigidBodyMotionSolver
@@ -56,10 +62,10 @@ class sixDoFRigidBodyMotionSolver
 {
     // Private data
 
-        //- Six dof motion object
+        //- Six DoF motion object
         sixDoFRigidBodyMotion motion_;
 
-        wordReList patches_;
+        wordRes patches_;
 
         //- Patches to integrate forces
         const labelHashSet patchSet_;
@@ -70,9 +76,8 @@ class sixDoFRigidBodyMotionSolver
         //- Outer morphing distance (limit of linear interpolation region)
         const scalar do_;
 
-        //- Switch for test-mode in which only the
-        //  gravitational body-force is applied
-        Switch test_;
+        //- Test-mode in which only the gravitational body-force is applied
+        bool test_;
 
         //- Reference density required by the forces object for
         //  incompressible calculations, required if rho == rhoInf
@@ -89,17 +94,20 @@ class sixDoFRigidBodyMotionSolver
         //- Current time index (used for updating)
         label curTimeIndex_;
 
+        //- Name of the uniformVectorField for CofG displacement
+        word cOfGdisplacement_;
+
 
     // Private Member Functions
 
-        //- Disallow default bitwise copy construct
+        //- No copy construct
         sixDoFRigidBodyMotionSolver
         (
             const sixDoFRigidBodyMotionSolver&
-        );
+        ) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const sixDoFRigidBodyMotionSolver&);
+        //- No copy assignment
+        void operator=(const sixDoFRigidBodyMotionSolver&) = delete;
 
 
 public:
@@ -119,10 +127,13 @@ public:
 
 
     //- Destructor
-    ~sixDoFRigidBodyMotionSolver();
+    ~sixDoFRigidBodyMotionSolver() = default;
 
 
     // Member Functions
+
+        //- Return the six DoF motion object
+        const sixDoFRigidBodyMotion& motion() const;
 
         //- Return point location obtained from the current motion field
         virtual tmp<pointField> curPoints() const;
@@ -130,12 +141,10 @@ public:
         //- Solve for motion
         virtual void solve();
 
-        //- Write state using given format, version and compression
+        //- Write state using stream options
         virtual bool writeObject
         (
-            IOstream::streamFormat fmt,
-            IOstream::versionNumber ver,
-            IOstream::compressionType cmp,
+            IOstreamOption streamOpt,
             const bool valid
         ) const;
 

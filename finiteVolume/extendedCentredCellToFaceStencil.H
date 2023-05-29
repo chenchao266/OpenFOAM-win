@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -53,7 +55,7 @@ class extendedCentredCellToFaceStencil
 {
     // Private data
 
-        //- Swap map for getting neigbouring data
+        //- Swap map for getting neighbouring data
         autoPtr<mapDistribute> mapPtr_;
 
         //- Per face the stencil.
@@ -62,14 +64,14 @@ class extendedCentredCellToFaceStencil
 
     // Private Member Functions
 
-        //- Disallow default bitwise copy construct
+        //- No copy construct
         extendedCentredCellToFaceStencil
         (
             const extendedCentredCellToFaceStencil&
-        );
+        ) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const extendedCentredCellToFaceStencil&);
+        //- No copy assignment
+        void operator=(const extendedCentredCellToFaceStencil&) = delete;
 
 
 public:
@@ -85,7 +87,7 @@ public:
         //- Return reference to the parallel distribution map
         const mapDistribute& map() const
         {
-            return mapPtr_();
+            return *mapPtr_;
         }
 
         //- Return reference to the stencil
@@ -116,9 +118,9 @@ public:
 
         //- Sum vol field contributions to create face values
         template<class Type>
-        tmp<surfaceFieldType<Type>> weightedSum
+        tmp<GeometricField<Type, fvsPatchField, surfaceMesh>> weightedSum
         (
-            const volFieldType<Type>& fld,
+            const GeometricField<Type, fvPatchField, volMesh>& fld,
             const List<List<scalar>>& stencilWeights
         ) const
         {

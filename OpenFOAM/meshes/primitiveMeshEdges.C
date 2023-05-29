@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2018 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -24,13 +27,15 @@ License
 \*---------------------------------------------------------------------------*/
 
 #include "primitiveMesh.H"
-#include "DynamicList.T.H"
+#include "DynamicList.H"
 #include "demandDrivenData.H"
-#include "SortableList.T.H"
-#include "ListOps.T.H"
+#include "SortableList.H"
+#include "ListOps.H"
 
 // * * * * * * * * * * * * * Private Member Functions  * * * * * * * * * * * //
-using namespace Foam;
+
+
+ namespace Foam{
 label primitiveMesh::getEdge
 (
     List<DynamicList<label>>& pe,
@@ -266,7 +271,7 @@ void primitiveMesh::calcEdges(const bool doFaceEdges) const
         }
 
 
-        // Like faces sort edges in order of increasing neigbouring point.
+        // Like faces sort edges in order of increasing neighbouring point.
         // ~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
         // Automatically if points are sorted into internal and external points
         // the edges will be sorted into
@@ -404,7 +409,7 @@ void primitiveMesh::calcEdges(const bool doFaceEdges) const
 
         if (debug)
         {
-            label edgeI = findIndex(oldToNew, -1);
+            label edgeI = oldToNew.find(-1);
 
             if (edgeI != -1)
             {
@@ -593,31 +598,29 @@ const labelList& primitiveMesh::faceEdges
     {
         return faceEdges()[facei];
     }
-    else
+
+    const labelListList& pointEs = pointEdges();
+    const face& f = faces()[facei];
+
+    storage.clear();
+    if (f.size() > storage.capacity())
     {
-        const labelListList& pointEs = pointEdges();
-        const face& f = faces()[facei];
-
-        storage.clear();
-        if (f.size() > storage.capacity())
-        {
-            storage.setCapacity(f.size());
-        }
-
-        forAll(f, fp)
-        {
-            storage.append
-            (
-                findFirstCommonElementFromSortedLists
-                (
-                    pointEs[f[fp]],
-                    pointEs[f.nextLabel(fp)]
-                )
-            );
-        }
-
-        return storage;
+        storage.setCapacity(f.size());
     }
+
+    forAll(f, fp)
+    {
+        storage.append
+        (
+            findFirstCommonElementFromSortedLists
+            (
+                pointEs[f[fp]],
+                pointEs[f.nextLabel(fp)]
+            )
+        );
+    }
+
+    return storage;
 }
 
 
@@ -630,6 +633,7 @@ const labelList& primitiveMesh::faceEdges(const label facei) const
 const labelList& primitiveMesh::cellEdges
 (
     const label celli,
+    labelHashSet& set,
     DynamicList<label>& storage
 ) const
 {
@@ -637,43 +641,37 @@ const labelList& primitiveMesh::cellEdges
     {
         return cellEdges()[celli];
     }
-    else
+
+    const labelList& cFaces = cells()[celli];
+
+    set.clear();
+
+    for (const label facei : cFaces)
     {
-        const labelList& cFaces = cells()[celli];
-
-        labelSet_.clear();
-
-        forAll(cFaces, i)
-        {
-            const labelList& fe = faceEdges(cFaces[i]);
-
-            forAll(fe, feI)
-            {
-                labelSet_.insert(fe[feI]);
-            }
-        }
-
-        storage.clear();
-
-        if (labelSet_.size() > storage.capacity())
-        {
-            storage.setCapacity(labelSet_.size());
-        }
-
-        forAllConstIter(labelHashSet, labelSet_, iter)
-        {
-            storage.append(iter.key());
-        }
-
-        return storage;
+        set.insert(faceEdges(facei));
     }
+
+    storage.clear();
+    if (set.size() > storage.capacity())
+    {
+        storage.setCapacity(set.size());
+    }
+
+    for (const label edgei : set)
+    {
+        storage.append(edgei);
+    }
+
+    return storage;
 }
 
 
 const labelList& primitiveMesh::cellEdges(const label celli) const
 {
-    return cellEdges(celli, labels_);
+    return cellEdges(celli, labelSet_, labels_);
 }
 
 
 // ************************************************************************* //
+
+ } // End namespace Foam

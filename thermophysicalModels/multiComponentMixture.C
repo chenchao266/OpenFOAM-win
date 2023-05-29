@@ -1,9 +1,12 @@
-﻿/*---------------------------------------------------------------------------*\
+/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -23,7 +26,7 @@ License
 
 \*---------------------------------------------------------------------------*/
 
-//#include "multiComponentMixture.H"
+#include "multiComponentMixture.H"
 
 // * * * * * * * * * * * * * Private Member Functions  * * * * * * * * * * * //
 
@@ -57,11 +60,19 @@ void Foam::multiComponentMixture<ThermoType>::correctMassFractions()
         Yt += Y_[n];
     }
 
-    if (mag(max(Yt).value()) < ROOTVSMALL)
+    if (mag(min(Yt).value()) < ROOTVSMALL)
     {
         FatalErrorInFunction
             << "Sum of mass fractions is zero for species " << this->species()
             << exit(FatalError);
+    }
+
+    if (mag(max(Yt).value()) != scalar(1))
+    {
+        WarningInFunction
+            << "Sum of mass fractions is different from one for species "
+            << this->species()
+            << nl;
     }
 
     forAll(Y_, n)
@@ -78,7 +89,7 @@ Foam::multiComponentMixture<ThermoType>::multiComponentMixture
 (
     const dictionary& thermoDict,
     const wordList& specieNames,
-    const HashPtrTable<ThermoType>& thermoData,
+    const ReactionTable<ThermoType>& thermoData,
     const fvMesh& mesh,
     const word& phaseName
 )

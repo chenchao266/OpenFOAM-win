@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -40,8 +43,8 @@ SourceFiles
 
 #include "solidBodyMotionFunction.H"
 #include "primitiveFields.H"
-#include "point.T.H"
-#include "Function1.T.H"
+#include "point.H"
+#include "Function1.H"
 #include "autoPtr.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
@@ -59,7 +62,7 @@ class rotatingMotion
 :
     public solidBodyMotionFunction
 {
-    // Private data
+    // Private Data
 
         //- Origin of the axis
         const vector origin_;
@@ -67,17 +70,17 @@ class rotatingMotion
         //- Axis vector
         const vector axis_;
 
-        //- Angular velocty (rad/sec)
+        //- Angular velocity (rad/sec)
         autoPtr<Function1<scalar>> omega_;
 
 
     // Private Member Functions
 
-        //- Disallow copy construct
-        rotatingMotion(const rotatingMotion&);
+        //- No copy construct
+        rotatingMotion(const rotatingMotion&) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const rotatingMotion&);
+        //- No copy assignment
+        void operator=(const rotatingMotion&) = delete;
 
 
 public:
@@ -110,7 +113,7 @@ public:
 
 
     //- Destructor
-    virtual ~rotatingMotion();
+    virtual ~rotatingMotion() = default;
 
 
     // Member Functions

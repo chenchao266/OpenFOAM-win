@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -40,13 +43,13 @@ inline const Foam::Time& Foam::regionModels::regionModel::time() const
 }
 
 
-inline const Foam::Switch& Foam::regionModels::regionModel::active() const
+inline Foam::Switch Foam::regionModels::regionModel::active() const
 {
     return active_;
 }
 
 
-inline const Foam::Switch& Foam::regionModels::regionModel::infoOutput() const
+inline Foam::Switch Foam::regionModels::regionModel::infoOutput() const
 {
     return infoOutput_;
 }
@@ -60,36 +63,29 @@ inline const Foam::word& Foam::regionModels::regionModel::modelName() const
 
 inline const Foam::fvMesh& Foam::regionModels::regionModel::regionMesh() const
 {
-    if (time_.foundObject<fvMesh>(regionName_))
-    {
-        return time_.lookupObject<fvMesh>(regionName_);
-    }
-    else if (!regionMeshPtr_.valid())
+    const fvMesh* regionPtr = time_.getObjectPtr<fvMesh>(regionName_);
+
+    if (!regionPtr)
     {
         FatalErrorInFunction
-         << "Region mesh not available" << abort(FatalError);
+            << "Region mesh not available" << abort(FatalError);
     }
 
-    return regionMeshPtr_();
+    return *regionPtr;
 }
 
 
 inline Foam::fvMesh& Foam::regionModels::regionModel::regionMesh()
 {
-    if (time_.foundObject<fvMesh>(regionName_))
-    {
-        return const_cast<fvMesh&>
-        (
-            time_.lookupObject<fvMesh>(regionName_)
-        );
-    }
-    else if (!regionMeshPtr_.valid())
+    fvMesh* regionPtr = time_.getObjectPtr<fvMesh>(regionName_);
+
+    if (!regionPtr)
     {
         FatalErrorInFunction
-         << "Region mesh not available" << abort(FatalError);
+            << "Region mesh not available" << abort(FatalError);
     }
 
-    return regionMeshPtr_();
+    return *regionPtr;
 }
 
 
@@ -109,28 +105,28 @@ Foam::regionModels::regionModel::solution() const
 inline const Foam::IOdictionary&
 Foam::regionModels::regionModel::outputProperties() const
 {
-    if (!outputPropertiesPtr_.valid())
+    if (!outputPropertiesPtr_)
     {
         FatalErrorInFunction
             << "outputProperties dictionary not available"
             << abort(FatalError);
     }
 
-    return outputPropertiesPtr_();
+    return *outputPropertiesPtr_;
 }
 
 
 inline Foam::IOdictionary&
 Foam::regionModels::regionModel::outputProperties()
 {
-    if (!outputPropertiesPtr_.valid())
+    if (!outputPropertiesPtr_)
     {
         FatalErrorInFunction
             << "outputProperties dictionary not available"
             << abort(FatalError);
     }
 
-    return outputPropertiesPtr_();
+    return *outputPropertiesPtr_;
 }
 
 

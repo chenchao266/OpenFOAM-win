@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2015 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2014 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -25,61 +27,16 @@ License
 
 #include "basicReactingMultiphaseCloud.H"
 
-#include "makeParcelCloudFunctionObjects.H"
-
-// Kinematic
-#include "makeThermoParcelForces.H" // thermo variant
-#include "makeParcelDispersionModels.H"
-#include "makeReactingMultiphaseParcelInjectionModels.H" // MP variant
-#include "makeParcelPatchInteractionModels.H"
-#include "makeReactingMultiphaseParcelStochasticCollisionModels.H" // MP variant
-#include "makeReactingParcelSurfaceFilmModels.H" // Reacting variant
-
-// Thermodynamic
-#include "makeParcelHeatTransferModels.H"
-
-// Reacting
-#include "makeReactingMultiphaseParcelCompositionModels.H" // MP Variant
-#include "makeReactingParcelPhaseChangeModels.H"
-
-// Reacting multiphase
-#include "makeReactingMultiphaseParcelDevolatilisationModels.H"
-#include "makeReactingMultiphaseParcelSurfaceReactionModels.H"
+#include "makeParcelTurbulenceDispersionModels.H"
+#include "makeThermoParcelTurbulenceForces.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
-makeParcelCloudFunctionObjects(basicReactingMultiphaseCloud);
-
-// Kinematic sub-models
-makeThermoParcelForces(basicReactingMultiphaseCloud);
-makeParcelDispersionModels(basicReactingMultiphaseCloud);
-makeReactingMultiphaseParcelInjectionModels(basicReactingMultiphaseCloud);
-makeParcelPatchInteractionModels(basicReactingMultiphaseCloud);
-makeReactingMultiphaseParcelStochasticCollisionModels
-(
-    basicReactingMultiphaseCloud
-);
-makeReactingParcelSurfaceFilmModels(basicReactingMultiphaseCloud);
-
-// Thermo sub-models
-makeParcelHeatTransferModels(basicReactingMultiphaseCloud);
-
-// Reacting sub-models
-makeReactingMultiphaseParcelCompositionModels
-(
-    basicReactingMultiphaseCloud
-);
-makeReactingParcelPhaseChangeModels(basicReactingMultiphaseCloud);
-
-// Reacting multiphase sub-models
-makeReactingMultiphaseParcelDevolatilisationModels
-(
-    basicReactingMultiphaseCloud
-);
-makeReactingMultiphaseParcelSurfaceReactionModels
-(
-    basicReactingMultiphaseCloud
-);
+namespace Foam
+{
+    makeThermoParcelTurbulenceForces(basicReactingMultiphaseCloud);
+    makeParcelTurbulenceDispersionModels(basicReactingMultiphaseCloud);
+}
 
 
 // ************************************************************************* //

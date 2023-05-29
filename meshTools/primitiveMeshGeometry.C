@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2019 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -263,7 +266,7 @@ bool Foam::primitiveMeshGeometry::checkFaceDotProduct
     labelHashSet* setPtr
 )
 {
-    // for all internal faces check theat the d dot S product is positive
+    // for all internal faces check that the d dot S product is positive
 
     const labelList& own = mesh.faceOwner();
     const labelList& nei = mesh.faceNeighbour();
@@ -383,15 +386,13 @@ bool Foam::primitiveMeshGeometry::checkFaceDotProduct
 
         return true;
     }
-    else
-    {
-        if (report)
-        {
-            Info<< "Non-orthogonality check OK.\n" << endl;
-        }
 
-        return false;
+    if (report)
+    {
+        Info<< "Non-orthogonality check OK.\n" << endl;
     }
+
+    return false;
 }
 
 
@@ -495,15 +496,13 @@ bool Foam::primitiveMeshGeometry::checkFacePyramids
 
         return true;
     }
-    else
-    {
-        if (report)
-        {
-            Info<< "Face pyramids OK.\n" << endl;
-        }
 
-        return false;
+    if (report)
+    {
+        Info<< "Face pyramids OK.\n" << endl;
     }
+
+    return false;
 }
 
 
@@ -579,8 +578,7 @@ bool Foam::primitiveMeshGeometry::checkFaceSkewness
             // Boundary faces: consider them to have only skewness error.
             // (i.e. treat as if mirror cell on other side)
 
-            vector faceNormal = faceAreas[facei];
-            faceNormal /= mag(faceNormal) + VSMALL;
+            const vector faceNormal = normalised(faceAreas[facei]);
 
             vector dOwn = faceCentres[facei] - cellCentres[own[facei]];
 
@@ -634,16 +632,14 @@ bool Foam::primitiveMeshGeometry::checkFaceSkewness
 
         return true;
     }
-    else
-    {
-        if (report)
-        {
-            Info<< "Max skewness = " << 100*maxSkew
-                << " percent.  Face skewness OK.\n" << endl;
-        }
 
-        return false;
+    if (report)
+    {
+        Info<< "Max skewness = " << 100*maxSkew
+            << " percent.  Face skewness OK.\n" << endl;
     }
+
+    return false;
 }
 
 
@@ -716,16 +712,14 @@ bool Foam::primitiveMeshGeometry::checkFaceWeights
 
         return true;
     }
-    else
-    {
-        if (report)
-        {
-            Info<< "Min weight = " << minWeight
-                << " percent.  Weights OK.\n" << endl;
-        }
 
-        return false;
+    if (report)
+    {
+        Info<< "Min weight = " << minWeight
+            << " percent.  Weights OK.\n" << endl;
     }
+
+    return false;
 }
 
 
@@ -767,8 +761,7 @@ bool Foam::primitiveMeshGeometry::checkFaceAngles
 
         const face& f = fcs[facei];
 
-        vector faceNormal = faceAreas[facei];
-        faceNormal /= mag(faceNormal) + VSMALL;
+        const vector faceNormal = normalised(faceAreas[facei]);
 
         // Get edge from f[0] to f[size-1];
         vector ePrev(p[f.first()] - p[f.last()]);
@@ -857,10 +850,8 @@ bool Foam::primitiveMeshGeometry::checkFaceAngles
 
         return true;
     }
-    else
-    {
-        return false;
-    }
+
+    return false;
 }
 
 
@@ -986,10 +977,8 @@ bool Foam::primitiveMeshGeometry::checkFaceAngles
 //
 //        return true;
 //    }
-//    else
-//    {
-//        return false;
-//    }
+//
+//    return false;
 //}
 
 
@@ -1023,13 +1012,11 @@ bool Foam::primitiveMeshGeometry::checkFaceTwist
 
     label nWarped = 0;
 
-    forAll(checkFaces, i)
+    for (const label facei : checkFaces)
     {
-        label facei = checkFaces[i];
-
         const face& f = fcs[facei];
 
-        scalar magArea = mag(faceAreas[facei]);
+        const scalar magArea = mag(faceAreas[facei]);
 
         if (f.size() > 3 && magArea > VSMALL)
         {
@@ -1039,21 +1026,21 @@ bool Foam::primitiveMeshGeometry::checkFaceTwist
 
             forAll(f, fpI)
             {
-                vector triArea
+                const vector triArea
                 (
                     triPointRef
                     (
                         p[f[fpI]],
                         p[f.nextLabel(fpI)],
                         fc
-                    ).normal()
+                    ).areaNormal()
                 );
 
-                scalar magTri = mag(triArea);
+                const scalar magTri = mag(triArea);
 
                 if (magTri > VSMALL && ((nf & triArea/magTri) < minTwist))
                 {
-                    nWarped++;
+                    ++nWarped;
 
                     if (setPtr)
                     {
@@ -1097,10 +1084,8 @@ bool Foam::primitiveMeshGeometry::checkFaceTwist
 
         return true;
     }
-    else
-    {
-        return false;
-    }
+
+    return false;
 }
 
 
@@ -1158,10 +1143,8 @@ bool Foam::primitiveMeshGeometry::checkFaceArea
 
         return true;
     }
-    else
-    {
-        return false;
-    }
+
+    return false;
 }
 
 
@@ -1259,10 +1242,8 @@ bool Foam::primitiveMeshGeometry::checkCellDeterminant
 
         return true;
     }
-    else
-    {
-        return false;
-    }
+
+    return false;
 }
 
 

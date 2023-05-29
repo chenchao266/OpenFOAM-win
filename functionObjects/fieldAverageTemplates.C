@@ -1,9 +1,12 @@
-﻿/*---------------------------------------------------------------------------*\
+/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2015-2019 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -26,368 +29,442 @@ License
 #include "fieldAverageItem.H"
 #include "volFields.H"
 #include "surfaceFields.H"
+#include "polySurfaceFields.H"
 #include "OFstream.H"
 
 // * * * * * * * * * * * * * Private Member Functions  * * * * * * * * * * * //
-namespace Foam {
-    template<class Type>
-    void functionObjects::fieldAverage::addMeanFieldType(const label fieldi)
+
+template<class Type>
+void Foam::functionObjects::fieldAverage::addMeanFieldType
+(
+    fieldAverageItem& item
+)
+{
+    const word& fieldName = item.fieldName();
+
+    if (!foundObject<Type>(fieldName))
     {
-        const word& fieldName = faItems_[fieldi].fieldName();
-        const word& meanFieldName = faItems_[fieldi].meanFieldName();
+        return;
+    }
 
-        Log << "    Reading/initialising field " << meanFieldName << endl;
+    // Field has been found, so set active flag to true
+    item.active() = true;
 
-        if (obr_.foundObject<Type>(meanFieldName))
-        {
-        }
-        else if (obr_.found(meanFieldName))
-        {
-            Log << "    Cannot allocate average field " << meanFieldName
-                << " since an object with that name already exists."
-                << " Disabling averaging for field." << endl;
+    const word& meanFieldName = item.meanFieldName();
 
-            faItems_[fieldi].mean() = false;
-        }
-        else
-        {
-            const Type& baseField = obr_.lookupObject<Type>(fieldName);
+    Log << "    Reading/initialising field " << meanFieldName << endl;
 
-            // Store on registry
-            obr_.store
+    if (foundObject<Type>(meanFieldName))
+    {}
+    else if (obr().found(meanFieldName))
+    {
+        Log << "    Cannot allocate average field " << meanFieldName
+            << " since an object with that name already exists."
+            << " Disabling averaging for field." << endl;
+
+        item.mean() = false;
+    }
+    else
+    {
+        const Type& baseField = lookupObject<Type>(fieldName);
+
+        // Store on registry
+        obr().store
+        (
+            new Type
             (
-                new Type
+                IOobject
                 (
-                    IOobject
+                    meanFieldName,
+                    obr().time().timeName(obr().time().startTime().value()),
+                    obr(),
                     (
-                        meanFieldName,
-                        obr_.time().timeName(obr_.time().startTime().value()),
-                        obr_,
                         restartOnOutput_
-                        ? IOobject::NO_READ
-                        : IOobject::READ_IF_PRESENT,
-                        IOobject::NO_WRITE
+                      ? IOobject::NO_READ
+                      : IOobject::READ_IF_PRESENT
                     ),
-                    1 * baseField
-                )
-            );
-        }
+                    IOobject::NO_WRITE
+                ),
+                1*baseField
+            )
+        );
     }
-
-
-    template<class Type>
-    void functionObjects::fieldAverage::addMeanField(const label fieldi)
-    {
-        if (faItems_[fieldi].mean())
-        {
-            typedef volFieldType<Type> VolFieldType;
-
-            typedef surfaceFieldType<Type> SurfaceFieldType;
-
-            const word& fieldName = faItems_[fieldi].fieldName();
-
-            if (obr_.foundObject<VolFieldType>(fieldName))
-            {
-                addMeanFieldType<VolFieldType>(fieldi);
-            }
-            else if (obr_.foundObject<SurfaceFieldType>(fieldName))
-            {
-                addMeanFieldType<SurfaceFieldType>(fieldi);
-            }
-        }
-    }
-
-
-    template<class Type1, class Type2>
-    void functionObjects::fieldAverage::addPrime2MeanFieldType
-    (
-        const label fieldi
-    )
-    {
-        const word& fieldName = faItems_[fieldi].fieldName();
-        const word& meanFieldName = faItems_[fieldi].meanFieldName();
-        const word& prime2MeanFieldName = faItems_[fieldi].prime2MeanFieldName();
-
-        Log << "    Reading/initialising field " << prime2MeanFieldName << nl;
-
-        if (obr_.foundObject<Type2>(prime2MeanFieldName))
-        {
-        }
-        else if (obr_.found(prime2MeanFieldName))
-        {
-            Log << "    Cannot allocate average field " << prime2MeanFieldName
-                << " since an object with that name already exists."
-                << " Disabling averaging for field." << nl;
-
-            faItems_[fieldi].prime2Mean() = false;
-        }
-        else
-        {
-            const Type1& baseField = obr_.lookupObject<Type1>(fieldName);
-            const Type1& meanField = obr_.lookupObject<Type1>(meanFieldName);
-
-            // Store on registry
-            obr_.store
-            (
-                new Type2
-                (
-                    IOobject
-                    (
-                        prime2MeanFieldName,
-                        obr_.time().timeName(obr_.time().startTime().value()),
-                        obr_,
-                        restartOnOutput_
-                        ? IOobject::NO_READ
-                        : IOobject::READ_IF_PRESENT,
-                        IOobject::NO_WRITE
-                    ),
-                    sqr(baseField) - sqr(meanField)
-                )
-            );
-        }
-    }
-
-
-    template<class Type1, class Type2>
-    void functionObjects::fieldAverage::addPrime2MeanField(const label fieldi)
-    {
-        typedef volFieldType<Type1> VolFieldType1;
-        typedef surfaceFieldType<Type1> SurfaceFieldType1;
-
-        typedef volFieldType<Type2> VolFieldType2;
-        typedef surfaceFieldType<Type2> SurfaceFieldType2;
-
-        if (faItems_[fieldi].prime2Mean())
-        {
-            const word& fieldName = faItems_[fieldi].fieldName();
-
-            if (!faItems_[fieldi].mean())
-            {
-                FatalErrorInFunction
-                    << "To calculate the prime-squared average, the "
-                    << "mean average must also be selected for field "
-                    << fieldName << nl << exit(FatalError);
-            }
-
-            if (obr_.foundObject<VolFieldType1>(fieldName))
-            {
-                addPrime2MeanFieldType<VolFieldType1, VolFieldType2>(fieldi);
-            }
-            else if (obr_.foundObject<SurfaceFieldType1>(fieldName))
-            {
-                addPrime2MeanFieldType<SurfaceFieldType1, SurfaceFieldType2>
-                    (
-                        fieldi
-                        );
-            }
-        }
-    }
-
-
-    template<class Type>
-    void functionObjects::fieldAverage::calculateMeanFieldType
-    (
-        const label fieldi
-    ) const
-    {
-        const word& fieldName = faItems_[fieldi].fieldName();
-
-        if (obr_.foundObject<Type>(fieldName))
-        {
-            const Type& baseField = obr_.lookupObject<Type>(fieldName);
-
-            Type& meanField =
-                obr_.lookupObjectRef<Type>(faItems_[fieldi].meanFieldName());
-
-            scalar dt = obr_.time().deltaTValue();
-            scalar Dt = totalTime_[fieldi];
-
-            if (faItems_[fieldi].iterBase())
-            {
-                dt = 1;
-                Dt = scalar(totalIter_[fieldi]);
-            }
-
-            scalar beta = dt / Dt;
-
-            if (faItems_[fieldi].window() > 0)
-            {
-                const scalar w = faItems_[fieldi].window();
-
-                if (Dt - dt >= w)
-                {
-                    beta = dt / w;
-                }
-            }
-
-            meanField = (1 - beta)*meanField + beta * baseField;
-        }
-    }
-
-
-    template<class Type>
-    void functionObjects::fieldAverage::calculateMeanFields() const
-    {
-        typedef volFieldType<Type> VolFieldType;
-        typedef surfaceFieldType<Type> SurfaceFieldType;
-
-        forAll(faItems_, i)
-        {
-            if (faItems_[i].mean())
-            {
-                calculateMeanFieldType<VolFieldType>(i);
-                calculateMeanFieldType<SurfaceFieldType>(i);
-            }
-        }
-    }
-
-
-    template<class Type1, class Type2>
-    void functionObjects::fieldAverage::calculatePrime2MeanFieldType
-    (
-        const label fieldi
-    ) const
-    {
-        const word& fieldName = faItems_[fieldi].fieldName();
-
-        if (obr_.foundObject<Type1>(fieldName))
-        {
-            const Type1& baseField = obr_.lookupObject<Type1>(fieldName);
-            const Type1& meanField =
-                obr_.lookupObject<Type1>(faItems_[fieldi].meanFieldName());
-
-            Type2& prime2MeanField =
-                obr_.lookupObjectRef<Type2>(faItems_[fieldi].prime2MeanFieldName());
-
-            scalar dt = obr_.time().deltaTValue();
-            scalar Dt = totalTime_[fieldi];
-
-            if (faItems_[fieldi].iterBase())
-            {
-                dt = 1;
-                Dt = scalar(totalIter_[fieldi]);
-            }
-
-            scalar beta = dt / Dt;
-
-            if (faItems_[fieldi].window() > 0)
-            {
-                const scalar w = faItems_[fieldi].window();
-
-                if (Dt - dt >= w)
-                {
-                    beta = dt / w;
-                }
-            }
-
-            prime2MeanField =
-                (1 - beta)*prime2MeanField
-                + beta * sqr(baseField)
-                - sqr(meanField);
-        }
-    }
-
-
-    template<class Type1, class Type2>
-    void functionObjects::fieldAverage::calculatePrime2MeanFields() const
-    {
-        typedef volFieldType<Type1> VolFieldType1;
-        typedef surfaceFieldType<Type1> SurfaceFieldType1;
-
-        typedef volFieldType<Type2> VolFieldType2;
-        typedef surfaceFieldType<Type2> SurfaceFieldType2;
-
-        forAll(faItems_, i)
-        {
-            if (faItems_[i].prime2Mean())
-            {
-                calculatePrime2MeanFieldType<VolFieldType1, VolFieldType2>(i);
-                calculatePrime2MeanFieldType<SurfaceFieldType1, SurfaceFieldType2>
-                    (
-                        i
-                        );
-            }
-        }
-    }
-
-
-    template<class Type1, class Type2>
-    void functionObjects::fieldAverage::addMeanSqrToPrime2MeanType
-    (
-        const label fieldi
-    ) const
-    {
-        const word& fieldName = faItems_[fieldi].fieldName();
-
-        if (obr_.foundObject<Type1>(fieldName))
-        {
-            const Type1& meanField =
-                obr_.lookupObject<Type1>(faItems_[fieldi].meanFieldName());
-
-            Type2& prime2MeanField =
-                obr_.lookupObjectRef<Type2>(faItems_[fieldi].prime2MeanFieldName());
-
-            prime2MeanField += sqr(meanField);
-        }
-    }
-
-
-    template<class Type1, class Type2>
-    void functionObjects::fieldAverage::addMeanSqrToPrime2Mean() const
-    {
-        typedef volFieldType<Type1> VolFieldType1;
-        typedef surfaceFieldType<Type1> SurfaceFieldType1;
-
-        typedef volFieldType<Type2> VolFieldType2;
-        typedef surfaceFieldType<Type2> SurfaceFieldType2;
-
-        forAll(faItems_, i)
-        {
-            if (faItems_[i].prime2Mean())
-            {
-                addMeanSqrToPrime2MeanType<VolFieldType1, VolFieldType2>(i);
-                addMeanSqrToPrime2MeanType<SurfaceFieldType1, SurfaceFieldType2>(i);
-            }
-        }
-    }
-
-
-    template<class Type>
-    void functionObjects::fieldAverage::writeFieldType
-    (
-        const word& fieldName
-    ) const
-    {
-        if (obr_.foundObject<Type>(fieldName))
-        {
-            const Type& f = obr_.lookupObject<Type>(fieldName);
-            f.write();
-        }
-    }
-
-
-    template<class Type>
-    void functionObjects::fieldAverage::writeFields() const
-    {
-        typedef volFieldType<Type> VolFieldType;
-        typedef surfaceFieldType<Type> SurfaceFieldType;
-
-        forAll(faItems_, i)
-        {
-            if (faItems_[i].mean())
-            {
-                const word& fieldName = faItems_[i].meanFieldName();
-                writeFieldType<VolFieldType>(fieldName);
-                writeFieldType<SurfaceFieldType>(fieldName);
-            }
-            if (faItems_[i].prime2Mean())
-            {
-                const word& fieldName = faItems_[i].prime2MeanFieldName();
-                writeFieldType<VolFieldType>(fieldName);
-                writeFieldType<SurfaceFieldType>(fieldName);
-            }
-        }
-    }
-
 }
+
+
+template<class Type>
+void Foam::functionObjects::fieldAverage::addMeanField
+(
+    fieldAverageItem& item
+)
+{
+    typedef GeometricField<Type, fvPatchField, volMesh> VolFieldType;
+    typedef GeometricField<Type, fvsPatchField, surfaceMesh> SurfaceFieldType;
+    typedef DimensionedField<Type, polySurfaceGeoMesh> SurfFieldType;
+
+    if (item.mean())
+    {
+        addMeanFieldType<VolFieldType>(item);
+        addMeanFieldType<SurfaceFieldType>(item);
+        addMeanFieldType<SurfFieldType>(item);
+    }
+}
+
+
+template<class Type>
+void Foam::functionObjects::fieldAverage::restoreWindowFieldsType
+(
+    const fieldAverageItem& item
+)
+{
+    if (restartOnOutput_)
+    {
+        return;
+    }
+
+    const word& fieldName = item.fieldName();
+
+    const Type* fieldPtr = findObject<Type>(fieldName);
+
+    if (!fieldPtr)
+    {
+        return;
+    }
+
+    const FIFOStack<word>& fieldNames = item.windowFieldNames();
+
+    forAllConstIters(fieldNames, fieldIter)
+    {
+        const word& name = fieldIter();
+
+        IOobject io
+        (
+            name,
+            obr().time().timeName(obr().time().startTime().value()),
+            obr(),
+            IOobject::MUST_READ,
+            IOobject::NO_WRITE
+        );
+
+        if (io.typeHeaderOk<Type>(true))
+        {
+            DebugInfo << "Read and store: " << name << endl;
+            obr().store(new Type(io, fieldPtr->mesh()));
+        }
+        else
+        {
+            WarningInFunction
+                << "Unable to read window " << Type::typeName << " " << name
+                << ".  Averaging restart behaviour may be compromised"
+                << endl;
+        }
+    }
+}
+
+
+template<class Type>
+void Foam::functionObjects::fieldAverage::restoreWindowFields
+(
+    const fieldAverageItem& item
+)
+{
+    typedef GeometricField<Type, fvPatchField, volMesh> VolFieldType;
+    typedef GeometricField<Type, fvsPatchField, surfaceMesh> SurfaceFieldType;
+    typedef DimensionedField<Type, polySurfaceGeoMesh> SurfFieldType;
+
+    if (item.window() > 0)
+    {
+        restoreWindowFieldsType<VolFieldType>(item);
+        restoreWindowFieldsType<SurfaceFieldType>(item);
+        restoreWindowFieldsType<SurfFieldType>(item);
+    }
+}
+
+
+template<class Type1, class Type2>
+void Foam::functionObjects::fieldAverage::addPrime2MeanFieldType
+(
+    fieldAverageItem& item
+)
+{
+    const word& fieldName = item.fieldName();
+
+    if (!foundObject<Type1>(fieldName))
+    {
+        return;
+    }
+
+    const word& meanFieldName = item.meanFieldName();
+    const word& prime2MeanFieldName = item.prime2MeanFieldName();
+
+    Log << "    Reading/initialising field " << prime2MeanFieldName << nl;
+
+    if (foundObject<Type2>(prime2MeanFieldName))
+    {}
+    else if (obr().found(prime2MeanFieldName))
+    {
+        Log << "    Cannot allocate average field " << prime2MeanFieldName
+            << " since an object with that name already exists."
+            << " Disabling averaging for field." << endl;
+
+        item.prime2Mean() = false;
+    }
+    else
+    {
+        const Type1& baseField = lookupObject<Type1>(fieldName);
+        const Type1& meanField = lookupObject<Type1>(meanFieldName);
+
+        // Store on registry
+        obr().store
+        (
+            new Type2
+            (
+                IOobject
+                (
+                    prime2MeanFieldName,
+                    obr().time().timeName(obr().time().startTime().value()),
+                    obr(),
+                    restartOnOutput_?
+                        IOobject::NO_READ
+                      : IOobject::READ_IF_PRESENT,
+                    IOobject::NO_WRITE
+                ),
+                sqr(baseField) - sqr(meanField)
+            )
+        );
+    }
+}
+
+
+template<class Type1, class Type2>
+void Foam::functionObjects::fieldAverage::addPrime2MeanField
+(
+    fieldAverageItem& item
+)
+{
+    typedef GeometricField<Type1, fvPatchField, volMesh> VolFieldType1;
+    typedef GeometricField<Type1, fvsPatchField, surfaceMesh> SurfaceFieldType1;
+    typedef DimensionedField<Type1, polySurfaceGeoMesh> SurfFieldType1;
+
+    typedef GeometricField<Type2, fvPatchField, volMesh> VolFieldType2;
+    typedef GeometricField<Type2, fvsPatchField, surfaceMesh> SurfaceFieldType2;
+    typedef DimensionedField<Type2, polySurfaceGeoMesh> SurfFieldType2;
+
+    if (item.prime2Mean())
+    {
+        if (!item.mean())
+        {
+            FatalErrorInFunction
+                << "To calculate the prime-squared average, the "
+                << "mean average must also be selected for field "
+                << item.fieldName() << nl << exit(FatalError);
+        }
+
+        addPrime2MeanFieldType<VolFieldType1, VolFieldType2>(item);
+        addPrime2MeanFieldType<SurfaceFieldType1, SurfaceFieldType2>(item);
+        addPrime2MeanFieldType<SurfFieldType1, SurfFieldType2>(item);
+    }
+}
+
+
+template<class Type>
+void Foam::functionObjects::fieldAverage::storeWindowFieldType
+(
+    fieldAverageItem& item
+)
+{
+    const word& fieldName = item.fieldName();
+    if (!foundObject<Type>(fieldName))
+    {
+        return;
+    }
+
+    const Type& baseField = lookupObject<Type>(fieldName);
+
+    const word windowFieldName = item.windowFieldName(this->name());
+
+    // Store on registry
+    obr().store
+    (
+        new Type
+        (
+            IOobject
+            (
+                windowFieldName,
+                obr().time().timeName(obr().time().startTime().value()),
+                obr(),
+                restartOnOutput_ ?
+                    IOobject::NO_READ
+                  : IOobject::READ_IF_PRESENT,
+                IOobject::NO_WRITE
+            ),
+            1*baseField
+        )
+    );
+
+    DebugInfo << "Create and store: " << windowFieldName << endl;
+
+    item.addToWindow(windowFieldName, obr().time().deltaTValue());
+}
+
+
+template<class Type>
+void Foam::functionObjects::fieldAverage::storeWindowFields()
+{
+    typedef GeometricField<Type, fvPatchField, volMesh> VolFieldType;
+    typedef GeometricField<Type, fvsPatchField, surfaceMesh> SurfaceFieldType;
+    typedef DimensionedField<Type, polySurfaceGeoMesh> SurfFieldType;
+
+    for (fieldAverageItem& item : faItems_)
+    {
+        if (item.storeWindowFields())
+        {
+            storeWindowFieldType<VolFieldType>(item);
+            storeWindowFieldType<SurfaceFieldType>(item);
+            storeWindowFieldType<SurfFieldType>(item);
+        }
+    }
+}
+
+
+template<class Type>
+void Foam::functionObjects::fieldAverage::calculateMeanFields() const
+{
+    typedef GeometricField<Type, fvPatchField, volMesh> VolFieldType;
+    typedef GeometricField<Type, fvsPatchField, surfaceMesh> SurfaceFieldType;
+    typedef DimensionedField<Type, polySurfaceGeoMesh> SurfFieldType;
+
+    for (const fieldAverageItem& item : faItems_)
+    {
+        item.calculateMeanField<VolFieldType>(obr());
+        item.calculateMeanField<SurfaceFieldType>(obr());
+        item.calculateMeanField<SurfFieldType>(obr());
+    }
+}
+
+
+template<class Type1, class Type2>
+void Foam::functionObjects::fieldAverage::calculatePrime2MeanFields() const
+{
+    typedef GeometricField<Type1, fvPatchField, volMesh> VolFieldType1;
+    typedef GeometricField<Type1, fvsPatchField, surfaceMesh> SurfaceFieldType1;
+    typedef DimensionedField<Type1, polySurfaceGeoMesh> SurfFieldType1;
+
+    typedef GeometricField<Type2, fvPatchField, volMesh> VolFieldType2;
+    typedef GeometricField<Type2, fvsPatchField, surfaceMesh> SurfaceFieldType2;
+    typedef DimensionedField<Type2, polySurfaceGeoMesh> SurfFieldType2;
+
+    for (const fieldAverageItem& item : faItems_)
+    {
+        item.calculatePrime2MeanField<VolFieldType1, VolFieldType2>(obr());
+        item.calculatePrime2MeanField<SurfaceFieldType1, SurfaceFieldType2>
+        (
+            obr()
+        );
+        item.calculatePrime2MeanField<SurfFieldType1, SurfFieldType2>(obr());
+    }
+}
+
+
+template<class Type1, class Type2>
+void Foam::functionObjects::fieldAverage::addMeanSqrToPrime2MeanType
+(
+    const fieldAverageItem& item
+) const
+{
+    const word& fieldName = item.fieldName();
+
+    if (!foundObject<Type1>(fieldName))
+    {
+        return;
+    }
+
+    const Type1& meanField = lookupObject<Type1>(item.meanFieldName());
+
+    Type2& prime2MeanField = lookupObjectRef<Type2>(item.prime2MeanFieldName());
+
+    prime2MeanField += sqr(meanField);
+}
+
+
+template<class Type1, class Type2>
+void Foam::functionObjects::fieldAverage::addMeanSqrToPrime2Mean() const
+{
+    typedef GeometricField<Type1, fvPatchField, volMesh> VolFieldType1;
+    typedef GeometricField<Type1, fvsPatchField, surfaceMesh> SurfaceFieldType1;
+    typedef DimensionedField<Type1, polySurfaceGeoMesh> SurfFieldType1;
+
+    typedef GeometricField<Type2, fvPatchField, volMesh> VolFieldType2;
+    typedef GeometricField<Type2, fvsPatchField, surfaceMesh> SurfaceFieldType2;
+    typedef DimensionedField<Type2, polySurfaceGeoMesh> SurfFieldType2;
+
+    for (const fieldAverageItem& item : faItems_)
+    {
+        if (item.prime2Mean())
+        {
+            addMeanSqrToPrime2MeanType<VolFieldType1, VolFieldType2>(item);
+            addMeanSqrToPrime2MeanType<SurfaceFieldType1, SurfaceFieldType2>
+            (
+                item
+            );
+            addMeanSqrToPrime2MeanType<SurfFieldType1, SurfFieldType2>(item);
+        }
+    }
+}
+
+
+template<class Type>
+void Foam::functionObjects::fieldAverage::writeFieldType
+(
+    const word& fieldName
+) const
+{
+    if (foundObject<Type>(fieldName))
+    {
+        const Type& f = lookupObject<Type>(fieldName);
+        f.write();
+    }
+}
+
+
+template<class Type>
+void Foam::functionObjects::fieldAverage::writeFields() const
+{
+    typedef GeometricField<Type, fvPatchField, volMesh> VolFieldType;
+    typedef GeometricField<Type, fvsPatchField, surfaceMesh> SurfaceFieldType;
+    typedef DimensionedField<Type, polySurfaceGeoMesh> SurfFieldType;
+
+    for (const fieldAverageItem& item : faItems_)
+    {
+        if (item.mean())
+        {
+            const word& fieldName = item.meanFieldName();
+            writeFieldType<VolFieldType>(fieldName);
+            writeFieldType<SurfaceFieldType>(fieldName);
+            writeFieldType<SurfFieldType>(fieldName);
+        }
+
+        if (item.prime2Mean())
+        {
+            const word& fieldName = item.prime2MeanFieldName();
+            writeFieldType<VolFieldType>(fieldName);
+            writeFieldType<SurfaceFieldType>(fieldName);
+            writeFieldType<SurfFieldType>(fieldName);
+        }
+
+        if (item.writeWindowFields())
+        {
+            FIFOStack<word> fieldNames = item.windowFieldNames();
+            forAllConstIters(fieldNames, fieldNameIter)
+            {
+                const word& fieldName = fieldNameIter();
+                writeFieldType<VolFieldType>(fieldName);
+                writeFieldType<SurfaceFieldType>(fieldName);
+                writeFieldType<SurfFieldType>(fieldName);
+            }
+        }
+    }
+}
+
+
 // ************************************************************************* //

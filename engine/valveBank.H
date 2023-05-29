@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011 OpenFOAM Foundation
+    Copyright (C) 2019 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -32,7 +35,7 @@ Description
 #ifndef valveBank_H
 #define valveBank_H
 
-#include "PtrList.T.H"
+#include "PtrList.H"
 #include "engineValve.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
@@ -48,15 +51,13 @@ class valveBank
 :
     public PtrList<engineValve>
 {
-private:
-
     // Private Member Functions
 
-        //- Disallow default bitwise copy construct
-        valveBank(const valveBank&);
+        //- No copy construct
+        valveBank(const valveBank&) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const valveBank&);
+        //- No copy assignment
+        void operator=(const valveBank&) = delete;
 
 
 public:
@@ -90,10 +91,8 @@ public:
         }
 
 
-    // Destructor - default
-
-
-    // Member Functions
+    //- Destructor
+    ~valveBank() = default;
 };
 
 

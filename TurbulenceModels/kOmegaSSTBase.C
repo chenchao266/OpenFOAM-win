@@ -1,9 +1,12 @@
-﻿/*---------------------------------------------------------------------------*\
+/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2015 OpenFOAM Foundation
+    Copyright (C) 2016-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -23,7 +26,7 @@ License
 
 \*---------------------------------------------------------------------------*/
 
-//#include "kOmegaSSTBase.H"
+#include "kOmegaSSTBase.H"
 #include "fvOptions.H"
 #include "bound.H"
 #include "wallDist.H"
@@ -35,9 +38,8 @@ namespace Foam
 
 // * * * * * * * * * * * Protected Member Functions  * * * * * * * * * * * * //
 
-template<class TurbulenceModel, class BasicTurbulenceModel>
-tmp<volScalarField>
-kOmegaSST<TurbulenceModel, BasicTurbulenceModel>::kOmegaSST::F1
+template<class BasicEddyViscosityModel>
+tmp<volScalarField> kOmegaSSTBase<BasicEddyViscosityModel>::F1
 (
     const volScalarField& CDkOmega
 ) const
@@ -65,9 +67,9 @@ kOmegaSST<TurbulenceModel, BasicTurbulenceModel>::kOmegaSST::F1
     return tanh(pow4(arg1));
 }
 
-template<class TurbulenceModel, class BasicTurbulenceModel>
-tmp<volScalarField>
-kOmegaSST<TurbulenceModel, BasicTurbulenceModel>::kOmegaSST::F2() const
+
+template<class BasicEddyViscosityModel>
+tmp<volScalarField> kOmegaSSTBase<BasicEddyViscosityModel>::F2() const
 {
     tmp<volScalarField> arg2 = min
     (
@@ -82,9 +84,9 @@ kOmegaSST<TurbulenceModel, BasicTurbulenceModel>::kOmegaSST::F2() const
     return tanh(sqr(arg2));
 }
 
-template<class TurbulenceModel, class BasicTurbulenceModel>
-tmp<volScalarField>
-kOmegaSST<TurbulenceModel, BasicTurbulenceModel>::kOmegaSST::F3() const
+
+template<class BasicEddyViscosityModel>
+tmp<volScalarField> kOmegaSSTBase<BasicEddyViscosityModel>::F3() const
 {
     tmp<volScalarField> arg3 = min
     (
@@ -95,9 +97,9 @@ kOmegaSST<TurbulenceModel, BasicTurbulenceModel>::kOmegaSST::F3() const
     return 1 - tanh(pow4(arg3));
 }
 
-template<class TurbulenceModel, class BasicTurbulenceModel>
-tmp<volScalarField>
-kOmegaSST<TurbulenceModel, BasicTurbulenceModel>::kOmegaSST::F23() const
+
+template<class BasicEddyViscosityModel>
+tmp<volScalarField> kOmegaSSTBase<BasicEddyViscosityModel>::F23() const
 {
     tmp<volScalarField> f23(F2());
 
@@ -110,33 +112,28 @@ kOmegaSST<TurbulenceModel, BasicTurbulenceModel>::kOmegaSST::F23() const
 }
 
 
-template<class TurbulenceModel, class BasicTurbulenceModel>
-void kOmegaSST<TurbulenceModel, BasicTurbulenceModel>::correctNut
+template<class BasicEddyViscosityModel>
+void kOmegaSSTBase<BasicEddyViscosityModel>::correctNut
 (
-    const volScalarField& S2,
-    const volScalarField& F2
+    const volScalarField& S2
 )
 {
-    this->nut_ = a1_*k_/max(a1_*omega_, b1_*F2*sqrt(S2));
+    // Correct the turbulence viscosity
+    this->nut_ = a1_*k_/max(a1_*omega_, b1_*F23()*sqrt(S2));
     this->nut_.correctBoundaryConditions();
     fv::options::New(this->mesh_).correct(this->nut_);
-
-    BasicTurbulenceModel::correctNut();
 }
 
 
-// * * * * * * * * * * * * Protected Member Functions  * * * * * * * * * * * //
-
-template<class TurbulenceModel, class BasicTurbulenceModel>
-void kOmegaSST<TurbulenceModel, BasicTurbulenceModel>::correctNut()
+template<class BasicEddyViscosityModel>
+void kOmegaSSTBase<BasicEddyViscosityModel>::correctNut()
 {
-    correctNut(2*magSqr(symm(fvc::grad(this->U_))), F23());
+    correctNut(2*magSqr(symm(fvc::grad(this->U_))));
 }
 
 
-template<class TurbulenceModel, class BasicTurbulenceModel>
-tmp<volScalarField::Internal>
-kOmegaSST<TurbulenceModel, BasicTurbulenceModel>::Pk
+template<class BasicEddyViscosityModel>
+tmp<volScalarField::Internal> kOmegaSSTBase<BasicEddyViscosityModel>::Pk
 (
     const volScalarField::Internal& G
 ) const
@@ -145,21 +142,37 @@ kOmegaSST<TurbulenceModel, BasicTurbulenceModel>::Pk
 }
 
 
-template<class TurbulenceModel, class BasicTurbulenceModel>
+template<class BasicEddyViscosityModel>
 tmp<volScalarField::Internal>
-kOmegaSST<TurbulenceModel, BasicTurbulenceModel>::epsilonByk
+kOmegaSSTBase<BasicEddyViscosityModel>::epsilonByk
 (
-    const volScalarField::Internal& F1,
-    const volScalarField::Internal& F2
+    const volScalarField& F1,
+    const volTensorField& gradU
 ) const
 {
     return betaStar_*omega_();
 }
 
 
-template<class TurbulenceModel, class BasicTurbulenceModel>
-tmp<fvScalarMatrix>
-kOmegaSST<TurbulenceModel, BasicTurbulenceModel>::kSource() const
+template<class BasicEddyViscosityModel>
+tmp<volScalarField::Internal> kOmegaSSTBase<BasicEddyViscosityModel>::GbyNu
+(
+    const volScalarField::Internal& GbyNu0,
+    const volScalarField::Internal& F2,
+    const volScalarField::Internal& S2
+) const
+{
+    return min
+    (
+        GbyNu0,
+        (c1_/a1_)*betaStar_*omega_()
+       *max(a1_*omega_(), b1_*F2*sqrt(S2))
+    );
+}
+
+
+template<class BasicEddyViscosityModel>
+tmp<fvScalarMatrix> kOmegaSSTBase<BasicEddyViscosityModel>::kSource() const
 {
     return tmp<fvScalarMatrix>
     (
@@ -172,9 +185,8 @@ kOmegaSST<TurbulenceModel, BasicTurbulenceModel>::kSource() const
 }
 
 
-template<class TurbulenceModel, class BasicTurbulenceModel>
-tmp<fvScalarMatrix>
-kOmegaSST<TurbulenceModel, BasicTurbulenceModel>::omegaSource() const
+template<class BasicEddyViscosityModel>
+tmp<fvScalarMatrix> kOmegaSSTBase<BasicEddyViscosityModel>::omegaSource() const
 {
     return tmp<fvScalarMatrix>
     (
@@ -187,8 +199,8 @@ kOmegaSST<TurbulenceModel, BasicTurbulenceModel>::omegaSource() const
 }
 
 
-template<class TurbulenceModel, class BasicTurbulenceModel>
-tmp<fvScalarMatrix> kOmegaSST<TurbulenceModel, BasicTurbulenceModel>::Qsas
+template<class BasicEddyViscosityModel>
+tmp<fvScalarMatrix> kOmegaSSTBase<BasicEddyViscosityModel>::Qsas
 (
     const volScalarField::Internal& S2,
     const volScalarField::Internal& gamma,
@@ -208,8 +220,8 @@ tmp<fvScalarMatrix> kOmegaSST<TurbulenceModel, BasicTurbulenceModel>::Qsas
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
-template<class TurbulenceModel, class BasicTurbulenceModel>
-kOmegaSST<TurbulenceModel, BasicTurbulenceModel>::kOmegaSST
+template<class BasicEddyViscosityModel>
+kOmegaSSTBase<BasicEddyViscosityModel>::kOmegaSSTBase
 (
     const word& type,
     const alphaField& alpha,
@@ -221,7 +233,7 @@ kOmegaSST<TurbulenceModel, BasicTurbulenceModel>::kOmegaSST
     const word& propertiesName
 )
 :
-    TurbulenceModel
+    BasicEddyViscosityModel
     (
         type,
         alpha,
@@ -235,7 +247,7 @@ kOmegaSST<TurbulenceModel, BasicTurbulenceModel>::kOmegaSST
 
     alphaK1_
     (
-        dimensioned<scalar>::lookupOrAddToDict
+        dimensioned<scalar>::getOrAddToDict
         (
             "alphaK1",
             this->coeffDict_,
@@ -244,7 +256,7 @@ kOmegaSST<TurbulenceModel, BasicTurbulenceModel>::kOmegaSST
     ),
     alphaK2_
     (
-        dimensioned<scalar>::lookupOrAddToDict
+        dimensioned<scalar>::getOrAddToDict
         (
             "alphaK2",
             this->coeffDict_,
@@ -253,7 +265,7 @@ kOmegaSST<TurbulenceModel, BasicTurbulenceModel>::kOmegaSST
     ),
     alphaOmega1_
     (
-        dimensioned<scalar>::lookupOrAddToDict
+        dimensioned<scalar>::getOrAddToDict
         (
             "alphaOmega1",
             this->coeffDict_,
@@ -262,7 +274,7 @@ kOmegaSST<TurbulenceModel, BasicTurbulenceModel>::kOmegaSST
     ),
     alphaOmega2_
     (
-        dimensioned<scalar>::lookupOrAddToDict
+        dimensioned<scalar>::getOrAddToDict
         (
             "alphaOmega2",
             this->coeffDict_,
@@ -271,7 +283,7 @@ kOmegaSST<TurbulenceModel, BasicTurbulenceModel>::kOmegaSST
     ),
     gamma1_
     (
-        dimensioned<scalar>::lookupOrAddToDict
+        dimensioned<scalar>::getOrAddToDict
         (
             "gamma1",
             this->coeffDict_,
@@ -280,7 +292,7 @@ kOmegaSST<TurbulenceModel, BasicTurbulenceModel>::kOmegaSST
     ),
     gamma2_
     (
-        dimensioned<scalar>::lookupOrAddToDict
+        dimensioned<scalar>::getOrAddToDict
         (
             "gamma2",
             this->coeffDict_,
@@ -289,7 +301,7 @@ kOmegaSST<TurbulenceModel, BasicTurbulenceModel>::kOmegaSST
     ),
     beta1_
     (
-        dimensioned<scalar>::lookupOrAddToDict
+        dimensioned<scalar>::getOrAddToDict
         (
             "beta1",
             this->coeffDict_,
@@ -298,7 +310,7 @@ kOmegaSST<TurbulenceModel, BasicTurbulenceModel>::kOmegaSST
     ),
     beta2_
     (
-        dimensioned<scalar>::lookupOrAddToDict
+        dimensioned<scalar>::getOrAddToDict
         (
             "beta2",
             this->coeffDict_,
@@ -307,7 +319,7 @@ kOmegaSST<TurbulenceModel, BasicTurbulenceModel>::kOmegaSST
     ),
     betaStar_
     (
-        dimensioned<scalar>::lookupOrAddToDict
+        dimensioned<scalar>::getOrAddToDict
         (
             "betaStar",
             this->coeffDict_,
@@ -316,7 +328,7 @@ kOmegaSST<TurbulenceModel, BasicTurbulenceModel>::kOmegaSST
     ),
     a1_
     (
-        dimensioned<scalar>::lookupOrAddToDict
+        dimensioned<scalar>::getOrAddToDict
         (
             "a1",
             this->coeffDict_,
@@ -325,7 +337,7 @@ kOmegaSST<TurbulenceModel, BasicTurbulenceModel>::kOmegaSST
     ),
     b1_
     (
-        dimensioned<scalar>::lookupOrAddToDict
+        dimensioned<scalar>::getOrAddToDict
         (
             "b1",
             this->coeffDict_,
@@ -334,7 +346,7 @@ kOmegaSST<TurbulenceModel, BasicTurbulenceModel>::kOmegaSST
     ),
     c1_
     (
-        dimensioned<scalar>::lookupOrAddToDict
+        dimensioned<scalar>::getOrAddToDict
         (
             "c1",
             this->coeffDict_,
@@ -343,7 +355,7 @@ kOmegaSST<TurbulenceModel, BasicTurbulenceModel>::kOmegaSST
     ),
     F3_
     (
-        Switch::lookupOrAddToDict
+        Switch::getOrAddToDict
         (
             "F3",
             this->coeffDict_,
@@ -357,7 +369,7 @@ kOmegaSST<TurbulenceModel, BasicTurbulenceModel>::kOmegaSST
     (
         IOobject
         (
-            IOobject::groupName("k", U.group()),
+            IOobject::groupName("k", alphaRhoPhi.group()),
             this->runTime_.timeName(),
             this->mesh_,
             IOobject::MUST_READ,
@@ -369,26 +381,81 @@ kOmegaSST<TurbulenceModel, BasicTurbulenceModel>::kOmegaSST
     (
         IOobject
         (
-            IOobject::groupName("omega", U.group()),
+            IOobject::groupName("omega", alphaRhoPhi.group()),
             this->runTime_.timeName(),
             this->mesh_,
             IOobject::MUST_READ,
             IOobject::AUTO_WRITE
         ),
         this->mesh_
+    ),
+    decayControl_
+    (
+        Switch::getOrAddToDict
+        (
+            "decayControl",
+            this->coeffDict_,
+            false
+        )
+    ),
+    kInf_
+    (
+        dimensioned<scalar>::getOrAddToDict
+        (
+            "kInf",
+            this->coeffDict_,
+            k_.dimensions(),
+            0
+        )
+    ),
+    omegaInf_
+    (
+        dimensioned<scalar>::getOrAddToDict
+        (
+            "omegaInf",
+            this->coeffDict_,
+            omega_.dimensions(),
+            0
+        )
     )
 {
     bound(k_, this->kMin_);
     bound(omega_, this->omegaMin_);
+
+    setDecayControl(this->coeffDict_);
 }
 
 
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
 
-template<class TurbulenceModel, class BasicTurbulenceModel>
-bool kOmegaSST<TurbulenceModel, BasicTurbulenceModel>::read()
+template<class BasicEddyViscosityModel>
+void kOmegaSSTBase<BasicEddyViscosityModel>::setDecayControl
+(
+    const dictionary& dict
+)
 {
-    if (TurbulenceModel::read())
+    decayControl_.readIfPresent("decayControl", dict);
+
+    if (decayControl_)
+    {
+        kInf_.read(dict);
+        omegaInf_.read(dict);
+
+        Info<< "    Employing decay control with kInf:" << kInf_
+            << " and omegaInf:" << omegaInf_ << endl;
+    }
+    else
+    {
+        kInf_.value() = 0;
+        omegaInf_.value() = 0;
+    }
+}
+
+
+template<class BasicEddyViscosityModel>
+bool kOmegaSSTBase<BasicEddyViscosityModel>::read()
+{
+    if (BasicEddyViscosityModel::read())
     {
         alphaK1_.readIfPresent(this->coeffDict());
         alphaK2_.readIfPresent(this->coeffDict());
@@ -404,17 +471,17 @@ bool kOmegaSST<TurbulenceModel, BasicTurbulenceModel>::read()
         c1_.readIfPresent(this->coeffDict());
         F3_.readIfPresent("F3", this->coeffDict());
 
+        setDecayControl(this->coeffDict());
+
         return true;
     }
-    else
-    {
-        return false;
-    }
+
+    return false;
 }
 
 
-template<class TurbulenceModel, class BasicTurbulenceModel>
-void kOmegaSST<TurbulenceModel, BasicTurbulenceModel>::correct()
+template<class BasicEddyViscosityModel>
+void kOmegaSSTBase<BasicEddyViscosityModel>::correct()
 {
     if (!this->turbulence_)
     {
@@ -429,18 +496,18 @@ void kOmegaSST<TurbulenceModel, BasicTurbulenceModel>::correct()
     volScalarField& nut = this->nut_;
     fv::options& fvOptions(fv::options::New(this->mesh_));
 
-    BasicTurbulenceModel::correct();
+    BasicEddyViscosityModel::correct();
 
-    volScalarField::Internal divU
-    (
-        fvc::div(fvc::absolute(this->phi(), U))()()
-    );
+    volScalarField::Internal divU(fvc::div(fvc::absolute(this->phi(), U)));
 
     tmp<volTensorField> tgradU = fvc::grad(U);
     volScalarField S2(2*magSqr(symm(tgradU())));
-    volScalarField::Internal GbyNu(dev(twoSymm(tgradU()())) && tgradU()());
-    volScalarField::Internal G(this->GName(), nut()*GbyNu);
-    tgradU.clear();
+    volScalarField::Internal GbyNu0
+    (
+        this->type() + ":GbyNu",
+        (tgradU() && dev(twoSymm(tgradU())))
+    );
+    volScalarField::Internal G(this->GName(), nut*GbyNu0);
 
     // Update omega and G at the wall
     omega_.boundaryFieldRef().updateCoeffs();
@@ -457,6 +524,8 @@ void kOmegaSST<TurbulenceModel, BasicTurbulenceModel>::correct()
         volScalarField::Internal gamma(this->gamma(F1));
         volScalarField::Internal beta(this->beta(F1));
 
+        GbyNu0 = GbyNu(GbyNu0, F23(), S2());
+
         // Turbulent frequency equation
         tmp<fvScalarMatrix> omegaEqn
         (
@@ -464,13 +533,7 @@ void kOmegaSST<TurbulenceModel, BasicTurbulenceModel>::correct()
           + fvm::div(alphaRhoPhi, omega_)
           - fvm::laplacian(alpha*rho*DomegaEff(F1), omega_)
          ==
-            alpha()*rho()*gamma
-           *min
-            (
-                GbyNu,
-                (c1_/a1_)*betaStar_*omega_()
-               *max(a1_*omega_(), b1_*F23()*sqrt(S2()))
-            )
+            alpha()*rho()*gamma*GbyNu0
           - fvm::SuSp((2.0/3.0)*alpha()*rho()*gamma*divU, omega_)
           - fvm::Sp(alpha()*rho()*beta*omega_(), omega_)
           - fvm::SuSp
@@ -478,6 +541,7 @@ void kOmegaSST<TurbulenceModel, BasicTurbulenceModel>::correct()
                 alpha()*rho()*(F1() - scalar(1))*CDkOmega()/omega_(),
                 omega_
             )
+          + alpha()*rho()*beta*sqr(omegaInf_)
           + Qsas(S2(), gamma, beta)
           + omegaSource()
           + fvOptions(alpha, rho, omega_)
@@ -500,10 +564,13 @@ void kOmegaSST<TurbulenceModel, BasicTurbulenceModel>::correct()
      ==
         alpha()*rho()*Pk(G)
       - fvm::SuSp((2.0/3.0)*alpha()*rho()*divU, k_)
-      - fvm::Sp(alpha()*rho()*epsilonByk(F1, F23), k_)
+      - fvm::Sp(alpha()*rho()*epsilonByk(F1, tgradU()), k_)
+      + alpha()*rho()*betaStar_*omegaInf_*kInf_
       + kSource()
       + fvOptions(alpha, rho, k_)
     );
+
+    tgradU.clear();
 
     kEqn.ref().relax();
     fvOptions.constrain(kEqn.ref());
@@ -511,7 +578,7 @@ void kOmegaSST<TurbulenceModel, BasicTurbulenceModel>::correct()
     fvOptions.correct(k_);
     bound(k_, this->kMin_);
 
-    correctNut(S2, F23);
+    correctNut(S2);
 }
 
 

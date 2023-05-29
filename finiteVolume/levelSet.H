@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2017 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -34,7 +36,7 @@ SourceFiles:
 #ifndef levelSet_H
 #define levelSet_H
 
-#include "DimensionedField.T.H"
+#include "DimensionedField.H"
 #include "fvMesh.H"
 #include "pointMesh.H"
 #include "volMesh.H"
@@ -84,7 +86,7 @@ tmp<DimensionedField<scalar, volMesh>> levelSetFraction
     const bool above
 );
 
-//- As the above oveload, but on the faces of a patch
+//- As the above overload, but on the faces of a patch
 tmp<scalarField> levelSetFraction
 (
     const fvPatch& patch,

@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2013-2015 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2013-2015 OpenFOAM Foundation
+    Copyright (C) 2019-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -37,30 +40,27 @@ Foam::radiation::sootModel::New
 {
     word modelType("none");
 
-    if (dict.found("sootModel"))
+    if (dict.readIfPresent("sootModel", modelType))
     {
-        dict.lookup("sootModel") >> modelType;
-
         Info<< "Selecting sootModel " << modelType << endl;
     }
 
-    dictionaryConstructorTable::iterator cstrIter =
-            dictionaryConstructorTablePtr_->find(modelType);
+    auto* ctorPtr = dictionaryConstructorTable(modelType);
 
-    if (cstrIter == dictionaryConstructorTablePtr_->end())
+    if (!ctorPtr)
     {
-        FatalErrorInFunction
-            << "Unknown sootModel type "
-            << modelType << nl << nl
-            << "Valid sootModel types are :" << nl
-            << dictionaryConstructorTablePtr_->sortedToc() << exit(FatalError);
+        FatalIOErrorInLookup
+        (
+            dict,
+            "sootModel",
+            modelType,
+            *dictionaryConstructorTablePtr_
+        ) << exit(FatalIOError);
     }
 
-    const label tempOpen = modelType.find('<');
+    const word className = modelType.substr(0, modelType.find('<'));
 
-    const word className = modelType(0, tempOpen);
-
-    return autoPtr<sootModel>(cstrIter()(dict, mesh, className));
+    return autoPtr<sootModel>(ctorPtr(dict, mesh, className));
 }
 
 

@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -43,7 +46,7 @@ SourceFiles
 namespace Foam
 {
 
-// Forward declaration of classes
+// Forward Declarations
 class triSurfaceSearch;
 
 /*---------------------------------------------------------------------------*\
@@ -69,14 +72,6 @@ public:
 private:
 
     // Private Member Functions
-
-        //- Return true if edge is used in opposite order in faces
-        static bool consistentEdge
-        (
-            const edge& e,
-            const triSurface::FaceType& f0,
-            const triSurface::FaceType& f1
-        );
 
         //- From changed faces get the changed edges
         static labelList faceToEdge
@@ -143,7 +138,7 @@ public:
 
     // Constructors
 
-        //- Construct null
+        //- Default construct
         orientedSurface();
 
         //- Construct from triSurface and sample point which is either

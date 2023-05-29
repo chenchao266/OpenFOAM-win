@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2018 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -121,18 +124,16 @@ License
 //    // Snap outside points to surface
 //    pointField newPoints(points);
 //
-//    forAllConstIter(labelHashSet, flatCandidates, iter)
+//    for (const label celli : flatCandidates)
 //    {
-//        const cell& cFaces = cells[iter.key()];
+//        const cell& cFaces = cells[celli];
 //
-//        forAll(cFaces, cFacei)
+//        for (const label facei : cFaces)
 //        {
-//            const face& f = faces[cFaces[cFacei]];
+//            const face& f = faces[facei];
 //
-//            forAll(f, fp)
+//            for (const label pointi : f)
 //            {
-//                label pointi = f[fp];
-//
 //                if (outsidePoints.insert(pointi))
 //                {
 //                    // Calculate new position for this outside point
@@ -147,10 +148,8 @@ License
 //
 //    // Calculate new volume for mixed cells
 //    label nRemoved = 0;
-//    forAllConstIter(labelHashSet, flatCandidates, iter)
+//    for (const label celli : flatCandidates)
 //    {
-//        label celli = iter.key();
-//
 //        const cell& cll = cells[celli];
 //
 //        scalar newVol = cll.mag(newPoints, faces);
@@ -374,20 +373,19 @@ Foam::labelHashSet Foam::surfaceSets::getHangingCells
 
     labelHashSet mixedOnlyCells(internalCells.size());
 
-    forAllConstIter(labelHashSet, internalCells, iter)
+    for (const label celli : internalCells)
     {
-        const label celli = iter.key();
         const cell& cFaces = cells[celli];
 
         label usesMixedOnly = true;
 
-        forAll(cFaces, i)
+        for (const label facei : cFaces)
         {
-            const face& f = faces[cFaces[i]];
+            const face& f = faces[facei];
 
-            forAll(f, fp)
+            for (const label pointi : f)
             {
-                if (pointSide[f[fp]] != MIXED)
+                if (pointSide[pointi] != MIXED)
                 {
                     usesMixedOnly = false;
                     break;
@@ -501,7 +499,7 @@ Foam::labelHashSet Foam::surfaceSets::getHangingCells
 //
 //    cellToCell deleteInsideSource(mesh, rawInside.name());
 //
-//    deleteInsideSource.applyToSet(topoSetSource::DELETE, cutCells);
+//    deleteInsideSource.applyToSet(topoSetSource::SUBTRACT, cutCells);
 //    Pout<< "Writing cut cells (" << cutCells.size() << ") to cellSet "
 //        << cutCells.instance()/cutCells.local()/cutCells.name()
 //        << endl << endl;
@@ -549,8 +547,8 @@ Foam::labelHashSet Foam::surfaceSets::getHangingCells
 //    cellSet inside(mesh, "inside", rawInside);
 //    cellSet outside(mesh, "outside", rawOutside);
 //
-//    pToCell.applyToSet(topoSetSource::DELETE, inside);
-//    pToCell.applyToSet(topoSetSource::DELETE, outside);
+//    pToCell.applyToSet(topoSetSource::SUBTRACT, inside);
+//    pToCell.applyToSet(topoSetSource::SUBTRACT, outside);
 //
 //    Pout<< nl
 //        << "Removed " << rawInside.size() - inside.size()

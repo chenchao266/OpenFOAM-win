@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -23,66 +25,70 @@ License
 
 \*---------------------------------------------------------------------------*/
 
-#include "sphericalTensor2D.H"
+#include "sphericalTensor2D2.H"
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
-namespace Foam {
-    template<>
-    const char* const sphericalTensor2D::vsType::typeName
-    (
-        "sphericalTensor2D"
-    );
 
-    template<>
-    const char* const sphericalTensor2D::vsType::componentNames[] =
-    {
-        "ii"
-    };
 
-    template<>
-    const sphericalTensor2D sphericalTensor2D::vsType::vsType::_zero
-    (
-        sphericalTensor2D::uniform(0)
-    );
+ namespace Foam{
+template<>
+const char* const sphericalTensor2D::vsType::typeName
+(
+    "sphericalTensor2D"
+);
 
-    template<>
-    const sphericalTensor2D sphericalTensor2D::vsType::one
-    (
-        sphericalTensor2D::uniform(1)
-    );
+template<>
+const char* const sphericalTensor2D::vsType::componentNames[] =
+{
+    "ii"
+};
 
-    template<>
-    const sphericalTensor2D sphericalTensor2D::vsType::max
-    (
-        sphericalTensor2D::uniform(VGREAT)
-    );
+template<>
+const sphericalTensor2D sphericalTensor2D::vsType::vsType::zero_
+(
+    sphericalTensor2D::uniform(0)
+);
 
-    template<>
-    const sphericalTensor2D sphericalTensor2D::vsType::min
-    (
-        sphericalTensor2D::uniform(-VGREAT)
-    );
+template<>
+const sphericalTensor2D sphericalTensor2D::vsType::one_
+(
+    sphericalTensor2D::uniform(1)
+);
 
-    template<>
-    const sphericalTensor2D sphericalTensor2D::vsType::rootMax
-    (
-        sphericalTensor2D::uniform(ROOTVGREAT)
-    );
+template<>
+const sphericalTensor2D sphericalTensor2D::vsType::max_
+(
+    sphericalTensor2D::uniform(VGREAT)
+);
 
-    template<>
-    const sphericalTensor2D sphericalTensor2D::vsType::rootMin
-    (
-        sphericalTensor2D::uniform(-ROOTVGREAT)
-    );
+template<>
+const sphericalTensor2D sphericalTensor2D::vsType::min_
+(
+    sphericalTensor2D::uniform(-VGREAT)
+);
 
-    template<>
-    const sphericalTensor2D sphericalTensor2D::I(1);
+template<>
+const sphericalTensor2D sphericalTensor2D::vsType::rootMax_
+(
+    sphericalTensor2D::uniform(ROOTVGREAT)
+);
 
-    template<>
-    const sphericalTensor2D sphericalTensor2D::oneThirdI(1.0 / 3.0);
+template<>
+const sphericalTensor2D sphericalTensor2D::vsType::rootMin_
+(
+    sphericalTensor2D::uniform(-ROOTVGREAT)
+);
 
-    template<>
-    const sphericalTensor2D sphericalTensor2D::twoThirdsI(2.0 / 3.0);
+template<>
+const sphericalTensor2D sphericalTensor2D::I(1);
 
-}
+template<>
+const sphericalTensor2D sphericalTensor2D::oneThirdI(1.0/3.0);
+
+template<>
+const sphericalTensor2D sphericalTensor2D::twoThirdsI(2.0/3.0);
+
+
 // ************************************************************************* //
+
+ } // End namespace Foam

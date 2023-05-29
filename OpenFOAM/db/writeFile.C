@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2012-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2012-2018 OpenFOAM Foundation
+    Copyright (C) 2015-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -24,17 +27,16 @@ License
 \*---------------------------------------------------------------------------*/
 
 #include "writeFile.H"
-#include "Time.T.H"
+#include "Time1.h"
 #include "polyMesh.H"
+#include "IFstream.H"
+#include "functionObject.H"
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
-using namespace Foam;
-const word functionObjects::writeFile::outputPrefix
-(
-    "postProcessing"
-);
 
-label functionObjects::writeFile::addChars = 7;
+
+ namespace Foam{
+label functionObjects::writeFile::addChars = 8;
 
 
 // * * * * * * * * * * * * Protected Member Functions  * * * * * * * * * * * //
@@ -42,24 +44,21 @@ label functionObjects::writeFile::addChars = 7;
 void functionObjects::writeFile::initStream(Ostream& os) const
 {
     os.setf(ios_base::scientific, ios_base::floatfield);
+    os.precision(writePrecision_);
     os.width(charWidth());
 }
 
 
 fileName functionObjects::writeFile::baseFileDir() const
 {
-    fileName baseDir = fileObr_.time().path();
+    // Put in undecomposed case
+    // (Note: gives problems for distributed data running)
 
-    if (Pstream::parRun())
-    {
-        // Put in undecomposed case (Note: gives problems for
-        // distributed data running)
-        baseDir = baseDir/".."/outputPrefix;
-    }
-    else
-    {
-        baseDir = baseDir/outputPrefix;
-    }
+    fileName baseDir
+    (
+        fileObr_.time().globalPath()
+      / functionObject::outputPrefix
+    );
 
     // Append mesh name if not default region
     if (isA<polyMesh>(fileObr_))
@@ -67,12 +66,10 @@ fileName functionObjects::writeFile::baseFileDir() const
         const polyMesh& mesh = refCast<const polyMesh>(fileObr_);
         if (mesh.name() != polyMesh::defaultRegion)
         {
-            baseDir = baseDir/mesh.name();
+            baseDir /= mesh.name();
         }
     }
-
-    // Remove any ".."
-    baseDir.clean();
+    baseDir.clean();  // Remove unneeded ".."
 
     return baseDir;
 }
@@ -84,37 +81,192 @@ fileName functionObjects::writeFile::baseTimeDir() const
 }
 
 
+autoPtr<OFstream> functionObjects::writeFile::createFile
+(
+    const word& name,
+    scalar timeValue
+) const
+{
+    autoPtr<OFstream> osPtr;
+
+    if (Pstream::master() && writeToFile_)
+    {
+        if (useUserTime_)
+        {
+            timeValue = fileObr_.time().timeToUserTime(timeValue);
+        }
+
+        const word timeName = Time::timeName(timeValue);
+
+        fileName outputDir(baseFileDir()/prefix_/timeName);
+
+        mkDir(outputDir);
+
+        word fName(name);
+
+        // Check if file already exists
+        IFstream is(outputDir/(fName + ".dat"));
+        if (is.good())
+        {
+            fName = fName + "_" + timeName;
+        }
+
+        osPtr.reset(new OFstream(outputDir/(fName + ".dat")));
+
+        if (!osPtr->good())
+        {
+            FatalIOErrorInFunction(osPtr()) << "Cannot open file"
+                << exit(FatalIOError);
+        }
+
+        initStream(osPtr());
+    }
+
+    return osPtr;
+}
+
+
+autoPtr<OFstream> functionObjects::writeFile::createFile
+(
+    const word& name
+) const
+{
+    return createFile(name, startTime_);
+
+}
+
+
+void functionObjects::writeFile::resetFile(const word& fileName)
+{
+    fileName_ = fileName;
+    filePtr_ = createFile(fileName_);
+}
+
+
 Omanip<int> functionObjects::writeFile::valueWidth
 (
     const label offset
 ) const
 {
-    return setw(IOstream::defaultPrecision() + addChars + offset);
+    return setw(writePrecision_ + addChars + offset);
 }
 
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
+functionObjects::writeFile::writeFile(const writeFile& wf)
+:
+    fileObr_(wf.fileObr_),
+    prefix_(wf.prefix_),
+    fileName_(wf.fileName_),
+    filePtr_(nullptr),
+    writePrecision_(wf.writePrecision_),
+    writeToFile_(wf.writeToFile_),
+    updateHeader_(wf.updateHeader_),
+    writtenHeader_(wf.writtenHeader_),
+    useUserTime_(wf.useUserTime_),
+    startTime_(wf.startTime_)
+{}
+
+
 functionObjects::writeFile::writeFile
 (
     const objectRegistry& obr,
-    const word& prefix
-) :    fileObr_(obr),
-    prefix_(prefix)
+    const fileName& prefix,
+    const word& name,
+    const bool writeToFile
+)
+:
+    fileObr_(obr),
+    prefix_(prefix),
+    fileName_(name),
+    filePtr_(nullptr),
+    writePrecision_(IOstream::defaultPrecision()),
+    writeToFile_(writeToFile),
+    updateHeader_(true),
+    writtenHeader_(false),
+    useUserTime_(true),
+    startTime_(obr.time().startTime().value())
 {}
 
 
-// * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
+functionObjects::writeFile::writeFile
+(
+    const objectRegistry& obr,
+    const fileName& prefix,
+    const word& name,
+    const dictionary& dict,
+    const bool writeToFile
+)
+:
+    writeFile(obr, prefix, name, writeToFile)
+{
+    read(dict);
 
-functionObjects::writeFile::~writeFile()
-{}
+    if (writeToFile_)
+    {
+        filePtr_ = createFile(fileName_);
+    }
+}
 
 
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
 
+bool functionObjects::writeFile::read(const dictionary& dict)
+{
+    writePrecision_ =
+        dict.getCheckOrDefault
+        (
+            "writePrecision",
+            IOstream::defaultPrecision(),
+            labelMinMax::ge(0)
+        );
+
+    updateHeader_ = dict.getOrDefault("updateHeader", updateHeader_);
+
+    // Only write on master
+    writeToFile_ =
+        Pstream::master() && dict.getOrDefault("writeToFile", writeToFile_);
+
+    // Use user time, e.g. CA deg in preference to seconds
+    useUserTime_ = dict.getOrDefault("useUserTime", true);
+
+    return true;
+}
+
+
+OFstream& functionObjects::writeFile::file()
+{
+    if (!writeToFile_)
+    {
+        return Snull;
+    }
+
+    if (!filePtr_)
+    {
+        FatalErrorInFunction
+            << "File pointer not allocated\n";
+    }
+
+    return *filePtr_;
+}
+
+
+bool functionObjects::writeFile::writeToFile() const
+{
+    return writeToFile_;
+}
+
+
+bool functionObjects::writeFile::canWriteHeader() const
+{
+    return writeToFile_ && (updateHeader_ || !writtenHeader_);
+}
+
+
 label functionObjects::writeFile::charWidth() const
 {
-    return IOstream::defaultPrecision() + addChars;
+    return writePrecision_ + addChars;
 }
 
 
@@ -124,8 +276,13 @@ void functionObjects::writeFile::writeCommented
     const string& str
 ) const
 {
-    os  << setw(1) << "#" << setw(1) << ' '
-        << setf(ios_base::left) << setw(charWidth() - 2) << str.c_str();
+    os  << setw(1) << "#";
+
+    if (str.size())
+    {
+        os  << setw(1) << ' '
+            << setf(ios_base::left) << setw(charWidth() - 2) << str.c_str();
+    }
 }
 
 
@@ -145,15 +302,30 @@ void functionObjects::writeFile::writeHeader
     const string& str
 ) const
 {
-    os  << setw(1) << "#" << setw(1) << ' '
-        << setf(ios_base::left) << setw(charWidth() - 2) << str.c_str() << nl;
+    writeCommented(os, str);
+    os  << nl;
 }
 
 
-void functionObjects::writeFile::writeTime(Ostream& os) const
+void functionObjects::writeFile::writeCurrentTime(Ostream& os) const
 {
-    os  << setw(charWidth()) << fileObr_.time().timeName();
+    const scalar timeValue =
+    (
+        useUserTime_
+      ? fileObr_.time().timeOutputValue()
+      : fileObr_.time().value()
+    );
+
+    os  << setw(charWidth()) << Time::timeName(timeValue);
+}
+
+
+void functionObjects::writeFile::writeBreak(Ostream& os) const
+{
+    writeHeader(os, "===");
 }
 
 
 // ************************************************************************* //
+
+ } // End namespace Foam

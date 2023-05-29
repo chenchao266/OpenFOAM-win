@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -23,6 +26,9 @@ License
 
 Class
     Foam::polynomialTransport
+
+Group
+    grpSpecieTransport
 
 Description
     Transport package using polynomial functions for \c mu and \c kappa.
@@ -72,14 +78,14 @@ See also
 #ifndef polynomialTransport_H
 #define polynomialTransport_H
 
-#include "Polynomial.T.H"
+#include "Polynomial.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 namespace Foam
 {
 
-// Forward declaration of friend functions and operators
+// Forward Declarations
 
 template<class Thermo, int PolySize> class polynomialTransport;
 
@@ -114,7 +120,7 @@ class polynomialTransport
 :
     public Thermo
 {
-    // Private data
+    // Private Data
 
         //- Dynamic viscosity polynomial coefficients
         Polynomial<PolySize> muCoeffs_;
@@ -124,6 +130,12 @@ class polynomialTransport
 
 
     // Private Member Functions
+
+        //- Coeffs name. Eg, "muCoeffs<10>"
+        inline static word coeffsName(const char* name)
+        {
+            return word(name + ("Coeffs<" + std::to_string(PolySize) + '>'));
+        }
 
         //- Construct from components
         inline polynomialTransport
@@ -136,13 +148,16 @@ class polynomialTransport
 
 public:
 
+    // Generated Methods: copy construct, copy assignment
+
+
     // Constructors
 
         //- Construct as named copy
         inline polynomialTransport(const word&, const polynomialTransport&);
 
         //- Construct from dictionary
-        polynomialTransport(const dictionary& dict);
+        explicit polynomialTransport(const dictionary& dict);
 
         //- Construct and return a clone
         inline autoPtr<polynomialTransport> clone() const;
@@ -151,7 +166,7 @@ public:
         inline static autoPtr<polynomialTransport> New(const dictionary& dict);
 
 
-    // Member functions
+    // Member Functions
 
         //- Return the instantiated type name
         static word typeName()
@@ -175,16 +190,14 @@ public:
         void write(Ostream& os) const;
 
 
-    // Member operators
-
-        inline void operator=(const polynomialTransport&);
+    // Member Operators
 
         inline void operator+=(const polynomialTransport&);
 
         inline void operator*=(const scalar);
 
 
-    // Friend operators
+    // Friend Operators
 
         friend polynomialTransport operator+ <Thermo, PolySize>
         (
@@ -199,7 +212,7 @@ public:
         );
 
 
-    // Ostream Operator
+    // IOstream Operators
 
         friend Ostream& operator<< <Thermo, PolySize>
         (

@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2013 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2013 OpenFOAM Foundation
+    Copyright (C) 2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -32,8 +35,8 @@ Description
 #ifndef pointMesh_H
 #define pointMesh_H
 
-#include "GeoMesh.T.H"
-#include "MeshObject.T.H"
+#include "GeoMesh.H"
+#include "MeshObject.H"
 #include "polyMesh.H"
 #include "pointBoundaryMesh.H"
 
@@ -45,11 +48,13 @@ namespace Foam
 /*---------------------------------------------------------------------------*\
                            Class pointMesh Declaration
 \*---------------------------------------------------------------------------*/
- 
-class pointMesh :    public MeshObject<polyMesh, Foam::UpdateableMeshObject, pointMesh>,
+
+class pointMesh
+:
+    public MeshObject<polyMesh, UpdateableMeshObject, pointMesh>,
     public GeoMesh<polyMesh>
 {
-    // Permanent data
+    // Permanent Data
 
         //- Boundary mesh
         pointBoundaryMesh boundary_;
@@ -58,13 +63,13 @@ class pointMesh :    public MeshObject<polyMesh, Foam::UpdateableMeshObject, poi
     // Private Member Functions
 
         //- Map all fields
-        void mapFields(const mapPolyMesh&);
+        void mapFields(const mapPolyMesh& mpm);
 
-        //- Disallow default bitwise copy construct
-        pointMesh(const pointMesh&);
+        //- No copy construct
+        pointMesh(const pointMesh&) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const pointMesh&);
+        //- No copy assignment
+        void operator=(const pointMesh&) = delete;
 
 
 public:
@@ -84,21 +89,21 @@ public:
 
 
     //- Destructor
-    ~pointMesh();
+    ~pointMesh() = default;
 
 
     // Member Functions
 
-        //- Return number of points
-        label size() const
-        {
-            return size(*this);
-        }
-
-        //- Return number of points
+        //- Return size. Number of points
         static label size(const Mesh& mesh)
         {
             return mesh.GeoMesh<polyMesh>::mesh_.nPoints();
+        }
+
+        //- Return size. Number of points
+        label size() const
+        {
+            return size(*this);
         }
 
         //- Return reference to boundary mesh
@@ -119,14 +124,20 @@ public:
             return GeoMesh<polyMesh>::mesh_.thisDb();
         }
 
+        //- Return Time from polyMesh.
+        const Time& time() const
+        {
+            return GeoMesh<polyMesh>::mesh_.time();
+        }
 
-        // Mesh motion
 
-            //- Move points
-            bool movePoints();
+    // Mesh motion
 
-            //- Update the mesh corresponding to given map
-            void updateMesh(const mapPolyMesh& mpm);
+        //- Move points
+        bool movePoints();
+
+        //- Update the mesh corresponding to given map
+        void updateMesh(const mapPolyMesh& mpm);
 
 
     // Member Operators

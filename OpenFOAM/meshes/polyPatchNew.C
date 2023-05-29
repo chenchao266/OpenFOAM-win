@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2019-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -24,10 +27,12 @@ License
 \*---------------------------------------------------------------------------*/
 
 #include "polyPatch.H"
-#include "dictionary.H"
+#include "dictionary2.H"
 
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
-using namespace Foam;
+
+
+ namespace Foam{
 autoPtr<polyPatch> polyPatch::New
 (
     const word& patchType,
@@ -38,27 +43,23 @@ autoPtr<polyPatch> polyPatch::New
     const polyBoundaryMesh& bm
 )
 {
-    if (debug)
-    {
-        InfoInFunction << "Constructing polyPatch" << endl;
-    }
+    DebugInFunction << "Constructing polyPatch" << endl;
 
-    wordConstructorTable::iterator cstrIter =
-        wordConstructorTablePtr_->find(patchType);
+    auto* ctorPtr = wordConstructorTable(patchType);
 
-    if (cstrIter == wordConstructorTablePtr_->end())
+    if (!ctorPtr)
     {
-        FatalErrorInFunction
-            << "Unknown polyPatch type "
-            << patchType << " for patch " << name << nl << nl
-            << "Valid polyPatch types are :" << endl
-            << wordConstructorTablePtr_->sortedToc()
-            << exit(FatalError);
+        FatalErrorInLookup
+        (
+            "polyPatch",
+            patchType,
+            *wordConstructorTablePtr_
+        ) << exit(FatalError);
     }
 
     return autoPtr<polyPatch>
     (
-        cstrIter()
+        ctorPtr
         (
             name,
             size,
@@ -79,12 +80,9 @@ autoPtr<polyPatch> polyPatch::New
     const polyBoundaryMesh& bm
 )
 {
-    if (debug)
-    {
-        InfoInFunction << "Constructing polyPatch" << endl;
-    }
+    DebugInFunction << "Constructing polyPatch" << endl;
 
-    word patchType(dict.lookup("type"));
+    word patchType(dict.get<word>("type"));
     dict.readIfPresent("geometricType", patchType);
 
     return polyPatch::New(patchType, name, dict, index, bm);
@@ -100,36 +98,33 @@ autoPtr<polyPatch> polyPatch::New
     const polyBoundaryMesh& bm
 )
 {
-    if (debug)
-    {
-        InfoInFunction << "Constructing polyPatch" << endl;
-    }
+    DebugInFunction << "Constructing polyPatch" << endl;
 
-    dictionaryConstructorTable::iterator cstrIter =
-        dictionaryConstructorTablePtr_->find(patchType);
+    auto* ctorPtr = dictionaryConstructorTable(patchType);
 
-    if (cstrIter == dictionaryConstructorTablePtr_->end())
+    if (!ctorPtr)
     {
         if (!disallowGenericPolyPatch)
         {
-            cstrIter = dictionaryConstructorTablePtr_->find("genericPatch");
+            ctorPtr = dictionaryConstructorTable("genericPatch");
         }
 
-        if (cstrIter == dictionaryConstructorTablePtr_->end())
+        if (!ctorPtr)
         {
-            FatalIOErrorInFunction
+            FatalIOErrorInLookup
             (
-                dict
-            )   << "Unknown polyPatch type "
-                << patchType << " for patch " << name << nl << nl
-                << "Valid polyPatch types are :" << endl
-                << dictionaryConstructorTablePtr_->sortedToc()
-                << exit(FatalIOError);
+                dict,
+                "polyPatch",
+                patchType,
+                *dictionaryConstructorTablePtr_
+            ) << exit(FatalIOError);
         }
     }
 
-    return autoPtr<polyPatch>(cstrIter()(name, dict, index, bm, patchType));
+    return autoPtr<polyPatch>(ctorPtr(name, dict, index, bm, patchType));
 }
 
 
 // ************************************************************************* //
+
+ } // End namespace Foam

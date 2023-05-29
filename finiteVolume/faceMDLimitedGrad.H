@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2018-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -23,6 +26,9 @@ License
 
 Class
     Foam::fv::faceMDLimitedGrad
+
+Group
+    grpFvGradSchemes
 
 Description
     faceMDLimitedGrad gradient scheme applied to a runTime selected
@@ -63,6 +69,7 @@ class faceMDLimitedGrad
 {
     // Private Data
 
+        //- Gradient scheme
         tmp<fv::gradScheme<Type>> basicGradScheme_;
 
         //- Limiter coefficient
@@ -80,11 +87,11 @@ class faceMDLimitedGrad
         ) const;
 
 
-        //- Disallow default bitwise copy construct
-        faceMDLimitedGrad(const faceMDLimitedGrad&);
+        //- No copy construct
+        faceMDLimitedGrad(const faceMDLimitedGrad&) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const faceMDLimitedGrad&);
+        //- No copy assignment
+        void operator=(const faceMDLimitedGrad&) = delete;
 
 
 public:
@@ -104,10 +111,8 @@ public:
         {
             if (k_ < 0 || k_ > 1)
             {
-                FatalIOErrorInFunction
-                (
-                    schemeData
-                )   << "coefficient = " << k_
+                FatalIOErrorInFunction(schemeData)
+                    << "coefficient = " << k_
                     << " should be >= 0 and <= 1"
                     << exit(FatalIOError);
             }
@@ -117,7 +122,7 @@ public:
     // Member Functions
 
         //- Return the gradient of the given field to the gradScheme::grad
-        //  for optional caching
+        //- for optional caching
         virtual tmp
         <
             GeometricField

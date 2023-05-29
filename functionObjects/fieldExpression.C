@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2016 OpenFOAM Foundation
+    Copyright (C) 2019-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -24,7 +27,7 @@ License
 \*---------------------------------------------------------------------------*/
 
 #include "fieldExpression.H"
-#include "dictionary.H"
+#include "dictionary2.H"
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
 
@@ -60,6 +63,8 @@ void Foam::functionObjects::fieldExpression::setResultName
         {
             resultName_ = typeName;
         }
+
+        resultName_ = scopedName(resultName_);
     }
 }
 
@@ -83,29 +88,32 @@ Foam::functionObjects::fieldExpression::fieldExpression
 }
 
 
-// * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
-
-Foam::functionObjects::fieldExpression::~fieldExpression()
-{}
-
-
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
 
 bool Foam::functionObjects::fieldExpression::read(const dictionary& dict)
 {
-    fvMeshFunctionObject::read(dict);
-
-    if (fieldName_.empty() || dict.found("field"))
+    if (fvMeshFunctionObject::read(dict))
     {
-        dict.lookup("field") >> fieldName_;
+        if (fieldName_.empty() || dict.found("field"))
+        {
+            dict.readEntry("field", fieldName_);
+        }
+
+        dict.readIfPresent("result", resultName_);
+
+        if (dict.found("cellZones"))
+        {
+            zoneSubSetPtr_.reset(new Detail::zoneSubSet(mesh_, dict));
+        }
+        else
+        {
+            zoneSubSetPtr_.reset(nullptr);
+        }
+
+        return true;
     }
 
-    if (dict.found("result"))
-    {
-        dict.lookup("result") >> resultName_;
-    }
-
-    return true;
+    return false;
 }
 
 
@@ -122,10 +130,8 @@ bool Foam::functionObjects::fieldExpression::execute()
 
         return false;
     }
-    else
-    {
-        return true;
-    }
+
+    return true;
 }
 
 

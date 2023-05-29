@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011 OpenFOAM Foundation
+    Copyright (C) 2016 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -21,19 +24,11 @@ License
     You should have received a copy of the GNU General Public License
     along with OpenFOAM.  If not, see <http://www.gnu.org/licenses/>.
 
-Namespace
-    Foam::meshWriters
-
-Description
-    A namespace for holding various types of mesh writers.
-
-
 Class
     Foam::meshWriter
 
 Description
-    write OpenFOAM meshes and/or results to another CFD format
-    - currently just STAR-CD
+    Write OpenFOAM meshes and/or results to another CFD format.
 
 \par Files
 
@@ -65,9 +60,7 @@ Description
 
 
 SourceFiles
-    meshWriterI.H
     meshWriter.C
-    meshWriterIO.C
 
 \*---------------------------------------------------------------------------*/
 
@@ -91,11 +84,11 @@ class meshWriter
 {
     // Private Member Functions
 
-        //- Disallow default bitwise copy construct
-        meshWriter(const meshWriter&);
+        //- No copy construct
+        meshWriter(const meshWriter&) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const meshWriter&);
+        //- No copy assignment
+        void operator=(const meshWriter&) = delete;
 
 
 protected:
@@ -108,9 +101,6 @@ protected:
         //- Scaling factor for points (eg, [m] -> [mm])
         scalar scaleFactor_;
 
-        //- Write bnd file
-        bool writeBoundary_;
-
         //- boundaryRegion persistent data saved as a dictionary
         boundaryRegion boundaryRegion_;
 
@@ -120,14 +110,6 @@ protected:
         //- cellTable IDs for each cell
         labelList cellTableId_;
 
-        //- Pointers to cell shape models
-        static const cellModel* unknownModel;
-        static const cellModel* tetModel;
-        static const cellModel* pyrModel;
-        static const cellModel* prismModel;
-        static const cellModel* hexModel;
-
-
 public:
 
     // Static data members
@@ -135,13 +117,15 @@ public:
         //- Specify a default mesh name
         static string defaultMeshName;
 
+
     // Constructors
 
-        //- Create a writer obejct
+        //- Create a writer object with given output scaling.
+        //  Treats a zero or negative scale factor as unity scaling.
         meshWriter
         (
             const polyMesh&,
-            const scalar scaleFactor = 1.0
+            const scalar scaling = 1.0
         );
 
 
@@ -151,27 +135,13 @@ public:
 
     // Member Functions
 
-        // Edit
+    // Write
 
-            //- Set points scaling
-            void scaleFactor(const scalar scaling)
-            {
-                scaleFactor_ = scaling;
-            }
-
-            //- Suppress writing bnd file
-            void noBoundary()
-            {
-                writeBoundary_ = false;
-            }
-
-        // Write
-
-            //- Write volume mesh. Subclass must supply this method
-            virtual bool write
-            (
-                const fileName& timeName = fileName::null
-            ) const = 0;
+        //- Write volume mesh. Subclass must supply this method
+        virtual bool write
+        (
+            const fileName& timeName = fileName::null
+        ) const = 0;
 
 };
 

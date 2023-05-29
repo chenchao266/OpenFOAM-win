@@ -1,9 +1,12 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2018-2019 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -59,7 +62,7 @@ Description
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
-// declarations (for use in header files)
+// Declarations (for use in header files)
 
 //- Declare a ClassNameNoDebug() with extra virtual type info
 #define TypeNameNoDebug(TypeNameString)                                        \
@@ -80,7 +83,7 @@ namespace Foam
 // * * * * * * * * * * * * * * * Global Functions  * * * * * * * * * * * * * //
 
 //- Reference type cast template function,
-//  wraps dynamic_cast to handle bad_cast exception and generate a FatalError.
+//- wraps dynamic_cast to handle bad_cast exception and generate a FatalError.
 template<class To, class From>
 inline To& dynamicCast(From& r)
 {
@@ -88,7 +91,7 @@ inline To& dynamicCast(From& r)
     {
         return dynamic_cast<To&>(r);
     }
-    catch (std::bad_cast)
+    catch (const std::bad_cast&)
     {
         FatalErrorInFunction
             << "Attempt to cast type " << typeid(r).name()
@@ -100,8 +103,30 @@ inline To& dynamicCast(From& r)
 }
 
 
+//- Reference type cast template function,
+//- wraps dynamic_cast to handle bad_cast exception and generate a FatalError.
+template<class To, class From>
+inline To& dynamicCast(From& r, const dictionary& d)
+{
+    try
+    {
+        return dynamic_cast<To&>(r);
+    }
+    catch (const std::bad_cast&)
+    {
+        FatalIOErrorInFunction(d)
+            << "Attempt to cast type " << typeid(r).name()
+            << " to type " << typeid(To).name()
+            << abort(FatalIOError);
+
+        return dynamic_cast<To&>(r);
+    }
+}
+
+
 //- Reference type cast template function.
-//  As per dynamicCast, but handles type names via the virtual type() method.
+//  As per dynamicCast, but handles type names for the error messages
+//  via the virtual type() method.
 template<class To, class From>
 inline To& refCast(From& r)
 {
@@ -109,7 +134,7 @@ inline To& refCast(From& r)
     {
         return dynamic_cast<To&>(r);
     }
-    catch (std::bad_cast)
+    catch (const std::bad_cast&)
     {
         FatalErrorInFunction
             << "Attempt to cast type " << r.type()
@@ -121,21 +146,91 @@ inline To& refCast(From& r)
 }
 
 
-//- Check the typeid
-template<class TestType, class Type>
+//- Reference type cast template function.
+//  As per dynamicCast, but handles type names for the error messages
+//  via the virtual type() method.
+//  Can use index to convey the context.
+template<class To, class From>
+inline To& refCast(From& r, const label index)
+{
+    try
+    {
+        return dynamic_cast<To&>(r);
+    }
+    catch (const std::bad_cast&)
+    {
+        FatalErrorInFunction
+            << "Attempt to cast type " << r.type()
+            << " to type " << To::typeName
+            << " at index " << index
+            << abort(FatalError);
+
+        return dynamic_cast<To&>(r);
+    }
+}
+
+
+//- Reference type cast template function.
+//  As per dynamicCast, but handles type names for the error messages
+//  via the virtual type() method.
+template<class To, class From>
+inline To& refCast(From& r, const dictionary& d)
+{
+    try
+    {
+        return dynamic_cast<To&>(r);
+    }
+    catch (const std::bad_cast&)
+    {
+        FatalIOErrorInFunction(d)
+            << "Attempt to cast type " << r.type()
+            << " to type " << To::typeName
+            << abort(FatalIOError);
+
+        return dynamic_cast<To&>(r);
+    }
+}
+
+
+//- Check if dynamic_cast to TargetType is possible
+template<class TargetType, class Type>
+inline const TargetType* isA(const Type& t)
+{
+    const Type* p = &t;
+    return dynamic_cast<const TargetType*>(p);
+}
+
+
+//- Check if dynamic_cast to TargetType is possible, as a functor
+template<class TargetType>
+struct isAOp
+{
+    template<class Type>
+    inline bool operator()(const Type& t) const
+    {
+        return isA<TargetType,Type>(t);
+    }
+};
+
+
+//- Check is typeid is identical to the TargetType
+template<class TargetType, class Type>
 inline bool isType(const Type& t)
 {
-    return typeid(t) == typeid(TestType);
+    return typeid(TargetType) == typeid(t);
 }
 
 
-//- Check if a dynamic_cast to typeid is possible
-template<class TestType, class Type>
-inline bool isA(const Type& t)
+//- Check is typeid is identical to the TargetType, as a functor
+template<class TargetType>
+struct isTypeOp
 {
-    const Type* tPtr = &t;
-    return dynamic_cast<const TestType*>(tPtr);
-}
+    template<class Type>
+    inline bool operator()(const Type& t) const
+    {
+        return isType<TargetType,Type>(t);
+    }
+};
 
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //

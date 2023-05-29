@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2015 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2015 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -51,13 +54,13 @@ Foam::regionModels::regionModel1D::boundaryFaceOppositeFace() const
 inline const Foam::surfaceScalarField&
 Foam::regionModels::regionModel1D::nMagSf() const
 {
-    if (!nMagSfPtr_.valid())
+    if (!nMagSfPtr_)
     {
         FatalErrorInFunction
          << "Face normal areas not available" << abort(FatalError);
     }
 
-    return nMagSfPtr_();
+    return *nMagSfPtr_;
 }
 
 

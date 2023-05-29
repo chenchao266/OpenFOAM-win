@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2015-2022 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -24,7 +27,7 @@ License
 \*---------------------------------------------------------------------------*/
 
 #include "timeActivatedFileUpdate.H"
-#include "Time.T.H"
+#include "Time1.H"
 #include "polyMesh.H"
 #include "addToRunTimeSelectionTable.H"
 
@@ -50,11 +53,13 @@ namespace functionObjects
 
 void Foam::functionObjects::timeActivatedFileUpdate::updateFile()
 {
+    modified_ = false;
+
     label i = lastIndex_;
     while
     (
         i < timeVsFile_.size()-1
-     && timeVsFile_[i+1].first() < time_.value()
+     && timeVsFile_[i+1].first() < time_.value()+0.5*time_.deltaTValue()
     )
     {
         i++;
@@ -62,13 +67,23 @@ void Foam::functionObjects::timeActivatedFileUpdate::updateFile()
 
     if (i > lastIndex_)
     {
-        Info<< nl << type() << ": copying file" << nl << timeVsFile_[i].second()
-            << nl << "to:" << nl << fileToUpdate_ << nl << endl;
+        const fileName& srcFile = timeVsFile_[i].second();
 
-        fileName destFile(fileToUpdate_ + Foam::name(pid()));
-        cp(timeVsFile_[i].second(), destFile);
-        mv(destFile, fileToUpdate_);
+        // Report case-relative path for information
+        Log << nl << type() << ": copying file" << nl
+            << "from: " << time_.relativePath(srcFile, true) << nl
+            << "to  : " << time_.relativePath(fileToUpdate_, true) << nl
+            << endl;
+
+        if (Pstream::master() || time_.distributed())
+        {
+            // Slaves do not copy if running non-distributed
+            fileName tmpFile(fileToUpdate_ + Foam::name(pid()));
+            Foam::cp(srcFile, tmpFile);
+            Foam::mv(tmpFile, fileToUpdate_);
+        }
         lastIndex_ = i;
+        modified_ = true;
     }
 }
 
@@ -82,20 +97,14 @@ Foam::functionObjects::timeActivatedFileUpdate::timeActivatedFileUpdate
     const dictionary& dict
 )
 :
-    functionObject(name),
-    time_(runTime),
-    fileToUpdate_(dict.lookup("fileToUpdate")),
+    timeFunctionObject(name, runTime),
+    fileToUpdate_("unknown-fileToUpdate"),
     timeVsFile_(),
-    lastIndex_(-1)
+    lastIndex_(-1),
+    modified_(false)
 {
     read(dict);
 }
-
-
-// * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
-
-Foam::functionObjects::timeActivatedFileUpdate::~timeActivatedFileUpdate()
-{}
 
 
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
@@ -105,28 +114,39 @@ bool Foam::functionObjects::timeActivatedFileUpdate::read
     const dictionary& dict
 )
 {
-    dict.lookup("fileToUpdate") >> fileToUpdate_;
-    dict.lookup("timeVsFile") >> timeVsFile_;
+    timeFunctionObject::read(dict);
+
+    dict.readEntry("fileToUpdate", fileToUpdate_);
+    dict.readEntry("timeVsFile", timeVsFile_);
 
     lastIndex_ = -1;
     fileToUpdate_.expand();
 
-    Info<< type() << ": time vs file list:" << nl;
+    Info<< type() << " " << name() << " output:" << nl
+        << "    time vs file list:" << endl;
+
     forAll(timeVsFile_, i)
     {
-        timeVsFile_[i].second() = timeVsFile_[i].second().expand();
-        if (!isFile(timeVsFile_[i].second()))
-        {
-            FatalErrorInFunction
-                << "File: " << timeVsFile_[i].second() << " not found"
-                << nl << exit(FatalError);
-        }
+        timeVsFile_[i].second().expand();
+        const fileName& srcFile = timeVsFile_[i].second();
 
+        // Report case-relative path for information
         Info<< "    " << timeVsFile_[i].first() << tab
-            << timeVsFile_[i].second() << endl;
-    }
-    Info<< endl;
+            << time_.relativePath(srcFile, true) << endl;
 
+        if (Pstream::master() || time_.distributed())
+        {
+            if (!Foam::isFile(srcFile))
+            {
+                // Report full path on error
+                FatalErrorInFunction
+                    << "File not found: " << srcFile << endl
+                    << exit(FatalError);
+            }
+        }
+    }
+
+    // Copy starting files
     updateFile();
 
     return true;
@@ -144,6 +164,12 @@ bool Foam::functionObjects::timeActivatedFileUpdate::execute()
 bool Foam::functionObjects::timeActivatedFileUpdate::write()
 {
     return true;
+}
+
+
+bool Foam::functionObjects::timeActivatedFileUpdate::filesModified() const
+{
+    return modified_;
 }
 
 

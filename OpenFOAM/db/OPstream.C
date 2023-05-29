@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2013 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2013 OpenFOAM Foundation
+    Copyright (C) 2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -26,7 +29,9 @@ License
 #include "OPstream.H"
 
 // * * * * * * * * * * * * * * * * Constructor * * * * * * * * * * * * * * * //
-using namespace Foam;
+
+
+ namespace Foam{
 OPstream::OPstream
 (
     const commsTypes commsType,
@@ -34,11 +39,23 @@ OPstream::OPstream
     const label bufSize,
     const int tag,
     const label comm,
-    streamFormat format,
-    versionNumber version
-) :    Pstream(commsType, bufSize),
-    UOPstream(commsType, toProcNo, buf_, tag, comm, true, format, version)
+    IOstreamOption::streamFormat fmt
+)
+:
+    Pstream(commsType, bufSize),
+    UOPstream
+    (
+        commsType,
+        toProcNo,
+        Pstream::transferBuf_,
+        tag,
+        comm,
+        true,  // sendAtDestruct
+        fmt
+    )
 {}
 
 
 // ************************************************************************* //
+
+ } // End namespace Foam

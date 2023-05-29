@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2016 OpenFOAM Foundation
+    Copyright (C) 2016-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -28,26 +31,49 @@ Group
     grpFieldFunctionObjects
 
 Description
-    Writes the cell-volumes volScalarField.
+    Writes the cell-volumes \c volScalarField.
 
-    Example of function object specification:
+    Operands:
+    \table
+      Operand        | Type           | Location
+      input          | -              | -
+      output file    | -              | -
+      output field   | volScalarField | $FOAM_CASE/\<time\>/V
+    \endtable
+
+Usage
+    Minimal example by using \c system/controlDict.functions:
     \verbatim
     writeCellVolumes
     {
+        // Mandatory entries (unmodifiable)
         type        writeCellVolumes;
-        libs        ("libfieldFunctionObjects.so");
+        libs        (fieldFunctionObjects);
+
+        // Optional (inherited) entries
         ...
     }
     \endverbatim
 
-Usage
+    where the entries mean:
     \table
-        Property  | Description                 | Required    | Default value
-        type      | type name: writeCellVolumes | yes       |
+      Property   | Description                        | Type | Req'd | Dflt
+      type       | Type name: writeCellVolumes        | word |  yes  | -
+      libs       | Library name: fieldFunctionObjects | word |  yes  | -
     \endtable
 
+    The inherited entries are elaborated in:
+     - \link functionObject.H \endlink
+
+    Minimal example by using the \c postProcess utility:
+    \verbatim
+        postProcess -func writeCellVolumes
+    \endverbatim
+
 See also
-    Foam::functionObjects::fvMeshFunctionObject
+    - Foam::functionObject
+    - Foam::functionObjects::fvMeshFunctionObject
+    - ExtendedCodeGuide::functionObjects::field::writeCellVolumes
 
 SourceFiles
     writeCellVolumes.C
@@ -74,15 +100,6 @@ class writeCellVolumes
 :
     public fvMeshFunctionObject
 {
-    // Private member functions
-
-        //- Disallow default bitwise copy construct
-        writeCellVolumes(const writeCellVolumes&);
-
-        //- Disallow default bitwise assignment
-        void operator=(const writeCellVolumes&);
-
-
 public:
 
     //- Runtime type information
@@ -99,17 +116,26 @@ public:
             const dictionary& dict
         );
 
+        //- No copy construct
+        writeCellVolumes(const writeCellVolumes&) = delete;
+
+        //- No copy assignment
+        void operator=(const writeCellVolumes&) = delete;
+
 
     //- Destructor
-    virtual ~writeCellVolumes();
+    virtual ~writeCellVolumes() = default;
 
 
     // Member Functions
 
+        //- Read the cell-volume data
+        virtual bool read(const dictionary&);
+
         //- Do nothing
         virtual bool execute();
 
-        //- Write the cell-centre fields
+        //- Write the cell-volume fields
         virtual bool write();
 };
 

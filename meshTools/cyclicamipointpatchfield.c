@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -24,202 +26,207 @@ License
 \*---------------------------------------------------------------------------*/
 
 //#include "cyclicAMIPointPatchField.H"
-#include "Swap.T.H"
+#include "Swap.H"
 #include "transformField.H"
 #include "pointFields.H"
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
-namespace Foam {
-    template<class Type>
-    cyclicAMIPointPatchField<Type>::cyclicAMIPointPatchField
-    (
-        const pointPatch& p,
-        const DimensionedField<Type, pointMesh>& iF
-    )
-        :
-        coupledPointPatchField<Type>(p, iF),
-        cyclicAMIPatch_(refCast<const cyclicAMIPointPatch>(p)),
-        ppiPtr_(nullptr),
-        nbrPpiPtr_(nullptr)
-    {}
+
+template<class Type>
+Foam::cyclicAMIPointPatchField<Type>::cyclicAMIPointPatchField
+(
+    const pointPatch& p,
+    const DimensionedField<Type, pointMesh>& iF
+)
+:
+    coupledPointPatchField<Type>(p, iF),
+    cyclicAMIPatch_(refCast<const cyclicAMIPointPatch>(p)),
+    ppiPtr_(nullptr),
+    nbrPpiPtr_(nullptr)
+{}
 
 
-    template<class Type>
-    cyclicAMIPointPatchField<Type>::cyclicAMIPointPatchField
-    (
-        const pointPatch& p,
-        const DimensionedField<Type, pointMesh>& iF,
-        const dictionary& dict
-    )
-        :
-        coupledPointPatchField<Type>(p, iF, dict),
-        cyclicAMIPatch_(refCast<const cyclicAMIPointPatch>(p)),
-        ppiPtr_(nullptr),
-        nbrPpiPtr_(nullptr)
+template<class Type>
+Foam::cyclicAMIPointPatchField<Type>::cyclicAMIPointPatchField
+(
+    const pointPatch& p,
+    const DimensionedField<Type, pointMesh>& iF,
+    const dictionary& dict
+)
+:
+    coupledPointPatchField<Type>(p, iF, dict),
+    cyclicAMIPatch_(refCast<const cyclicAMIPointPatch>(p, dict)),
+    ppiPtr_(nullptr),
+    nbrPpiPtr_(nullptr)
+{
+    if (!isType<cyclicAMIPointPatch>(p))
     {
-        if (!isType<cyclicAMIPointPatch>(p))
-        {
-            FatalIOErrorInFunction
+        FatalIOErrorInFunction(dict)
+            << "patch " << this->patch().index() << " not cyclicAMI type. "
+            << "Patch type = " << p.type()
+            << exit(FatalIOError);
+    }
+}
+
+
+template<class Type>
+Foam::cyclicAMIPointPatchField<Type>::cyclicAMIPointPatchField
+(
+    const cyclicAMIPointPatchField<Type>& ptf,
+    const pointPatch& p,
+    const DimensionedField<Type, pointMesh>& iF,
+    const pointPatchFieldMapper& mapper
+)
+:
+    coupledPointPatchField<Type>(ptf, p, iF, mapper),
+    cyclicAMIPatch_(refCast<const cyclicAMIPointPatch>(p)),
+    ppiPtr_(nullptr),
+    nbrPpiPtr_(nullptr)
+{
+    if (!isType<cyclicAMIPointPatch>(this->patch()))
+    {
+        FatalErrorInFunction
+            << "Field type does not correspond to patch type for patch "
+            << this->patch().index() << "." << endl
+            << "Field type: " << typeName << endl
+            << "Patch type: " << this->patch().type()
+            << exit(FatalError);
+    }
+}
+
+
+template<class Type>
+Foam::cyclicAMIPointPatchField<Type>::cyclicAMIPointPatchField
+(
+    const cyclicAMIPointPatchField<Type>& ptf,
+    const DimensionedField<Type, pointMesh>& iF
+)
+:
+    coupledPointPatchField<Type>(ptf, iF),
+    cyclicAMIPatch_(ptf.cyclicAMIPatch_),
+    ppiPtr_(nullptr),
+    nbrPpiPtr_(nullptr)
+{}
+
+
+// * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
+
+template<class Type>
+bool Foam::cyclicAMIPointPatchField<Type>::coupled() const
+{
+    return cyclicAMIPatch_.coupled();
+}
+
+
+template<class Type>
+void Foam::cyclicAMIPointPatchField<Type>::swapAddSeparated
+(
+    const Pstream::commsTypes,
+    Field<Type>& pField
+) const
+{
+    if (cyclicAMIPatch_.cyclicAMIPatch().owner())
+    {
+        // We inplace modify pField. To prevent the other side (which gets
+        // evaluated at a later date) using already changed values we do
+        // all swaps on the side that gets evaluated first.
+
+        // Get neighbouring pointPatch
+        const cyclicAMIPointPatch& nbrPatch = cyclicAMIPatch_.neighbPatch();
+
+        // Get neighbouring pointPatchField
+        const GeometricField<Type, Foam::pointPatchField, pointMesh>& fld =
+            refCast<const GeometricField<Type, Foam::pointPatchField, pointMesh>>
             (
-                dict
-            ) << "patch " << this->patch().index() << " not cyclicAMI type. "
-                << "Patch type = " << p.type()
-                << exit(FatalIOError);
-        }
-    }
+                this->internalField()
+            );
+
+        const cyclicAMIPointPatchField<Type>& nbr =
+            refCast<const cyclicAMIPointPatchField<Type>>
+            (
+                fld.boundaryField()[nbrPatch.index()]
+            );
 
 
-    template<class Type>
-    cyclicAMIPointPatchField<Type>::cyclicAMIPointPatchField
-    (
-        const cyclicAMIPointPatchField<Type>& ptf,
-        const pointPatch& p,
-        const DimensionedField<Type, pointMesh>& iF,
-        const pointPatchFieldMapper& mapper
-    )
-        :
-        coupledPointPatchField<Type>(ptf, p, iF, mapper),
-        cyclicAMIPatch_(refCast<const cyclicAMIPointPatch>(p)),
-        ppiPtr_(nullptr),
-        nbrPpiPtr_(nullptr)
-    {
-        if (!isType<cyclicAMIPointPatch>(this->patch()))
+        Field<Type> ptFld(this->patchInternalField(pField));
+        Field<Type> nbrPtFld(nbr.patchInternalField(pField));
+
+
+        if (doTransform())
         {
-            FatalErrorInFunction
-                << "Field type does not correspond to patch type for patch "
-                << this->patch().index() << "." << endl
-                << "Field type: " << typeName << endl
-                << "Patch type: " << this->patch().type()
-                << exit(FatalError);
+            const tensor& forwardT = this->forwardT()[0];
+            const tensor& reverseT = this->reverseT()[0];
+
+            transform(ptFld, reverseT, ptFld);
+            transform(nbrPtFld, forwardT, nbrPtFld);
         }
-    }
 
-
-    template<class Type>
-    cyclicAMIPointPatchField<Type>::cyclicAMIPointPatchField
-    (
-        const cyclicAMIPointPatchField<Type>& ptf,
-        const DimensionedField<Type, pointMesh>& iF
-    )
-        :
-        coupledPointPatchField<Type>(ptf, iF),
-        cyclicAMIPatch_(ptf.cyclicAMIPatch_),
-        ppiPtr_(nullptr),
-        nbrPpiPtr_(nullptr)
-    {}
-
-
-    // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
-
-    template<class Type>
-    void cyclicAMIPointPatchField<Type>::swapAddSeparated
-    (
-        const Pstream::commsTypes,
-        Field<Type>& pField
-    ) const
-    {
-        if (cyclicAMIPatch_.cyclicAMIPatch().owner())
+        // convert point field to face field, AMI interpolate, then
+        // face back to point
         {
-            // We inplace modify pField. To prevent the other side (which gets
-            // evaluated at a later date) using already changed values we do
-            // all swaps on the side that gets evaluated first.
+            // add neighbour side contribution to owner
+            Field<Type> nbrFcFld(nbrPpi().pointToFaceInterpolate(nbrPtFld));
 
-            // Get neighbouring pointPatch
-            const cyclicAMIPointPatch& nbrPatch = cyclicAMIPatch_.neighbPatch();
-
-            // Get neighbouring pointPatchField
-            const pointFieldType<Type>& fld =
-                refCast<const pointFieldType<Type>>
-                (
-                    this->internalField()
-                    );
-
-            const cyclicAMIPointPatchField<Type>& nbr =
-                refCast<const cyclicAMIPointPatchField<Type>>
-                (
-                    fld.boundaryField()[nbrPatch.index()]
-                    );
-
-
-            Field<Type> ptFld(this->patchInternalField(pField));
-            Field<Type> nbrPtFld(nbr.patchInternalField(pField));
-
-
-            if (doTransform())
+            // interpolate to owner
+            if (cyclicAMIPatch_.cyclicAMIPatch().applyLowWeightCorrection())
             {
-                const tensor& forwardT = this->forwardT()[0];
-                const tensor& reverseT = this->reverseT()[0];
-
-                transform(ptFld, reverseT, ptFld);
-                transform(nbrPtFld, forwardT, nbrPtFld);
-            }
-
-            // convert point field to face field, AMI interpolate, then
-            // face back to point
-            {
-                // add neighbour side contribution to owner
-                Field<Type> nbrFcFld(nbrPpi().pointToFaceInterpolate(nbrPtFld));
-
-                // interpolate to owner
-                if (cyclicAMIPatch_.cyclicAMIPatch().applyLowWeightCorrection())
-                {
-                    Field<Type> fcFld(ppi().pointToFaceInterpolate(ptFld));
-
-                    nbrFcFld =
-                        cyclicAMIPatch_.cyclicAMIPatch().interpolate
-                        (
-                            nbrFcFld,
-                            fcFld
-                        );
-                }
-                else
-                {
-                    nbrFcFld =
-                        cyclicAMIPatch_.cyclicAMIPatch().interpolate(nbrFcFld);
-                }
-
-                // add to internal field
-                this->addToInternalField
-                (
-                    pField,
-                    ppi().faceToPointInterpolate(nbrFcFld)()
-                );
-            }
-
-            {
-                // add owner side contribution to neighbour
                 Field<Type> fcFld(ppi().pointToFaceInterpolate(ptFld));
 
-                // interpolate to neighbour
-                if (cyclicAMIPatch_.cyclicAMIPatch().applyLowWeightCorrection())
-                {
-                    Field<Type> nbrFcFld(nbrPpi().pointToFaceInterpolate(nbrPtFld));
-
-                    fcFld =
-                        cyclicAMIPatch_.cyclicAMIPatch().neighbPatch().interpolate
-                        (
-                            fcFld,
-                            nbrFcFld
-                        );
-                }
-                else
-                {
-                    fcFld =
-                        cyclicAMIPatch_.cyclicAMIPatch().neighbPatch().interpolate
-                        (
-                            fcFld
-                        );
-                }
-
-                // add to internal field
-                nbr.addToInternalField
-                (
-                    pField,
-                    nbrPpi().faceToPointInterpolate(fcFld)()
-                );
+                nbrFcFld =
+                    cyclicAMIPatch_.cyclicAMIPatch().interpolate
+                    (
+                        nbrFcFld,
+                        fcFld
+                    );
             }
+            else
+            {
+                nbrFcFld =
+                    cyclicAMIPatch_.cyclicAMIPatch().interpolate(nbrFcFld);
+            }
+
+            // add to internal field
+            this->addToInternalField
+            (
+                pField,
+                ppi().faceToPointInterpolate(nbrFcFld)()
+            );
+        }
+
+        {
+            // add owner side contribution to neighbour
+            Field<Type> fcFld(ppi().pointToFaceInterpolate(ptFld));
+
+            // interpolate to neighbour
+            if (cyclicAMIPatch_.cyclicAMIPatch().applyLowWeightCorrection())
+            {
+                Field<Type> nbrFcFld(nbrPpi().pointToFaceInterpolate(nbrPtFld));
+
+                fcFld =
+                    cyclicAMIPatch_.cyclicAMIPatch().neighbPatch().interpolate
+                    (
+                        fcFld,
+                        nbrFcFld
+                    );
+            }
+            else
+            {
+                fcFld =
+                    cyclicAMIPatch_.cyclicAMIPatch().neighbPatch().interpolate
+                    (
+                        fcFld
+                    );
+            }
+
+            // add to internal field
+            nbr.addToInternalField
+            (
+                pField,
+                nbrPpi().faceToPointInterpolate(fcFld)()
+            );
         }
     }
-
 }
+
+
 // ************************************************************************* //

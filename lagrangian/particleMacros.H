@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2012-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2012-2016 OpenFOAM Foundation
+    Copyright (C) 2016-2019 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -39,6 +42,9 @@ namespace Foam
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
+//- Define a static 'propertyList' for particle properties
+//  The property list is space-delimited with brackets for vector groupings
+// \sa AddToPropertyList
 #define DefinePropertyList(str)                                                \
                                                                                \
     static string propertyList_;                                               \
@@ -49,6 +55,9 @@ namespace Foam
     }
 
 
+//- Add to existing static 'propertyList' for particle properties
+//  The property list is space-delimited with brackets for vector groupings
+// \sa DefinePropertyList
 #define AddToPropertyList(ParcelType, str)                                     \
                                                                                \
     static string propertyList_;                                               \

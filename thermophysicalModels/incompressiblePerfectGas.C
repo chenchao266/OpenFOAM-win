@@ -1,9 +1,11 @@
-﻿/*---------------------------------------------------------------------------*\
+/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2012-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2012-2017 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -23,7 +25,7 @@ License
 
 \*---------------------------------------------------------------------------*/
 
-//#include "incompressiblePerfectGas.H"
+#include "incompressiblePerfectGas.H"
 #include "IOstreams.H"
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
@@ -35,7 +37,7 @@ Foam::incompressiblePerfectGas<Specie>::incompressiblePerfectGas
 )
 :
     Specie(dict),
-    pRef_(readScalar(dict.subDict("equationOfState").lookup("pRef")))
+    pRef_(dict.subDict("equationOfState").get<scalar>("pRef"))
 {}
 
 
@@ -45,10 +47,13 @@ template<class Specie>
 void Foam::incompressiblePerfectGas<Specie>::write(Ostream& os) const
 {
     Specie::write(os);
-    dictionary dict("equationOfState");
-    dict.add("pRef", pRef_);
 
-    os  << indent << dict.dictName() << dict;
+    // Entries in dictionary format
+    {
+        os.beginBlock("equationOfState");
+        os.writeEntry("pRef", pRef_);
+        os.endBlock();
+    }
 }
 
 

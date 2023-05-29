@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -37,7 +40,7 @@ SourceFiles
 
 #include "solidBodyMotionFunction.H"
 #include "primitiveFields.H"
-#include "point.T.H"
+#include "point.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -54,7 +57,7 @@ class oscillatingLinearMotion
 :
     public solidBodyMotionFunction
 {
-    // Private data
+    // Private Data
 
         //- Amplitude
         vector amplitude_;
@@ -65,11 +68,11 @@ class oscillatingLinearMotion
 
     // Private Member Functions
 
-        //- Disallow copy construct
-        oscillatingLinearMotion(const oscillatingLinearMotion&);
+        //- No copy construct
+        oscillatingLinearMotion(const oscillatingLinearMotion&) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const oscillatingLinearMotion&);
+        //- No copy assignment
+        void operator=(const oscillatingLinearMotion&) = delete;
 
 
 public:
@@ -102,7 +105,7 @@ public:
 
 
     //- Destructor
-    virtual ~oscillatingLinearMotion();
+    virtual ~oscillatingLinearMotion() = default;
 
 
     // Member Functions

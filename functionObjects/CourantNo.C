@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2013-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2013-2016 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -36,13 +39,7 @@ namespace Foam
 namespace functionObjects
 {
     defineTypeNameAndDebug(CourantNo, 0);
-
-    addToRunTimeSelectionTable
-    (
-        functionObject,
-        CourantNo,
-        dictionary
-    );
+    addToRunTimeSelectionTable(functionObject, CourantNo, dictionary);
 }
 }
 
@@ -59,10 +56,8 @@ Foam::functionObjects::CourantNo::byRho
     {
         return Co/obr_.lookupObject<volScalarField>(rhoName_);
     }
-    else
-    {
-        return Co;
-    }
+
+    return Co;
 }
 
 
@@ -83,31 +78,29 @@ bool Foam::functionObjects::CourantNo::calc()
             )
         );
 
-        if (foundObject<volScalarField>(resultName_))
+        if (foundObject<volScalarField>(resultName_, false))
         {
-            volScalarField& Co = lookupObjectRef<volScalarField>(resultName_);
+            volScalarField& Co =
+                lookupObjectRef<volScalarField>(resultName_);
 
             Co.ref() = Coi();
             Co.correctBoundaryConditions();
         }
         else
         {
-            tmp<volScalarField> tCo
+            auto tCo = tmp<volScalarField>::New
             (
-                new volScalarField
+                IOobject
                 (
-                    IOobject
-                    (
-                        resultName_,
-                        mesh_.time().timeName(),
-                        mesh_,
-                        IOobject::NO_READ,
-                        IOobject::NO_WRITE
-                    ),
+                    resultName_,
+                    mesh_.time().timeName(),
                     mesh_,
-                    dimensionedScalar("0", dimless, 0.0),
-                    zeroGradientFvPatchScalarField::typeName
-                )
+                    IOobject::NO_READ,
+                    IOobject::NO_WRITE
+                ),
+                mesh_,
+                dimensionedScalar(dimless, Zero),
+                zeroGradientFvPatchScalarField::typeName
             );
             tCo.ref().ref() = Coi();
             tCo.ref().correctBoundaryConditions();
@@ -116,10 +109,8 @@ bool Foam::functionObjects::CourantNo::calc()
 
         return true;
     }
-    else
-    {
-        return false;
-    }
+
+    return false;
 }
 
 
@@ -132,17 +123,12 @@ Foam::functionObjects::CourantNo::CourantNo
     const dictionary& dict
 )
 :
-    fieldExpression(name, runTime, dict, "phi")
+    fieldExpression(name, runTime, dict, "phi"),
+    rhoName_("rho")
 {
     setResultName("Co", "phi");
     read(dict);
 }
-
-
-// * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
-
-Foam::functionObjects::CourantNo::~CourantNo()
-{}
 
 
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
@@ -151,7 +137,7 @@ bool Foam::functionObjects::CourantNo::read(const dictionary& dict)
 {
     fieldExpression::read(dict);
 
-    rhoName_ = dict.lookupOrDefault<word>("rho", "rho");
+    rhoName_ = dict.getOrDefault<word>("rho", "rho");
 
     return true;
 }

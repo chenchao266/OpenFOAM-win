@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2013-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2013-2016 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -42,6 +45,7 @@ SourceFiles
 namespace Foam
 {
 
+// Forward Declarations
 class pointMesh;
 
 /*---------------------------------------------------------------------------*\
@@ -52,7 +56,6 @@ class pointPatchDist
 :
     public pointScalarField
 {
-
 private:
 
     // Private Member Data
@@ -69,11 +72,11 @@ private:
 
     // Private Member Functions
 
-        //- Disallow default bitwise copy construct
-        pointPatchDist(const pointPatchDist&);
+        //- No copy construct
+        pointPatchDist(const pointPatchDist&) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const pointPatchDist&);
+        //- No copy assignment
+        void operator=(const pointPatchDist&) = delete;
 
 
 public:
@@ -90,7 +93,7 @@ public:
 
 
     //- Destructor
-    virtual ~pointPatchDist();
+    virtual ~pointPatchDist() = default;
 
 
     // Member Functions

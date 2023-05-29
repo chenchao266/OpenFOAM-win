@@ -1,9 +1,11 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2017 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -21,11 +23,11 @@ License
     You should have received a copy of the GNU General Public License
     along with OpenFOAM.  If not, see <http://www.gnu.org/licenses/>.
 
-Description:
-    Functions which cut triangles and tetrahedra. Generic operations are
-    applied to each half of a cut.
+Description
+    Functions for cutting triangles and tetrahedra.
+    Generic operations are applied to each half of a cut.
 
-SourceFiles:
+SourceFiles
     cutI.H
     cutTemplates.C
 
@@ -34,9 +36,8 @@ SourceFiles:
 #ifndef cut_H
 #define cut_H
 
-#include "FixedList.T.H"
-#include "nil.H"
 #include "plane.H"
+#include "FixedList.H"
 #include "tetPointRef.H"
 #include "triPointRef.H"
 #include "zero.H"
@@ -55,8 +56,6 @@ namespace cut
 template<class Type>
 class uniformOp
 {
-private:
-
     //- Data
     Type data_;
 
@@ -90,7 +89,9 @@ public:
                              Class noOp Declaration
 \*---------------------------------------------------------------------------*/
 
-class noOp :    public uniformOp<nil>
+class noOp
+:
+    public uniformOp<zero::null>
 {
 public:
 
@@ -107,9 +108,9 @@ public:
         {}
 
         //- Construct from base
-        noOp(const uniformOp<nil>& op)
+        noOp(const uniformOp<zero::null>& op)
         :
-            uniformOp<nil>(op)
+            uniformOp<zero::null>(op)
         {}
 
 
@@ -122,8 +123,8 @@ public:
         }
 
         //- Operate on a triangle or tetrahedron
-        template<unsigned Size>
-        result operator()(const FixedList<point, Size>& p) const
+        template<unsigned N>
+        result operator()(const FixedList<point, N>& p) const
         {
             return result();
         }
@@ -134,7 +135,9 @@ public:
                             Class areaOp Declaration
 \*---------------------------------------------------------------------------*/
 
-class areaOp :    public uniformOp<nil>
+class areaOp
+:
+    public uniformOp<zero::null>
 {
 public:
 
@@ -151,9 +154,9 @@ public:
         {}
 
         //- Construct from base
-        areaOp(const uniformOp<nil>& op)
+        areaOp(const uniformOp<zero::null>& op)
         :
-            uniformOp<nil>(op)
+            uniformOp<zero::null>(op)
         {}
 
 
@@ -162,13 +165,13 @@ public:
         //- Operate on nothing
         result operator()() const
         {
-            return vector::_zero;
+            return vector::zero_;
         }
 
         //- Operate on a triangle
         result operator()(const FixedList<point, 3>& p) const
         {
-            return result(triPointRef(p[0], p[1], p[2]).normal());
+            return result(triPointRef(p[0], p[1], p[2]).areaNormal());
         }
 };
 
@@ -177,7 +180,9 @@ public:
                            Class volumeOp Declaration
 \*---------------------------------------------------------------------------*/
 
-class volumeOp :    public uniformOp<nil>
+class volumeOp
+:
+    public uniformOp<zero::null>
 {
 public:
 
@@ -194,9 +199,9 @@ public:
         {}
 
         //- Construct from base
-        volumeOp(const uniformOp<nil>& op)
+        volumeOp(const uniformOp<zero::null>& op)
         :
-            uniformOp<nil>(op)
+            uniformOp<zero::null>(op)
         {}
 
 
@@ -221,7 +226,9 @@ public:
 \*---------------------------------------------------------------------------*/
 
 template<class Type>
-class areaIntegrateOp :    public FixedList<Type, 3>
+class areaIntegrateOp
+:
+    public FixedList<Type, 3>
 {
 public:
 
@@ -245,7 +252,7 @@ public:
         //- Operate on nothing
         result operator()() const
         {
-            return pTraits<result>::_zero;
+            return pTraits<result>::zero_;
         }
 
         //- Operate on a triangle
@@ -262,7 +269,9 @@ public:
 \*---------------------------------------------------------------------------*/
 
 template<class Type>
-class volumeIntegrateOp :    public FixedList<Type, 4>
+class volumeIntegrateOp
+:
+    public FixedList<Type, 4>
 {
 public:
 
@@ -286,7 +295,7 @@ public:
         //- Operate on nothing
         result operator()() const
         {
-            return pTraits<result>::_zero;
+            return pTraits<result>::zero_;
         }
 
         //- Operate on a tetrahedron
@@ -302,8 +311,10 @@ public:
                             Class listOp Declaration
 \*---------------------------------------------------------------------------*/
 
-template<unsigned Size>
-class listOp :    public uniformOp<nil>
+template<unsigned N>
+class listOp
+:
+    public uniformOp<zero::null>
 {
 public:
 
@@ -312,16 +323,16 @@ public:
         //- Result class
         class result
         :
-            public DynamicList<FixedList<point, Size>>
+            public DynamicList<FixedList<point, N>>
         {
         public:
 
             // Constructors
 
                 //- Construct from a single element
-                result(const FixedList<point, Size>& x)
+                result(const FixedList<point, N>& x)
                 :
-                    DynamicList<FixedList<point, Size>>(1, x)
+                    DynamicList<FixedList<point, N>>(1, x)
                 {}
 
 
@@ -344,9 +355,9 @@ public:
         {}
 
         //- Construct from base
-        listOp(const uniformOp<nil>& op)
+        listOp(const uniformOp<zero::null>& op)
         :
-            uniformOp<nil>(op)
+            uniformOp<zero::null>(op)
         {}
 
 
@@ -359,7 +370,7 @@ public:
         }
 
         //- Operate on a triangle or tetrahedron
-        result operator()(const FixedList<point, Size>& p) const
+        result operator()(const FixedList<point, N>& p) const
         {
             return result(p);
         }
@@ -367,8 +378,6 @@ public:
 
 
 typedef listOp<3> listTriOp;
-
-
 typedef listOp<4> listTetOp;
 
 
@@ -377,7 +386,9 @@ typedef listOp<4> listTetOp;
 \*---------------------------------------------------------------------------*/
 
 template<class Container>
-class appendOp :    public uniformOp<Container&>
+class appendOp
+:
+    public uniformOp<Container&>
 {
 public:
 
@@ -411,8 +422,8 @@ public:
         }
 
         //- Operate on a triangle or tetrahedron
-        template<unsigned Size>
-        result operator()(const FixedList<point, Size>& p) const
+        template<unsigned N>
+        result operator()(const FixedList<point, N>& p) const
         {
             this->data().append(p);
             return result();
@@ -423,8 +434,7 @@ public:
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 //- Trait to determine the result of the addition of two operations
-template<class AheadOp, class BehindOp>
-class opAddResult;
+template<class AheadOp, class BehindOp> class opAddResult;
 
 template<class Op>
 class opAddResult<Op, Op>
@@ -464,9 +474,9 @@ public:
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
-//- Cut a triangle along the zero plane defined by the given levels. Templated
-//  on aboveOp and belowOp; the operations applied to the regions on either side
-//  of the cut.
+//- Cut a triangle along the zero plane defined by the given levels.
+//  Templated on aboveOp and belowOp; the operations applied to the regions
+//  on either side of the cut.
 template<class AboveOp, class BelowOp>
 typename cut::opAddResult<AboveOp, BelowOp>::type triCut
 (
@@ -481,7 +491,7 @@ template<class AboveOp, class BelowOp>
 typename cut::opAddResult<AboveOp, BelowOp>::type triCut
 (
     const FixedList<point, 3>& tri,
-    const plane& s,
+    const plane& pln,
     const AboveOp& aboveOp,
     const BelowOp& belowOp
 );
@@ -501,7 +511,7 @@ template<class AboveOp, class BelowOp>
 typename cut::opAddResult<AboveOp, BelowOp>::type tetCut
 (
     const FixedList<point, 4>& tet,
-    const plane& s,
+    const plane& pln,
     const AboveOp& aboveOp,
     const BelowOp& belowOp
 );

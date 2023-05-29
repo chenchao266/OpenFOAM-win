@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -38,7 +41,7 @@ namespace surfaceFilmModels
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
-inline const Switch& kinematicSingleLayer::momentumPredictor() const
+inline Switch kinematicSingleLayer::momentumPredictor() const
 {
     return momentumPredictor_;
 }
@@ -172,7 +175,7 @@ inline const volScalarField& kinematicSingleLayer::muPrimary() const
 
 inline const filmThermoModel& kinematicSingleLayer::filmThermo() const
 {
-    return filmThermo_();
+    return *filmThermo_;
 }
 
 
@@ -190,24 +193,13 @@ inline transferModelList& kinematicSingleLayer::transfer()
 
 inline const filmTurbulenceModel& kinematicSingleLayer::turbulence() const
 {
-    return turbulence_();
+    return *turbulence_;
 }
 
 
 inline tmp<volScalarField> kinematicSingleLayer::mass() const
 {
-    return rho_*delta_*magSf();
-}
-
-
-inline tmp<volScalarField> kinematicSingleLayer::netMass() const
-{
-    return
-        fvc::surfaceSum
-        (
-            pos0(phi_)*phi_/(fvc::interpolate(delta_) + deltaSmall_)
-        )*time().deltaT()
-      + rho_*delta_*magSf();
+    return deltaRho_*magSf();
 }
 
 
@@ -281,6 +273,18 @@ inline tmp<volVectorField> kinematicSingleLayer::gTan() const
             g_ - nHat()*gNorm()
         )
     );
+
+    return tgTan;
+}
+
+inline tmp<vectorField> kinematicSingleLayer::gTan
+(
+    const label patchI
+) const
+{
+    const vectorField& nH = nHat().boundaryField()[patchI];
+    const vector& g = g_.value();
+    tmp<vectorField> tgTan(new vectorField(g - nH*(g & nH)));
 
     return tgTan;
 }

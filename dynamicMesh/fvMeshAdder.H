@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -42,14 +45,14 @@ SourceFiles
 #include "fvPatchFieldsFwd.H"
 #include "fvsPatchFieldsFwd.H"
 #include "fvPatchFieldMapper.H"
-#include "DimensionedField.T.H"
+#include "DimensionedField.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 namespace Foam
 {
 
-// Forward declaration of classes
+// Forward Declarations
 class IOobject;
 class faceCoupleInfo;
 class IOobjectList;
@@ -66,7 +69,6 @@ class fvMeshAdder
 :
     public polyMeshAdder
 {
-
 private:
 
     // Private Member Functions
@@ -89,7 +91,8 @@ private:
             const mapAddedPolyMesh& meshMap,
 
             GeometricField<Type, fvPatchField, volMesh>& fld,
-            const GeometricField<Type, fvPatchField, volMesh>& fldToAdd
+            const GeometricField<Type, fvPatchField, volMesh>& fldToAdd,
+            const bool fullyMapped
         );
 
         //- Update single surfaceField.
@@ -99,7 +102,8 @@ private:
             const mapAddedPolyMesh& meshMap,
 
             GeometricField<Type, fvsPatchField, surfaceMesh>& fld,
-            const GeometricField<Type, fvsPatchField, surfaceMesh>& fldToAdd
+            const GeometricField<Type, fvsPatchField, surfaceMesh>& fldToAdd,
+            const bool fullyMapped
         );
 
         //- Update single dimensionedField.
@@ -126,16 +130,21 @@ public:
             fvMesh& mesh0,
             const fvMesh& mesh1,
             const faceCoupleInfo& coupleInfo,
-            const bool validBoundary = true
+            const bool validBoundary = true,
+            const bool fullyMapped = false
         );
 
-        //- Map all volFields of Type
+        //- Map all volFields of Type.
+        //  Optionally override mapping detection
+        //  of unmapped values (e.g. used in fvMeshDistribute since it fixes
+        //  up mapping itself)
         template<class Type>
         static void MapVolFields
         (
             const mapAddedPolyMesh&,
             const fvMesh& mesh,
-            const fvMesh& meshToAdd
+            const fvMesh& meshToAdd,
+            const bool fullyMapped = false
         );
 
         //- Map all surfaceFields of Type
@@ -144,7 +153,8 @@ public:
         (
             const mapAddedPolyMesh&,
             const fvMesh& mesh,
-            const fvMesh& meshToAdd
+            const fvMesh& meshToAdd,
+            const bool fullyMapped = false
         );
 
         //- Map all DimensionedFields of Type
@@ -155,6 +165,109 @@ public:
             const fvMesh& mesh,
             const fvMesh& meshToAdd
         );
+
+
+        // Multi-mesh merging. Expects same patches (apart from processor
+        // patches). Adds to element 0 of flds, meshes
+
+            //- In-place add to fvMeshes[myProci]. Stitch boundary faces.
+            static autoPtr<mapPolyMesh> add
+            (
+                const label myProci,    // index of mesh to modify (== mesh_)
+                UPtrList<fvMesh>& fvMeshes,
+                const labelList& oldFaceOwner,  // face owner for myProci mesh
+
+                // Coupling info
+                const labelListList& localBoundaryFace,
+                const labelListList& remoteFaceProc,
+                const labelListList& remoteBoundaryFace,
+
+                labelListList& constructPatchMap,
+                labelListList& constructCellMap,
+                labelListList& constructFaceMap,
+                labelListList& constructPointMap
+            );
+
+            //- Update single dimensionedField.
+            template<class Type>
+            static void MapDimField
+            (
+                UPtrList<DimensionedField<Type, volMesh>>& flds,
+                const labelListList& cellProcAddressing,
+                const bool fullyMapped
+            );
+
+            //- Update single volField.
+            template<class Type>
+            static void MapVolField
+            (
+                UPtrList<GeometricField<Type, fvPatchField, volMesh>>& flds,
+                const labelList& oldPatchStarts0,
+                const labelList& oldPatchSizes0,
+                const labelListList& patchProcAddressing,
+                const labelListList& cellProcAddressing,
+                const labelListList& faceProcAddressing,
+                const bool fullyMapped
+            );
+
+            //- Update single surfaceField.
+            template<class Type>
+            static void MapSurfaceField
+            (
+                UPtrList<GeometricField<Type, fvsPatchField, surfaceMesh>>&,
+                const labelList& oldFaceOwner0,
+                const labelList& oldPatchStarts0,
+                const labelList& oldPatchSizes0,
+                const labelListList& patchProcAddressing,
+                const labelListList& cellProcAddressing,
+                const labelListList& faceProcAddressing,
+                const bool fullyMapped
+            );
+
+
+            //- Map all dimensionedField of Type.
+            //  Optionally override mapping detection
+            //  of unmapped values (e.g. used in fvMeshDistribute since it
+            //  fixes up mapping itself)
+            template<class Type>
+            static void MapDimFields
+            (
+                const UPtrList<fvMesh>& meshes,
+                const labelListList& cellProcAddressing,
+                const bool fullyMapped = false
+            );
+
+            //- Map all volFields of Type.
+            //  Optionally override mapping detection
+            //  of unmapped values (e.g. used in fvMeshDistribute since it
+            //  fixes up mapping itself)
+            template<class Type>
+            static void MapVolFields
+            (
+                const UPtrList<fvMesh>& meshes,
+                const labelList& oldPatchStarts0,
+                const labelList& oldPatchSizes0,
+                const labelListList& patchProcAddressing,
+                const labelListList& cellProcAddressing,
+                const labelListList& faceProcAddressing,
+                const labelListList& pointProcAddressing,
+                const bool fullyMapped = false
+            );
+
+            //- Map all surfaceFields of Type
+            template<class Type>
+            static void MapSurfaceFields
+            (
+                const UPtrList<fvMesh>& meshes,
+                const labelList& oldFaceOwner0,
+                const labelList& oldPatchStarts0,
+                const labelList& oldPatchSizes0,
+                const labelListList& patchProcAddressing,
+                const labelListList& cellProcAddressing,
+                const labelListList& faceProcAddressing,
+                const labelListList& pointProcAddressing,
+                const bool fullyMapped = false
+            );
 };
 
 

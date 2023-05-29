@@ -1,9 +1,12 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2012-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2012-2016 OpenFOAM Foundation
+    Copyright (C) 2017 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -31,24 +34,48 @@ SourceFiles
     primitiveMeshTools.C
 
 \*---------------------------------------------------------------------------*/
+
 #ifndef primitiveMeshTools_H
 #define primitiveMeshTools_H
 
-#include "primitiveMesh.H"
-#include "PackedBoolList.H"
+#include "bitSet.H"
+#include "primitiveFields.H"
+#include "pointField.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 namespace Foam
 {
 
+// Forward declarations
+class primitiveMesh;
+
 /*---------------------------------------------------------------------------*\
-                        Namespace primitiveMeshTools Declaration
+                   Namespace primitiveMeshTools Declaration
 \*---------------------------------------------------------------------------*/
 
 class primitiveMeshTools
 {
 public:
+
+    //- Calculate face centres and areas
+    static void makeFaceCentresAndAreas
+    (
+        const primitiveMesh& mesh,
+        const pointField& p,
+        vectorField& fCtrs,
+        vectorField& fAreas
+    );
+
+    //- Calculate cell centres and volumes from face properties
+    static void makeCellCentresAndVols
+    (
+        const primitiveMesh& mesh,
+        const vectorField& fCtrs,
+        const vectorField& fAreas,
+        vectorField& cellCtrs,
+        scalarField& cellVols
+    );
 
     //- Generate non-orthogonality field (internal faces only)
     static tmp<scalarField> faceOrthogonality
@@ -119,13 +146,13 @@ public:
         const pointField& p
     );
 
-    //- Generate cell determinant field
+    //- Generate cell determinant field. Normalised to 1 for an internal cube.
     static tmp<scalarField> cellDeterminant
     (
         const primitiveMesh& mesh,
         const Vector<label>& directions,
         const vectorField& faceAreas,
-        const PackedBoolList& internalOrCoupledFace
+        const bitSet& internalOrCoupledFace
     );
 
 

@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2019 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -28,7 +31,7 @@ Description
     A constant alphaContactAngle scalar boundary condition.
 
 See also
-    Foam::alphaContactAngleFvPatchScalarField
+    Foam::alphaContactAngleTwoPhaseFvPatchScalarField
     Foam::temperatureDependentAlphaContactAngleFvPatchScalarField
 
 SourceFiles
@@ -39,7 +42,7 @@ SourceFiles
 #ifndef constantAlphaContactAngleFvPatchScalarField_H
 #define constantAlphaContactAngleFvPatchScalarField_H
 
-#include "alphaContactAngleFvPatchScalarField.H"
+#include "alphaContactAngleTwoPhaseFvPatchScalarField.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -47,12 +50,12 @@ namespace Foam
 {
 
 /*---------------------------------------------------------------------------*\
-                           Class constantAlphaContactAngleFvPatch Declaration
+              Class constantAlphaContactAngleFvPatch Declaration
 \*---------------------------------------------------------------------------*/
 
 class constantAlphaContactAngleFvPatchScalarField
 :
-    public alphaContactAngleFvPatchScalarField
+    public alphaContactAngleTwoPhaseFvPatchScalarField
 {
     // Private data
 

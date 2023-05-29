@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2018-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -30,10 +33,23 @@ Description
     Plate defined as origin and span. One of the components of span has
     to be 0 which defines the normal direction. E.g.
 
+    \verbatim
     span    = (Sx Sy 0)     // plate in x-y plane
     origin  = (Ox Oy Oz)
+    \endverbatim
 
     now plane is from (Ox Oy Oz) to (Ox+Sx Oy+Sy Oz)
+
+    \heading Dictionary parameters
+    \table
+        Property    | Description                       | Required | Default
+        type        | plate                             | selector |
+        origin      | The minimum corner of the plate   | yes |
+        span        | The plate dimensions              | yes |
+    \endtable
+
+Note
+    Longer type name : \c searchablePlate
 
 SourceFiles
     searchablePlate.C
@@ -51,8 +67,6 @@ SourceFiles
 namespace Foam
 {
 
-// Forward declaration of classes
-
 /*---------------------------------------------------------------------------*\
                        Class searchablePlate Declaration
 \*---------------------------------------------------------------------------*/
@@ -61,17 +75,18 @@ class searchablePlate
 :
     public searchableSurface
 {
-private:
-
     // Private Member Data
 
+        //- The minimum corner of the plate
         const point origin_;
 
+        //- The span size of the plate
         const vector span_;
 
         //- Coordinate direction which is normal
         const direction normalDir_;
 
+        //- Names of regions
         mutable wordList regions_;
 
 
@@ -95,11 +110,11 @@ private:
             const point& end
         ) const;
 
-        //- Disallow default bitwise copy construct
-        searchablePlate(const searchablePlate&);
+        //- No copy construct
+        searchablePlate(const searchablePlate&) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const searchablePlate&);
+        //- No copy assignment
+        void operator=(const searchablePlate&) = delete;
 
 
 public:
@@ -127,17 +142,30 @@ public:
 
 
     //- Destructor
-    virtual ~searchablePlate();
+    virtual ~searchablePlate() = default;
 
 
     // Member Functions
 
+        //- The centre (origin) of the plate
+        inline const point& centre() const noexcept
+        {
+             return origin_;
+        }
+
+        //- Names of regions
         virtual const wordList& regions() const;
 
         //- Whether supports volume type below
         virtual bool hasVolumeType() const
         {
             return false;
+        }
+
+        //- What is type of points outside bounds
+        virtual volumeType outsideVolumeType() const
+        {
+            return volumeType::UNKNOWN;
         }
 
         //- Range of local indices that can be returned.

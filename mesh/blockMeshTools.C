@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2016 OpenFOAM Foundation
+    Copyright (C) 2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -25,6 +28,29 @@ License
 
 #include "blockMeshTools.H"
 
+// * * * * * * * * * * * * * * * Local Functions * * * * * * * * * * * * * * //
+
+namespace Foam
+{
+
+static inline const Foam::entry* resolveLabel(const entry& e, const label val)
+{
+    if (e.isStream())
+    {
+        const tokenList& toks = e.stream();
+
+        if (!toks.empty() && toks[0].isLabel(val))
+        {
+            return &e;
+        }
+    }
+
+    return nullptr;
+}
+
+} // End namespace Foam
+
+
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
 
 void Foam::blockMeshTools::read
@@ -42,16 +68,13 @@ void Foam::blockMeshTools::read
     else if (t.isWord())
     {
         const word& varName = t.wordToken();
-        const entry* ePtr = dict.lookupScopedEntryPtr
-        (
-            varName,
-            true,
-            true
-        );
-        if (ePtr)
+        const entry* eptr =
+            dict.findScoped(varName, keyType::REGEX_RECURSIVE);
+
+        if (eptr)
         {
             // Read as label
-            val = Foam::readLabel(ePtr->stream());
+            val = Foam::readLabel(eptr->stream());
         }
         else
         {
@@ -69,10 +92,7 @@ void Foam::blockMeshTools::read
             << exit(FatalIOError);
     }
 
-    is.fatalCheck
-    (
-        "operator>>(Istream&, List<T>&) : reading entry"
-    );
+    is.fatalCheck(FUNCTION_NAME);
 }
 
 
@@ -82,7 +102,7 @@ Foam::label Foam::blockMeshTools::read
     const dictionary& dict
 )
 {
-    label val;
+    label val(0);
     read(is, val, dict);
     return val;
 }
@@ -95,41 +115,35 @@ void Foam::blockMeshTools::write
     const dictionary& dict
 )
 {
-    forAllConstIter(dictionary, dict, iter)
+    for (const entry& e : dict)
     {
-        if (iter().isStream())
+        const entry* eptr = resolveLabel(e, val);
+        if (eptr)
         {
-            label keyVal(Foam::readLabel(iter().stream()));
-            if (keyVal == val)
-            {
-                os << iter().keyword();
-                return;
-            }
+            os << eptr->keyword();
+            return;
         }
     }
     os << val;
 }
 
 
-const Foam::keyType& Foam::blockMeshTools::findEntry
+const Foam::entry* Foam::blockMeshTools::findEntry
 (
     const dictionary& dict,
     const label val
 )
 {
-    forAllConstIter(dictionary, dict, iter)
+    for (const entry& e : dict)
     {
-        if (iter().isStream())
+        const entry* eptr = resolveLabel(e, val);
+        if (eptr)
         {
-            label keyVal(Foam::readLabel(iter().stream()));
-            if (keyVal == val)
-            {
-                return iter().keyword();
-            }
+            return eptr;
         }
     }
 
-    return keyType::null;
+    return nullptr;
 }
 
 

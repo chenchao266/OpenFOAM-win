@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -61,14 +63,14 @@ Foam::pairPotential::pairPotential
 :
     name_(name),
     pairPotentialProperties_(pairPotentialProperties),
-    rCut_(readScalar(pairPotentialProperties_.lookup("rCut"))),
+    rCut_(pairPotentialProperties_.get<scalar>("rCut")),
     rCutSqr_(rCut_*rCut_),
-    rMin_(readScalar(pairPotentialProperties_.lookup("rMin"))),
-    dr_(readScalar(pairPotentialProperties_.lookup("dr"))),
+    rMin_(pairPotentialProperties_.get<scalar>("rMin")),
+    dr_(pairPotentialProperties_.get<scalar>("dr")),
     forceLookup_(0),
     energyLookup_(0),
     esfPtr_(nullptr),
-    writeTables_(Switch(pairPotentialProperties_.lookup("writeTables")))
+    writeTables_(pairPotentialProperties_.get<bool>("writeTables"))
 {}
 
 

@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2019 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -26,7 +29,9 @@ License
 #include "primitiveMesh.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
-using namespace Foam;
+
+
+ namespace Foam{
 bool primitiveMesh::checkEdgeLength
 (
     const bool report,
@@ -85,18 +90,17 @@ bool primitiveMesh::checkEdgeLength
 
         return true;
     }
-    else
-    {
-        if (report)
-        {
-            Info<< "    Min/max edge length = "
-                << sqrt(minLenSqr) << " " << sqrt(maxLenSqr)
-                << " OK." << endl;
-        }
 
-        return false;
+    if (report)
+    {
+        Info<< "    Min/max edge length = "
+            << sqrt(minLenSqr) << " " << sqrt(maxLenSqr) << " OK." << endl;
     }
+
+    return false;
 }
 
 
 // ************************************************************************* //
+
+ } // End namespace Foam

@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2012-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2012-2017 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -22,7 +24,7 @@ License
     along with OpenFOAM.  If not, see <http://www.gnu.org/licenses/>.
 
 Class
-    Foam::constantRadiation
+    Foam::regionModels::surfaceFilmModels::constantRadiation
 
 Description
     Film constant radiation model.  The constant radiative flux is specified
@@ -80,11 +82,11 @@ private:
 
     // Private member functions
 
-        //- Disallow default bitwise copy construct
-        constantRadiation(const constantRadiation&);
+        //- No copy construct
+        constantRadiation(const constantRadiation&) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const constantRadiation&);
+        //- No copy assignment
+        void operator=(const constantRadiation&) = delete;
 
 
 public:
@@ -98,7 +100,7 @@ public:
         //- Construct from surface film model and dictionary
         constantRadiation
         (
-            surfaceFilmModel& film,
+            surfaceFilmRegionModel& film,
             const dictionary& dict
         );
 

@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2016-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2016-2017 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -66,32 +69,22 @@ Foam::plenumPressureFvPatchScalarField::plenumPressureFvPatchScalarField
 )
 :
     fixedValueFvPatchScalarField(p, iF, dict),
-    gamma_(readScalar(dict.lookup("gamma"))),
-    R_(readScalar(dict.lookup("R"))),
-    supplyMassFlowRate_(readScalar(dict.lookup("supplyMassFlowRate"))),
-    supplyTotalTemperature_
-    (
-        readScalar(dict.lookup("supplyTotalTemperature"))
-    ),
-    plenumVolume_(readScalar(dict.lookup("plenumVolume"))),
-    plenumDensity_(readScalar(dict.lookup("plenumDensity"))),
-    plenumTemperature_(readScalar(dict.lookup("plenumTemperature"))),
+    gamma_(dict.get<scalar>("gamma")),
+    R_(dict.get<scalar>("R")),
+    supplyMassFlowRate_(dict.get<scalar>("supplyMassFlowRate")),
+    supplyTotalTemperature_(dict.get<scalar>("supplyTotalTemperature")),
+    plenumVolume_(dict.get<scalar>("plenumVolume")),
+    plenumDensity_(dict.get<scalar>("plenumDensity")),
+    plenumTemperature_(dict.get<scalar>("plenumTemperature")),
     rho_(1.0),
     hasRho_(false),
-    inletAreaRatio_(readScalar(dict.lookup("inletAreaRatio"))),
-    inletDischargeCoefficient_
-    (
-        readScalar(dict.lookup("inletDischargeCoefficient"))
-    ),
-    timeScale_(dict.lookupOrDefault<scalar>("timeScale", 0.0)),
-    phiName_(dict.lookupOrDefault<word>("phi", "phi")),
-    UName_(dict.lookupOrDefault<word>("U", "U"))
+    inletAreaRatio_(dict.get<scalar>("inletAreaRatio")),
+    inletDischargeCoefficient_(dict.get<scalar>("inletDischargeCoefficient")),
+    timeScale_(dict.getOrDefault<scalar>("timeScale", 0)),
+    phiName_(dict.getOrDefault<word>("phi", "phi")),
+    UName_(dict.getOrDefault<word>("U", "U"))
 {
-    if (dict.found("rho"))
-    {
-        rho_ = readScalar(dict.lookup("rho"));
-        hasRho_ = true;
-    }
+    hasRho_ = dict.readIfPresent("rho", rho_);
 }
 
 
@@ -243,7 +236,7 @@ void Foam::plenumPressureFvPatchScalarField::updateCoeffs()
             << exit(FatalError);
     }
 
-    // Calcaulate the specific heats
+    // Calculate the specific heats
     const scalar cv = R_/(gamma_ - 1), cp = R_*gamma_/(gamma_ - 1);
 
     // Calculate the new plenum properties
@@ -300,32 +293,22 @@ void Foam::plenumPressureFvPatchScalarField::updateCoeffs()
 void Foam::plenumPressureFvPatchScalarField::write(Ostream& os) const
 {
     fvPatchScalarField::write(os);
-    os.writeKeyword("gamma") << gamma_
-        << token::END_STATEMENT << nl;
-    os.writeKeyword("R") << R_
-        << token::END_STATEMENT << nl;
-    os.writeKeyword("supplyMassFlowRate") << supplyMassFlowRate_
-        << token::END_STATEMENT << nl;
-    os.writeKeyword("supplyTotalTemperature") << supplyTotalTemperature_
-        << token::END_STATEMENT << nl;
-    os.writeKeyword("plenumVolume") << plenumVolume_
-        << token::END_STATEMENT << nl;
-    os.writeKeyword("plenumDensity") << plenumDensity_
-        << token::END_STATEMENT << nl;
-    os.writeKeyword("plenumTemperature") << plenumTemperature_
-        << token::END_STATEMENT << nl;
+    os.writeEntry("gamma", gamma_);
+    os.writeEntry("R", R_);
+    os.writeEntry("supplyMassFlowRate", supplyMassFlowRate_);
+    os.writeEntry("supplyTotalTemperature", supplyTotalTemperature_);
+    os.writeEntry("plenumVolume", plenumVolume_);
+    os.writeEntry("plenumDensity", plenumDensity_);
+    os.writeEntry("plenumTemperature", plenumTemperature_);
     if (hasRho_)
     {
-        os.writeKeyword("rho") << rho_
-            << token::END_STATEMENT << nl;
+        os.writeEntry("rho", rho_);
     }
-    os.writeKeyword("inletAreaRatio") << inletAreaRatio_
-        << token::END_STATEMENT << nl;
-    os.writeKeyword("inletDischargeCoefficient") << inletDischargeCoefficient_
-        << token::END_STATEMENT << nl;
-    writeEntryIfDifferent<scalar>(os, "timeScale", 0.0, timeScale_);
-    writeEntryIfDifferent<word>(os, "phi", "phi", phiName_);
-    writeEntryIfDifferent<word>(os, "U", "U", UName_);
+    os.writeEntry("inletAreaRatio", inletAreaRatio_);
+    os.writeEntry("inletDischargeCoefficient", inletDischargeCoefficient_);
+    os.writeEntryIfDifferent<scalar>("timeScale", 0.0, timeScale_);
+    os.writeEntryIfDifferent<word>("phi", "phi", phiName_);
+    os.writeEntryIfDifferent<word>("U", "U", UName_);
     writeEntry("value", os);
 }
 

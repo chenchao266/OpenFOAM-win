@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2016 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -28,7 +31,9 @@ License
 #include "scalarField.H"
 
 // * * * * * * * * * * * * * Private Member Functions  * * * * * * * * * * * //
-using namespace Foam;
+
+
+ namespace Foam{
 void lduAddressing::calcLosort() const
 {
     if (losortPtr_)
@@ -41,7 +46,7 @@ void lduAddressing::calcLosort() const
     // Scan the neighbour list to find out how many times the cell
     // appears as a neighbour of the face. Done this way to avoid guessing
     // and resizing list
-    labelList nNbrOfFace(size(), 0);
+    labelList nNbrOfFace(size(), Zero);
 
     const labelUList& nbr = upperAddr();
 
@@ -136,7 +141,7 @@ void lduAddressing::calcLosortStart() const
             << abort(FatalError);
     }
 
-    losortStartPtr_ = new labelList(size() + 1, 0);
+    losortStartPtr_ = new labelList(size() + 1, Zero);
 
     labelList& lsrtStart = *losortStartPtr_;
 
@@ -215,6 +220,14 @@ const labelUList& lduAddressing::losortStartAddr() const
 }
 
 
+void lduAddressing::clearOut()
+{
+    deleteDemandDrivenData(losortPtr_);
+    deleteDemandDrivenData(ownerStartPtr_);
+    deleteDemandDrivenData(losortStartPtr_);
+}
+
+
 label lduAddressing::triIndex(const label a, const label b) const
 {
     label own = min(a, b);
@@ -251,7 +264,7 @@ Tuple2<label, scalar> lduAddressing::band() const
     const labelUList& owner = lowerAddr();
     const labelUList& neighbour = upperAddr();
 
-    labelList cellBandwidth(size(), 0);
+    labelList cellBandwidth(size(), Zero);
 
     forAll(neighbour, facei)
     {
@@ -277,3 +290,5 @@ Tuple2<label, scalar> lduAddressing::band() const
 
 
 // ************************************************************************* //
+
+ } // End namespace Foam

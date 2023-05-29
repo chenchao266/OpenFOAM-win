@@ -1,9 +1,11 @@
-﻿/*---------------------------------------------------------------------------*\
+/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2015 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2015, 2019 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -23,28 +25,8 @@ License
 
 \*---------------------------------------------------------------------------*/
 
-//#include "kqRWallFunctionFvPatchField.H"
-#include "fvPatchFieldMapper.H"
+#include "kqRWallFunctionFvPatchField.H"
 #include "addToRunTimeSelectionTable.H"
-#include "wallFvPatch.H"
-
-// * * * * * * * * * * * * * Private Member Functions  * * * * * * * * * * * //
-
-template<class Type>
-void Foam::kqRWallFunctionFvPatchField<Type>::checkType()
-{
-    if (!isA<wallFvPatch>(this->patch()))
-    {
-        FatalErrorInFunction
-            << "Invalid wall function specification" << nl
-            << "    Patch type for patch " << this->patch().name()
-            << " must be wall" << nl
-            << "    Current patch type is " << this->patch().type()
-            << nl << endl
-            << abort(FatalError);
-    }
-}
-
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
@@ -56,9 +38,7 @@ Foam::kqRWallFunctionFvPatchField<Type>::kqRWallFunctionFvPatchField
 )
 :
     zeroGradientFvPatchField<Type>(p, iF)
-{
-    checkType();
-}
+{}
 
 
 template<class Type>
@@ -70,9 +50,7 @@ Foam::kqRWallFunctionFvPatchField<Type>::kqRWallFunctionFvPatchField
 )
 :
     zeroGradientFvPatchField<Type>(p, iF, dict)
-{
-    checkType();
-}
+{}
 
 
 template<class Type>
@@ -85,9 +63,7 @@ Foam::kqRWallFunctionFvPatchField<Type>::kqRWallFunctionFvPatchField
 )
 :
     zeroGradientFvPatchField<Type>(ptf, p, iF, mapper)
-{
-    checkType();
-}
+{}
 
 
 template<class Type>
@@ -97,9 +73,7 @@ Foam::kqRWallFunctionFvPatchField<Type>::kqRWallFunctionFvPatchField
 )
 :
     zeroGradientFvPatchField<Type>(tkqrwfpf)
-{
-    checkType();
-}
+{}
 
 
 template<class Type>
@@ -110,9 +84,7 @@ Foam::kqRWallFunctionFvPatchField<Type>::kqRWallFunctionFvPatchField
 )
 :
     zeroGradientFvPatchField<Type>(tkqrwfpf, iF)
-{
-    checkType();
-}
+{}
 
 
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //

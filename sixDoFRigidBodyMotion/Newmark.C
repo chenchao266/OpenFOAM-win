@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2015-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2015-2016 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -46,14 +49,14 @@ Foam::sixDoFSolvers::Newmark::Newmark
     sixDoFRigidBodyMotion& body
 )
 :
-    sixDoFSolver(body),
-    gamma_(dict.lookupOrDefault<scalar>("gamma", 0.5)),
+    sixDoFSolver(dict, body),
+    gamma_(dict.getOrDefault<scalar>("gamma", 0.5)),
     beta_
     (
         max
         (
             0.25*sqr(gamma_ + 0.5),
-            dict.lookupOrDefault<scalar>("beta", 0.25)
+            dict.getOrDefault<scalar>("beta", 0.25)
         )
     )
 {}
@@ -110,6 +113,5 @@ void Foam::sixDoFSolvers::Newmark::solve
     Tuple2<tensor, vector> Qpi = rotate(Q0(), piDeltaT, 1);
     Q() = Qpi.first();
 }
-
 
 // ************************************************************************* //

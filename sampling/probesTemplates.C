@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2017 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -23,7 +26,7 @@ License
 
 \*---------------------------------------------------------------------------*/
 
-//#include "probes.H"
+#include "probes.H"
 #include "volFields.H"
 #include "surfaceFields.H"
 #include "IOmanip.H"
@@ -41,13 +44,13 @@ public:
 
     void operator()(T& x, const T& y) const
     {
-        const T unsetVal(-VGREAT*pTraits<T>::one);
+        const T unsetVal(-VGREAT*pTraits<T>::one_);
 
         if (x != unsetVal)
         {
             // Keep x.
 
-            // Note:chould check for y != unsetVal but multiple sample cells
+            // Note: should check for y != unsetVal but multiple sample cells
             // already handled in read().
         }
         else
@@ -76,11 +79,14 @@ void Foam::probes::sampleAndWrite
         unsigned int w = IOstream::defaultPrecision() + 7;
         OFstream& os = *probeFilePtrs_[vField.name()];
 
-        os  << setw(w) << vField.time().timeToUserTime(vField.time().value());
+        os  << setw(w) << vField.time().timeOutputValue();
 
         forAll(values, probei)
         {
-            os  << ' ' << setw(w) << values[probei];
+            if (includeOutOfBounds_ || processor_[probei] != -1)
+            {
+                os  << ' ' << setw(w) << values[probei];
+            }
         }
         os  << endl;
     }
@@ -100,11 +106,14 @@ void Foam::probes::sampleAndWrite
         unsigned int w = IOstream::defaultPrecision() + 7;
         OFstream& os = *probeFilePtrs_[sField.name()];
 
-        os  << setw(w) << sField.time().timeToUserTime(sField.time().value());
+        os  << setw(w) << sField.time().timeOutputValue();
 
         forAll(values, probei)
         {
-            os  << ' ' << setw(w) << values[probei];
+            if (includeOutOfBounds_ || processor_[probei] != -1)
+            {
+                os  << ' ' << setw(w) << values[probei];
+            }
         }
         os  << endl;
     }
@@ -141,7 +150,7 @@ void Foam::probes::sampleAndWrite(const fieldGroup<Type>& fields)
 
             if
             (
-                iter != objectRegistry::end()
+                iter.found()
              && iter()->type()
              == GeometricField<Type, fvPatchField, volMesh>::typeName
             )
@@ -190,7 +199,7 @@ void Foam::probes::sampleAndWriteSurfaceFields(const fieldGroup<Type>& fields)
 
             if
             (
-                iter != objectRegistry::end()
+                iter.found()
              && iter()->type()
              == GeometricField<Type, fvsPatchField, surfaceMesh>::typeName
             )
@@ -217,7 +226,7 @@ Foam::probes::sample
     const GeometricField<Type, fvPatchField, volMesh>& vField
 ) const
 {
-    const Type unsetVal(-VGREAT*pTraits<Type>::one);
+    const Type unsetVal(-VGREAT*pTraits<Type>::one_);
 
     tmp<Field<Type>> tValues
     (
@@ -287,7 +296,7 @@ Foam::probes::sample
     const GeometricField<Type, fvsPatchField, surfaceMesh>& sField
 ) const
 {
-    const Type unsetVal(-VGREAT*pTraits<Type>::one);
+    const Type unsetVal(-VGREAT*pTraits<Type>::one_);
 
     tmp<Field<Type>> tValues
     (

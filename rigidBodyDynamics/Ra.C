@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2016 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -60,11 +63,8 @@ Foam::RBD::joints::Ra::Ra(const vector& axis)
 
 Foam::RBD::joints::Ra::Ra(const dictionary& dict)
 :
-    joint(1)
-{
-    vector axis(dict.lookup("axis"));
-    S_[0] = spatialVector(axis/mag(axis), Zero);
-}
+    Ra(dict.get<vector>("axis"))
+{}
 
 
 Foam::autoPtr<Foam::RBD::joint> Foam::RBD::joints::Ra::clone() const
@@ -98,8 +98,7 @@ void Foam::RBD::joints::Ra::jcalc
 void Foam::RBD::joints::Ra::write(Ostream& os) const
 {
     joint::write(os);
-    os.writeKeyword("axis")
-        << S_[0].w() << token::END_STATEMENT << nl;
+    os.writeEntry("axis", S_[0].w());
 }
 
 

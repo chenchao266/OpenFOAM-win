@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2019 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -36,7 +39,7 @@ SourceFiles
 #define indexedParticle_H
 
 #include "particle.H"
-#include "IOstream.H"
+#include "_IOstream.H"
 #include "autoPtr.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
@@ -61,6 +64,21 @@ public:
 
     // Constructors
 
+        //- Construct from a position and a cell.
+        //  Searches for the rest of the required topology.
+        //  Other properties are zero initialised.
+        indexedParticle
+        (
+            const polyMesh& mesh,
+            const vector& position,
+            const label celli = -1,
+            const label index = 0
+        )
+        :
+            particle(mesh, position, celli),
+            index_(index)
+        {}
+
         //- Construct from components
         indexedParticle
         (
@@ -81,10 +99,11 @@ public:
         (
             const polyMesh& mesh,
             Istream& is,
-            bool readFields = true
+            bool readFields = true,
+            bool newFormat = true
         )
         :
-            particle(mesh, is, readFields)
+            particle(mesh, is, readFields, newFormat)
         {}
 
         //- Construct as a copy
@@ -100,7 +119,7 @@ public:
         }
 
 
-    // Member functions
+    // Member Functions
 
         label index() const
         {

@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -76,18 +79,18 @@ Foam::point Foam::BSpline::position
     const point& p0 = points()[segment];
     const point& p1 = points()[segment+1];
 
-    // special cases - no calculation needed
-    if (mu <= 0.0)
+    // Special cases - no calculation needed
+    // Note: only checks at overall endpoints
+    if ((segment == 0) && (mu <= 0.0))
     {
         return p0;
     }
-    else if (mu >= 1.0)
+    else if ((segment == nSegments() - 1) && (mu >= 1.0))
     {
         return p1;
     }
 
-
-    // determine the end points
+    // Determine the end points
     point e0;
     point e1;
 
@@ -111,7 +114,6 @@ Foam::point Foam::BSpline::position
         e1 = points()[segment+2];
     }
 
-
     return 1.0/6.0 *
     (
         ( e0 + 4*p0 + p1 )
@@ -132,7 +134,7 @@ Foam::point Foam::BSpline::position
 Foam::scalar Foam::BSpline::length() const
 {
     NotImplemented;
-    return 1.0;
+    return 1;
 }
 
 

@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2016-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -25,9 +28,38 @@ Class
     Foam::sampledIsoSurfaceCell
 
 Description
-    A sampledSurface defined by a surface of iso value. Always triangulated.
-    To be used in sampleSurfaces / functionObjects. Recalculates iso surface
-    only if time changes.
+    A sampledSurface defined by a surface of iso value using a
+    \em cell algorithm.
+    It only recalculates the iso-surface if time changes.
+    To be used in sampleSurfaces / functionObjects.
+
+Usage
+    Example of function object partial specification:
+    \verbatim
+    surfaces
+    {
+        surface1
+        {
+            type     isoSurfaceCell;
+            isoField T;
+            isoValue 373;
+        }
+    }
+    \endverbatim
+
+    Where the sub-entries comprise:
+    \table
+        Property | Description                              | Required | Default
+        type     | isoSurfaceCell                           | yes |
+        isoField | field name for obtaining iso-surface     | yes |
+        isoValue | value of iso-surface                     | yes |
+        average  | cell values from averaged point values   | no  | false
+        bounds   | limit with bounding box                  | no  |
+        zone     | limit to cell zone (name or regex)       | no  |
+        zones    | limit to cell zones (names, regexs)      | no  |
+        regularise | point snapping                         | yes |
+        mergeTol | tolerance for merging points             | no  | 1e-6
+    \endtable
 
 SourceFiles
     sampledIsoSurfaceCell.C
@@ -37,8 +69,7 @@ SourceFiles
 #ifndef sampledIsoSurfaceCell_H
 #define sampledIsoSurfaceCell_H
 
-#include "sampledSurface.H"
-#include "triSurface.H"
+#include "sampledIsoSurface.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -51,62 +82,12 @@ namespace Foam
 
 class sampledIsoSurfaceCell
 :
-    public sampledSurface,
-    public triSurface
+    public sampledIsoSurface
 {
-    // Private data
-
-        //- Field to get isoSurface of
-        const word isoField_;
-
-        //- Iso value
-        const scalar isoVal_;
-
-        //- Whether to coarse
-        const Switch regularise_;
-
-        //- Whether to recalculate cell values as average of point values
-        const Switch average_;
-
-        //- If restricted to zones, name of this zone or a regular expression
-        keyType zoneKey_;
-
-        //- Triangles converted to faceList
-        mutable autoPtr<faceList> facesPtr_;
-
-
-        // Recreated for every isoSurface
-
-            //- Time at last call, also track it surface needs an update
-            mutable label prevTimeIndex_;
-
-            //- For every triangle the original cell in mesh
-            mutable labelList meshCells_;
-
-
-    // Private Member Functions
-
-        //- Create iso surface (if time has changed)
-        //  Do nothing (and return false) if no update was needed
-        bool updateGeometry() const;
-
-        //- Sample field on faces
-        template<class Type>
-        tmp<Field<Type>> sampleField
-        (
-            const GeometricField<Type, fvPatchField, volMesh>& vField
-        ) const;
-
-
-        template<class Type>
-        tmp<Field<Type>>
-        interpolateField(const interpolation<Type>&) const;
-
-
 public:
 
     //- Runtime type information
-    TypeName("sampledIsoSurfaceCell");
+    TypeNameNoDebug("sampledIsoSurfaceCell");
 
 
     // Constructors
@@ -121,123 +102,13 @@ public:
 
 
     //- Destructor
-    virtual ~sampledIsoSurfaceCell();
-
-
-    // Member Functions
-
-        //- Does the surface need an update?
-        virtual bool needsUpdate() const;
-
-        //- Mark the surface as needing an update.
-        //  May also free up unneeded data.
-        //  Return false if surface was already marked as expired.
-        virtual bool expire();
-
-        //- Update the surface as required.
-        //  Do nothing (and return false) if no update was needed
-        virtual bool update();
-
-
-        //- Points of surface
-        virtual const pointField& points() const
-        {
-            return triSurface::points();
-        }
-
-        //- Faces of surface
-        virtual const faceList& faces() const
-        {
-            if (facesPtr_.empty())
-            {
-                const triSurface& s = *this;
-
-                facesPtr_.reset(new faceList(s.size()));
-
-                forAll(s, i)
-                {
-                    facesPtr_()[i] = s[i].triFaceFace();
-                }
-            }
-            return facesPtr_;
-        }
-
-
-        //- Sample field on surface
-        virtual tmp<scalarField> sample
-        (
-            const volScalarField&
-        ) const;
-
-        //- Sample field on surface
-        virtual tmp<vectorField> sample
-        (
-            const volVectorField&
-        ) const;
-
-        //- Sample field on surface
-        virtual tmp<sphericalTensorField> sample
-        (
-            const volSphericalTensorField&
-        ) const;
-
-        //- Sample field on surface
-        virtual tmp<symmTensorField> sample
-        (
-            const volSymmTensorField&
-        ) const;
-
-        //- Sample field on surface
-        virtual tmp<tensorField> sample
-        (
-            const volTensorField&
-        ) const;
-
-
-        //- Interpolate field on surface
-        virtual tmp<scalarField> interpolate
-        (
-            const interpolation<scalar>&
-        ) const;
-
-        //- Interpolate field on surface
-        virtual tmp<vectorField> interpolate
-        (
-            const interpolation<vector>&
-        ) const;
-
-        //- Interpolate field on surface
-        virtual tmp<sphericalTensorField> interpolate
-        (
-            const interpolation<sphericalTensor>&
-        ) const;
-
-        //- Interpolate field on surface
-        virtual tmp<symmTensorField> interpolate
-        (
-            const interpolation<symmTensor>&
-        ) const;
-
-        //- Interpolate field on surface
-        virtual tmp<tensorField> interpolate
-        (
-            const interpolation<tensor>&
-        ) const;
-
-        //- Write
-        virtual void print(Ostream&) const;
+    virtual ~sampledIsoSurfaceCell() = default;
 };
 
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 } // End namespace Foam
-
-// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
-
-#ifdef NoRepository
-    #include "sampledIsoSurfaceCellTemplates.C"
-#endif
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 

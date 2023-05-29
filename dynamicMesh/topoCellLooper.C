@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -27,11 +30,10 @@ License
 #include "cellFeatures.H"
 #include "polyMesh.H"
 #include "unitConversion.H"
-#include "DynamicList.T.H"
-#include "ListOps.T.H"
+#include "DynamicList.H"
+#include "ListOps.H"
 #include "meshTools.H"
 #include "hexMatcher.H"
-
 #include "addToRunTimeSelectionTable.H"
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
@@ -262,8 +264,7 @@ Foam::label Foam::topoCellLooper::getAlignedNonFeatureEdge
             vector e0 = mesh().points()[e.start()] - ctr;
             vector e1 = mesh().points()[e.end()] - ctr;
 
-            vector n = e0 ^ e1;
-            n /= mag(n);
+            const vector n = normalised(e0 ^ e1);
 
             scalar cosAngle = mag(refDir & n);
 
@@ -407,17 +408,8 @@ void Foam::topoCellLooper::walkSplitHex
 
         if
         (
-            (vertI != -1)
-         && (
-                (startLoop =
-                    findIndex
-                    (
-                        loop,
-                        vertToEVert(vertI)
-                    )
-                )
-            != -1
-            )
+            vertI != -1
+         && (startLoop = loop.find(vertToEVert(vertI))) != -1
         )
         {
             // Breaking walk since vertI already cut
@@ -430,17 +422,8 @@ void Foam::topoCellLooper::walkSplitHex
         }
         if
         (
-            (edgeI != -1)
-         && (
-                (startLoop =
-                    findIndex
-                    (
-                        loop,
-                        edgeToEVert(edgeI)
-                    )
-                )
-             != -1
-            )
+            edgeI != -1
+         && (startLoop = loop.find(edgeToEVert(edgeI))) != -1
         )
         {
             // Breaking walk since edgeI already cut
@@ -679,16 +662,9 @@ void Foam::topoCellLooper::walkSplitHex
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
-// Construct from components
 Foam::topoCellLooper::topoCellLooper(const polyMesh& mesh)
 :
     hexCellLooper(mesh)
-{}
-
-
-// * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
-
-Foam::topoCellLooper::~topoCellLooper()
 {}
 
 
@@ -725,7 +701,7 @@ bool Foam::topoCellLooper::cut
     {
         cellFeatures superCell(mesh(), featureCos, celli);
 
-        if (hexMatcher().isA(superCell.faces()))
+        if (hexMatcher::test(superCell.faces()))
         {
             label edgeI =
                 getAlignedNonFeatureEdge

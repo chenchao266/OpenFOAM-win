@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2015-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2015-2017 OpenFOAM Foundation
+    Copyright (C) 2018-2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -28,12 +31,11 @@ License
 #include "fvPatchFieldMapper.H"
 #include "volFields.H"
 #include "surfaceFields.H"
-#include "uniformDimensionedFields.H"
+#include "gravityMeshObject.H"
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
-Foam::prghTotalPressureFvPatchScalarField::
-prghTotalPressureFvPatchScalarField
+Foam::prghTotalPressureFvPatchScalarField::prghTotalPressureFvPatchScalarField
 (
     const fvPatch& p,
     const DimensionedField<scalar, volMesh>& iF
@@ -43,12 +45,11 @@ prghTotalPressureFvPatchScalarField
     UName_("U"),
     phiName_("phi"),
     rhoName_("rho"),
-    p0_(p.size(), 0.0)
+    p0_(p.size(), Zero)
 {}
 
 
-Foam::prghTotalPressureFvPatchScalarField::
-prghTotalPressureFvPatchScalarField
+Foam::prghTotalPressureFvPatchScalarField::prghTotalPressureFvPatchScalarField
 (
     const fvPatch& p,
     const DimensionedField<scalar, volMesh>& iF,
@@ -56,9 +57,9 @@ prghTotalPressureFvPatchScalarField
 )
 :
     fixedValueFvPatchScalarField(p, iF, dict, false),
-    UName_(dict.lookupOrDefault<word>("U", "U")),
-    phiName_(dict.lookupOrDefault<word>("phi", "phi")),
-    rhoName_(dict.lookupOrDefault<word>("rho", "rho")),
+    UName_(dict.getOrDefault<word>("U", "U")),
+    phiName_(dict.getOrDefault<word>("phi", "phi")),
+    rhoName_(dict.getOrDefault<word>("rho", "rho")),
     p0_("p0", dict, p.size())
 {
     if (dict.found("value"))
@@ -75,8 +76,7 @@ prghTotalPressureFvPatchScalarField
 }
 
 
-Foam::prghTotalPressureFvPatchScalarField::
-prghTotalPressureFvPatchScalarField
+Foam::prghTotalPressureFvPatchScalarField::prghTotalPressureFvPatchScalarField
 (
     const prghTotalPressureFvPatchScalarField& ptf,
     const fvPatch& p,
@@ -92,8 +92,7 @@ prghTotalPressureFvPatchScalarField
 {}
 
 
-Foam::prghTotalPressureFvPatchScalarField::
-prghTotalPressureFvPatchScalarField
+Foam::prghTotalPressureFvPatchScalarField::prghTotalPressureFvPatchScalarField
 (
     const prghTotalPressureFvPatchScalarField& ptf
 )
@@ -106,8 +105,7 @@ prghTotalPressureFvPatchScalarField
 {}
 
 
-Foam::prghTotalPressureFvPatchScalarField::
-prghTotalPressureFvPatchScalarField
+Foam::prghTotalPressureFvPatchScalarField::prghTotalPressureFvPatchScalarField
 (
     const prghTotalPressureFvPatchScalarField& ptf,
     const DimensionedField<scalar, volMesh>& iF
@@ -165,7 +163,7 @@ void Foam::prghTotalPressureFvPatchScalarField::updateCoeffs()
         patch().lookupPatchField<volVectorField, vector>(UName_);
 
     const uniformDimensionedVectorField& g =
-        db().lookupObject<uniformDimensionedVectorField>("g");
+        meshObjects::gravity::New(db().time());
 
     const uniformDimensionedScalarField& hRef =
         db().lookupObject<uniformDimensionedScalarField>("hRef");
@@ -191,9 +189,9 @@ void Foam::prghTotalPressureFvPatchScalarField::updateCoeffs()
 void Foam::prghTotalPressureFvPatchScalarField::write(Ostream& os) const
 {
     fvPatchScalarField::write(os);
-    writeEntryIfDifferent<word>(os, "U", "U", UName_);
-    writeEntryIfDifferent<word>(os, "phi", "phi", phiName_);
-    writeEntryIfDifferent<word>(os, "rho", "rho", rhoName_);
+    os.writeEntryIfDifferent<word>("U", "U", UName_);
+    os.writeEntryIfDifferent<word>("phi", "phi", phiName_);
+    os.writeEntryIfDifferent<word>("rho", "rho", rhoName_);
     p0_.writeEntry("p0", os);
     writeEntry("value", os);
 }

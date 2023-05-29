@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -56,33 +58,33 @@ namespace fvc
     void surfaceIntegrate
     (
         Field<Type>&,
-        const surfaceFieldType<Type>&
+        const GeometricField<Type, fvsPatchField, surfaceMesh>&
     );
 
     template<class Type>
-    tmp<volFieldType<Type>>
+    tmp<GeometricField<Type, fvPatchField, volMesh>>
     surfaceIntegrate
     (
-        const surfaceFieldType<Type>&
+        const GeometricField<Type, fvsPatchField, surfaceMesh>&
     );
 
     template<class Type>
-    tmp<volFieldType<Type>>
+    tmp<GeometricField<Type, fvPatchField, volMesh>>
     surfaceIntegrate
     (
-        const tmp<surfaceFieldType<Type>>&
+        const tmp<GeometricField<Type, fvsPatchField, surfaceMesh>>&
     );
 
     template<class Type>
-    tmp<volFieldType<Type>> surfaceSum
+    tmp<GeometricField<Type, fvPatchField, volMesh>> surfaceSum
     (
-        const surfaceFieldType<Type>&
+        const GeometricField<Type, fvsPatchField, surfaceMesh>&
     );
 
     template<class Type>
-    tmp<volFieldType<Type>> surfaceSum
+    tmp<GeometricField<Type, fvPatchField, volMesh>> surfaceSum
     (
-        const tmp<surfaceFieldType<Type>>&
+        const tmp<GeometricField<Type, fvsPatchField, surfaceMesh>>&
     );
 }
 

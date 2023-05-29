@@ -1,9 +1,12 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2012 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2012 OpenFOAM Foundation
+    Copyright (C) 2016 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -25,8 +28,9 @@ Class
     Foam::genericPolyPatch
 
 Description
-    Substitute for unknown patches. Used for postprocessing when only
-    basic polyPatch info is needed.
+    Substitute for unknown patches.
+    Used for postprocessing when only basic polyPatch info is needed
+    or if the real patch type is unavailable.
 
 Note
     Storage is not optimal. It stores all face centres and cells on all
@@ -51,11 +55,13 @@ namespace Foam
                       Class genericPolyPatch Declaration
 \*---------------------------------------------------------------------------*/
 
-class genericPolyPatch :    public polyPatch
+class genericPolyPatch
+:
+    public polyPatch
 {
     // Private data
 
-        word actualTypeName_;
+        const word actualTypeName_;
         dictionary dict_;
 
 public:
@@ -159,6 +165,9 @@ public:
 
 
     // Member functions
+
+        //- Return the actual type
+        const word& actualType() const;
 
         //- Write the polyPatch data as a dictionary
         virtual void write(Ostream&) const;

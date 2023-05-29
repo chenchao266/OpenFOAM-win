@@ -1,9 +1,12 @@
-﻿/*---------------------------------------------------------------------------*\
+/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2012 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2012 OpenFOAM Foundation
+    Copyright (C) 2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -23,12 +26,11 @@ License
 
 \*---------------------------------------------------------------------------*/
 
-//#include "jplotSetWriter.H"
+#include "jplotSetWriter.H"
 #include "clock.H"
 #include "coordSet.H"
 #include "fileName.H"
 #include "OFstream.H"
-
 
 // * * * * * * * * * * * * * Private Member Functions  * * * * * * * * * * * //
 
@@ -51,10 +53,10 @@ Foam::jplotSetWriter<Type>::jplotSetWriter()
 {}
 
 
-// * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
-
 template<class Type>
-Foam::jplotSetWriter<Type>::~jplotSetWriter()
+Foam::jplotSetWriter<Type>::jplotSetWriter(const dictionary& dict)
+:
+    writer<Type>(dict)
 {}
 
 

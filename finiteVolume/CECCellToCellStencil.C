@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2020 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -56,7 +59,13 @@ void Foam::CECCellToCellStencil::calcEdgeBoundaryData
         );
     }
 
-    syncTools::syncEdgeMap(mesh(), neiGlobal, unionEqOp(), dummyTransform());
+    syncTools::syncEdgeMap
+    (
+        mesh(),
+        neiGlobal,
+        ListOps::unionEqOp(),
+        dummyTransform()
+    );
 }
 
 
@@ -77,7 +86,7 @@ void Foam::CECCellToCellStencil::calcCellStencil
 
     //{
     //    OFstream str(mesh().time().path()/"boundaryEdges.obj");
-    //    Pout<< "DUmping boundary edges to " << str.name() << endl;
+    //    Pout<< "Dumping boundary edges to " << str.name() << endl;
     //
     //    label vertI = 0;
     //    forAll(boundaryEdges, i)

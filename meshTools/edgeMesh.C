@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2015-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -24,11 +27,12 @@ License
 \*---------------------------------------------------------------------------*/
 
 #include "edgeMesh.H"
+#include "bitSet.H"
+#include "edgeHashes.H"
 #include "mergePoints.H"
+#include "ListOps.H"
 #include "addToRunTimeSelectionTable.H"
 #include "addToMemberFunctionSelectionTable.H"
-#include "ListOps.T.H"
-#include "EdgeMap.T.H"
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
 
@@ -39,6 +43,8 @@ namespace Foam
     defineMemberFunctionSelectionTable(edgeMesh,write,fileExtension);
 }
 
+
+// * * * * * * * * * * * * * Static Member Functions * * * * * * * * * * * * //
 
 Foam::wordHashSet Foam::edgeMesh::readTypes()
 {
@@ -52,47 +58,33 @@ Foam::wordHashSet Foam::edgeMesh::writeTypes()
 }
 
 
-// * * * * * * * * * * * * * Static Member Functions * * * * * * * * * * * * //
-
-bool Foam::edgeMesh::canReadType
-(
-    const word& ext,
-    const bool verbose
-)
+bool Foam::edgeMesh::canReadType(const word& fileType, bool verbose)
 {
     return checkSupport
     (
         readTypes(),
-        ext,
+        fileType,
         verbose,
         "reading"
    );
 }
 
 
-bool Foam::edgeMesh::canWriteType
-(
-    const word& ext,
-    const bool verbose
-)
+bool Foam::edgeMesh::canWriteType(const word& fileType, bool verbose)
 {
     return checkSupport
     (
         writeTypes(),
-        ext,
+        fileType,
         verbose,
         "writing"
     );
 }
 
 
-bool Foam::edgeMesh::canRead
-(
-    const fileName& name,
-    const bool verbose
-)
+bool Foam::edgeMesh::canRead(const fileName& name, bool verbose)
 {
-    word ext = name.ext();
+    word ext(name.ext());
     if (ext == "gz")
     {
         ext = name.lessExt().ext();
@@ -105,63 +97,18 @@ bool Foam::edgeMesh::canRead
 
 void Foam::edgeMesh::calcPointEdges() const
 {
-    if (pointEdgesPtr_.valid())
+    if (pointEdgesPtr_)
     {
         FatalErrorInFunction
-            << "pointEdges already calculated." << abort(FatalError);
+            << "pointEdges already calculated."
+            << abort(FatalError);
     }
 
     pointEdgesPtr_.reset(new labelListList(points_.size()));
-    labelListList& pointEdges = pointEdgesPtr_();
+    auto& pointEdges = *pointEdgesPtr_;
 
     invertManyToMany(pointEdges.size(), edges_, pointEdges);
 }
-
-
-// * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
-
-Foam::edgeMesh::edgeMesh()
-:
-    fileFormats::edgeMeshFormatsCore(),
-    points_(0),
-    edges_(0),
-    pointEdgesPtr_(nullptr)
-{}
-
-
-Foam::edgeMesh::edgeMesh
-(
-    const pointField& points,
-    const edgeList& edges
-)
-:
-    fileFormats::edgeMeshFormatsCore(),
-    points_(points),
-    edges_(edges),
-    pointEdgesPtr_(nullptr)
-{}
-
-
-Foam::edgeMesh::edgeMesh
-(
-    const Xfer<pointField>& pointLst,
-    const Xfer<edgeList>& edgeLst
-)
-:
-    fileFormats::edgeMeshFormatsCore(),
-    points_(0),
-    edges_(0),
-    pointEdgesPtr_(nullptr)
-{
-    points_.transfer(pointLst());
-    edges_.transfer(edgeLst());
-}
-
-
-// * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
-
-Foam::edgeMesh::~edgeMesh()
-{}
 
 
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
@@ -170,44 +117,20 @@ void Foam::edgeMesh::clear()
 {
     points_.clear();
     edges_.clear();
-    pointEdgesPtr_.clear();
-}
-
-
-void Foam::edgeMesh::reset
-(
-    const Xfer<pointField>& pointLst,
-    const Xfer<edgeList>& edgeLst
-)
-{
-    // Take over new primitive data.
-    // Optimized to avoid overwriting data at all
-    if (notNull(pointLst))
-    {
-        points_.transfer(pointLst());
-    }
-
-    if (notNull(edgeLst))
-    {
-        edges_.transfer(edgeLst());
-
-        // connectivity likely changed
-        pointEdgesPtr_.clear();
-    }
+    pointEdgesPtr_.reset(nullptr);
 }
 
 
 void Foam::edgeMesh::transfer(edgeMesh& mesh)
 {
+    if (&mesh == this)
+    {
+        return;  // Self-transfer is a no-op
+    }
+
     points_.transfer(mesh.points_);
     edges_.transfer(mesh.edges_);
-    pointEdgesPtr_ = mesh.pointEdgesPtr_;
-}
-
-
-Foam::Xfer<Foam::edgeMesh> Foam::edgeMesh::xfer()
-{
-    return xferMove(*this);
+    pointEdgesPtr_ = std::move(mesh.pointEdgesPtr_);
 }
 
 
@@ -272,6 +195,7 @@ Foam::label Foam::edgeMesh::regions(labelList& edgeRegion) const
 
         currentRegion++;
     }
+
     return currentRegion;
 }
 
@@ -279,121 +203,130 @@ Foam::label Foam::edgeMesh::regions(labelList& edgeRegion) const
 void Foam::edgeMesh::scalePoints(const scalar scaleFactor)
 {
     // avoid bad scaling
-    if (scaleFactor > 0 && scaleFactor != 1.0)
+    if (scaleFactor > VSMALL && !equal(scaleFactor, 1))
     {
         points_ *= scaleFactor;
     }
 }
 
 
-void Foam::edgeMesh::mergePoints
-(
-    const scalar mergeDist,
-    labelList& reversePointMap
-    //labelList& edgeMap
-)
+void Foam::edgeMesh::mergePoints(const scalar mergeDist)
 {
     pointField newPoints;
     labelList pointMap;
 
-    bool hasMerged = Foam::mergePoints
+    const bool hasMerged = Foam::mergePoints
     (
         points_,
         mergeDist,
         false,
         pointMap,
         newPoints,
-        vector::_zero
+        vector::zero_
     );
 
     if (hasMerged)
     {
-        pointEdgesPtr_.clear();
+        pointEdgesPtr_.reset(nullptr);   // connectivity change
 
         points_.transfer(newPoints);
 
-        // connectivity changed
-        pointEdgesPtr_.clear();
-
-        // Renumber and make sure e[0] < e[1] (not really necessary)
         forAll(edges_, edgeI)
         {
             edge& e = edges_[edgeI];
 
-            label p0 = pointMap[e[0]];
-            label p1 = pointMap[e[1]];
-
-            if (p0 < p1)
-            {
-                e[0] = p0;
-                e[1] = p1;
-            }
-            else
-            {
-                e[0] = p1;
-                e[1] = p0;
-            }
-        }
-
-        // Compact using a hashtable and commutative hash of edge.
-        EdgeMap<label> edgeToLabel(2*edges_.size());
-
-        label newEdgeI = 0;
-
-        forAll(edges_, edgeI)
-        {
-            const edge& e = edges_[edgeI];
-
-            if (e[0] != e[1])
-            {
-                if (edgeToLabel.insert(e, newEdgeI))
-                {
-                    newEdgeI++;
-                }
-            }
-        }
-
-        edges_.setSize(newEdgeI);
-
-        forAllConstIter(EdgeMap<label>, edgeToLabel, iter)
-        {
-            edges_[iter()] = iter.key();
+            e[0] = pointMap[e[0]];
+            e[1] = pointMap[e[1]];
         }
     }
+
+    this->mergeEdges();
 }
 
 
 void Foam::edgeMesh::mergeEdges()
 {
-    EdgeMap<label> existingEdges(2*edges_.size());
+    edgeHashSet uniqEdges(2*edges_.size());
+    bitSet pointIsUsed(points_.size());
 
-    label curEdgeI = 0;
+    label nUniqEdges = 0;
+    label nUniqPoints = 0;
     forAll(edges_, edgeI)
     {
         const edge& e = edges_[edgeI];
 
-        if (existingEdges.insert(e, curEdgeI))
+        // Remove degenerate and repeated edges
+        // - reordering (e[0] < e[1]) is not really necessary
+        if (e[0] != e[1] && uniqEdges.insert(e))
         {
-            curEdgeI++;
+            if (nUniqEdges != edgeI)
+            {
+                edges_[nUniqEdges] = e;
+            }
+            edges_[nUniqEdges].sort();
+            ++nUniqEdges;
+
+            if (pointIsUsed.set(e[0]))
+            {
+                ++nUniqPoints;
+            }
+            if (pointIsUsed.set(e[1]))
+            {
+                ++nUniqPoints;
+            }
         }
     }
 
     if (debug)
     {
         Info<< "Merging duplicate edges: "
-            << edges_.size() - existingEdges.size()
-            << " edges will be deleted." << endl;
+            << (edges_.size() - nUniqEdges)
+            << " edges will be deleted, "
+            << (points_.size() - nUniqPoints)
+            << " unused points will be removed." << endl;
     }
 
-    edges_.setSize(existingEdges.size());
-
-    forAllConstIter(EdgeMap<label>, existingEdges, iter)
+    if (nUniqEdges < edges_.size())
     {
-        edges_[iter()] = iter.key();
+        pointEdgesPtr_.reset(nullptr); // connectivity change
+        edges_.setSize(nUniqEdges);  // truncate
     }
 
-    // connectivity changed
-    pointEdgesPtr_.clear();
+    if (nUniqPoints < points_.size())
+    {
+        pointEdgesPtr_.reset(nullptr); // connectivity change
+
+        // build a oldToNew point-map and rewrite the points.
+        // We can do this simultaneously since the point order is unchanged
+        // and we are only effectively eliminating some entries.
+        labelList pointMap(points_.size(), -1);
+
+        label newId = 0;
+        forAll(pointMap, pointi)
+        {
+            if (pointIsUsed.test(pointi))
+            {
+                pointMap[pointi] = newId;
+
+                if (newId < pointi)
+                {
+                    // copy down
+                    points_[newId] = points_[pointi];
+                }
+                ++newId;
+            }
+        }
+        points_.setSize(newId);
+
+        // Renumber edges - already sorted (above)
+        forAll(edges_, edgeI)
+        {
+            edge& e = edges_[edgeI];
+
+            e[0] = pointMap[e[0]];
+            e[1] = pointMap[e[1]];
+        }
+    }
 }
 
 

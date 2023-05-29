@@ -1,9 +1,12 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2017 OpenFOAM Foundation
+    Copyright (C) 2020-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -35,7 +38,7 @@ SourceFiles
 #ifndef masterOFstream_H
 #define masterOFstream_H
 
-#include "OStringStream.H"
+#include "StringStream.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -46,13 +49,15 @@ namespace Foam
                        Class masterOFstream Declaration
 \*---------------------------------------------------------------------------*/
 
-class masterOFstream :    public OStringStream
+class masterOFstream
+:
+    public OStringStream
 {
-    // Private data
+    // Private Data
 
         const fileName pathName_;
 
-        const IOstream::compressionType compression_;
+        const IOstreamOption::compressionType compression_;
 
         const bool append_;
 
@@ -62,27 +67,56 @@ class masterOFstream :    public OStringStream
 
     // Private Member Functions
 
-        //- Open file with checking
-        void checkWrite(const fileName& fName, const string& str);
+        //- Open file with checking and write append contents
+        void checkWrite
+        (
+            const fileName& fName,
+            const char* str,
+            std::streamsize len
+        );
+
+        //- Open file with checking and write append contents
+        void checkWrite(const fileName& fName, const std::string& s);
+
+        //- Commit buffered information, including parallel gather as required
+        void commit();
 
 
 public:
 
     // Constructors
 
-        //- Construct and set stream status
-        masterOFstream
+        //- Construct from pathname and set stream status
+        explicit masterOFstream
         (
             const fileName& pathname,
-            streamFormat format=ASCII,
-            versionNumber version=currentVersion,
-            compressionType compression=UNCOMPRESSED,
+            IOstreamOption streamOpt = IOstreamOption(),
             const bool append = false,
             const bool valid = true
         );
 
+        //- Construct from pathname, version and set stream status
+        masterOFstream
+        (
+            const fileName& pathname,
+            IOstreamOption::streamFormat fmt,
+            IOstreamOption::versionNumber ver = IOstreamOption::currentVersion,
+            IOstreamOption::compressionType cmp = IOstreamOption::UNCOMPRESSED,
+            const bool append = false,
+            const bool valid = true
+        )
+        :
+            masterOFstream
+            (
+                pathname,
+                IOstreamOption(fmt, ver, cmp),
+                append,
+                valid
+            )
+        {}
 
-    //- Destructor
+
+    //- Destructor - commits buffered information to file
     ~masterOFstream();
 };
 

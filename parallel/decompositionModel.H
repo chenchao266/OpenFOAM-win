@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2014-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2014-2016 OpenFOAM Foundation
+    Copyright (C) 2018-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -28,6 +31,7 @@ Description
     MeshObject wrapper of decompositionMethod
 
 SourceFiles
+    decompositionModel.C
 
 \*---------------------------------------------------------------------------*/
 
@@ -35,7 +39,7 @@ SourceFiles
 #define decompositionModel_H
 
 #include "IOdictionary.H"
-#include "MeshObject.T.H"
+#include "MeshObject.H"
 #include "decompositionMethod.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
@@ -43,7 +47,7 @@ SourceFiles
 namespace Foam
 {
 
-// Forward declaration of classes
+// Forward Declarations
 class mapPolyMesh;
 class polyMesh;
 
@@ -61,8 +65,7 @@ class decompositionModel
     >,
     public IOdictionary
 {
-
-    // Private data
+    // Private Data
 
         mutable autoPtr<decompositionMethod> decomposerPtr_;
 
@@ -72,65 +75,93 @@ public:
     // Declare name of the class and its debug switch
     ClassName("decompositionModel");
 
-
-    // Selectors
-
-        //- Read (optionallly from absolute path) & register on mesh
-        static const decompositionModel& New
-        (
-            const polyMesh& mesh,
-            const fileName& decompDictFile = ""
-        );
-
-        //- Read (optionallly from supplied dictionary) & register on mesh
-        static const decompositionModel& New
-        (
-            const polyMesh& mesh,
-            const dictionary& dict,
-            const fileName& decompDictFile = ""
-        );
+    //- The canonical name ("decomposeParDict") under which the
+    //- MeshObject is registered
+    static const word canonicalName;
 
 
     // Constructors
 
-        //- Construct from typeName or optional path to controlDictionary
-        decompositionModel(const polyMesh&, const fileName& = "");
-
-
-        //- Construct from typeName or optional path to controlDictionary
-        decompositionModel
+        //- Construct from typeName, optional decomposeParDict path/name
+        //- or with fallback content
+        explicit decompositionModel
         (
-            const polyMesh&,
-            const dictionary& dict,
-            const fileName& = ""
+            const polyMesh& mesh,
+            const fileName& decompDictFile = "",
+            const dictionary* fallback = nullptr
         );
 
 
-    // Member functions
+    // Selectors
 
-        decompositionMethod& decomposer() const
+        //- Read and register on mesh,
+        //- optionally with alternative decomposeParDict path/name
+        //- or with fallback content
+        static const decompositionModel& New
+        (
+            const polyMesh& mesh,
+            const fileName& decompDictFile = "",
+            const dictionary* fallback = nullptr
+        );
+
+
+    // Member Functions
+
+        //- Return demand-driven decomposition method
+        decompositionMethod& decomposer() const;
+
+
+    // UpdateableMeshObject Functions
+
+        virtual bool movePoints()
         {
-            if (!decomposerPtr_.valid())
-            {
-                decomposerPtr_ = decompositionMethod::New(*this);
-            }
-            return decomposerPtr_();
+            return false;
         }
 
-        //- Helper: return IOobject with optionally absolute path provided
-        static IOobject selectIO(const IOobject&, const fileName&);
+        virtual void updateMesh(const mapPolyMesh&)
+        {}
 
 
-        // UpdateableMeshObject
+    // Housekeeping
 
-            virtual bool movePoints()
-            {
-                return false;
-            }
+        //- Deprecated(2021-04) compatibility constructor
+        //  \deprecated(2021-04)
+        FOAM_DEPRECATED(2021-04)
+        decompositionModel
+        (
+            const polyMesh& mesh,
+            const dictionary& dict,
+            const fileName& decompDictFile = ""
+        )
+        :
+            decompositionModel(mesh, decompDictFile, &dict)
+        {}
 
-            virtual void updateMesh(const mapPolyMesh&)
-            {}
+        //- Deprecated(2021-04) compatibility selector
+        //  \deprecated(2021-04)
+        FOAM_DEPRECATED(2021-04)
+        static const decompositionModel& New
+        (
+            const polyMesh& mesh,
+            const dictionary& dict,
+            const fileName& decompDictFile = ""
+        )
+        {
+            return Foam::decompositionModel::New(mesh, decompDictFile, &dict);
+        }
 
+        //- Deprecated(2018-08) compatibility method
+        //  \deprecated(2018-08) - use IOobject::selectIO directly
+        FOAM_DEPRECATED_FOR(2018-08, "IOobject::selectIO")
+        static IOobject selectIO
+        (
+            const IOobject& io,
+            const fileName& file,
+            const word& name = ""
+        )
+        {
+            return IOobject::selectIO(io, file, name);
+        }
 };
 
 

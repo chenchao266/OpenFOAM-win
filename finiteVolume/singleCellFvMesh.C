@@ -1,9 +1,12 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2019 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -43,7 +46,7 @@ void Foam::singleCellFvMesh::agglomerateMesh
     const polyBoundaryMesh& oldPatches = mesh.boundaryMesh();
 
     // Check agglomeration within patch face range and continuous
-    labelList nAgglom(oldPatches.size(), 0);
+    labelList nAgglom(oldPatches.size(), Zero);
 
     forAll(oldPatches, patchi)
     {
@@ -68,7 +71,7 @@ void Foam::singleCellFvMesh::agglomerateMesh
     // Check agglomeration is sync
     {
         // Get neighbouring agglomeration
-        labelList nbrAgglom(mesh.nFaces()-mesh.nInternalFaces());
+        labelList nbrAgglom(mesh.nBoundaryFaces());
         forAll(oldPatches, patchi)
         {
             const polyPatch& pp = oldPatches[patchi];
@@ -102,18 +105,12 @@ void Foam::singleCellFvMesh::agglomerateMesh
                     label myZone = agglom[patchi][i];
                     label nbrZone = nbrAgglom[bFacei];
 
-                    Map<label>::const_iterator iter = localToNbr.find(myZone);
+                    const auto iter = localToNbr.cfind(myZone);
 
-                    if (iter == localToNbr.end())
-                    {
-                        // First occurence of this zone. Store correspondence
-                        // to remote zone number.
-                        localToNbr.insert(myZone, nbrZone);
-                    }
-                    else
+                    if (iter.found())
                     {
                         // Check that zone numbers are still the same.
-                        if (iter() != nbrZone)
+                        if (iter.val() != nbrZone)
                         {
                             FatalErrorInFunction
                                 << "agglomeration is not synchronised across"
@@ -123,6 +120,12 @@ void Foam::singleCellFvMesh::agglomerateMesh
                                 << ". Remote agglomeration " << nbrZone
                                 << exit(FatalError);
                         }
+                    }
+                    else
+                    {
+                        // First occurrence of this zone. Store correspondence
+                        // to remote zone number.
+                        localToNbr.insert(myZone, nbrZone);
                     }
                 }
             }
@@ -268,23 +271,19 @@ void Foam::singleCellFvMesh::agglomerateMesh
     }
     addFvPatches(newPatches);
 
-    // Owner, neighbour is trivial
-    labelList owner(patchFaces.size(), 0);
-    labelList neighbour(0);
+    const label nFace = patchFaces.size();
 
-
-    // actually change the mesh
+    // Actually change the mesh. // Owner, neighbour is trivial
     resetPrimitives
     (
-        xferMove(boundaryPoints),
-        xferMove(patchFaces),
-        xferMove(owner),
-        xferMove(neighbour),
+        autoPtr<pointField>::New(std::move(boundaryPoints)),
+        autoPtr<faceList>::New(std::move(patchFaces)),
+        autoPtr<labelList>::New(nFace, Zero),   // owner
+        autoPtr<labelList>::New(),              // neighbour
         patchSizes,
         patchStarts,
-        true                //syncPar
+        true                                    // syncPar
     );
-
 
     // Adapt the zones
     cellZones().clear();
@@ -383,6 +382,10 @@ void Foam::singleCellFvMesh::agglomerateMesh
             );
         }
     }
+
+    // Make sure we don't start dumping mesh every timestep (since
+    // resetPrimitives sets AUTO_WRITE)
+    setInstance(time().constant(), IOobject::NO_WRITE);
 }
 
 
@@ -394,22 +397,14 @@ Foam::singleCellFvMesh::singleCellFvMesh
     const fvMesh& mesh
 )
 :
-    fvMesh
-    (
-        io,
-        xferCopy(pointField()), //points
-        xferCopy(faceList()),   //faces
-        xferCopy(labelList()),  //allOwner
-        xferCopy(labelList()),  //allNeighbour
-        false                   //syncPar
-    ),
+    fvMesh(io, Zero, false),
     patchFaceAgglomeration_
     (
         IOobject
         (
             "patchFaceAgglomeration",
             io.instance(),
-            fvMesh::meshSubDir,
+            fileName(fvMesh::meshSubDir),
             *this,
             io.readOpt(),
             io.writeOpt()
@@ -422,7 +417,7 @@ Foam::singleCellFvMesh::singleCellFvMesh
         (
             "patchFaceMap",
             io.instance(),
-            fvMesh::meshSubDir,
+            fileName(fvMesh::meshSubDir),
             *this,
             io.readOpt(),
             io.writeOpt()
@@ -433,9 +428,9 @@ Foam::singleCellFvMesh::singleCellFvMesh
     (
         IOobject
         (
-            "reverseFaceMap",
+            word("reverseFaceMap"),
             io.instance(),
-            fvMesh::meshSubDir,
+            fileName(fvMesh::meshSubDir),
             *this,
             io.readOpt(),
             io.writeOpt()
@@ -448,7 +443,7 @@ Foam::singleCellFvMesh::singleCellFvMesh
         (
             "pointMap",
             io.instance(),
-            fvMesh::meshSubDir,
+            fileName(fvMesh::meshSubDir),
             *this,
             io.readOpt(),
             io.writeOpt()
@@ -461,7 +456,7 @@ Foam::singleCellFvMesh::singleCellFvMesh
         (
             "reversePointMap",
             io.instance(),
-            fvMesh::meshSubDir,
+            fileName(fvMesh::meshSubDir),
             *this,
             io.readOpt(),
             io.writeOpt()
@@ -489,22 +484,14 @@ Foam::singleCellFvMesh::singleCellFvMesh
     const labelListList& patchFaceAgglomeration
 )
 :
-    fvMesh
-    (
-        io,
-        xferCopy(pointField()), //points
-        xferCopy(faceList()),   //faces
-        xferCopy(labelList()),  //allOwner
-        xferCopy(labelList()),  //allNeighbour
-        false                   //syncPar
-    ),
+    fvMesh(io, Zero, false),
     patchFaceAgglomeration_
     (
         IOobject
         (
             "patchFaceAgglomeration",
             io.instance(),
-            fvMesh::meshSubDir,
+            fileName(fvMesh::meshSubDir),
             *this,
             io.readOpt(),
             io.writeOpt()
@@ -517,7 +504,7 @@ Foam::singleCellFvMesh::singleCellFvMesh
         (
             "patchFaceMap",
             io.instance(),
-            fvMesh::meshSubDir,
+            fileName(fvMesh::meshSubDir),
             *this,
             io.readOpt(),
             io.writeOpt()
@@ -530,7 +517,7 @@ Foam::singleCellFvMesh::singleCellFvMesh
         (
             "reverseFaceMap",
             io.instance(),
-            fvMesh::meshSubDir,
+            fileName(fvMesh::meshSubDir),
             *this,
             io.readOpt(),
             io.writeOpt()
@@ -543,7 +530,7 @@ Foam::singleCellFvMesh::singleCellFvMesh
         (
             "pointMap",
             io.instance(),
-            fvMesh::meshSubDir,
+            fileName(fvMesh::meshSubDir),
             *this,
             io.readOpt(),
             io.writeOpt()
@@ -556,7 +543,7 @@ Foam::singleCellFvMesh::singleCellFvMesh
         (
             "reversePointMap",
             io.instance(),
-            fvMesh::meshSubDir,
+            fileName(fvMesh::meshSubDir),
             *this,
             io.readOpt(),
             io.writeOpt()
@@ -577,7 +564,7 @@ Foam::singleCellFvMesh::singleCellFvMesh(const IOobject& io)
         (
             "patchFaceAgglomeration",
             io.instance(),
-            fvMesh::meshSubDir,
+            fileName(fvMesh::meshSubDir),
             *this,
             io.readOpt(),
             io.writeOpt()
@@ -589,7 +576,7 @@ Foam::singleCellFvMesh::singleCellFvMesh(const IOobject& io)
         (
             "patchFaceMap",
             io.instance(),
-            fvMesh::meshSubDir,
+            fileName(fvMesh::meshSubDir),
             *this,
             io.readOpt(),
             io.writeOpt()
@@ -601,7 +588,7 @@ Foam::singleCellFvMesh::singleCellFvMesh(const IOobject& io)
         (
             "reverseFaceMap",
             io.instance(),
-            fvMesh::meshSubDir,
+            fileName(fvMesh::meshSubDir),
             *this,
             io.readOpt(),
             io.writeOpt()
@@ -613,7 +600,7 @@ Foam::singleCellFvMesh::singleCellFvMesh(const IOobject& io)
         (
             "pointMap",
             io.instance(),
-            fvMesh::meshSubDir,
+            fileName(fvMesh::meshSubDir),
             *this,
             io.readOpt(),
             io.writeOpt()
@@ -625,17 +612,13 @@ Foam::singleCellFvMesh::singleCellFvMesh(const IOobject& io)
         (
             "reversePointMap",
             io.instance(),
-            fvMesh::meshSubDir,
+            fileName(fvMesh::meshSubDir),
             *this,
             io.readOpt(),
             io.writeOpt()
         )
     )
 {}
-
-
-// * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * * //
-
 
 
 // ************************************************************************* //

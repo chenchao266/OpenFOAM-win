@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2020-2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -50,9 +53,9 @@ void Foam::fv::interRegionHeatTransferModel::setNbrModel()
         return;
     }
 
-    const fvMesh& nbrMesh = mesh_.time().lookupObject<fvMesh>(nbrRegionName_);
+    const auto& nbrMesh = mesh_.time().lookupObject<fvMesh>(nbrRegionName_);
 
-    const optionList& fvOptions = nbrMesh.lookupObject<optionList>("fvOptions");
+    const auto& fvOptions = nbrMesh.lookupObject<optionList>("fvOptions");
 
     bool nbrModelFound = false;
 
@@ -119,9 +122,10 @@ Foam::fv::interRegionHeatTransferModel::interRegionHeatTransferModel
         dict,
         mesh
     ),
-    nbrModelName_(coeffs_.lookup("nbrModel")),
+    nbrModelName_(coeffs_.get<word>("nbrModel")),
     nbrModel_(nullptr),
     firstIter_(true),
+    semiImplicit_(false),
     timeIndex_(-1),
     htc_
     (
@@ -134,32 +138,19 @@ Foam::fv::interRegionHeatTransferModel::interRegionHeatTransferModel
             IOobject::NO_WRITE
         ),
         mesh,
-        dimensionedScalar
-        (
-            "htc",
-            dimEnergy/dimTime/dimTemperature/dimVolume,
-            0.0
-        ),
+        dimensionedScalar(dimEnergy/dimTime/dimTemperature/dimVolume, Zero),
         zeroGradientFvPatchScalarField::typeName
     ),
-    semiImplicit_(false),
-    TName_(coeffs_.lookupOrDefault<word>("T", "T")),
-    TNbrName_(coeffs_.lookupOrDefault<word>("TNbr", "T"))
+    TName_(coeffs_.getOrDefault<word>("T", "T")),
+    TNbrName_(coeffs_.getOrDefault<word>("TNbr", "T"))
 {
     if (active())
     {
-        coeffs_.lookup("fields") >> fieldNames_;
-        applied_.setSize(fieldNames_.size(), false);
-
-        coeffs_.lookup("semiImplicit") >> semiImplicit_;
+        coeffs_.readEntry("fields", fieldNames_);
+        coeffs_.readEntry("semiImplicit", semiImplicit_);
+        fv::option::resetApplied();
     }
 }
-
-
-// * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
-
-Foam::fv::interRegionHeatTransferModel::~interRegionHeatTransferModel()
-{}
 
 
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
@@ -176,30 +167,26 @@ void Foam::fv::interRegionHeatTransferModel::addSup
 
     const volScalarField& he = eqn.psi();
 
-    const volScalarField& T = mesh_.lookupObject<volScalarField>(TName_);
+    const auto& T = mesh_.lookupObject<volScalarField>(TName_);
 
-    tmp<volScalarField> tTmapped
+    auto tTmapped = tmp<volScalarField>::New
     (
-        new volScalarField
+        IOobject
         (
-            IOobject
-            (
-                type() + ":Tmapped",
-                mesh_.time().timeName(),
-                mesh_,
-                IOobject::NO_READ,
-                IOobject::NO_WRITE
-            ),
-            T
-        )
+            type() + ":Tmapped",
+            mesh_.time().timeName(),
+            mesh_,
+            IOobject::NO_READ,
+            IOobject::NO_WRITE
+        ),
+        T
     );
 
-    volScalarField& Tmapped = tTmapped.ref();
+    auto& Tmapped = tTmapped.ref();
 
-    const fvMesh& nbrMesh = mesh_.time().lookupObject<fvMesh>(nbrRegionName_);
+    const auto& nbrMesh = mesh_.time().lookupObject<fvMesh>(nbrRegionName_);
 
-    const volScalarField& Tnbr =
-        nbrMesh.lookupObject<volScalarField>(TNbrName_);
+    const auto& Tnbr = nbrMesh.lookupObject<volScalarField>(TNbrName_);
 
     interpolate(Tnbr, Tmapped.primitiveFieldRef());
 
@@ -220,10 +207,12 @@ void Foam::fv::interRegionHeatTransferModel::addSup
     {
         if (he.dimensions() == dimEnergy/dimMass)
         {
-            if (mesh_.foundObject<basicThermo>(basicThermo::dictName))
+            const auto* thermoPtr =
+                mesh_.findObject<basicThermo>(basicThermo::dictName);
+
+            if (thermoPtr)
             {
-                const basicThermo& thermo =
-                   mesh_.lookupObject<basicThermo>(basicThermo::dictName);
+                const basicThermo& thermo = *thermoPtr;
 
                 volScalarField htcByCpv(htc_/thermo.Cpv());
 
@@ -269,6 +258,17 @@ void Foam::fv::interRegionHeatTransferModel::addSup
 )
 {
     addSup(eqn, fieldi);
+}
+
+
+bool Foam::fv::interRegionHeatTransferModel::read(const dictionary& dict)
+{
+    if (interRegionOption::read(dict))
+    {
+        return true;
+    }
+
+    return false;
 }
 
 

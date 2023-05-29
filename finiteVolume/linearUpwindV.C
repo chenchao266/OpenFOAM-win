@@ -1,9 +1,11 @@
-﻿/*---------------------------------------------------------------------------*\
+/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -23,7 +25,7 @@ License
 
 \*---------------------------------------------------------------------------*/
 
-//#include "linearUpwindV.H"
+#include "linearUpwindV.H"
 #include "fvMesh.H"
 #include "volFields.H"
 #include "surfaceFields.H"
@@ -34,14 +36,14 @@ template<class Type>
 Foam::tmp<Foam::GeometricField<Type, Foam::fvsPatchField, Foam::surfaceMesh>>
 Foam::linearUpwindV<Type>::correction
 (
-    const volFieldType<Type>& vf
+    const GeometricField<Type, fvPatchField, volMesh>& vf
 ) const
 {
     const fvMesh& mesh = this->mesh();
 
-    tmp<surfaceFieldType<Type>> tsfCorr
+    tmp<GeometricField<Type, fvsPatchField, surfaceMesh>> tsfCorr
     (
-        new surfaceFieldType<Type>
+        new GeometricField<Type, fvsPatchField, surfaceMesh>
         (
             IOobject
             (
@@ -53,16 +55,11 @@ Foam::linearUpwindV<Type>::correction
                 false
             ),
             mesh,
-            dimensioned<Type>
-            (
-                vf.name(),
-                vf.dimensions(),
-                Zero
-            )
+            dimensioned<Type>(vf.dimensions(), Zero)
         )
     );
 
-    surfaceFieldType<Type>& sfCorr = tsfCorr.ref();
+    GeometricField<Type, fvsPatchField, surfaceMesh>& sfCorr = tsfCorr.ref();
 
     const surfaceScalarField& faceFlux = this->faceFlux_;
     const surfaceScalarField& w = mesh.weights();
@@ -128,7 +125,7 @@ Foam::linearUpwindV<Type>::correction
     }
 
 
-    typename surfaceFieldType<Type>::
+    typename GeometricField<Type, fvsPatchField, surfaceMesh>::
         Boundary& bSfCorr = sfCorr.boundaryFieldRef();
 
     forAll(bSfCorr, patchi)

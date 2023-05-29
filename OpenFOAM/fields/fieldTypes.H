@@ -1,9 +1,12 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2018 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -22,8 +25,7 @@ License
     along with OpenFOAM.  If not, see <http://www.gnu.org/licenses/>.
 
 Description
-    Include the header files for all the primitive types that Fields are
-    instantiated for.
+    Header files for all the primitive types that Fields are instantiated for.
 
 \*---------------------------------------------------------------------------*/
 
@@ -32,10 +34,10 @@ Description
 
 #include "label.H"
 #include "scalar.H"
-#include "vector.H"
-#include "sphericalTensor.H"
-#include "symmTensor.H"
-#include "tensor.H"
+#include "vector2.H"
+#include "sphericalTensor2.H"
+#include "symmTensor2.H"
+#include "tensor2.H"
 #include "triad.H"
 #include "macros.H"
 
@@ -53,6 +55,22 @@ Description
     Macro(sphericalTensor, __VA_ARGS__)                                        \
     Macro(symmTensor, __VA_ARGS__)                                             \
     Macro(tensor, __VA_ARGS__)
+
+
+/*---------------------------------------------------------------------------*\
+                       Namespace fieldTypes Declaration
+\*---------------------------------------------------------------------------*/
+
+namespace Foam
+{
+namespace fieldTypes
+{
+    //- Standard basic field types (label, scalar, vector, tensor, etc)
+    //  These also correspond to cloud output fields.
+    extern const wordList basic;
+
+} // End namespace fieldTypes
+} // End namespace Foam
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 

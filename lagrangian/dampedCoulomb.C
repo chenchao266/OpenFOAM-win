@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -62,7 +64,7 @@ dampedCoulomb::dampedCoulomb
     (
         pairPotentialProperties.subDict(typeName + "Coeffs")
     ),
-    alpha_(readScalar(dampedCoulombCoeffs_.lookup("alpha")))
+    alpha_(dampedCoulombCoeffs_.get<scalar>("alpha"))
 {
     setLookupTables();
 }
@@ -83,7 +85,7 @@ bool dampedCoulomb::read(const dictionary& pairPotentialProperties)
     dampedCoulombCoeffs_ =
         pairPotentialProperties.subDict(typeName + "Coeffs");
 
-    dampedCoulombCoeffs_.lookup("alpha") >> alpha_;
+    dampedCoulombCoeffs_.readEntry("alpha", alpha_);
 
     return true;
 }

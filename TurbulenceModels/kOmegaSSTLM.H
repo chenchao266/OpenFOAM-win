@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2016 OpenFOAM Foundation
+    Copyright (C) 2019 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -108,9 +111,11 @@ class kOmegaSSTLM
 {
     // Private Member Functions
 
-        // Disallow default bitwise copy construct and assignment
-        kOmegaSSTLM(const kOmegaSSTLM&);
-        void operator=(const kOmegaSSTLM&);
+        //- No copy construct
+        kOmegaSSTLM(const kOmegaSSTLM&) = delete;
+
+        //- No copy assignment
+        void operator=(const kOmegaSSTLM&) = delete;
 
 
 protected:
@@ -164,8 +169,8 @@ protected:
         //- Modified form of the k-omega SST epsilon/k
         virtual tmp<volScalarField::Internal> epsilonByk
         (
-            const volScalarField::Internal& F1,
-            const volScalarField::Internal& F2
+            const volScalarField& F1,
+            const volTensorField& gradU
         ) const;
 
         //- Freestream blending-function
@@ -236,8 +241,7 @@ public:
 
 
     //- Destructor
-    virtual ~kOmegaSSTLM()
-    {}
+    virtual ~kOmegaSSTLM() = default;
 
 
     // Member Functions

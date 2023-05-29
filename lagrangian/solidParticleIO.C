@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2017 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2017 OpenFOAM Foundation
+    Copyright (C) 2019 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -28,7 +31,7 @@ License
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
 
-const std::size_t Foam::solidParticle::sizeofFields_
+const std::size_t Foam::solidParticle::sizeofFields
 (
     sizeof(solidParticle) - sizeof(particle)
 );
@@ -40,26 +43,36 @@ Foam::solidParticle::solidParticle
 (
     const polyMesh& mesh,
     Istream& is,
-    bool readFields
+    bool readFields,
+    bool newFormat
 )
 :
-    particle(mesh, is, readFields)
+    particle(mesh, is, readFields, newFormat)
 {
     if (readFields)
     {
         if (is.format() == IOstream::ASCII)
         {
-            d_ = readScalar(is);
-            is >> U_;
+            is  >> d_ >> U_;
+        }
+        else if (!is.checkLabelSize<>() || !is.checkScalarSize<>())
+        {
+            // Non-native label or scalar size
+
+            is.beginRawRead();
+
+            readRawScalar(is, &d_);
+            readRawScalar(is, U_.data(), vector::nComponents);
+
+            is.endRawRead();
         }
         else
         {
-            is.read(reinterpret_cast<char*>(&d_), sizeofFields_);
+            is.read(reinterpret_cast<char*>(&d_), sizeofFields);
         }
     }
 
-    // Check state of Istream
-    is.check("solidParticle::solidParticle(Istream&)");
+    is.check(FUNCTION_NAME);
 }
 
 
@@ -76,13 +89,11 @@ void Foam::solidParticle::readFields(Cloud<solidParticle>& c)
     c.checkFieldIOobject(c, U);
 
     label i = 0;
-    forAllIter(Cloud<solidParticle>, c, iter)
+    for (solidParticle& p : c)
     {
-        solidParticle& p = iter();
-
         p.d_ = d[i];
         p.U_ = U[i];
-        i++;
+        ++i;
     }
 }
 
@@ -91,19 +102,17 @@ void Foam::solidParticle::writeFields(const Cloud<solidParticle>& c)
 {
     particle::writeFields(c);
 
-    label np = c.size();
+    const label np = c.size();
 
     IOField<scalar> d(c.fieldIOobject("d", IOobject::NO_READ), np);
     IOField<vector> U(c.fieldIOobject("U", IOobject::NO_READ), np);
 
     label i = 0;
-    forAllConstIter(Cloud<solidParticle>, c, iter)
+    for (const solidParticle& p : c)
     {
-        const solidParticle& p = iter();
-
         d[i] = p.d_;
         U[i] = p.U_;
-        i++;
+        ++i;
     }
 
     d.write(np > 0);
@@ -127,13 +136,11 @@ Foam::Ostream& Foam::operator<<(Ostream& os, const solidParticle& p)
         os.write
         (
             reinterpret_cast<const char*>(&p.d_),
-            solidParticle::sizeofFields_
+            solidParticle::sizeofFields
         );
     }
 
-    // Check state of Ostream
-    os.check("Ostream& operator<<(Ostream&, const solidParticle&)");
-
+    os.check(FUNCTION_NAME);
     return os;
 }
 

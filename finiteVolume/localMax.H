@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -23,6 +25,9 @@ License
 
 Class
     Foam::localMax
+
+Group
+    grpFvSurfaceInterpolationSchemes
 
 Description
     LocalMax-mean differencing scheme class.
@@ -58,8 +63,8 @@ class localMax
 {
     // Private Member Functions
 
-        //- Disallow default bitwise assignment
-        void operator=(const localMax&);
+        //- No copy assignment
+        void operator=(const localMax&) = delete;
 
 
 public:
@@ -105,7 +110,7 @@ public:
         //- Return the interpolation weighting factors
         virtual tmp<surfaceScalarField> weights
         (
-            const volFieldType<Type>&
+            const GeometricField<Type, fvPatchField, volMesh>&
         ) const
         {
             NotImplemented;
@@ -114,17 +119,17 @@ public:
         }
 
         //- Return the face-interpolate of the given cell field
-        virtual tmp<surfaceFieldType<Type>>
+        virtual tmp<GeometricField<Type, fvsPatchField, surfaceMesh>>
         interpolate
         (
-            const volFieldType<Type>& vf
+            const GeometricField<Type, fvPatchField, volMesh>& vf
         ) const
         {
             const fvMesh& mesh = vf.mesh();
 
-            tmp<surfaceFieldType<Type>> tvff
+            tmp<GeometricField<Type, fvsPatchField, surfaceMesh>> tvff
             (
-                new surfaceFieldType<Type>
+                new GeometricField<Type, fvsPatchField, surfaceMesh>
                 (
                     IOobject
                     (
@@ -136,7 +141,7 @@ public:
                     vf.dimensions()
                 )
             );
-            surfaceFieldType<Type>& vff = tvff.ref();
+            GeometricField<Type, fvsPatchField, surfaceMesh>& vff = tvff.ref();
 
             const labelUList& own = mesh.owner();
             const labelUList& nei = mesh.neighbour();
@@ -146,7 +151,7 @@ public:
                 vff[facei] = max(vf[own[facei]], vf[nei[facei]]);
             }
 
-            typename surfaceFieldType<Type>::
+            typename GeometricField<Type, fvsPatchField, surfaceMesh>::
                 Boundary& bff = vff.boundaryFieldRef();
 
             forAll(bff, patchi)

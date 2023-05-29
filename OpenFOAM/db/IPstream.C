@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2013 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2013 OpenFOAM Foundation
+    Copyright (C) 2021 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -26,31 +29,35 @@ License
 #include "IPstream.H"
 
 // * * * * * * * * * * * * * * * * Constructor * * * * * * * * * * * * * * * //
-namespace Foam {
-    IPstream::IPstream
-    (
-        const commsTypes commsType,
-        const int fromProcNo,
-        const label bufSize,
-        const int tag,
-        const label comm,
-        streamFormat format,
-        versionNumber version
-    ) : Pstream(commsType, bufSize),
-        UIPstream
-        (
-            commsType,
-            fromProcNo,
-            buf_,
-            externalBufPosition_,
-            tag,                        // tag
-            comm,
-            false,                      // do not clear buf_ if at end
-            format,
-            version
-        ),
-        externalBufPosition_(0)
-    {}
 
-}
+
+ namespace Foam{
+IPstream::IPstream
+(
+    const commsTypes commsType,
+    const int fromProcNo,
+    const label bufSize,
+    const int tag,
+    const label comm,
+    IOstreamOption::streamFormat fmt
+)
+:
+    Pstream(commsType, bufSize),
+    UIPstream
+    (
+        commsType,
+        fromProcNo,
+        Pstream::transferBuf_,
+        transferBufPosition_,
+        tag,
+        comm,
+        false,  // Do not clear Pstream::transferBuf_ if at end
+        fmt
+    ),
+    transferBufPosition_(0)
+{}
+
+
 // ************************************************************************* //
+
+ } // End namespace Foam

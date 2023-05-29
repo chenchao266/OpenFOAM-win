@@ -2,8 +2,10 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2012 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2012 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -57,8 +59,6 @@ Description
 
     - liveSplitCells contains pointers to splitCells with null children.
 
-
-
 SourceFiles
     undoableMeshCutter.C
 
@@ -72,7 +72,7 @@ SourceFiles
 #include "boolList.H"
 #include "cellLooper.H"
 #include "meshCutter.H"
-#include "Map.T.H"
+#include "Map.H"
 #include "typeInfo.H"
 #include "removeFaces.H"
 
@@ -81,7 +81,7 @@ SourceFiles
 namespace Foam
 {
 
-// Forward declaration of classes
+// Forward Declarations
 class polyMesh;
 class polyTopoChange;
 class refineCell;
@@ -95,7 +95,7 @@ class undoableMeshCutter
 :
     public meshCutter
 {
-    // Private data
+    // Private Data
 
         //- Whether or not to store actions for unplaying.
         const bool undoable_;
@@ -128,11 +128,11 @@ class undoableMeshCutter
         static void updateLabels(const labelList& map, Map<splitCell*>&);
 
 
-        //- Disallow default bitwise copy construct
-        undoableMeshCutter(const undoableMeshCutter&);
+        //- No copy construct
+        undoableMeshCutter(const undoableMeshCutter&) = delete;
 
-        //- Disallow default bitwise assignment
-        void operator=(const undoableMeshCutter&);
+        //- No copy assignment
+        void operator=(const undoableMeshCutter&) = delete;
 
 
 public:
@@ -141,12 +141,15 @@ public:
     ClassName("undoableMeshCutter");
 
 
-
     // Constructors
 
         //- Construct from mesh and flag whether refinement pattern needs
-        //  to be stored.
-        undoableMeshCutter(const polyMesh& mesh, const bool undoable = true);
+        //- to be stored.
+        explicit undoableMeshCutter
+        (
+            const polyMesh& mesh,
+            const bool undoable = true
+        );
 
 
     //- Destructor

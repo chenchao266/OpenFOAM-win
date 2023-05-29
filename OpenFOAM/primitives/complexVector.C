@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011-2016 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011-2016 OpenFOAM Foundation
+    Copyright (C) 2019 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -29,51 +32,55 @@ Description
 #include "complexVector.H"
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
-namespace Foam {
-    template<>
-    const char* const complexVector::vsType::typeName = "complexVector";
 
-    template<>
-    const char* const complexVector::vsType::componentNames[] =
-    {
-        "x", "y", "z"
-    };
 
-    template<>
-    const complexVector complexVector::vsType::_zero
-    (
-        complexVector::uniform(complex(0, 0))
-    );
+ namespace Foam{
+template<>
+const char* const complexVector::vsType::typeName = "complexVector";
 
-    template<>
-    const complexVector complexVector::vsType::one
-    (
-        complexVector::uniform(complex(1, 1))
-    );
+template<>
+const char* const complexVector::vsType::componentNames[] =
+{
+    "x", "y", "z"
+};
 
-    template<>
-    const complexVector complexVector::vsType::max
-    (
-        complexVector::uniform(complex(VGREAT, VGREAT))
-    );
+template<>
+const complexVector complexVector::vsType::zero_
+(
+    complexVector::uniform(pTraits<complex>::zero_)
+);
 
-    template<>
-    const complexVector complexVector::vsType::min
-    (
-        complexVector::uniform(complex(-VGREAT, -VGREAT))
-    );
+template<>
+const complexVector complexVector::vsType::one_
+(
+    complexVector::uniform(pTraits<complex>::one_)
+);
 
-    template<>
-    const complexVector complexVector::vsType::rootMax
-    (
-        complexVector::uniform(complex(ROOTVGREAT, ROOTVGREAT))
-    );
+template<>
+const complexVector complexVector::vsType::max_
+(
+    complexVector::uniform(pTraits<complex>::max_)
+);
 
-    template<>
-    const complexVector complexVector::vsType::rootMin
-    (
-        complexVector::uniform(complex(-ROOTVGREAT, -ROOTVGREAT))
-    );
+template<>
+const complexVector complexVector::vsType::min_
+(
+    complexVector::uniform(pTraits<complex>::min_)
+);
 
-}
+template<>
+const complexVector complexVector::vsType::rootMax_
+(
+    complexVector::uniform(pTraits<complex>::rootMax_)
+);
+
+template<>
+const complexVector complexVector::vsType::rootMin_
+(
+    complexVector::uniform(pTraits<complex>::rootMin_)
+);
+
+
 // ************************************************************************* //
+
+ } // End namespace Foam

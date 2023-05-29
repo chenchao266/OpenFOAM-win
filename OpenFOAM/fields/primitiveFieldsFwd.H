@@ -1,9 +1,12 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011 OpenFOAM Foundation
+    Copyright (C) 2019 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -44,8 +47,10 @@ namespace Foam
 
 template<class Type> class Field;
 
+typedef Field<bool> boolField;
 typedef Field<label> labelField;
 typedef Field<scalar> scalarField;
+typedef Field<solveScalar> solveScalarField;
 typedef Field<vector> vectorField;
 typedef Field<sphericalTensor> sphericalTensorField;
 typedef Field<symmTensor> symmTensorField;

@@ -2,8 +2,11 @@
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
-    \\  /    A nd           | Copyright (C) 2011 OpenFOAM Foundation
+    \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
+-------------------------------------------------------------------------------
+    Copyright (C) 2011 OpenFOAM Foundation
+    Copyright (C) 2018 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -25,6 +28,18 @@ Class
     Foam::arraySet
 
 Description
+    Specifies an x,y,z array of uniformly distributed sampling points.
+
+    For a dictionary specification:
+    \table
+        Property | Description                             | Required | Default
+        type     | array                                   | yes      |
+        axis     | x, y, z, xyz, distance                  | yes      |
+        pointsDensity | The sampling density as (x y z) integers | yes      |
+        spanBox   | The sample box dimensions (vector)     | yes      |
+    \endtable
+
+    The dictionary can also contain an embedded coordinateSystem specification.
 
 SourceFiles
     arraySet.C
@@ -35,17 +50,15 @@ SourceFiles
 #define arraySet_H
 
 #include "sampledSet.H"
-#include "DynamicList.T.H"
-#include "coordinateSystem.H"
+#include "labelVector.H"
+#include "DynamicList.H"
+#include "cartesianCS.H"
+#include "cylindricalCS.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 namespace Foam
 {
-
-// Forward declaration of classes
-class passiveParticle;
-template<class Type> class particle;
 
 /*---------------------------------------------------------------------------*\
                            Class arraySet Declaration
@@ -57,14 +70,14 @@ class arraySet
 {
     // Private data
 
-        //- Coordinate syste
-        coordinateSystem coordSys_;
+        //- Local Cartesian coordinate system
+        coordSystem::cartesian csys_;
 
         //- Point density vector
-        Vector<label> pointsDensity_;
+        labelVector pointsDensity_;
 
         //- Span box
-        Vector<scalar> spanBox_;
+        vector spanBox_;
 
 
     // Private Member Functions
@@ -98,7 +111,7 @@ public:
             const polyMesh& mesh,
             const meshSearch& searchEngine,
             const word& axis,
-            const coordinateSystem& coordSys,
+            const coordSystem::cartesian& csys,
             const Vector<label>& pointsDensity,
             const Vector<scalar>& spanBox
         );
@@ -114,7 +127,7 @@ public:
 
 
     //- Destructor
-    virtual ~arraySet();
+    virtual ~arraySet() = default;
 };
 
 
