@@ -1,4 +1,4 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
@@ -35,13 +35,13 @@ bool Foam::fv::ddtSchemeBase::experimentalDdtCorr
 (
     Foam::debug::optimisationSwitch("experimentalDdtCorr", 0)
 );
+namespace Foam {
+    registerOptSwitch
+    (
+        "experimentalDdtCorr",
+        bool,
+        Foam::fv::ddtSchemeBase::experimentalDdtCorr
+    );
 
-registerOptSwitch
-(
-    "experimentalDdtCorr",
-    bool,
-    Foam::fv::ddtSchemeBase::experimentalDdtCorr
-);
-
-
+}
 // ************************************************************************* //

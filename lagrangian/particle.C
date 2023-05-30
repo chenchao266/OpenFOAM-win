@@ -50,15 +50,15 @@ bool Foam::particle::writeLagrangianPositions
 (
     Foam::debug::infoSwitch("writeLagrangianPositions", 1)
 );
+namespace Foam {
+    registerInfoSwitch
+    (
+        "writeLagrangianPositions",
+        bool,
+        Foam::particle::writeLagrangianPositions
+    );
 
-registerInfoSwitch
-(
-    "writeLagrangianPositions",
-    bool,
-    Foam::particle::writeLagrangianPositions
-);
-
-
+}
 // * * * * * * * * * * * * * Private Member Functions  * * * * * * * * * * * //
 
 void Foam::particle::stationaryTetReverseTransform
