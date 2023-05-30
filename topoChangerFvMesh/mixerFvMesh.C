@@ -256,7 +256,7 @@ Foam::mixerFvMesh::mixerFvMesh
     topoChangerFvMesh(io),
     motionDict_
     (
-        IOdictionary
+        IOdictionary::IOdictionary
         (
             IOobject::IOobject
             (

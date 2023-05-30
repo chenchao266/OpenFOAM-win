@@ -1,4 +1,4 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
@@ -37,7 +37,7 @@ namespace diameterModels
 namespace IATEsources
 {
     defineTypeNameAndDebug(dummy, 0);
-    addToRunTimeSelectionTable(IATEsource, dummy, word);
+    addToRunTimeSelectionTable(IATEsource, dummy, dictionary);
 }
 }
 }

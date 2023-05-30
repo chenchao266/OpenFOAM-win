@@ -1,4 +1,4 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
@@ -59,7 +59,7 @@ Foam::decompositionModel::decompositionModel
     (
         IOobject::selectIO
         (
-            IOobject
+            IOobject::IOobject
             (
                 decompositionModel::canonicalName,
                 mesh.time().system(),

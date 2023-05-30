@@ -39,6 +39,8 @@ Description
 #include "IOobject.H"
 #include "HashSet.H"
 #include "nullObject.H"
+#include "osspecific.h"
+
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 

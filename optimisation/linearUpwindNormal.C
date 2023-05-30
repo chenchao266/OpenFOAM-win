@@ -99,7 +99,7 @@ Foam::linearUpwindNormal<Type>::correction
 
     forAll(bSfCorr, patchi)
     {
-        fvsPatchField<Type>& pSfCorr = bSfCorr[patchi];
+        const fvsPatchField<Type>& pSfCorr = bSfCorr[patchi];
 
         if (pSfCorr.coupled())
         {

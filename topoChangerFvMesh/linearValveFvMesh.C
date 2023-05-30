@@ -247,7 +247,7 @@ Foam::linearValveFvMesh::linearValveFvMesh(const IOobject& io)
     topoChangerFvMesh(io),
     motionDict_
     (
-        IOdictionary
+        IOdictionary::IOdictionary
         (
             IOobject::IOobject
             (
@@ -274,7 +274,7 @@ Foam::linearValveFvMesh::~linearValveFvMesh()
 
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
 
-void Foam::linearValveFvMesh::update()
+bool Foam::linearValveFvMesh::update()
 {
     // Detaching the interface
     if (attached())
@@ -330,6 +330,7 @@ void Foam::linearValveFvMesh::update()
     msPtr_->updateMesh();
 
     Info<< "Sliding interfaces coupled: " << attached() << endl;
+    return true;
 }
 
 

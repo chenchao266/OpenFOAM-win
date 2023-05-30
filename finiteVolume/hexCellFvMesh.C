@@ -57,7 +57,7 @@ Foam::simplifiedMeshes::hexCellFvMesh::hexCellFvMesh
 :
     simplifiedFvMesh
     (
-        IOobject
+        IOobject::IOobject
         (
             polyMesh::defaultRegion,
             fileName(runTime.timeName()),

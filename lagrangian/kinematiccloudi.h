@@ -471,7 +471,7 @@ inline Foam::tmp<Foam::fvVectorMatrix>
 Foam::KinematicCloud<CloudType>::SU(volVectorField& U, bool incompressible)
 const
 {
-    if (debug)
+    if (Foam::kinematicCloud::debug)
     {
         Pout<< "UTrans min/max = " << min(UTrans()).value() << ", "
             << max(UTrans()).value() << nl

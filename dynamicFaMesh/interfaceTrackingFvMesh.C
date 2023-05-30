@@ -1,4 +1,4 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
@@ -209,7 +209,7 @@ void Foam::interfaceTrackingFvMesh::makeUs() const
 
     UsPtr_ = new areaVectorField
     (
-        IOobject
+        IOobject::IOobject
         (
             "Us",
             mesh().time().timeName(),
@@ -267,7 +267,7 @@ void Foam::interfaceTrackingFvMesh::makeFsNetPhi() const
 
     fsNetPhiPtr_ = new areaScalarField
     (
-        IOobject
+        IOobject::IOobject
         (
             "fsNetPhi",
             mesh().time().timeName(),
@@ -307,7 +307,7 @@ void Foam::interfaceTrackingFvMesh::makeControlPoints()
         controlPointsPtr_ =
             new vectorIOField
             (
-                IOobject
+                IOobject::IOobject
                 (
                     "controlPoints",
                     mesh().time().timeName(),
@@ -323,7 +323,7 @@ void Foam::interfaceTrackingFvMesh::makeControlPoints()
         controlPointsPtr_ =
             new vectorIOField
             (
-                IOobject
+                IOobject::IOobject
                 (
                     "controlPoints",
                     mesh().time().timeName(),
@@ -458,7 +458,7 @@ void Foam::interfaceTrackingFvMesh::makePhis()
 
     phisPtr_ = new edgeScalarField
     (
-        IOobject
+        IOobject::IOobject
         (
             "phis",
             mesh().time().timeName(),
@@ -485,7 +485,7 @@ void Foam::interfaceTrackingFvMesh::makeSurfactConc() const
 
     surfactConcPtr_ = new areaScalarField
     (
-        IOobject
+        IOobject::IOobject
         (
             "Cs",
             mesh().time().timeName
@@ -516,7 +516,7 @@ void Foam::interfaceTrackingFvMesh::makeBulkSurfactConc() const
 
     bulkSurfactConcPtr_ = new volScalarField
     (
-        IOobject
+        IOobject::IOobject
         (
             "C",
             mesh().time().timeName
@@ -555,7 +555,7 @@ void Foam::interfaceTrackingFvMesh::makeSurfaceTension() const
 
     surfaceTensionPtr_ = new areaScalarField
     (
-        IOobject
+        IOobject::IOobject
         (
             "surfaceTension",
             mesh().time().timeName(),
@@ -615,7 +615,7 @@ void Foam::interfaceTrackingFvMesh::makeContactAngle()
         contactAnglePtr_ =
             new areaScalarField
             (
-                IOobject
+                IOobject::IOobject
                 (
                     "contactAngle",
                     mesh().time().timeName(),
@@ -2047,7 +2047,7 @@ Foam::interfaceTrackingFvMesh::surfaceTensionGrad()
 {
     auto tgrad = tmp<areaVectorField>::New
     (
-        IOobject
+        IOobject::IOobject
         (
             "surfaceTensionGrad",
             mesh().time().timeName(),

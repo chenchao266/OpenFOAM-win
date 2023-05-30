@@ -186,7 +186,7 @@ void Foam::fvMesh::storeOldVol(const scalarField& V)
             // Allocate V0 storage, fill with V
             V0Ptr_ = new DimensionedField<scalar, volMesh>
             (
-                IOobject
+                IOobject::IOobject
                 (
                     "V0",
                     fileName(time().timeName()),
@@ -291,7 +291,7 @@ bool Foam::fvMesh::init(const bool doInit)
     {
         V0Ptr_ = new DimensionedField<scalar, volMesh>
         (
-            IOobject
+            IOobject::IOobject
             (
                 "V0",
                 fileName(time().timeName()),
@@ -312,7 +312,7 @@ bool Foam::fvMesh::init(const bool doInit)
     {
         phiPtr_ = new surfaceScalarField
         (
-            IOobject
+            IOobject::IOobject
             (
                 "meshPhi",
                 fileName(time().timeName()),
@@ -331,7 +331,7 @@ bool Foam::fvMesh::init(const bool doInit)
         {
             V0Ptr_ = new DimensionedField<scalar, volMesh>
             (
-                IOobject
+                IOobject::IOobject
                 (
                     "V0",
                     fileName(time().timeName()),
@@ -886,7 +886,7 @@ Foam::tmp<Foam::scalarField> Foam::fvMesh::movePoints(const pointField& p)
         // Create mesh motion flux
         phiPtr_ = new surfaceScalarField
         (
-            IOobject
+            IOobject::IOobject
             (
                 "meshPhi",
                 fileName(this->time().timeName()),

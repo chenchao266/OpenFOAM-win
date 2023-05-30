@@ -38,7 +38,7 @@ namespace diameterModels
 namespace IATEsources
 {
     defineTypeNameAndDebug(dummy, 0);
-    addToRunTimeSelectionTable(IATEsource, dummy, word);
+    addToRunTimeSelectionTable(IATEsource, dummy, dictionary);
 }
 }
 }

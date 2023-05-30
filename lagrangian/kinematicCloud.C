@@ -1,4 +1,4 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
@@ -269,7 +269,7 @@ void Foam::KinematicCloud<CloudType>::postEvolve
 {
     Info<< endl;
 
-    if (debug)
+    if (Foam::kinematicCloud::debug)
     {
         this->writePositions();
     }

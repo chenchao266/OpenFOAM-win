@@ -1,4 +1,4 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
@@ -66,7 +66,7 @@ void Foam::dynamicRefineFvMesh::mapNewInternalFaces
         {
             // Loop over all owner/neighbour cell faces
             // and find already mapped ones (master-faces):
-            T tmpValue(pTraits<T>::zero);
+            T tmpValue(pTraits<T>::zero_);
             label counter = 0;
 
             const cell& ownFaces = cells[owner[facei]];

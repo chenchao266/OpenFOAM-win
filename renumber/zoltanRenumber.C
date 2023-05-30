@@ -280,7 +280,7 @@ Foam::labelList Foam::zoltanRenumber::renumber
     args[0] = "zoltanRenumber";
 
     int argc = args.size();
-    char* argv[argc];
+    char** argv = new char*[argc];
     for (label i = 0; i < argc; i++)
     {
         argv[i] = strdup(args[i].c_str());
@@ -362,7 +362,7 @@ Foam::labelList Foam::zoltanRenumber::renumber
     {
         free(argv[i]);
     }
-
+    delete[] argv;
 
     labelList order(oldToNew.size());
     forAll(order, i)

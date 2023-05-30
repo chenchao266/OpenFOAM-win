@@ -1,4 +1,4 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
@@ -54,7 +54,7 @@ Foam::extrudePatchMesh::extrudePatchMesh
 :
     fvMesh
     (
-        IOobject
+        IOobject::IOobject
         (
             regionName,
             mesh.facesInstance(),

@@ -51,7 +51,7 @@ void LUDecompose
 )
 {
     label m = matrix.m();
-    scalar vv[m];
+    scalar* vv = new scalar[m];
     sign = 1;
 
     for (label i = 0; i < m; ++i)
@@ -146,6 +146,7 @@ void LUDecompose
             }
         }
     }
+    delete[] vv;
 }
 
 

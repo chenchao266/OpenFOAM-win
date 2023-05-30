@@ -111,7 +111,7 @@ void Foam::linearValveLayersFvMesh::addZonesAndModifiers()
     fz[1] = new faceZone
     (
         "outsideSliderZone",
-        identity(outsideSlider.range()),
+        identity(outerSlider.range()),
         false, // none are flipped
         1,
         faceZones()
@@ -132,7 +132,6 @@ void Foam::linearValveLayersFvMesh::addZonesAndModifiers()
     (
         "valveLayerZone",
         identity(layerPatch.range()),
-        lpf,
         true, // all are flipped
         0,
         faceZones()
@@ -280,7 +279,7 @@ Foam::tmp<Foam::pointField> Foam::linearValveLayersFvMesh::newPoints() const
         new pointField(points())
     );
 
-    pointField& np = tnewPoints();
+    pointField  np = tnewPoints();
 
     const word layerPatchName
     (
@@ -314,7 +313,7 @@ Foam::linearValveLayersFvMesh::linearValveLayersFvMesh(const IOobject& io)
     topoChangerFvMesh(io),
     motionDict_
     (
-        IOdictionary
+        IOdictionary::IOdictionary
         (
             IOobject::IOobject
             (
@@ -339,7 +338,7 @@ Foam::linearValveLayersFvMesh::~linearValveLayersFvMesh()
 
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
 
-void Foam::linearValveLayersFvMesh::update()
+bool Foam::linearValveLayersFvMesh::update()
 {
     // Detaching the interface
     if (attached())
@@ -391,6 +390,7 @@ void Foam::linearValveLayersFvMesh::update()
     //movePoints(p);
 
     Info<< "Sliding interfaces coupled: " << attached() << endl;
+    return true;
 }
 
 

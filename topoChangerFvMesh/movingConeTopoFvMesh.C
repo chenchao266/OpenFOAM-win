@@ -253,7 +253,7 @@ Foam::movingConeTopoFvMesh::movingConeTopoFvMesh
     topoChangerFvMesh(io, doInit),
     motionDict_
     (
-        IOdictionary
+        IOdictionary::IOdictionary
         (
             IOobject::IOobject
             (

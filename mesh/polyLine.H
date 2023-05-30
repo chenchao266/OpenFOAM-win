@@ -63,7 +63,7 @@ class polyLine
     public extrudeModel
 {
     // Private Data
-
+protected:
         //- Dummy object needed to use blockEdge
         searchableSurfaces geometry_;
 

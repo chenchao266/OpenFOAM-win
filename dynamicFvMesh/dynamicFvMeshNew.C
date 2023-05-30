@@ -151,7 +151,7 @@ Foam::autoPtr<Foam::dynamicFvMesh> Foam::dynamicFvMesh::New
         return
             simplifiedMeshes::simplifiedDynamicFvMeshBase::New
             (
-                IOobject
+                IOobject::IOobject
                 (
                     polyMesh::defaultRegion,
                     fileName(runTime.timeName()),         
@@ -165,7 +165,7 @@ Foam::autoPtr<Foam::dynamicFvMesh> Foam::dynamicFvMesh::New
         return
             New
             (
-                IOobject
+                IOobject::IOobject
                 (
                     polyMesh::defaultRegion,
                     fileName(runTime.timeName()),

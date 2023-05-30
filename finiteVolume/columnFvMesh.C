@@ -450,7 +450,7 @@ Foam::simplifiedMeshes::columnFvMesh::columnFvMesh
     columnFvMeshInfo(runTime, regionName),
     simplifiedFvMesh
     (
-        IOobject
+        IOobject::IOobject
         (
             regionName,
             fileName(runTime.constant()),

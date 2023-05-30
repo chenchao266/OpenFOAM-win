@@ -1,4 +1,4 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
@@ -239,7 +239,7 @@ Foam::label Foam::OppositeFaceCellWave<Type, TrackingData>::faceToCell()
     // Handled all changed faces by now
     this->changedFaces_.clear();
 
-    if (debug & 2)
+    if (Foam::OppositeFaceCellWaveName::debug & 2)
     {
         Pout<< " Changed cells            : " << this->changedCells_.size()
             << endl;
@@ -315,7 +315,7 @@ Foam::label Foam::OppositeFaceCellWave<Type, TrackingData>::cellToFace()
         this->handleProcPatches();
     }
 
-    if (debug & 2)
+    if (Foam::OppositeFaceCellWaveName::debug & 2)
     {
         Pout<< " Changed faces            : " << this->changedFaces_.size()
             << endl;

@@ -94,15 +94,15 @@ const Enum
 <
     entry::inputMode
 >
-functionEntries::entry::selectableNames
+functionEntries::inputMode::selectableNames
 ({
-    { entry::MERGE,  "merge" },
-    { entry::OVERWRITE, "overwrite" },
-    { entry::PROTECT, "protect" },
-    { entry::WARN, "warn" },
-    { entry::ERROR, "error" },
+    { entry::inputMode::MERGE,  "merge" },
+    { entry::inputMode::OVERWRITE, "overwrite" },
+    { entry::inputMode::PROTECT, "protect" },
+    { entry::inputMode::WARN, "warn" },
+    { entry::inputMode::ERROR, "error" },
     // Aliases
-    { entry::MERGE, "default" },
+    { entry::inputMode::MERGE, "default" },
 });
 
 
@@ -141,7 +141,7 @@ bool functionEntries::inputModeDefault::execute
     Istream& is
 )
 {
-    return entry::New(parentDict, is, entry::PROTECT);
+    return entry::New(parentDict, is, entry::inputMode::PROTECT);
 }
 
 
@@ -151,7 +151,7 @@ bool functionEntries::inputModeMerge::execute
     Istream& is
 )
 {
-    return entry::New(parentDict, is, entry::MERGE);
+    return entry::New(parentDict, is, entry::inputMode::MERGE);
 }
 
 
@@ -161,7 +161,7 @@ bool functionEntries::inputModeOverwrite::execute
     Istream& is
 )
 {
-    return entry::New(parentDict, is, entry::OVERWRITE);
+    return entry::New(parentDict, is, entry::inputMode::OVERWRITE);
 }
 
 
@@ -171,7 +171,7 @@ bool functionEntries::inputModeWarn::execute
     Istream& is
 )
 {
-    return entry::New(parentDict, is, entry::WARN);
+    return entry::New(parentDict, is, entry::inputMode::WARN);
 }
 
 
@@ -181,7 +181,7 @@ bool functionEntries::inputModeError::execute
     Istream& is
 )
 {
-    return entry::New(parentDict, is, entry::ERROR);
+    return entry::New(parentDict, is, entry::inputMode::ERROR);
 }
 
 
