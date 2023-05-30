@@ -1,4 +1,4 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
@@ -249,7 +249,7 @@ Foam::linearValveFvMesh::linearValveFvMesh(const IOobject& io)
     (
         IOdictionary
         (
-            IOobject
+            IOobject::IOobject
             (
                 "dynamicMeshDict",
                 time().constant(),

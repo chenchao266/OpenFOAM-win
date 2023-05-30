@@ -1,4 +1,4 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
@@ -48,29 +48,15 @@ Foam::dynamicInkJetFvMesh::dynamicInkJetFvMesh
     const IOobject& io,
     const bool doInit
 )
-:
+    :
     dynamicFvMesh(io, doInit),
-    dynamicMeshCoeffs_
-    (
-        IOdictionary
-        (
-            IOobject
-            (
-                "dynamicMeshDict",
-                io.time().constant(),
-                *this,
-                IOobject::MUST_READ_IF_MODIFIED,
-                IOobject::NO_WRITE,
-                false
-            )
-        ).optionalSubDict(typeName + "Coeffs")
-    ),
+
     amplitude_(dynamicMeshCoeffs_.get<scalar>("amplitude")),
     frequency_(dynamicMeshCoeffs_.get<scalar>("frequency")),
     refPlaneX_(dynamicMeshCoeffs_.get<scalar>("refPlaneX")),
     stationaryPoints_
     (
-        IOobject
+        IOobject::IOobject
         (
             "points",
             io.time().constant(),
@@ -80,7 +66,22 @@ Foam::dynamicInkJetFvMesh::dynamicInkJetFvMesh
             IOobject::NO_WRITE
         )
     )
-{
+{  
+    IOdictionary iodict
+    (
+        IOobject
+        (
+            "dynamicMeshDict",
+            io.time().constant(),
+            *this,
+            IOobject::MUST_READ_IF_MODIFIED,
+            IOobject::NO_WRITE,
+            false
+        )
+    );
+    dynamicMeshCoeffs_ = 
+        iodict.optionalSubDict(typeName + "Coeffs");
+    
     Info<< "Performing a dynamic mesh calculation: " << endl
         << "amplitude: " << amplitude_
         << " frequency: " << frequency_

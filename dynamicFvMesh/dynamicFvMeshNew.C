@@ -1,4 +1,4 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
@@ -43,7 +43,7 @@ Foam::autoPtr<Foam::dynamicFvMesh> Foam::dynamicFvMesh::New(const IOobject& io)
     (
         "dynamicMeshDict",
         io.time().constant(),
-        (io.name() == polyMesh::defaultRegion ? "" : io.name()),
+        fileName(io.name() == polyMesh::defaultRegion ? "" : io.name()),
         io.db(),
         IOobject::MUST_READ_IF_MODIFIED,
         IOobject::NO_WRITE,
@@ -154,7 +154,7 @@ Foam::autoPtr<Foam::dynamicFvMesh> Foam::dynamicFvMesh::New
                 IOobject
                 (
                     polyMesh::defaultRegion,
-                    runTime.timeName(),
+                    fileName(runTime.timeName()),         
                     runTime,
                     IOobject::MUST_READ
                 )
@@ -168,7 +168,7 @@ Foam::autoPtr<Foam::dynamicFvMesh> Foam::dynamicFvMesh::New
                 IOobject
                 (
                     polyMesh::defaultRegion,
-                    runTime.timeName(),
+                    fileName(runTime.timeName()),
                     runTime,
                     IOobject::MUST_READ
                 )

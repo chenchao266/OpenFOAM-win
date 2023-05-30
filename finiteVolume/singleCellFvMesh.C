@@ -400,7 +400,7 @@ Foam::singleCellFvMesh::singleCellFvMesh
     fvMesh(io, Zero, false),
     patchFaceAgglomeration_
     (
-        IOobject
+        IOobject::IOobject
         (
             "patchFaceAgglomeration",
             io.instance(),
@@ -413,7 +413,7 @@ Foam::singleCellFvMesh::singleCellFvMesh
     ),
     patchFaceMap_
     (
-        IOobject
+        IOobject::IOobject
         (
             "patchFaceMap",
             io.instance(),
@@ -426,7 +426,7 @@ Foam::singleCellFvMesh::singleCellFvMesh
     ),
     reverseFaceMap_
     (
-        IOobject
+        IOobject::IOobject
         (
             word("reverseFaceMap"),
             io.instance(),
@@ -439,7 +439,7 @@ Foam::singleCellFvMesh::singleCellFvMesh
     ),
     pointMap_
     (
-        IOobject
+        IOobject::IOobject
         (
             "pointMap",
             io.instance(),
@@ -452,7 +452,7 @@ Foam::singleCellFvMesh::singleCellFvMesh
     ),
     reversePointMap_
     (
-        IOobject
+        IOobject::IOobject
         (
             "reversePointMap",
             io.instance(),
@@ -487,7 +487,7 @@ Foam::singleCellFvMesh::singleCellFvMesh
     fvMesh(io, Zero, false),
     patchFaceAgglomeration_
     (
-        IOobject
+        IOobject::IOobject
         (
             "patchFaceAgglomeration",
             io.instance(),
@@ -500,7 +500,7 @@ Foam::singleCellFvMesh::singleCellFvMesh
     ),
     patchFaceMap_
     (
-        IOobject
+        IOobject::IOobject
         (
             "patchFaceMap",
             io.instance(),
@@ -513,7 +513,7 @@ Foam::singleCellFvMesh::singleCellFvMesh
     ),
     reverseFaceMap_
     (
-        IOobject
+        IOobject::IOobject
         (
             "reverseFaceMap",
             io.instance(),
@@ -526,7 +526,7 @@ Foam::singleCellFvMesh::singleCellFvMesh
     ),
     pointMap_
     (
-        IOobject
+        IOobject::IOobject
         (
             "pointMap",
             io.instance(),
@@ -539,7 +539,7 @@ Foam::singleCellFvMesh::singleCellFvMesh
     ),
     reversePointMap_
     (
-        IOobject
+        IOobject::IOobject
         (
             "reversePointMap",
             io.instance(),
@@ -560,7 +560,7 @@ Foam::singleCellFvMesh::singleCellFvMesh(const IOobject& io)
     fvMesh(io),
     patchFaceAgglomeration_
     (
-        IOobject
+        IOobject::IOobject
         (
             "patchFaceAgglomeration",
             io.instance(),
@@ -572,7 +572,7 @@ Foam::singleCellFvMesh::singleCellFvMesh(const IOobject& io)
     ),
     patchFaceMap_
     (
-        IOobject
+        IOobject::IOobject
         (
             "patchFaceMap",
             io.instance(),
@@ -584,7 +584,7 @@ Foam::singleCellFvMesh::singleCellFvMesh(const IOobject& io)
     ),
     reverseFaceMap_
     (
-        IOobject
+        IOobject::IOobject
         (
             "reverseFaceMap",
             io.instance(),
@@ -596,7 +596,7 @@ Foam::singleCellFvMesh::singleCellFvMesh(const IOobject& io)
     ),
     pointMap_
     (
-        IOobject
+        IOobject::IOobject
         (
             "pointMap",
             io.instance(),
@@ -608,7 +608,7 @@ Foam::singleCellFvMesh::singleCellFvMesh(const IOobject& io)
     ),
     reversePointMap_
     (
-        IOobject
+        IOobject::IOobject
         (
             "reversePointMap",
             io.instance(),

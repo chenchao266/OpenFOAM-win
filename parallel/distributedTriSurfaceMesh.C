@@ -1,4 +1,4 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
@@ -1627,7 +1627,7 @@ Foam::distributedTriSurfaceMesh::independentlyDistributedBbs
                 (
                     new IOdictionary
                     (
-                        IOobject
+                        IOobject::IOobject
                         (
                             // == decompositionModel::canonicalName
                             "decomposeParDict",
@@ -2451,7 +2451,7 @@ Foam::distributedTriSurfaceMesh::distributedTriSurfaceMesh
     triSurfaceMesh(io, s),
     dict_
     (
-        IOobject
+        IOobject::IOobject
         (
             searchableSurface::name() + "Dict",
             searchableSurface::instance(),
@@ -2495,7 +2495,7 @@ Foam::distributedTriSurfaceMesh::distributedTriSurfaceMesh(const IOobject& io)
 :
     triSurfaceMesh
     (
-        IOobject
+        IOobject::IOobject
         (
             io.name(),
             findLocalInstance(io),  // findInstance with parent searching
@@ -2509,7 +2509,7 @@ Foam::distributedTriSurfaceMesh::distributedTriSurfaceMesh(const IOobject& io)
     ),
     dict_
     (
-        IOobject
+        IOobject::IOobject
         (
             searchableSurface::name() + "Dict",
             searchableSurface::instance(),
@@ -2604,7 +2604,7 @@ Foam::distributedTriSurfaceMesh::distributedTriSurfaceMesh
 :
     triSurfaceMesh
     (
-        IOobject
+        IOobject::IOobject
         (
             io.name(),
             findLocalInstance(io),
@@ -2619,7 +2619,7 @@ Foam::distributedTriSurfaceMesh::distributedTriSurfaceMesh
     ),
     dict_
     (
-        IOobject
+        IOobject::IOobject
         (
             searchableSurface::name() + "Dict",
             searchableSurface::instance(),

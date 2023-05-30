@@ -1,4 +1,4 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
@@ -258,7 +258,7 @@ Foam::mixerFvMesh::mixerFvMesh
     (
         IOdictionary
         (
-            IOobject
+            IOobject::IOobject
             (
                 "dynamicMeshDict",
                 time().constant(),

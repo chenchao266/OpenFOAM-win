@@ -1,4 +1,4 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
@@ -279,7 +279,7 @@ Foam::faMesh::faMesh(const polyMesh& pMesh)
     data(mesh()),
     faceLabels_
     (
-        IOobject
+        IOobject::IOobject
         (
             "faceLabels",
             time().findInstance(meshDir(), "faceLabels"),
@@ -291,7 +291,7 @@ Foam::faMesh::faMesh(const polyMesh& pMesh)
     ),
     boundary_
     (
-        IOobject
+        IOobject::IOobject
         (
             "faBoundary",
             time().findInstance(meshDir(), "faBoundary"),
@@ -347,7 +347,7 @@ Foam::faMesh::faMesh(const polyMesh& pMesh)
     {
         S0Ptr_ = new DimensionedField<scalar, areaMesh>
         (
-            IOobject
+            IOobject::IOobject
             (
                 "S0",
                 time().timeName(),
@@ -375,7 +375,7 @@ Foam::faMesh::faMesh
     data(mesh()),
     faceLabels_
     (
-        IOobject
+        IOobject::IOobject
         (
             "faceLabels",
             mesh().facesInstance(),
@@ -388,7 +388,7 @@ Foam::faMesh::faMesh
     ),
     boundary_
     (
-        IOobject
+        IOobject::IOobject
         (
             "faBoundary",
             mesh().facesInstance(),
@@ -512,7 +512,7 @@ Foam::faMesh::faMesh
     {
         S0Ptr_ = new DimensionedField<scalar, areaMesh>
         (
-            IOobject
+            IOobject::IOobject
             (
                 "S0",
                 time().timeName(),
@@ -661,7 +661,7 @@ Foam::faMesh::S00() const
     {
         S00Ptr_ = new DimensionedField<scalar, areaMesh>
         (
-            IOobject
+            IOobject::IOobject
             (
                 "S00",
                 time().timeName(),
@@ -796,7 +796,7 @@ bool Foam::faMesh::movePoints()
 
             S0Ptr_ = new DimensionedField<scalar, areaMesh>
             (
-                IOobject
+                IOobject::IOobject
                 (
                     "S0",
                     time().timeName(),

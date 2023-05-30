@@ -1,4 +1,4 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
@@ -84,7 +84,7 @@ tmp<volSymmTensorField> adjointLaminar::devReff
     (
         new volSymmTensorField
         (
-            IOobject
+            IOobject::IOobject
             (
                 "devRhoReff",
                 runTime_.timeName(),
@@ -112,7 +112,7 @@ tmp<volVectorField> adjointLaminar::adjointMeanFlowSource()
 {
     return tmp<volVectorField>::New
         (
-            IOobject
+            IOobject::IOobject
             (
                 "adjointMeanFlowSource",
                 runTime_.timeName(),
@@ -153,7 +153,7 @@ tmp<volScalarField> adjointLaminar::distanceSensitivities()
 {
     return tmp<volScalarField>::New
         (
-            IOobject
+            IOobject::IOobject
             (
                 "adjointEikonalSource" + type(),
                 runTime_.timeName(),
@@ -171,7 +171,7 @@ tmp<volTensorField> adjointLaminar::FISensitivityTerm()
 {
     return tmp<volTensorField>::New
         (
-            IOobject
+            IOobject::IOobject
             (
                 "volumeSensTerm" + type(),
                 runTime_.timeName(),

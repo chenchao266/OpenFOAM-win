@@ -1,4 +1,4 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
@@ -178,7 +178,7 @@ void Foam::faMesh::calcLe() const
     LePtr_ =
         new edgeVectorField
         (
-            IOobject
+            IOobject::IOobject
             (
                 "Le",
                 mesh().pointsInstance(),
@@ -276,7 +276,7 @@ void Foam::faMesh::calcMagLe() const
     magLePtr_ =
         new edgeScalarField
         (
-            IOobject
+            IOobject::IOobject
             (
                 "magLe",
                 mesh().pointsInstance(),
@@ -328,7 +328,7 @@ void Foam::faMesh::calcAreaCentres() const
     centresPtr_ =
         new areaVectorField
         (
-            IOobject
+            IOobject::IOobject
             (
                 "centres",
                 mesh().pointsInstance(),
@@ -394,7 +394,7 @@ void Foam::faMesh::calcEdgeCentres() const
     edgeCentresPtr_ =
         new edgeVectorField
         (
-            IOobject
+            IOobject::IOobject
             (
                 "edgeCentres",
                 mesh().pointsInstance(),
@@ -446,7 +446,7 @@ void Foam::faMesh::calcS() const
 
     SPtr_ = new DimensionedField<scalar, areaMesh>
     (
-        IOobject
+        IOobject::IOobject
         (
             "S",
             time().timeName(),
@@ -484,7 +484,7 @@ void Foam::faMesh::calcFaceAreaNormals() const
     faceAreaNormalsPtr_ =
         new areaVectorField
         (
-            IOobject
+            IOobject::IOobject
             (
                 "faceAreaNormals",
                 mesh().pointsInstance(),
@@ -544,7 +544,7 @@ void Foam::faMesh::calcEdgeAreaNormals() const
     edgeAreaNormalsPtr_ =
         new edgeVectorField
         (
-            IOobject
+            IOobject::IOobject
             (
                 "edgeAreaNormals",
                 mesh().pointsInstance(),
@@ -614,7 +614,7 @@ void Foam::faMesh::calcFaceCurvatures() const
     faceCurvaturesPtr_ =
         new areaScalarField
         (
-            IOobject
+            IOobject::IOobject
             (
                 "faceCurvatures",
                 mesh().pointsInstance(),
@@ -2059,7 +2059,7 @@ Foam::tmp<Foam::edgeScalarField> Foam::faMesh::edgeLengthCorrection() const
     (
         new edgeScalarField
         (
-            IOobject
+            IOobject::IOobject
             (
                 "edgeLengthCorrection",
                 mesh().pointsInstance(),

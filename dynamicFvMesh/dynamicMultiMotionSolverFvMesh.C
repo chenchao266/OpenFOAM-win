@@ -1,4 +1,4 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
@@ -117,14 +117,14 @@ bool Foam::dynamicMultiMotionSolverFvMesh::init(const bool doInit)
 
             IOobject io(dynDict);
             io.readOpt(IOobject::NO_READ);
-
+            IOdictionary iodict(io, subDict);
             motionPtr_.set
             (
                 zonei,
                 motionSolver::New
                 (
                     *this,
-                    IOdictionary(io, subDict)
+                    iodict
                 )
             );
 

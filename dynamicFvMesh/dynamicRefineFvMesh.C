@@ -1,4 +1,4 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
@@ -169,7 +169,7 @@ void Foam::dynamicRefineFvMesh::readDict()
     (
         IOdictionary
         (
-            IOobject
+            IOobject::IOobject
             (
                 "dynamicMeshDict",
                 time().constant(),
@@ -1217,7 +1217,7 @@ bool Foam::dynamicRefineFvMesh::update()
     (
         IOdictionary
         (
-            IOobject
+            IOobject::IOobject
             (
                 "dynamicMeshDict",
                 time().constant(),

@@ -1,4 +1,4 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
@@ -51,7 +51,7 @@ Foam::simplifiedMeshes::simplifiedDynamicFvMeshBase::New
     (
         "dynamicMeshDict",
         io.time().constant(),
-        (io.name() == polyMesh::defaultRegion ? "" : io.name()),
+        fileName(io.name() == polyMesh::defaultRegion ? "" : io.name()),
         io.db(),
         IOobject::MUST_READ_IF_MODIFIED,
         IOobject::NO_WRITE,

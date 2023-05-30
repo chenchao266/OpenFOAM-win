@@ -1,4 +1,4 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
@@ -85,7 +85,7 @@ void Foam::rawTopoChangerFvMesh::zeroUnmappedValues
             mappedFace,
             FieldType
             (
-                IOobject
+                IOobject::IOobject
                 (
                     "zero",
                     time().timeName(),

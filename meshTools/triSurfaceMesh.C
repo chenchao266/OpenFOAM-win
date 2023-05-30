@@ -1,4 +1,4 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
@@ -176,7 +176,7 @@ Foam::triSurfaceMesh::triSurfaceMesh(const IOobject& io, const triSurface& s)
     searchableSurface(io),
     objectRegistry
     (
-        IOobject
+        IOobject::IOobject
         (
             io.name(),
             io.instance(),
@@ -206,7 +206,7 @@ Foam::triSurfaceMesh::triSurfaceMesh(const IOobject& io)
     // Reused found instance in objectRegistry
     objectRegistry
     (
-        IOobject
+        IOobject::IOobject
         (
             io.name(),
             searchableSurface::instance(),
@@ -239,7 +239,7 @@ Foam::triSurfaceMesh::triSurfaceMesh
     // Reused found instance in objectRegistry
     objectRegistry
     (
-        IOobject
+        IOobject::IOobject
         (
             io.name(),
             searchableSurface::instance(),
@@ -297,7 +297,7 @@ Foam::triSurfaceMesh::triSurfaceMesh(const IOobject& io, const readAction r)
     // Reused found instance in objectRegistry
     objectRegistry
     (
-        IOobject
+        IOobject::IOobject
         (
             io.name(),
             searchableSurface::instance(),
@@ -395,7 +395,7 @@ Foam::triSurfaceMesh::triSurfaceMesh
     // Reused found instance in objectRegistry
     objectRegistry
     (
-        IOobject
+        IOobject::IOobject
         (
             io.name(),
             searchableSurface::instance(),
@@ -1046,7 +1046,7 @@ void Foam::triSurfaceMesh::setField(const labelList& values)
     {
         fldPtr = new triSurfaceLabelField
         (
-            IOobject
+            IOobject::IOobject
             (
                 "values",
                 objectRegistry::time().timeName(),  // instance

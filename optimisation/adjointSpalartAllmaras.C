@@ -451,7 +451,7 @@ tmp<volScalarField> adjointSpalartAllmaras::allocateMask()
         (
             new volScalarField
             (
-                IOobject
+                IOobject::IOobject
                 (
                    "unitMask",
                    mesh_.time().timeName(),
@@ -575,7 +575,7 @@ adjointSpalartAllmaras::adjointSpalartAllmaras
 
     symmAdjointProductionU_
     (
-        IOobject
+        IOobject::IOobject
         (
             "symmAdjointProductionU",
             runTime_.timeName(),
@@ -589,7 +589,7 @@ adjointSpalartAllmaras::adjointSpalartAllmaras
 
     productionDestructionSource_
     (
-        IOobject
+        IOobject::IOobject
         (
             "productionDestructionSource",
             runTime_.timeName(),
@@ -603,7 +603,7 @@ adjointSpalartAllmaras::adjointSpalartAllmaras
 
     Stilda_
     (
-        IOobject
+        IOobject::IOobject
         (
             "Stilda",
             runTime_.timeName(),
@@ -617,7 +617,7 @@ adjointSpalartAllmaras::adjointSpalartAllmaras
 
     r_
     (
-        IOobject
+        IOobject::IOobject
         (
             "r",
             fileName(runTime_.timeName()),
@@ -631,7 +631,7 @@ adjointSpalartAllmaras::adjointSpalartAllmaras
 
     fw_
     (
-        IOobject
+        IOobject::IOobject
         (
             "fw",
             runTime_.timeName(),
@@ -645,7 +645,7 @@ adjointSpalartAllmaras::adjointSpalartAllmaras
 
     Cdnut_
     (
-        IOobject
+        IOobject::IOobject
         (
             "Cdnut",
             runTime_.timeName(),
@@ -659,7 +659,7 @@ adjointSpalartAllmaras::adjointSpalartAllmaras
 
     momentumSourceMult_
     (
-        IOobject
+        IOobject::IOobject
         (
             "momentumSourceMult",
             runTime_.timeName(),
@@ -715,7 +715,7 @@ tmp<volSymmTensorField> adjointSpalartAllmaras::devReff
     return
         tmp<volSymmTensorField>::New
         (
-            IOobject
+            IOobject::IOobject
             (
                 "devRhoReff",
                 runTime_.timeName(),

@@ -1,4 +1,4 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
@@ -42,8 +42,8 @@ SimplifiedDynamicFvMesh
         IOobject
         (
             regionName,
-            runTime.constant(),
-            runTime,
+            fileName(runTime.constant()),
+            (runTime),
             IOobject::NO_READ, // Do not read any existing mesh
             IOobject::NO_WRITE
         ),

@@ -76,8 +76,12 @@
     <ClCompile Include="dynamicFvMeshNew.C" />
     <ClCompile Include="dynamicInkJetFvMesh.C" />
     <ClCompile Include="dynamicMotionSolverFvMesh.C" />
+    <ClCompile Include="dynamicMotionSolverFvMeshAMI.C" />
     <ClCompile Include="dynamicMotionSolverListFvMesh.C" />
+    <ClCompile Include="dynamicMultiMotionSolverFvMesh.C" />
     <ClCompile Include="dynamicRefineFvMesh.C" />
+    <ClCompile Include="simplifiedDynamicFvMesh.C" />
+    <ClCompile Include="simplifiedDynamicFvMeshes.C" />
     <ClCompile Include="staticFvMesh.C" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />

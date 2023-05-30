@@ -77,7 +77,7 @@ public:
         MeshObject<Time, ::Foam::TopologicalMeshObject, gravity>(runTime),
         uniformDimensionedVectorField
         (
-            IOobject
+            IOobject::IOobject
             (
                 word("g"),   // Must be identical to typeName!
                 fileName(runTime.constant()),

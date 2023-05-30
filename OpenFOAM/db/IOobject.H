@@ -396,21 +396,21 @@ public:
         );
 
         //- Copy construct, resetting registry
-        IOobject
+        explicit IOobject
         (
             const IOobject& io,
             const objectRegistry& registry
         );
 
         //- Copy construct, resetting name
-        IOobject
+        explicit IOobject
         (
             const IOobject& io,
             const word& name
         );
 
         //- Copy construct, resetting io options
-        IOobject
+        explicit IOobject
         (
             const IOobject& io,
             readOption,

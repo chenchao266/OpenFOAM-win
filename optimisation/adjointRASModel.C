@@ -1,4 +1,4 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
@@ -72,7 +72,7 @@ void adjointRASModel::setMeanFields()
             (
                 new volScalarField
                 (
-                    IOobject
+                    IOobject::IOobject
                     (
                         getAdjointTMVariable1Inst().name() + "Mean",
                         mesh_.time().timeName(),
@@ -91,7 +91,7 @@ void adjointRASModel::setMeanFields()
             (
                 new volScalarField
                 (
-                    IOobject
+                    IOobject::IOobject
                     (
                         getAdjointTMVariable2Inst().name() + "Mean",
                         mesh_.time().timeName(),
@@ -127,7 +127,7 @@ adjointRASModel::adjointRASModel
     ),
     IOdictionary
     (
-        IOobject
+        IOobject::IOobject
         (
             "adjointRASProperties",
             primalVars.U().time().constant(),
@@ -169,7 +169,7 @@ autoPtr<adjointRASModel> adjointRASModel::New
 {
     const IOdictionary dict
     (
-        IOobject
+        IOobject::IOobject
         (
             "adjointRASProperties",
             primalVars.U().time().constant(),
@@ -267,7 +267,7 @@ volScalarField& adjointRASModel::getAdjointTMVariable1Inst()
         (
             new volScalarField
             (
-                IOobject
+                IOobject::IOobject
                 (
                     "adjointTMVariable1" + type(),
                     mesh_.time().timeName(),
@@ -294,7 +294,7 @@ volScalarField& adjointRASModel::getAdjointTMVariable2Inst()
         (
             new volScalarField
             (
-                IOobject
+                IOobject::IOobject
                 (
                    "adjointTMVariable2" + type(),
                    mesh_.time().timeName(),
@@ -356,7 +356,7 @@ tmp<volScalarField> adjointRASModel::nutJacobianTMVar1() const
     return
         tmp<volScalarField>::New
         (
-            IOobject
+            IOobject::IOobject
             (
                 "nutJacobianTMVar1"+type(),
                 mesh_.time().timeName(),
@@ -379,7 +379,7 @@ tmp<volScalarField> adjointRASModel::nutJacobianTMVar2() const
     return
         tmp<volScalarField>::New
         (
-            IOobject
+            IOobject::IOobject
             (
                 "nutJacobianTMVar2"+type(),
                 mesh_.time().timeName(),

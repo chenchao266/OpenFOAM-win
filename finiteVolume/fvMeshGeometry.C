@@ -53,7 +53,7 @@ void Foam::fvMesh::makeSf() const
 
     SfPtr_ = new slicedSurfaceVectorField
     (
-        IOobject
+        IOobject::IOobject
         (
             "S",
             pointsInstance(),
@@ -90,7 +90,7 @@ void Foam::fvMesh::makeMagSf() const
     // the code from producing Nans.
     magSfPtr_ = new surfaceScalarField
     (
-        IOobject
+        IOobject::IOobject
         (
             "magSf",
             pointsInstance(),
@@ -122,7 +122,7 @@ void Foam::fvMesh::makeC() const
 
     CPtr_ = new slicedVolVectorField
     (
-        IOobject
+        IOobject::IOobject
         (
             "C",
             pointsInstance(),
@@ -157,7 +157,7 @@ void Foam::fvMesh::makeCf() const
 
     CfPtr_ = new slicedSurfaceVectorField
     (
-        IOobject
+        IOobject::IOobject
         (
             "Cf",
             pointsInstance(),
@@ -185,7 +185,7 @@ const Foam::volScalarField::Internal& Foam::fvMesh::V() const
 
         VPtr_ = new slicedVolScalarField::Internal
         (
-            IOobject
+            IOobject::IOobject
             (
                 "V",
                 fileName(time().timeName()),
@@ -238,7 +238,7 @@ const Foam::volScalarField::Internal& Foam::fvMesh::V00() const
 
         V00Ptr_ = new DimensionedField<scalar, volMesh>
         (
-            IOobject
+            IOobject::IOobject
             (
                 "V00",
                 fileName(time().timeName()),
@@ -368,7 +368,7 @@ Foam::tmp<Foam::surfaceVectorField> Foam::fvMesh::delta() const
     (
         new surfaceVectorField
         (
-            IOobject
+            IOobject::IOobject
             (
                 "delta",
                 pointsInstance(),
