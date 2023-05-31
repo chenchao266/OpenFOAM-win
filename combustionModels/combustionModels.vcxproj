@@ -72,7 +72,8 @@
     </ClCompile>
   </ItemDefinitionGroup>
   <ItemGroup>
-    <ClCompile Include="combustionModel.C" />
+    <ClCompile Include="combustionModel2.C" />
+    <ClCompile Include="CombustionModels.C" />
     <ClCompile Include="consumptionSpeed.C" />
     <ClCompile Include="diffusions.C" />
     <ClCompile Include="EDCs.C" />

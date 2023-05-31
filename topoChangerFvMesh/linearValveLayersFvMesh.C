@@ -173,7 +173,7 @@ void Foam::linearValveLayersFvMesh::addZonesAndModifiers()
 
 
     Info<< "Adding topology modifiers" << endl;
-    addTopologyModifiers(tm);
+    topoChanger_.addTopologyModifiers(tm);
 
     // Write mesh
     write();
@@ -340,6 +340,8 @@ Foam::linearValveLayersFvMesh::~linearValveLayersFvMesh()
 
 bool Foam::linearValveLayersFvMesh::update()
 {
+    autoPtr<mapPolyMesh> topoChangeMap = topoChanger_.changeMesh(true);
+
     // Detaching the interface
     if (attached())
     {
@@ -347,9 +349,9 @@ bool Foam::linearValveLayersFvMesh::update()
         makeSlidersLive();
 
         // Changing topology
-        resetMorph();
-        setMorphTimeIndex(3*time().timeIndex());
-        updateMesh();
+        ///resetMorph();
+        ///setMorphTimeIndex(3*time().timeIndex());
+        updateMesh(topoChangeMap());
     }
     else
     {
@@ -360,9 +362,9 @@ bool Foam::linearValveLayersFvMesh::update()
     makeLayersLive();
 
     // Changing topology
-    resetMorph();
-    setMorphTimeIndex(3*time().timeIndex() + 1);
-    updateMesh();
+    ///resetMorph();
+    ///setMorphTimeIndex(3*time().timeIndex() + 1);
+    updateMesh(topoChangeMap());
 
     if (topoChangeMap)
     {
@@ -381,9 +383,9 @@ bool Foam::linearValveLayersFvMesh::update()
     makeSlidersLive();
 
     // Changing topology
-    resetMorph();
-    setMorphTimeIndex(3*time().timeIndex() + 2);
-    updateMesh();
+    ///resetMorph();
+    ///setMorphTimeIndex(3*time().timeIndex() + 2);
+    updateMesh(topoChangeMap());
 
     //Info<< "Moving points post slider attach" << endl;
     //const pointField p = allPoints();

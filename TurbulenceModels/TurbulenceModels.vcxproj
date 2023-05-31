@@ -22,14 +22,14 @@
     <ClCompile Include="alphatJayatillekeWallFunctionFvPatchScalarField.C" />
     <ClCompile Include="alphatWallFunctionFvPatchScalarField.C" />
     <ClCompile Include="anisotropicFilter.C" />
-    <ClCompile Include="compressibleTurbulenceModel.C" />
+    <ClCompile Include="compressibleTurbulenceModel2.C" />
     <ClCompile Include="convectiveHeatTransferFvPatchScalarField.C" />
     <ClCompile Include="cubeRootVolDelta.C" />
     <ClCompile Include="epsilonWallFunctionFvPatchScalarField.C" />
     <ClCompile Include="externalWallHeatFluxTemperatureFvPatchScalarField.C" />
     <ClCompile Include="fixedShearStressFvPatchVectorField.C" />
     <ClCompile Include="IDDESDelta.C" />
-    <ClCompile Include="incompressibleTurbulenceModel.C" />
+    <ClCompile Include="incompressibleTurbulenceModel2.C" />
     <ClCompile Include="kkLOmega.C" />
     <ClCompile Include="kLowReWallFunctionFvPatchScalarField.C" />
     <ClCompile Include="kqRWallFunctionFvPatchFields.C" />

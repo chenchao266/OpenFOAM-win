@@ -1,4 +1,4 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
@@ -45,7 +45,7 @@ volBSplinesBase::volBSplinesBase
     const fvMesh& mesh
 )
 :
-    MeshObject<fvMesh, UpdateableMeshObject, volBSplinesBase>(mesh),
+    MeshObject<fvMesh, ::Foam::UpdateableMeshObject, volBSplinesBase>(mesh),
     volume_(0),
     activeDesignVariables_(0)
 {

@@ -36,6 +36,10 @@ void Foam::setRefCells
     const volScalarField& field,
     const volScalarField& fieldRef,
     const dictionary& dict,
+
+    const label refCelli,
+    const scalar refValue,
+
     boolList& regionNeedReference,
     labelList& regionRefCells,
     scalarField& regionRefValues,
@@ -50,7 +54,7 @@ void Foam::setRefCells
 
     if (!forceReference)
     {
-        const volScalarField::GeometricBoundaryField& bfld =
+        const volScalarField::Boundary& bfld =
             fieldRef.boundaryField();
 
         forAll(bfld, patchI)
@@ -173,7 +177,7 @@ void Foam::setRefCells
             label celli = field.mesh().findCell
             (
                 refPoints[i],
-                polyMesh::FACEPLANES
+                polyMesh::FACE_PLANES
             );
 
             if (celli >= 0)

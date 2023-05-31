@@ -1,4 +1,4 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
@@ -42,10 +42,12 @@ Description
 
 namespace Foam
 {
-
+    class Istream;
+    class Ostream;
 // Forward Declaration
 class patchInteractionData;
 Istream& operator>>(Istream& is, patchInteractionData& pid);
+Ostream& operator<<(Ostream& os, patchInteractionData& pid);
 
 /*---------------------------------------------------------------------------*\
                     Class patchInteractionData Declaration
@@ -107,6 +109,7 @@ public:
 
         //- Istream operator
         friend Istream& operator>>(Istream& is, patchInteractionData& pid);
+        friend Ostream& operator<<(Ostream& os, patchInteractionData& pid);
 };
 
 

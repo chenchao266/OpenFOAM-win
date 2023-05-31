@@ -167,8 +167,8 @@ calculateMassFractions()
         Y()[i] = X_[i]*thermo().composition().W(i)/W;
 
         Info<< Y()[i].name() << " mass fraction = "
-            << "  Min(Y) = " << min(Y()[i]).value()
-            << "  Max(Y) = " << max(Y()[i]).value()
+            << "  Min(Y) = " << Foam::min(Y()[i]).value()
+            << "  Max(Y) = " << Foam::max(Y()[i]).value()
             << endl;
     }
 }
@@ -217,7 +217,7 @@ void Foam::MultiComponentPhaseModel<BasePhaseModel, phaseThermo>::solveYi
 
     surfaceScalarField phic(mag((phi)/mesh.magSf()));
 
-    phic = ::Foam::min(cAlpha*phic, max(phic));
+    phic = ::Foam::min(cAlpha*phic, ::Foam::max(phic));
 
     surfaceScalarField phir(0.0*phi);
 

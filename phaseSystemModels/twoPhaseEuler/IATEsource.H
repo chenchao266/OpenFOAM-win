@@ -1,4 +1,4 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
@@ -111,6 +111,11 @@ public:
 
         IATEsource(const IATE& iate)
         :
+            iate_(iate)
+        {}
+
+        IATEsource(const IATE& iate, const dictionary&)
+            :
             iate_(iate)
         {}
 

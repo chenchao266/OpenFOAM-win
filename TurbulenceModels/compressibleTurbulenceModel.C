@@ -1,11 +1,11 @@
-﻿/*---------------------------------------------------------------------------*\
+/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
     \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
 -------------------------------------------------------------------------------
-    Copyright (C) 2013-2015 OpenFOAM Foundation
+    Copyright (C) 2013-2016 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -25,58 +25,77 @@ License
 
 \*---------------------------------------------------------------------------*/
 
-#include "compressibleTurbulenceModel.H"
-#include "..\finiteVolume\surfaceInterpolate.H"
-#include "surfaceFields.H"
-
-// * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
-
-namespace Foam
-{
-    defineTypeNameAndDebug(compressibleTurbulenceModel, 0);
-}
-
+//#include "CompressibleTurbulenceModel.H"
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
-Foam::compressibleTurbulenceModel::compressibleTurbulenceModel
+template<class TransportModel>
+Foam::CompressibleTurbulenceModel<TransportModel>::
+CompressibleTurbulenceModel
 (
+    const word& type,
+    const geometricOneField& alpha,
     const volScalarField& rho,
     const volVectorField& U,
     const surfaceScalarField& alphaRhoPhi,
     const surfaceScalarField& phi,
+    const transportModel& transport,
     const word& propertiesName
 )
 :
-    turbulenceModel
+    TurbulenceModel
+    <
+        geometricOneField,
+        volScalarField,
+        compressibleTurbulenceModel,
+        transportModel
+    >
     (
+        alpha,
+        rho,
         U,
         alphaRhoPhi,
         phi,
+        transport,
         propertiesName
-    ),
-    rho_(rho)
+    )
 {}
 
 
-// * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
+// * * * * * * * * * * * * * * * * * Selectors * * * * * * * * * * * * * * * //
 
-Foam::tmp<Foam::surfaceScalarField>
-Foam::compressibleTurbulenceModel::phi() const
+template<class TransportModel>
+Foam::autoPtr<Foam::CompressibleTurbulenceModel<TransportModel>>
+Foam::CompressibleTurbulenceModel<TransportModel>::New
+(
+    const volScalarField& rho,
+    const volVectorField& U,
+    const surfaceScalarField& phi,
+    const transportModel& transport,
+    const word& propertiesName
+)
 {
-    if (phi_.dimensions() == dimensionSet(0, 3, -1, 0, 0))
-    {
-        return phi_;
-    }
-    else
-    {
-        return phi_/ ::Foam::fvc::interpolate(rho_);
-    }
+    return autoPtr<CompressibleTurbulenceModel>
+    (
+        static_cast<CompressibleTurbulenceModel*>(
+        TurbulenceModel
+        <
+            geometricOneField,
+            volScalarField,
+            compressibleTurbulenceModel,
+            transportModel
+        >::New
+        (
+            geometricOneField(),
+            rho,
+            U,
+            phi,
+            phi,
+            transport,
+            propertiesName
+        ).ptr())
+    );
 }
-
-
-void Foam::compressibleTurbulenceModel::correctEnergyTransport()
-{}
 
 
 // ************************************************************************* //

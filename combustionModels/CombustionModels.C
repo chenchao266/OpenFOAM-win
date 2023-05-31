@@ -27,7 +27,7 @@ License
 
 #include "makeCombustionTypes.H"
 
-#include "CombustionModel2.H"
+#include "CombustionModel.H"
 
 #include "rhoReactionThermo.H"
 #include "psiReactionThermo.H"

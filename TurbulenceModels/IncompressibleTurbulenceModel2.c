@@ -5,7 +5,7 @@
     \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
 -------------------------------------------------------------------------------
-    Copyright (C) 2013-2016 OpenFOAM Foundation
+    Copyright (C) 2013-2014 OpenFOAM Foundation
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -25,157 +25,76 @@ License
 
 \*---------------------------------------------------------------------------*/
 
-//#include "IncompressibleTurbulenceModel2.H"
+#include "incompressibleTurbulenceModel2.H"
+
+// * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
+
+namespace Foam
+{
+    defineTypeNameAndDebug(incompressibleTurbulenceModel, 0);
+}
+
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
-template<class TransportModel>
-Foam::IncompressibleTurbulenceModel<TransportModel>::
-IncompressibleTurbulenceModel
+Foam::incompressibleTurbulenceModel::incompressibleTurbulenceModel
 (
-    const word& type,
-    const geometricOneField& alpha,
-    const geometricOneField& rho,
+    const geometricOneField&,
     const volVectorField& U,
     const surfaceScalarField& alphaRhoPhi,
     const surfaceScalarField& phi,
-    const TransportModel& transport,
     const word& propertiesName
 )
 :
-    TurbulenceModel
-    <
-        geometricOneField,
-        geometricOneField,
-        incompressibleTurbulenceModel,
-        TransportModel
-    >
+    turbulenceModel
     (
-        alpha,
-        rho,
         U,
         alphaRhoPhi,
         phi,
-        transport,
         propertiesName
     )
 {}
 
 
-// * * * * * * * * * * * * * * * * * Selectors * * * * * * * * * * * * * * * //
-
-template<class TransportModel>
-Foam::autoPtr<Foam::IncompressibleTurbulenceModel<TransportModel>>
-Foam::IncompressibleTurbulenceModel<TransportModel>::New
-(
-    const volVectorField& U,
-    const surfaceScalarField& phi,
-    const TransportModel& transport,
-    const word& propertiesName
-)
+Foam::tmp<Foam::volScalarField>
+Foam::incompressibleTurbulenceModel::mu() const
 {
-    return autoPtr<IncompressibleTurbulenceModel>
-    (
-        static_cast<IncompressibleTurbulenceModel*>(
-        TurbulenceModel
-        <
-            geometricOneField,
-            geometricOneField,
-            incompressibleTurbulenceModel,
-            TransportModel
-        >::New
-        (
-            geometricOneField(),
-            geometricOneField(),
-            U,
-            phi,
-            phi,
-            transport,
-            propertiesName
-        ).ptr())
-    );
+    return nu();
 }
 
 
-// * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
-
-template<class TransportModel>
-Foam::tmp<Foam::volSymmTensorField>
-Foam::IncompressibleTurbulenceModel<TransportModel>::devReff() const
+Foam::tmp<Foam::scalarField>
+Foam::incompressibleTurbulenceModel::mu(const label patchi) const
 {
-    return devRhoReff();
+    return nu(patchi);
 }
 
 
-template<class TransportModel>
-Foam::tmp<Foam::volSymmTensorField>
-Foam::IncompressibleTurbulenceModel<TransportModel>::devReff
-(
-    const volVectorField& U
-) const
+Foam::tmp<Foam::volScalarField>
+Foam::incompressibleTurbulenceModel::mut() const
 {
-    return devRhoReff(U);
+    return nut();
 }
 
 
-template<class TransportModel>
-Foam::tmp<Foam::fvVectorMatrix>
-Foam::IncompressibleTurbulenceModel<TransportModel>::divDevReff
-(
-    volVectorField& U
-) const
+Foam::tmp<Foam::scalarField>
+Foam::incompressibleTurbulenceModel::mut(const label patchi) const
 {
-    return divDevRhoReff(U);
+    return nut(patchi);
 }
 
 
-template<class TransportModel>
-Foam::tmp<Foam::volSymmTensorField>
-Foam::IncompressibleTurbulenceModel<TransportModel>::devRhoReff() const
+Foam::tmp<Foam::volScalarField>
+Foam::incompressibleTurbulenceModel::muEff() const
 {
-    NotImplemented;
-
-    return devReff();
+    return nuEff();
 }
 
 
-template<class TransportModel>
-Foam::tmp<Foam::volSymmTensorField>
-Foam::IncompressibleTurbulenceModel<TransportModel>::devRhoReff
-(
-    const volVectorField& U
-) const
+Foam::tmp<Foam::scalarField>
+Foam::incompressibleTurbulenceModel::muEff(const label patchi) const
 {
-    NotImplemented;
-
-    return nullptr;
-}
-
-
-template<class TransportModel>
-Foam::tmp<Foam::fvVectorMatrix>
-Foam::IncompressibleTurbulenceModel<TransportModel>::divDevRhoReff
-(
-    volVectorField& U
-) const
-{
-    NotImplemented;
-
-    return divDevReff(U);
-}
-
-
-template<class TransportModel>
-Foam::tmp<Foam::fvVectorMatrix>
-Foam::IncompressibleTurbulenceModel<TransportModel>::divDevRhoReff
-(
-    const volScalarField& rho,
-    volVectorField& U
-) const
-{
-    NotImplemented;
-
-    return divDevReff(U);
+    return nuEff(patchi);
 }
 
 

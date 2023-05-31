@@ -1,4 +1,4 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
@@ -30,7 +30,7 @@ License
 #include "rhoThermo.H"
 #include "rhoReactionThermo.H"
 
-#include "CombustionModel2.H"
+#include "CombustionModel.H"
 
 #include "phaseModel.H"
 #include "ThermoPhaseModel.H"

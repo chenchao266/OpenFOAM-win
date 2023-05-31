@@ -5,7 +5,7 @@
     \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
 -------------------------------------------------------------------------------
-    Copyright (C) 2013-2015 OpenFOAM Foundation
+    Copyright (C) 2013-2017 OpenFOAM Foundation
     Copyright (C) 2019 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
@@ -25,122 +25,146 @@ License
     along with OpenFOAM.  If not, see <http://www.gnu.org/licenses/>.
 
 Class
-    Foam::compressibleTurbulenceModel
+    Foam::CompressibleTurbulenceModel
 
 Description
-    Abstract base class for turbulence models (RAS, LES and laminar).
+    Templated abstract base class for single-phase compressible
+    turbulence models.
 
 SourceFiles
-    compressibleTurbulenceModel.C
+    CompressibleTurbulenceModel.C
 
 \*---------------------------------------------------------------------------*/
 
-#ifndef compressibleTurbulenceModel_H
-#define compressibleTurbulenceModel_H
+#ifndef CompressibleTurbulenceModel_H
+#define CompressibleTurbulenceModel_H
 
-#include "turbulenceModel2.H"
+#include "TurbulenceModel.H"
+#include "compressibleTurbulenceModel2.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 namespace Foam
 {
 
-// Forward declarations
-class fvMesh;
-
 /*---------------------------------------------------------------------------*\
-                Class compressibleTurbulenceModel Declaration
+                 Class CompressibleTurbulenceModel Declaration
 \*---------------------------------------------------------------------------*/
 
-class compressibleTurbulenceModel
+template<class TransportModel>
+class CompressibleTurbulenceModel
 :
-    public turbulenceModel
+    public TurbulenceModel
+    <
+        geometricOneField,
+        volScalarField,
+        compressibleTurbulenceModel,
+        TransportModel
+    >
 {
-
-protected:
-
-    // Protected data
-
-        const volScalarField& rho_;
-
-
-    // Protected member functions
-
-        //- ***HGW Temporary function to be removed when the run-time selectable
-        //  thermal transport layer is complete
-        virtual void correctNut()
-        {}
-
-
-private:
-
-    // Private Member Functions
-
-        //- No copy construct
-        compressibleTurbulenceModel
-        (
-            const compressibleTurbulenceModel&
-        ) = delete;
-
-        //- No copy assignment
-        void operator=(const compressibleTurbulenceModel&) = delete;
-
 
 public:
 
-    //- Runtime type information
-    TypeName("compressibleTurbulenceModel");
+    typedef geometricOneField alphaField;
+    typedef volScalarField rhoField;
+    typedef TransportModel transportModel;
 
 
     // Constructors
 
-        //- Construct from components
-        compressibleTurbulenceModel
+        //- Construct
+        CompressibleTurbulenceModel
         (
+            const word& type,
+            const geometricOneField& alpha,
             const volScalarField& rho,
             const volVectorField& U,
             const surfaceScalarField& alphaRhoPhi,
             const surfaceScalarField& phi,
+            const transportModel& transport,
             const word& propertiesName
         );
 
 
+    // Selectors
+
+        //- Return a reference to the selected turbulence model
+        static autoPtr<CompressibleTurbulenceModel> New
+        (
+            const volScalarField& rho,
+            const volVectorField& U,
+            const surfaceScalarField& phi,
+            const transportModel& transport,
+            const word& propertiesName = turbulenceModel::propertiesName
+        );
+
+
     //- Destructor
-    virtual ~compressibleTurbulenceModel() = default;
+    virtual ~CompressibleTurbulenceModel() = default;
 
 
-    // Member functions
+    // Member Functions
 
-        //- Return the density field
-        const volScalarField& rho() const
+        //- Return the laminar dynamic viscosity
+        virtual tmp<volScalarField> mu() const
         {
-            return rho_;
+            return this->transport_.mu();
         }
 
-        //- Return the volumetric flux field
-        virtual tmp<surfaceScalarField> phi() const;
+        //- Return the laminar dynamic viscosity on patch
+        virtual tmp<scalarField> mu(const label patchi) const
+        {
+            return this->transport_.mu(patchi);
+        }
 
-        //- Return the effective stress tensor including the laminar stress
-        virtual tmp<volSymmTensorField> devRhoReff() const = 0;
+        //- Return the laminar viscosity
+        virtual tmp<volScalarField> nu() const
+        {
+            return this->transport_.mu()/this->rho_;
+        }
 
-        //- Return the effective stress tensor including
-        //- the laminar stress based on a given velocity field
-        virtual tmp<volSymmTensorField> devRhoReff
-        (
-            const volVectorField& U
-        ) const = 0;
+        //- Return the laminar viscosity on patchi
+        virtual tmp<scalarField> nu(const label patchi) const
+        {
+            return
+                this->transport_.mu(patchi)/this->rho_.boundaryField()[patchi];
+        }
 
-        //- Return the source term for the momentum equation
-        virtual tmp<fvVectorMatrix> divDevRhoReff(volVectorField& U) const = 0;
+        //- Return the turbulence dynamic viscosity
+        virtual tmp<volScalarField> mut() const
+        {
+            return this->rho_*this->nut();
+        }
 
-        //- Correct the turbulence thermal diffusivity for energy transport
-        virtual void correctEnergyTransport();
+        //- Return the turbulence dynamic viscosity on patch
+        virtual tmp<scalarField> mut(const label patchi) const
+        {
+            return this->rho_.boundaryField()[patchi]*this->nut(patchi);
+        }
+
+        //- Return the effective dynamic viscosity
+        virtual tmp<volScalarField> muEff() const
+        {
+            return mut() + mu();
+        }
+
+        //- Return the effective dynamic viscosity on patch
+        virtual tmp<scalarField> muEff(const label patchi) const
+        {
+            return mut(patchi) + mu(patchi);
+        }
 };
 
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 } // End namespace Foam
+
+// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
+
+#ifdef NoRepository
+    #include "CompressibleTurbulenceModel.C"
+#endif
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 

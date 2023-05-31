@@ -276,6 +276,7 @@ Foam::linearValveFvMesh::~linearValveFvMesh()
 
 bool Foam::linearValveFvMesh::update()
 {
+    autoPtr<mapPolyMesh> topoChangeMap = topoChanger_.changeMesh(true);
     // Detaching the interface
     if (attached())
     {
@@ -283,11 +284,11 @@ bool Foam::linearValveFvMesh::update()
         makeSlidersLive();
 
         // Changing topology by hand
-        resetMorph();
-        setMorphTimeIndex(3*time().timeIndex());
-        updateMesh();
+        ///resetMorph();
+        ///setMorphTimeIndex(3*time().timeIndex());
+        updateMesh(topoChangeMap());
 
-        msPtr_->updateMesh();
+        msPtr_->updateMesh(topoChangeMap());
     }
     else
     {
@@ -298,11 +299,11 @@ bool Foam::linearValveFvMesh::update()
     makeSlidersDead();
 
     // Changing topology by hand
-    resetMorph();
-    setMorphTimeIndex(3*time().timeIndex() + 1);
-    updateMesh();
+    ///resetMorph();
+    ///setMorphTimeIndex(3*time().timeIndex() + 1);
+    updateMesh(topoChangeMap());
 
-    msPtr_->updateMesh();
+    msPtr_->updateMesh(topoChangeMap());
 
     if (topoChangeMap)
     {
@@ -321,13 +322,13 @@ bool Foam::linearValveFvMesh::update()
     // Attach the interface
     Info<< "Coupling sliding interfaces" << endl;
     makeSlidersLive();
-    resetMorph();
-    setMorphTimeIndex(3*time().timeIndex() + 2);
-    updateMesh();
+    ///resetMorph();
+    ///setMorphTimeIndex(3*time().timeIndex() + 2);
+    updateMesh(topoChangeMap());
 
     Info<< "Moving points post slider attach" << endl;
 
-    msPtr_->updateMesh();
+    msPtr_->updateMesh(topoChangeMap());
 
     Info<< "Sliding interfaces coupled: " << attached() << endl;
     return true;

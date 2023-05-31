@@ -1,4 +1,4 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
@@ -6,7 +6,7 @@
      \\/     M anipulation  |
 -------------------------------------------------------------------------------
     Copyright (C) 2011-2017 OpenFOAM Foundation
-    Copyright (C) 2020-2021 OpenCFD Ltd.
+    Copyright (C) 2019 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
     This file is part of OpenFOAM.
@@ -26,84 +26,58 @@ License
 
 \*---------------------------------------------------------------------------*/
 
-#include "combustionModel.H"
-
-// * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
-
-namespace Foam
-{
-    defineTypeNameAndDebug(combustionModel, 0);
-}
-
-const Foam::word Foam::combustionModel::combustionPropertiesName
-(
-    "combustionProperties"
-);
-
-
-// * * * * * * * * * * * * * Private Member Functions  * * * * * * * * * * * //
-
-Foam::IOobject Foam::combustionModel::createIOobject
-(
-    basicThermo& thermo,
-    const word& combustionProperties
-) const
-{
-    IOobject io
-    (
-        thermo.phasePropertyName(combustionProperties),
-        thermo.db().time().constant(),
-        thermo.db(),
-        IOobject::MUST_READ,
-        IOobject::NO_WRITE
-    );
-
-    if (io.typeHeaderOk<IOdictionary>(true))
-    {
-        io.readOpt(IOobject::MUST_READ_IF_MODIFIED);
-    }
-    else
-    {
-        io.readOpt(IOobject::NO_READ);
-    }
-
-    return io;
-}
-
+//#include "CombustionModel.H"
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
 
-Foam::combustionModel::combustionModel
+template<class ReactionThermo>
+Foam::CombustionModel<ReactionThermo>::CombustionModel
 (
     const word& modelType,
-    basicThermo& thermo,
+    ReactionThermo& thermo,
     const compressibleTurbulenceModel& turb,
     const word& combustionProperties
 )
 :
-    IOdictionary(createIOobject(thermo, combustionProperties)),
-    mesh_(thermo.p().mesh()),
-    turb_(turb),
-    active_(getOrDefault<Switch>("active", true)),
-    coeffs_(optionalSubDict(modelType + "Coeffs")),
-    modelType_(modelType)
+    combustionModel(modelType, thermo, turb, combustionProperties)
 {}
+
+
+// * * * * * * * * * * * * * * * * Selectors * * * * * * * * * * * * * * * * //
+
+template<class ReactionThermo>
+Foam::autoPtr<Foam::CombustionModel<ReactionThermo>>
+Foam::CombustionModel<ReactionThermo>::New
+(
+    ReactionThermo& thermo,
+    const compressibleTurbulenceModel& turb,
+    const word& combustionProperties
+)
+{
+    return
+        combustionModel::New<CombustionModel<ReactionThermo>>
+        (
+            thermo,
+            turb,
+            combustionProperties
+        );
+}
 
 
 // * * * * * * * * * * * * * * * * Destructor  * * * * * * * * * * * * * * * //
 
-Foam::combustionModel::~combustionModel()
+template<class ReactionThermo>
+Foam::CombustionModel<ReactionThermo>::~CombustionModel()
 {}
 
 
 // * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * * //
 
-bool Foam::combustionModel::read()
+template<class ReactionThermo>
+bool Foam::CombustionModel<ReactionThermo>::read()
 {
-    if (regIOobject::read())
+    if (combustionModel::read())
     {
-        this->readEntry("active", active_);
-        coeffs_ = optionalSubDict(modelType_ + "Coeffs");
         return true;
     }
 

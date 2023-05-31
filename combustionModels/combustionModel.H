@@ -1,4 +1,4 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
@@ -24,24 +24,24 @@ License
     along with OpenFOAM.  If not, see <http://www.gnu.org/licenses/>.
 
 Class
-    Foam::combustionModel
-
-Group
-    grpCombustionModels
+    Foam::CombustionModel
 
 Description
-    Base class for combustion models
+    Combustion models for templated thermodynamics
 
 SourceFiles
-    combustionModel.C
+    CombustionModelI.H
+    CombustionModel.C
+    CombustionModelNew.C
 
 \*---------------------------------------------------------------------------*/
 
-#ifndef combustionModel_H
-#define combustionModel_H
+#ifndef CombustionModel_H
+#define CombustionModel_H
 
-#include "IOdictionary.H"
-#include "turbulentFluidThermoModel.H"
+#include "combustionModel2.H"
+#include "autoPtr.H"
+#include "runTimeSelectionTables.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
@@ -49,114 +49,84 @@ namespace Foam
 {
 
 /*---------------------------------------------------------------------------*\
-                     Class combustionModel Declaration
+                     class CombustionModel Declaration
 \*---------------------------------------------------------------------------*/
 
-class combustionModel
+template<class ReactionThermo>
+class CombustionModel
 :
-    public IOdictionary
+    public combustionModel
 {
     // Private Member Functions
 
-        //- No copy construct
-        combustionModel(const combustionModel&) = delete;
+        //- Construct as copy (not implemented)
+        CombustionModel(const CombustionModel&) = delete;
 
         //- No copy assignment
-        void operator=(const combustionModel&) = delete;
-
-        //- Construct the base IO object
-        IOobject createIOobject
-        (
-            basicThermo& thermo,
-            const word& combustionProperties
-        ) const;
-
-
-protected:
-
-    // Protected data
-
-        //- Reference to the mesh database
-        const fvMesh& mesh_;
-
-        //- Reference to the turbulence model
-        const compressibleTurbulenceModel& turb_;
-
-        //- Active
-        Switch active_;
-
-        //- Dictionary of the model
-        dictionary coeffs_;
-
-        //- Model type
-        const word modelType_;
+        void operator=(const CombustionModel&) = delete;
 
 
 public:
 
-    //- Runtime type information
-    TypeName("combustionModel");
+    //- Thermo type
+    typedef ReactionThermo reactionThermo;
 
-    //- Default combustionProperties dictionary name
-    static const word combustionPropertiesName;
+
+    //- Runtime type information
+    TypeName("CombustionModel");
+
+
+    //- Declare run-time constructor selection tables
+    declareRunTimeSelectionTable
+    (
+        autoPtr,
+        CombustionModel,
+        dictionary,
+        (
+            const word& modelType,
+            ReactionThermo& thermo,
+            const compressibleTurbulenceModel& turb,
+            const word& combustionProperties
+        ),
+        (modelType, thermo, turb, combustionProperties)
+    );
 
 
     // Constructors
 
         //- Construct from components
-        combustionModel
+        CombustionModel
         (
             const word& modelType,
-            basicThermo& thermo,
-            const compressibleTurbulenceModel& turb,
-            const word& combustionProperties=combustionPropertiesName
-        );
-
-
-    // Selectors
-
-        //- Generic New for each of the related chemistry model
-        template<class CombustionModel>
-        static autoPtr<CombustionModel> New
-        (
-            typename CombustionModel::reactionThermo& thermo,
+            ReactionThermo& thermo,
             const compressibleTurbulenceModel& turb,
             const word& combustionProperties
         );
 
 
+        //- Selector
+        static autoPtr<CombustionModel> New
+        (
+            ReactionThermo& thermo,
+            const compressibleTurbulenceModel& turb,
+            const word& combustionProperties=combustionPropertiesName
+        );
+
+
     //- Destructor
-    virtual ~combustionModel();
+    virtual ~CombustionModel();
 
 
     // Member Functions
 
-        //- Return const access to the mesh database
-        inline const fvMesh& mesh() const;
+        //- Return access to the thermo package
+        virtual ReactionThermo& thermo() = 0;
 
-        //- Return access to turbulence
-        inline const compressibleTurbulenceModel& turbulence() const;
+        //- Return const access to the thermo package
+        virtual const ReactionThermo& thermo() const = 0;
 
-        //- Return const access to rho
-        inline const volScalarField& rho() const;
 
-        //- Return const access to phi
-        inline tmp<surfaceScalarField> phi() const;
-
-        //- Is combustion active?
-        inline const Switch& active() const;
-
-        //- Return const dictionary of the model
-        inline const dictionary& coeffs() const;
-
-        //- Correct combustion rate
-        virtual void correct() = 0;
-
-        //- Fuel consumption rate matrix, i.e. source term for fuel equation
-        virtual tmp<fvScalarMatrix> R(volScalarField& Y) const = 0;
-
-        //- Heat release rate [kg/m/s3]
-        virtual tmp<volScalarField> Qdot() const = 0;
+    // IO
 
         //- Update properties from given dictionary
         virtual bool read();
@@ -169,10 +139,8 @@ public:
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
-#include "combustionModelI.H"
-
 #ifdef NoRepository
-    #include "combustionModelTemplates.C"
+    #include "CombustionModel.C"
 #endif
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //

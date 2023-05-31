@@ -96,7 +96,7 @@ protected:
         void operator=(const functionEntry&) = delete;
 
 public:
-
+    TypeName("functionEntry");
     // Constructors
 
         //- Construct from keyword, parent dictionary and Istream

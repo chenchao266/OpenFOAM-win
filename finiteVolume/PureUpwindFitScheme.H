@@ -1,4 +1,4 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
@@ -122,10 +122,10 @@ public:
         }
 
         //- Return the explicit correction to the face-interpolate
-        virtual tmp<GeometricField<Type, fvsPatchField, surfaceMesh>>
+        virtual tmp < GeometricField < Type, ::Foam::fvsPatchField, surfaceMesh >>
         correction
         (
-            const GeometricField<Type, fvPatchField, volMesh>& vf
+            const GeometricField<Type, ::Foam::fvPatchField, volMesh>& vf
         ) const
         {
             const fvMesh& mesh = this->mesh();

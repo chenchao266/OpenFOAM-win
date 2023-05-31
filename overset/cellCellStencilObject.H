@@ -1,4 +1,4 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
@@ -47,7 +47,7 @@ class cellCellStencilObject;
 typedef MeshObject
 <
     fvMesh,
-    Foam::MoveableMeshObject,
+    ::Foam::MoveableMeshObject,
     cellCellStencilObject
 > Stencil;
 

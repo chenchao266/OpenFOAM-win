@@ -1,4 +1,4 @@
-/*---------------------------------------------------------------------------*\
+﻿/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
@@ -29,6 +29,7 @@ License
 #include "patchInteractionData.H"
 #include "dictionaryEntry.H"
 #include "PatchInteractionModel.H"
+#include "_Ostream.H"
 
 // * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * * //
 
@@ -63,5 +64,8 @@ Foam::Istream& Foam::operator>>
     return is;
 }
 
-
+Foam::Ostream& Foam::operator<<(Ostream& os, patchInteractionData& pid)
+{
+    return os;
+}
 // ************************************************************************* //

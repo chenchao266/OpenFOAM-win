@@ -5,7 +5,7 @@
     \\  /    A nd           | www.openfoam.com
      \\/     M anipulation  |
 -------------------------------------------------------------------------------
-    Copyright (C) 2013-2016 OpenFOAM Foundation
+    Copyright (C) 2013-2015 OpenFOAM Foundation
     Copyright (C) 2019 OpenCFD Ltd.
 -------------------------------------------------------------------------------
 License
@@ -25,128 +25,134 @@ License
     along with OpenFOAM.  If not, see <http://www.gnu.org/licenses/>.
 
 Class
-    Foam::IncompressibleTurbulenceModel
+    Foam::incompressibleTurbulenceModel
 
 Description
-    Templated abstract base class for single-phase incompressible
-    turbulence models.
+    Abstract base class for turbulence models (RAS, LES and laminar).
 
 SourceFiles
-    IncompressibleTurbulenceModel.C
+    incompressibleTurbulenceModel.C
 
 \*---------------------------------------------------------------------------*/
 
-#ifndef IncompressibleTurbulenceModel_H
-#define IncompressibleTurbulenceModel_H
+#ifndef incompressibleTurbulenceModel_H
+#define incompressibleTurbulenceModel_H
 
-#include "TurbulenceModel.H"
-#include "incompressibleTurbulenceModel.H"
-#include "fvMatrix.H"
+#include "turbulenceModel2.H"
+#include "geometricOneField.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 namespace Foam
 {
 
+// Forward declarations
+class fvMesh;
+
 /*---------------------------------------------------------------------------*\
-               Class IncompressibleTurbulenceModel Declaration
+                Class incompressibleTurbulenceModel Declaration
 \*---------------------------------------------------------------------------*/
 
-template<class TransportModel>
-class IncompressibleTurbulenceModel
+class incompressibleTurbulenceModel
 :
-    public TurbulenceModel
-    <
-        geometricOneField,
-        geometricOneField,
-        incompressibleTurbulenceModel,
-        TransportModel
-    >
+    public turbulenceModel
 {
+
+protected:
+
+    // Protected data
+
+        geometricOneField rho_;
+
+
+    // Protected member functions
+
+        //- ***HGW Temporary function to be removed when the run-time selectable
+        //  thermal transport layer is complete
+        virtual void correctNut()
+        {}
+
+
+private:
+
+    // Private Member Functions
+
+        //- No copy construct
+        incompressibleTurbulenceModel
+        (
+            const incompressibleTurbulenceModel&
+        ) = delete;
+
+        //- No copy assignment
+        void operator=(const incompressibleTurbulenceModel&) = delete;
+
 
 public:
 
-    typedef geometricOneField alphaField;
-    typedef geometricOneField rhoField;
-    typedef TransportModel transportModel;
+    //- Runtime type information
+    TypeName("incompressibleTurbulenceModel");
 
 
     // Constructors
 
-        //- Construct
-        IncompressibleTurbulenceModel
+        //- Construct from components
+        incompressibleTurbulenceModel
         (
-            const word& type,
-            const geometricOneField& alpha,
             const geometricOneField& rho,
             const volVectorField& U,
             const surfaceScalarField& alphaRhoPhi,
             const surfaceScalarField& phi,
-            const TransportModel& transport,
             const word& propertiesName
         );
 
 
-    // Selectors
-
-        //- Return a reference to the selected turbulence model
-        static autoPtr<IncompressibleTurbulenceModel> New
-        (
-            const volVectorField& U,
-            const surfaceScalarField& phi,
-            const TransportModel& transportModel,
-            const word& propertiesName = turbulenceModel::propertiesName
-        );
-
-
     //- Destructor
-    virtual ~IncompressibleTurbulenceModel() = default;
+    virtual ~incompressibleTurbulenceModel() = default;
 
 
     // Member Functions
 
-        //- Return the effective stress tensor
-        virtual tmp<volSymmTensorField> devReff() const;
+        // Access functipons
 
-        //- Return the effective stress tensor based on a given velocity field
+            //- Return rho
+
+
+        //- Return the laminar dynamic viscosity
+        virtual tmp<volScalarField> mu() const;
+
+        //- Return the laminar dynamic viscosity on patch
+        virtual tmp<scalarField> mu(const label patchi) const;
+
+        //- Return the turbulence dynamic viscosity
+        virtual tmp<volScalarField> mut() const;
+
+        //- Return the turbulence dynamic viscosity on patch
+        virtual tmp<scalarField> mut(const label patchi) const;
+
+        //- Return the effective dynamic viscosity
+        virtual tmp<volScalarField> muEff() const;
+
+        //- Return the effective dynamic viscosity on patch
+        virtual tmp<scalarField> muEff(const label patchi) const;
+
+        //- Return the effective stress tensor including the laminar stress
+        virtual tmp<volSymmTensorField> devReff() const = 0;
+
+        //- Return the effective stress tensor including
+        //- the laminar stress based on a given velocity field
         virtual tmp<volSymmTensorField> devReff
         (
             const volVectorField& U
-        ) const;
+        ) const = 0;
 
         //- Return the source term for the momentum equation
-        virtual tmp<fvVectorMatrix> divDevReff(volVectorField& U) const;
-
-        //- Return the effective stress tensor
-        virtual tmp<volSymmTensorField> devRhoReff() const;
-
-        //- Return the effective stress tensor based on a given velocity field
-        virtual tmp<volSymmTensorField> devRhoReff
-        (
-            const volVectorField& U
-        ) const;
-
-        //- Return the source term for the momentum equation
-        virtual tmp<fvVectorMatrix> divDevRhoReff(volVectorField& U) const;
-
-        //- Return the source term for the momentum equation
-        virtual tmp<fvVectorMatrix> divDevRhoReff
-        (
-            const volScalarField& rho,
-            volVectorField& U
-        ) const;
+        virtual tmp<fvVectorMatrix> divDevReff(volVectorField& U) const = 0;
 };
 
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 } // End namespace Foam
-
-// * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
-
-#ifdef NoRepository
-    #include "IncompressibleTurbulenceModel2.C"
-#endif
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 

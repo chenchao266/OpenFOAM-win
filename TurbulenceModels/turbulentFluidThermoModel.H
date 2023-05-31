@@ -45,7 +45,7 @@ SourceFiles
 #ifndef turbulentFluidThermoModel_H
 #define turbulentFluidThermoModel_H
 
-#include "CompressibleTurbulenceModel2.H"
+#include "CompressibleTurbulenceModel.H"
 #include "ThermalDiffusivity.H"
 #include "EddyDiffusivity.H"
 #include "laminarModel.H"
