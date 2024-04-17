@@ -45,7 +45,7 @@ void Function1Types::Polynomial<Type>::checkCoefficients()
 
     for (const auto& coeff : coeffs_)
     {
-        if (mag(coeff.second() + pTraits<Type>::one) < ROOTVSMALL)
+        if (mag(coeff.second() + pTraits<Type>::one_) < ROOTVSMALL)
         {
             canIntegrate_ = false;
             break;

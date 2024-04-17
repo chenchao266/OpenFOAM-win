@@ -110,8 +110,8 @@ void Foam::leastSquaresVectors::calcLeastSquaresVectors()
     }
 
 
-    const surfaceVectorField::Boundary& blsP =
-        pVectors_.boundaryField();
+    surfaceVectorField::Boundary& blsP =
+        pVectors_.boundaryFieldRef();
 
     forAll(blsP, patchi)
     {
@@ -150,7 +150,7 @@ void Foam::leastSquaresVectors::calcLeastSquaresVectors()
 
     forAll(blsP, patchi)
     {
-        const fvsPatchVectorField& patchLsP = blsP[patchi];
+        fvsPatchVectorField& patchLsP = blsP[patchi];
 
         const fvPatch& p = patchLsP.patch();
         const labelUList& faceCells = p.faceCells();
@@ -162,7 +162,7 @@ void Foam::leastSquaresVectors::calcLeastSquaresVectors()
         {
             const vector& d = pd[patchFacei];
 
-            patchLsP[patchFacei] = (invDd[faceCells[patchFacei]] & d)/magSqr(d);
+            patchLsP[patchFacei] = (invDd[faceCells[patchFacei]] & d)/magSqr(d);//??
         }
     }
 

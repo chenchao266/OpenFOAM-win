@@ -57,7 +57,7 @@ inline tmp<T> tmp<T>::New(Args&&... args)
 {
     return tmp<T>(new T(std::forward<Args>(args)...));
 }
-
+ 
 
 template<class T>
 template<class U, class... Args>

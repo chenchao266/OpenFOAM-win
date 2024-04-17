@@ -113,7 +113,7 @@ public:
         //      array types is not disabled.
         template<class... Args>
         inline static tmp<T> New(Args&&... args);
-
+ 
         //- Construct tmp from derived type with forwarding arguments
         //  \param args list of arguments with which an instance of U
         //      will be constructed.

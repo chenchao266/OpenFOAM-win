@@ -95,7 +95,29 @@ public:
             }
         }
 
-
+        upwindCFCCellToFaceStencilObject
+        (
+            const fvMesh& mesh 
+        )
+            :
+            MeshObject
+            <
+            fvMesh,
+            Foam::TopologicalMeshObject,
+            upwindCFCCellToFaceStencilObject
+            >(mesh),
+            extendedUpwindCellToFaceStencil
+            (
+                CFCCellToFaceStencil(mesh) 
+            )
+        {//for makePureUpwindFitSurfaceInterpolationScheme
+            if (extendedCellToFaceStencil::debug)
+            {
+                Info << "Generated pureUpwind off-centred stencil " << type()
+                    << nl << endl;
+                writeStencilStats(Info, ownStencil(), ownMap());
+            }
+        }
     //- Destructor
     virtual ~upwindCFCCellToFaceStencilObject() = default;
 };

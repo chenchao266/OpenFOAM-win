@@ -334,7 +334,7 @@ tmp<scalarField> Function1Types::TableBase<Type>::x() const
 template<class Type>
 tmp<Field<Type>> Function1Types::TableBase<Type>::y() const
 {
-    auto tfld = tmp<Field<Type>>::New(table_.size(), Zero);
+    auto tfld = tmp<Field<Type>>::New(table_.size(), Zero );
     auto& fld = tfld.ref();
 
     forAll(table_, i)

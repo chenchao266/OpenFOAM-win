@@ -86,7 +86,7 @@ public:
 
 
     //- Null reference counter class
-    typedef refCount::zero refCount;
+    typedef refCount::zero_ refCount;
 
 
     // Factory Methods

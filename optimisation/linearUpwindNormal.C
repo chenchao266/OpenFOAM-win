@@ -59,7 +59,7 @@ Foam::linearUpwindNormal<Type>::correction
         )
     );
 
-    GeometricField<Type, fvsPatchField, surfaceMesh>  sfCorr = tsfCorr();
+    GeometricField<Type, fvsPatchField, surfaceMesh>& sfCorr = tsfCorr();
 
     const surfaceScalarField& faceFlux = this->faceFlux_;
 
@@ -84,7 +84,7 @@ Foam::linearUpwindNormal<Type>::correction
         typename outerProduct<vector, Type>::type,
         fvPatchField,
         volMesh
-    > gradVf = tgradVf();
+    >& gradVf = tgradVf();
     gradVf /= mag(gradVf) + 1.e-12;
 
     forAll(faceFlux, facei)
@@ -94,12 +94,12 @@ Foam::linearUpwindNormal<Type>::correction
     }
 
 
-    const typename GeometricField<Type, fvsPatchField, surfaceMesh>::
-        Boundary& bSfCorr = sfCorr.boundaryField();
+    typename GeometricField<Type, fvsPatchField, surfaceMesh>::
+        GeometricBoundaryField& bSfCorr = sfCorr.boundaryField();
 
     forAll(bSfCorr, patchi)
     {
-        const fvsPatchField<Type>& pSfCorr = bSfCorr[patchi];
+        fvsPatchField<Type>& pSfCorr = bSfCorr[patchi];
 
         if (pSfCorr.coupled())
         {

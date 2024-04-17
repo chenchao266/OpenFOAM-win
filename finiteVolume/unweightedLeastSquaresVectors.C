@@ -109,8 +109,8 @@ void Foam::leastSquaresVectors::calcLeastSquaresVectors()
     }
 
 
-    const surfaceVectorField::Boundary& blsP =
-        pVectors_.boundaryField();
+      surfaceVectorField::Boundary& blsP =
+        pVectors_.boundaryFieldRef();
 
     forAll(blsP, patchi)
     {
@@ -120,9 +120,9 @@ void Foam::leastSquaresVectors::calcLeastSquaresVectors()
         const labelUList& faceCells = p.patch().faceCells();
 
         // Build the d-vectors
-        const vectorField pdSqr(Foam::sqr(p.delta()));
+        const symmTensorField pdSqr(sqr(p.delta()));
 
-        forAll(pdSqr, patchFacei)
+        forAll(pdSqr, patchFacei)//
         {
             dd[faceCells[patchFacei]] += pdSqr[patchFacei];
         }
@@ -147,7 +147,7 @@ void Foam::leastSquaresVectors::calcLeastSquaresVectors()
 
     forAll(blsP, patchi)
     {
-        const fvsPatchVectorField& patchLsP = blsP[patchi];
+        fvsPatchVectorField& patchLsP = blsP[patchi];
 
         const fvPatch& p = patchLsP.patch();
         const labelUList& faceCells = p.faceCells();
@@ -158,7 +158,7 @@ void Foam::leastSquaresVectors::calcLeastSquaresVectors()
         forAll(pd, patchFacei)
         {
             patchLsP[patchFacei] =
-                (invDd[faceCells[patchFacei]] & pd[patchFacei]);
+                (invDd[faceCells[patchFacei]] & pd[patchFacei]);//??
         }
     }
 

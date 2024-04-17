@@ -57,7 +57,7 @@ class refCount
 public:
 
     //- A non-counting (dummy) refCount
-    struct zero {};
+    struct zero_ {};
 
 
     // Constructors

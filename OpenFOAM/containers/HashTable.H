@@ -92,7 +92,8 @@ SourceFiles
 #include <initializer_list>
 #include <iterator>
 #include <utility>
-
+#include <type_traits>
+#include <typeinfo>
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 namespace Foam
@@ -590,8 +591,8 @@ protected:
             using node_type = typename std::conditional
             <
                 Const,
-                const this_type::node_type,
-                this_type::node_type
+                typename  const this_type::node_type,
+                typename  this_type::node_type
             >::type;
 
             //- The key type
@@ -601,8 +602,8 @@ protected:
             using mapped_type = typename std::conditional
             <
                 Const,
-                const this_type::mapped_type,
-                this_type::mapped_type
+                typename const this_type::mapped_type,
+                typename this_type::mapped_type
             >::type;
 
 

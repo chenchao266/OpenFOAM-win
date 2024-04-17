@@ -110,7 +110,7 @@ public:
         inline Field(const label len, const Type& val);
 
         //- Construct given size and initial values of zero
-        inline Field(const label len, const zero);
+        inline Field(const label len, const ::Foam::zero);
 
         //- Construct with length=1, copying the value as the only content
         inline Field(const one, const Type& val);
@@ -119,7 +119,7 @@ public:
         inline Field(const one, Type&& val);
 
         //- Construct with length=1, initializing content to zero
-        inline Field(const one, const zero);
+        inline Field(const one, const ::Foam::zero);
 
         //- Copy construct
         inline Field(const Field<Type>& fld);
@@ -404,7 +404,7 @@ public:
 
         //- Value assignment
         inline void operator=(const Type& val);
-        inline void operator=(const zero);
+        inline void operator=(const ::Foam::zero);
 
         template<class Form, class Cmpt, direction nCmpt>
         void operator=(const VectorSpace<Form,Cmpt,nCmpt>&);

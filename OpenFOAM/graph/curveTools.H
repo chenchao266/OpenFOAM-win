@@ -16,6 +16,7 @@ namespace Foam
 #define curveGreat 1.0e8
 
 scalar distance(const vector&, const vector&);
+scalar distance(const vector&, const scalar );
 
 
 bool stepForwardsToNextPoint
@@ -49,6 +50,14 @@ bool interpolate
     scalar
 );
 
+bool interpolate
+(
+    const scalar,
+    const scalar,
+    const vector&,
+    vector&,
+    scalar
+);
 
 bool XstepForwardsToNextPoint
 (
@@ -70,7 +79,14 @@ bool Xinterpolate
     scalar
 );
 
-
+bool Xinterpolate
+(
+    const scalar,
+    const scalar,
+    const vector&,
+    vector&,
+    scalar
+);
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 } // End namespace Foam

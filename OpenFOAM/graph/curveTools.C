@@ -14,6 +14,10 @@ scalar distance(const vector& p1, const vector& p2)
     return ::Foam::mag(p2 - p1);
 }
 
+scalar distance(const vector& p1, const scalar p2)
+{
+    return 0;
+}
 
 bool stepForwardsToNextPoint
 (
@@ -70,7 +74,17 @@ bool stepBackwardsToNextPoint
     return eoc;
 }
 
-
+bool interpolate
+(
+    const scalar p1,
+    const scalar p2,
+    const vector& o,
+    vector& n,
+    scalar l
+)
+{
+    return false;
+}
 bool interpolate
 (
     const vector& p1,
@@ -126,7 +140,7 @@ bool XstepForwardsToNextPoint
 )
 {
     label ip1n = ip1-1;
-    while (++ip1n < Curve.size() && mag(o.x() - Curve[ip1n].x()) < l);
+    while (++ip1n < Curve.size() && mag(o.x() - Curve[ip1n]/*.x()*/) < l);
     label in = ip1n - 1;
 
     bool eoc = true;
@@ -142,7 +156,17 @@ bool XstepForwardsToNextPoint
     return eoc;
 }
 
-
+bool Xinterpolate
+(
+    const scalar p1,
+    const scalar p2,
+    const vector& o,
+    vector& n,
+    scalar l
+)
+{
+    return false;
+}
 
 bool Xinterpolate
 (
