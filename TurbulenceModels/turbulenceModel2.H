@@ -203,6 +203,7 @@ public:
 
         //- Return the turbulence kinetic energy dissipation rate
         virtual tmp<volScalarField> epsilon() const = 0;
+        virtual tmp<volScalarField> omega() const = 0;//for turbulenceFields
 
         //- Return the Reynolds stress tensor
         virtual tmp<volSymmTensorField> R() const = 0;
