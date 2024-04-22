@@ -1,6 +1,7 @@
 # OpenFOAM-win
--   OpenFOAM-v2112_220610 src  
--   vs 2022  
+OpenFOAM-v2112_220610 src  
+vs 2022  
+  
 
 -   atmosphericModels.vcxproj
 -   combustionModels.vcxproj
