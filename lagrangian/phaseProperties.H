@@ -170,6 +170,8 @@ public:
 
         friend Istream& operator>>(Istream&, phaseProperties&);
         friend Ostream& operator<<(Ostream&, const phaseProperties&);
+        bool operator==(const phaseProperties& pp) const;
+        bool operator!=(const phaseProperties& pp) const;
 };
 
 

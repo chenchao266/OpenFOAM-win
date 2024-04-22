@@ -159,6 +159,14 @@ class SingleKineticRateDevolatilisation
 
                 return os;
             }
+            bool operator==(const volatileData& vd) const
+            {
+                return name() == vd.name() && A1 == vd.A1() && E() == vd.E();
+            }
+            bool operator!=(const volatileData& vd) const
+            {
+                return !(name() == vd.name() && A1() == vd.A1() && E() == vd.E());
+            }
     };
 
 

@@ -218,7 +218,7 @@ void Foam::sampledSurfaces::performAction
 
 
 template<class GeoField>
-void Foam::sampledSurfaces::performAction
+void Foam::sampledSurfaces::performActionObj
 (
     const IOobjectList& objects,
     unsigned request

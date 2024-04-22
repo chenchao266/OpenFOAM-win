@@ -28,6 +28,8 @@ License
 
 #include "patchInteractionDataList.H"
 #include "emptyPolyPatch.H"
+#include "_Istream.H"
+#include "_Ostream.H"
 
 // * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * * //
 

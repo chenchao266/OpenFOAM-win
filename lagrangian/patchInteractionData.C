@@ -64,8 +64,25 @@ Foam::Istream& Foam::operator>>
     return is;
 }
 
-Foam::Ostream& Foam::operator<<(Ostream& os, patchInteractionData& pid)
+Foam::Ostream& Foam::operator<<(Ostream& os, const patchInteractionData& pid)
 {
     return os;
+}
+
+bool Foam::operator!=(const patchInteractionData& pidl, const patchInteractionData& pidr)
+{
+    return !(pidl.interactionTypeName() == pidr.interactionTypeName() &&
+        pidl.patchName() == pidr.patchName()&&
+        pidl.e() == pidr.e()&&
+        pidl.mu() == pidr.mu()
+        );
+}
+bool Foam::operator==(const patchInteractionData& pidl, const patchInteractionData& pidr)
+{
+    return (pidl.interactionTypeName() == pidr.interactionTypeName() &&
+        pidl.patchName() == pidr.patchName() &&
+        pidl.e() == pidr.e() &&
+        pidl.mu() == pidr.mu()
+        );
 }
 // ************************************************************************* //

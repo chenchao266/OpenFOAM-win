@@ -36,6 +36,7 @@ License
 #include "Time1.H"
 #include "UIndirectList.H"
 #include "addToRunTimeSelectionTable.H"
+#include "../meshes/dummyTransform.H"
 
 // * * * * * * * * * * * * * * Static Data Members * * * * * * * * * * * * * //
 
@@ -598,11 +599,11 @@ bool Foam::sampledSurfaces::performAction(unsigned request)
 
     const IOobjectList objects(obr_, obr_.time().timeName());
 
-    performAction<volScalarField>(objects, request);
-    performAction<volVectorField>(objects, request);
-    performAction<volSphericalTensorField>(objects, request);
-    performAction<volSymmTensorField>(objects, request);
-    performAction<volTensorField>(objects, request);
+    performActionObj<volScalarField>(objects, request);
+    performActionObj<volVectorField>(objects, request);
+    performActionObj<volSphericalTensorField>(objects, request);
+    performActionObj<volSymmTensorField>(objects, request);
+    performActionObj<volTensorField>(objects, request);
 
     // Only bother with surface fields if a sampler supports them
     if
@@ -614,11 +615,11 @@ bool Foam::sampledSurfaces::performAction(unsigned request)
         )
     )
     {
-        performAction<surfaceScalarField>(objects, request);
-        performAction<surfaceVectorField>(objects, request);
-        performAction<surfaceSphericalTensorField>(objects, request);
-        performAction<surfaceSymmTensorField>(objects, request);
-        performAction<surfaceTensorField>(objects, request);
+        performActionObj<surfaceScalarField>(objects, request);
+        performActionObj<surfaceVectorField>(objects, request);
+        performActionObj<surfaceSphericalTensorField>(objects, request);
+        performActionObj<surfaceSymmTensorField>(objects, request);
+        performActionObj<surfaceTensorField>(objects, request);
     }
 
 

@@ -47,7 +47,9 @@ namespace Foam
 // Forward Declaration
 class patchInteractionData;
 Istream& operator>>(Istream& is, patchInteractionData& pid);
-Ostream& operator<<(Ostream& os, patchInteractionData& pid);
+Ostream& operator<<(Ostream& os, const patchInteractionData& pid);
+bool operator!=(const patchInteractionData& pidl, const patchInteractionData& pidr);
+bool operator==(const patchInteractionData& pidl, const patchInteractionData& pidr);
 
 /*---------------------------------------------------------------------------*\
                     Class patchInteractionData Declaration
@@ -110,6 +112,8 @@ public:
         //- Istream operator
         friend Istream& operator>>(Istream& is, patchInteractionData& pid);
         friend Ostream& operator<<(Ostream& os, patchInteractionData& pid);
+        friend bool operator!=(const patchInteractionData& pidl, const patchInteractionData& pidr);;
+        friend bool operator==(const patchInteractionData& pidl, const patchInteractionData& pidr);;
 };
 
 

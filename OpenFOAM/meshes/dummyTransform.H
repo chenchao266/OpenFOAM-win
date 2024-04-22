@@ -121,7 +121,16 @@ public:
         face(is)
     {}
 };
+/* template<class Type, template<class> class PatchField, class GeoMesh>
+class pTraits<GeometricField<Type, PatchField, GeoMesh> >
+    :
+    public GeometricField<Type, PatchField, GeoMesh>
+{
+public:
+    typedef label cmptType;
+    static constexpr direction rank = pTraits<Type>::rank;
 
+}; */
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 } // End namespace Foam

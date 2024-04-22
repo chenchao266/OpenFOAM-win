@@ -308,5 +308,17 @@ Foam::label Foam::phaseProperties::id(const word& specieName) const
     return names_.find(specieName);
 }
 
+bool Foam::phaseProperties::operator==(const phaseProperties& pp) const
+{
+    return phase() == pp.phase() && stateLabel() == pp.stateLabel() && 
+        phaseTypeName() == pp.phaseTypeName() && names() == pp.names() &&
+        Y() == pp.Y() && carrierIds() == pp.carrierIds();
+}
 
+bool Foam::phaseProperties::operator!=(const phaseProperties& pp) const
+{
+    return !(phase() == pp.phase() && stateLabel() == pp.stateLabel() &&
+        phaseTypeName() == pp.phaseTypeName() && names() == pp.names() &&
+        Y() == pp.Y() && carrierIds() == pp.carrierIds());
+}
 // ************************************************************************* //

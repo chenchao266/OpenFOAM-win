@@ -71,10 +71,17 @@ public:
             const dictionary& dict
         )
         :
-            IATEsource(iate)
+            IATEsource(iate, dict)
         {}
 
-
+        dummy
+        ( 
+            const IATE& iate,
+            const dictionary& dict
+        )
+            :
+            IATEsource(iate, dict)
+        {}
     //- Destructor
     virtual ~dummy() = default;
 

@@ -262,7 +262,7 @@ class sampledSurfaces
 
         //- Sample and write all applicable sampled fields
         template<class GeoField>
-        void performAction
+        void performActionObj
         (
             const IOobjectList& objects,
             unsigned request
