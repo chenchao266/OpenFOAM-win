@@ -1,8 +1,57 @@
 # OpenFOAM-win
-OpenFOAM-v2112_220610 src 
-vs 2022
+-   OpenFOAM-v2112_220610 src  
+-   vs 2022  
 
-
+-   atmosphericModels.vcxproj
+-   combustionModels.vcxproj
+-   conversion.vcxproj
+-   dummyThirdParty.vcxproj
+-   dynamicFaMesh.vcxproj
+-   dynamicFvMesh.vcxproj
+-   dynamicMesh.vcxproj
+-   engine.vcxproj
+-   faOptions.vcxproj
+-   fileFormats.vcxproj
+-   finiteArea.vcxproj
+-   finiteVolume.vcxproj
+-   functionObjects.vcxproj
+-   fvAgglomerationMethods.vcxproj
+-   fvMotionSolver.vcxproj
+-   fvOptions.vcxproj
+-   genericPatchFields.vcxproj
+-   lagrangian.vcxproj
+-   lumpedPointMotion.vcxproj
+-   mesh.vcxproj
+-   meshTools.vcxproj
+-   multiphaseEuler.vcxproj
+-   multiphaseInter.vcxproj
+-   ODE.vcxproj
+-   OpenFOAM.vcxproj
+-   optimisation.vcxproj
+-   OSspecific.vcxproj
+-   overset.vcxproj
+-   parallel.vcxproj
+-   Pstream.vcxproj
+-   randomProcesses.vcxproj
+-   reactingEuler.vcxproj
+-   regionFaModels.vcxproj
+-   regionModels.vcxproj
+-   renumber.vcxproj
+-   rigidBodyDynamics.vcxproj
+-   rigidBodyMeshMotion.vcxproj
+-   sampling.vcxproj
+-   semiPermeableBaffle.vcxproj
+-   sixDoFRigidBodyMotion.vcxproj
+-   sixDoFRigidBodyState.vcxproj
+-   surfMesh.vcxproj
+-   thermophysicalModels.vcxproj
+-   topoChangerFvMesh.vcxproj
+-   transportModels.vcxproj
+-   TurbulenceModels.vcxproj
+-   twoPhaseEuler.vcxproj
+-   twoPhaseInter.vcxproj
+-   waveModels.vcxproj
+  
 
 GNU GENERAL PUBLIC LICENSE
 
