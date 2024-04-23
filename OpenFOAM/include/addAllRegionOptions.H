@@ -20,7 +20,7 @@ See Also
 
 {
 
- namespace Foam{
+
     argList::addBoolOption
     (
         "allRegions",
@@ -46,4 +46,4 @@ See Also
 
 // ************************************************************************* //
 
- } // End namespace Foam
+

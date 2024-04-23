@@ -26,7 +26,7 @@ Provided Variables
 \*---------------------------------------------------------------------------*/
 
 
- namespace Foam{
+
 autoPtr<fvMesh> meshPtr(nullptr);
 word regionName(polyMesh::defaultRegion);
 
@@ -103,4 +103,4 @@ fvMesh& mesh = meshPtr();
 
 // ************************************************************************* //
 
- } // End namespace Foam
+

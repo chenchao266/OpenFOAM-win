@@ -8,9 +8,9 @@
 #ifdef FOAM_DLOPEN_LIBS
 
 
- namespace Foam{
+
 dlOpen({ FOAM_DLOPEN_LIBS }, false);  // Silent on errors
 
 #endif
 
- } // End namespace Foam
+

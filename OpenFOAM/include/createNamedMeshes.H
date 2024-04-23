@@ -27,7 +27,7 @@ See Also
 \*---------------------------------------------------------------------------*/
 
 
- namespace Foam{
+ 
 PtrList<fvMesh> meshes(regionNames.size());
 
 {
@@ -74,4 +74,4 @@ PtrList<fvMesh> meshes(regionNames.size());
 
 // ************************************************************************* //
 
- } // End namespace Foam
+ 

@@ -24,7 +24,6 @@
     {
         Info<< "scalarBCs"
 
- namespace Foam{
             << fvPatchField<scalar>::
                dictionaryConstructorTablePtr_->sortedToc()
             << endl;
@@ -114,4 +113,4 @@
 
 // ************************************************************************* //
 
- } // End namespace Foam
+

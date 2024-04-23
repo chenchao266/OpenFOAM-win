@@ -65,7 +65,7 @@ Description
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 
- namespace Foam{
+
 argList::addBoolOption
 (
     argList::postProcessOptionName,
@@ -192,4 +192,4 @@ if (argList::postProcess(argc, argv))
 
 // ************************************************************************* //
 
- } // End namespace Foam
+

@@ -25,8 +25,7 @@ Notes
 
 \*---------------------------------------------------------------------------*/
 
-
- namespace Foam{
+ 
 Info
     << "Create mesh, no clear-out for time = "
     << runTime.timeName() << nl << endl;
@@ -45,4 +44,4 @@ fvMesh mesh
 
 // ************************************************************************* //
 
- } // End namespace Foam
+ 

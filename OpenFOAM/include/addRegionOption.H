@@ -1,5 +1,5 @@
 ﻿
- namespace Foam{
+
 argList::addOption
 (
     "region",
@@ -7,4 +7,4 @@ argList::addOption
     "Specify alternative mesh region"
 );
 
- } // End namespace Foam
+

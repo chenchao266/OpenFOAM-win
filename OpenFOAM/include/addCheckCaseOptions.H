@@ -19,7 +19,7 @@ Required Classes
 \*---------------------------------------------------------------------------*/
 
 
- namespace Foam{
+
 argList::addDryRunOption
 (
     "Check case set-up only using a single time step"
@@ -32,4 +32,4 @@ argList::addBoolOption
 
 // ************************************************************************* //
 
- } // End namespace Foam
+

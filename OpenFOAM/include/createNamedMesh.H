@@ -25,7 +25,7 @@ Provided Variables
 \*---------------------------------------------------------------------------*/
 
 
- namespace Foam{
+ 
 word regionName(polyMesh::defaultRegion);
 
 {
@@ -60,4 +60,4 @@ Info << endl;
 
 // ************************************************************************* //
 
- } // End namespace Foam
+ 

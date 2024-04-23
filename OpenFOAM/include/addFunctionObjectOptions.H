@@ -1,6 +1,6 @@
 ﻿#include "addDictOption.H"
 
- namespace Foam{
+
 argList::addOption
 (
     "field",
@@ -31,4 +31,4 @@ argList::addBoolOption
     "List the available configured functionObjects"
 );
 
- } // End namespace Foam
+

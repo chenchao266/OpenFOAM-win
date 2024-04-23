@@ -1,5 +1,5 @@
 ﻿
- namespace Foam{
+
 argList::addBoolOption
 (
     "constant",
@@ -25,4 +25,4 @@ argList::addOption
     "specify a single time value to select"
 );
 
- } // End namespace Foam
+

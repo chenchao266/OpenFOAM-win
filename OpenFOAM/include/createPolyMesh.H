@@ -23,7 +23,7 @@ Provided Variables
 \*---------------------------------------------------------------------------*/
 
 
- namespace Foam{
+ 
 Info
     << "Create polyMesh for time = "
     << runTime.timeName() << nl;
@@ -43,4 +43,4 @@ Info << endl;
 
 // ************************************************************************* //
 
- } // End namespace Foam
+ 

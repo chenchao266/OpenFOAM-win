@@ -3,7 +3,7 @@
 // - check validity of the options
 
 
- namespace Foam{
+ 
 argList args(argc, argv);
 if (!args.checkRootCase())
 {
@@ -21,4 +21,4 @@ if (!args.checkRootCase())
 // Force dlOpen of FOAM_DLOPEN_LIBS (principally for Windows applications)
 #include "foamDlOpenLibs.H"
 
- } // End namespace Foam
+ 
