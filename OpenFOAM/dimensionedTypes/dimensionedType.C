@@ -625,8 +625,7 @@ void dimensioned<Type>::operator+=
     dimensions_ += dt.dimensions_;
     value_ += dt.value_;
 }
-
-
+ 
 template<class Type>
 void dimensioned<Type>::operator-=
 (
@@ -655,6 +654,24 @@ void dimensioned<Type>::operator/=
 )
 {
     value_ /= s;
+}
+
+template<class Type>
+bool dimensioned<Type>::operator==
+(
+    const dimensioned<Type>& dt
+    ) const
+{
+    return name_ == dt.name_ && dimensions_ == dt.dimensions_ && value_ == dt.value_;
+}
+
+template<class Type>
+bool dimensioned<Type>::operator!=
+(
+    const dimensioned<Type>& dt
+    ) const
+{
+    return !(name_ == dt.name_ && dimensions_ == dt.dimensions_ && value_ == dt.value_);
 }
 
 

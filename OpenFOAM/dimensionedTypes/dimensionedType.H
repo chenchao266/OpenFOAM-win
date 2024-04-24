@@ -357,7 +357,8 @@ public:
         void operator*=(const scalar s);
         void operator/=(const scalar s);
 
-
+        bool operator==(const dimensioned<Type>&) const;
+        bool operator!=(const dimensioned<Type>&) const;
     // IOstream Operators
 
         //- Read from stream. The name and dimensions are optional.
