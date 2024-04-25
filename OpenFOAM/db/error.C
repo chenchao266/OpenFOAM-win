@@ -97,6 +97,16 @@ bool error::warnAboutAge(const char* what, const int version)
 }
 
 
+void error::safePrintStack(std::ostream& os)
+{
+    //??
+}
+
+void error::printStack(Ostream& os)
+{
+    //??
+}
+
 bool error::useAbort()
 {
     // FOAM_ABORT env set and contains bool-type value
