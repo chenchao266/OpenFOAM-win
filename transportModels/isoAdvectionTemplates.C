@@ -63,7 +63,7 @@ Type Foam::isoAdvection::faceValue
         const polyPatch& pp = pbm[patchi];
         if (isA<emptyPolyPatch>(pp) || pp.empty())
         {
-            return pTraits<Type>::zero;
+            return pTraits<Type>::zero_;
         }
 
         const label patchFacei = pp.whichFace(facei);
