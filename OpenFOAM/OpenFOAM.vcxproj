@@ -19,6 +19,7 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="containers\SLListBase.C" />
     <ClCompile Include="db\base64Layer.C" />
     <ClCompile Include="db\baseIOdictionary.C" />
     <ClCompile Include="db\calcEntry.C" />
@@ -40,6 +41,7 @@
     <ClCompile Include="db\entryIO.C" />
     <ClCompile Include="db\error.C" />
     <ClCompile Include="db\evalEntry.C" />
+    <ClCompile Include="db\fstreamPointers.C" />
     <ClCompile Include="db\functionEntry.C" />
     <ClCompile Include="db\functionObject.C" />
     <ClCompile Include="db\functionObjectList.C" />
@@ -88,6 +90,7 @@
     <ClCompile Include="db\readHexLabel.C" />
     <ClCompile Include="db\regionFunctionObject.C" />
     <ClCompile Include="db\regIOobject.C" />
+    <ClCompile Include="db\regIOobjectMetaData.C" />
     <ClCompile Include="db\regIOobjectRead.C" />
     <ClCompile Include="db\regIOobjectWrite.C" />
     <ClCompile Include="db\removeEntry.C" />
@@ -118,6 +121,27 @@
     <ClCompile Include="dimensionSet\dimensionSet.C" />
     <ClCompile Include="dimensionSet\dimensionSetIO.C" />
     <ClCompile Include="dimensionSet\dimensionSets.C" />
+    <ClCompile Include="fields\calculatedPointPatchFields.C" />
+    <ClCompile Include="fields\codedFixedValuePointPatchFields.C" />
+    <ClCompile Include="fields\coupledPointPatchFields.C" />
+    <ClCompile Include="fields\cyclicSlipPointPatchFields.C" />
+    <ClCompile Include="fields\emptyPointPatchFields.C" />
+    <ClCompile Include="fields\fixedNormalSlipPointPatchFields.C" />
+    <ClCompile Include="fields\fixedValuePointPatchFields.C" />
+    <ClCompile Include="fields\nonuniformTransformCyclicPointPatchFields.C" />
+    <ClCompile Include="fields\orientedType.C" />
+    <ClCompile Include="fields\pointFields.C" />
+    <ClCompile Include="fields\pointPatchFields.C" />
+    <ClCompile Include="fields\processorCyclicPointPatchFields.C" />
+    <ClCompile Include="fields\processorPointPatchFields.C" />
+    <ClCompile Include="fields\slipPointPatchFields.C" />
+    <ClCompile Include="fields\symmetryPlanePointPatchFields.C" />
+    <ClCompile Include="fields\symmetryPointPatchFields.C" />
+    <ClCompile Include="fields\timeVaryingUniformFixedValuePointPatchFields.C" />
+    <ClCompile Include="fields\uniformDimensionedFields.C" />
+    <ClCompile Include="fields\valuePointPatchFields.C" />
+    <ClCompile Include="fields\wedgePointPatchFields.C" />
+    <ClCompile Include="fields\zeroGradientPointPatchFields.C" />
     <ClCompile Include="global\argList.C" />
     <ClCompile Include="global\argListHelp.C" />
     <ClCompile Include="global\atomicConstants.C" />

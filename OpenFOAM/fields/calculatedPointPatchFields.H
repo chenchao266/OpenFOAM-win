@@ -28,7 +28,8 @@ License
 #ifndef calculatedPointPatchFields_H
 #define calculatedPointPatchFields_H
 
-#include "calculatedPointPatchField.H"
+#include "pointPatchField.H"
+//#include "calculatedPointPatchField.H"
 #include "fieldTypes.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //

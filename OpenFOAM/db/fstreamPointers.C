@@ -65,206 +65,206 @@ namespace Foam
             rm(targetName);
         }
     }
-}
 
 
-// * * * * * * * * * * * * * Static Member Functions * * * * * * * * * * * * //
 
-bool ifstreamPointer::supports_gz()
-{
-    #ifdef HAVE_LIBZ
-    return true;
-    #else
-    return false;
-    #endif
-}
+    // * * * * * * * * * * * * * Static Member Functions * * * * * * * * * * * * //
 
-
-bool ofstreamPointer::supports_gz()
-{
-    #ifdef HAVE_LIBZ
-    return true;
-    #else
-    return false;
-    #endif
-}
-
-
-// * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
-
-ifstreamPointer::ifstreamPointer
-(
-    const fileName& pathname
-)
-:
-    ptr_(nullptr)
-{
-    const std::ios_base::openmode mode
-    (
-        std::ios_base::in | std::ios_base::binary
-    );
-
-    ptr_.reset(new std::ifstream(pathname, mode));
-
-    if (!ptr_->good())
+    bool ifstreamPointer::supports_gz()
     {
-        // Try compressed version instead
+#ifdef HAVE_LIBZ
+        return true;
+#else
+        return false;
+#endif
+    }
+
+
+    bool ofstreamPointer::supports_gz()
+    {
+#ifdef HAVE_LIBZ
+        return true;
+#else
+        return false;
+#endif
+    }
+
+
+    // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
+
+    ifstreamPointer::ifstreamPointer
+    (
+        const fileName& pathname
+    )
+        :
+        ptr_(nullptr)
+    {
+        const std::ios_base::openmode mode
+        (
+            std::ios_base::in | std::ios_base::binary
+        );
+
+        ptr_.reset(new std::ifstream(pathname, mode));
+
+        if (!ptr_->good())
+        {
+            // Try compressed version instead
+
+            const fileName pathname_gz(pathname + ".gz");
+
+            if (isFile(pathname_gz, false))
+            {
+#ifdef HAVE_LIBZ
+
+                ptr_.reset(new igzstream(pathname_gz, mode));
+
+#else /* HAVE_LIBZ */
+
+                FatalError
+                    << "No read support for gz compressed files (libz)"
+                    << " : could use 'gunzip' from the command-line" << nl
+                    << "file: " << pathname_gz << endl
+                    << exit(FatalError);
+
+#endif /* HAVE_LIBZ */
+            }
+        }
+    }
+
+
+    ofstreamPointer::ofstreamPointer(std::nullptr_t)
+        :
+        ptr_(new ocountstream)
+    {}
+
+
+    ofstreamPointer::ofstreamPointer
+    (
+        const fileName& pathname,
+        IOstreamOption::compressionType comp,
+        const bool append
+    )
+        :
+        ptr_(nullptr)
+    {
+        std::ios_base::openmode mode
+        (
+            std::ios_base::out | std::ios_base::binary
+        );
+
+        if (append)
+        {
+            mode |= std::ios_base::app;
+        }
 
         const fileName pathname_gz(pathname + ".gz");
 
-        if (isFile(pathname_gz, false))
+        if (IOstreamOption::COMPRESSED == comp)
         {
-            #ifdef HAVE_LIBZ
+            // Output compression requested
 
-            ptr_.reset(new igzstream(pathname_gz, mode));
+#ifdef HAVE_LIBZ
 
-            #else /* HAVE_LIBZ */
+            removeConflictingFiles(pathname, append, pathname_gz);
+            ptr_.reset(new ogzstream(pathname_gz, mode));
 
-            FatalError
-                << "No read support for gz compressed files (libz)"
-                << " : could use 'gunzip' from the command-line" << nl
-                << "file: " << pathname_gz << endl
-                << exit(FatalError);
+#else /* HAVE_LIBZ */
 
-            #endif /* HAVE_LIBZ */
+            comp = IOstreamOption::UNCOMPRESSED;
+
+            Warning
+                << nl
+                << "No write support for gz compressed files (libz)"
+                << " : downgraded to UNCOMPRESSED" << nl
+                << "file: " << pathname_gz << endl;
+
+#endif /* HAVE_LIBZ */
+        }
+
+        if (IOstreamOption::UNCOMPRESSED == comp)
+        {
+            removeConflictingFiles(pathname_gz, append, pathname);
+            ptr_.reset(new std::ofstream(pathname, mode));
         }
     }
-}
 
 
-ofstreamPointer::ofstreamPointer(std::nullptr_t)
-:
-    ptr_(new ocountstream)
-{}
+    // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
 
-
-ofstreamPointer::ofstreamPointer
-(
-    const fileName& pathname,
-    IOstreamOption::compressionType comp,
-    const bool append
-)
-:
-    ptr_(nullptr)
-{
-    std::ios_base::openmode mode
-    (
-        std::ios_base::out | std::ios_base::binary
-    );
-
-    if (append)
+    void ifstreamPointer::reopen_gz(const std::string& pathname_gz)
     {
-        mode |= std::ios_base::app;
-    }
+#ifdef HAVE_LIBZ
+        igzstream* gz = dynamic_cast<igzstream*>(ptr_.get());
 
-    const fileName pathname_gz(pathname + ".gz");
-
-    if (IOstreamOption::COMPRESSED == comp)
-    {
-        // Output compression requested
-
-        #ifdef HAVE_LIBZ
-
-        removeConflictingFiles(pathname, append, pathname_gz);
-        ptr_.reset(new ogzstream(pathname_gz, mode));
-
-        #else /* HAVE_LIBZ */
-
-        comp = IOstreamOption::UNCOMPRESSED;
-
-        Warning
-            << nl
-            << "No write support for gz compressed files (libz)"
-            << " : downgraded to UNCOMPRESSED" << nl
-            << "file: " << pathname_gz << endl;
-
-        #endif /* HAVE_LIBZ */
-    }
-
-    if (IOstreamOption::UNCOMPRESSED == comp)
-    {
-        removeConflictingFiles(pathname_gz, append, pathname);
-        ptr_.reset(new std::ofstream(pathname, mode));
-    }
-}
-
-
-// * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
-
-void ifstreamPointer::reopen_gz(const std::string& pathname_gz)
-{
-    #ifdef HAVE_LIBZ
-    igzstream* gz = dynamic_cast<igzstream*>(ptr_.get());
-
-    if (gz)
-    {
-        // Special treatment for gzstream
-        gz->close();
-        gz->clear();
-        gz->open(pathname_gz);
-    }
-    #endif /* HAVE_LIBZ */
-}
-
-
-void ofstreamPointer::reopen_gz(const std::string& pathname_gz)
-{
-    #ifdef HAVE_LIBZ
-    ogzstream* gz = dynamic_cast<ogzstream*>(ptr_.get());
-
-    if (gz)
-    {
-        // Special treatment for gzstream
-        gz->close();
-        gz->clear();
-        gz->open(pathname_gz);
-    }
-    #endif /* HAVE_LIBZ */
-}
-
-
-void ofstreamPointer::reopen(const std::string& pathname)
-{
-    std::ofstream* file = dynamic_cast<std::ofstream*>(ptr_.get());
-
-    if (file)
-    {
-        if (file->is_open())
+        if (gz)
         {
-            file->close();
+            // Special treatment for gzstream
+            gz->close();
+            gz->clear();
+            gz->open(pathname_gz);
         }
-        file->clear();
-        file->open(pathname);
+#endif /* HAVE_LIBZ */
     }
-}
 
 
-IOstreamOption::compressionType
-ifstreamPointer::whichCompression() const
-{
-    #ifdef HAVE_LIBZ
-    if (dynamic_cast<const igzstream*>(ptr_.get()))
+    void ofstreamPointer::reopen_gz(const std::string& pathname_gz)
     {
-        return IOstreamOption::compressionType::COMPRESSED;
+#ifdef HAVE_LIBZ
+        ogzstream* gz = dynamic_cast<ogzstream*>(ptr_.get());
+
+        if (gz)
+        {
+            // Special treatment for gzstream
+            gz->close();
+            gz->clear();
+            gz->open(pathname_gz);
+        }
+#endif /* HAVE_LIBZ */
     }
-    #endif /* HAVE_LIBZ */
-
-    return IOstreamOption::compressionType::UNCOMPRESSED;
-}
 
 
-IOstreamOption::compressionType
-ofstreamPointer::whichCompression() const
-{
-    #ifdef HAVE_LIBZ
-    if (dynamic_cast<const ogzstream*>(ptr_.get()))
+    void ofstreamPointer::reopen(const std::string& pathname)
     {
-        return IOstreamOption::compressionType::COMPRESSED;
+        std::ofstream* file = dynamic_cast<std::ofstream*>(ptr_.get());
+
+        if (file)
+        {
+            if (file->is_open())
+            {
+                file->close();
+            }
+            file->clear();
+            file->open(pathname);
+        }
     }
-    #endif /* HAVE_LIBZ */
-
-    return IOstreamOption::compressionType::UNCOMPRESSED;
-}
 
 
+    IOstreamOption::compressionType
+        ifstreamPointer::whichCompression() const
+    {
+#ifdef HAVE_LIBZ
+        if (dynamic_cast<const igzstream*>(ptr_.get()))
+        {
+            return IOstreamOption::compressionType::COMPRESSED;
+        }
+#endif /* HAVE_LIBZ */
+
+        return IOstreamOption::compressionType::UNCOMPRESSED;
+    }
+
+
+    IOstreamOption::compressionType
+        ofstreamPointer::whichCompression() const
+    {
+#ifdef HAVE_LIBZ
+        if (dynamic_cast<const ogzstream*>(ptr_.get()))
+        {
+            return IOstreamOption::compressionType::COMPRESSED;
+        }
+#endif /* HAVE_LIBZ */
+
+        return IOstreamOption::compressionType::UNCOMPRESSED;
+    }
+
+} // End namespace Foam
 // ************************************************************************* //

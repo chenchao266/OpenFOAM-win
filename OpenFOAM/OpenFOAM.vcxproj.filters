@@ -1404,6 +1404,78 @@
     <ClCompile Include="db\dictionary2.C">
       <Filter>db</Filter>
     </ClCompile>
+    <ClCompile Include="containers\SLListBase.C">
+      <Filter>containers</Filter>
+    </ClCompile>
+    <ClCompile Include="db\regIOobjectMetaData.C">
+      <Filter>db</Filter>
+    </ClCompile>
+    <ClCompile Include="db\fstreamPointers.C">
+      <Filter>db</Filter>
+    </ClCompile>
+    <ClCompile Include="fields\orientedType.C">
+      <Filter>fields</Filter>
+    </ClCompile>
+    <ClCompile Include="fields\pointFields.C">
+      <Filter>fields</Filter>
+    </ClCompile>
+    <ClCompile Include="fields\calculatedPointPatchFields.C">
+      <Filter>fields</Filter>
+    </ClCompile>
+    <ClCompile Include="fields\nonuniformTransformCyclicPointPatchFields.C">
+      <Filter>fields</Filter>
+    </ClCompile>
+    <ClCompile Include="fields\pointPatchFields.C">
+      <Filter>fields</Filter>
+    </ClCompile>
+    <ClCompile Include="fields\processorCyclicPointPatchFields.C">
+      <Filter>fields</Filter>
+    </ClCompile>
+    <ClCompile Include="fields\processorPointPatchFields.C">
+      <Filter>fields</Filter>
+    </ClCompile>
+    <ClCompile Include="fields\symmetryPlanePointPatchFields.C">
+      <Filter>fields</Filter>
+    </ClCompile>
+    <ClCompile Include="fields\symmetryPointPatchFields.C">
+      <Filter>fields</Filter>
+    </ClCompile>
+    <ClCompile Include="fields\timeVaryingUniformFixedValuePointPatchFields.C">
+      <Filter>fields</Filter>
+    </ClCompile>
+    <ClCompile Include="fields\uniformDimensionedFields.C">
+      <Filter>fields</Filter>
+    </ClCompile>
+    <ClCompile Include="fields\wedgePointPatchFields.C">
+      <Filter>fields</Filter>
+    </ClCompile>
+    <ClCompile Include="fields\zeroGradientPointPatchFields.C">
+      <Filter>fields</Filter>
+    </ClCompile>
+    <ClCompile Include="fields\codedFixedValuePointPatchFields.C">
+      <Filter>fields</Filter>
+    </ClCompile>
+    <ClCompile Include="fields\coupledPointPatchFields.C">
+      <Filter>fields</Filter>
+    </ClCompile>
+    <ClCompile Include="fields\cyclicSlipPointPatchFields.C">
+      <Filter>fields</Filter>
+    </ClCompile>
+    <ClCompile Include="fields\emptyPointPatchFields.C">
+      <Filter>fields</Filter>
+    </ClCompile>
+    <ClCompile Include="fields\fixedNormalSlipPointPatchFields.C">
+      <Filter>fields</Filter>
+    </ClCompile>
+    <ClCompile Include="fields\fixedValuePointPatchFields.C">
+      <Filter>fields</Filter>
+    </ClCompile>
+    <ClCompile Include="fields\slipPointPatchFields.C">
+      <Filter>fields</Filter>
+    </ClCompile>
+    <ClCompile Include="fields\valuePointPatchFields.C">
+      <Filter>fields</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
   </ItemGroup>

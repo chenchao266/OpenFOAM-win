@@ -39,7 +39,7 @@ fixedNormalSlipPointPatchField<Type>::fixedNormalSlipPointPatchField
 )
 :
     slipPointPatchField<Type>(p, iF),
-    n_(vector::max)
+    n_(vector::max_)
 {}
 
 
