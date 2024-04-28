@@ -76,11 +76,9 @@ addNamedToRunTimeSelectionTable
 
 
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
-
+namespace Foam {
 #undef defineExpressionEntryType
 #define defineExpressionEntryType(Type)                                       \
-
- namespace Foam{
     string exprTools::Type##Entry::evaluate(const entry& e)       \
     {                                                                         \
         return toExprStr<Type>(e.stream());                                   \

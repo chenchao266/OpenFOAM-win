@@ -241,7 +241,7 @@ public:
         //- Default construct or with seed value. Uses default [0,1] interval
         explicit uniformGeneratorOp(const label seed = Random::defaultSeed)
         :
-            uniformGeneratorOp(seed, pTraits<T>::zero, pTraits<T>::one)
+            uniformGeneratorOp(seed, pTraits<T>::zero_, pTraits<T>::one_)
         {}
 
         //- Construct with specified interval, using default seed

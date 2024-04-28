@@ -87,11 +87,10 @@ addNamedToRunTimeSelectionTable
 
 
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
-
+namespace Foam
+{
 #undef defineExpressionEntryType
 #define defineExpressionEntryType(DimType)                                    \
-
- namespace Foam{
     string exprTools::DimType##Entry::evaluate(const entry& e)    \
     {                                                                         \
         DimType dt(dynamicCast<const primitiveEntry>(e));                     \

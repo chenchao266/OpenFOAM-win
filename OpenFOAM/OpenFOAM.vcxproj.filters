@@ -49,6 +49,9 @@
       <UniqueIdentifier>{4FC737F1-C7A5-4376-A066-2A32D752A2FF}</UniqueIdentifier>
       <Extensions>cpp;c;cc;cxx;def;odl;idl;hpj;bat;asm;asmx</Extensions>
     </Filter>
+    <Filter Include="expressions">
+      <UniqueIdentifier>{43c5e311-bd2c-48ba-8cf9-7d7086dac785}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ClCompile Include="db\tokenIO.C">
@@ -1499,6 +1502,126 @@
     </ClCompile>
     <ClCompile Include="containers\PackedListCore.C">
       <Filter>containers</Filter>
+    </ClCompile>
+    <ClCompile Include="algorithms\dynamicIndexedOctreeName.C">
+      <Filter>algorithms</Filter>
+    </ClCompile>
+    <ClCompile Include="algorithms\dynamicTreeDataPoint.C">
+      <Filter>algorithms</Filter>
+    </ClCompile>
+    <ClCompile Include="algorithms\treeDataCell.C">
+      <Filter>algorithms</Filter>
+    </ClCompile>
+    <ClCompile Include="containers\ParSortableListName.C">
+      <Filter>containers</Filter>
+    </ClCompile>
+    <ClCompile Include="expressions\exprDriver.C">
+      <Filter>expressions</Filter>
+    </ClCompile>
+    <ClCompile Include="expressions\exprDriverFields.C">
+      <Filter>expressions</Filter>
+    </ClCompile>
+    <ClCompile Include="expressions\exprDriverFunctions.C">
+      <Filter>expressions</Filter>
+    </ClCompile>
+    <ClCompile Include="expressions\exprDriverIO.C">
+      <Filter>expressions</Filter>
+    </ClCompile>
+    <ClCompile Include="expressions\expressionEntry.C">
+      <Filter>expressions</Filter>
+    </ClCompile>
+    <ClCompile Include="expressions\expressionEntryBool.C">
+      <Filter>expressions</Filter>
+    </ClCompile>
+    <ClCompile Include="expressions\expressionEntryDimensioned.C">
+      <Filter>expressions</Filter>
+    </ClCompile>
+    <ClCompile Include="expressions\expressionEntryStrings.C">
+      <Filter>expressions</Filter>
+    </ClCompile>
+    <ClCompile Include="expressions\expressionEntryVectors.C">
+      <Filter>expressions</Filter>
+    </ClCompile>
+    <ClCompile Include="expressions\exprResult.C">
+      <Filter>expressions</Filter>
+    </ClCompile>
+    <ClCompile Include="expressions\exprResultDelayed.C">
+      <Filter>expressions</Filter>
+    </ClCompile>
+    <ClCompile Include="expressions\exprResultGlobals.C">
+      <Filter>expressions</Filter>
+    </ClCompile>
+    <ClCompile Include="expressions\exprResultStack.C">
+      <Filter>expressions</Filter>
+    </ClCompile>
+    <ClCompile Include="expressions\exprResultStored.C">
+      <Filter>expressions</Filter>
+    </ClCompile>
+    <ClCompile Include="expressions\exprResultStoredStack.C">
+      <Filter>expressions</Filter>
+    </ClCompile>
+    <ClCompile Include="expressions\exprScanToken.C">
+      <Filter>expressions</Filter>
+    </ClCompile>
+    <ClCompile Include="expressions\exprString.C">
+      <Filter>expressions</Filter>
+    </ClCompile>
+    <ClCompile Include="expressions\exprTools.C">
+      <Filter>expressions</Filter>
+    </ClCompile>
+    <ClCompile Include="expressions\exprTraits.C">
+      <Filter>expressions</Filter>
+    </ClCompile>
+    <ClCompile Include="expressions\fieldExpr.C">
+      <Filter>expressions</Filter>
+    </ClCompile>
+    <ClCompile Include="expressions\fieldExprDriver.C">
+      <Filter>expressions</Filter>
+    </ClCompile>
+    <ClCompile Include="expressions\fieldExprDriverFields.C">
+      <Filter>expressions</Filter>
+    </ClCompile>
+    <ClCompile Include="expressions\makeFunction1Expression.C">
+      <Filter>expressions</Filter>
+    </ClCompile>
+    <ClCompile Include="expressions\fieldExprScanner.cc">
+      <Filter>expressions</Filter>
+    </ClCompile>
+    <ClCompile Include="fields\cloud.C">
+      <Filter>fields</Filter>
+    </ClCompile>
+    <ClCompile Include="fields\boolField.C">
+      <Filter>fields</Filter>
+    </ClCompile>
+    <ClCompile Include="fields\boolIOField.C">
+      <Filter>fields</Filter>
+    </ClCompile>
+    <ClCompile Include="fields\complexField.C">
+      <Filter>fields</Filter>
+    </ClCompile>
+    <ClCompile Include="fields\complexVectorField.C">
+      <Filter>fields</Filter>
+    </ClCompile>
+    <ClCompile Include="interpolations\csvTableReaders.C">
+      <Filter>interpolations</Filter>
+    </ClCompile>
+    <ClCompile Include="interpolations\interpolationWeights.C">
+      <Filter>interpolations</Filter>
+    </ClCompile>
+    <ClCompile Include="interpolations\linearInterpolationWeights.C">
+      <Filter>interpolations</Filter>
+    </ClCompile>
+    <ClCompile Include="interpolations\openFoamTableReaders.C">
+      <Filter>interpolations</Filter>
+    </ClCompile>
+    <ClCompile Include="interpolations\PatchToPatchInterpolationName.C">
+      <Filter>interpolations</Filter>
+    </ClCompile>
+    <ClCompile Include="interpolations\splineInterpolationWeights.C">
+      <Filter>interpolations</Filter>
+    </ClCompile>
+    <ClCompile Include="interpolations\tableReaders.C">
+      <Filter>interpolations</Filter>
     </ClCompile>
   </ItemGroup>
   <ItemGroup>

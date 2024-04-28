@@ -164,7 +164,7 @@ Tuple2<T1,T2> FieldOps::findMinData
     const Field<T2>& data
 )
 {
-    Tuple2<T1,T2> result(pTraits<T1>::max, Zero);
+    Tuple2<T1,T2> result(pTraits<T1>::max_, Zero);
 
     const label i = findMin(vals);
     if (i != -1)
@@ -185,7 +185,7 @@ Tuple2<T1,T2> FieldOps::findMaxData
     const Field<T2>& data
 )
 {
-    Tuple2<T1,T2> result(pTraits<T1>::min, Zero);
+    Tuple2<T1,T2> result(pTraits<T1>::min_, Zero);
 
     const label i = findMax(vals);
     if (i != -1)

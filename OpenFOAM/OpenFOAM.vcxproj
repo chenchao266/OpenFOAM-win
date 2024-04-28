@@ -19,6 +19,9 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="algorithms\dynamicIndexedOctreeName.C" />
+    <ClCompile Include="algorithms\dynamicTreeDataPoint.C" />
+    <ClCompile Include="algorithms\treeDataCell.C" />
     <ClCompile Include="containers\BitOps.C" />
     <ClCompile Include="containers\bitSet.C" />
     <ClCompile Include="containers\bitSetIO.C" />
@@ -27,6 +30,7 @@
     <ClCompile Include="containers\HashTableCore.C" />
     <ClCompile Include="containers\ListOps.C" />
     <ClCompile Include="containers\PackedListCore.C" />
+    <ClCompile Include="containers\ParSortableListName.C" />
     <ClCompile Include="containers\SLListBase.C" />
     <ClCompile Include="db\base64Layer.C" />
     <ClCompile Include="db\baseIOdictionary.C" />
@@ -129,8 +133,37 @@
     <ClCompile Include="dimensionSet\dimensionSet.C" />
     <ClCompile Include="dimensionSet\dimensionSetIO.C" />
     <ClCompile Include="dimensionSet\dimensionSets.C" />
+    <ClCompile Include="expressions\exprDriver.C" />
+    <ClCompile Include="expressions\exprDriverFields.C" />
+    <ClCompile Include="expressions\exprDriverFunctions.C" />
+    <ClCompile Include="expressions\exprDriverIO.C" />
+    <ClCompile Include="expressions\expressionEntry.C" />
+    <ClCompile Include="expressions\expressionEntryBool.C" />
+    <ClCompile Include="expressions\expressionEntryDimensioned.C" />
+    <ClCompile Include="expressions\expressionEntryStrings.C" />
+    <ClCompile Include="expressions\expressionEntryVectors.C" />
+    <ClCompile Include="expressions\exprResult.C" />
+    <ClCompile Include="expressions\exprResultDelayed.C" />
+    <ClCompile Include="expressions\exprResultGlobals.C" />
+    <ClCompile Include="expressions\exprResultStack.C" />
+    <ClCompile Include="expressions\exprResultStored.C" />
+    <ClCompile Include="expressions\exprResultStoredStack.C" />
+    <ClCompile Include="expressions\exprScanToken.C" />
+    <ClCompile Include="expressions\exprString.C" />
+    <ClCompile Include="expressions\exprTools.C" />
+    <ClCompile Include="expressions\exprTraits.C" />
+    <ClCompile Include="expressions\fieldExpr.C" />
+    <ClCompile Include="expressions\fieldExprDriver.C" />
+    <ClCompile Include="expressions\fieldExprDriverFields.C" />
+    <ClCompile Include="expressions\fieldExprScanner.cc" />
+    <ClCompile Include="expressions\makeFunction1Expression.C" />
+    <ClCompile Include="fields\boolField.C" />
+    <ClCompile Include="fields\boolIOField.C" />
     <ClCompile Include="fields\calculatedPointPatchFields.C" />
+    <ClCompile Include="fields\cloud.C" />
     <ClCompile Include="fields\codedFixedValuePointPatchFields.C" />
+    <ClCompile Include="fields\complexField.C" />
+    <ClCompile Include="fields\complexVectorField.C" />
     <ClCompile Include="fields\coupledPointPatchFields.C" />
     <ClCompile Include="fields\cyclicSlipPointPatchFields.C" />
     <ClCompile Include="fields\emptyPointPatchFields.C" />
@@ -187,6 +220,13 @@
     <ClCompile Include="graph\jplotGraph.C" />
     <ClCompile Include="graph\rawGraph.C" />
     <ClCompile Include="graph\xmgrGraph.C" />
+    <ClCompile Include="interpolations\csvTableReaders.C" />
+    <ClCompile Include="interpolations\interpolationWeights.C" />
+    <ClCompile Include="interpolations\linearInterpolationWeights.C" />
+    <ClCompile Include="interpolations\openFoamTableReaders.C" />
+    <ClCompile Include="interpolations\PatchToPatchInterpolationName.C" />
+    <ClCompile Include="interpolations\splineInterpolationWeights.C" />
+    <ClCompile Include="interpolations\tableReaders.C" />
     <ClCompile Include="matrices\algebraicPairGAMGAgglomeration.C" />
     <ClCompile Include="matrices\cyclicGAMGInterface.C" />
     <ClCompile Include="matrices\cyclicGAMGInterfaceField.C" />

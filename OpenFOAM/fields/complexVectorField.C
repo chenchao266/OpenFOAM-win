@@ -39,119 +39,120 @@ namespace Foam
 
 
 // * * * * * * * * * * * * * * * Global Functions  * * * * * * * * * * * * * //
-
-complexVectorField ComplexField
-(
-    const UList<vector>& re,
-    const UList<vector>& im
-)
+namespace Foam
 {
-    complexVectorField cvf(re.size());
-
-    for (direction cmpt=0; cmpt<vector::nComponents; ++cmpt)
+    complexVectorField ComplexField
+    (
+        const UList<vector>& re,
+        const UList<vector>& im
+    )
     {
-        forAll(cvf, i)
+        complexVectorField cvf(re.size());
+
+        for (direction cmpt = 0; cmpt < vector::nComponents; ++cmpt)
         {
-            cvf[i].component(cmpt).Re() = re[i].component(cmpt);
-            cvf[i].component(cmpt).Im() = im[i].component(cmpt);
+            forAll(cvf, i)
+            {
+                cvf[i].component(cmpt).Re() = re[i].component(cmpt);
+                cvf[i].component(cmpt).Im() = im[i].component(cmpt);
+            }
         }
+
+        return cvf;
     }
 
-    return cvf;
-}
 
-
-complexVectorField ReComplexField(const UList<vector>& re)
-{
-    complexVectorField cvf(re.size());
-
-    for (direction cmpt=0; cmpt<vector::nComponents; ++cmpt)
+    complexVectorField ReComplexField(const UList<vector>& re)
     {
-        forAll(cvf, i)
+        complexVectorField cvf(re.size());
+
+        for (direction cmpt = 0; cmpt < vector::nComponents; ++cmpt)
         {
-            cvf[i].component(cmpt).Re() = re[i].component(cmpt);
-            cvf[i].component(cmpt).Im() = 0.0;
+            forAll(cvf, i)
+            {
+                cvf[i].component(cmpt).Re() = re[i].component(cmpt);
+                cvf[i].component(cmpt).Im() = 0.0;
+            }
         }
+
+        return cvf;
     }
 
-    return cvf;
-}
 
-
-complexVectorField ImComplexField(const UList<vector>& im)
-{
-    complexVectorField cvf(im.size());
-
-    for (direction cmpt=0; cmpt<vector::nComponents; ++cmpt)
+    complexVectorField ImComplexField(const UList<vector>& im)
     {
-        forAll(cvf, i)
+        complexVectorField cvf(im.size());
+
+        for (direction cmpt = 0; cmpt < vector::nComponents; ++cmpt)
         {
-            cvf[i].component(cmpt).Re() = 0.0;
-            cvf[i].component(cmpt).Im() = im[i].component(cmpt);
+            forAll(cvf, i)
+            {
+                cvf[i].component(cmpt).Re() = 0.0;
+                cvf[i].component(cmpt).Im() = im[i].component(cmpt);
+            }
         }
+
+        return cvf;
     }
 
-    return cvf;
-}
 
-
-vectorField ReImSum(const UList<complexVector>& cvf)
-{
-    vectorField vf(cvf.size());
-
-    for (direction cmpt=0; cmpt<vector::nComponents; ++cmpt)
+    vectorField ReImSum(const UList<complexVector>& cvf)
     {
-        forAll(cvf, i)
+        vectorField vf(cvf.size());
+
+        for (direction cmpt = 0; cmpt < vector::nComponents; ++cmpt)
         {
-            vf[i].component(cmpt) =
-                cvf[i].component(cmpt).Re() + cvf[i].component(cmpt).Im();
+            forAll(cvf, i)
+            {
+                vf[i].component(cmpt) =
+                    cvf[i].component(cmpt).Re() + cvf[i].component(cmpt).Im();
+            }
         }
+
+        return vf;
     }
 
-    return vf;
-}
 
-
-vectorField Re(const UList<complexVector>& cvf)
-{
-    vectorField vf(cvf.size());
-
-    for (direction cmpt=0; cmpt<vector::nComponents; ++cmpt)
+    vectorField Re(const UList<complexVector>& cvf)
     {
-        forAll(cvf, i)
+        vectorField vf(cvf.size());
+
+        for (direction cmpt = 0; cmpt < vector::nComponents; ++cmpt)
         {
-            vf[i].component(cmpt) = cvf[i].component(cmpt).Re();
+            forAll(cvf, i)
+            {
+                vf[i].component(cmpt) = cvf[i].component(cmpt).Re();
+            }
         }
+
+        return vf;
     }
 
-    return vf;
-}
 
-
-vectorField Im(const UList<complexVector>& cvf)
-{
-    vectorField vf(cvf.size());
-
-    for (direction cmpt=0; cmpt<vector::nComponents; ++cmpt)
+    vectorField Im(const UList<complexVector>& cvf)
     {
-        forAll(cvf, i)
+        vectorField vf(cvf.size());
+
+        for (direction cmpt = 0; cmpt < vector::nComponents; ++cmpt)
         {
-            vf[i].component(cmpt) = cvf[i].component(cmpt).Im();
+            forAll(cvf, i)
+            {
+                vf[i].component(cmpt) = cvf[i].component(cmpt).Im();
+            }
         }
+
+        return vf;
     }
 
-    return vf;
+
+    complexVectorField operator^
+        (
+            const UList<vector>& vf,
+            const UList<complexVector>& cvf
+            )
+    {
+        return ComplexField(vf ^ Re(cvf), vf ^ Im(cvf));
+    }
+
 }
-
-
-complexVectorField operator^
-(
-    const UList<vector>& vf,
-    const UList<complexVector>& cvf
-)
-{
-    return ComplexField(vf^Re(cvf), vf^Im(cvf));
-}
-
-
 // ************************************************************************* //

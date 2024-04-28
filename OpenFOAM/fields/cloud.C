@@ -35,68 +35,69 @@ namespace Foam
 {
     defineTypeNameAndDebug(cloud, 0);
 }
+namespace Foam
+{
+    const word cloud::prefix("lagrangian");
+    word cloud::defaultName("defaultCloud");
 
-const word cloud::prefix("lagrangian");
-word cloud::defaultName("defaultCloud");
-
-const Enum<cloud::geometryType>
-cloud::geometryTypeNames
-({
-    { geometryType::COORDINATES, "coordinates" },
-    { geometryType::POSITIONS, "positions" }
-});
-
-
-// * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
-
-cloud::cloud(const objectRegistry& obr)
-:
-    cloud(obr, defaultName)
-{}
+    const Enum<cloud::geometryType>
+        cloud::geometryTypeNames
+        ({
+            { geometryType::COORDINATES, "coordinates" },
+            { geometryType::POSITIONS, "positions" }
+            });
 
 
-cloud::cloud(const objectRegistry& obr, const word& cloudName)
-:
-    objectRegistry
-    (
-        IOobject
+    // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
+
+    cloud::cloud(const objectRegistry& obr)
+        :
+        cloud(obr, defaultName)
+    {}
+
+
+    cloud::cloud(const objectRegistry& obr, const word& cloudName)
+        :
+        objectRegistry
         (
-            cloudName,
-            obr.time().timeName(),
-            prefix,
-            obr,
-            IOobject::NO_READ,
-            IOobject::AUTO_WRITE
+            IOobject
+            (
+                cloudName,
+                obr.time().timeName(),
+                prefix,
+                obr,
+                IOobject::NO_READ,
+                IOobject::AUTO_WRITE
+            )
         )
-    )
-{}
+    {}
 
 
-// * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
+    // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
 
-label cloud::nParcels() const
-{
-    NotImplemented;
-    return 0;
+    label cloud::nParcels() const
+    {
+        NotImplemented;
+        return 0;
+    }
+
+
+    void cloud::autoMap(const mapPolyMesh&)
+    {
+        NotImplemented;
+    }
+
+
+    void cloud::readObjects(const objectRegistry& obr)
+    {
+        NotImplemented;
+    }
+
+
+    void cloud::writeObjects(objectRegistry& obr) const
+    {
+        NotImplemented;
+    }
+
 }
-
-
-void cloud::autoMap(const mapPolyMesh&)
-{
-    NotImplemented;
-}
-
-
-void cloud::readObjects(const objectRegistry& obr)
-{
-    NotImplemented;
-}
-
-
-void cloud::writeObjects(objectRegistry& obr) const
-{
-    NotImplemented;
-}
-
-
 // ************************************************************************* //

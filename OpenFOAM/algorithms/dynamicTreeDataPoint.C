@@ -38,144 +38,145 @@ defineTypeNameAndDebug(dynamicTreeDataPoint, 0);
 
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
-
-dynamicTreeDataPoint::dynamicTreeDataPoint
-(
-    const DynamicList<point>& points
-)
-:
-    points_(points)
-{}
-
-
-// * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
-
-const DynamicList<point>&
-dynamicTreeDataPoint::shapePoints() const
+namespace Foam
 {
-    return points_;
-}
+    dynamicTreeDataPoint::dynamicTreeDataPoint
+    (
+        const DynamicList<point>& points
+    )
+        :
+        points_(points)
+    {}
 
 
-volumeType dynamicTreeDataPoint::getVolumeType
-(
-    const dynamicIndexedOctree<dynamicTreeDataPoint>& oc,
-    const point& sample
-) const
-{
-    return volumeType::UNKNOWN;
-}
+    // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
 
-
-bool dynamicTreeDataPoint::overlaps
-(
-    const label index,
-    const treeBoundBox& cubeBb
-) const
-{
-    return cubeBb.contains(points_[index]);
-}
-
-
-bool dynamicTreeDataPoint::overlaps
-(
-    const label index,
-    const point& centre,
-    const scalar radiusSqr
-) const
-{
-    const point& p = points_[index];
-
-    const scalar distSqr = magSqr(p - centre);
-
-    if (distSqr <= radiusSqr)
+    const DynamicList<point>&
+        dynamicTreeDataPoint::shapePoints() const
     {
-        return true;
+        return points_;
     }
 
-    return false;
-}
 
-
-void dynamicTreeDataPoint::findNearest
-(
-    const labelUList& indices,
-    const point& sample,
-
-    scalar& nearestDistSqr,
-    label& minIndex,
-    point& nearestPoint
-) const
-{
-    forAll(indices, i)
+    volumeType dynamicTreeDataPoint::getVolumeType
+    (
+        const dynamicIndexedOctree<dynamicTreeDataPoint>& oc,
+        const point& sample
+    ) const
     {
-        const label index = indices[i];
+        return volumeType::UNKNOWN;
+    }
 
-        const point& pt = points_[index];
 
-        scalar distSqr = magSqr(pt - sample);
+    bool dynamicTreeDataPoint::overlaps
+    (
+        const label index,
+        const treeBoundBox& cubeBb
+    ) const
+    {
+        return cubeBb.contains(points_[index]);
+    }
 
-        if (distSqr < nearestDistSqr)
+
+    bool dynamicTreeDataPoint::overlaps
+    (
+        const label index,
+        const point& centre,
+        const scalar radiusSqr
+    ) const
+    {
+        const point& p = points_[index];
+
+        const scalar distSqr = magSqr(p - centre);
+
+        if (distSqr <= radiusSqr)
         {
-            nearestDistSqr = distSqr;
-            minIndex = index;
-            nearestPoint = pt;
+            return true;
         }
+
+        return false;
     }
-}
 
 
-void dynamicTreeDataPoint::findNearest
-(
-    const labelUList& indices,
-    const linePointRef& ln,
+    void dynamicTreeDataPoint::findNearest
+    (
+        const labelUList& indices,
+        const point& sample,
 
-    treeBoundBox& tightest,
-    label& minIndex,
-    point& linePoint,
-    point& nearestPoint
-) const
-{
-    // Best so far
-    scalar nearestDistSqr = magSqr(linePoint - nearestPoint);
-
-    forAll(indices, i)
+        scalar& nearestDistSqr,
+        label& minIndex,
+        point& nearestPoint
+    ) const
     {
-        const label index = indices[i];
-
-        const point& shapePt = points_[index];
-
-        if (tightest.contains(shapePt))
+        forAll(indices, i)
         {
-            // Nearest point on line
-            pointHit pHit = ln.nearestDist(shapePt);
-            scalar distSqr = sqr(pHit.distance());
+            const label index = indices[i];
+
+            const point& pt = points_[index];
+
+            scalar distSqr = magSqr(pt - sample);
 
             if (distSqr < nearestDistSqr)
             {
                 nearestDistSqr = distSqr;
                 minIndex = index;
-                linePoint = pHit.rawPoint();
-                nearestPoint = shapePt;
+                nearestPoint = pt;
+            }
+        }
+    }
 
+
+    void dynamicTreeDataPoint::findNearest
+    (
+        const labelUList& indices,
+        const linePointRef& ln,
+
+        treeBoundBox& tightest,
+        label& minIndex,
+        point& linePoint,
+        point& nearestPoint
+    ) const
+    {
+        // Best so far
+        scalar nearestDistSqr = magSqr(linePoint - nearestPoint);
+
+        forAll(indices, i)
+        {
+            const label index = indices[i];
+
+            const point& shapePt = points_[index];
+
+            if (tightest.contains(shapePt))
+            {
+                // Nearest point on line
+                pointHit pHit = ln.nearestDist(shapePt);
+                scalar distSqr = sqr(pHit.distance());
+
+                if (distSqr < nearestDistSqr)
                 {
-                    point& minPt = tightest.min();
-                    minPt = min(ln.start(), ln.end());
-                    minPt.x() -= pHit.distance();
-                    minPt.y() -= pHit.distance();
-                    minPt.z() -= pHit.distance();
-                }
-                {
-                    point& maxPt = tightest.max();
-                    maxPt = max(ln.start(), ln.end());
-                    maxPt.x() += pHit.distance();
-                    maxPt.y() += pHit.distance();
-                    maxPt.z() += pHit.distance();
+                    nearestDistSqr = distSqr;
+                    minIndex = index;
+                    linePoint = pHit.rawPoint();
+                    nearestPoint = shapePt;
+
+                    {
+                        point& minPt = tightest.min();
+                        minPt = min(ln.start(), ln.end());
+                        minPt.x() -= pHit.distance();
+                        minPt.y() -= pHit.distance();
+                        minPt.z() -= pHit.distance();
+                    }
+                    {
+                        point& maxPt = tightest.max();
+                        maxPt = max(ln.start(), ln.end());
+                        maxPt.x() += pHit.distance();
+                        maxPt.y() += pHit.distance();
+                        maxPt.z() += pHit.distance();
+                    }
                 }
             }
         }
     }
+
 }
-
-
 // ************************************************************************* //
