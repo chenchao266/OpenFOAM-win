@@ -1476,6 +1476,30 @@
     <ClCompile Include="fields\valuePointPatchFields.C">
       <Filter>fields</Filter>
     </ClCompile>
+    <ClCompile Include="containers\bitSet.C">
+      <Filter>containers</Filter>
+    </ClCompile>
+    <ClCompile Include="containers\bitSetIO.C">
+      <Filter>containers</Filter>
+    </ClCompile>
+    <ClCompile Include="containers\BitOps.C">
+      <Filter>containers</Filter>
+    </ClCompile>
+    <ClCompile Include="containers\HashOps.C">
+      <Filter>containers</Filter>
+    </ClCompile>
+    <ClCompile Include="containers\hashSets.C">
+      <Filter>containers</Filter>
+    </ClCompile>
+    <ClCompile Include="containers\HashTableCore.C">
+      <Filter>containers</Filter>
+    </ClCompile>
+    <ClCompile Include="containers\ListOps.C">
+      <Filter>containers</Filter>
+    </ClCompile>
+    <ClCompile Include="containers\PackedListCore.C">
+      <Filter>containers</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
   </ItemGroup>

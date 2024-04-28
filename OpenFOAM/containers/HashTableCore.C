@@ -36,6 +36,8 @@ namespace Foam
     defineTypeNameAndDebug(HashTableCore, 0);
 }
 
+namespace Foam
+{
 // Approximately labelMax/4
 const label HashTableCore::maxTableSize(1L << (sizeof(label)*8-3));
 
@@ -83,5 +85,6 @@ label HashTableCore::canonicalSize(const label requested_size)
     return size;
 }
 
+} // End namespace Foam
 
 // ************************************************************************* //

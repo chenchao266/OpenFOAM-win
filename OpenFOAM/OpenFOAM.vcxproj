@@ -19,6 +19,14 @@
     </ProjectConfiguration>
   </ItemGroup>
   <ItemGroup>
+    <ClCompile Include="containers\BitOps.C" />
+    <ClCompile Include="containers\bitSet.C" />
+    <ClCompile Include="containers\bitSetIO.C" />
+    <ClCompile Include="containers\HashOps.C" />
+    <ClCompile Include="containers\hashSets.C" />
+    <ClCompile Include="containers\HashTableCore.C" />
+    <ClCompile Include="containers\ListOps.C" />
+    <ClCompile Include="containers\PackedListCore.C" />
     <ClCompile Include="containers\SLListBase.C" />
     <ClCompile Include="db\base64Layer.C" />
     <ClCompile Include="db\baseIOdictionary.C" />
