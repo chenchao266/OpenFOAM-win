@@ -42,7 +42,7 @@ SourceFiles
 #ifndef genericFvsPatchField_H
 #define genericFvsPatchField_H
 
-#include "calculatedFvsPatchField.H"
+#include "fvsPatchField.H"
 #include "genericPatchFieldBase.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //

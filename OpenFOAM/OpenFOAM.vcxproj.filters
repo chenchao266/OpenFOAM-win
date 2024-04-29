@@ -1623,6 +1623,24 @@
     <ClCompile Include="interpolations\tableReaders.C">
       <Filter>interpolations</Filter>
     </ClCompile>
+    <ClCompile Include="fields\FieldBase.C">
+      <Filter>fields</Filter>
+    </ClCompile>
+    <ClCompile Include="meshes\PrimitivePatchBase.C">
+      <Filter>meshes</Filter>
+    </ClCompile>
+    <ClCompile Include="primitives\function1Base.C">
+      <Filter>primitives</Filter>
+    </ClCompile>
+    <ClCompile Include="matrices\schemesLookup.C">
+      <Filter>matrices</Filter>
+    </ClCompile>
+    <ClCompile Include="matrices\schemesLookupDetail.C">
+      <Filter>matrices</Filter>
+    </ClCompile>
+    <ClCompile Include="include\foamVersion.cpp">
+      <Filter>include</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
   </ItemGroup>

@@ -167,6 +167,7 @@
     <ClCompile Include="fields\coupledPointPatchFields.C" />
     <ClCompile Include="fields\cyclicSlipPointPatchFields.C" />
     <ClCompile Include="fields\emptyPointPatchFields.C" />
+    <ClCompile Include="fields\FieldBase.C" />
     <ClCompile Include="fields\fixedNormalSlipPointPatchFields.C" />
     <ClCompile Include="fields\fixedValuePointPatchFields.C" />
     <ClCompile Include="fields\nonuniformTransformCyclicPointPatchFields.C" />
@@ -220,6 +221,7 @@
     <ClCompile Include="graph\jplotGraph.C" />
     <ClCompile Include="graph\rawGraph.C" />
     <ClCompile Include="graph\xmgrGraph.C" />
+    <ClCompile Include="include\foamVersion.cpp" />
     <ClCompile Include="interpolations\csvTableReaders.C" />
     <ClCompile Include="interpolations\interpolationWeights.C" />
     <ClCompile Include="interpolations\linearInterpolationWeights.C" />
@@ -294,6 +296,8 @@
     <ClCompile Include="matrices\procLduInterface.C" />
     <ClCompile Include="matrices\procLduMatrix.C" />
     <ClCompile Include="matrices\scalarMatrices.C" />
+    <ClCompile Include="matrices\schemesLookup.C" />
+    <ClCompile Include="matrices\schemesLookupDetail.C" />
     <ClCompile Include="matrices\smoothSolver2.C" />
     <ClCompile Include="matrices\solution.C" />
     <ClCompile Include="matrices\solverPerformance2.C" />
@@ -407,6 +411,7 @@
     <ClCompile Include="meshes\primitiveMeshPointFaces.C" />
     <ClCompile Include="meshes\primitiveMeshPointPoints.C" />
     <ClCompile Include="meshes\primitiveMeshTools.C" />
+    <ClCompile Include="meshes\PrimitivePatchBase.C" />
     <ClCompile Include="meshes\prismMatcher.C" />
     <ClCompile Include="meshes\processorCyclicPointPatch.C" />
     <ClCompile Include="meshes\processorCyclicPolyPatch.C" />
@@ -452,6 +457,7 @@
     <ClCompile Include="primitives\floatScalar.C" />
     <ClCompile Include="primitives\floatTensor.C" />
     <ClCompile Include="primitives\floatVector.C" />
+    <ClCompile Include="primitives\function1Base.C" />
     <ClCompile Include="primitives\genericRagelLemonDriver.C" />
     <ClCompile Include="primitives\globalIndexAndTransform.C" />
     <ClCompile Include="primitives\halfCosineRamp.C" />
