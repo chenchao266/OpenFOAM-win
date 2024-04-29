@@ -1641,6 +1641,9 @@
     <ClCompile Include="include\foamVersion.cpp">
       <Filter>include</Filter>
     </ClCompile>
+    <ClCompile Include="meshes\geometricSurfacePatch.C">
+      <Filter>meshes</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
   </ItemGroup>

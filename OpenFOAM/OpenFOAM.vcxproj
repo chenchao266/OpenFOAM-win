@@ -346,6 +346,7 @@
     <ClCompile Include="meshes\faceZoneNew.C" />
     <ClCompile Include="meshes\genericPointPatch.C" />
     <ClCompile Include="meshes\genericPolyPatch.C" />
+    <ClCompile Include="meshes\geometricSurfacePatch.C" />
     <ClCompile Include="meshes\globalIndex.C" />
     <ClCompile Include="meshes\globalMeshData.C" />
     <ClCompile Include="meshes\globalPoints.C" />
