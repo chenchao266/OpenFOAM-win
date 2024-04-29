@@ -210,6 +210,7 @@
     <ClCompile Include="pointZoneSet.C" />
     <ClCompile Include="polyFields.C" />
     <ClCompile Include="polyMeshZipUpCells.C" />
+    <ClCompile Include="polyTopoChange.C" />
     <ClCompile Include="primitiveMeshGeometry.C" />
     <ClCompile Include="processorLOD.C" />
     <ClCompile Include="regionProperties.C" />

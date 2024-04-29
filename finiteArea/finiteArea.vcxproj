@@ -59,8 +59,10 @@
     <ClCompile Include="faLaplacianSchemes.C" />
     <ClCompile Include="faMatrices.C" />
     <ClCompile Include="faMesh.C" />
+    <ClCompile Include="faMeshBoundaryHalo.C" />
     <ClCompile Include="faMeshDemandDrivenData.C" />
     <ClCompile Include="faMeshMapper.C" />
+    <ClCompile Include="faMeshPatches.C" />
     <ClCompile Include="faMeshUpdate.C" />
     <ClCompile Include="faPatch.C" />
     <ClCompile Include="faPatchFields.C" />
