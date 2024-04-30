@@ -26,7 +26,7 @@ License
 
 \*---------------------------------------------------------------------------*/
 
-#include "gnuplotSetWriter.H"
+//#include "gnuplotSetWriter.H"
 #include "coordSet.H"
 #include "fileName.H"
 #include "OFstream.H"

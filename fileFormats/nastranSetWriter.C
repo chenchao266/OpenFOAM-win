@@ -25,7 +25,7 @@ License
 
 \*---------------------------------------------------------------------------*/
 
-#include "nastranSetWriter.H"
+//#include "nastranSetWriter.H"
 #include "coordSet.H"
 #include "IOmanip.H"
 #include "addToRunTimeSelectionTable.H"

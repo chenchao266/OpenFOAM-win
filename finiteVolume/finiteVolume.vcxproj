@@ -442,6 +442,7 @@
     <ClCompile Include="variableHeightFlowRateInletVelocityFvPatchVectorField.C" />
     <ClCompile Include="volFields.C" />
     <ClCompile Include="volFieldSelection.C" />
+    <ClCompile Include="volPointInterpolation.c" />
     <ClCompile Include="volRegion.C" />
     <ClCompile Include="volumeExpr.C" />
     <ClCompile Include="volumeExprDriver.C" />

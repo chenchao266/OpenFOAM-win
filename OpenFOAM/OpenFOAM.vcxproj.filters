@@ -1701,6 +1701,9 @@
     <ClCompile Include="fields\vectorIOField.C">
       <Filter>fields</Filter>
     </ClCompile>
+    <ClCompile Include="db\decomposedBlockDataHeader.C">
+      <Filter>db</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
   </ItemGroup>

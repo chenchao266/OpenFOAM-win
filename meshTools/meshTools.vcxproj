@@ -72,6 +72,8 @@
     </ClCompile>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="advancingFrontAMI.C" />
+    <ClCompile Include="advancingFrontAMIParallelOps.C" />
     <ClCompile Include="AMIInterpolation.C" />
     <ClCompile Include="AMIInterpolationNew.C" />
     <ClCompile Include="axesRotation.C" />
@@ -161,6 +163,9 @@
     <ClCompile Include="faceZoneToFaceZone.C" />
     <ClCompile Include="featureEdgeMesh.C" />
     <ClCompile Include="fieldToCell.C" />
+    <ClCompile Include="foamVtkGenericPatchWriter.C" />
+    <ClCompile Include="foamVtkInternalMeshWriter.C" />
+    <ClCompile Include="foamVtkPatchMeshWriter.C" />
     <ClCompile Include="foamVtkWriteCellSetFaces.C" />
     <ClCompile Include="foamVtkWriteFaceSet.C" />
     <ClCompile Include="foamVtkWritePointSet.C" />
@@ -268,6 +273,7 @@
     <ClCompile Include="surfaceToPoint.C" />
     <ClCompile Include="targetVolumeToCell.C" />
     <ClCompile Include="tetOverlapVolume.C" />
+    <ClCompile Include="topoActions.C" />
     <ClCompile Include="topoBitSet.C" />
     <ClCompile Include="topoBoolSet.C" />
     <ClCompile Include="topoSet.C" />

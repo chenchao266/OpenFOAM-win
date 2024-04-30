@@ -101,6 +101,9 @@
     <ClCompile Include="sampledCuttingPlane.C" />
     <ClCompile Include="sampledIsoSurface.C" />
     <ClCompile Include="sampledIsoSurfaceCell.C" />
+    <ClCompile Include="sampledIsoSurfacePoint.C" />
+    <ClCompile Include="sampledIsoSurfaceTopo.C" />
+    <ClCompile Include="sampledMeshedSurfaceNormal.C" />
     <ClCompile Include="sampledPatch.C" />
     <ClCompile Include="sampledPatchInternalField.C" />
     <ClCompile Include="sampledPlane.C" />

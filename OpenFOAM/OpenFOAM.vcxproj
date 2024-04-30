@@ -39,6 +39,7 @@
     <ClCompile Include="db\codedBase.C" />
     <ClCompile Include="db\codeStream.C" />
     <ClCompile Include="db\decomposedBlockData.C" />
+    <ClCompile Include="db\decomposedBlockDataHeader.C" />
     <ClCompile Include="db\dictionary2.C" />
     <ClCompile Include="db\dictionaryCompat.C" />
     <ClCompile Include="db\dictionaryEntry.C" />

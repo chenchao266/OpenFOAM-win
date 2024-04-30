@@ -65,7 +65,7 @@
   <PropertyGroup />
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
-      <AdditionalIncludeDirectories>..\OpenFOAM\algorithms;..\OpenFOAM\containers;..\OpenFOAM\db;..\OpenFOAM\dimensionedTypes;..\OpenFOAM\dimensionSet;..\OpenFOAM\fields;..\OpenFOAM\global;..\OpenFOAM\graph;..\OpenFOAM\include;..\OpenFOAM\interpolations;..\OpenFOAM\matrices;..\OpenFOAM\memory;..\OpenFOAM\meshes;..\OpenFOAM\primitives;..\OSspecific;..\meshTools;..\finiteVolume;..\triSurface;..\surfMesh;..\fileFormats;..\lagrangian;..\dynamicMesh;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..\OpenFOAM\algorithms;..\OpenFOAM\containers;..\OpenFOAM\db;..\OpenFOAM\dimensionedTypes;..\OpenFOAM\dimensionSet;..\OpenFOAM\fields;..\OpenFOAM\global;..\OpenFOAM\graph;..\OpenFOAM\include;..\OpenFOAM\interpolations;..\OpenFOAM\matrices;..\OpenFOAM\memory;..\OpenFOAM\meshes;..\OpenFOAM\primitives;..\OpenFOAM\expressions;..\OSspecific;..\meshTools;..\finiteVolume;..\triSurface;..\surfMesh;..\fileFormats;..\lagrangian;..\dynamicMesh;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>WM_LABEL_SIZE=64;WM_DP;NoRepository;WIN32;WIN64;_WINDOWS;NOMINMAX;_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <CompileAs>CompileAsCpp</CompileAs>
       <LanguageStandard>stdcpp17</LanguageStandard>
@@ -75,9 +75,32 @@
     <ClCompile Include="coordSet.C" />
     <ClCompile Include="csvSetWriterRunTime.C" />
     <ClCompile Include="ensightSetWriterRunTime.C" />
+    <ClCompile Include="foamVtkAppendBase64Formatter.C" />
+    <ClCompile Include="foamVtkAppendRawFormatter.C" />
+    <ClCompile Include="foamVtkAsciiFormatter.C" />
+    <ClCompile Include="foamVtkBase64Formatter.C" />
+    <ClCompile Include="foamVtkBase64Layer.C" />
+    <ClCompile Include="foamVtkCore.C" />
+    <ClCompile Include="foamVtkFileWriter.C" />
+    <ClCompile Include="foamVtkFormatter.C" />
+    <ClCompile Include="foamVtkLegacyAsciiFormatter.C" />
+    <ClCompile Include="foamVtkLegacyRawFormatter.C" />
+    <ClCompile Include="foamVtkLineWriter.C" />
+    <ClCompile Include="foamVtkMeshMaps.C" />
+    <ClCompile Include="foamVtkOutput.C" />
+    <ClCompile Include="foamVtkOutputOptions.C" />
+    <ClCompile Include="foamVtkPolyWriter.C" />
+    <ClCompile Include="foamvtkptraits.c" />
+    <ClCompile Include="foamVtkSeriesWriter.C" />
+    <ClCompile Include="foamVtkSurfaceWriter.C" />
+    <ClCompile Include="foamVtmWriter.C" />
+    <ClCompile Include="foamVtuCells.C" />
+    <ClCompile Include="foamVtuSizing.C" />
+    <ClCompile Include="gltfSetWriterRunTime.C" />
     <ClCompile Include="gnuplotSetWriterRunTime.C" />
     <ClCompile Include="jplotSetWriterRunTime.C" />
     <ClCompile Include="NASCore.C" />
+    <ClCompile Include="nastranSetWriterRunTime.C" />
     <ClCompile Include="rawSetWriterRunTime.C" />
     <ClCompile Include="STARCDCore.C" />
     <ClCompile Include="vtkSetWriterRunTime.C" />

@@ -25,7 +25,7 @@ License
 
 \*---------------------------------------------------------------------------*/
 
-#include "gltfSetWriter.H"
+//#include "gltfSetWriter.H"
 #include "coordSet.H"
 #include "fileName.H"
 #include "OFstream.H"
@@ -255,7 +255,7 @@ Foam::vector Foam::gltfSetWriter<Type>::getTrackAnimationColour
         }
     }
 
-    return vector::zero;
+    return vector::zero_;
 }
 
 
