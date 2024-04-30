@@ -1,7 +1,30 @@
 #include "foamVersion.H"
  
 ///todo...
- 
+namespace Foam
+{
+    //- Version information
+    namespace foamVersion
+    {
+        //- OpenFOAM api number (integer) corresponding to the value of OPENFOAM
+        //- at the time of compilation.
+        //  The value is 0 if OPENFOAM was not defined.
+        const int api = 2106;
+
+        //- OpenFOAM patch number as a std::string
+        const std::string patch = "";
+
+        //- OpenFOAM build information as a std::string
+        const std::string build = "";
+
+        //- OpenFOAM build architecture information
+        //- (machine endian, label/scalar sizes) as a std::string
+        const std::string buildArch = "";
+
+        //- OpenFOAM version (name or stringified number) as a std::string
+        const std::string version = "";
+    }
+}
 bool Foam::foamVersion::patched()
 {
     return false;

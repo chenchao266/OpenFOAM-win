@@ -72,6 +72,8 @@
     </ClCompile>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="AMIInterpolation.C" />
+    <ClCompile Include="AMIInterpolationNew.C" />
     <ClCompile Include="axesRotation.C" />
     <ClCompile Include="axisAngleRotation.C" />
     <ClCompile Include="booleanSurface.C" />
@@ -96,6 +98,7 @@
     <ClCompile Include="cellZoneSet.C" />
     <ClCompile Include="closedTriSurfaceMesh.C" />
     <ClCompile Include="coordinateRotation.C" />
+    <ClCompile Include="coordinateScalings.C" />
     <ClCompile Include="coordinateSystem.C" />
     <ClCompile Include="coordinateSystemNew.C" />
     <ClCompile Include="coordinateSystems.C" />
@@ -114,6 +117,7 @@
     <ClCompile Include="cyclicAMIPointPatch.C" />
     <ClCompile Include="cyclicAMIPointPatchFields.C" />
     <ClCompile Include="cyclicAMIPolyPatch.C" />
+    <ClCompile Include="cyclicAMIPolyPatchTopologyChange.C" />
     <ClCompile Include="cyclicPeriodicAMIPolyPatch.C" />
     <ClCompile Include="cylinderAnnulusToCell.C" />
     <ClCompile Include="cylinderAnnulusToFace.C" />
@@ -141,6 +145,8 @@
     <ClCompile Include="extendedFeatureEdgeMeshFormat.C" />
     <ClCompile Include="extendedFeatureEdgeMeshFormatRunTime.C" />
     <ClCompile Include="faceAreaIntersect.C" />
+    <ClCompile Include="faceAreaWeightAMI.C" />
+    <ClCompile Include="faceAreaWeightAMI2D.C" />
     <ClCompile Include="faceBitSet.C" />
     <ClCompile Include="faceBoolSet.C" />
     <ClCompile Include="faceBox.C" />
@@ -182,6 +188,7 @@
     <ClCompile Include="meshTools.C" />
     <ClCompile Include="MeshWaveName.C" />
     <ClCompile Include="momentOfInertia.C" />
+    <ClCompile Include="multiWorldConnectionsObject.C" />
     <ClCompile Include="NASedgeFormat.C" />
     <ClCompile Include="NASedgeFormatRunTime.C" />
     <ClCompile Include="nbrToCell.C" />
@@ -195,6 +202,7 @@
     <ClCompile Include="patchEdgeFaceRegion.C" />
     <ClCompile Include="patchEdgeFaceRegions.C" />
     <ClCompile Include="PatchEdgeFaceWaveName.C" />
+    <ClCompile Include="patchFunction1Base.C" />
     <ClCompile Include="patchPatchDist.C" />
     <ClCompile Include="patchToCell.C" />
     <ClCompile Include="patchToFace.C" />
@@ -213,6 +221,7 @@
     <ClCompile Include="polyTopoChange.C" />
     <ClCompile Include="primitiveMeshGeometry.C" />
     <ClCompile Include="processorLOD.C" />
+    <ClCompile Include="rawIOFields.C" />
     <ClCompile Include="regionProperties.C" />
     <ClCompile Include="regionSplit.C" />
     <ClCompile Include="regionSplit2D.C" />

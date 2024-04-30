@@ -349,7 +349,7 @@ void Foam::polyTopoChange::checkFace
             {
                 FatalError
                         << "points (removed points marked with "
-                        << vector::max << ") " << facePoints(f);
+                        << vector::max_ << ") " << facePoints(f);
             }
             FatalError << abort(FatalError);
         }
@@ -368,7 +368,7 @@ void Foam::polyTopoChange::checkFace
             {
                 FatalError
                         << "points (removed points marked with "
-                        << vector::max << ") : " << facePoints(f);
+                        << vector::max_ << ") : " << facePoints(f);
             }
             FatalError << abort(FatalError);
         }
@@ -386,7 +386,7 @@ void Foam::polyTopoChange::checkFace
             {
                 FatalError
                         << "points (removed points marked with "
-                        << vector::max << ") : " << facePoints(f);
+                        << vector::max_ << ") : " << facePoints(f);
             }
             FatalError << abort(FatalError);
         }
@@ -405,7 +405,7 @@ void Foam::polyTopoChange::checkFace
             {
                 FatalError
                         << "points (removed points marked with "
-                        << vector::max << ") : " << facePoints(f);
+                        << vector::max_ << ") : " << facePoints(f);
             }
             FatalError << abort(FatalError);
     }
@@ -422,7 +422,7 @@ void Foam::polyTopoChange::checkFace
             {
                 FatalError
                         << "points (removed points marked with "
-                        << vector::max << ") : " << facePoints(f);
+                        << vector::max_ << ") : " << facePoints(f);
             }
             FatalError << abort(FatalError);
     }
@@ -441,7 +441,7 @@ void Foam::polyTopoChange::checkFace
             {
                 FatalError
                         << "points (removed points marked with "
-                        << vector::max << ") : " << facePoints(f);
+                        << vector::max_ << ") : " << facePoints(f);
             }
             FatalError << abort(FatalError);
         }
@@ -472,7 +472,7 @@ void Foam::polyTopoChange::makeCells
             if (facei < faces_.size())
             {
                 const face& f = faces_[facei];
-                newPoints.setSize(f.size(), vector::max);
+                newPoints.setSize(f.size(), vector::max_);
                 forAll(f, fp)
                 {
                     if (f[fp] < points_.size())
@@ -845,7 +845,7 @@ void Foam::polyTopoChange::getFaceOrder
             {
                 FatalError
                         << "points (removed points marked with "
-                        << vector::max << ") " << facePoints(faces_[facei]);
+                        << vector::max_ << ") " << facePoints(faces_[facei]);
             }
             FatalError << abort(FatalError);
         }
@@ -2728,7 +2728,7 @@ void Foam::polyTopoChange::removePoint
             << abort(FatalError);
     }
 
-    points_[pointi] = point::max;
+    points_[pointi] = point::max_;
     pointMap_[pointi] = -1;
     if (mergePointi >= 0)
     {

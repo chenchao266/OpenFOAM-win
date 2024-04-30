@@ -1644,6 +1644,63 @@
     <ClCompile Include="meshes\geometricSurfacePatch.C">
       <Filter>meshes</Filter>
     </ClCompile>
+    <ClCompile Include="fields\sphericalTensorIOField.C">
+      <Filter>fields</Filter>
+    </ClCompile>
+    <ClCompile Include="fields\scalarFieldIOField.C">
+      <Filter>fields</Filter>
+    </ClCompile>
+    <ClCompile Include="fields\sphericalTensorFieldIOField.C">
+      <Filter>fields</Filter>
+    </ClCompile>
+    <ClCompile Include="fields\symmTensorFieldIOField.C">
+      <Filter>fields</Filter>
+    </ClCompile>
+    <ClCompile Include="fields\symmTensorIOField.C">
+      <Filter>fields</Filter>
+    </ClCompile>
+    <ClCompile Include="fields\tensorFieldIOField.C">
+      <Filter>fields</Filter>
+    </ClCompile>
+    <ClCompile Include="fields\tensorIOField.C">
+      <Filter>fields</Filter>
+    </ClCompile>
+    <ClCompile Include="fields\diagTensorFieldIOField.C">
+      <Filter>fields</Filter>
+    </ClCompile>
+    <ClCompile Include="fields\diagTensorIOField.C">
+      <Filter>fields</Filter>
+    </ClCompile>
+    <ClCompile Include="fields\labelFieldIOField.C">
+      <Filter>fields</Filter>
+    </ClCompile>
+    <ClCompile Include="fields\labelIOField.C">
+      <Filter>fields</Filter>
+    </ClCompile>
+    <ClCompile Include="fields\quaternionIOField.C">
+      <Filter>fields</Filter>
+    </ClCompile>
+    <ClCompile Include="fields\scalarIOField.C">
+      <Filter>fields</Filter>
+    </ClCompile>
+    <ClCompile Include="fields\tensorField.C">
+      <Filter>fields</Filter>
+    </ClCompile>
+    <ClCompile Include="fields\triadIOField.C">
+      <Filter>fields</Filter>
+    </ClCompile>
+    <ClCompile Include="fields\vector2DFieldIOField.C">
+      <Filter>fields</Filter>
+    </ClCompile>
+    <ClCompile Include="fields\vector2DIOField.C">
+      <Filter>fields</Filter>
+    </ClCompile>
+    <ClCompile Include="fields\vectorFieldIOField.C">
+      <Filter>fields</Filter>
+    </ClCompile>
+    <ClCompile Include="fields\vectorIOField.C">
+      <Filter>fields</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
   </ItemGroup>

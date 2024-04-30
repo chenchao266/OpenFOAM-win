@@ -343,7 +343,7 @@ bool Foam::faceAreaWeightAMI2D::calculate
     const scalar lf(Cbb_*Foam::sqrt(gAverage(srcMagSf_)));
 
     // Expansion to apply to source face bounding box
-    const vector d(lf*vector::one);
+    const vector d(lf*vector::one_);
 
     if (validSize)
     {

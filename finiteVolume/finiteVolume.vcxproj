@@ -247,6 +247,7 @@
     <ClCompile Include="jumpCyclicAMIFvPatchFields.C" />
     <ClCompile Include="jumpCyclicFvPatchFields.C" />
     <ClCompile Include="laplacianSchemes.C" />
+    <ClCompile Include="lduPrimitiveMeshAssembly.C" />
     <ClCompile Include="leastSquaresGrads.C" />
     <ClCompile Include="LeastSquaresGrads2.C" />
     <ClCompile Include="LeastSquaresVectors2.C" />
