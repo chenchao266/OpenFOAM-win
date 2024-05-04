@@ -35,7 +35,7 @@ namespace Function1Types
 {
     makeScalarFunction1(stepFunction);
 }
-}
+
 
 
 // * * * * * * * * * * * * * * * * Constructors  * * * * * * * * * * * * * * //
@@ -50,5 +50,5 @@ Function1Types::stepFunction::stepFunction
     ramp(entryName, dict, obrPtr)
 {}
 
-
+}
 // ************************************************************************* //

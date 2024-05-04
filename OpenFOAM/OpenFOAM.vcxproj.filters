@@ -1722,6 +1722,9 @@
     <ClCompile Include="fields\scalarField.C">
       <Filter>fields</Filter>
     </ClCompile>
+    <ClCompile Include="primitives\stepFunction.C">
+      <Filter>primitives</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
   </ItemGroup>

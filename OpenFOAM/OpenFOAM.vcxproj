@@ -538,6 +538,7 @@
     <ClCompile Include="primitives\sphericalTensor.C" />
     <ClCompile Include="primitives\sphericalTensor2D.C" />
     <ClCompile Include="primitives\sphericalTensorList.C" />
+    <ClCompile Include="primitives\stepFunction.C" />
     <ClCompile Include="primitives\string.C" />
     <ClCompile Include="primitives\stringIO.C" />
     <ClCompile Include="primitives\stringIOList.C" />
