@@ -78,6 +78,7 @@
     <ClCompile Include="advectionDiffusionPatchDistMethod.C" />
     <ClCompile Include="AssemblyFvPatches.C" />
     <ClCompile Include="backwardDdtSchemes.C" />
+    <ClCompile Include="basicFvGeometryScheme.C" />
     <ClCompile Include="basicSymmetryFvPatchScalarField.C" />
     <ClCompile Include="biLinearFit.C" />
     <ClCompile Include="blended.C" />
@@ -211,6 +212,7 @@
     <ClCompile Include="fvExprDriver.C" />
     <ClCompile Include="fvExprDriverIO.C" />
     <ClCompile Include="fvExprDriverNew.C" />
+    <ClCompile Include="fvGeometryScheme.C" />
     <ClCompile Include="fvMatrices.C" />
     <ClCompile Include="fvMesh.C" />
     <ClCompile Include="fvMeshFunctionObject.C" />

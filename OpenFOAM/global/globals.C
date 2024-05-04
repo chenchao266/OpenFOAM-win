@@ -1,4 +1,4 @@
-﻿/*---------------------------------------------------------------------------*\
+/*---------------------------------------------------------------------------*\
   =========                 |
   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox
    \\    /   O peration     |
@@ -72,9 +72,7 @@ void (*old_new_handler)() = std::set_new_handler(newError);
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
 #include "JobInfo.H"
-
- namespace Foam{
-bool JobInfo::constructed(false);
+bool Foam::JobInfo::constructed(false);
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 // Global error definitions (initialised by construction)
@@ -111,5 +109,3 @@ bool JobInfo::constructed(false);
 #include "JobInfo.C"
 
 // ************************************************************************* //
-
- } // End namespace Foam

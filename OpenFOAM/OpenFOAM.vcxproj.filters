@@ -66,9 +66,6 @@
     <ClCompile Include="db\UOPstream.C">
       <Filter>db</Filter>
     </ClCompile>
-    <ClCompile Include="db\UPstream.C">
-      <Filter>db</Filter>
-    </ClCompile>
     <ClCompile Include="db\UPstreamCommsStruct.C">
       <Filter>db</Filter>
     </ClCompile>
@@ -117,9 +114,6 @@
     <ClCompile Include="db\entryIO.C">
       <Filter>db</Filter>
     </ClCompile>
-    <ClCompile Include="db\error.C">
-      <Filter>db</Filter>
-    </ClCompile>
     <ClCompile Include="db\functionEntry.C">
       <Filter>db</Filter>
     </ClCompile>
@@ -150,13 +144,7 @@
     <ClCompile Include="db\IOdictionary.C">
       <Filter>db</Filter>
     </ClCompile>
-    <ClCompile Include="db\IOerror.C">
-      <Filter>db</Filter>
-    </ClCompile>
     <ClCompile Include="db\IOstream.C">
-      <Filter>db</Filter>
-    </ClCompile>
-    <ClCompile Include="db\IOstreams.C">
       <Filter>db</Filter>
     </ClCompile>
     <ClCompile Include="db\IPstream.C">
@@ -175,9 +163,6 @@
       <Filter>db</Filter>
     </ClCompile>
     <ClCompile Include="db\masterOFstream.C">
-      <Filter>db</Filter>
-    </ClCompile>
-    <ClCompile Include="db\messageStream.C">
       <Filter>db</Filter>
     </ClCompile>
     <ClCompile Include="db\objectRegistry.C">
@@ -208,9 +193,6 @@
       <Filter>db</Filter>
     </ClCompile>
     <ClCompile Include="db\regionFunctionObject.C">
-      <Filter>db</Filter>
-    </ClCompile>
-    <ClCompile Include="db\regIOobject.C">
       <Filter>db</Filter>
     </ClCompile>
     <ClCompile Include="db\regIOobjectRead.C">
@@ -282,13 +264,7 @@
     <ClCompile Include="global\uncollatedFileOperation.C">
       <Filter>global</Filter>
     </ClCompile>
-    <ClCompile Include="global\universalConstants.C">
-      <Filter>global</Filter>
-    </ClCompile>
     <ClCompile Include="global\argList.C">
-      <Filter>global</Filter>
-    </ClCompile>
-    <ClCompile Include="global\atomicConstants.C">
       <Filter>global</Filter>
     </ClCompile>
     <ClCompile Include="global\clock.C">
@@ -297,37 +273,16 @@
     <ClCompile Include="global\collatedFileOperation.C">
       <Filter>global</Filter>
     </ClCompile>
-    <ClCompile Include="global\constants.C">
-      <Filter>global</Filter>
-    </ClCompile>
-    <ClCompile Include="global\dimensionedConstants.C">
-      <Filter>global</Filter>
-    </ClCompile>
-    <ClCompile Include="global\electromagneticConstants.C">
-      <Filter>global</Filter>
-    </ClCompile>
     <ClCompile Include="global\etcFiles.C">
       <Filter>global</Filter>
     </ClCompile>
     <ClCompile Include="global\fileOperation.C">
       <Filter>global</Filter>
     </ClCompile>
-    <ClCompile Include="global\fundamentalConstants.C">
-      <Filter>global</Filter>
-    </ClCompile>
-    <ClCompile Include="global\JobInfo.C">
-      <Filter>global</Filter>
-    </ClCompile>
     <ClCompile Include="global\masterUncollatedFileOperation.C">
       <Filter>global</Filter>
     </ClCompile>
     <ClCompile Include="global\OFstreamCollator.C">
-      <Filter>global</Filter>
-    </ClCompile>
-    <ClCompile Include="global\physicoChemicalConstants.C">
-      <Filter>global</Filter>
-    </ClCompile>
-    <ClCompile Include="global\thermodynamicConstants.C">
       <Filter>global</Filter>
     </ClCompile>
     <ClCompile Include="matrices\tolerances.C">
@@ -981,9 +936,6 @@
     <ClCompile Include="primitives\linearRamp.C">
       <Filter>primitives</Filter>
     </ClCompile>
-    <ClCompile Include="primitives\nullObject.C">
-      <Filter>primitives</Filter>
-    </ClCompile>
     <ClCompile Include="primitives\polynomialFunction.C">
       <Filter>primitives</Filter>
     </ClCompile>
@@ -1227,9 +1179,6 @@
     <ClCompile Include="db\TimeState.C">
       <Filter>db</Filter>
     </ClCompile>
-    <ClCompile Include="db\token.C">
-      <Filter>db</Filter>
-    </ClCompile>
     <ClCompile Include="matrices\diagonalPreconditioner2.C">
       <Filter>matrices</Filter>
     </ClCompile>
@@ -1306,9 +1255,6 @@
       <Filter>global</Filter>
     </ClCompile>
     <ClCompile Include="global\cpuTimeCxx.C">
-      <Filter>global</Filter>
-    </ClCompile>
-    <ClCompile Include="global\debug.C">
       <Filter>global</Filter>
     </ClCompile>
     <ClCompile Include="global\fileOperationInitialise.C">
@@ -1396,9 +1342,6 @@
       <Filter>primitives</Filter>
     </ClCompile>
     <ClCompile Include="primitives\wordRes.C">
-      <Filter>primitives</Filter>
-    </ClCompile>
-    <ClCompile Include="primitives\zero.C">
       <Filter>primitives</Filter>
     </ClCompile>
     <ClCompile Include="db\instant2.C">
@@ -1638,9 +1581,6 @@
     <ClCompile Include="matrices\schemesLookupDetail.C">
       <Filter>matrices</Filter>
     </ClCompile>
-    <ClCompile Include="include\foamVersion.cpp">
-      <Filter>include</Filter>
-    </ClCompile>
     <ClCompile Include="meshes\geometricSurfacePatch.C">
       <Filter>meshes</Filter>
     </ClCompile>
@@ -1731,12 +1671,13 @@
     <ClCompile Include="fields\sphericalTensorField.C">
       <Filter>fields</Filter>
     </ClCompile>
-  </ItemGroup>
-  <ItemGroup>
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="global\global.Cver">
+    <ClCompile Include="global\foamConfig.C">
       <Filter>global</Filter>
-    </None>
+    </ClCompile>
+    <ClCompile Include="global\globals.C">
+      <Filter>global</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
   </ItemGroup>
 </Project>

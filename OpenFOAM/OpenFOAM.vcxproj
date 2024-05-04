@@ -53,7 +53,6 @@
     <ClCompile Include="db\dynamicCodeContext.C" />
     <ClCompile Include="db\entry.C" />
     <ClCompile Include="db\entryIO.C" />
-    <ClCompile Include="db\error.C" />
     <ClCompile Include="db\evalEntry.C" />
     <ClCompile Include="db\fstreamPointers.C" />
     <ClCompile Include="db\functionEntry.C" />
@@ -72,7 +71,6 @@
     <ClCompile Include="db\inputMode.C" />
     <ClCompile Include="db\instant2.C" />
     <ClCompile Include="db\IOdictionary.C" />
-    <ClCompile Include="db\IOerror.C" />
     <ClCompile Include="db\IOMapName.C" />
     <ClCompile Include="db\IOobject.C" />
     <ClCompile Include="db\IOobjectIO.C" />
@@ -81,7 +79,6 @@
     <ClCompile Include="db\IOobjectWriteHeader.C" />
     <ClCompile Include="db\IOstream.C" />
     <ClCompile Include="db\IOstreamOption.C" />
-    <ClCompile Include="db\IOstreams.C" />
     <ClCompile Include="db\IPstream.C" />
     <ClCompile Include="db\ISstream.C" />
     <ClCompile Include="db\Istream.C" />
@@ -90,7 +87,6 @@
     <ClCompile Include="db\localIOdictionary.C" />
     <ClCompile Include="db\logFiles.C" />
     <ClCompile Include="db\masterOFstream.C" />
-    <ClCompile Include="db\messageStream.C" />
     <ClCompile Include="db\objectRegistry.C" />
     <ClCompile Include="db\OFstream.C" />
     <ClCompile Include="db\OPstream.C" />
@@ -104,7 +100,6 @@
     <ClCompile Include="db\PstreamBuffers.C" />
     <ClCompile Include="db\readHexLabel.C" />
     <ClCompile Include="db\regionFunctionObject.C" />
-    <ClCompile Include="db\regIOobject.C" />
     <ClCompile Include="db\regIOobjectMetaData.C" />
     <ClCompile Include="db\regIOobjectRead.C" />
     <ClCompile Include="db\regIOobjectWrite.C" />
@@ -122,12 +117,10 @@
     <ClCompile Include="db\TimePaths.C" />
     <ClCompile Include="db\timeSelector.C" />
     <ClCompile Include="db\TimeState.C" />
-    <ClCompile Include="db\token.C" />
     <ClCompile Include="db\tokenIO.C" />
     <ClCompile Include="db\UIPstream.C" />
     <ClCompile Include="db\unwatchedIOdictionary.C" />
     <ClCompile Include="db\UOPstream.C" />
-    <ClCompile Include="db\UPstream.C" />
     <ClCompile Include="db\UPstreamCommsStruct.C" />
     <ClCompile Include="db\writeFile.C" />
     <ClCompile Include="dimensionedTypes\dimensionedScalar.C" />
@@ -212,34 +205,26 @@
     <ClCompile Include="fields\zeroGradientPointPatchFields.C" />
     <ClCompile Include="global\argList.C" />
     <ClCompile Include="global\argListHelp.C" />
-    <ClCompile Include="global\atomicConstants.C" />
     <ClCompile Include="global\clock.C" />
     <ClCompile Include="global\clockValue.C" />
     <ClCompile Include="global\collatedFileOperation.C" />
-    <ClCompile Include="global\constants.C" />
     <ClCompile Include="global\cpuTimeCxx.C" />
-    <ClCompile Include="global\debug.C" />
-    <ClCompile Include="global\dimensionedConstants.C" />
-    <ClCompile Include="global\electromagneticConstants.C" />
     <ClCompile Include="global\etcFiles.C" />
     <ClCompile Include="global\fileOperation.C" />
     <ClCompile Include="global\fileOperationInitialise.C" />
-    <ClCompile Include="global\fundamentalConstants.C" />
+    <ClCompile Include="global\foamConfig.C" />
+    <ClCompile Include="global\globals.C" />
     <ClCompile Include="global\hostCollatedFileOperation.C" />
-    <ClCompile Include="global\JobInfo.C" />
     <ClCompile Include="global\masterUncollatedFileOperation.C" />
     <ClCompile Include="global\OFstreamCollator.C" />
-    <ClCompile Include="global\physicoChemicalConstants.C" />
     <ClCompile Include="global\profiling.C" />
     <ClCompile Include="global\profilingInformation.C" />
     <ClCompile Include="global\profilingPstream.C" />
     <ClCompile Include="global\profilingSysInfo.C" />
     <ClCompile Include="global\profilingTrigger.C" />
     <ClCompile Include="global\simpleObjectRegistry.C" />
-    <ClCompile Include="global\thermodynamicConstants.C" />
     <ClCompile Include="global\threadedCollatedOFstream.C" />
     <ClCompile Include="global\uncollatedFileOperation.C" />
-    <ClCompile Include="global\universalConstants.C" />
     <ClCompile Include="graph\curve.C" />
     <ClCompile Include="graph\curveTools.C" />
     <ClCompile Include="graph\gnuplotGraph.C" />
@@ -247,7 +232,6 @@
     <ClCompile Include="graph\jplotGraph.C" />
     <ClCompile Include="graph\rawGraph.C" />
     <ClCompile Include="graph\xmgrGraph.C" />
-    <ClCompile Include="include\foamVersion.cpp" />
     <ClCompile Include="interpolations\csvTableReaders.C" />
     <ClCompile Include="interpolations\interpolationWeights.C" />
     <ClCompile Include="interpolations\linearInterpolationWeights.C" />
@@ -513,7 +497,6 @@
     <ClCompile Include="primitives\labelVector2D.C" />
     <ClCompile Include="primitives\linearRamp.C" />
     <ClCompile Include="primitives\makeFunction1s.C" />
-    <ClCompile Include="primitives\nullObject.C" />
     <ClCompile Include="primitives\parsing.C" />
     <ClCompile Include="primitives\polynomialFunction.C" />
     <ClCompile Include="primitives\quadraticEqn.C" />
@@ -577,12 +560,8 @@
     <ClCompile Include="primitives\wordIOList.C" />
     <ClCompile Include="primitives\wordRe.C" />
     <ClCompile Include="primitives\wordRes.C" />
-    <ClCompile Include="primitives\zero.C" />
   </ItemGroup>
   <ItemGroup>
-  </ItemGroup>
-  <ItemGroup>
-    <None Include="global\global.Cver" />
   </ItemGroup>
   <PropertyGroup Label="Globals">
     <VCProjectVersion>15.0</VCProjectVersion>

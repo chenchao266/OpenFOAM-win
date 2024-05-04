@@ -34,6 +34,7 @@ License
 
 namespace Foam
 {
+    defineTypeNameAndDebug(functionEntry, 0);
     defineMemberFunctionSelectionTable
     (
         functionEntry,

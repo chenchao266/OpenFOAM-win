@@ -27,6 +27,7 @@ License
 \*---------------------------------------------------------------------------*/
 
 #include "token.H"
+#include "runTimeSelectionTables.H"
 #include "error.H"
 #include "List.H"
 

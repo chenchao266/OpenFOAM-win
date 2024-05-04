@@ -28,6 +28,7 @@ License
 
 #include "error.H"
 #include "token.H"
+#include "runTimeSelectionTables.H"
 #include "scalar.H"
 #include "IOstreams.H"
 
