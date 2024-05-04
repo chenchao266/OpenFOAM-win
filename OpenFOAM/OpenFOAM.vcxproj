@@ -21,6 +21,7 @@
   <ItemGroup>
     <ClCompile Include="algorithms\dynamicIndexedOctreeName.C" />
     <ClCompile Include="algorithms\dynamicTreeDataPoint.C" />
+    <ClCompile Include="algorithms\indexedOctreeName.C" />
     <ClCompile Include="algorithms\treeDataCell.C" />
     <ClCompile Include="containers\BitOps.C" />
     <ClCompile Include="containers\bitSet.C" />
@@ -483,6 +484,7 @@
     <ClCompile Include="primitives\int64.C" />
     <ClCompile Include="primitives\int64IO.C" />
     <ClCompile Include="primitives\intIO.C" />
+    <ClCompile Include="primitives\IntRanges.C" />
     <ClCompile Include="primitives\invIncGamma.C" />
     <ClCompile Include="primitives\keyType.C" />
     <ClCompile Include="primitives\label.C" />

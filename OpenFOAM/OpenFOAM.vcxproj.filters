@@ -1680,6 +1680,12 @@
     <ClCompile Include="db\IOobjectMetaData.C">
       <Filter>db</Filter>
     </ClCompile>
+    <ClCompile Include="algorithms\indexedOctreeName.C">
+      <Filter>algorithms</Filter>
+    </ClCompile>
+    <ClCompile Include="primitives\IntRanges.C">
+      <Filter>primitives</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
   </ItemGroup>
