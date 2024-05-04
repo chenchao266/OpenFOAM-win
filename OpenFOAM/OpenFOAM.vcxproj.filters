@@ -1677,6 +1677,9 @@
     <ClCompile Include="global\globals.C">
       <Filter>global</Filter>
     </ClCompile>
+    <ClCompile Include="db\IOobjectMetaData.C">
+      <Filter>db</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
   </ItemGroup>

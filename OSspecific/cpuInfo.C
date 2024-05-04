@@ -27,6 +27,9 @@ License
 
 #include "cpuInfo.H"
 #include "IOstreams.H"
+#include "_Ostream.H"
+#include "token.H"
+#include "keyType.H"
 
 #include <thread>
 
@@ -52,11 +55,11 @@ void Foam::cpuInfo::write(Ostream& os) const
 {
     if (!vendor_id.empty())
     {
-        os.writeEntry("vendor_id", vendor_id);
+        os.writeEntry(keyType("vendor_id"), vendor_id);
     }
     if (!model_name.empty())
     {
-        os.writeEntry("model_name", model_name);
+        os.writeEntry(keyType("model_name"), model_name);
     }
 
     os.writeEntryIfDifferent<int>("cpu_family", -1, cpu_family);

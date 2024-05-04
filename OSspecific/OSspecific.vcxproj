@@ -72,6 +72,7 @@
     </ClCompile>
   </ItemDefinitionGroup>
   <ItemGroup>
+    <ClCompile Include="cpuInfo.C" />
     <ClCompile Include="fileMonitor.C" />
     <ClCompile Include="fileStat.C" />
     <ClCompile Include="memInfo.C" />

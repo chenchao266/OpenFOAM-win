@@ -75,6 +75,7 @@
     <ClCompile Include="db\IOobject.C" />
     <ClCompile Include="db\IOobjectIO.C" />
     <ClCompile Include="db\IOobjectList.C" />
+    <ClCompile Include="db\IOobjectMetaData.C" />
     <ClCompile Include="db\IOobjectReadHeader.C" />
     <ClCompile Include="db\IOobjectWriteHeader.C" />
     <ClCompile Include="db\IOstream.C" />
