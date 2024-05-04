@@ -63,8 +63,10 @@
     <ClCompile Include="faMeshDemandDrivenData.C" />
     <ClCompile Include="faMeshMapper.C" />
     <ClCompile Include="faMeshPatches.C" />
+    <ClCompile Include="faMeshTopology.C" />
     <ClCompile Include="faMeshUpdate.C" />
     <ClCompile Include="faPatch.C" />
+    <ClCompile Include="faPatchData.C" />
     <ClCompile Include="faPatchFields.C" />
     <ClCompile Include="faPatchMapper.C" />
     <ClCompile Include="faPatchNew.C" />

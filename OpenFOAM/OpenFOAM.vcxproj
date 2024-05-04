@@ -25,6 +25,7 @@
     <ClCompile Include="containers\BitOps.C" />
     <ClCompile Include="containers\bitSet.C" />
     <ClCompile Include="containers\bitSetIO.C" />
+    <ClCompile Include="containers\DLListBase.C" />
     <ClCompile Include="containers\HashOps.C" />
     <ClCompile Include="containers\hashSets.C" />
     <ClCompile Include="containers\HashTableCore.C" />
@@ -58,6 +59,7 @@
     <ClCompile Include="db\functionEntry.C" />
     <ClCompile Include="db\functionObject.C" />
     <ClCompile Include="db\functionObjectList.C" />
+    <ClCompile Include="db\functionObjectProperties.C" />
     <ClCompile Include="db\GlobalIOFields.C" />
     <ClCompile Include="db\globalIOLists.C" />
     <ClCompile Include="db\gzstream.C" />
@@ -167,6 +169,7 @@
     <ClCompile Include="fields\complexVectorField.C" />
     <ClCompile Include="fields\coupledPointPatchFields.C" />
     <ClCompile Include="fields\cyclicSlipPointPatchFields.C" />
+    <ClCompile Include="fields\diagTensorField.C" />
     <ClCompile Include="fields\diagTensorFieldIOField.C" />
     <ClCompile Include="fields\diagTensorIOField.C" />
     <ClCompile Include="fields\emptyPointPatchFields.C" />
@@ -457,6 +460,7 @@
     <ClCompile Include="meshes\wedgePointPatch.C" />
     <ClCompile Include="meshes\wedgePolyPatch.C" />
     <ClCompile Include="meshes\zone.C" />
+    <ClCompile Include="meshes\zoneIdentifier.C" />
     <ClCompile Include="primitives\barycentric.C" />
     <ClCompile Include="primitives\barycentric2D.C" />
     <ClCompile Include="primitives\bool.C" />
@@ -539,6 +543,7 @@
     <ClCompile Include="primitives\stringOps.C" />
     <ClCompile Include="primitives\stringOpsEvaluate.C" />
     <ClCompile Include="primitives\stringOpsSort.C" />
+    <ClCompile Include="primitives\stringOpsSplit.C" />
     <ClCompile Include="primitives\subModelBase.C" />
     <ClCompile Include="primitives\Switch.C" />
     <ClCompile Include="primitives\symmTensor.C" />

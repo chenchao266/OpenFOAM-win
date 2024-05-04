@@ -101,8 +101,11 @@
     <ClCompile Include="jplotSetWriterRunTime.C" />
     <ClCompile Include="NASCore.C" />
     <ClCompile Include="nastranSetWriterRunTime.C" />
+    <ClCompile Include="OBJstream.C" />
     <ClCompile Include="rawSetWriterRunTime.C" />
     <ClCompile Include="STARCDCore.C" />
+    <ClCompile Include="STLCore.C" />
+    <ClCompile Include="STLReader.C" />
     <ClCompile Include="vtkSetWriterRunTime.C" />
     <ClCompile Include="vtkUnstructuredReader.C" />
     <ClCompile Include="writers.C" />

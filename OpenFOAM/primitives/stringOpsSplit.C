@@ -37,15 +37,15 @@ namespace
 {
 
 
- namespace Foam{
-inline word validateVariableName(const std::string& str)
+
+inline Foam::word validateVariableName(const std::string& str)
 {
-    return stringOps::validate<word>
+    return Foam::stringOps::validate<Foam::word>
     (
         str,
         [](char c)
         {
-            return (word::valid(c) || c == '/' || c == '{' || c == '}');
+            return (Foam::word::valid(c) || c == '/' || c == '{' || c == '}');
         }
     );
 }
@@ -54,7 +54,7 @@ inline word validateVariableName(const std::string& str)
 
 
 // * * * * * * * * * * * * * * * Global Functions  * * * * * * * * * * * * * //
-
+ namespace Foam {
 label stringOps::splitFunctionArgs
 (
     const std::string& str,

@@ -1704,6 +1704,21 @@
     <ClCompile Include="db\decomposedBlockDataHeader.C">
       <Filter>db</Filter>
     </ClCompile>
+    <ClCompile Include="containers\DLListBase.C">
+      <Filter>containers</Filter>
+    </ClCompile>
+    <ClCompile Include="fields\diagTensorField.C">
+      <Filter>fields</Filter>
+    </ClCompile>
+    <ClCompile Include="db\functionObjectProperties.C">
+      <Filter>db</Filter>
+    </ClCompile>
+    <ClCompile Include="meshes\zoneIdentifier.C">
+      <Filter>meshes</Filter>
+    </ClCompile>
+    <ClCompile Include="primitives\stringOpsSplit.C">
+      <Filter>primitives</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
   </ItemGroup>

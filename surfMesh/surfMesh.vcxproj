@@ -119,6 +119,7 @@
     <ClCompile Include="TRIsurfaceFormatRunTime.C" />
     <ClCompile Include="triSurfaceGTSformat.C" />
     <ClCompile Include="triSurfaceIO.C" />
+    <ClCompile Include="triSurfaceNew.C" />
     <ClCompile Include="triSurfaceStitch.C" />
     <ClCompile Include="triSurfaceSTLformat.C" />
     <ClCompile Include="UnsortedMeshedSurfaces.C" />

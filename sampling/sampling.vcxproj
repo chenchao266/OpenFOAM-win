@@ -83,6 +83,7 @@
     <ClCompile Include="distanceSurface.C" />
     <ClCompile Include="faceOnlySet.C" />
     <ClCompile Include="isoSurfaceCell.C" />
+    <ClCompile Include="isoSurfaceParams.C" />
     <ClCompile Include="makeGraph.C" />
     <ClCompile Include="mapNearestMethod.C" />
     <ClCompile Include="meshToMesh.C" />
