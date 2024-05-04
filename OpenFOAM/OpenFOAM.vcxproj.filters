@@ -1719,6 +1719,9 @@
     <ClCompile Include="primitives\stringOpsSplit.C">
       <Filter>primitives</Filter>
     </ClCompile>
+    <ClCompile Include="fields\scalarField.C">
+      <Filter>fields</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
   </ItemGroup>

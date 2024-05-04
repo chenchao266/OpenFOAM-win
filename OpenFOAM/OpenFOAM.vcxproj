@@ -185,6 +185,7 @@
     <ClCompile Include="fields\processorCyclicPointPatchFields.C" />
     <ClCompile Include="fields\processorPointPatchFields.C" />
     <ClCompile Include="fields\quaternionIOField.C" />
+    <ClCompile Include="fields\scalarField.C" />
     <ClCompile Include="fields\scalarFieldIOField.C" />
     <ClCompile Include="fields\scalarIOField.C" />
     <ClCompile Include="fields\slipPointPatchFields.C" />
