@@ -104,6 +104,7 @@
     <ClCompile Include="OBJstream.C" />
     <ClCompile Include="rawSetWriterRunTime.C" />
     <ClCompile Include="STARCDCore.C" />
+    <ClCompile Include="STLAsciiParseRagel.cc" />
     <ClCompile Include="STLCore.C" />
     <ClCompile Include="STLReader.C" />
     <ClCompile Include="vtkSetWriterRunTime.C" />

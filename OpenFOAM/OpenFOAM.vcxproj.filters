@@ -1725,6 +1725,12 @@
     <ClCompile Include="primitives\stepFunction.C">
       <Filter>primitives</Filter>
     </ClCompile>
+    <ClCompile Include="fields\symmTensorField.C">
+      <Filter>fields</Filter>
+    </ClCompile>
+    <ClCompile Include="fields\sphericalTensorField.C">
+      <Filter>fields</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
   </ItemGroup>

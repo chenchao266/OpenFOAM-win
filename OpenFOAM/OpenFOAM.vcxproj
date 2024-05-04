@@ -189,10 +189,12 @@
     <ClCompile Include="fields\scalarFieldIOField.C" />
     <ClCompile Include="fields\scalarIOField.C" />
     <ClCompile Include="fields\slipPointPatchFields.C" />
+    <ClCompile Include="fields\sphericalTensorField.C" />
     <ClCompile Include="fields\sphericalTensorFieldIOField.C" />
     <ClCompile Include="fields\sphericalTensorIOField.C" />
     <ClCompile Include="fields\symmetryPlanePointPatchFields.C" />
     <ClCompile Include="fields\symmetryPointPatchFields.C" />
+    <ClCompile Include="fields\symmTensorField.C" />
     <ClCompile Include="fields\symmTensorFieldIOField.C" />
     <ClCompile Include="fields\symmTensorIOField.C" />
     <ClCompile Include="fields\tensorField.C" />

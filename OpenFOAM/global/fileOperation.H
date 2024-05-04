@@ -51,8 +51,7 @@ Description
 #include "Enum.H"
 #include "Tuple2.H"
 #include "hacks_on_mingw.h"
-
-#define NoHashTableC
+ 
 #include "runTimeSelectionTables.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //

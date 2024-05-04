@@ -37,14 +37,14 @@ Description
 
 #include "token.H"
 
+#include "autoPtr.H"
+#include "HashTable.H"
+
 #ifndef Foam_runTimeSelectionTables_H
 #define Foam_runTimeSelectionTables_H
 
 #include <memory>   // For std::unique_ptr
 #include <utility>  // For std::pair
-
-#include "autoPtr.H"
-#include "HashTable.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 

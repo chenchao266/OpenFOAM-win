@@ -45,7 +45,7 @@ SourceFiles
 
 #include "autoPtr.H"
 #include "UList.H"
-//#include "SLListFwd.H"
+#include "SLListFwd.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 

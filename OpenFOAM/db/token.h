@@ -51,7 +51,7 @@ SourceFiles
 
 #define NoHashTableC
 #include "runTimeSelectionTables.H"
-
+#undef NoHashTableC
 #include <iostream>
 
 #undef UNDEFINED 
