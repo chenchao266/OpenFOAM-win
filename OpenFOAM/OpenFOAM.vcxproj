@@ -456,6 +456,7 @@
     <ClCompile Include="primitives\bool.C" />
     <ClCompile Include="primitives\boolList.C" />
     <ClCompile Include="primitives\charIO.C" />
+    <ClCompile Include="primitives\charList.C" />
     <ClCompile Include="primitives\charUList.C" />
     <ClCompile Include="primitives\compactSpatialTensor.C" />
     <ClCompile Include="primitives\complex.C" />

@@ -123,6 +123,19 @@ void expressions::fieldExpr::parser::stop()
 }
 
 
+word expressions::fieldExpr::parser::tokenName(int tokenId)
+{
+    return word();
+}
+
+void expressions::fieldExpr::parser::printTokenNames(Ostream& os)
+{
+}
+
+void expressions::fieldExpr::parser::printRules(Ostream& os)
+{
+}
+
 void expressions::fieldExpr::parser::start(parseDriver& driver_)
 {
     this->stop();

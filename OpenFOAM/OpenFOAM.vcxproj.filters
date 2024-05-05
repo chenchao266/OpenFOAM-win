@@ -1692,6 +1692,9 @@
     <ClCompile Include="expressions\fieldExprLemonParser.cc">
       <Filter>expressions</Filter>
     </ClCompile>
+    <ClCompile Include="primitives\charList.C">
+      <Filter>primitives</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
   </ItemGroup>
