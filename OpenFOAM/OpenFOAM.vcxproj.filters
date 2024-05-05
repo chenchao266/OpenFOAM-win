@@ -1686,6 +1686,12 @@
     <ClCompile Include="primitives\IntRanges.C">
       <Filter>primitives</Filter>
     </ClCompile>
+    <ClCompile Include="primitives\charUList.C">
+      <Filter>primitives</Filter>
+    </ClCompile>
+    <ClCompile Include="expressions\fieldExprLemonParser.cc">
+      <Filter>expressions</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
   </ItemGroup>

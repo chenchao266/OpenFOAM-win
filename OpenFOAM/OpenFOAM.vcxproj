@@ -153,6 +153,7 @@
     <ClCompile Include="expressions\fieldExpr.C" />
     <ClCompile Include="expressions\fieldExprDriver.C" />
     <ClCompile Include="expressions\fieldExprDriverFields.C" />
+    <ClCompile Include="expressions\fieldExprLemonParser.cc" />
     <ClCompile Include="expressions\fieldExprScanner.cc" />
     <ClCompile Include="expressions\makeFunction1Expression.C" />
     <ClCompile Include="fields\boolField.C" />
@@ -455,6 +456,7 @@
     <ClCompile Include="primitives\bool.C" />
     <ClCompile Include="primitives\boolList.C" />
     <ClCompile Include="primitives\charIO.C" />
+    <ClCompile Include="primitives\charUList.C" />
     <ClCompile Include="primitives\compactSpatialTensor.C" />
     <ClCompile Include="primitives\complex.C" />
     <ClCompile Include="primitives\complexVector.C" />
