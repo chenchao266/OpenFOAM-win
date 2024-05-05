@@ -1695,6 +1695,9 @@
     <ClCompile Include="primitives\charList.C">
       <Filter>primitives</Filter>
     </ClCompile>
+    <ClCompile Include="algorithms\volumeType.C">
+      <Filter>algorithms</Filter>
+    </ClCompile>
   </ItemGroup>
   <ItemGroup>
   </ItemGroup>

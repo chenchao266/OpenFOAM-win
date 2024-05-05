@@ -23,6 +23,7 @@
     <ClCompile Include="algorithms\dynamicTreeDataPoint.C" />
     <ClCompile Include="algorithms\indexedOctreeName.C" />
     <ClCompile Include="algorithms\treeDataCell.C" />
+    <ClCompile Include="algorithms\volumeType.C" />
     <ClCompile Include="containers\BitOps.C" />
     <ClCompile Include="containers\bitSet.C" />
     <ClCompile Include="containers\bitSetIO.C" />

@@ -65,7 +65,7 @@
   <PropertyGroup />
   <ItemDefinitionGroup Condition="'$(Configuration)|$(Platform)'=='Debug|x64'">
     <ClCompile>
-      <AdditionalIncludeDirectories>..\OpenFOAM\algorithms;..\OpenFOAM\containers;..\OpenFOAM\db;..\OpenFOAM\dimensionedTypes;..\OpenFOAM\dimensionSet;..\OpenFOAM\fields;..\OpenFOAM\global;..\OpenFOAM\graph;..\OpenFOAM\include;..\OpenFOAM\interpolations;..\OpenFOAM\matrices;..\OpenFOAM\memory;..\OpenFOAM\meshes;..\OpenFOAM\primitives;..\OSspecific;..\fileFormats;..\dynamicMesh;..\fileFormats;..\finiteVolume;..\meshTools;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
+      <AdditionalIncludeDirectories>..\OpenFOAM\algorithms;..\OpenFOAM\containers;..\OpenFOAM\db;..\OpenFOAM\dimensionedTypes;..\OpenFOAM\dimensionSet;..\OpenFOAM\fields;..\OpenFOAM\global;..\OpenFOAM\graph;..\OpenFOAM\include;..\OpenFOAM\interpolations;..\OpenFOAM\matrices;..\OpenFOAM\memory;..\OpenFOAM\meshes;..\OpenFOAM\primitives;..\OSspecific;..\fileFormats;..\dynamicMesh;..\finiteVolume;..\meshTools;..\surfMesh;%(AdditionalIncludeDirectories)</AdditionalIncludeDirectories>
       <PreprocessorDefinitions>WM_LABEL_SIZE=64;WM_DP;NoRepository;WIN32;WIN64;_WINDOWS;NOMINMAX;_CRT_SECURE_NO_WARNINGS;%(PreprocessorDefinitions)</PreprocessorDefinitions>
       <CompileAs>CompileAsCpp</CompileAs>
       <LanguageStandard>stdcpp17</LanguageStandard>
@@ -85,11 +85,13 @@
     <ClCompile Include="incompressibleTwoPhaseMixture.C" />
     <ClCompile Include="interfaceCompression.C" />
     <ClCompile Include="interfaceProperties.C" />
+    <ClCompile Include="isoAdvection.C" />
     <ClCompile Include="Newtonian.C" />
     <ClCompile Include="powerLaw.C" />
     <ClCompile Include="singlePhaseTransportModel.C" />
     <ClCompile Include="strainRateFunction.C" />
     <ClCompile Include="surfaceTensionModel.C" />
+    <ClCompile Include="surfaceTensionModelNew.C" />
     <ClCompile Include="temperatureDependentAlphaContactAngleFvPatchScalarField.C" />
     <ClCompile Include="temperatureDependentSurfaceTension.C" />
     <ClCompile Include="timeVaryingAlphaContactAngleFvPatchScalarField.C" />

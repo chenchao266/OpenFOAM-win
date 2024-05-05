@@ -76,6 +76,7 @@
     <ClCompile Include="engineMeshNew.C" />
     <ClCompile Include="enginePiston.C" />
     <ClCompile Include="engineTime.C" />
+    <ClCompile Include="engineTimeNew.C" />
     <ClCompile Include="engineValve.C" />
     <ClCompile Include="fvMotionSolverEngineMesh.C" />
     <ClCompile Include="ignition.C" />

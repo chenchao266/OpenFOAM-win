@@ -31,6 +31,7 @@
     <ClCompile Include="generalizedNewtonianViscosityModel.C" />
     <ClCompile Include="generalizedNewtonianViscosityModelNew.C" />
     <ClCompile Include="IDDESDelta.C" />
+    <ClCompile Include="incompressibleRhoTurbulenceModel.C" />
     <ClCompile Include="incompressibleTurbulenceModel2.C" />
     <ClCompile Include="kkLOmega.C" />
     <ClCompile Include="kLowReWallFunctionFvPatchScalarField.C" />
