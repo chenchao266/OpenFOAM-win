@@ -28,6 +28,8 @@
     <ClCompile Include="epsilonWallFunctionFvPatchScalarField.C" />
     <ClCompile Include="externalWallHeatFluxTemperatureFvPatchScalarField.C" />
     <ClCompile Include="fixedShearStressFvPatchVectorField.C" />
+    <ClCompile Include="generalizedNewtonianViscosityModel.C" />
+    <ClCompile Include="generalizedNewtonianViscosityModelNew.C" />
     <ClCompile Include="IDDESDelta.C" />
     <ClCompile Include="incompressibleTurbulenceModel2.C" />
     <ClCompile Include="kkLOmega.C" />
