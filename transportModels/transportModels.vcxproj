@@ -79,6 +79,13 @@
     <ClCompile Include="constantAlphaContactAngleFvPatchScalarField.C" />
     <ClCompile Include="constantSurfaceTension.C" />
     <ClCompile Include="CrossPowerLaw.C" />
+    <ClCompile Include="cutCell.C" />
+    <ClCompile Include="cutCellIso.C" />
+    <ClCompile Include="cutCellPLIC.C" />
+    <ClCompile Include="cutFace.C" />
+    <ClCompile Include="cutFaceAdvect.C" />
+    <ClCompile Include="cutFaceIso.C" />
+    <ClCompile Include="cutFacePLIC.C" />
     <ClCompile Include="dynamicAlphaContactAngleFvPatchScalarField.C" />
     <ClCompile Include="HerschelBulkley.C" />
     <ClCompile Include="immiscibleIncompressibleTwoPhaseMixture.C" />
@@ -88,6 +95,8 @@
     <ClCompile Include="isoAdvection.C" />
     <ClCompile Include="Newtonian.C" />
     <ClCompile Include="powerLaw.C" />
+    <ClCompile Include="reconstructionSchemes.C" />
+    <ClCompile Include="reconstructionSchemesNew.C" />
     <ClCompile Include="singlePhaseTransportModel.C" />
     <ClCompile Include="strainRateFunction.C" />
     <ClCompile Include="surfaceTensionModel.C" />

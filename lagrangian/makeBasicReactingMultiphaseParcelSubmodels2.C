@@ -47,9 +47,19 @@ License
 // Reacting multiphase
 #include "makeReactingMultiphaseParcelDevolatilisationModels.H"
 #include "makeReactingMultiphaseParcelSurfaceReactionModels.H"
-
+#include "makeMPPICParcelDampingModels.H"
+#include "makeMPPICParcelIsotropyModels.H"
+#include "makeMPPICParcelPackingModels.H"
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
-
+namespace Foam 
+{
+    //defineTemplateTypeNameAndDebug(PackingModel<KinematicCloud<Cloud<basicReactingMultiphaseParcel>>>, 0);
+    //defineTemplateTypeNameAndDebug(DampingModel<KinematicCloud<Cloud<basicReactingMultiphaseParcel>>>, 0);
+    //defineTemplateTypeNameAndDebug(IsotropyModel<KinematicCloud<Cloud<basicReactingMultiphaseParcel>>>, 0);
+    //defineRunTimeSelectionTable(PackingModel<KinematicCloud<Cloud<basicReactingMultiphaseParcel>>>, dictionary);
+    //defineRunTimeSelectionTable(DampingModel<KinematicCloud<Cloud<basicReactingMultiphaseParcel>>>, dictionary);
+    //defineRunTimeSelectionTable(IsotropyModel<KinematicCloud<Cloud<basicReactingMultiphaseParcel>>>, dictionary);
+}
 makeParcelCloudFunctionObjects(basicReactingMultiphaseCloud);
 
 // Kinematic sub-models
@@ -83,5 +93,7 @@ makeReactingMultiphaseParcelSurfaceReactionModels
     basicReactingMultiphaseCloud
 );
 
-
+makeMPPICParcelDampingModels(basicReactingMultiphaseCloud);
+makeMPPICParcelIsotropyModels(basicReactingMultiphaseCloud);
+makeMPPICParcelPackingModels(basicReactingMultiphaseCloud);
 // ************************************************************************* //

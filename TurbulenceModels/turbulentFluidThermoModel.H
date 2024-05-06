@@ -62,9 +62,9 @@ namespace Foam
         typedef ThermalDiffusivity<CompressibleTurbulenceModel<fluidThermo>>
             turbulenceModel;
 
-        typedef laminarModel<turbulenceModel> laminarModel;
-        typedef RASModel<EddyDiffusivity<turbulenceModel>> RASModel;
-        typedef LESModel<EddyDiffusivity<turbulenceModel>> LESModel;
+        typedef ::Foam::laminarModel<turbulenceModel> laminarModel;
+        typedef ::Foam::RASModel<EddyDiffusivity<turbulenceModel>> RASModel;
+        typedef ::Foam::LESModel<EddyDiffusivity<turbulenceModel>> LESModel;
 
         template<class BasicCompressibleTurbulenceModel>
         autoPtr<BasicCompressibleTurbulenceModel> New

@@ -43,9 +43,19 @@ License
 // Reacting
 #include "makeReactingParcelCompositionModels.H"
 #include "makeReactingParcelPhaseChangeModels.H"
-
+#include "makeMPPICParcelDampingModels.H"
+#include "makeMPPICParcelIsotropyModels.H"
+#include "makeMPPICParcelPackingModels.H"
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
-
+namespace Foam
+{
+    //defineTemplateTypeNameAndDebug(PackingModel<KinematicCloud<Cloud<basicReactingParcel>>>, 0);
+    //defineTemplateTypeNameAndDebug(DampingModel<KinematicCloud<Cloud<basicReactingParcel>>>, 0);
+    //defineTemplateTypeNameAndDebug(IsotropyModel<KinematicCloud<Cloud<basicReactingParcel>>>, 0);
+    //defineRunTimeSelectionTable(PackingModel<KinematicCloud<Cloud<basicReactingParcel>>>, dictionary);
+    //defineRunTimeSelectionTable(DampingModel<KinematicCloud<Cloud<basicReactingParcel>>>, dictionary);
+    //defineRunTimeSelectionTable(IsotropyModel<KinematicCloud<Cloud<basicReactingParcel>>>, dictionary);
+}
 makeParcelCloudFunctionObjects(basicReactingCloud);
 
 // Kinematic sub-models
@@ -64,4 +74,7 @@ makeReactingParcelCompositionModels(basicReactingCloud);
 makeReactingParcelPhaseChangeModels(basicReactingCloud);
 
 
+makeMPPICParcelDampingModels(basicReactingCloud);
+makeMPPICParcelIsotropyModels(basicReactingCloud);
+makeMPPICParcelPackingModels(basicReactingCloud);
 // ************************************************************************* //

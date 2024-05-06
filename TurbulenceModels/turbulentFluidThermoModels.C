@@ -26,9 +26,17 @@ License
 \*---------------------------------------------------------------------------*/
 
 #include "turbulentFluidThermoModels.H"
+#include "compressibleTurbulenceModel2.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
 
+namespace Foam
+{
+    typedef TurbulenceModel<volScalarField, volScalarField, compressibleTurbulenceModel, fluidThermo> fluidThermoTurbulenceModel;
+    //defineTemplateTypeNameAndDebug(fluidThermoTurbulenceModel, 0);
+    defineRunTimeSelectionTable(fluidThermoTurbulenceModel, dictionary);
+
+}
 defineTurbulenceModelTypes
 (
     geometricOneField,

@@ -43,7 +43,15 @@ License
 #include "makeMPPICParcelPackingModels.H"
 
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
-
+namespace Foam
+{
+    //defineTemplateTypeNameAndDebug(PackingModel<KinematicCloud<Cloud<basicKinematicMPPICParcel>>>, 0);
+    //defineTemplateTypeNameAndDebug(DampingModel<KinematicCloud<Cloud<basicKinematicMPPICParcel>>>, 0);
+    //defineTemplateTypeNameAndDebug(IsotropyModel<KinematicCloud<Cloud<basicKinematicMPPICParcel>>>, 0);
+    //defineRunTimeSelectionTable(PackingModel<KinematicCloud<Cloud<basicKinematicMPPICParcel>>>, dictionary);
+    //defineRunTimeSelectionTable(DampingModel<KinematicCloud<Cloud<basicKinematicMPPICParcel>>>, dictionary);
+    //defineRunTimeSelectionTable(IsotropyModel<KinematicCloud<Cloud<basicKinematicMPPICParcel>>>, dictionary);
+}
 makeParcelCloudFunctionObjects(basicKinematicMPPICCloud);
 
 // Kinematic sub-models

@@ -39,9 +39,19 @@ License
 
 // Thermodynamic
 #include "makeParcelHeatTransferModels.H"
-
+#include "makeMPPICParcelDampingModels.H"
+#include "makeMPPICParcelIsotropyModels.H"
+#include "makeMPPICParcelPackingModels.H"
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
-
+namespace Foam
+{
+    //defineTemplateTypeNameAndDebug(PackingModel<KinematicCloud<Cloud<basicThermoParcel>>>, 0);
+    //defineTemplateTypeNameAndDebug(DampingModel<KinematicCloud<Cloud<basicThermoParcel>>>, 0);
+    //defineTemplateTypeNameAndDebug(IsotropyModel<KinematicCloud<Cloud<basicThermoParcel>>>, 0);
+    //defineRunTimeSelectionTable(PackingModel<KinematicCloud<Cloud<basicThermoParcel>>>, dictionary);
+    //defineRunTimeSelectionTable(DampingModel<KinematicCloud<Cloud<basicThermoParcel>>>, dictionary);
+    //defineRunTimeSelectionTable(IsotropyModel<KinematicCloud<Cloud<basicThermoParcel>>>, dictionary);
+}
 makeParcelCloudFunctionObjects(basicThermoCloud);
 
 // Kinematic sub-models
@@ -55,5 +65,7 @@ makeParcelSurfaceFilmModels(basicThermoCloud);
 // Thermo sub-models
 makeParcelHeatTransferModels(basicThermoCloud);
 
-
+makeMPPICParcelDampingModels(basicThermoCloud);
+makeMPPICParcelIsotropyModels(basicThermoCloud);
+makeMPPICParcelPackingModels(basicThermoCloud);
 // ************************************************************************* //

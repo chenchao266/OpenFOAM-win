@@ -83,6 +83,7 @@
     <ClCompile Include="atomicWeights.C" />
     <ClCompile Include="barotropicCompressibilityModel.C" />
     <ClCompile Include="barotropicCompressibilityModelNew.C" />
+    <ClCompile Include="BasicChemistryModels.C" />
     <ClCompile Include="basicCombustionMixture.C" />
     <ClCompile Include="basicMultiComponentMixture.C" />
     <ClCompile Include="basicSolidChemistryModel.C" />

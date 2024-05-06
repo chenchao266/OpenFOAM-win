@@ -36,9 +36,19 @@ License
 #include "makeParcelPatchInteractionModels.H"
 #include "makeParcelStochasticCollisionModels.H"
 #include "makeParcelSurfaceFilmModels.H"
-
+#include "makeMPPICParcelDampingModels.H"
+#include "makeMPPICParcelIsotropyModels.H"
+#include "makeMPPICParcelPackingModels.H"
 // * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * * //
-
+namespace Foam
+{
+    //defineTemplateTypeNameAndDebug(PackingModel<KinematicCloud<Cloud<basicKinematicParcel>>>, 0);
+    //defineTemplateTypeNameAndDebug(DampingModel<KinematicCloud<Cloud<basicKinematicParcel>>>, 0);
+    //defineTemplateTypeNameAndDebug(IsotropyModel<KinematicCloud<Cloud<basicKinematicParcel>>>, 0);
+    //defineRunTimeSelectionTable(PackingModel<KinematicCloud<Cloud<basicKinematicParcel>>>, dictionary);
+    //defineRunTimeSelectionTable(DampingModel<KinematicCloud<Cloud<basicKinematicParcel>>>, dictionary);
+    //defineRunTimeSelectionTable(IsotropyModel<KinematicCloud<Cloud<basicKinematicParcel>>>, dictionary);
+}
 makeParcelCloudFunctionObjects(basicKinematicCloud);
 
 // Kinematic sub-models
@@ -49,5 +59,7 @@ makeParcelPatchInteractionModels(basicKinematicCloud);
 makeParcelStochasticCollisionModels(basicKinematicCloud);
 makeParcelSurfaceFilmModels(basicKinematicCloud);
 
-
+makeMPPICParcelDampingModels(basicKinematicCloud);
+makeMPPICParcelIsotropyModels(basicKinematicCloud);
+makeMPPICParcelPackingModels(basicKinematicCloud);
 // ************************************************************************* //

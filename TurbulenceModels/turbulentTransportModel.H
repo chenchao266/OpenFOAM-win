@@ -59,9 +59,9 @@ namespace Foam
     {
         typedef IncompressibleTurbulenceModel<transportModel> turbulenceModel;
 
-        typedef laminarModel<turbulenceModel> laminarModel;
-        typedef RASModel<turbulenceModel> RASModel;
-        typedef LESModel<turbulenceModel> LESModel;
+        typedef ::Foam::laminarModel<turbulenceModel> laminarModel;
+        typedef ::Foam::RASModel<turbulenceModel> RASModel;
+        typedef ::Foam::LESModel<turbulenceModel> LESModel;
 
         template<class BasicCompressibleTurbulenceModel>
         autoPtr<BasicCompressibleTurbulenceModel> New
