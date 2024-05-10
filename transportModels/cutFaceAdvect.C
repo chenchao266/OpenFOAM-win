@@ -894,7 +894,7 @@ void Foam::cutFaceAdvect::cutPoints
     {
         f1 = f0;
     }
-
+    const pointField& ptflds = mesh_.points();
     forAll(f, pi)
     {
         label pi2 = (pi + 1) % nPoints;
@@ -911,13 +911,13 @@ void Foam::cutFaceAdvect::cutPoints
             const scalar s = (f0 - f1) / (f2 - f1);
             cutPoints.append
             (
-                mesh_.points()[f[pi]]
-              + s*(mesh_.points()[f[pi2]] - mesh_.points()[f[pi]])
+                ptflds[f[pi]]
+              + s*(ptflds[f[pi2]] - ptflds[f[pi]])
             );
         }
         else if (f1 == f0)
         {
-            cutPoints.append(mesh_.points()[f[pi]]);
+            cutPoints.append(ptflds[f[pi]]);
         }
         f1 = f2;
     }
@@ -927,7 +927,7 @@ void Foam::cutFaceAdvect::cutPoints
         WarningInFunction
             << "cutPoints = " << cutPoints
             << " for pts = " << f.points(mesh_.points())
-            << ", f - f0 = " << f - f0 << " and f0 = " << f0
+            << ", f1 - f0 = " << f1 - f0 << " and f0 = " << f0  // f - f0 ??
             << endl;
     }
 }
@@ -977,7 +977,7 @@ void Foam::cutFaceAdvect::cutPoints
     {
         WarningInFunction
             << "cutPoints = " << cutPoints << " for pts = " << pts
-            << ", f - f0 = " << f - f0 << " and f0 = " << f0
+            << ", f1 - f0 = " << f1 - f0 << " and f0 = " << f0  // f - f0 ??
             << endl;
     }
 }
