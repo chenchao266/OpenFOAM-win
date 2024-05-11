@@ -34,6 +34,7 @@ License
 
 
  namespace Foam{
+     ///wchar_t 32bit!!
 Ostream& operator<<(Ostream& os, const wchar_t wc)
 {
     if (!(wc & ~0x0000007F))

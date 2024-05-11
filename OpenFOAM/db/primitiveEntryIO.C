@@ -119,7 +119,7 @@ bool primitiveEntry::read(const dictionary& dict, Istream& is)
     // Notes
     // - the bitmask is set *before* increasing the depth since the left
     //   shift implicitly carries a 1-offset with it.
-    //   Eg, (1u << 0) already corresponds to depth=1 (the first bit)
+    //   Eg, (1ull << 0) already corresponds to depth=1 (the first bit)
     //
     // - similarly, the bitmask is tested *after* decreasing depth
 
@@ -142,7 +142,7 @@ bool primitiveEntry::read(const dictionary& dict, Istream& is)
                 {
                     if (depth >= 0 && depth < 61)
                     {
-                        balanced &= ~(1u << depth); // clear bit
+                        balanced &= ~(1ull << depth); // clear bit
                     }
                     ++depth;
                 }
@@ -152,7 +152,7 @@ bool primitiveEntry::read(const dictionary& dict, Istream& is)
                 {
                     if (depth >= 0 && depth < 61)
                     {
-                        balanced |= (1u << depth); // set bit
+                        balanced |= (1ull << depth); // set bit
                     }
                     ++depth;
                 }
@@ -169,7 +169,7 @@ bool primitiveEntry::read(const dictionary& dict, Istream& is)
                             "Too many closing ')' ... was a ';' forgotten?"
                         );
                     }
-                    else if (depth < 61 && ((balanced >> depth) & 1u))
+                    else if (depth < 61 && ((balanced >> depth) & 1ull))
                     {
                         // Bit was set, but expected it to be unset.
                         reportReadWarning(is, "Imbalanced '{' with ')'");
@@ -188,7 +188,7 @@ bool primitiveEntry::read(const dictionary& dict, Istream& is)
                             "Too many closing '}' ... was a ';' forgotten?"
                         );
                     }
-                    else if (depth < 61 && !((balanced >> depth) & 1u))
+                    else if (depth < 61 && !((balanced >> depth) & 1ull))
                     {
                         // Bit was unset, but expected it to be set.
                         reportReadWarning(is, "Imbalanced '(' with '}'");

@@ -479,7 +479,7 @@ dimensioned<returnType> func                                                   \
                 func(gf.primitiveField()),                               \
                 func(gf.boundaryField())                                 \
             ),                                                                 \
-            binaryOp<returnType>()                                             \
+            binaryOp<Type>()                                             \
         )                                                                      \
     );                                                                         \
 }                                                                              \
