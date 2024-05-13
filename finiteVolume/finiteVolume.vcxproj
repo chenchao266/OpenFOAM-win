@@ -328,6 +328,7 @@
     <ClCompile Include="patchExprDriver.C" />
     <ClCompile Include="patchExprDriverFields.C" />
     <ClCompile Include="patchExprFieldBase.C" />
+    <ClCompile Include="patchExprLemonParser.cc" />
     <ClCompile Include="phaseHydrostaticPressureFvPatchScalarField.C" />
     <ClCompile Include="Phi.C" />
     <ClCompile Include="pimpleControl.C" />
@@ -449,6 +450,7 @@
     <ClCompile Include="volumeExpr.C" />
     <ClCompile Include="volumeExprDriver.C" />
     <ClCompile Include="volumeExprDriverFields.C" />
+    <ClCompile Include="volumeExprLemonParser.cc" />
     <ClCompile Include="wallDist.C" />
     <ClCompile Include="wallFvPatch.C" />
     <ClCompile Include="wallPointYPlus.C" />
