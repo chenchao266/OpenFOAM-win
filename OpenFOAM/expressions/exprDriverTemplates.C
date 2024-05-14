@@ -207,7 +207,7 @@ Type expressions::exprDriver::getFunctionValue
         return func->value(x);
     }
 
-    return pTraits<Type>::zero;
+    return pTraits<Type>::zero_;
 }
 
 

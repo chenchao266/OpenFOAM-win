@@ -1,4 +1,4 @@
-﻿%include
+%include
 {
 /*--------------------------------*- C++ -*----------------------------------*\
   =========                 |
@@ -125,25 +125,23 @@ tmp_management()
 %static
 
 // Use extra argument for the return value
-
- namespace Foam{
-%extra_context  { expressions::fieldExpr::parseDriver* driver }
+%extra_context  { Foam::expressions::fieldExpr::parseDriver* driver }
 %parse_failure  { driver->reportFatal("Parse failure, giving up..."); }
 %syntax_error   { driver->reportFatal("Syntax error"); }
 
 %token_prefix TOK_
 
 // Terminals
-%token_type         {expressions::scanToken}
+%token_type         {Foam::expressions::scanToken}
 %token_destructor   { ($$).destroy(); }
 
 // Fields
-declare_field(lfield, boolField, bool, newField, getField)
-declare_field(sfield, scalarField, scalar, newField, getField)
-declare_field(vfield, vectorField, vector, newField, getField)
-declare_field(hfield, sphericalTensorField, sphericalTensor, newField, getField)
-declare_field(yfield, symmTensorField, symmTensor, newField, getField)
-declare_field(tfield, tensorField, tensor, newField, getField)
+declare_field(lfield, Foam::boolField, bool, newField, getField)
+declare_field(sfield, Foam::scalarField, Foam::scalar, newField, getField)
+declare_field(vfield, Foam::vectorField, Foam::vector, newField, getField)
+declare_field(hfield, Foam::sphericalTensorField, Foam::sphericalTensor, newField, getField)
+declare_field(yfield, Foam::symmTensorField, Foam::symmTensor, newField, getField)
+declare_field(tfield, Foam::tensorField, Foam::tensor, newField, getField)
 
 
 // For each rule action with code, destruction must be done by that code block
@@ -161,21 +159,21 @@ operator_precedence()
  * Productions (scalar)
 \*---------------------------------------------------------------------------*/
 
-%type svalue { scalar }
+%type svalue { Foam::scalar }
 
 svalue (lhs) ::= NUMBER (tok) .     { lhs = (tok).scalarValue; } // scanToken
 
-svalue (lhs) ::= ZERO .             { lhs = Zero; }
-svalue (lhs) ::= PI LPAREN RPAREN . { lhs = constant::mathematical::pi; }
-svalue (lhs) ::= DEG_TO_RAD LPAREN RPAREN . { lhs = degToRad(); }
-svalue (lhs) ::= RAD_TO_DEG LPAREN RPAREN . { lhs = radToDeg(); }
+svalue (lhs) ::= ZERO .             { lhs = Foam::Zero; }
+svalue (lhs) ::= PI LPAREN RPAREN . { lhs = Foam::constant::mathematical::pi; }
+svalue (lhs) ::= DEG_TO_RAD LPAREN RPAREN . { lhs = Foam::degToRad(); }
+svalue (lhs) ::= RAD_TO_DEG LPAREN RPAREN . { lhs = Foam::radToDeg(); }
 svalue (lhs) ::= ARG LPAREN RPAREN . { lhs = driver->argValue(); }
 svalue (lhs) ::= TIME LPAREN RPAREN . { lhs = driver->timeValue(); }
 svalue (lhs) ::= DELTA_T LPAREN RPAREN . { lhs = driver->deltaT(); }
 
 svalue (lhs) ::= SCALAR_FUNCTION_ID (name) LPAREN RPAREN .
 {
-    lhs = driver->getFunctionValue<scalar>
+    lhs = driver->getFunctionValue<Foam::scalar>
     (
         make_obj(name.name_),
         driver->timeValue()
@@ -187,7 +185,7 @@ svalue (lhs) ::= SCALAR_FUNCTION_ID (name) LPAREN RPAREN .
  * Productions (vector)
 \*---------------------------------------------------------------------------*/
 
-%type vvalue { vector* }
+%type vvalue { Foam::vector* }
 %destructor vvalue { delete($$); $$ = nullptr; }
 
 vvalue (lhs) ::= VECTOR_VALUE (tok) .
@@ -198,12 +196,12 @@ vvalue (lhs) ::= VECTOR_VALUE (tok) .
 
 vvalue (lhs) ::= VECTOR_FUNCTION_ID (name) LPAREN RPAREN .
 {
-    auto val = driver->getFunctionValue<vector>
+    auto val = driver->getFunctionValue<Foam::vector>
     (
         make_obj(name.name_),
         driver->timeValue()
     );
-    lhs = new vector(val);
+    lhs = new Foam::vector(val);
 }
 
 
@@ -239,12 +237,12 @@ rules_scalar_operations()
 rules_scalar_functions()
 
 // Non-standard but manage via FieldOps::assign
-rule_unary_assign(_target_, _target_, FLOOR, floorOp<_value_type_>())
-rule_unary_assign(_target_, _target_, CEIL, ceilOp<_value_type_>())
-rule_unary_assign(_target_, _target_, ROUND, roundOp<_value_type_>())
+rule_unary_assign(_target_, _target_, FLOOR, Foam::floorOp<_value_type_>())
+rule_unary_assign(_target_, _target_, CEIL, Foam::ceilOp<_value_type_>())
+rule_unary_assign(_target_, _target_, ROUND, Foam::roundOp<_value_type_>())
 
 // Non-standard but works directly for scalarField
-rule_binary_func(_target_, _target_, _target_, HYPOT, hypot)
+rule_binary_func(_target_, _target_, _target_, HYPOT, Foam::hypot)
 
 
 // Other functions
@@ -356,7 +354,7 @@ dnl
 \*---------------------------------------------------------------------------*/
 
 evaluate ::= _target_ (a) . { driver->setResult(a); }
-tfield (lhs) ::= IDENTITY_TENSOR . { lhs = _new_tfield(tensor::I); }
+tfield (lhs) ::= IDENTITY_TENSOR . { lhs = _new_tfield(Foam::tensor::I); }
 
 rule_get_field(_target_, TENSOR_ID)
 
@@ -382,7 +380,7 @@ _logic_ (lhs) ::= LTRUE .   { lhs = _new_lfield(_logic_true_); }
 _logic_ (lhs) ::= LFALSE .  { lhs = _new_lfield(_logic_false_); }
 
 rule_cast_logical(_target_, _target_)
-rule_cast_logical(_target_, _scalar_, scalar)
+rule_cast_logical(_target_, _scalar_, Foam::scalar)
 
 dnl/* Handling of named logic fields not really tested (disable in scanner) */
 rule_get_field(_target_, BOOL_ID)
@@ -434,12 +432,12 @@ dnl ... Or not changequote([`],['])dnl Revert to standard m4 quoting
 
 // * * * * * * * * * * * * * Static Member Functions * * * * * * * * * * * * //
 
-parser_code_static_methods(expressions::fieldExpr::parser)
+parser_code_static_methods(Foam::expressions::fieldExpr::parser)
 
 
 // * * * * * * * * * * * * * * * Member Functions  * * * * * * * * * * * * * //
 
-void expressions::fieldExpr::parser::stop()
+void Foam::expressions::fieldExpr::parser::stop()
 {
     if (lemon_)
     {
@@ -452,7 +450,7 @@ void expressions::fieldExpr::parser::stop()
 }
 
 
-void expressions::fieldExpr::parser::start(parseDriver& driver_)
+void Foam::expressions::fieldExpr::parser::start(parseDriver& driver_)
 {
     this->stop();
     lemon_ = ParseAlloc(::operator new, &driver_);
@@ -466,13 +464,13 @@ void expressions::fieldExpr::parser::start(parseDriver& driver_)
 }
 
 
-void expressions::fieldExpr::parser::parse(int tokenId)
+void Foam::expressions::fieldExpr::parser::parse(int tokenId)
 {
     Parse(lemon_, tokenId, scanToken::null());
 }
 
 
-void expressions::fieldExpr::parser::parse(int tokenId, scanToken tok)
+void Foam::expressions::fieldExpr::parser::parse(int tokenId, scanToken tok)
 {
     Parse(lemon_, tokenId, tok);
 }
@@ -483,5 +481,3 @@ void expressions::fieldExpr::parser::parse(int tokenId, scanToken tok)
 }  // End of %code
 
 // ************************************************************************* //
-
- } // End namespace Foam

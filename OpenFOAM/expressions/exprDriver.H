@@ -599,12 +599,12 @@ public:
         //- Return a new field with the size()
         template<class Type>
         tmp<Field<Type>>
-        newField(const Type& val = pTraits<Type>::zero) const;
+        newField(const Type& val = pTraits<Type>::zero_) const;
 
         //- Return a new field with the pointSize()
         template<class Type>
         tmp<Field<Type>>
-        newPointField(const Type& val = pTraits<Type>::zero) const;
+        newPointField(const Type& val = pTraits<Type>::zero_) const;
 
 
     // Reading

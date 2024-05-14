@@ -6,11 +6,10 @@ divert(-1)dnl
 #     \\  /    A nd           | www.openfoam.com
 #      \\/     M anipulation  |
 #------------------------------------------------------------------------------
-#     Copyright (C) 2019 OpenCFD Ltd.
+#     Copyright (C) 2019-2021 OpenCFD Ltd.
 #------------------------------------------------------------------------------
 # License
-#     This file is part of OpenFOAM, licensed under GNU General Public License
-#     <http://www.gnu.org/licenses/>.
+#     This file is part of OpenFOAM, distributed under GPL-3.0-or-later.
 #
 # Description
 #     Driver-specific m4/lemon macros for volume expressions.
@@ -35,8 +34,14 @@ divert(-1)dnl
 
 define([rules_driver_volume_functions],
 [dnl
-rule_driver_select(_logic_, CSET, field_cellSet)dnl
-rule_driver_select(_logic_, CZONE, field_cellZone)dnl
+_logic_ (lhs) ::= CELL_SET LPAREN identifier (name) RPAREN .dnl
+{dnl
+    lhs = driver->field_cellSet(make_obj(name)).ptr();dnl
+}dnl
+_logic_ (lhs) ::= CELL_ZONE LPAREN identifier (name) RPAREN .dnl
+{
+    lhs = driver->field_cellZone(make_obj(name)).ptr();dnl
+}dnl
 dnl
 rule_driver_nullary(_scalar_, CELL_VOLUME, field_cellVolume)dnl
 rule_driver_nullary(_vector_, POS, field_cellCentre)dnl CELL_CENTRE
@@ -57,8 +62,14 @@ dnl
 
 define([rules_driver_surface_functions],
 [dnl
-rule_driver_select(_logic_, FSET, field_faceSet)dnl
-rule_driver_select(_logic_, FZONE, field_faceZone)dnl
+_logic_ (lhs) ::= FACE_SET LPAREN identifier (name) RPAREN .dnl
+{dnl
+    lhs = driver->field_faceSet(make_obj(name)).ptr();dnl
+}dnl
+_logic_ (lhs) ::= FACE_ZONE LPAREN identifier (name) RPAREN .dnl
+{dnl
+    lhs = driver->field_faceZone(make_obj(name)).ptr();dnl
+}dnl
 dnl
 rule_driver_nullary(_scalar_, FACE_AREA, field_faceArea)dnl
 rule_driver_nullary(_vector_, FACE_CENTRE, field_faceCentre)dnl
@@ -80,8 +91,14 @@ dnl
 
 define([rules_driver_point_functions],
 [dnl
-rule_driver_select(_logic_, PSET, field_pointSet)dnl
-rule_driver_select(_logic_, PZONE, field_pointZone)dnl
+_logic_ (lhs) ::= POINT_SET LPAREN identifier (name) RPAREN .dnl
+{dnl
+    lhs = driver->field_pointSet(make_obj(*name)).ptr();dnl
+}dnl
+_logic_ (lhs) ::= POINT_ZONE LPAREN identifier (name) RPAREN .dnl
+{dnl
+    lhs = driver->field_pointZone(make_obj(*name)).ptr();dnl
+}dnl
 dnl
 rule_driver_nullary(_vector_, POINTS, field_pointField)dnl
 dnl

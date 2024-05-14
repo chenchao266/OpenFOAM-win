@@ -1,4 +1,4 @@
-﻿divert(-1)dnl
+divert(-1)dnl
 #-----------------------------------*- m4 -*-----------------------------------
 #   =========                 |
 #   \\      /  F ield         | OpenFOAM: The Open Source CFD Toolbox

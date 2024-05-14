@@ -353,17 +353,17 @@ public:
         //- Return a new volume field with the mesh size
         template<class Type>
         tmp<GeometricField<Type, fvPatchField, volMesh>>
-        newVolField(const Type& val = pTraits<Type>::zero) const;
+        newVolField(const Type& val = pTraits<Type>::zero_) const;
 
         //- Return a new surface field with the mesh nInternalFaces size
         template<class Type>
         tmp<GeometricField<Type, fvsPatchField, surfaceMesh>>
-        newSurfaceField(const Type& val = pTraits<Type>::zero) const;
+        newSurfaceField(const Type& val = pTraits<Type>::zero_) const;
 
         //- Return a new point field with the mesh nPoints size
         template<class Type>
         tmp<GeometricField<Type, pointPatchField, pointMesh>>
-        newPointField(const Type& val = pTraits<Type>::zero) const;
+        newPointField(const Type& val = pTraits<Type>::zero_) const;
 
 
         //- Retrieve field (vol field)
